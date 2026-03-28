@@ -63,6 +63,7 @@
         sectionTitle="继续阅读"
         books={continueReading}
         showImportTile={true}
+        importHref="/reader?source=picker"
       />
 
       <BookshelfPreview

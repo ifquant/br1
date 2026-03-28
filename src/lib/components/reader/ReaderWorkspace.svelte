@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   import { createReaderMountBoundary } from '$lib/reader';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
   import ReaderViewport from './ReaderViewport.svelte';
@@ -13,6 +13,7 @@
 
   export let controlRequest: ReaderControlRequest | null = null;
   export let autoOpenSample = false;
+  export let autoOpenPicker = false;
   let readerPreview: ReaderPreviewState = {
     title: '政治秩序与政治衰败',
     author: 'Francis Fukuyama',
@@ -26,9 +27,33 @@
   let sliderValue = 0;
   let importInput: HTMLInputElement | null = null;
   let viewportControlRequest: ReaderControlRequest | null = null;
+  let hasAttemptedAutoPicker = false;
 
   $: viewportControlRequest =
     autoOpenSample && !controlRequest ? { type: 'sample', nonce: -1 } : controlRequest;
+
+  const triggerImportPicker = async () => {
+    if (!importInput) return;
+    await tick();
+    if (typeof importInput.showPicker === 'function') {
+      try {
+        await importInput.showPicker();
+        return;
+      } catch (error) {
+        console.warn('showPicker() failed, falling back to click()', error);
+      }
+    }
+    importInput.click();
+  };
+
+  $: if (autoOpenPicker && !hasAttemptedAutoPicker) {
+    hasAttemptedAutoPicker = true;
+    void triggerImportPicker();
+  }
+
+  $: if (!autoOpenPicker) {
+    hasAttemptedAutoPicker = false;
+  }
 
   const issueControl = (type: 'prev' | 'next' | 'start') => {
     controlNonce += 1;
@@ -80,7 +105,7 @@
         accept=".epub,.pdf,.mobi,.azw3,.fb2"
         on:change={handleImportChange}
       />
-      <button type="button" on:click={() => importInput?.click()}>Open</button>
+      <button type="button" on:click={triggerImportPicker}>Open</button>
       <button type="button">Aa</button>
       <button type="button">🔊</button>
       <button type="button">☰</button>

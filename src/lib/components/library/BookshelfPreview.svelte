@@ -12,6 +12,7 @@
   export let books: Book[] = [];
   export let viewMode: 'grid' | 'list' = 'grid';
   export let showImportTile = false;
+  export let importHref = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 </script>
@@ -93,15 +94,23 @@
 
     {#if showImportTile}
       <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="import books">
-        <div class="cover-shell">
-          <div class="cover import-cover" aria-hidden="true">
-            <div class="import-plus">＋</div>
+        <svelte:element
+          this={importHref ? 'a' : 'div'}
+          class:list-link={viewMode === 'list'}
+          class="book-link import-link"
+          href={importHref}
+          aria-label={importHref ? 'Open reader import flow' : undefined}
+        >
+          <div class="cover-shell">
+            <div class="cover import-cover" aria-hidden="true">
+              <div class="import-plus">＋</div>
+            </div>
           </div>
-        </div>
-        <div class="meta import-meta">
-          <strong>导入书籍</strong>
-          <span>epub / pdf / mobi</span>
-        </div>
+          <div class="meta import-meta">
+            <strong>导入书籍</strong>
+            <span>epub / pdf / mobi</span>
+          </div>
+        </svelte:element>
       </article>
     {/if}
   </div>

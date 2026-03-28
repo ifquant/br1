@@ -11,6 +11,7 @@
 
   $: source = $page.url.searchParams.get('source') ?? '';
   $: autoOpenSample = source === 'sample';
+  $: autoOpenPicker = source === 'picker';
 
   $: if (autoOpenSample && source !== lastAutoSource) {
     controlNonce += 1;
@@ -34,6 +35,7 @@
     <ReaderWorkspace
       {controlRequest}
       {autoOpenSample}
+      {autoOpenPicker}
       on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
       }}
