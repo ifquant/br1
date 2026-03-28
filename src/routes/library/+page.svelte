@@ -78,6 +78,7 @@
   let readestLibraryCount = 0;
   let showReadestMigration = false;
   let migrationBusy = false;
+  let desktopLibraryMode = false;
 
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => ({
     title: record.title,
@@ -90,6 +91,7 @@
 
   const loadLibrary = async () => {
     if (!canPersistLibrary()) return;
+    desktopLibraryMode = true;
 
     const records = await loadPersistedLibraryBooks();
     const readestSummary = await detectReadestLibrary();
@@ -230,20 +232,36 @@
         />
       {/if}
 
-      <BookshelfPreview
-        sectionTitle={importedBooks.length ? '样例书架' : '继续阅读'}
-        books={starterBooks}
-        showImportTile={true}
-        onOpenLink={handleOpenReaderLink}
-        onImportBooks={triggerImportPicker}
-      />
+      {#if desktopLibraryMode}
+        {#if !importedBooks.length}
+          <section class="empty-library" aria-label="empty library">
+            <div class="empty-copy">
+              <strong>你的书库还是空的</strong>
+              <span>
+                可以从本机导入新书，或者先把已有的 Readest 书库迁进来。
+              </span>
+            </div>
+            <button type="button" class="empty-action" on:click={triggerImportPicker}>
+              从本机导入
+            </button>
+          </section>
+        {/if}
+      {:else}
+        <BookshelfPreview
+          sectionTitle={importedBooks.length ? '样例书架' : '继续阅读'}
+          books={starterBooks}
+          showImportTile={true}
+          onOpenLink={handleOpenReaderLink}
+          onImportBooks={triggerImportPicker}
+        />
 
-      <BookshelfPreview
-        sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
-        books={starterImports}
-        viewMode="list"
-        onOpenLink={handleOpenReaderLink}
-      />
+        <BookshelfPreview
+          sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
+          books={starterImports}
+          viewMode="list"
+          onOpenLink={handleOpenReaderLink}
+        />
+      {/if}
     </OverlayScrollbarsComponent>
   </div>
 </section>
@@ -311,6 +329,44 @@
     color: white;
     font: 600 12px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     box-shadow: 0 10px 20px rgba(42, 30, 15, 0.12);
+  }
+
+  .empty-library {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    padding: 26px 18px;
+    border: 1px dashed color-mix(in srgb, var(--line-soft) 88%, white 12%);
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+  }
+
+  .empty-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .empty-copy strong {
+    font: 600 15px/1.2 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    color: var(--text-primary);
+  }
+
+  .empty-copy span {
+    max-width: 52ch;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .empty-action {
+    justify-self: start;
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
+    color: var(--text-primary);
+    font: 600 12px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    box-shadow:
+      inset 0 0 0 1px rgba(76, 57, 34, 0.08),
+      0 10px 20px rgba(42, 30, 15, 0.06);
   }
 
   :global(.library-scroll) {
