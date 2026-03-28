@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/stores';
   import { ReaderSidebar, ReaderWorkspace } from '$lib/components';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
 
@@ -6,6 +7,20 @@
   let activeHref = '';
   let controlRequest: ReaderControlRequest | null = null;
   let controlNonce = 0;
+  let lastAutoSource = '';
+
+  $: source = $page.url.searchParams.get('source') ?? '';
+  $: autoOpenSample = source === 'sample';
+
+  $: if (autoOpenSample && source !== lastAutoSource) {
+    controlNonce += 1;
+    controlRequest = { type: 'sample', nonce: controlNonce };
+    lastAutoSource = source;
+  }
+
+  $: if (!autoOpenSample) {
+    lastAutoSource = '';
+  }
 
   const issueHrefControl = (href: string) => {
     controlNonce += 1;
@@ -18,7 +33,8 @@
     <ReaderSidebar {toc} {activeHref} onNavigate={issueHrefControl} />
     <ReaderWorkspace
       {controlRequest}
-      on:controlrequest={({ detail }) => {
+      {autoOpenSample}
+      on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
       }}
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {

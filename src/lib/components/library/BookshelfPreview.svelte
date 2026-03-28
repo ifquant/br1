@@ -5,6 +5,7 @@
     status: string;
     progress: string;
     coverUrl?: string;
+    readerHref?: string;
   };
 
   export let sectionTitle = '最近阅读';
@@ -36,49 +37,57 @@
   <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={sectionTitle}>
     {#each books as book}
       <article class:list-card={viewMode === 'list'} class="book-card">
-        <div class="cover-shell">
-          {#if book.coverUrl}
-            <div class="cover" aria-hidden="true">
-              <img class="cover-image" src={book.coverUrl} alt="" loading="lazy" />
+        <svelte:element
+          this={book.readerHref ? 'a' : 'div'}
+          class:list-link={viewMode === 'list'}
+          class="book-link"
+          href={book.readerHref}
+          aria-label={book.readerHref ? `Open ${book.title} in reader` : undefined}
+        >
+          <div class="cover-shell">
+            {#if book.coverUrl}
+              <div class="cover" aria-hidden="true">
+                <img class="cover-image" src={book.coverUrl} alt="" loading="lazy" />
+              </div>
+            {:else}
+              <div class="cover" aria-hidden="true">
+                <div class:list-cover={viewMode === 'list'} class="cover-fallback">
+                  <div class="cover-title">{book.title}</div>
+                  <div class="cover-author">{book.author}</div>
+                </div>
+              </div>
+            {/if}
+            <div class:list-hidden={viewMode === 'list'} class="cover-actions" aria-hidden="true">
+              <span class="action-dot">i</span>
+              <span class="action-dot">⇣</span>
+            </div>
+          </div>
+          {#if viewMode === 'list'}
+            <div class="meta list-meta">
+              <div class="list-copy">
+                <strong>{book.title}</strong>
+                <span>{book.author}</span>
+                <p>{book.status}</p>
+              </div>
+              <div class="list-trailing">
+                <small>{book.progress}</small>
+                <div class="inline-actions" aria-hidden="true">
+                  <span class="action-dot">i</span>
+                  <span class="action-dot">⇣</span>
+                </div>
+              </div>
             </div>
           {:else}
-            <div class="cover" aria-hidden="true">
-              <div class:list-cover={viewMode === 'list'} class="cover-fallback">
-                <div class="cover-title">{book.title}</div>
-                <div class="cover-author">{book.author}</div>
+            <div class="meta">
+              <strong>{book.title}</strong>
+              <span>{book.author}</span>
+              <div class="status-row">
+                <small>{book.progress}</small>
+                <em>{book.status}</em>
               </div>
             </div>
           {/if}
-          <div class:list-hidden={viewMode === 'list'} class="cover-actions" aria-hidden="true">
-            <span class="action-dot">i</span>
-            <span class="action-dot">⇣</span>
-          </div>
-        </div>
-        {#if viewMode === 'list'}
-          <div class="meta list-meta">
-            <div class="list-copy">
-              <strong>{book.title}</strong>
-              <span>{book.author}</span>
-              <p>{book.status}</p>
-            </div>
-            <div class="list-trailing">
-              <small>{book.progress}</small>
-              <div class="inline-actions" aria-hidden="true">
-                <span class="action-dot">i</span>
-                <span class="action-dot">⇣</span>
-              </div>
-            </div>
-          </div>
-        {:else}
-          <div class="meta">
-            <strong>{book.title}</strong>
-            <span>{book.author}</span>
-            <div class="status-row">
-              <small>{book.progress}</small>
-              <em>{book.status}</em>
-            </div>
-          </div>
-        {/if}
+        </svelte:element>
       </article>
     {/each}
 
@@ -237,6 +246,25 @@
     gap: 7px;
     width: var(--book-width);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+  }
+
+  .book-link {
+    display: grid;
+    gap: 7px;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .book-link:focus-visible {
+    outline: 2px solid color-mix(in srgb, #8c6a3b 72%, white 28%);
+    outline-offset: 4px;
+    border-radius: 10px;
+  }
+
+  .book-link.list-link {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
   }
 
   .book-card.list-card {

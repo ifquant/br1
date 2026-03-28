@@ -12,6 +12,7 @@
   }>();
 
   export let controlRequest: ReaderControlRequest | null = null;
+  export let autoOpenSample = false;
   let readerPreview: ReaderPreviewState = {
     title: '政治秩序与政治衰败',
     author: 'Francis Fukuyama',
@@ -24,6 +25,10 @@
   let controlNonce = 0;
   let sliderValue = 0;
   let importInput: HTMLInputElement | null = null;
+  let viewportControlRequest: ReaderControlRequest | null = null;
+
+  $: viewportControlRequest =
+    autoOpenSample && !controlRequest ? { type: 'sample', nonce: -1 } : controlRequest;
 
   const issueControl = (type: 'prev' | 'next' | 'start') => {
     controlNonce += 1;
@@ -86,7 +91,7 @@
     <ReaderViewport
       title="Reader Engine Boundary"
       state={mountBoundary.state}
-      {controlRequest}
+      controlRequest={viewportControlRequest}
       hint="中央主舞台先对齐 Readest 的阅读画布比例和安静度；下一步再把真正的阅读引擎挂进来。"
       on:readerstate={({ detail }) => {
         readerPreview = detail;

@@ -24,6 +24,10 @@ export type ReaderTocItem = {
 
 export type ReaderControlRequest =
   | {
+      type: 'sample';
+      nonce: number;
+    }
+  | {
       type: 'prev' | 'next' | 'start';
       nonce: number;
     }

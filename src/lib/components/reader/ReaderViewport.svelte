@@ -95,12 +95,22 @@
 
   const applyControlRequest = async () => {
     if (!controlRequest || handledControlNonce === controlRequest.nonce) return;
-    if (!foliateViewElement || sampleStatus !== 'open') return;
+    if (!foliateViewElement) return;
+
+    if (
+      controlRequest.type !== 'file' &&
+      controlRequest.type !== 'sample' &&
+      sampleStatus !== 'open'
+    ) {
+      return;
+    }
 
     handledControlNonce = controlRequest.nonce;
 
     try {
-      if (controlRequest.type === 'prev') {
+      if (controlRequest.type === 'sample') {
+        await loadSampleBook();
+      } else if (controlRequest.type === 'prev') {
         await foliateViewElement.prev();
       } else if (controlRequest.type === 'next') {
         await foliateViewElement.next();

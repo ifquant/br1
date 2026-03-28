@@ -8,21 +8,24 @@
       author: 'Francis Fukuyama',
       status: '继续阅读 · 第 3 章',
       progress: '上次读到 34%',
-      coverUrl: '/covers/political-order.svg'
+      coverUrl: '/covers/political-order.svg',
+      readerHref: '/reader?source=sample'
     },
     {
       title: '置身事内',
       author: '兰小欢',
       status: '最近导入 · 尚未开始',
       progress: '等待首轮阅读',
-      coverUrl: '/covers/inside-china.svg'
+      coverUrl: '/covers/inside-china.svg',
+      readerHref: '/reader?source=sample'
     },
     {
       title: 'A Theory of Justice',
       author: 'John Rawls',
       status: '英文原版 · 建议启用导读',
       progress: '可作为 bridge 验证样本',
-      coverUrl: '/covers/theory-of-justice.svg'
+      coverUrl: '/covers/theory-of-justice.svg',
+      readerHref: '/reader?source=sample'
     }
   ];
 
@@ -32,14 +35,16 @@
       author: 'Montesquieu',
       status: '新导入',
       progress: '等待元数据整理',
-      coverUrl: '/covers/spirit-of-law.svg'
+      coverUrl: '/covers/spirit-of-law.svg',
+      readerHref: '/reader?source=sample'
     },
     {
       title: '叫魂',
       author: '孔飞力',
       status: '最近整理',
       progress: '封面与作者信息待接真实数据',
-      coverUrl: '/covers/soulstealers.svg'
+      coverUrl: '/covers/soulstealers.svg',
+      readerHref: '/reader?source=sample'
     }
   ];
 </script>
