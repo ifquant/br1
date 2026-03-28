@@ -4,6 +4,7 @@
     author: string;
     status: string;
     progress: string;
+    coverUrl?: string;
   };
 
   export let sectionTitle = '最近阅读';
@@ -36,12 +37,18 @@
     {#each books as book}
       <article class:list-card={viewMode === 'list'} class="book-card">
         <div class="cover-shell">
-          <div class="cover" aria-hidden="true">
-            <div class:list-cover={viewMode === 'list'} class="cover-fallback">
-              <div class="cover-title">{book.title}</div>
-              <div class="cover-author">{book.author}</div>
+          {#if book.coverUrl}
+            <div class="cover" aria-hidden="true">
+              <img class="cover-image" src={book.coverUrl} alt="" loading="lazy" />
             </div>
-          </div>
+          {:else}
+            <div class="cover" aria-hidden="true">
+              <div class:list-cover={viewMode === 'list'} class="cover-fallback">
+                <div class="cover-title">{book.title}</div>
+                <div class="cover-author">{book.author}</div>
+              </div>
+            </div>
+          {/if}
           <div class="cover-actions" aria-hidden="true">
             <span class="action-dot">i</span>
             <span class="action-dot">⇣</span>
@@ -248,6 +255,14 @@
       linear-gradient(155deg, rgba(151, 108, 56, 0.08), rgba(78, 55, 31, 0.03)),
       color-mix(in srgb, var(--surface-panel) 84%, white 16%);
     border: 1px solid rgba(75, 56, 31, 0.1);
+  }
+
+  .cover-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
   }
 
   .cover-fallback {

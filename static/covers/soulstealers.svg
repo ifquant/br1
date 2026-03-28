@@ -1,0 +1,9 @@
+<svg width="280" height="410" viewBox="0 0 280 410" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="280" height="410" rx="16" fill="#DDD3BC"/>
+  <rect x="18" y="18" width="244" height="374" rx="10" fill="#F3E9D2"/>
+  <rect x="34" y="34" width="212" height="72" rx="8" fill="#B53A1A"/>
+  <text x="54" y="84" fill="#FFF7EB" font-family="Noto Sans SC, PingFang SC, sans-serif" font-size="34" font-weight="700">叫魂</text>
+  <path d="M55 172C95 136 148 131 194 154C190 205 149 246 98 250C77 231 60 206 55 172Z" fill="#D3BE95"/>
+  <path d="M75 174C103 151 141 149 173 165C170 199 142 225 108 228C94 214 82 197 75 174Z" fill="#6E6558"/>
+  <text x="36" y="334" fill="#665D50" font-family="IBM Plex Sans, Arial, sans-serif" font-size="14" letter-spacing="2.2">孔飞力</text>
+</svg>

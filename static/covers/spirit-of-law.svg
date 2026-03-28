@@ -1,0 +1,11 @@
+<svg width="280" height="410" viewBox="0 0 280 410" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="280" height="410" rx="16" fill="#E5DFC6"/>
+  <rect x="18" y="18" width="244" height="374" rx="10" fill="#F6F1DE"/>
+  <circle cx="140" cy="132" r="48" fill="#C7B686"/>
+  <path d="M112 160C122 141 141 112 167 97" stroke="#8C7B54" stroke-width="4" stroke-linecap="round"/>
+  <text x="34" y="252" fill="#28241F" font-family="Noto Serif SC, Songti SC, serif" font-size="24" font-weight="700">
+    <tspan x="34" dy="0">论法的</tspan>
+    <tspan x="34" dy="32">精神</tspan>
+  </text>
+  <text x="34" y="328" fill="#70685B" font-family="IBM Plex Sans, Arial, sans-serif" font-size="13" letter-spacing="2">MONTESQUIEU</text>
+</svg>

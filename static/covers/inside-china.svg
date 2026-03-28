@@ -1,0 +1,12 @@
+<svg width="280" height="410" viewBox="0 0 280 410" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="280" height="410" rx="16" fill="#E88A4A"/>
+  <rect x="18" y="18" width="244" height="374" rx="10" fill="#F29A5A"/>
+  <rect x="28" y="18" width="9" height="374" fill="#D56029"/>
+  <text x="58" y="128" fill="#5B220C" font-family="Noto Serif SC, Songti SC, serif" font-size="48" font-weight="700">
+    <tspan x="58" dy="0">置</tspan>
+    <tspan x="58" dy="60">身</tspan>
+    <tspan x="58" dy="60">事</tspan>
+    <tspan x="58" dy="60">内</tspan>
+  </text>
+  <text x="92" y="348" fill="#6F3316" font-family="IBM Plex Sans, Arial, sans-serif" font-size="15" letter-spacing="2.5">兰小欢</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg width="280" height="410" viewBox="0 0 280 410" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="280" height="410" rx="16" fill="#E5E1DA"/>
+  <rect x="18" y="18" width="244" height="374" rx="10" fill="#F6F3EE"/>
+  <path d="M205 56C174 72 145 110 140 159C135 206 97 229 72 234" stroke="#3F4D5A" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M81 245C118 237 152 220 172 193C194 164 204 126 205 87" stroke="#94999A" stroke-width="2.3" stroke-linecap="round"/>
+  <path d="M81 109C90 106 101 107 110 115C118 121 123 132 126 143" stroke="#7F888B" stroke-width="2.2" stroke-linecap="round"/>
+  <text x="36" y="246" fill="#22262A" font-family="Noto Serif SC, Songti SC, serif" font-size="25" font-weight="700">
+    <tspan x="36" dy="0">政治秩序</tspan>
+    <tspan x="36" dy="33">与政治衰败</tspan>
+  </text>
+  <text x="36" y="330" fill="#6C706F" font-family="IBM Plex Sans, Arial, sans-serif" font-size="14" letter-spacing="1.8">FRANCIS FUKUYAMA</text>
+</svg>

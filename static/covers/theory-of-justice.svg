@@ -1,0 +1,11 @@
+<svg width="280" height="410" viewBox="0 0 280 410" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="280" height="410" rx="16" fill="#E8D7B9"/>
+  <rect x="18" y="18" width="244" height="374" rx="10" fill="#F6EAD5"/>
+  <rect x="30" y="28" width="220" height="14" fill="#C08247"/>
+  <rect x="30" y="52" width="220" height="3" fill="#D2B28A"/>
+  <text x="36" y="178" fill="#2E2A25" font-family="Iowan Old Style, Georgia, serif" font-size="28" font-weight="700">
+    <tspan x="36" dy="0">A Theory of</tspan>
+    <tspan x="36" dy="34">Justice</tspan>
+  </text>
+  <text x="36" y="308" fill="#6F675E" font-family="IBM Plex Sans, Arial, sans-serif" font-size="14" letter-spacing="2.2">JOHN RAWLS</text>
+</svg>
