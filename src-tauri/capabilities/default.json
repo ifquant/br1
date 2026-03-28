@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
+    "dialog:allow-open",
     "opener:default"
   ]
 }

@@ -122,18 +122,22 @@
 
   const triggerImportPicker = async () => {
     if (canPersistLibrary()) {
-      const filePaths = await selectSystemBookPaths();
-      if (filePaths.length === 0) return;
+      try {
+        const filePaths = await selectSystemBookPaths();
+        if (filePaths.length === 0) return;
 
-      const records = await importLibraryBooks(filePaths);
-      const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
-      importedBooks = [...mappedRecords, ...importedBooks];
-      showReadestMigration = false;
+        const records = await importLibraryBooks(filePaths);
+        const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
+        importedBooks = [...mappedRecords, ...importedBooks];
+        showReadestMigration = false;
 
-      const [firstRecord] = records;
-      if (firstRecord) {
-        const href = await toReaderAssetHref(firstRecord);
-        await handleOpenReaderLink(href);
+        const [firstRecord] = records;
+        if (firstRecord) {
+          const href = await toReaderAssetHref(firstRecord);
+          await handleOpenReaderLink(href);
+        }
+      } catch (error) {
+        console.error('Failed to open the desktop import picker', error);
       }
       return;
     }
