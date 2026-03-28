@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import {
     FOLIATE_VIEW_TAG,
     READER_ENGINE_HOST_ATTR,
@@ -7,20 +7,52 @@
     SAMPLE_READER_BOOK_URL,
     createFoliateViewElement,
     ensureFoliateViewDefinition,
+    pickAuthor,
+    pickText,
     type FoliateViewElement,
     type ReaderEngineMountState
   } from '$lib/reader';
+  import type { ReaderPreviewState } from '$lib/reader';
 
   export let title = 'Foliate Mount Boundary';
   export let state: ReaderEngineMountState = 'idle';
   export let hint =
     '这里是后续阅读引擎接管的唯一宿主容器。toolbar、sidebar 和 bridge 都不应该直接侵入这个 DOM 边界。';
 
+  const dispatch = createEventDispatcher<{
+    readerstate: ReaderPreviewState;
+  }>();
+
   let hostElement: HTMLDivElement | null = null;
   let stageElement: HTMLDivElement | null = null;
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   let sampleStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
   let foliateViewElement: FoliateViewElement | null = null;
+
+  const emitReaderState = (partial?: Partial<ReaderPreviewState>) => {
+    const book = foliateViewElement?.book;
+    const lastLocation = foliateViewElement?.lastLocation;
+    const fraction = typeof lastLocation?.fraction === 'number' ? lastLocation.fraction : 0;
+    const progressPercent = Math.round(fraction * 100);
+    const sectionCurrent = lastLocation?.section?.current;
+    const sectionTotal = lastLocation?.section?.total;
+    const fallbackChapter =
+      typeof sectionCurrent === 'number' && typeof sectionTotal === 'number'
+        ? `Section ${sectionCurrent + 1} / ${sectionTotal}`
+        : 'Waiting for location';
+
+    dispatch('readerstate', {
+      title: pickText(book?.metadata?.title) || 'Reader sample',
+      author: pickAuthor(book?.metadata?.creator) || 'Unknown author',
+      chapterLabel: lastLocation?.tocItem?.label || fallbackChapter,
+      progressLabel: `${progressPercent}%`,
+      locationLabel:
+        typeof lastLocation?.current === 'number' && typeof lastLocation?.total === 'number'
+          ? `${lastLocation.current} / ${lastLocation.total}`
+          : 'Opening sample',
+      ...partial
+    });
+  };
 
   const configureFoliatePreview = () => {
     const renderer = (foliateViewElement as (FoliateViewElement & { renderer?: HTMLElement }) | null)?.renderer;
@@ -42,6 +74,7 @@
       await foliateViewElement.open(SAMPLE_READER_BOOK_URL);
       configureFoliatePreview();
       sampleStatus = 'open';
+      emitReaderState();
     } catch (error) {
       console.error('Failed to open reader sample book', error);
       sampleStatus = 'error';
@@ -66,6 +99,8 @@
         } else {
           const view = createFoliateViewElement();
           view.className = 'foliate-preview';
+          view.addEventListener('load', () => emitReaderState());
+          view.addEventListener('relocate', () => emitReaderState());
           stageElement.append(view);
           foliateViewElement = view;
         }

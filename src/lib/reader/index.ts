@@ -4,10 +4,13 @@ export type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 export {
   FOLIATE_VIEW_TAG,
   SAMPLE_READER_BOOK_URL,
+  pickAuthor,
+  pickText,
   ensureFoliateViewDefinition,
   createFoliateViewElement
 } from './foliate';
 export type { FoliateViewElement } from './foliate';
+export type { ReaderPreviewState } from './types';
 
 export const READER_ENGINE_HOST_ATTR = 'reader-engine-host';
 export const READER_ENGINE_STATUS_ATTR = 'pending-adapter';

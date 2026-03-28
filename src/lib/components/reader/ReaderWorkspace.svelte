@@ -1,8 +1,16 @@
 <script lang="ts">
   import { createReaderMountBoundary } from '$lib/reader';
+  import type { ReaderPreviewState } from '$lib/reader';
   import ReaderViewport from './ReaderViewport.svelte';
 
   const mountBoundary = createReaderMountBoundary('idle');
+  let readerPreview: ReaderPreviewState = {
+    title: '政治秩序与政治衰败',
+    author: 'Francis Fukuyama',
+    chapterLabel: 'Waiting for sample',
+    progressLabel: '0%',
+    locationLabel: 'Not opened'
+  };
 </script>
 
 <section class="reader-workspace">
@@ -10,8 +18,8 @@
     <div class="head-meta">
       <div class="eyebrow">Reading</div>
       <div class="title-row">
-        <strong>政治秩序与政治衰败</strong>
-        <small>Francis Fukuyama</small>
+        <strong>{readerPreview.title}</strong>
+        <small>{readerPreview.author}</small>
       </div>
     </div>
 
@@ -27,13 +35,16 @@
       title="Reader Engine Boundary"
       state={mountBoundary.state}
       hint="中央主舞台先对齐 Readest 的阅读画布比例和安静度；下一步再把真正的阅读引擎挂进来。"
+      on:readerstate={({ detail }) => {
+        readerPreview = detail;
+      }}
     />
   </article>
 
   <footer class="footer-bar" aria-label="reader footer controls preview">
-    <span>34%</span>
-    <span>Chapter 3</span>
-    <span>EPUB · Serif · 110%</span>
+    <span>{readerPreview.progressLabel}</span>
+    <span>{readerPreview.chapterLabel}</span>
+    <span>{readerPreview.locationLabel} · EPUB · Serif · 110%</span>
   </footer>
 </section>
 
