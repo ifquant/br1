@@ -49,19 +49,36 @@
               </div>
             </div>
           {/if}
-          <div class="cover-actions" aria-hidden="true">
+          <div class:list-hidden={viewMode === 'list'} class="cover-actions" aria-hidden="true">
             <span class="action-dot">i</span>
             <span class="action-dot">⇣</span>
           </div>
         </div>
-        <div class="meta">
-          <strong>{book.title}</strong>
-          <span>{book.author}</span>
-          <div class="status-row">
-            <small>{book.progress}</small>
-            <em>{book.status}</em>
+        {#if viewMode === 'list'}
+          <div class="meta list-meta">
+            <div class="list-copy">
+              <strong>{book.title}</strong>
+              <span>{book.author}</span>
+              <p>{book.status}</p>
+            </div>
+            <div class="list-trailing">
+              <small>{book.progress}</small>
+              <div class="inline-actions" aria-hidden="true">
+                <span class="action-dot">i</span>
+                <span class="action-dot">⇣</span>
+              </div>
+            </div>
           </div>
-        </div>
+        {:else}
+          <div class="meta">
+            <strong>{book.title}</strong>
+            <span>{book.author}</span>
+            <div class="status-row">
+              <small>{book.progress}</small>
+              <em>{book.status}</em>
+            </div>
+          </div>
+        {/if}
       </article>
     {/each}
 
@@ -358,7 +375,7 @@
   }
 
   .list-card .meta {
-    gap: 3px;
+    gap: 6px;
   }
 
   .meta strong {
@@ -375,6 +392,7 @@
   }
 
   .meta span,
+  .meta p,
   .meta small,
   .meta em {
     color: var(--text-secondary);
@@ -384,15 +402,59 @@
   }
 
   .list-card .meta span,
+  .list-card .meta p,
   .list-card .meta small,
   .list-card .meta em {
     font-size: 10px;
   }
 
-  .meta span {
+  .meta span,
+  .meta p {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .meta p {
+    margin: 0;
+    color: color-mix(in srgb, var(--text-secondary) 88%, white 12%);
+  }
+
+  .list-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 14px;
+  }
+
+  .list-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .list-trailing {
+    display: grid;
+    justify-items: end;
+    gap: 7px;
+    min-width: 82px;
+  }
+
+  .list-trailing small {
+    color: var(--text-muted);
+    font-size: 9px;
+    letter-spacing: 0.01em;
+    text-align: right;
+  }
+
+  .inline-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .list-hidden {
+    display: none;
   }
 
   .status-row {
