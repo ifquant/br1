@@ -37,7 +37,7 @@
       <article class:list-card={viewMode === 'list'} class="book-card">
         <div class="cover-shell">
           <div class="cover" aria-hidden="true">
-            <div class="cover-fallback">
+            <div class:list-cover={viewMode === 'list'} class="cover-fallback">
               <div class="cover-title">{book.title}</div>
               <div class="cover-author">{book.author}</div>
             </div>
@@ -208,13 +208,13 @@
     height: 100%;
     border-radius: 8px;
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.22) inset,
-      0 10px 20px rgba(51, 37, 18, 0.14);
+      0 1px 0 rgba(255, 255, 255, 0.18) inset,
+      0 8px 18px rgba(51, 37, 18, 0.11);
     background:
-      linear-gradient(155deg, rgba(151, 108, 56, 0.2), rgba(78, 55, 31, 0.1)),
       linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 78%, var(--surface-page) 22%);
-    border: 1px solid rgba(75, 56, 31, 0.12);
+      linear-gradient(155deg, rgba(151, 108, 56, 0.08), rgba(78, 55, 31, 0.03)),
+      color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    border: 1px solid rgba(75, 56, 31, 0.1);
   }
 
   .cover-fallback {
@@ -222,8 +222,15 @@
     inset: 0;
     display: grid;
     grid-template-rows: 1fr auto;
-    padding: 12px 10px 10px;
-    color: color-mix(in srgb, var(--text-primary) 82%, white 18%);
+    padding: 11px 10px 9px;
+    color: color-mix(in srgb, var(--text-primary) 76%, white 24%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.02)),
+      linear-gradient(0deg, rgba(244, 235, 222, 0.24), rgba(244, 235, 222, 0));
+  }
+
+  .cover-fallback.list-cover {
+    padding: 8px 7px 7px;
   }
 
   .cover-title {
@@ -235,9 +242,10 @@
       "Noto Serif SC",
       Georgia,
       serif;
-    font-size: 15px;
-    line-height: 1.18;
-    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.16;
+    font-weight: 550;
+    letter-spacing: -0.015em;
     display: -webkit-box;
     line-clamp: 3;
     -webkit-line-clamp: 3;
@@ -245,11 +253,17 @@
     overflow: hidden;
   }
 
+  .list-cover .cover-title {
+    font-size: 11px;
+    line-height: 1.12;
+  }
+
   .cover-author {
     text-align: center;
-    color: color-mix(in srgb, var(--text-secondary) 78%, white 22%);
-    font-size: 10px;
+    color: color-mix(in srgb, var(--text-secondary) 68%, white 32%);
+    font-size: 9px;
     line-height: 1.2;
+    letter-spacing: 0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -260,46 +274,56 @@
     right: 6px;
     bottom: 6px;
     display: flex;
-    gap: 4px;
+    gap: 5px;
     opacity: 0;
-    transition: opacity 120ms ease;
+    transform: translateY(2px);
+    transition:
+      opacity 120ms ease,
+      transform 120ms ease;
   }
 
   .book-card:hover .cover-actions {
     opacity: 1;
+    transform: translateY(0);
   }
 
   .action-dot {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
     border-radius: 999px;
-    background: rgba(255, 250, 242, 0.92);
-    color: var(--text-secondary);
-    font-size: 10px;
+    background: rgba(255, 251, 244, 0.94);
+    color: color-mix(in srgb, var(--text-secondary) 82%, white 18%);
+    font-size: 9px;
     line-height: 1;
-    box-shadow: 0 2px 8px rgba(25, 18, 10, 0.12);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 2px 8px rgba(25, 18, 10, 0.1);
   }
 
   .meta {
     display: grid;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
   }
 
   .list-card .meta {
-    gap: 4px;
+    gap: 3px;
   }
 
   .meta strong {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: -0.01em;
+  }
+
+  .list-card .meta strong {
+    font-size: 12px;
   }
 
   .meta span,
@@ -307,8 +331,14 @@
   .meta em {
     color: var(--text-secondary);
     font-style: normal;
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .list-card .meta span,
+  .list-card .meta small,
+  .list-card .meta em {
     font-size: 10px;
-    line-height: 1.35;
   }
 
   .meta span {
@@ -320,9 +350,9 @@
   .status-row {
     display: flex;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
-    padding-top: 2px;
+    padding-top: 1px;
   }
 
   .status-row small,
@@ -337,7 +367,7 @@
   }
 
   .status-row em {
-    max-width: 54%;
+    max-width: 50%;
     text-align: right;
   }
 
