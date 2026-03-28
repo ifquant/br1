@@ -7,51 +7,40 @@
 
 <section class="reader-workspace">
   <header class="reader-head">
-    <div>
-      <div class="eyebrow">Reader</div>
-      <h1>阅读器工作区</h1>
-      <p>先对齐 Readest 的阅读器分层：内容导航、正文画布、底部控制带。</p>
+    <div class="head-meta">
+      <div class="eyebrow">Reading</div>
+      <div class="title-row">
+        <strong>政治秩序与政治衰败</strong>
+        <small>Francis Fukuyama</small>
+      </div>
     </div>
 
     <div class="controls" aria-label="reader controls preview">
-      <button type="button">目录</button>
-      <button type="button">TTS</button>
-      <button type="button">主题</button>
+      <button type="button">Aa</button>
+      <button type="button">🔊</button>
+      <button type="button">☰</button>
     </div>
   </header>
 
   <article class="canvas">
-    <div class="book-meta">
-      <span>政治秩序与政治衰败</span>
-      <small>Francis Fukuyama</small>
-    </div>
-
-    <p>
-      这里继续保持“真正的正文最大”的原则。下一步接入阅读引擎时，正文画布会取代这块占位内容，
-      左侧目录和底部控制层则继续保留为稳定结构。
-    </p>
-    <p>
-      这一层先不提前接 bridge 逻辑，只把它留在右侧作为 `br1` 相对 Readest 的产品扩展挂载点。
-    </p>
-
     <ReaderViewport
       title="Reader Engine Boundary"
       state={mountBoundary.state}
-      hint="这块容器对齐 Readest 里阅读引擎所在的中央主舞台，但先只定义边界，不提前接 DOM-heavy 逻辑。"
+      hint="中央主舞台先对齐 Readest 的阅读画布比例和安静度；下一步再把真正的阅读引擎挂进来。"
     />
   </article>
 
   <footer class="footer-bar" aria-label="reader footer controls preview">
-    <span>进度 34%</span>
-    <span>页码 / 章节 / 布局</span>
-    <span>字体 / 主题 / 行距</span>
+    <span>34%</span>
+    <span>Chapter 3</span>
+    <span>EPUB · Serif · 110%</span>
   </footer>
 </section>
 
 <style>
   .reader-workspace {
     display: grid;
-    gap: 14px;
+    gap: 12px;
     min-width: 0;
   }
 
@@ -59,63 +48,71 @@
     display: flex;
     justify-content: space-between;
     gap: 16px;
-    align-items: end;
+    align-items: center;
   }
 
   .eyebrow {
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
-  h1 {
-    margin: 6px 0 0;
-    font-size: clamp(28px, 3vw, 36px);
-    line-height: 1.08;
+  .head-meta {
+    display: grid;
+    gap: 4px;
   }
 
-  p {
-    margin: 8px 0 0;
-    color: var(--text-secondary);
-    line-height: 1.7;
+  .title-row {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .title-row strong,
+  .title-row small {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .title-row strong {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .title-row small {
+    color: var(--text-muted);
+    font-size: 12px;
   }
 
   .controls {
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex-wrap: nowrap;
   }
 
   .controls button {
-    min-height: 44px;
-    padding: 0 14px;
-    border: 1px solid var(--line-strong);
-    background: var(--surface-panel);
-    color: var(--text-primary);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
     font: inherit;
   }
 
   .canvas {
     display: grid;
-    align-content: start;
-    gap: 16px;
-    min-height: 60vh;
-    padding: 28px;
-    border: 1px solid var(--line-soft);
-    background: var(--surface-reader);
-    font-size: 17px;
-    line-height: 1.85;
-  }
-
-  .book-meta {
-    display: grid;
-    gap: 2px;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-  }
-
-  .book-meta small {
-    color: var(--text-muted);
+    min-height: 0;
+    padding: 12px 18px 0;
+    border: 1px solid rgba(64, 47, 24, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 94%, white 6%);
   }
 
   .footer-bar {
@@ -123,11 +120,13 @@
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    padding: 14px 18px;
-    border: 1px solid var(--line-soft);
-    background: var(--surface-panel);
+    padding: 10px 12px;
+    border: 1px solid rgba(64, 47, 24, 0.08);
+    background: color-mix(in srgb, var(--surface-panel) 94%, white 6%);
     color: var(--text-secondary);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.02em;
   }
 
   @media (max-width: 900px) {

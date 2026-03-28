@@ -8,11 +8,19 @@
     <ReaderWorkspace />
 
     <aside class="bridge-placeholder" aria-label="bridge panel placeholder">
-      <span class="label">Bridge Surface</span>
-      <p>这里保留 `br1` 的右侧桥梁面板挂载位。先不接 AI，只把它和 Readest 风格的 reader 分层摆对。</p>
-      <div class="bridge-actions" aria-label="bridge actions preview">
-        <button type="button">解释这段</button>
-        <button type="button">为什么重要</button>
+      <header class="bridge-head">
+        <span class="label">Bridge</span>
+        <button type="button" aria-label="bridge options">⋯</button>
+      </header>
+
+      <div class="bridge-card">
+        <strong>解释这段</strong>
+        <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧 contextual surface 摆正，不提前接 AI 行为。</p>
+      </div>
+
+      <div class="bridge-card secondary">
+        <strong>为什么重要</strong>
+        <p>后续 bridge 可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
       </div>
     </aside>
   </div>
@@ -25,48 +33,76 @@
 
   .workspace {
     display: grid;
-    grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.7fr) minmax(280px, 0.9fr);
-    gap: 16px;
+    grid-template-columns: 248px minmax(0, 1fr) 276px;
+    gap: 14px;
+    min-height: calc(100vh - 32px);
   }
 
   .bridge-placeholder {
     display: grid;
     align-content: start;
     gap: 10px;
-    padding: 18px;
-    border: 1px solid var(--line-soft);
-    background: var(--surface-panel);
+    padding: 12px;
+    border: 1px solid rgba(64, 47, 24, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 92%, white 8%);
   }
 
   .label {
     color: var(--text-muted);
-    font-size: 12px;
-    letter-spacing: 0.08em;
+    font-size: 11px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
-  .bridge-placeholder p {
+  .bridge-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    padding: 2px 2px 8px;
+  }
+
+  .bridge-head button {
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+  }
+
+  .bridge-card {
+    display: grid;
+    gap: 6px;
+    padding: 14px 14px 12px;
+    border: 1px solid rgba(64, 47, 24, 0.08);
+    background: color-mix(in srgb, var(--surface-reader) 76%, white 24%);
+  }
+
+  .bridge-card.secondary {
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+  }
+
+  .bridge-card strong {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .bridge-card p {
     margin: 0;
     color: var(--text-secondary);
     line-height: 1.65;
-  }
-
-  .bridge-actions {
-    display: grid;
-    gap: 10px;
-  }
-
-  .bridge-actions button {
-    min-height: 44px;
-    border: 1px solid var(--line-soft);
-    background: var(--surface-reader);
-    color: var(--text-primary);
-    font: inherit;
+    font-size: 13px;
   }
 
   @media (max-width: 1120px) {
     .workspace {
-      grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1fr);
+      grid-template-columns: 236px minmax(0, 1fr);
     }
 
     .bridge-placeholder {
