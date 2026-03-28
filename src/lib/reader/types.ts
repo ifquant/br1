@@ -36,4 +36,9 @@ export type ReaderControlRequest =
       type: 'href';
       nonce: number;
       href: string;
+    }
+  | {
+      type: 'file';
+      nonce: number;
+      file: File;
     };

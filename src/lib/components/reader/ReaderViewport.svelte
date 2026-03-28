@@ -31,6 +31,7 @@
   let stageElement: HTMLDivElement | null = null;
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   let sampleStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
+  let openSourceLabel = 'sample book';
   let foliateViewElement: FoliateViewElement | null = null;
   let handledControlNonce = 0;
 
@@ -72,22 +73,25 @@
     renderer.setAttribute('max-block-size', '980px');
   };
 
-  const loadSampleBook = async () => {
+  const openBook = async (source: string | File, sourceLabel: string) => {
     if (!foliateViewElement || sampleStatus === 'loading') return;
 
     sampleStatus = 'loading';
+    openSourceLabel = sourceLabel;
 
     try {
-      await foliateViewElement.open(SAMPLE_READER_BOOK_URL);
+      await foliateViewElement.open(source);
       configureFoliatePreview();
       sampleStatus = 'open';
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
       emitReaderState();
     } catch (error) {
-      console.error('Failed to open reader sample book', error);
+      console.error(`Failed to open reader source: ${sourceLabel}`, error);
       sampleStatus = 'error';
     }
   };
+
+  const loadSampleBook = async () => openBook(SAMPLE_READER_BOOK_URL, 'sample book');
 
   const applyControlRequest = async () => {
     if (!controlRequest || handledControlNonce === controlRequest.nonce) return;
@@ -104,6 +108,8 @@
         await foliateViewElement.goToFraction(0);
       } else if (controlRequest.type === 'href') {
         await foliateViewElement.goTo(controlRequest.href);
+      } else if (controlRequest.type === 'file') {
+        await openBook(controlRequest.file, controlRequest.file.name);
       } else if (controlRequest.type === 'fraction') {
         await foliateViewElement.goToFraction(controlRequest.fraction);
       }
@@ -182,7 +188,7 @@
     >
       <div class="engine-paper">
         <div class="paper-header">
-          <span>{sampleStatus === 'open' ? 'Sample book' : 'Chapter 3'}</span>
+          <span>{sampleStatus === 'open' ? openSourceLabel : 'Chapter 3'}</span>
           <small>
             {adapterStatus === 'ready' ? 'foliate-view ready' : `adapter ${adapterStatus}`}
             ·

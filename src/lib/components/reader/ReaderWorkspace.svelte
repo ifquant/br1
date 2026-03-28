@@ -23,6 +23,7 @@
   };
   let controlNonce = 0;
   let sliderValue = 0;
+  let importInput: HTMLInputElement | null = null;
 
   const issueControl = (type: 'prev' | 'next' | 'start') => {
     controlNonce += 1;
@@ -37,6 +38,23 @@
       fraction
     });
   };
+
+  const issueFileControl = (file: File) => {
+    controlNonce += 1;
+    dispatch('controlrequest', {
+      type: 'file',
+      nonce: controlNonce,
+      file
+    });
+  };
+
+  const handleImportChange = (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const [file] = input.files ?? [];
+    if (!file) return;
+    issueFileControl(file);
+    input.value = '';
+  };
 </script>
 
 <section class="reader-workspace">
@@ -50,6 +68,14 @@
     </div>
 
     <div class="controls" aria-label="reader controls preview">
+      <input
+        bind:this={importInput}
+        class="import-input"
+        type="file"
+        accept=".epub,.pdf,.mobi,.azw3,.fb2"
+        on:change={handleImportChange}
+      />
+      <button type="button" on:click={() => importInput?.click()}>Open</button>
       <button type="button">Aa</button>
       <button type="button">🔊</button>
       <button type="button">☰</button>
@@ -156,14 +182,18 @@
   }
 
   .controls button {
-    width: 28px;
+    min-width: 28px;
     height: 28px;
-    padding: 0;
+    padding: 0 8px;
     border: 0;
     border-radius: 999px;
     background: transparent;
     color: var(--text-secondary);
     font: inherit;
+  }
+
+  .import-input {
+    display: none;
   }
 
   .canvas {
