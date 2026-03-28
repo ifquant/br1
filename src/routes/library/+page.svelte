@@ -1,6 +1,7 @@
 <script lang="ts">
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import { BookshelfPreview, LibraryHeader } from '$lib/components';
+  import { openReaderTarget } from '$lib/services';
 
   const continueReading = [
     {
@@ -47,6 +48,13 @@
       readerHref: '/reader?source=sample'
     }
   ];
+
+  const handleOpenReaderLink = async (href: string) => {
+    const opened = await openReaderTarget(href);
+    if (!opened && typeof window !== 'undefined') {
+      window.location.href = href;
+    }
+  };
 </script>
 
 <section class="library-page">
@@ -64,12 +72,14 @@
         books={continueReading}
         showImportTile={true}
         importHref="/reader?source=picker"
+        onOpenLink={handleOpenReaderLink}
       />
 
       <BookshelfPreview
         sectionTitle="最近导入"
         books={recentImports}
         viewMode="list"
+        onOpenLink={handleOpenReaderLink}
       />
     </OverlayScrollbarsComponent>
   </div>

@@ -13,8 +13,15 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let showImportTile = false;
   export let importHref = '';
+  export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
+
+  const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
+    if (!href || !onOpenLink) return;
+    event.preventDefault();
+    void onOpenLink(href);
+  };
 </script>
 
 <section class="shelf">
@@ -43,7 +50,9 @@
           class:list-link={viewMode === 'list'}
           class="book-link"
           href={book.readerHref}
+          role={book.readerHref ? 'link' : undefined}
           aria-label={book.readerHref ? `Open ${book.title} in reader` : undefined}
+          on:click={(event: MouseEvent) => handleLinkClick(event, book.readerHref)}
         >
           <div class="cover-shell">
             {#if book.coverUrl}
@@ -99,7 +108,9 @@
           class:list-link={viewMode === 'list'}
           class="book-link import-link"
           href={importHref}
+          role={importHref ? 'link' : undefined}
           aria-label={importHref ? 'Open reader import flow' : undefined}
+          on:click={(event: MouseEvent) => handleLinkClick(event, importHref)}
         >
           <div class="cover-shell">
             <div class="cover import-cover" aria-hidden="true">

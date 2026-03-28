@@ -9,6 +9,11 @@
   ];
 
   const isLibraryRoute = derived(page, ($page) => $page.url.pathname === '/library');
+  const isReaderWindowRoute = derived(
+    page,
+    ($page) =>
+      $page.url.pathname === '/reader' && $page.url.searchParams.get('mode') === 'window'
+  );
 
   // 模仿 readest-app 的主题初始化逻辑：在加载前设置 data-theme
   if (typeof document !== 'undefined') {
@@ -29,7 +34,7 @@
 </svelte:head>
 
 <div class="app-root">
-  {#if !$isLibraryRoute}
+  {#if !$isLibraryRoute && !$isReaderWindowRoute}
     <header class="app-header">
       <div class="brand">
         <span class="mark">br1</span>
@@ -48,7 +53,7 @@
   {/if}
 
   <div class="app-frame">
-    {#if !$isLibraryRoute}
+    {#if !$isLibraryRoute && !$isReaderWindowRoute}
       <aside class="side-rail" aria-label="workspace sections">
         <span class="rail-label">Workspace</span>
         {#each navItems as item}
@@ -57,7 +62,7 @@
       </aside>
     {/if}
 
-    <main class:library-main={$isLibraryRoute} class="app-main">
+    <main class:reader-window-main={$isReaderWindowRoute} class:library-main={$isLibraryRoute} class="app-main">
       <slot />
     </main>
   </div>
@@ -229,6 +234,10 @@
 
   .app-main.library-main {
     padding: 12px 18px 18px;
+  }
+
+  .app-main.reader-window-main {
+    padding: 0;
   }
 
   @media (max-width: 900px) {
