@@ -196,38 +196,38 @@
       data-engine-status={READER_ENGINE_STATUS_ATTR}
       aria-label="reader engine host placeholder"
     >
-      <div class:window-mode={isWindowMode} class="engine-paper">
-        {#if !isWindowMode || sampleStatus === 'open'}
+      {#if isWindowMode}
+        <div class="engine-stage window-stage" bind:this={stageElement}>
+          {#if sampleStatus !== 'open'}
+            <div class="stage-overlay" aria-hidden="true">
+              <button
+                type="button"
+                class="sample-trigger inline"
+                on:click={loadSampleBook}
+                disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
+              >
+                {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
+              </button>
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <div class="engine-paper">
           <div class="paper-header">
             <span>{sampleStatus === 'open' ? openSourceLabel : 'Preview chapter'}</span>
             <small>{sampleStatus === 'open' ? 'reading preview' : 'ready to open'}</small>
           </div>
-        {/if}
 
-        <div class="engine-stage" bind:this={stageElement}></div>
+          <div class="engine-stage" bind:this={stageElement}></div>
 
-        {#if sampleStatus !== 'open' && isWindowMode}
-          <div class="stage-overlay" aria-hidden="true">
-            <button
-              type="button"
-              class="sample-trigger inline"
-              on:click={loadSampleBook}
-              disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
-            >
-              {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
-            </button>
-          </div>
-        {/if}
-
-        {#if sampleStatus !== 'open'}
-          <div class:window-mode={isWindowMode} class="paper-copy" aria-hidden="true">
-            {#if !isWindowMode}
+          {#if sampleStatus !== 'open'}
+            <div class="paper-copy" aria-hidden="true">
               <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
               <p>现在可以先打开样例书或本地文件，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
-            {/if}
-          </div>
-        {/if}
-      </div>
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
 </section>
@@ -292,6 +292,7 @@
 
   .viewport-frame {
     min-height: 0;
+    height: 100%;
     width: 100%;
   }
 
@@ -308,12 +309,15 @@
   }
 
   .engine-host.window-mode {
-    min-height: calc(100vh - 124px);
+    display: block;
+    min-height: calc(100vh - 26px);
+    height: 100%;
     padding: 0;
     border: 0;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-reader) 98%, white 2%);
+    overflow: hidden;
   }
 
   .engine-host :global(foliate-view.foliate-preview) {
@@ -334,14 +338,6 @@
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.44) inset,
       0 16px 28px rgba(36, 25, 12, 0.06);
-  }
-
-  .engine-paper.window-mode {
-    gap: 6px;
-    width: min(100%, 1120px);
-    padding: 4px 6px 0;
-    background: transparent;
-    box-shadow: none;
   }
 
   .paper-header {
@@ -366,9 +362,15 @@
   }
 
   .viewport-shell.window-mode .engine-stage {
-    min-height: calc(100vh - 182px);
-    background: rgba(255, 255, 255, 0.18);
+    width: 100%;
+    min-height: calc(100vh - 26px);
+    height: 100%;
+    background: transparent;
     box-shadow: none;
+  }
+
+  .window-stage {
+    overflow: hidden;
   }
 
   .stage-overlay {
@@ -416,18 +418,33 @@
     border-top: 1px solid rgba(84, 62, 34, 0.08);
   }
 
+  .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview) {
+    min-height: calc(100vh - 26px);
+    height: 100%;
+  }
+
+  .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview::part(filter)) {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0)),
+      #fbf7ef;
+  }
+
+  .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview::part(head)) {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview::part(foot)) {
+    border-top: 0;
+    padding-top: 0;
+  }
+
   .paper-copy {
     display: grid;
     gap: 12px;
     font-size: clamp(17px, 1.9vw, 20px);
     line-height: 1.88;
     color: color-mix(in srgb, #2c241c 88%, white 12%);
-  }
-
-  .paper-copy.window-mode {
-    display: none;
-    font-size: 13px;
-    line-height: 1;
   }
 
   .paper-copy p {

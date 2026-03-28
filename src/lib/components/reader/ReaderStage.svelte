@@ -142,7 +142,7 @@
 
   .canvas.window-mode {
     min-height: calc(100vh - 26px);
-    padding: 48px 10px 52px 12px;
+    padding: 0;
     border: 0;
     background: transparent;
   }
