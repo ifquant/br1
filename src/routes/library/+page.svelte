@@ -92,11 +92,19 @@
     if (!canPersistLibrary()) return;
 
     const records = await loadPersistedLibraryBooks();
-    importedBooks = await Promise.all(records.map(mapLibraryRecord));
-
     const readestSummary = await detectReadestLibrary();
     readestLibraryCount = readestSummary.count;
-    showReadestMigration = records.length === 0 && readestSummary.available;
+
+    if (records.length === 0 && readestSummary.available) {
+      await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });
+      const migratedRecords = await loadPersistedLibraryBooks();
+      importedBooks = await Promise.all(migratedRecords.map(mapLibraryRecord));
+      showReadestMigration = migratedRecords.length === 0;
+      return;
+    }
+
+    importedBooks = await Promise.all(records.map(mapLibraryRecord));
+    showReadestMigration = readestSummary.available;
   };
 
   onMount(() => {
@@ -151,23 +159,35 @@
     input.value = '';
   };
 
-  const triggerReadestMigration = async () => {
+  const triggerReadestMigration = async ({
+    autoOpenFirstBook = true,
+    reloadAfterImport = true
+  }: {
+    autoOpenFirstBook?: boolean;
+    reloadAfterImport?: boolean;
+  } = {}) => {
     if (!canPersistLibrary() || migrationBusy) return;
 
     migrationBusy = true;
     try {
       const records = await importReadestLibrary();
-      await loadLibrary();
-      showReadestMigration = false;
+      if (reloadAfterImport) {
+        await loadLibrary();
+      }
+      showReadestMigration = true;
 
       const [firstRecord] = records;
-      if (firstRecord) {
+      if (autoOpenFirstBook && firstRecord) {
         const href = await toReaderAssetHref(firstRecord);
         await handleOpenReaderLink(href);
       }
     } finally {
       migrationBusy = false;
     }
+  };
+
+  const handleReadestMigrationClick = () => {
+    void triggerReadestMigration();
   };
 </script>
 
@@ -187,10 +207,10 @@
       <section class="migration-banner" aria-label="readest migration">
         <div class="migration-copy">
           <strong>发现 Readest 书库</strong>
-          <span>本机找到 {readestLibraryCount} 本书，可以直接迁入 br1 书库。</span>
+          <span>本机找到 {readestLibraryCount} 本书，可继续同步进 br1 书库。</span>
         </div>
-        <button type="button" class="migration-button" on:click={triggerReadestMigration}>
-          {migrationBusy ? '迁移中…' : `导入 ${readestLibraryCount} 本书`}
+        <button type="button" class="migration-button" on:click={handleReadestMigrationClick}>
+          {migrationBusy ? '迁移中…' : `从 Readest 导入`}
         </button>
       </section>
     {/if}
