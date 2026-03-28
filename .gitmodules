@@ -1,3 +1,4 @@
 [submodule "vendor/foliate-js"]
 	path = vendor/foliate-js
 	url = https://github.com/ifquant/foliate-js.git
+	branch = performance
