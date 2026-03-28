@@ -108,7 +108,7 @@
   .canvas {
     display: grid;
     min-height: 0;
-    padding: 12px 18px 0;
+    padding: 8px 14px 0;
     border: 1px solid rgba(64, 47, 24, 0.08);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),

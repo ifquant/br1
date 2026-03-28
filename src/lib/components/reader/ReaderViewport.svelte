@@ -95,7 +95,7 @@
   .engine-host {
     display: grid;
     min-height: 66vh;
-    padding: clamp(20px, 4vw, 42px) clamp(18px, 4vw, 48px);
+    padding: clamp(16px, 3vw, 28px) clamp(10px, 2vw, 18px);
     border: 1px solid rgba(64, 47, 24, 0.06);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
@@ -110,7 +110,7 @@
     width: min(100%, 760px);
     min-height: 100%;
     margin: 0 auto;
-    padding: clamp(22px, 4vw, 42px) clamp(22px, 4vw, 56px);
+    padding: clamp(22px, 4vw, 38px) clamp(20px, 4vw, 50px);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0)),
       #f8f3e9;
@@ -151,7 +151,7 @@
 
     .engine-host {
       min-height: 58vh;
-      padding-inline: 10px;
+      padding-inline: 6px;
     }
   }
 </style>

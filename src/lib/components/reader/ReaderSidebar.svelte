@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
+
   const toc = [
     '第 1 章 国家与秩序',
     '第 2 章 制度与权力',
@@ -21,11 +23,18 @@
     <span class="tab">笔记</span>
   </div>
 
-  <nav class="toc" aria-label="table of contents preview">
-    {#each toc as item, index}
-      <a href="/reader" class:active={index === 2}>{item}</a>
-    {/each}
-  </nav>
+  <OverlayScrollbarsComponent
+    defer
+    element="div"
+    class="sidebar-scroll"
+    options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
+  >
+    <nav class="toc" aria-label="table of contents preview">
+      {#each toc as item, index}
+        <a href="/reader" class:active={index === 2}>{item}</a>
+      {/each}
+    </nav>
+  </OverlayScrollbarsComponent>
 </aside>
 
 <style>
@@ -34,6 +43,7 @@
     align-content: start;
     gap: 12px;
     min-height: 0;
+    height: 100%;
     padding: 12px 12px 10px;
     border: 1px solid rgba(64, 47, 24, 0.1);
     background:
@@ -107,6 +117,23 @@
   .toc {
     display: grid;
     gap: 2px;
+  }
+
+  :global(.sidebar-scroll) {
+    min-height: 0;
+    height: 100%;
+    overscroll-behavior: contain;
+  }
+
+  :global(.sidebar-scroll .os-scrollbar.os-theme-readest) {
+    --os-size: 8px;
+    --os-padding-perpendicular: 1px;
+    --os-padding-axis: 1px;
+    --os-track-bg: transparent;
+    --os-handle-border-radius: 999px;
+    --os-handle-bg: rgba(95, 85, 72, 0.12);
+    --os-handle-bg-hover: rgba(95, 85, 72, 0.18);
+    --os-handle-bg-active: rgba(95, 85, 72, 0.22);
   }
 
   .toc a {
