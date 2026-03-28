@@ -50,6 +50,7 @@
       title: pickText(book?.metadata?.title) || 'Reader sample',
       author: pickAuthor(book?.metadata?.creator) || 'Unknown author',
       chapterLabel: lastLocation?.tocItem?.label || fallbackChapter,
+      chapterHref: lastLocation?.tocItem?.href || '',
       progressLabel: `${progressPercent}%`,
       progressFraction: fraction,
       locationLabel:

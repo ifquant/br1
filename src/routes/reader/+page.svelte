@@ -3,7 +3,7 @@
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
 
   let toc: ReaderTocItem[] = [];
-  let activeLabel = 'Waiting for sample';
+  let activeHref = '';
   let controlRequest: ReaderControlRequest | null = null;
   let controlNonce = 0;
 
@@ -15,14 +15,14 @@
 
 <section class="reader-shell">
   <div class="workspace">
-    <ReaderSidebar {toc} {activeLabel} onNavigate={issueHrefControl} />
+    <ReaderSidebar {toc} {activeHref} onNavigate={issueHrefControl} />
     <ReaderWorkspace
       {controlRequest}
       on:controlrequest={({ detail }) => {
         controlRequest = detail;
       }}
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
-        activeLabel = detail.chapterLabel;
+        activeHref = detail.chapterHref;
       }}
       on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
         toc = detail;

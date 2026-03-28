@@ -1,10 +1,24 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { ReaderTocItem } from '$lib/reader';
 
   export let toc: ReaderTocItem[] = [];
-  export let activeLabel = 'Waiting for sample';
+  export let activeHref = '';
   export let onNavigate: ((href: string) => void) | null = null;
+
+  let lastScrolledHref = '';
+
+  const scrollActiveIntoView = async () => {
+    if (!activeHref || activeHref === lastScrolledHref) return;
+    await tick();
+
+    const target = document.querySelector<HTMLButtonElement>(`.toc button[data-href="${CSS.escape(activeHref)}"]`);
+    target?.scrollIntoView({ block: 'nearest' });
+    lastScrolledHref = activeHref;
+  };
+
+  $: void scrollActiveIntoView();
 </script>
 
 <aside class="reader-sidebar" aria-label="reader navigation preview">
@@ -33,7 +47,8 @@
         {#each toc as item}
           <button
             type="button"
-            class:active={item.label === activeLabel}
+            class:active={item.href === activeHref}
+            data-href={item.href}
             style={`--toc-level:${item.level};`}
             on:click={() => onNavigate?.(item.href)}
           >

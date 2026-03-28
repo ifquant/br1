@@ -16,6 +16,7 @@
     title: '政治秩序与政治衰败',
     author: 'Francis Fukuyama',
     chapterLabel: 'Waiting for sample',
+    chapterHref: '',
     progressLabel: '0%',
     locationLabel: 'Not opened',
     progressFraction: 0

@@ -20,6 +20,7 @@ export interface FoliateViewElement extends HTMLElement {
     fraction?: number;
     tocItem?: {
       label?: string;
+      href?: string;
     };
   };
   open(book: string | Blob | File): Promise<void>;
