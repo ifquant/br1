@@ -186,6 +186,13 @@ Tutorial expectations:
 - Name the exact verification that really ran.
 - Make partial boundaries explicit.
 - If a commit is intentionally incomplete, the tutorial should say so directly.
+- Every non-trivial tutorial must include at least 1 to 2 concrete programming knowledge points tied to the current commit.
+- Those knowledge points should teach something specific, for example:
+  - why a framework boundary exists
+  - how a toolchain feature actually works
+  - why one implementation choice is safer than another
+- Do not let `关键知识` degrade into generic advice or a paraphrase of the diff.
+- Write the knowledge section so the user can reuse it in the next similar change.
 
 ## Commit Preparation Checklist
 
