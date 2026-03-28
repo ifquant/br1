@@ -1,6 +1,6 @@
 <script lang="ts">
+  import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import { BookshelfPreview, LibraryHeader } from '$lib/components';
-  import { overlayScrollbars } from '$lib/services/overlayScrollbars';
 
   const continueReading = [
     {
@@ -48,10 +48,11 @@
   <div class="library-surface">
     <LibraryHeader />
 
-    <div
-      use:overlayScrollbars
+    <OverlayScrollbarsComponent
+      defer
+      element="div"
       class="library-scroll"
-      data-overlayscrollbars-initialize
+      options={{ scrollbars: { autoHide: 'scroll' } }}
     >
       <BookshelfPreview
         sectionTitle="继续阅读"
@@ -64,7 +65,7 @@
         books={recentImports}
         viewMode="list"
       />
-    </div>
+    </OverlayScrollbarsComponent>
   </div>
 </section>
 
@@ -88,7 +89,7 @@
     padding: 14px 18px 0;
   }
 
-  .library-scroll {
+  :global(.library-scroll) {
     min-height: 0;
     overflow: auto;
     display: grid;
@@ -106,7 +107,7 @@
       box-shadow: none;
     }
 
-    .library-scroll {
+    :global(.library-scroll) {
       gap: 16px;
       padding-bottom: 16px;
     }

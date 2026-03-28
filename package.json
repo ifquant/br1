@@ -16,7 +16,8 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "foliate-js": "file:../foliate-js",
-    "overlayscrollbars": "^2.14.0"
+    "overlayscrollbars": "^2.14.0",
+    "overlayscrollbars-svelte": "^0.5.5"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
