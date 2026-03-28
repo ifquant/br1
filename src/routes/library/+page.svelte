@@ -38,46 +38,87 @@
   ];
 </script>
 
-<section class="library">
-  <LibraryHeader />
-  <div class="library-summary">
-    <span>5 books</span>
-    <span>grid view</span>
-    <span>fixed 28:41 covers</span>
+<section class="library-page">
+  <div class="library-surface">
+    <LibraryHeader />
+
+    <div class="library-scroll">
+      <div class="library-summary">
+        <span>5 books</span>
+        <span>grid view</span>
+        <span>fixed 28:41 covers</span>
+      </div>
+
+      <BookshelfPreview
+        sectionTitle="继续阅读"
+        sectionHint="第一版严格对齐，先把卡片密度、封面比例和书架栅格贴近 Readest。"
+        books={continueReading}
+      />
+
+      <BookshelfPreview
+        sectionTitle="最近导入"
+        sectionHint="这里先保留第二组书架，后续再接分组、排序和真实导入数据。"
+        books={recentImports}
+      />
+    </div>
   </div>
-
-  <BookshelfPreview
-    sectionTitle="继续阅读"
-    sectionHint="第一版严格对齐，先把卡片密度、封面比例和书架栅格贴近 Readest。"
-    books={continueReading}
-  />
-
-  <BookshelfPreview
-    sectionTitle="最近导入"
-    sectionHint="这里先保留第二组书架，后续再接分组、排序和真实导入数据。"
-    books={recentImports}
-  />
 </section>
 
 <style>
-  .library {
+  .library-page {
+    min-height: 100%;
     display: grid;
-    gap: 18px;
+  }
+
+  .library-surface {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    border: 1px solid var(--line-soft);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 88%, white 12%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.18) inset,
+      0 18px 44px rgba(42, 30, 15, 0.06);
+    padding: 14px 18px 0;
+  }
+
+  .library-scroll {
+    min-height: 0;
+    overflow: auto;
+    display: grid;
     align-content: start;
+    gap: 22px;
+    padding: 14px 2px 18px;
   }
 
   .library-summary {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
     align-items: center;
-    min-height: 20px;
+    min-height: 18px;
     color: var(--text-muted);
-    font-size: 12px;
-    letter-spacing: 0.04em;
+    font-size: 11px;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     border-bottom: 1px solid var(--line-soft);
-    padding-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  @media (max-width: 900px) {
+    .library-surface {
+      padding: 12px 14px 0;
+      border-left: 0;
+      border-right: 0;
+      box-shadow: none;
+    }
+
+    .library-scroll {
+      gap: 18px;
+      padding-bottom: 16px;
+    }
   }
 </style>
