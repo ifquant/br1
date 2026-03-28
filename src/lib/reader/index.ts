@@ -1,6 +1,7 @@
 import type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 
 export type { ReaderEngineMountState, ReaderMountBoundary } from './types';
+export { FOLIATE_VIEW_TAG, ensureFoliateViewDefinition, createFoliateViewElement } from './foliate';
 
 export const READER_ENGINE_HOST_ATTR = 'reader-engine-host';
 export const READER_ENGINE_STATUS_ATTR = 'pending-adapter';

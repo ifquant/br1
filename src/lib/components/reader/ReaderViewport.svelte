@@ -1,7 +1,11 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import {
+    FOLIATE_VIEW_TAG,
     READER_ENGINE_HOST_ATTR,
     READER_ENGINE_STATUS_ATTR,
+    createFoliateViewElement,
+    ensureFoliateViewDefinition,
     type ReaderEngineMountState
   } from '$lib/reader';
 
@@ -9,6 +13,42 @@
   export let state: ReaderEngineMountState = 'idle';
   export let hint =
     '这里是后续阅读引擎接管的唯一宿主容器。toolbar、sidebar 和 bridge 都不应该直接侵入这个 DOM 边界。';
+
+  let hostElement: HTMLDivElement | null = null;
+  let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
+
+  onMount(() => {
+    let cancelled = false;
+
+    const setupFoliateHost = async () => {
+      if (!hostElement) return;
+
+      adapterStatus = 'loading';
+
+      try {
+        await ensureFoliateViewDefinition();
+        if (cancelled || !hostElement) return;
+
+        if (!hostElement.querySelector(FOLIATE_VIEW_TAG)) {
+          const view = createFoliateViewElement();
+          view.className = 'foliate-preview';
+          view.setAttribute('aria-hidden', 'true');
+          hostElement.append(view);
+        }
+
+        adapterStatus = 'ready';
+      } catch (error) {
+        console.error('Failed to prepare foliate-view host', error);
+        if (!cancelled) adapterStatus = 'error';
+      }
+    };
+
+    setupFoliateHost();
+
+    return () => {
+      cancelled = true;
+    };
+  });
 </script>
 
 <section class="viewport-shell" aria-label="reader viewport shell">
@@ -23,6 +63,7 @@
   <div class="viewport-frame">
     <div
       class="engine-host"
+      bind:this={hostElement}
       data-role={READER_ENGINE_HOST_ATTR}
       data-engine-status={READER_ENGINE_STATUS_ATTR}
       aria-label="reader engine host placeholder"
@@ -30,7 +71,7 @@
       <div class="engine-paper">
         <div class="paper-header">
           <span>Chapter 3</span>
-          <small>Reader Engine Host</small>
+          <small>{adapterStatus === 'ready' ? 'foliate-view ready' : `adapter ${adapterStatus}`}</small>
         </div>
 
         <div class="paper-copy" aria-hidden="true">
@@ -101,6 +142,10 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-reader) 98%, white 2%);
     outline: none;
+  }
+
+  .engine-host :global(foliate-view.foliate-preview) {
+    display: none;
   }
 
   .engine-paper {
