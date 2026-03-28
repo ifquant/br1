@@ -4,8 +4,10 @@
     FOLIATE_VIEW_TAG,
     READER_ENGINE_HOST_ATTR,
     READER_ENGINE_STATUS_ATTR,
+    SAMPLE_READER_BOOK_URL,
     createFoliateViewElement,
     ensureFoliateViewDefinition,
+    type FoliateViewElement,
     type ReaderEngineMountState
   } from '$lib/reader';
 
@@ -16,6 +18,22 @@
 
   let hostElement: HTMLDivElement | null = null;
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
+  let sampleStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
+  let foliateViewElement: FoliateViewElement | null = null;
+
+  const loadSampleBook = async () => {
+    if (!foliateViewElement || sampleStatus === 'loading') return;
+
+    sampleStatus = 'loading';
+
+    try {
+      await foliateViewElement.open(SAMPLE_READER_BOOK_URL);
+      sampleStatus = 'open';
+    } catch (error) {
+      console.error('Failed to open reader sample book', error);
+      sampleStatus = 'error';
+    }
+  };
 
   onMount(() => {
     let cancelled = false;
@@ -29,11 +47,14 @@
         await ensureFoliateViewDefinition();
         if (cancelled || !hostElement) return;
 
-        if (!hostElement.querySelector(FOLIATE_VIEW_TAG)) {
+        const existingView = hostElement.querySelector(FOLIATE_VIEW_TAG);
+        if (existingView instanceof HTMLElement) {
+          foliateViewElement = existingView as FoliateViewElement;
+        } else {
           const view = createFoliateViewElement();
           view.className = 'foliate-preview';
-          view.setAttribute('aria-hidden', 'true');
           hostElement.append(view);
+          foliateViewElement = view;
         }
 
         adapterStatus = 'ready';
@@ -57,7 +78,17 @@
       <span class="label">{title}</span>
       <p>{hint}</p>
     </div>
-    <span class="state" data-state={state}>{state}</span>
+    <div class="head-statuses">
+      <button
+        type="button"
+        class="sample-trigger"
+        on:click={loadSampleBook}
+        disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
+      >
+        {sampleStatus === 'loading' ? 'Loading sample…' : 'Load sample'}
+      </button>
+      <span class="state" data-state={state}>{state}</span>
+    </div>
   </header>
 
   <div class="viewport-frame">
@@ -71,14 +102,22 @@
       <div class="engine-paper">
         <div class="paper-header">
           <span>Chapter 3</span>
-          <small>{adapterStatus === 'ready' ? 'foliate-view ready' : `adapter ${adapterStatus}`}</small>
+          <small>
+            {adapterStatus === 'ready' ? 'foliate-view ready' : `adapter ${adapterStatus}`}
+            ·
+            {sampleStatus === 'open' ? 'sample opened' : `sample ${sampleStatus}`}
+          </small>
         </div>
 
-        <div class="paper-copy" aria-hidden="true">
+        <div class="engine-stage" bind:this={hostElement}></div>
+
+        {#if sampleStatus !== 'open'}
+          <div class="paper-copy" aria-hidden="true">
           <p>当制度开始无法自我修复时，政治衰败并不是突然发生的，而是以缓慢、分层和难以立即察觉的方式积累出来。</p>
           <p>中央正文区必须先像真正的阅读画布，再去承接翻页、选区、注释、TTS 和 bridge 等更复杂的行为。</p>
-          <p>这一块下一步会被 `foliate-js` 接管，现在先把主舞台的比例、留白和容器边界摆正。</p>
-        </div>
+          <p>这一块现在已经能显式调用 `view.open()` 载入样例书，下一步再接真实导入、目录和位置恢复。</p>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
@@ -96,6 +135,12 @@
     justify-content: space-between;
     gap: 12px;
     align-items: start;
+  }
+
+  .head-statuses {
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
 
   .label {
@@ -127,6 +172,20 @@
 
   .state[data-state='idle'] {
     color: var(--text-primary);
+  }
+
+  .sample-trigger {
+    padding: 7px 10px;
+    border: 1px solid rgba(64, 47, 24, 0.08);
+    background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+    color: var(--text-primary);
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .sample-trigger:disabled {
+    opacity: 0.55;
   }
 
   .viewport-frame {
@@ -174,6 +233,15 @@
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  .engine-stage {
+    min-height: min(60vh, 760px);
+  }
+
+  .engine-stage :global(foliate-view.foliate-preview) {
+    display: block;
+    min-height: min(60vh, 760px);
   }
 
   .paper-copy {
