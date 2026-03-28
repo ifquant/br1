@@ -1,12 +1,20 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import { BookshelfPreview, LibraryHeader } from '$lib/components';
-  import { openReaderTarget } from '$lib/services';
+  import {
+    canPersistLibrary,
+    importLibraryBooks,
+    loadPersistedLibraryBooks,
+    openReaderTarget,
+    selectSystemBookPaths,
+    toReaderAssetHref
+  } from '$lib/services';
 
   const assetHref = (url: string, label: string) =>
     `/reader?source=asset&url=${encodeURIComponent(url)}&label=${encodeURIComponent(label)}`;
 
-  const continueReading = [
+  const starterBooks = [
     {
       title: '政治秩序与政治衰败',
       author: 'Francis Fukuyama',
@@ -33,7 +41,7 @@
     }
   ];
 
-  const recentImports = [
+  const starterImports = [
     {
       title: '论法的精神',
       author: 'Montesquieu',
@@ -52,7 +60,36 @@
     }
   ];
 
+  type ShelfBook = {
+    title: string;
+    author: string;
+    status: string;
+    progress: string;
+    coverUrl?: string;
+    readerHref?: string;
+  };
+
+  let importedBooks: ShelfBook[] = [];
   let importInput: HTMLInputElement | null = null;
+
+  const loadLibrary = async () => {
+    if (!canPersistLibrary()) return;
+
+    const records = await loadPersistedLibraryBooks();
+    importedBooks = await Promise.all(
+      records.map(async (record) => ({
+        title: record.title,
+        author: record.author,
+        status: record.status,
+        progress: record.progress,
+        readerHref: await toReaderAssetHref(record)
+      }))
+    );
+  };
+
+  onMount(() => {
+    void loadLibrary();
+  });
 
   const handleOpenReaderLink = async (href: string) => {
     const opened = await openReaderTarget(href);
@@ -62,6 +99,30 @@
   };
 
   const triggerImportPicker = async () => {
+    if (canPersistLibrary()) {
+      const filePaths = await selectSystemBookPaths();
+      if (filePaths.length === 0) return;
+
+      const records = await importLibraryBooks(filePaths);
+      const mappedRecords = await Promise.all(
+        records.map(async (record) => ({
+          title: record.title,
+          author: record.author,
+          status: record.status,
+          progress: record.progress,
+          readerHref: await toReaderAssetHref(record)
+        }))
+      );
+      importedBooks = [...mappedRecords, ...importedBooks];
+
+      const [firstRecord] = records;
+      if (firstRecord) {
+        const href = await toReaderAssetHref(firstRecord);
+        await handleOpenReaderLink(href);
+      }
+      return;
+    }
+
     if (!importInput) return;
     if (typeof importInput.showPicker === 'function') {
       try {
@@ -81,6 +142,7 @@
 
     const objectUrl = URL.createObjectURL(file);
     await handleOpenReaderLink(assetHref(objectUrl, file.name));
+
     input.value = '';
   };
 </script>
@@ -103,17 +165,26 @@
       class="library-scroll"
       options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
     >
+      {#if importedBooks.length}
+        <BookshelfPreview
+          sectionTitle="你的书库"
+          books={importedBooks}
+          viewMode="list"
+          onOpenLink={handleOpenReaderLink}
+        />
+      {/if}
+
       <BookshelfPreview
-        sectionTitle="继续阅读"
-        books={continueReading}
+        sectionTitle={importedBooks.length ? '样例书架' : '继续阅读'}
+        books={starterBooks}
         showImportTile={true}
         onOpenLink={handleOpenReaderLink}
         onImportBooks={triggerImportPicker}
       />
 
       <BookshelfPreview
-        sectionTitle="最近导入"
-        books={recentImports}
+        sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
+        books={starterImports}
         viewMode="list"
         onOpenLink={handleOpenReaderLink}
       />
