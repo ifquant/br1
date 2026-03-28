@@ -5,6 +5,7 @@
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
+  export let isWindowMode = false;
   export let onNavigate: ((href: string) => void) | null = null;
 
   let lastScrolledHref = '';
@@ -21,7 +22,7 @@
   $: void scrollActiveIntoView();
 </script>
 
-<aside class="reader-sidebar" aria-label="reader navigation preview">
+<aside class:window-mode={isWindowMode} class="reader-sidebar" aria-label="reader navigation preview">
   <header class="sidebar-head">
     <div class="sidebar-tools">
       <button type="button" class="ghost-button" aria-label="toggle sidebar">☰</button>
@@ -85,6 +86,16 @@
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-panel) 96%, white 4%);
+  }
+
+  .reader-sidebar.window-mode {
+    border-top: 0;
+    border-left: 0;
+    border-bottom: 0;
+    padding-top: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 97%, white 3%);
   }
 
   .sidebar-head {

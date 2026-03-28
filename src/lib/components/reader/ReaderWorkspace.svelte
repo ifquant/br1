@@ -14,6 +14,7 @@
   export let controlRequest: ReaderControlRequest | null = null;
   export let autoOpenSample = false;
   export let autoOpenPicker = false;
+  export let isWindowMode = false;
   let readerPreview: ReaderPreviewState = {
     title: '政治秩序与政治衰败',
     author: 'Francis Fukuyama',
@@ -87,9 +88,9 @@
   };
 </script>
 
-<section class="reader-workspace">
-  <header class="reader-head">
-    <div class="head-meta">
+<section class:window-mode={isWindowMode} class="reader-workspace">
+  <header class:window-mode={isWindowMode} class="reader-head">
+    <div class:window-mode={isWindowMode} class="head-meta" data-tauri-drag-region={isWindowMode ? true : undefined}>
       <div class="title-row">
         <strong>{readerPreview.title}</strong>
         <div class="subtitle-row">
@@ -114,7 +115,7 @@
     </div>
   </header>
 
-  <article class="canvas">
+  <article class:window-mode={isWindowMode} class="canvas">
     <ReaderViewport
       title="Reader Engine Boundary"
       controlRequest={viewportControlRequest}
@@ -130,7 +131,7 @@
     />
   </article>
 
-  <footer class="footer-bar" aria-label="reader footer controls preview">
+  <footer class:window-mode={isWindowMode} class="footer-bar" aria-label="reader footer controls preview">
     <div class="footer-controls">
       <button type="button" aria-label="Previous page" title="Previous page" on:click={() => issueControl('prev')}>‹</button>
       <button type="button" aria-label="Go to start" title="Go to start" on:click={() => issueControl('start')}>·</button>
@@ -164,16 +165,38 @@
     min-width: 0;
   }
 
+  .reader-workspace.window-mode {
+    gap: 0;
+  }
+
   .reader-head {
     display: flex;
     justify-content: space-between;
     gap: 16px;
     align-items: center;
+    padding: 0;
+  }
+
+  .reader-head.window-mode {
+    min-height: 52px;
+    padding: 0 22px 8px 18px;
+    border-bottom: 1px solid rgba(64, 47, 24, 0.06);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-page) 97%, white 3%);
   }
 
   .head-meta {
     display: grid;
     gap: 2px;
+    min-width: 0;
+  }
+
+  .head-meta.window-mode {
+    align-content: center;
+    min-height: 100%;
+    padding-left: 2px;
+    cursor: grab;
   }
 
   .title-row {
@@ -225,6 +248,7 @@
     display: flex;
     gap: 4px;
     flex-wrap: nowrap;
+    -webkit-app-region: no-drag;
   }
 
   .controls button {
@@ -259,6 +283,14 @@
       color-mix(in srgb, var(--surface-reader) 94%, white 6%);
   }
 
+  .canvas.window-mode {
+    padding: 14px 18px 0;
+    border: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 96%, white 4%);
+  }
+
   .footer-bar {
     display: flex;
     justify-content: space-between;
@@ -272,6 +304,12 @@
     font-size: 10px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+  }
+
+  .footer-bar.window-mode {
+    padding: 6px 18px 10px;
+    border-top-color: rgba(64, 47, 24, 0.06);
+    background: color-mix(in srgb, var(--surface-page) 97%, white 3%);
   }
 
   .footer-controls {

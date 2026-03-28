@@ -46,11 +46,12 @@
   {/if}
 
   <div class:window-mode={isWindowMode} class="workspace">
-    <ReaderSidebar {toc} {activeHref} onNavigate={issueHrefControl} />
+    <ReaderSidebar {toc} {activeHref} {isWindowMode} onNavigate={issueHrefControl} />
     <ReaderWorkspace
       {controlRequest}
       {autoOpenSample}
       {autoOpenPicker}
+      {isWindowMode}
       on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
       }}
@@ -91,34 +92,32 @@
     min-height: 100vh;
     padding-top: 0;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-page) 95%, white 5%);
   }
 
   .window-chrome {
     display: grid;
-    grid-template-columns: 72px minmax(0, 1fr) 72px;
+    grid-template-columns: 92px minmax(0, 1fr) 92px;
     align-items: center;
-    min-height: 32px;
-    padding: 8px 14px 6px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-page) 96%, white 4%);
-    border-bottom: 1px solid rgba(64, 47, 24, 0.06);
+    min-height: 26px;
+    padding: 10px 18px 0;
+    background: transparent;
     user-select: none;
   }
 
   .traffic-light-gutter {
-    min-height: 14px;
+    min-height: 16px;
   }
 
   .window-title {
     display: grid;
     justify-items: center;
-    gap: 1px;
+    gap: 0;
     min-width: 0;
     text-align: center;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    opacity: 0.72;
   }
 
   .window-title span,
@@ -130,30 +129,32 @@
 
   .window-title span {
     color: color-mix(in srgb, var(--text-primary) 84%, white 16%);
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.2;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .window-title small {
     color: var(--text-muted);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: none;
   }
 
   .window-actions {
     display: inline-flex;
     justify-content: end;
-    gap: 6px;
+    gap: 8px;
+    min-height: 16px;
   }
 
   .window-actions span {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.06);
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
+    opacity: 0.65;
   }
 
   .workspace {
@@ -165,8 +166,8 @@
 
   .workspace.window-mode {
     gap: 0;
-    min-height: calc(100vh - 46px);
-    grid-template-columns: 236px minmax(0, 1fr) 244px;
+    min-height: calc(100vh - 26px);
+    grid-template-columns: 220px minmax(0, 1fr) 220px;
   }
 
   .bridge-placeholder {
@@ -184,10 +185,10 @@
     border-top: 0;
     border-right: 0;
     border-bottom: 0;
-    padding-top: 14px;
+    padding-top: 18px;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 95%, white 5%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 96%, white 4%);
   }
 
   .label {
@@ -247,7 +248,7 @@
     }
 
     .workspace.window-mode {
-      grid-template-columns: 220px minmax(0, 1fr);
+      grid-template-columns: 208px minmax(0, 1fr);
     }
 
     .bridge-placeholder {
