@@ -17,9 +17,21 @@
     '这里是后续阅读引擎接管的唯一宿主容器。toolbar、sidebar 和 bridge 都不应该直接侵入这个 DOM 边界。';
 
   let hostElement: HTMLDivElement | null = null;
+  let stageElement: HTMLDivElement | null = null;
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   let sampleStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
   let foliateViewElement: FoliateViewElement | null = null;
+
+  const configureFoliatePreview = () => {
+    const renderer = (foliateViewElement as (FoliateViewElement & { renderer?: HTMLElement }) | null)?.renderer;
+    if (!renderer) return;
+
+    renderer.setAttribute('flow', 'paginated');
+    renderer.setAttribute('margin', '20');
+    renderer.setAttribute('gap', '6%');
+    renderer.setAttribute('max-inline-size', '720px');
+    renderer.setAttribute('max-block-size', '980px');
+  };
 
   const loadSampleBook = async () => {
     if (!foliateViewElement || sampleStatus === 'loading') return;
@@ -28,6 +40,7 @@
 
     try {
       await foliateViewElement.open(SAMPLE_READER_BOOK_URL);
+      configureFoliatePreview();
       sampleStatus = 'open';
     } catch (error) {
       console.error('Failed to open reader sample book', error);
@@ -39,21 +52,21 @@
     let cancelled = false;
 
     const setupFoliateHost = async () => {
-      if (!hostElement) return;
+      if (!hostElement || !stageElement) return;
 
       adapterStatus = 'loading';
 
       try {
         await ensureFoliateViewDefinition();
-        if (cancelled || !hostElement) return;
+        if (cancelled || !hostElement || !stageElement) return;
 
-        const existingView = hostElement.querySelector(FOLIATE_VIEW_TAG);
+        const existingView = stageElement.querySelector(FOLIATE_VIEW_TAG);
         if (existingView instanceof HTMLElement) {
           foliateViewElement = existingView as FoliateViewElement;
         } else {
           const view = createFoliateViewElement();
           view.className = 'foliate-preview';
-          hostElement.append(view);
+          stageElement.append(view);
           foliateViewElement = view;
         }
 
@@ -101,7 +114,7 @@
     >
       <div class="engine-paper">
         <div class="paper-header">
-          <span>Chapter 3</span>
+          <span>{sampleStatus === 'open' ? 'Sample book' : 'Chapter 3'}</span>
           <small>
             {adapterStatus === 'ready' ? 'foliate-view ready' : `adapter ${adapterStatus}`}
             ·
@@ -109,7 +122,7 @@
           </small>
         </div>
 
-        <div class="engine-stage" bind:this={hostElement}></div>
+        <div class="engine-stage" bind:this={stageElement}></div>
 
         {#if sampleStatus !== 'open'}
           <div class="paper-copy" aria-hidden="true">
@@ -210,11 +223,11 @@
   .engine-paper {
     display: grid;
     align-content: start;
-    gap: 24px;
-    width: min(100%, 760px);
+    gap: 20px;
+    width: min(100%, 820px);
     min-height: 100%;
     margin: 0 auto;
-    padding: clamp(22px, 4vw, 38px) clamp(20px, 4vw, 50px);
+    padding: clamp(18px, 3vw, 24px) clamp(18px, 3vw, 30px);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0)),
       #f8f3e9;
@@ -236,12 +249,44 @@
   }
 
   .engine-stage {
-    min-height: min(60vh, 760px);
+    min-height: min(66vh, 860px);
+    background: rgba(255, 255, 255, 0.36);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 0 0 1px rgba(84, 62, 34, 0.05);
   }
 
   .engine-stage :global(foliate-view.foliate-preview) {
     display: block;
-    min-height: min(60vh, 760px);
+    width: 100%;
+    min-height: min(66vh, 860px);
+    color: #2b221a;
+    background: transparent;
+  }
+
+  .engine-stage :global(foliate-view.foliate-preview::part(filter)) {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
+      #fbf7ef;
+  }
+
+  .engine-stage :global(foliate-view.foliate-preview::part(head)),
+  .engine-stage :global(foliate-view.foliate-preview::part(foot)) {
+    color: rgba(71, 54, 31, 0.55);
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .engine-stage :global(foliate-view.foliate-preview::part(head)) {
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(84, 62, 34, 0.08);
+  }
+
+  .engine-stage :global(foliate-view.foliate-preview::part(foot)) {
+    padding-top: 6px;
+    border-top: 1px solid rgba(84, 62, 34, 0.08);
   }
 
   .paper-copy {
