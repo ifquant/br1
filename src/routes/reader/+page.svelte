@@ -31,6 +31,20 @@
 </script>
 
 <section class:window-mode={isWindowMode} class="reader-shell">
+  {#if isWindowMode}
+    <header class="window-chrome" data-tauri-drag-region aria-label="reader window chrome">
+      <div class="traffic-light-gutter" aria-hidden="true"></div>
+      <div class="window-title" data-tauri-drag-region>
+        <span>Bridge Reader</span>
+        <small>Reading window</small>
+      </div>
+      <div class="window-actions" aria-hidden="true">
+        <span></span>
+        <span></span>
+      </div>
+    </header>
+  {/if}
+
   <div class:window-mode={isWindowMode} class="workspace">
     <ReaderSidebar {toc} {activeHref} onNavigate={issueHrefControl} />
     <ReaderWorkspace
@@ -75,10 +89,71 @@
 
   .reader-shell.window-mode {
     min-height: 100vh;
-    padding-top: 30px;
+    padding-top: 0;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-page) 95%, white 5%);
+  }
+
+  .window-chrome {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) 72px;
+    align-items: center;
+    min-height: 32px;
+    padding: 8px 14px 6px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-page) 96%, white 4%);
+    border-bottom: 1px solid rgba(64, 47, 24, 0.06);
+    user-select: none;
+  }
+
+  .traffic-light-gutter {
+    min-height: 14px;
+  }
+
+  .window-title {
+    display: grid;
+    justify-items: center;
+    gap: 1px;
+    min-width: 0;
+    text-align: center;
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+  }
+
+  .window-title span,
+  .window-title small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .window-title span {
+    color: color-mix(in srgb, var(--text-primary) 84%, white 16%);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+  }
+
+  .window-title small {
+    color: var(--text-muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .window-actions {
+    display: inline-flex;
+    justify-content: end;
+    gap: 6px;
+  }
+
+  .window-actions span {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.06);
   }
 
   .workspace {
@@ -90,7 +165,7 @@
 
   .workspace.window-mode {
     gap: 0;
-    min-height: calc(100vh - 30px);
+    min-height: calc(100vh - 46px);
     grid-template-columns: 236px minmax(0, 1fr) 244px;
   }
 
@@ -183,6 +258,11 @@
   @media (max-width: 960px) {
     .workspace {
       grid-template-columns: 1fr;
+    }
+
+    .window-chrome {
+      grid-template-columns: 56px minmax(0, 1fr) 56px;
+      padding-inline: 10px;
     }
   }
 </style>
