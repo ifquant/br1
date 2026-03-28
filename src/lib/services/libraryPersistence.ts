@@ -6,8 +6,14 @@ export type PersistedLibraryBook = {
   progress: string;
   status: string;
   filePath: string;
+  coverPath?: string | null;
   sourcePath?: string | null;
   importedAt: number;
+};
+
+export type ReadestLibrarySummary = {
+  available: boolean;
+  count: number;
 };
 
 const isTauriDesktop = () => {
@@ -25,6 +31,15 @@ export const loadPersistedLibraryBooks = async (): Promise<PersistedLibraryBook[
   if (!isTauriDesktop()) return [];
   const { invoke } = await import('@tauri-apps/api/core');
   return invoke<PersistedLibraryBook[]>('load_library_books');
+};
+
+export const detectReadestLibrary = async (): Promise<ReadestLibrarySummary> => {
+  if (!isTauriDesktop()) {
+    return { available: false, count: 0 };
+  }
+
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<ReadestLibrarySummary>('detect_readest_library');
 };
 
 export const selectSystemBookPaths = async (): Promise<string[]> => {
@@ -47,6 +62,11 @@ export const importLibraryBooks = async (filePaths: string[]): Promise<Persisted
   });
 };
 
+export const importReadestLibrary = async (): Promise<PersistedLibraryBook[]> => {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<PersistedLibraryBook[]>('import_readest_library');
+};
+
 export const toReaderAssetHref = async (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';
 
@@ -55,4 +75,11 @@ export const toReaderAssetHref = async (book: PersistedLibraryBook) => {
   return `/reader?source=asset&url=${encodeURIComponent(assetUrl)}&label=${encodeURIComponent(
     book.title
   )}`;
+};
+
+export const toLibraryCoverUrl = async (book: PersistedLibraryBook) => {
+  if (!isTauriDesktop() || !book.coverPath) return '';
+
+  const { convertFileSrc } = await import('@tauri-apps/api/core');
+  return convertFileSrc(book.coverPath);
 };

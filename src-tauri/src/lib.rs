@@ -14,8 +14,28 @@ struct LibraryBookRecord {
     progress: String,
     status: String,
     file_path: String,
+    cover_path: Option<String>,
     source_path: Option<String>,
     imported_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReadestLibrarySummary {
+    available: bool,
+    count: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReadestBookRecord {
+    hash: String,
+    format: String,
+    title: String,
+    author: String,
+    created_at: Option<u64>,
+    downloaded_at: Option<u64>,
+    progress: Option<Vec<u64>>,
 }
 
 #[tauri::command]
@@ -27,6 +47,23 @@ fn greet(name: &str) -> String {
 fn load_library_books(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord>, String> {
     let library_json = library_json_path(&app)?;
     load_library_records(&library_json)
+}
+
+#[tauri::command]
+fn detect_readest_library(app: tauri::AppHandle) -> Result<ReadestLibrarySummary, String> {
+    let readest_library = readest_library_json_path(&app)?;
+    if !readest_library.exists() {
+        return Ok(ReadestLibrarySummary {
+            available: false,
+            count: 0,
+        });
+    }
+
+    let books = load_readest_records(&readest_library)?;
+    Ok(ReadestLibrarySummary {
+        available: !books.is_empty(),
+        count: books.len(),
+    })
 }
 
 #[tauri::command]
@@ -80,6 +117,7 @@ fn import_library_books(
             progress: "等待首轮阅读".to_string(),
             status: "新导入".to_string(),
             file_path: stored_path.to_string_lossy().to_string(),
+            cover_path: None,
             source_path: Some(file_path.clone()),
             imported_at,
         };
@@ -94,6 +132,80 @@ fn import_library_books(
     Ok(imported)
 }
 
+#[tauri::command]
+fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord>, String> {
+    let readest_library_json = readest_library_json_path(&app)?;
+    let readest_books_root = readest_books_root(&app)?;
+    let readest_records = load_readest_records(&readest_library_json)?;
+    let library_root = ensure_library_root(&app)?;
+    let books_dir = library_root.join("books");
+    fs::create_dir_all(&books_dir).map_err(|error| error.to_string())?;
+    let library_json = library_root.join("library.json");
+    let mut records = load_library_records(&library_json)?;
+    let mut imported = Vec::new();
+
+    for readest_record in readest_records {
+        let Some(source_file) = find_readest_book_file(&readest_books_root, &readest_record)? else {
+            continue;
+        };
+
+        let record_id = format!("readest-{}", readest_record.hash);
+        let destination_dir = books_dir.join(&record_id);
+        fs::create_dir_all(&destination_dir).map_err(|error| error.to_string())?;
+
+        let source_filename = source_file
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| "Invalid Readest filename".to_string())?;
+        let stored_book_path = destination_dir.join(sanitize_filename(source_filename));
+        fs::copy(&source_file, &stored_book_path).map_err(|error| error.to_string())?;
+
+        let readest_cover = readest_books_root.join(&readest_record.hash).join("cover.png");
+        let cover_path = if readest_cover.exists() {
+            let copied_cover = destination_dir.join("cover.png");
+            fs::copy(&readest_cover, &copied_cover).map_err(|error| error.to_string())?;
+            Some(copied_cover.to_string_lossy().to_string())
+        } else {
+            None
+        };
+
+        let imported_at = readest_record
+            .downloaded_at
+            .or(readest_record.created_at)
+            .unwrap_or(now_millis()?);
+        let progress = format_readest_progress(readest_record.progress.as_deref());
+        let status = if progress == "尚未开始" {
+            "从 Readest 导入".to_string()
+        } else {
+            "继续阅读".to_string()
+        };
+
+        let record = LibraryBookRecord {
+            id: record_id.clone(),
+            title: readest_record.title.clone(),
+            author: if readest_record.author.trim().is_empty() {
+                "Unknown author".to_string()
+            } else {
+                readest_record.author.clone()
+            },
+            format: readest_record.format.clone(),
+            progress,
+            status,
+            file_path: stored_book_path.to_string_lossy().to_string(),
+            cover_path,
+            source_path: Some(source_file.to_string_lossy().to_string()),
+            imported_at,
+        };
+
+        records.retain(|book| book.id != record_id);
+        records.insert(0, record.clone());
+        imported.push(record);
+    }
+
+    save_library_records(&library_json, &records)?;
+    Ok(imported)
+}
+
 fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     let library_root = app_data_dir.join("library");
@@ -101,11 +213,33 @@ fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(library_root)
 }
 
+fn readest_library_json_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(readest_books_root(app)?.join("library.json"))
+}
+
+fn readest_books_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let support_root = app_data_dir
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| "Unable to locate application support root".to_string())?;
+    Ok(support_root.join("com.bilingify.readest").join("Readest").join("Books"))
+}
+
 fn library_json_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(ensure_library_root(app)?.join("library.json"))
 }
 
 fn load_library_records(path: &Path) -> Result<Vec<LibraryBookRecord>, String> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let json = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    serde_json::from_str(&json).map_err(|error| error.to_string())
+}
+
+fn load_readest_records(path: &Path) -> Result<Vec<ReadestBookRecord>, String> {
     if !path.exists() {
         return Ok(Vec::new());
     }
@@ -136,6 +270,45 @@ fn sanitize_filename(filename: &str) -> String {
         .collect()
 }
 
+fn find_readest_book_file(
+    readest_books_root: &Path,
+    readest_record: &ReadestBookRecord,
+) -> Result<Option<PathBuf>, String> {
+    let book_dir = readest_books_root.join(&readest_record.hash);
+    if !book_dir.exists() {
+        return Ok(None);
+    }
+
+    let format = readest_record.format.to_lowercase();
+    let mut candidates = Vec::new();
+    for entry in fs::read_dir(&book_dir).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if extension == format {
+            candidates.push(path);
+        }
+    }
+
+    Ok(candidates.into_iter().next())
+}
+
+fn format_readest_progress(progress: Option<&[u64]>) -> String {
+    let Some([current, total, ..]) = progress else {
+        return "尚未开始".to_string();
+    };
+
+    format!("{current}/{total}")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -144,7 +317,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             load_library_books,
-            import_library_books
+            detect_readest_library,
+            import_library_books,
+            import_readest_library
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -2,12 +2,16 @@
   import { onMount } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import { BookshelfPreview, LibraryHeader } from '$lib/components';
+  import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
   import {
     canPersistLibrary,
+    detectReadestLibrary,
     importLibraryBooks,
+    importReadestLibrary,
     loadPersistedLibraryBooks,
     openReaderTarget,
     selectSystemBookPaths,
+    toLibraryCoverUrl,
     toReaderAssetHref
   } from '$lib/services';
 
@@ -71,20 +75,28 @@
 
   let importedBooks: ShelfBook[] = [];
   let importInput: HTMLInputElement | null = null;
+  let readestLibraryCount = 0;
+  let showReadestMigration = false;
+  let migrationBusy = false;
+
+  const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => ({
+    title: record.title,
+    author: record.author,
+    status: record.status,
+    progress: record.progress,
+    coverUrl: await toLibraryCoverUrl(record),
+    readerHref: await toReaderAssetHref(record)
+  });
 
   const loadLibrary = async () => {
     if (!canPersistLibrary()) return;
 
     const records = await loadPersistedLibraryBooks();
-    importedBooks = await Promise.all(
-      records.map(async (record) => ({
-        title: record.title,
-        author: record.author,
-        status: record.status,
-        progress: record.progress,
-        readerHref: await toReaderAssetHref(record)
-      }))
-    );
+    importedBooks = await Promise.all(records.map(mapLibraryRecord));
+
+    const readestSummary = await detectReadestLibrary();
+    readestLibraryCount = readestSummary.count;
+    showReadestMigration = records.length === 0 && readestSummary.available;
   };
 
   onMount(() => {
@@ -104,16 +116,9 @@
       if (filePaths.length === 0) return;
 
       const records = await importLibraryBooks(filePaths);
-      const mappedRecords = await Promise.all(
-        records.map(async (record) => ({
-          title: record.title,
-          author: record.author,
-          status: record.status,
-          progress: record.progress,
-          readerHref: await toReaderAssetHref(record)
-        }))
-      );
+      const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
       importedBooks = [...mappedRecords, ...importedBooks];
+      showReadestMigration = false;
 
       const [firstRecord] = records;
       if (firstRecord) {
@@ -145,6 +150,25 @@
 
     input.value = '';
   };
+
+  const triggerReadestMigration = async () => {
+    if (!canPersistLibrary() || migrationBusy) return;
+
+    migrationBusy = true;
+    try {
+      const records = await importReadestLibrary();
+      await loadLibrary();
+      showReadestMigration = false;
+
+      const [firstRecord] = records;
+      if (firstRecord) {
+        const href = await toReaderAssetHref(firstRecord);
+        await handleOpenReaderLink(href);
+      }
+    } finally {
+      migrationBusy = false;
+    }
+  };
 </script>
 
 <section class="library-page">
@@ -158,6 +182,18 @@
     />
 
     <LibraryHeader />
+
+    {#if showReadestMigration}
+      <section class="migration-banner" aria-label="readest migration">
+        <div class="migration-copy">
+          <strong>发现 Readest 书库</strong>
+          <span>本机找到 {readestLibraryCount} 本书，可以直接迁入 br1 书库。</span>
+        </div>
+        <button type="button" class="migration-button" on:click={triggerReadestMigration}>
+          {migrationBusy ? '迁移中…' : `导入 ${readestLibraryCount} 本书`}
+        </button>
+      </section>
+    {/if}
 
     <OverlayScrollbarsComponent
       defer
@@ -216,6 +252,47 @@
     display: none;
   }
 
+  .migration-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 8px 24px rgba(42, 30, 15, 0.05);
+  }
+
+  .migration-copy {
+    display: grid;
+    gap: 3px;
+  }
+
+  .migration-copy strong {
+    font: 600 13px/1.2 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    color: var(--text-primary);
+  }
+
+  .migration-copy span {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .migration-button {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: color-mix(in srgb, var(--text-primary) 94%, white 6%);
+    color: white;
+    font: 600 12px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    box-shadow: 0 10px 20px rgba(42, 30, 15, 0.12);
+  }
+
   :global(.library-scroll) {
     min-height: 0;
     overflow: auto;
@@ -265,6 +342,11 @@
       --os-size: 8px;
       --os-padding-perpendicular: 1px;
       --os-padding-axis: 1px;
+    }
+
+    .migration-banner {
+      grid-template-columns: 1fr;
+      align-items: start;
     }
   }
 </style>
