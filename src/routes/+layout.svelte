@@ -2,7 +2,6 @@
   import { page } from '$app/stores';
 
   const navItems = [
-    { href: '/', label: 'Home' },
     { href: '/library', label: 'Library' },
     { href: '/reader', label: 'Reader' }
   ];
@@ -31,7 +30,7 @@
       <span class="mark">br1</span>
       <div class="copy">
         <strong>Bridge Reader</strong>
-        <small>Tauri + SvelteKit shell</small>
+        <small>Readest-inspired shell on Tauri + SvelteKit</small>
       </div>
     </div>
 
