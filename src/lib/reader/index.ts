@@ -1,2 +1,14 @@
-// Reader engine integration points (Foliate, renderer adapters, etc.) will land here.
-export {};
+import type { ReaderEngineMountState, ReaderMountBoundary } from './types';
+
+export type { ReaderEngineMountState, ReaderMountBoundary } from './types';
+
+export const READER_ENGINE_HOST_ATTR = 'reader-engine-host';
+export const READER_ENGINE_STATUS_ATTR = 'pending-adapter';
+
+export const createReaderMountBoundary = (
+  state: ReaderEngineMountState = 'idle'
+): ReaderMountBoundary => ({
+  hostRole: READER_ENGINE_HOST_ATTR,
+  statusAttr: READER_ENGINE_STATUS_ATTR,
+  state
+});

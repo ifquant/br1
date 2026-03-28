@@ -1,3 +1,10 @@
+<script lang="ts">
+  import { createReaderMountBoundary } from '$lib/reader';
+  import ReaderViewport from './ReaderViewport.svelte';
+
+  const mountBoundary = createReaderMountBoundary('idle');
+</script>
+
 <section class="reader-workspace">
   <header class="reader-head">
     <div>
@@ -26,6 +33,12 @@
     <p>
       这一层先不提前接 bridge 逻辑，只把它留在右侧作为 `br1` 相对 Readest 的产品扩展挂载点。
     </p>
+
+    <ReaderViewport
+      title="Reader Engine Boundary"
+      state={mountBoundary.state}
+      hint="这块容器对齐 Readest 里阅读引擎所在的中央主舞台，但先只定义边界，不提前接 DOM-heavy 逻辑。"
+    />
   </article>
 
   <footer class="footer-bar" aria-label="reader footer controls preview">
