@@ -90,6 +90,14 @@
     align-content: start;
     gap: 18px;
     padding: 10px 2px 18px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    overscroll-behavior: contain;
+  }
+
+  .library-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
   }
 
   @media (max-width: 900px) {
