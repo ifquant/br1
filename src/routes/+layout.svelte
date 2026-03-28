@@ -1,4 +1,5 @@
 <script lang="ts">
+  import 'overlayscrollbars/styles/overlayscrollbars.css';
   import { page } from '$app/stores';
   import { derived } from 'svelte/store';
 

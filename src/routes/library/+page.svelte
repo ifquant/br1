@@ -1,5 +1,6 @@
 <script lang="ts">
   import { BookshelfPreview, LibraryHeader } from '$lib/components';
+  import { overlayScrollbars } from '$lib/services/overlayScrollbars';
 
   const continueReading = [
     {
@@ -47,7 +48,11 @@
   <div class="library-surface">
     <LibraryHeader />
 
-    <div class="library-scroll">
+    <div
+      use:overlayScrollbars
+      class="library-scroll"
+      data-overlayscrollbars-initialize
+    >
       <BookshelfPreview
         sectionTitle="继续阅读"
         books={continueReading}
@@ -90,14 +95,7 @@
     align-content: start;
     gap: 18px;
     padding: 10px 2px 18px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     overscroll-behavior: contain;
-  }
-
-  .library-scroll::-webkit-scrollbar {
-    width: 0;
-    height: 0;
   }
 
   @media (max-width: 900px) {
