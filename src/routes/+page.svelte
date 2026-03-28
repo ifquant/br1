@@ -1,104 +1,98 @@
 <script lang="ts">
-  // 模拟 readest-app 的布局：头部 + 侧栏 + 主内容
-  let collapsed = $state(false);
-  const toggleSidebar = () => (collapsed = !collapsed);
-  const items = $state([
-    { id: 'library', title: 'Library' },
-    { id: 'reader', title: 'Reader' },
-    { id: 'settings', title: 'Settings' }
-  ]);
+  const quickLinks = [
+    {
+      href: '/library',
+      title: 'Library',
+      description: '书库入口和继续阅读列表。后续对齐 Readest 的导入、分组和最近阅读能力。'
+    },
+    {
+      href: '/reader',
+      title: 'Reader',
+      description: '阅读工作区骨架。后续接入 Foliate、TTS、bridge 和阅读状态恢复。'
+    }
+  ];
 </script>
 
-<div class="layout">
-  <header class="header">
-    <div class="left">
-      <button class="win-btn">≡</button>
-      <h1 class="title">Readest</h1>
-    </div>
-    <div class="right">
-      <button class="btn" onclick={toggleSidebar}>{collapsed ? '展开' : '折叠'}</button>
-      <button class="btn primary">导入书籍</button>
-    </div>
-  </header>
+<section class="welcome">
+  <div class="eyebrow">br1 / Tauri + SvelteKit</div>
+  <h1>Svelte 版阅读器应用骨架</h1>
+  <p>
+    这一层先解决路由、壳结构和后续迁移落位，不在这里提前混入阅读引擎、AI bridge 或复杂状态。
+  </p>
 
-  <div class="content">
-    <aside class="sidebar" data-collapsed={collapsed}>
-      <nav>
-        {#each items as item}
-          <a class="nav-item" href="#${item.id}">{item.title}</a>
-        {/each}
-      </nav>
-    </aside>
-
-    <main class="main">
-      <section class="grid">
-        {#each Array(12).fill(0).map((_, i) => i) as i}
-          <div class="book-card">
-            <div class="cover"></div>
-            <div class="meta">
-              <div class="title">示例书籍 {i + 1}</div>
-              <div class="authors">作者 A, B</div>
-            </div>
-          </div>
-        {/each}
-      </section>
-    </main>
+  <div class="actions">
+    {#each quickLinks as link}
+      <a class="card" href={link.href}>
+        <span class="label">{link.title}</span>
+        <span class="desc">{link.description}</span>
+      </a>
+    {/each}
   </div>
-</div>
+</section>
 
 <style>
-  .layout {
+  .welcome {
     display: grid;
-    grid-template-rows: 48px 1fr;
-    height: 100vh;
+    gap: 16px;
+    max-width: 960px;
   }
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 12px;
-    border-bottom: 1px solid #e5e7eb;
-    background: var(--bg);
-    color: var(--fg);
-  }
-  .left { display: flex; align-items: center; gap: 8px; }
-  .title { font-size: 14px; margin: 0; }
-  .win-btn { width: 28px; height: 28px; border-radius: 6px; }
-  .btn { height: 28px; padding: 0 10px; border-radius: 6px; }
-  .primary { background: var(--accent); color: white; border: none; }
 
-  .content {
+  .eyebrow {
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(32px, 5vw, 52px);
+    line-height: 1.05;
+    font-weight: 600;
+  }
+
+  p {
+    max-width: 64ch;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .actions {
     display: grid;
-    grid-template-columns: 220px 1fr;
-    min-height: 0; /* allow children to shrink */
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
   }
-  .sidebar {
-    border-right: 1px solid #e5e7eb;
-    padding: 10px;
-    background: #fafafa;
-  }
-  .sidebar[data-collapsed="true"] { width: 56px; }
-  .nav-item { display: block; padding: 8px; border-radius: 6px; color: var(--fg); }
-  .nav-item:hover { background: #efefef; }
 
-  .main { padding: 12px; overflow: auto; }
-  .grid {
+  .card {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
+    gap: 10px;
+    padding: 18px;
+    border: 1px solid var(--line-soft);
+    background: var(--surface-panel);
+    color: inherit;
+    text-decoration: none;
+    transition:
+      transform 120ms ease,
+      border-color 120ms ease,
+      background 120ms ease;
   }
-  .book-card { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: white; }
-  .cover { height: 160px; background: #ddd; }
-  .meta { padding: 8px; }
-  .title { font-size: 13px; font-weight: 600; }
-  .authors { font-size: 12px; color: #666; }
 
-  @media (prefers-color-scheme: dark) {
-    .header { border-color: #3a3a3a; }
-    .sidebar { background: #202020; border-color: #3a3a3a; }
-    .nav-item:hover { background: #333; }
-    .book-card { background: #111; border-color: #333; }
-    .cover { background: #222; }
-    .meta { color: #ddd; }
+  .card:hover {
+    transform: translateY(-1px);
+    border-color: var(--accent-reading);
+    background: var(--surface-reader);
+  }
+
+  .label {
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .desc {
+    color: var(--text-secondary);
+    line-height: 1.6;
   }
 </style>
