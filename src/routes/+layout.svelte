@@ -1,10 +1,13 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { derived } from 'svelte/store';
 
   const navItems = [
     { href: '/library', label: 'Library' },
     { href: '/reader', label: 'Reader' }
   ];
+
+  const isLibraryRoute = derived(page, ($page) => $page.url.pathname === '/library');
 
   // 模仿 readest-app 的主题初始化逻辑：在加载前设置 data-theme
   if (typeof document !== 'undefined') {
@@ -25,31 +28,35 @@
 </svelte:head>
 
 <div class="app-root">
-  <header class="app-header">
-    <div class="brand">
-      <span class="mark">br1</span>
-      <div class="copy">
-        <strong>Bridge Reader</strong>
-        <small>Readest-inspired shell on Tauri + SvelteKit</small>
+  {#if !$isLibraryRoute}
+    <header class="app-header">
+      <div class="brand">
+        <span class="mark">br1</span>
+        <div class="copy">
+          <strong>Bridge Reader</strong>
+          <small>Readest-inspired shell on Tauri + SvelteKit</small>
+        </div>
       </div>
-    </div>
 
-    <nav class="top-nav" aria-label="primary">
-      {#each navItems as item}
-        <a class:active={$page.url.pathname === item.href} href={item.href}>{item.label}</a>
-      {/each}
-    </nav>
-  </header>
+      <nav class="top-nav" aria-label="primary">
+        {#each navItems as item}
+          <a class:active={$page.url.pathname === item.href} href={item.href}>{item.label}</a>
+        {/each}
+      </nav>
+    </header>
+  {/if}
 
   <div class="app-frame">
-    <aside class="side-rail" aria-label="workspace sections">
-      <span class="rail-label">Workspace</span>
-      {#each navItems as item}
-        <a class:active={$page.url.pathname === item.href} href={item.href}>{item.label}</a>
-      {/each}
-    </aside>
+    {#if !$isLibraryRoute}
+      <aside class="side-rail" aria-label="workspace sections">
+        <span class="rail-label">Workspace</span>
+        {#each navItems as item}
+          <a class:active={$page.url.pathname === item.href} href={item.href}>{item.label}</a>
+        {/each}
+      </aside>
+    {/if}
 
-    <main class="app-main">
+    <main class:library-main={$isLibraryRoute} class="app-main">
       <slot />
     </main>
   </div>
@@ -183,6 +190,10 @@
     min-height: 0;
   }
 
+  .app-frame:has(.library-main) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .side-rail {
     display: grid;
     align-content: start;
@@ -215,6 +226,10 @@
     min-width: 0;
   }
 
+  .app-main.library-main {
+    padding: 12px 18px 18px;
+  }
+
   @media (max-width: 900px) {
     .app-frame {
       grid-template-columns: 1fr;
@@ -226,6 +241,10 @@
 
     .app-main {
       padding: 20px;
+    }
+
+    .app-main.library-main {
+      padding: 0;
     }
   }
 </style>

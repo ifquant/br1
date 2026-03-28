@@ -43,22 +43,16 @@
     <LibraryHeader />
 
     <div class="library-scroll">
-      <div class="library-summary">
-        <span>5 books</span>
-        <span>grid view</span>
-        <span>fixed 28:41 covers</span>
-      </div>
-
       <BookshelfPreview
         sectionTitle="继续阅读"
-        sectionHint="第一版严格对齐，先把卡片密度、封面比例和书架栅格贴近 Readest。"
+        sectionHint=""
         books={continueReading}
         showImportTile={true}
       />
 
       <BookshelfPreview
         sectionTitle="最近导入"
-        sectionHint="这里先保留第二组书架，后续再接分组、排序和真实导入数据。"
+        sectionHint=""
         books={recentImports}
         viewMode="list"
       />
@@ -92,22 +86,7 @@
     display: grid;
     align-content: start;
     gap: 22px;
-    padding: 14px 2px 18px;
-  }
-
-  .library-summary {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-    min-height: 18px;
-    color: var(--text-muted);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-    border-bottom: 1px solid var(--line-soft);
-    padding-bottom: 10px;
+    padding: 12px 2px 18px;
   }
 
   @media (max-width: 900px) {
