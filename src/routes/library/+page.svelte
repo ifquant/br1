@@ -40,30 +40,21 @@
 
 <section class="library">
   <LibraryHeader />
-
-  <section class="continue-card">
-    <div class="continue-copy">
-      <span class="label">Continue Reading</span>
-      <strong>回到《政治秩序与政治衰败》</strong>
-      <p>这里先对齐 Readest 最重要的主路径：从书库直接回到上次阅读位置。</p>
-    </div>
-    <a class="continue-link" href="/reader">打开阅读器</a>
-  </section>
-
-  <div class="library-meta">
-    <span>共 5 本样例书籍</span>
-    <span>分组 / 排序 / 搜索 后续接真实 store</span>
+  <div class="library-summary">
+    <span>5 books</span>
+    <span>grid view</span>
+    <span>fixed 28:41 covers</span>
   </div>
 
   <BookshelfPreview
     sectionTitle="继续阅读"
-    sectionHint="模拟 Readest 书库里的主书架区，先把继续阅读放在最前。"
+    sectionHint="第一版严格对齐，先把卡片密度、封面比例和书架栅格贴近 Readest。"
     books={continueReading}
   />
 
   <BookshelfPreview
     sectionTitle="最近导入"
-    sectionHint="给后续导入、元数据补全和分组视图保留落点。"
+    sectionHint="这里先保留第二组书架，后续再接分组、排序和真实导入数据。"
     books={recentImports}
   />
 </section>
@@ -71,62 +62,22 @@
 <style>
   .library {
     display: grid;
-    gap: 24px;
+    gap: 18px;
+    align-content: start;
   }
 
-  .continue-card {
+  .library-summary {
     display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: center;
-    padding: 20px;
-    border: 1px solid var(--line-soft);
-    background: var(--surface-reader);
-  }
-
-  .continue-copy {
-    display: grid;
-    gap: 8px;
-  }
-
-  .continue-copy p,
-  .library-meta {
-    margin: 0;
-    color: var(--text-secondary);
-  }
-
-  .continue-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 0 16px;
-    border: 1px solid var(--line-strong);
-    background: var(--accent-reading);
-    color: white;
-    text-decoration: none;
-  }
-
-  .label {
-    color: var(--text-muted);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .library-meta {
-    display: flex;
-    justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    padding-top: 4px;
+    align-items: center;
+    min-height: 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-  }
-
-  @media (max-width: 780px) {
-    .continue-card {
-      display: grid;
-      align-items: start;
-    }
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 12px;
   }
 </style>

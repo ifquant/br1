@@ -1,105 +1,86 @@
 <script lang="ts">
-  export let title = 'Your Library';
-  export let subtitle = '继续阅读、最近导入和书架组织都先在这一层对齐 Readest。';
+  export let query = '搜索书库、作者、标签';
 </script>
 
 <header class="library-header">
-  <div class="copy">
-    <div class="eyebrow">Library</div>
-    <h1>{title}</h1>
-    <p>{subtitle}</p>
+  <div class="search-shell" aria-label="search placeholder">
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <span class="search-copy">{query}</span>
   </div>
 
   <div class="actions" aria-label="library actions preview">
-    <div class="search-shell" aria-label="search placeholder">
-      <span>搜索书库、作者、标签</span>
-    </div>
-    <button type="button">导入</button>
-    <button type="button" class="secondary">视图</button>
+    <button type="button" class="ghost" aria-label="import books">＋</button>
+    <button type="button" class="ghost" aria-label="view menu">◌</button>
+    <button type="button" class="ghost" aria-label="settings">≡</button>
   </div>
 </header>
 
 <style>
   .library-header {
     display: flex;
-    justify-content: space-between;
-    align-items: start;
-    gap: 18px;
-  }
-
-  .copy {
-    display: grid;
-    gap: 6px;
-  }
-
-  .eyebrow {
-    color: var(--text-muted);
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  h1 {
-    margin: 0;
-    font-size: clamp(30px, 4vw, 44px);
-    line-height: 1.05;
-  }
-
-  p {
-    margin: 0;
-    max-width: 66ch;
-    color: var(--text-secondary);
-    line-height: 1.6;
+    align-items: center;
+    gap: 14px;
+    min-height: 52px;
+    padding: 10px 0 14px;
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
   .actions {
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: end;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-  }
-
-  .search-shell,
-  button {
-    min-height: 44px;
-    border: 1px solid var(--line-soft);
-    background: var(--surface-reader);
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
   }
 
   .search-shell {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    min-width: min(320px, 100%);
-    padding: 0 16px;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
     color: var(--text-muted);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+  }
+
+  .search-icon {
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .search-copy {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   button {
-    padding: 0 16px;
-    color: white;
-    background: var(--accent-reading);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 999px;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
     font: inherit;
+    font-size: 18px;
     cursor: pointer;
   }
 
-  button.secondary {
+  button.ghost:hover {
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
     color: var(--text-primary);
-    background: var(--surface-panel);
   }
 
   @media (max-width: 900px) {
-    .library-header {
-      display: grid;
-    }
-
-    .actions {
-      justify-content: start;
-    }
-
     .search-shell {
       min-width: 0;
-      width: 100%;
     }
   }
 </style>
