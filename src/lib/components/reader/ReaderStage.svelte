@@ -103,6 +103,7 @@
 
   <ReaderFooterBar
     preview={readerPreview}
+    {isWindowMode}
     on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
       dispatch('controlrequest', detail);
     }}
@@ -118,7 +119,10 @@
   }
 
   .reader-stage.window-mode {
+    position: relative;
     gap: 0;
+    min-height: calc(100vh - 26px);
+    overflow: hidden;
   }
 
   .import-input {
@@ -137,7 +141,8 @@
   }
 
   .canvas.window-mode {
-    padding: 10px 10px 0 12px;
+    min-height: calc(100vh - 26px);
+    padding: 48px 10px 52px 12px;
     border: 0;
     background: transparent;
   }

@@ -7,6 +7,7 @@
   }>();
 
   export let preview: ReaderPreviewState;
+  export let isWindowMode = false;
 
   let controlNonce = 0;
   let sliderValue = 0;
@@ -28,7 +29,7 @@
   };
 </script>
 
-<footer class="footer-bar" aria-label="reader footer controls preview">
+<footer class:window-mode={isWindowMode} class="footer-bar" aria-label="reader footer controls preview">
   <div class="footer-controls">
     <button type="button" aria-label="Previous page" title="Previous page" on:click={() => issueControl('prev')}>‹</button>
     <button type="button" aria-label="Go to start" title="Go to start" on:click={() => issueControl('start')}>·</button>
@@ -70,7 +71,12 @@
     text-transform: uppercase;
   }
 
-  :global(.reader-stage.window-mode) .footer-bar {
+  .footer-bar.window-mode {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
     padding: 6px 12px 10px;
     border-top-color: rgba(64, 47, 24, 0.04);
     background:

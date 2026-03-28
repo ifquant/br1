@@ -42,9 +42,15 @@
   }
 
   .reader-head.window-mode {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
     min-height: 44px;
     padding: 0 20px 2px 16px;
     background: transparent;
+    pointer-events: auto;
   }
 
   .head-meta {
