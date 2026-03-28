@@ -76,15 +76,17 @@
 
 <style>
   .shelf {
+    --book-width: 132px;
     display: grid;
-    gap: 12px;
+    gap: 10px;
   }
 
   .shelf-head {
     display: flex;
     justify-content: space-between;
     gap: 16px;
-    align-items: end;
+    align-items: center;
+    padding-inline: 2px;
   }
 
   .tools {
@@ -162,20 +164,21 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(132px, 132px));
-    gap: 20px 16px;
+    grid-template-columns: repeat(5, minmax(0, var(--book-width)));
+    gap: 22px 18px;
     justify-content: start;
+    align-items: start;
   }
 
   .list {
     display: grid;
-    gap: 14px;
+    gap: 12px;
   }
 
   .book-card {
     display: grid;
     gap: 7px;
-    width: 132px;
+    width: var(--book-width);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
@@ -189,7 +192,7 @@
 
   .cover-shell {
     position: relative;
-    width: 132px;
+    width: var(--book-width);
     aspect-ratio: 28 / 41;
     border-radius: 8px;
   }
@@ -345,16 +348,39 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-panel) 70%, white 30%);
     border-style: dashed;
+    border-color: rgba(79, 59, 33, 0.16);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+      inset 0 14px 28px rgba(248, 240, 228, 0.35);
   }
 
   .import-plus {
-    color: var(--text-muted);
-    font-size: 28px;
+    color: color-mix(in srgb, var(--text-muted) 82%, white 18%);
+    font-size: 25px;
     line-height: 1;
   }
 
   .import-meta span {
     color: var(--text-muted);
+  }
+
+  @media (min-width: 1280px) {
+    .grid {
+      grid-template-columns: repeat(6, minmax(0, var(--book-width)));
+    }
+  }
+
+  @media (max-width: 1140px) {
+    .grid {
+      grid-template-columns: repeat(4, minmax(0, var(--book-width)));
+    }
+  }
+
+  @media (max-width: 900px) {
+    .grid {
+      grid-template-columns: repeat(3, minmax(0, var(--book-width)));
+      gap: 18px 14px;
+    }
   }
 
   @media (max-width: 780px) {
@@ -363,14 +389,18 @@
       align-items: start;
     }
 
+    .shelf {
+      --book-width: 112px;
+    }
+
     .grid {
-      grid-template-columns: repeat(auto-fill, minmax(112px, 112px));
+      grid-template-columns: repeat(3, minmax(0, var(--book-width)));
       gap: 16px 12px;
     }
 
     .book-card,
     .cover-shell {
-      width: 112px;
+      width: var(--book-width);
     }
 
     .book-card.list-card {
@@ -384,6 +414,12 @@
 
     .cover-title {
       font-size: 13px;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, var(--book-width)));
     }
   }
 </style>

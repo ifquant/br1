@@ -83,8 +83,8 @@
     overflow: auto;
     display: grid;
     align-content: start;
-    gap: 22px;
-    padding: 12px 2px 18px;
+    gap: 18px;
+    padding: 10px 2px 18px;
   }
 
   @media (max-width: 900px) {
@@ -96,7 +96,7 @@
     }
 
     .library-scroll {
-      gap: 18px;
+      gap: 16px;
       padding-bottom: 16px;
     }
   }
