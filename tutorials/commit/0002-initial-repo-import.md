@@ -58,11 +58,11 @@
 
 - `git init -b main`
 - `git status --short --branch`
-- `npm run check`
+- `pnpm check`
   - 结果：失败，原因是本地环境缺少 `svelte-kit` 可执行文件
 
 ## 未覆盖项
 
-- 这次没有修复 `npm run check` 的环境问题
+- 这次没有修复 `pnpm check` 的环境问题
 - 这次没有做任何产品功能实现
 - 这次没有清理或缩减 `pydemo/` 内容，而是按当前要求整体纳入版本控制

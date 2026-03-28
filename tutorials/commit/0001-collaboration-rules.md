@@ -69,7 +69,7 @@ tutorials/commit/NNNN-*.md 是给后来接手的人看的。
   - 教程目录规则
   - 当前无 git 时的处理方式
 - 手工检查 `tutorials/commit/0001-collaboration-rules.md` 是否已创建
-- 建议执行：`npm run check`
+- 建议执行：`pnpm check`
 
 ## 未覆盖项
 

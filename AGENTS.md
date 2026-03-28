@@ -24,14 +24,16 @@
 
 ## Common Commands
 
-- Dev server: `npm run dev`
-- Type / Svelte check: `npm run check`
-- Production build: `npm run build`
-- Tauri entrypoint: `npm run tauri`
+- Dev server: `pnpm dev`
+- Type / Svelte check: `pnpm check`
+- Production build: `pnpm build`
+- Tauri entrypoint: `pnpm tauri`
 
 Current environment note:
 
-- At the time this file was updated, `npm run check` was the intended lightweight verification command, but it failed in the local environment because `svelte-kit` was not installed in PATH.
+- `br1` uses `pnpm` as the package manager.
+- Prefer `pnpm install`, `pnpm check`, `pnpm build`, and `pnpm tauri`.
+- Do not regenerate or commit `package-lock.json`.
 - Future agents should verify dependency availability before claiming these commands passed.
 
 ## Locked Decisions From Review
