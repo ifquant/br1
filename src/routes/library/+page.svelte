@@ -245,9 +245,20 @@
                 可以从本机导入新书，或者先把已有的 Readest 书库迁进来。
               </span>
             </div>
-            <button type="button" class="empty-action" on:click={triggerImportPicker}>
-              从本机导入
-            </button>
+            <div class="empty-actions">
+              <button type="button" class="empty-action" on:click={triggerImportPicker}>
+                从本机导入
+              </button>
+              {#if readestLibraryCount > 0}
+                <button
+                  type="button"
+                  class="empty-action secondary"
+                  on:click={handleReadestMigrationClick}
+                >
+                  {migrationBusy ? '迁移中…' : `导入 Readest 的 ${readestLibraryCount} 本书`}
+                </button>
+              {/if}
+            </div>
           </section>
         {/if}
       {:else}
@@ -371,6 +382,17 @@
     box-shadow:
       inset 0 0 0 1px rgba(76, 57, 34, 0.08),
       0 10px 20px rgba(42, 30, 15, 0.06);
+  }
+
+  .empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .empty-action.secondary {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px rgba(76, 57, 34, 0.12);
   }
 
   :global(.library-scroll) {

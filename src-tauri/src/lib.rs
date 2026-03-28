@@ -221,7 +221,6 @@ fn readest_books_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     let support_root = app_data_dir
         .parent()
-        .and_then(Path::parent)
         .ok_or_else(|| "Unable to locate application support root".to_string())?;
     Ok(support_root.join("com.bilingify.readest").join("Readest").join("Books"))
 }
