@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { ReaderSidebar, ReaderWorkspace } from '$lib/components';
+  import { ReaderSidebar, ReaderStage } from '$lib/components';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
   import { startCurrentWindowDrag } from '$lib/services';
 
@@ -59,7 +59,7 @@
 
   <div class:window-mode={isWindowMode} class="workspace">
     <ReaderSidebar {toc} {activeHref} {isWindowMode} onNavigate={issueHrefControl} />
-    <ReaderWorkspace
+    <ReaderStage
       {controlRequest}
       {autoOpenSample}
       {autoOpenPicker}
@@ -193,7 +193,7 @@
   .workspace.window-mode {
     gap: 0;
     min-height: calc(100vh - 26px);
-    grid-template-columns: 224px minmax(0, 1fr);
+    grid-template-columns: minmax(208px, 224px) minmax(0, 1fr);
   }
 
   .bridge-placeholder {
