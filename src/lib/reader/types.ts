@@ -15,6 +15,12 @@ export type ReaderPreviewState = {
   progressFraction: number;
 };
 
+export type ReaderTocItem = {
+  label: string;
+  href: string;
+  level: number;
+};
+
 export type ReaderControlRequest =
   | {
       type: 'prev' | 'next' | 'start';
@@ -24,4 +30,9 @@ export type ReaderControlRequest =
       type: 'fraction';
       nonce: number;
       fraction: number;
+    }
+  | {
+      type: 'href';
+      nonce: number;
+      href: string;
     };

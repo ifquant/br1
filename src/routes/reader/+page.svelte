@@ -1,11 +1,33 @@
 <script lang="ts">
   import { ReaderSidebar, ReaderWorkspace } from '$lib/components';
+  import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
+
+  let toc: ReaderTocItem[] = [];
+  let activeLabel = 'Waiting for sample';
+  let controlRequest: ReaderControlRequest | null = null;
+  let controlNonce = 0;
+
+  const issueHrefControl = (href: string) => {
+    controlNonce += 1;
+    controlRequest = { type: 'href', href, nonce: controlNonce };
+  };
 </script>
 
 <section class="reader-shell">
   <div class="workspace">
-    <ReaderSidebar />
-    <ReaderWorkspace />
+    <ReaderSidebar {toc} {activeLabel} onNavigate={issueHrefControl} />
+    <ReaderWorkspace
+      {controlRequest}
+      on:controlrequest={({ detail }) => {
+        controlRequest = detail;
+      }}
+      on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
+        activeLabel = detail.chapterLabel;
+      }}
+      on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
+        toc = detail;
+      }}
+    />
 
     <aside class="bridge-placeholder" aria-label="bridge panel placeholder">
       <header class="bridge-head">

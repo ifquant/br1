@@ -7,6 +7,7 @@ export interface FoliateViewElement extends HTMLElement {
       title?: string | Record<string, string>;
       creator?: string | { name?: string } | Array<string | { name?: string }>;
     };
+    toc?: unknown[];
   };
   lastLocation?: {
     current?: number;
@@ -25,6 +26,7 @@ export interface FoliateViewElement extends HTMLElement {
   prev(): Promise<void>;
   next(): Promise<void>;
   goToFraction(fraction: number): Promise<void>;
+  goTo(target: string): Promise<void>;
 }
 
 const isRecord = (value: unknown): value is Record<string, string> =>
@@ -45,6 +47,20 @@ export const pickAuthor = (value: unknown): string => {
     return pickText((value as { name?: unknown }).name);
   }
   return '';
+};
+
+export const flattenToc = (items: unknown, level = 0): Array<{ label: string; href: string; level: number }> => {
+  if (!Array.isArray(items)) return [];
+
+  return items.flatMap((item) => {
+    if (typeof item !== 'object' || item === null) return [];
+    const tocItem = item as { label?: unknown; href?: unknown; subitems?: unknown };
+    const current =
+      typeof tocItem.href === 'string' && tocItem.href
+        ? [{ label: pickText(tocItem.label) || 'Untitled section', href: tocItem.href, level }]
+        : [];
+    return current.concat(flattenToc(tocItem.subitems, level + 1));
+  });
 };
 
 let foliateViewModulePromise: Promise<unknown> | null = null;

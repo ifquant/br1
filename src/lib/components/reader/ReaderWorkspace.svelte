@@ -1,9 +1,17 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import { createReaderMountBoundary } from '$lib/reader';
-  import type { ReaderControlRequest, ReaderPreviewState } from '$lib/reader';
+  import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
   import ReaderViewport from './ReaderViewport.svelte';
 
   const mountBoundary = createReaderMountBoundary('idle');
+  const dispatch = createEventDispatcher<{
+    controlrequest: ReaderControlRequest;
+    readerstate: ReaderPreviewState;
+    tocchange: ReaderTocItem[];
+  }>();
+
+  export let controlRequest: ReaderControlRequest | null = null;
   let readerPreview: ReaderPreviewState = {
     title: '政治秩序与政治衰败',
     author: 'Francis Fukuyama',
@@ -13,21 +21,20 @@
     progressFraction: 0
   };
   let controlNonce = 0;
-  let controlRequest: ReaderControlRequest | null = null;
   let sliderValue = 0;
 
   const issueControl = (type: 'prev' | 'next' | 'start') => {
     controlNonce += 1;
-    controlRequest = { type, nonce: controlNonce };
+    dispatch('controlrequest', { type, nonce: controlNonce });
   };
 
   const issueFractionControl = (fraction: number) => {
     controlNonce += 1;
-    controlRequest = {
+    dispatch('controlrequest', {
       type: 'fraction',
       nonce: controlNonce,
       fraction
-    };
+    });
   };
 </script>
 
@@ -57,6 +64,10 @@
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         sliderValue = Math.round(detail.progressFraction * 100);
+        dispatch('readerstate', detail);
+      }}
+      on:tocchange={({ detail }) => {
+        dispatch('tocchange', detail);
       }}
     />
   </article>

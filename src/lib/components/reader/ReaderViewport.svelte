@@ -7,13 +7,14 @@
     SAMPLE_READER_BOOK_URL,
     createFoliateViewElement,
     ensureFoliateViewDefinition,
+    flattenToc,
     pickAuthor,
     pickText,
     type ReaderControlRequest,
     type FoliateViewElement,
     type ReaderEngineMountState
   } from '$lib/reader';
-  import type { ReaderPreviewState } from '$lib/reader';
+  import type { ReaderPreviewState, ReaderTocItem } from '$lib/reader';
 
   export let title = 'Foliate Mount Boundary';
   export let state: ReaderEngineMountState = 'idle';
@@ -23,6 +24,7 @@
 
   const dispatch = createEventDispatcher<{
     readerstate: ReaderPreviewState;
+    tocchange: ReaderTocItem[];
   }>();
 
   let hostElement: HTMLDivElement | null = null;
@@ -78,6 +80,7 @@
       await foliateViewElement.open(SAMPLE_READER_BOOK_URL);
       configureFoliatePreview();
       sampleStatus = 'open';
+      dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
       emitReaderState();
     } catch (error) {
       console.error('Failed to open reader sample book', error);
@@ -98,6 +101,8 @@
         await foliateViewElement.next();
       } else if (controlRequest.type === 'start') {
         await foliateViewElement.goToFraction(0);
+      } else if (controlRequest.type === 'href') {
+        await foliateViewElement.goTo(controlRequest.href);
       } else if (controlRequest.type === 'fraction') {
         await foliateViewElement.goToFraction(controlRequest.fraction);
       }

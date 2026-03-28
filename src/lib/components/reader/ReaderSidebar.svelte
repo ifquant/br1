@@ -1,11 +1,10 @@
 <script lang="ts">
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
+  import type { ReaderTocItem } from '$lib/reader';
 
-  const toc = [
-    '第 1 章 国家与秩序',
-    '第 2 章 制度与权力',
-    '第 3 章 衰败的起点'
-  ];
+  export let toc: ReaderTocItem[] = [];
+  export let activeLabel = 'Waiting for sample';
+  export let onNavigate: ((href: string) => void) | null = null;
 </script>
 
 <aside class="reader-sidebar" aria-label="reader navigation preview">
@@ -30,9 +29,20 @@
     options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
   >
     <nav class="toc" aria-label="table of contents preview">
-      {#each toc as item, index}
-        <a href="/reader" class:active={index === 2}>{item}</a>
-      {/each}
+      {#if toc.length}
+        {#each toc as item}
+          <button
+            type="button"
+            class:active={item.label === activeLabel}
+            style={`--toc-level:${item.level};`}
+            on:click={() => onNavigate?.(item.href)}
+          >
+            {item.label}
+          </button>
+        {/each}
+      {:else}
+        <p class="empty">打开样例书后，这里会显示最小章节列表。</p>
+      {/if}
     </nav>
   </OverlayScrollbarsComponent>
 </aside>
@@ -136,18 +146,31 @@
     --os-handle-bg-active: rgba(95, 85, 72, 0.22);
   }
 
-  .toc a {
+  .toc button {
+    width: 100%;
     padding: 8px 10px;
+    padding-left: calc(10px + var(--toc-level, 0) * 12px);
+    border: 0;
+    background: transparent;
     color: var(--text-secondary);
-    text-decoration: none;
     border-radius: 8px;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 12px;
     line-height: 1.45;
+    text-align: left;
   }
 
-  .toc a.active {
+  .toc button.active {
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-reader) 84%, white 16%);
+  }
+
+  .empty {
+    margin: 0;
+    padding: 8px 10px;
+    color: var(--text-muted);
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
   }
 </style>
