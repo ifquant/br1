@@ -92,7 +92,7 @@
   .tools {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
@@ -110,36 +110,59 @@
 
   .shelf-meta {
     display: flex;
-    gap: 8px;
+    gap: 7px;
     align-items: center;
     flex-wrap: wrap;
     color: var(--text-muted);
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1.2;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+  }
+
+  .shelf-meta span + span {
+    position: relative;
+    padding-left: 8px;
+  }
+
+  .shelf-meta span + span::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 78%, white 22%);
+    transform: translateY(-50%);
   }
 
   .modes {
     display: inline-flex;
-    padding: 2px;
+    padding: 1px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
-    box-shadow: inset 0 0 0 1px var(--line-soft);
+    background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+    box-shadow:
+      inset 0 0 0 1px rgba(76, 57, 34, 0.08),
+      0 1px 0 rgba(255, 255, 255, 0.28);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
   .mode {
-    padding: 6px 10px;
+    padding: 5px 9px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
+    letter-spacing: -0.01em;
   }
 
   .mode.active {
     color: var(--text-primary);
-    background: var(--surface-reader);
+    background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
+    box-shadow:
+      inset 0 0 0 1px rgba(76, 57, 34, 0.06),
+      0 1px 2px rgba(35, 25, 13, 0.06);
   }
 
   .tool-button {
@@ -154,7 +177,7 @@
     background: transparent;
     color: var(--text-muted);
     font: inherit;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .tool-button:hover {
@@ -173,6 +196,16 @@
   .list {
     display: grid;
     gap: 12px;
+  }
+
+  .list .book-card {
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(76, 57, 34, 0.08);
+  }
+
+  .list .book-card:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
   }
 
   .book-card {
@@ -382,12 +415,26 @@
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.28),
       inset 0 14px 28px rgba(248, 240, 228, 0.35);
+    transition:
+      border-color 120ms ease,
+      background 120ms ease;
+  }
+
+  .import-card:hover .import-cover {
+    border-color: rgba(79, 59, 33, 0.24);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 74%, white 26%);
   }
 
   .import-plus {
     color: color-mix(in srgb, var(--text-muted) 82%, white 18%);
-    font-size: 25px;
+    font-size: 23px;
     line-height: 1;
+  }
+
+  .import-meta strong {
+    color: color-mix(in srgb, var(--text-primary) 92%, white 8%);
   }
 
   .import-meta span {
