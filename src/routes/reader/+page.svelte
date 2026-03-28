@@ -9,6 +9,7 @@
   let controlRequest: ReaderControlRequest | null = null;
   let controlNonce = 0;
   let lastAutoKey = '';
+  let sidebarVisible = true;
 
   $: source = $page.url.searchParams.get('source') ?? '';
   $: sourceUrl = $page.url.searchParams.get('url') ?? '';
@@ -45,6 +46,10 @@
     controlNonce += 1;
     controlRequest = { type: 'href', href, nonce: controlNonce };
   };
+
+  const toggleSidebar = () => {
+    sidebarVisible = !sidebarVisible;
+  };
 </script>
 
 <section class:window-mode={isWindowMode} class="reader-shell">
@@ -73,13 +78,23 @@
     </header>
   {/if}
 
-  <div class:window-mode={isWindowMode} class="workspace">
-    <ReaderSidebar {toc} {activeHref} {isWindowMode} onNavigate={issueHrefControl} />
+  <div class:window-mode={isWindowMode} class:sidebar-hidden={isWindowMode && !sidebarVisible} class="workspace">
+    {#if !isWindowMode || sidebarVisible}
+      <ReaderSidebar
+        {toc}
+        {activeHref}
+        {isWindowMode}
+        onNavigate={issueHrefControl}
+        onClose={isWindowMode ? toggleSidebar : null}
+      />
+    {/if}
     <ReaderStage
       {controlRequest}
       {autoOpenSample}
       {autoOpenPicker}
       {isWindowMode}
+      {sidebarVisible}
+      on:togglesidebar={toggleSidebar}
       on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
       }}
@@ -210,6 +225,10 @@
     gap: 0;
     min-height: calc(100vh - 26px);
     grid-template-columns: minmax(208px, 224px) minmax(0, 1fr);
+  }
+
+  .workspace.window-mode.sidebar-hidden {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .bridge-placeholder {

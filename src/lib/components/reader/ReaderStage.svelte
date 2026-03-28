@@ -8,12 +8,14 @@
     controlrequest: ReaderControlRequest;
     readerstate: ReaderPreviewState;
     tocchange: ReaderTocItem[];
+    togglesidebar: void;
   }>();
 
   export let controlRequest: ReaderControlRequest | null = null;
   export let autoOpenSample = false;
   export let autoOpenPicker = false;
   export let isWindowMode = false;
+  export let sidebarVisible = true;
 
   let readerPreview: ReaderPreviewState = {
     title: '政治秩序与政治衰败',
@@ -72,6 +74,10 @@
     issueFileControl(file);
     input.value = '';
   };
+
+  const toggleSidebar = () => {
+    dispatch('togglesidebar');
+  };
 </script>
 
 <section class:window-mode={isWindowMode} class="reader-stage" role="main" aria-label="reader stage">
@@ -83,7 +89,13 @@
     on:change={handleImportChange}
   />
 
-  <ReaderHeaderBar preview={readerPreview} {isWindowMode} onOpenPicker={triggerImportPicker} />
+  <ReaderHeaderBar
+    preview={readerPreview}
+    {isWindowMode}
+    {sidebarVisible}
+    onOpenPicker={triggerImportPicker}
+    onToggleSidebar={toggleSidebar}
+  />
 
   <article class:window-mode={isWindowMode} class="canvas">
     <ReaderViewport

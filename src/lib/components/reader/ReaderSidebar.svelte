@@ -7,6 +7,7 @@
   export let activeHref = '';
   export let isWindowMode = false;
   export let onNavigate: ((href: string) => void) | null = null;
+  export let onClose: (() => void) | null = null;
 
   let lastScrolledHref = '';
 
@@ -30,7 +31,15 @@
         <span class="eyebrow">Contents</span>
         <strong>目录</strong>
       </div>
-      <button type="button" class="ghost-button" aria-label="pin sidebar">⌖</button>
+      <button
+        type="button"
+        class="ghost-button"
+        aria-label={isWindowMode ? 'Hide sidebar' : 'Pin sidebar'}
+        title={isWindowMode ? 'Hide sidebar' : 'Pin sidebar'}
+        on:click={() => onClose?.()}
+      >
+        {isWindowMode ? '×' : '⌖'}
+      </button>
     </div>
   </header>
 

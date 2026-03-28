@@ -4,7 +4,9 @@
 
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;
+  export let sidebarVisible = true;
   export let onOpenPicker: (() => void) | null = null;
+  export let onToggleSidebar: (() => void) | null = null;
 </script>
 
 <header class:window-mode={isWindowMode} class="reader-head">
@@ -25,6 +27,14 @@
   </div>
 
   <div class="controls" aria-label="reader controls preview">
+    <button
+      type="button"
+      aria-label={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
+      title={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
+      on:click={() => onToggleSidebar?.()}
+    >
+      ☰
+    </button>
     <button type="button" aria-label="Open book" title="Open book" on:click={() => onOpenPicker?.()}>⌂</button>
     <button type="button" aria-label="Typography" title="Typography">Aa</button>
     <button type="button" aria-label="Text to speech" title="Text to speech">🔊</button>
