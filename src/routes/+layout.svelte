@@ -33,7 +33,7 @@
   <meta name="apple-mobile-web-app-title" content="Readest" />
 </svelte:head>
 
-<div class="app-root">
+<div class:reader-window-root={$isReaderWindowRoute} class="app-root">
   {#if !$isLibraryRoute && !$isReaderWindowRoute}
     <header class="app-header">
       <div class="brand">
@@ -110,6 +110,13 @@
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr;
+  }
+
+  .app-root.reader-window-root {
+    grid-template-rows: 1fr;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-page) 96%, white 4%);
   }
 
   .app-header {
@@ -238,6 +245,7 @@
 
   .app-main.reader-window-main {
     padding: 0;
+    background: transparent;
   }
 
   @media (max-width: 900px) {

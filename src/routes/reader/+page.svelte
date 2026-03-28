@@ -10,6 +10,7 @@
   let lastAutoSource = '';
 
   $: source = $page.url.searchParams.get('source') ?? '';
+  $: isWindowMode = $page.url.searchParams.get('mode') === 'window';
   $: autoOpenSample = source === 'sample';
   $: autoOpenPicker = source === 'picker';
 
@@ -29,8 +30,8 @@
   };
 </script>
 
-<section class="reader-shell">
-  <div class="workspace">
+<section class:window-mode={isWindowMode} class="reader-shell">
+  <div class:window-mode={isWindowMode} class="workspace">
     <ReaderSidebar {toc} {activeHref} onNavigate={issueHrefControl} />
     <ReaderWorkspace
       {controlRequest}
@@ -47,7 +48,7 @@
       }}
     />
 
-    <aside class="bridge-placeholder" aria-label="bridge panel placeholder">
+    <aside class:window-mode={isWindowMode} class="bridge-placeholder" aria-label="bridge panel placeholder">
       <header class="bridge-head">
         <span class="label">Bridge</span>
         <button type="button" aria-label="bridge options">⋯</button>
@@ -69,6 +70,15 @@
 <style>
   .reader-shell {
     min-height: 100%;
+    padding: 0;
+  }
+
+  .reader-shell.window-mode {
+    min-height: 100vh;
+    padding-top: 30px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-page) 95%, white 5%);
   }
 
   .workspace {
@@ -76,6 +86,12 @@
     grid-template-columns: 248px minmax(0, 1fr) 276px;
     gap: 14px;
     min-height: calc(100vh - 32px);
+  }
+
+  .workspace.window-mode {
+    gap: 0;
+    min-height: calc(100vh - 30px);
+    grid-template-columns: 236px minmax(0, 1fr) 244px;
   }
 
   .bridge-placeholder {
@@ -87,6 +103,16 @@
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-panel) 92%, white 8%);
+  }
+
+  .bridge-placeholder.window-mode {
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding-top: 14px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 95%, white 5%);
   }
 
   .label {
@@ -143,6 +169,10 @@
   @media (max-width: 1120px) {
     .workspace {
       grid-template-columns: 236px minmax(0, 1fr);
+    }
+
+    .workspace.window-mode {
+      grid-template-columns: 220px minmax(0, 1fr);
     }
 
     .bridge-placeholder {
