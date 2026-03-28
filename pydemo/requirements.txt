@@ -1,0 +1,5 @@
+ebooklib==0.18
+beautifulsoup4==4.12.3
+PyPDF2==3.0.1
+pdfminer.six==20231228
+PyMuPDF==1.24.9

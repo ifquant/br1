@@ -1,0 +1,7 @@
+**Summary:**  
+This prototype is a basic EPUB reading assistant that displays content in the top section and logs in the bottom section.
+
+**Key Insights:**  
+1. The assistant is designed for EPUB format reading.  
+2. It features a split interface: content above and logs below.  
+3. The current version is a prototype, indicating it is an early or simplified model.

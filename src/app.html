@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no, user-scalable=no, viewport-fit=cover" />
+    <title>Readest</title>
+    %sveltekit.head%
+    <script>
+      (function(){
+        try {
+          const themeMode = localStorage.getItem('themeMode');
+          const themeColor = localStorage.getItem('themeColor');
+          if (themeMode && themeColor) {
+            document.documentElement.setAttribute('data-theme', `${themeColor}-${themeMode}`);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      :root { --bg: #f6f6f6; --fg: #0f0f0f; --accent: #646cff; }
+      [data-theme~="dark"] { --bg: #2f2f2f; --fg: #f6f6f6; --accent: #24c8db; }
+      html, body { height: 100%; }
+      body { background: var(--bg); color: var(--fg); margin: 0; }
+    </style>
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

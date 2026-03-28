@@ -1,0 +1,38 @@
+2025-10-04 | INIT | 项目级会话日志通道已建立（pydemo/develop.log）
+2025-10-04 | USER | 运行一下
+2025-10-04 | ASSISTANT | 已创建日志文件并写入测试记录；后续会按指令追加会话条目。
+2025-10-04 | ASSISTANT | 检索 Tauri JS API 使用版本，确认使用 @tauri-apps/api/core。
+2025-10-04 | ASSISTANT | 提供 Tauri v2 JS API 示例：invoke、dialog、fs、path、window、event、opener。
+2025-10-04 | ASSISTANT | 搜索 Rust 后端命令，发现 src-tauri/src/lib.rs 有 greet(name) 命令。
+2025-10-04 | ASSISTANT | 给出 Svelte + Rust 结合示例，演示文件选择、读取、invoke、事件监听。
+2025-10-04 | USER | 请求配置记忆功能。
+2025-10-04 | ASSISTANT | 检索 pydemo 持久化机制：recent_books.json、cache_dir、get_or_generate_analysis。
+2025-10-04 | ASSISTANT | 在 pydemo/config.py 增加 MEMORY_ENABLE、MEMORY_AUTO_RESUME、MEMORY_DIR 设置。
+2025-10-04 | ASSISTANT | 在 epub_reader.py 注入上述记忆相关环境变量；计划实现进度保存/加载。
+2025-10-04 | ASSISTANT | 为 develop.md 增加项目级会话记录方法与规范章节。
+2025-10-04 | ASSISTANT | 追加“项目记忆与状态快照”到 develop.md（配置、最近书籍、缓存、推断、后续事项）。
+2025-10-04 | USER | 询问如何用 Context7 记录开发会话。
+2025-10-04 | ASSISTANT | 提供使用 Context7 的记录流程、模板与示例，落盘到 develop.md。
+2025-10-04 | USER | 提供工作区上下文并执行 /memory 命令。
+2025-10-04 | ASSISTANT | 建立 pydemo/develop.log 并写入首条记录，准备持续追加。
+2025-10-04 | USER | 是的（确认需要回填之前的整段会话）。
+2025-10-04 | USER | 保存项目记忆与状态快照到日志
+2025-10-04 | ASSISTANT | 项目快照：配置、最近书籍、缓存目录与实现状态将追加。
+2025-10-04 | SNAPSHOT | 配置
+  - LLM_PROVIDER=deepseek
+  - LLM_MODEL=deepseek-chat
+  - OPENAI_API_KEY=***600
+  - DEEPSEEK_API_KEY=***600
+  - DEEPSEEK_BASE_URL=https://api.deepseek.com
+  - PDF_USE_PYMUPDF=1
+  - PDF_STRUCTURE_ONLY=0
+2025-10-04 | SNAPSHOT | 最近书籍
+  - C:\Users\0\Desktop\1.pdf
+  - D:\workspace\readest3\apps\br1\pydemo\sample_book.epub
+  - D:\workspace\readest3\apps\br1\pydemo\sample_outline.pdf
+2025-10-04 | SNAPSHOT | 缓存与实现状态
+  - cache_base_dir=pydemo\data
+  - cache_dir={书名安全化后在 data 下创建；按需生成}
+  - 记忆功能：配置已添加；epub_reader.py 进度保存/加载功能待补丁实现
+  - develop.md：已记录会话规范与一次项目状态快照
+2025-10-04 | ASSISTANT | 已将项目记忆与状态快照追加到 develop.log。

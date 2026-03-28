@@ -1,0 +1,221 @@
+# br1 Notes
+
+## Project Identity
+
+- `br1` is an AI reader project.
+- It is inspired by `Readest`, but it is not meant to be just a cosmetic clone.
+- Tech stack: `Tauri + SvelteKit`.
+- Current product direction: a reading-first product with an AI bridge layer.
+
+## Product Thesis
+
+- `br1` should first feel like a serious reader.
+- Reading comfort, import flow, layout quality, persistence, and TTS are foundational.
+- AI is not the main stage.
+- AI acts as a bridge between author and reader when the reader hits friction.
+- The product should help the user continue reading, not pull them out of the book into a chat app.
+
+## Current Stage
+
+- The project is still in a very early stage.
+- Existing code is mostly a shell and early experiments.
+- Product/design/engineering reviews have been done before implementation.
+- The project is not yet in "just ship code fast without alignment" mode.
+
+## Common Commands
+
+- Dev server: `npm run dev`
+- Type / Svelte check: `npm run check`
+- Production build: `npm run build`
+- Tauri entrypoint: `npm run tauri`
+
+Current environment note:
+
+- At the time this file was updated, `npm run check` was the intended lightweight verification command, but it failed in the local environment because `svelte-kit` was not installed in PATH.
+- Future agents should verify dependency availability before claiming these commands passed.
+
+## Locked Decisions From Review
+
+- Implementation direction is currently `Readest` capability sync first, then bridge differentiation.
+- `Readest` capabilities may be migrated directly into `br1` module-by-module for speed.
+- Bridge logic must live behind a dedicated orchestrator/service boundary.
+- Bridge results should persist locally and accumulate as reading assets.
+- Route-level Svelte files should remain composition layers, not business-logic dumping grounds.
+- A single normalization path should produce bridge request/cache context.
+- Bridge work should run asynchronously and never block reading/TTS responsiveness.
+- Friction-signal detection should be low-frequency, event-driven, threshold-based, and disableable.
+
+## UX Direction
+
+- Default desktop bridge surface: right-side contextual panel.
+- Optional mode: inline bridge cards attached to the active paragraph.
+- Mobile bridge surface: bottom sheet.
+- Visual metaphor: marginalia, guided reading, reading traces.
+- Avoid generic AI SaaS UI patterns, prompt galleries, dashboard-card mosaics, and chat-first framing.
+
+## Typography And Tone
+
+- Default reading text should use a reading-oriented serif.
+- App chrome and controls should use a restrained sans-serif.
+- User-selectable reading fonts are part of the product.
+- Default bridge voice should be calm, restrained, and bridge-first.
+
+## Testing Direction
+
+- Target stack: `Vitest + @testing-library/svelte + Playwright (web mode) + mocked Tauri APIs`.
+- Critical regression surface includes:
+  - bridge context normalization
+  - cache hit/miss behavior
+  - source fingerprint invalidation
+  - low-confidence handling
+  - reading position restore + persisted bridge reuse
+
+## Distribution Direction
+
+- `br1` is a desktop app, so minimum viable distribution is part of the product.
+- At minimum, implementation should support reproducible `tauri build`, stable build outputs, and a consistent artifact handoff path for testers.
+
+## Collaboration Rules
+
+- Before starting each major implementation step, stop and explain the step first.
+- Do not begin the next meaningful coding step without explicit user acknowledgment.
+- Do not silently perform broad refactors.
+- Do not silently expand scope beyond the currently agreed step.
+- When a decision is ambiguous, surface the tradeoff instead of guessing silently.
+- Once an agreed feature slice is fully finished, verified, and documented, the agent should prepare the commit materials proactively rather than waiting for a separate reminder.
+
+## Change Submission Discipline
+
+- Every meaningful code submission should explain:
+  - why this change exists
+  - what was changed
+  - how it was verified
+  - what is still not fixed, not verified, or intentionally deferred
+- Do not write vague one-line commit messages for non-trivial work.
+- Do not claim verification that did not happen.
+- If tests were not run, say so plainly.
+- If some cases are still broken or unverified, list them explicitly.
+
+## Commit Message Style
+
+- Prefer a short subject line plus a factual body.
+- Good default subject format:
+  - `<type>(<area>): <purpose>`
+- Common types:
+  - `feat`
+  - `fix`
+  - `refactor`
+  - `test`
+  - `docs`
+  - `chore`
+
+Recommended body structure:
+
+```text
+<type>(<area>): <short purpose>
+
+Purpose:
+- why this change is being made
+
+Changes:
+- concrete change 1
+- concrete change 2
+
+Verification:
+- command / test / manual flow and result
+
+Known gaps:
+- unimplemented case / deferred work / unverified path
+```
+
+Compact factual style is also acceptable when it is clearer, for example:
+
+```text
+feat(reader): persist bridge output by location fingerprint
+
+Verified via manual reopen flow (PASS) and local cache inspection:
+- reopen same book at saved position
+- reuse bridge output for same paragraph
+
+Not verified:
+- stale fingerprint invalidation after source text changes
+- PDF-specific bridge persistence
+```
+
+## Auto-Commit Rule
+
+- Default workflow for `br1`: once a clear feature slice is complete, verification has been run, and the tutorial note for that slice has been written, the agent should commit immediately.
+- Do not bundle unrelated work into one auto-commit.
+- A "clear feature slice" means one user-visible capability, one focused refactor, one test-only improvement, or one documentation change with a single obvious purpose.
+- If a step is still exploratory, partially verified, or waiting on your approval, it is not ready for auto-commit.
+- The start of each major implementation step still requires user acknowledgment first. Auto-commit applies only after the agreed slice is actually done.
+
+## Git Reality
+
+- At the time these rules were written, `br1` was not yet inside its own git repository.
+- Commit-writing and auto-commit rules are still the expected collaboration contract.
+- If work is happening before git is initialized, the agent should still prepare:
+  - the exact commit message
+  - the matching tutorial note
+  - the verification record
+- Once git exists, those prepared materials should be used for the actual commit with minimal rewriting.
+
+## Commit Tutorial Workflow
+
+- Keep beginner-facing commit tutorials in `tutorials/commit/`.
+- Required path pattern: `tutorials/commit/NNNN-short-topic.md`.
+- Number tutorials with four digits and increment by one for each new commit.
+- Do not skip numbers casually.
+- Every non-trivial commit should have one matching tutorial file.
+- The tutorial should explain the change to someone new to `br1`, not just restate the diff.
+
+Recommended tutorial sections:
+
+- `背景`
+- `主要目标`
+- `改动概览`
+- `关键知识`
+- `验证`
+- `未覆盖项`
+
+Tutorial expectations:
+
+- Explain the product or engineering context behind the change.
+- Name the exact verification that really ran.
+- Make partial boundaries explicit.
+- If a commit is intentionally incomplete, the tutorial should say so directly.
+
+## Commit Preparation Checklist
+
+Before a non-trivial commit is considered ready, the agent should have all of:
+
+1. An approved feature slice or agreed documentation change
+2. A high-signal commit message
+3. A matching `tutorials/commit/NNNN-*.md` file
+4. Real verification notes
+5. Explicit `Known gaps` / `Not included` notes when scope is partial
+
+## Verification Rules
+
+- Verification should name the exact command, script, manual flow, or artifact check.
+- Prefer concrete wording like:
+  - `Verified via pnpm check`
+  - `Verified via Vitest (PASS)`
+  - `Verified manually: import epub -> open book -> trigger bridge -> reopen app`
+- Avoid empty phrases like:
+  - `tested`
+  - `works`
+  - `fixed`
+
+## Known Gaps Rules
+
+- If something is intentionally left incomplete, record it in the commit body.
+- If a path is known broken, say it directly.
+- If a case was not checked, say `Not verified:` instead of pretending coverage exists.
+- For important deferred work, also add or update `TODOS.md`.
+
+## Near-Term TODO Awareness
+
+- A formal `DESIGN.md` should be created later from the approved design plan.
+- The unified reader/bridge store is a speed-first temporary choice and is expected to be split later.
+- Packaged desktop builds should eventually have a fixed smoke checklist.
