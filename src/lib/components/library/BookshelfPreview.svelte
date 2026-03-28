@@ -9,6 +9,8 @@
   export let sectionTitle = '最近阅读';
   export let sectionHint = '先对齐 Readest 的书架、分组和继续阅读主路径。';
   export let books: Book[] = [];
+  export let viewMode: 'grid' | 'list' = 'grid';
+  export let showImportTile = false;
 </script>
 
 <section class="shelf">
@@ -17,15 +19,18 @@
       <h2>{sectionTitle}</h2>
       <p>{sectionHint}</p>
     </div>
-    <div class="modes" aria-label="view mode placeholder">
-      <span class="mode active">网格</span>
-      <span class="mode">列表</span>
+    <div class="tools" aria-label="view mode placeholder">
+      <div class="modes">
+        <span class:active={viewMode === 'grid'} class="mode">网格</span>
+        <span class:active={viewMode === 'list'} class="mode">列表</span>
+      </div>
+      <button type="button" class="tool-button" aria-label="view settings">⋯</button>
     </div>
   </header>
 
-  <div class="grid" aria-label={sectionTitle}>
+  <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={sectionTitle}>
     {#each books as book}
-      <article class="book-card">
+      <article class:list-card={viewMode === 'list'} class="book-card">
         <div class="cover-shell">
           <div class="cover" aria-hidden="true">
             <div class="cover-fallback">
@@ -48,6 +53,20 @@
         </div>
       </article>
     {/each}
+
+    {#if showImportTile}
+      <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="import books">
+        <div class="cover-shell">
+          <div class="cover import-cover" aria-hidden="true">
+            <div class="import-plus">＋</div>
+          </div>
+        </div>
+        <div class="meta import-meta">
+          <strong>导入书籍</strong>
+          <span>epub / pdf / mobi</span>
+        </div>
+      </article>
+    {/if}
   </div>
 </section>
 
@@ -62,6 +81,13 @@
     justify-content: space-between;
     gap: 16px;
     align-items: end;
+  }
+
+  .tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
   h2 {
@@ -99,11 +125,36 @@
     background: var(--surface-reader);
   }
 
+  .tool-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .tool-button:hover {
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    color: var(--text-primary);
+  }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(132px, 132px));
     gap: 20px 16px;
     justify-content: start;
+  }
+
+  .list {
+    display: grid;
+    gap: 14px;
   }
 
   .book-card {
@@ -113,11 +164,23 @@
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
+  .book-card.list-card {
+    width: auto;
+    min-width: 0;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+  }
+
   .cover-shell {
     position: relative;
     width: 132px;
     aspect-ratio: 28 / 41;
     border-radius: 8px;
+  }
+
+  .list-card .cover-shell {
+    width: 76px;
   }
 
   .cover {
@@ -208,6 +271,10 @@
     min-width: 0;
   }
 
+  .list-card .meta {
+    gap: 4px;
+  }
+
   .meta strong {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -256,6 +323,25 @@
     text-align: right;
   }
 
+  .import-cover {
+    display: grid;
+    place-items: center;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 70%, white 30%);
+    border-style: dashed;
+  }
+
+  .import-plus {
+    color: var(--text-muted);
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .import-meta span {
+    color: var(--text-muted);
+  }
+
   @media (max-width: 780px) {
     .shelf-head {
       display: grid;
@@ -270,6 +356,15 @@
     .book-card,
     .cover-shell {
       width: 112px;
+    }
+
+    .book-card.list-card {
+      width: auto;
+      grid-template-columns: 68px minmax(0, 1fr);
+    }
+
+    .list-card .cover-shell {
+      width: 68px;
     }
 
     .cover-title {

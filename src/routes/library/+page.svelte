@@ -53,12 +53,14 @@
         sectionTitle="继续阅读"
         sectionHint="第一版严格对齐，先把卡片密度、封面比例和书架栅格贴近 Readest。"
         books={continueReading}
+        showImportTile={true}
       />
 
       <BookshelfPreview
         sectionTitle="最近导入"
         sectionHint="这里先保留第二组书架，后续再接分组、排序和真实导入数据。"
         books={recentImports}
+        viewMode="list"
       />
     </div>
   </div>
