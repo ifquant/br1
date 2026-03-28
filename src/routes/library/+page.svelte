@@ -3,6 +3,9 @@
   import { BookshelfPreview, LibraryHeader } from '$lib/components';
   import { openReaderTarget } from '$lib/services';
 
+  const assetHref = (url: string, label: string) =>
+    `/reader?source=asset&url=${encodeURIComponent(url)}&label=${encodeURIComponent(label)}`;
+
   const continueReading = [
     {
       title: '政治秩序与政治衰败',
@@ -10,7 +13,7 @@
       status: '继续阅读 · 第 3 章',
       progress: '上次读到 34%',
       coverUrl: '/covers/political-order.svg',
-      readerHref: '/reader?source=sample'
+      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
     },
     {
       title: '置身事内',
@@ -18,7 +21,7 @@
       status: '最近导入 · 尚未开始',
       progress: '等待首轮阅读',
       coverUrl: '/covers/inside-china.svg',
-      readerHref: '/reader?source=sample'
+      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
     },
     {
       title: 'A Theory of Justice',
@@ -26,7 +29,7 @@
       status: '英文原版 · 建议启用导读',
       progress: '可作为 bridge 验证样本',
       coverUrl: '/covers/theory-of-justice.svg',
-      readerHref: '/reader?source=sample'
+      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
     }
   ];
 
@@ -37,7 +40,7 @@
       status: '新导入',
       progress: '等待元数据整理',
       coverUrl: '/covers/spirit-of-law.svg',
-      readerHref: '/reader?source=sample'
+      readerHref: assetHref('/samples/sample-outline.pdf', 'Sample Outline')
     },
     {
       title: '叫魂',
@@ -45,9 +48,11 @@
       status: '最近整理',
       progress: '封面与作者信息待接真实数据',
       coverUrl: '/covers/soulstealers.svg',
-      readerHref: '/reader?source=sample'
+      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
     }
   ];
+
+  let importInput: HTMLInputElement | null = null;
 
   const handleOpenReaderLink = async (href: string) => {
     const opened = await openReaderTarget(href);
@@ -55,10 +60,41 @@
       window.location.href = href;
     }
   };
+
+  const triggerImportPicker = async () => {
+    if (!importInput) return;
+    if (typeof importInput.showPicker === 'function') {
+      try {
+        await importInput.showPicker();
+        return;
+      } catch (error) {
+        console.warn('showPicker() failed in library import flow, falling back to click()', error);
+      }
+    }
+    importInput.click();
+  };
+
+  const handleImportChange = async (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const [file] = input.files ?? [];
+    if (!file) return;
+
+    const objectUrl = URL.createObjectURL(file);
+    await handleOpenReaderLink(assetHref(objectUrl, file.name));
+    input.value = '';
+  };
 </script>
 
 <section class="library-page">
   <div class="library-surface">
+    <input
+      bind:this={importInput}
+      class="import-input"
+      type="file"
+      accept=".epub,.pdf,.mobi,.azw3,.fb2"
+      on:change={handleImportChange}
+    />
+
     <LibraryHeader />
 
     <OverlayScrollbarsComponent
@@ -71,8 +107,8 @@
         sectionTitle="继续阅读"
         books={continueReading}
         showImportTile={true}
-        importHref="/reader?source=picker"
         onOpenLink={handleOpenReaderLink}
+        onImportBooks={triggerImportPicker}
       />
 
       <BookshelfPreview
@@ -103,6 +139,10 @@
       0 1px 0 rgba(255, 255, 255, 0.18) inset,
       0 18px 44px rgba(42, 30, 15, 0.06);
     padding: 14px 18px 0;
+  }
+
+  .import-input {
+    display: none;
   }
 
   :global(.library-scroll) {

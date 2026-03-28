@@ -14,6 +14,7 @@
   export let showImportTile = false;
   export let importHref = '';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
+  export let onImportBooks: (() => void | Promise<void>) | null = null;
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -21,6 +22,12 @@
     if (!href || !onOpenLink) return;
     event.preventDefault();
     void onOpenLink(href);
+  };
+
+  const handleImportClick = (event: MouseEvent) => {
+    if (!onImportBooks) return;
+    event.preventDefault();
+    void onImportBooks();
   };
 </script>
 
@@ -104,13 +111,19 @@
     {#if showImportTile}
       <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="import books">
         <svelte:element
-          this={importHref ? 'a' : 'div'}
+          this={onImportBooks || importHref ? 'a' : 'div'}
           class:list-link={viewMode === 'list'}
           class="book-link import-link"
           href={importHref}
-          role={importHref ? 'link' : undefined}
-          aria-label={importHref ? 'Open reader import flow' : undefined}
-          on:click={(event: MouseEvent) => handleLinkClick(event, importHref)}
+          role={onImportBooks || importHref ? 'link' : undefined}
+          aria-label={onImportBooks || importHref ? 'Import books from the system' : undefined}
+          on:click={(event: MouseEvent) => {
+            if (onImportBooks) {
+              handleImportClick(event);
+            } else {
+              handleLinkClick(event, importHref);
+            }
+          }}
         >
           <div class="cover-shell">
             <div class="cover import-cover" aria-hidden="true">

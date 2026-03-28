@@ -28,6 +28,12 @@ export type ReaderControlRequest =
       nonce: number;
     }
   | {
+      type: 'asset';
+      nonce: number;
+      url: string;
+      label: string;
+    }
+  | {
       type: 'prev' | 'next' | 'start';
       nonce: number;
     }

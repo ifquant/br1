@@ -8,21 +8,37 @@
   let activeHref = '';
   let controlRequest: ReaderControlRequest | null = null;
   let controlNonce = 0;
-  let lastAutoSource = '';
+  let lastAutoKey = '';
 
   $: source = $page.url.searchParams.get('source') ?? '';
+  $: sourceUrl = $page.url.searchParams.get('url') ?? '';
+  $: sourceLabel = $page.url.searchParams.get('label') ?? '';
   $: isWindowMode = $page.url.searchParams.get('mode') === 'window';
   $: autoOpenSample = source === 'sample';
   $: autoOpenPicker = source === 'picker';
+  $: autoOpenAsset = source === 'asset' && !!sourceUrl;
 
-  $: if (autoOpenSample && source !== lastAutoSource) {
+  $: autoOpenKey = autoOpenAsset ? `${source}:${sourceUrl}:${sourceLabel}` : source;
+
+  $: if (autoOpenSample && autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
     controlRequest = { type: 'sample', nonce: controlNonce };
-    lastAutoSource = source;
+    lastAutoKey = autoOpenKey;
   }
 
-  $: if (!autoOpenSample) {
-    lastAutoSource = '';
+  $: if (autoOpenAsset && autoOpenKey !== lastAutoKey) {
+    controlNonce += 1;
+    controlRequest = {
+      type: 'asset',
+      nonce: controlNonce,
+      url: sourceUrl,
+      label: sourceLabel || 'imported book'
+    };
+    lastAutoKey = autoOpenKey;
+  }
+
+  $: if (!autoOpenSample && !autoOpenAsset) {
+    lastAutoKey = '';
   }
 
   const issueHrefControl = (href: string) => {

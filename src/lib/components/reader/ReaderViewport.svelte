@@ -108,6 +108,8 @@
     try {
       if (controlRequest.type === 'sample') {
         await loadSampleBook();
+      } else if (controlRequest.type === 'asset') {
+        await openBook(controlRequest.url, controlRequest.label);
       } else if (controlRequest.type === 'prev') {
         await foliateViewElement.prev();
       } else if (controlRequest.type === 'next') {
