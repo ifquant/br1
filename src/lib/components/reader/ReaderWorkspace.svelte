@@ -90,10 +90,12 @@
 <section class="reader-workspace">
   <header class="reader-head">
     <div class="head-meta">
-      <div class="eyebrow">Reading</div>
       <div class="title-row">
         <strong>{readerPreview.title}</strong>
-        <small>{readerPreview.author}</small>
+        <div class="subtitle-row">
+          <small>{readerPreview.author}</small>
+          <span>{readerPreview.chapterLabel}</span>
+        </div>
       </div>
     </div>
 
@@ -105,10 +107,10 @@
         accept=".epub,.pdf,.mobi,.azw3,.fb2"
         on:change={handleImportChange}
       />
-      <button type="button" on:click={triggerImportPicker}>Open</button>
-      <button type="button">Aa</button>
-      <button type="button">🔊</button>
-      <button type="button">☰</button>
+      <button type="button" aria-label="Open book" title="Open book" on:click={triggerImportPicker}>⌂</button>
+      <button type="button" aria-label="Typography" title="Typography">Aa</button>
+      <button type="button" aria-label="Text to speech" title="Text to speech">🔊</button>
+      <button type="button" aria-label="More actions" title="More actions">⋯</button>
     </div>
   </header>
 
@@ -131,9 +133,9 @@
 
   <footer class="footer-bar" aria-label="reader footer controls preview">
     <div class="footer-controls">
-      <button type="button" on:click={() => issueControl('prev')}>Prev</button>
-      <button type="button" on:click={() => issueControl('start')}>Start</button>
-      <button type="button" on:click={() => issueControl('next')}>Next</button>
+      <button type="button" aria-label="Previous page" title="Previous page" on:click={() => issueControl('prev')}>‹</button>
+      <button type="button" aria-label="Go to start" title="Go to start" on:click={() => issueControl('start')}>·</button>
+      <button type="button" aria-label="Next page" title="Next page" on:click={() => issueControl('next')}>›</button>
     </div>
     <label class="progress-strip" aria-label="reader progress preview">
       <input
@@ -146,11 +148,13 @@
         }}
         on:change={() => issueFractionControl(sliderValue / 100)}
       />
-      <span>{sliderValue}%</span>
+      <span>{readerPreview.progressLabel}</span>
     </label>
-    <span>{readerPreview.progressLabel}</span>
-    <span>{readerPreview.chapterLabel}</span>
-    <span>{readerPreview.locationLabel} · EPUB · Serif · 110%</span>
+    <div class="footer-meta">
+      <span>{readerPreview.locationLabel}</span>
+      <span>EPUB</span>
+      <span>Serif</span>
+    </div>
   </footer>
 </section>
 
@@ -168,27 +172,20 @@
     align-items: center;
   }
 
-  .eyebrow {
-    color: var(--text-muted);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-  }
-
   .head-meta {
     display: grid;
-    gap: 4px;
+    gap: 2px;
   }
 
   .title-row {
     display: grid;
-    gap: 2px;
+    gap: 3px;
     min-width: 0;
   }
 
   .title-row strong,
-  .title-row small {
+  .title-row small,
+  .subtitle-row span {
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -205,6 +202,26 @@
     font-size: 12px;
   }
 
+  .subtitle-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    color: var(--text-muted);
+  }
+
+  .subtitle-row span {
+    min-width: 0;
+    font-size: 12px;
+    color: color-mix(in srgb, var(--text-secondary) 90%, white 10%);
+  }
+
+  .subtitle-row span::before {
+    content: "•";
+    margin-right: 8px;
+    color: color-mix(in srgb, var(--text-muted) 70%, white 30%);
+  }
+
   .controls {
     display: flex;
     gap: 4px;
@@ -212,14 +229,21 @@
   }
 
   .controls button {
-    min-width: 28px;
-    height: 28px;
-    padding: 0 8px;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 7px;
     border: 0;
     border-radius: 999px;
     background: transparent;
     color: var(--text-secondary);
     font: inherit;
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  .controls button:hover {
+    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
+    color: var(--text-primary);
   }
 
   .import-input {
@@ -239,15 +263,16 @@
   .footer-bar {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px 14px;
     flex-wrap: wrap;
-    padding: 10px 12px;
-    border: 1px solid rgba(64, 47, 24, 0.08);
-    background: color-mix(in srgb, var(--surface-panel) 94%, white 6%);
+    padding: 8px 12px 10px;
+    border-top: 1px solid rgba(64, 47, 24, 0.08);
+    background: color-mix(in srgb, var(--surface-panel) 96%, white 4%);
     color: var(--text-secondary);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-    font-size: 11px;
-    letter-spacing: 0.02em;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
 
   .footer-controls {
@@ -257,12 +282,20 @@
   }
 
   .footer-controls button {
-    padding: 5px 8px;
-    border: 1px solid rgba(64, 47, 24, 0.08);
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    color: var(--text-primary);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
     font: inherit;
     line-height: 1;
+  }
+
+  .footer-controls button:hover {
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    color: var(--text-primary);
   }
 
   .progress-strip {
@@ -275,6 +308,37 @@
   .progress-strip input {
     flex: 1;
     accent-color: #8c6a3b;
+  }
+
+  .progress-strip span {
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .footer-meta {
+    display: inline-flex;
+    gap: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+  }
+
+  .footer-meta span + span {
+    position: relative;
+    padding-left: 9px;
+    margin-left: 8px;
+  }
+
+  .footer-meta span + span::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 70%, white 30%);
+    transform: translateY(-50%);
   }
 
   @media (max-width: 900px) {
