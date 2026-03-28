@@ -14,6 +14,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.3
+      foliate-js:
+        specifier: file:../foliate-js
+        version: file:../foliate-js
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
@@ -515,6 +518,9 @@ packages:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
 
+  construct-style-sheets-polyfill@3.1.0:
+    resolution: {integrity: sha512-HBLKP0chz8BAY6rBdzda11c3wAZeCZ+kIG4weVC2NM3AXzxx09nhe8t0SQNdloAvg5GLuHwq/0SPOOSPvtCcKw==}
+
   cookie@0.6.0:
     resolution: {integrity: sha512-U71cyTamuh1CRNCfpGY6to28lxvNwPG4Guz/EVjgf3Jmzv0vlDp1atT9eS5dDjMYHucpHbWns6Lwf3BKz6svdw==}
     engines: {node: '>= 0.6'}
@@ -554,6 +560,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  foliate-js@file:../foliate-js:
+    resolution: {directory: ../foliate-js, type: directory}
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -1001,6 +1010,8 @@ snapshots:
 
   clsx@2.1.1: {}
 
+  construct-style-sheets-polyfill@3.1.0: {}
+
   cookie@0.6.0: {}
 
   debug@4.4.3:
@@ -1050,6 +1061,10 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  foliate-js@file:../foliate-js:
+    dependencies:
+      construct-style-sheets-polyfill: 3.1.0
 
   fsevents@2.3.3:
     optional: true

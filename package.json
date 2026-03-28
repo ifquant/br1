@@ -14,7 +14,8 @@
   "license": "MIT",
   "dependencies": {
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "foliate-js": "file:../foliate-js"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
