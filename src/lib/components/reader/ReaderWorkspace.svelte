@@ -171,6 +171,7 @@
     display: grid;
     gap: 12px;
     min-width: 0;
+    width: 100%;
   }
 
   .reader-workspace.window-mode {
@@ -282,6 +283,7 @@
   .canvas {
     display: grid;
     min-height: 0;
+    width: 100%;
     padding: 8px 14px 0;
     border: 1px solid rgba(64, 47, 24, 0.08);
     background:

@@ -206,18 +206,22 @@
 
         <div class="engine-stage" bind:this={stageElement}></div>
 
+        {#if sampleStatus !== 'open' && isWindowMode}
+          <div class="stage-overlay" aria-hidden="true">
+            <button
+              type="button"
+              class="sample-trigger inline"
+              on:click={loadSampleBook}
+              disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
+            >
+              {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
+            </button>
+          </div>
+        {/if}
+
         {#if sampleStatus !== 'open'}
           <div class:window-mode={isWindowMode} class="paper-copy" aria-hidden="true">
-            {#if isWindowMode}
-              <button
-                type="button"
-                class="sample-trigger inline"
-                on:click={loadSampleBook}
-                disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
-              >
-                {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
-              </button>
-            {:else}
+            {#if !isWindowMode}
               <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
               <p>现在可以先打开样例书或本地文件，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
             {/if}
@@ -233,6 +237,7 @@
     display: grid;
     gap: 10px;
     min-width: 0;
+    width: 100%;
   }
 
   .viewport-shell.window-mode {
@@ -287,11 +292,13 @@
 
   .viewport-frame {
     min-height: 0;
+    width: 100%;
   }
 
   .engine-host {
     display: grid;
     min-height: 66vh;
+    width: 100%;
     padding: clamp(14px, 2.6vw, 24px) clamp(8px, 1.8vw, 14px);
     border: 1px solid rgba(64, 47, 24, 0.05);
     background:
@@ -350,6 +357,7 @@
   }
 
   .engine-stage {
+    position: relative;
     min-height: min(66vh, 860px);
     background: rgba(255, 255, 255, 0.28);
     box-shadow:
@@ -361,6 +369,18 @@
     min-height: calc(100vh - 182px);
     background: rgba(255, 255, 255, 0.18);
     box-shadow: none;
+  }
+
+  .stage-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  .stage-overlay .sample-trigger {
+    pointer-events: auto;
   }
 
   .engine-stage :global(foliate-view.foliate-preview) {
@@ -405,8 +425,7 @@
   }
 
   .paper-copy.window-mode {
-    place-items: center;
-    min-height: calc(100vh - 280px);
+    display: none;
     font-size: 13px;
     line-height: 1;
   }
