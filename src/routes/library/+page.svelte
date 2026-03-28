@@ -52,7 +52,7 @@
       defer
       element="div"
       class="library-scroll"
-      options={{ scrollbars: { autoHide: 'scroll' } }}
+      options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
     >
       <BookshelfPreview
         sectionTitle="继续阅读"
@@ -99,6 +99,28 @@
     overscroll-behavior: contain;
   }
 
+  :global(.library-scroll .os-scrollbar.os-theme-readest) {
+    --os-size: 10px;
+    --os-padding-perpendicular: 2px;
+    --os-padding-axis: 2px;
+    --os-track-bg: transparent;
+    --os-track-bg-hover: transparent;
+    --os-track-bg-active: transparent;
+    --os-track-border: none;
+    --os-track-border-hover: none;
+    --os-track-border-active: none;
+    --os-handle-border-radius: 999px;
+    --os-handle-bg: rgba(95, 85, 72, 0.12);
+    --os-handle-bg-hover: rgba(95, 85, 72, 0.18);
+    --os-handle-bg-active: rgba(95, 85, 72, 0.22);
+    --os-handle-min-size: 28px;
+    --os-handle-interactive-area-offset: 1px;
+  }
+
+  :global(.library-scroll .os-scrollbar-vertical.os-theme-readest) {
+    --os-size: 8px;
+  }
+
   @media (max-width: 900px) {
     .library-surface {
       padding: 12px 14px 0;
@@ -110,6 +132,12 @@
     :global(.library-scroll) {
       gap: 16px;
       padding-bottom: 16px;
+    }
+
+    :global(.library-scroll .os-scrollbar.os-theme-readest) {
+      --os-size: 8px;
+      --os-padding-perpendicular: 1px;
+      --os-padding-axis: 1px;
     }
   }
 </style>
