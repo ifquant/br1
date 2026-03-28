@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createReaderMountBoundary } from '$lib/reader';
-  import type { ReaderPreviewState } from '$lib/reader';
+  import type { ReaderControlRequest, ReaderPreviewState } from '$lib/reader';
   import ReaderViewport from './ReaderViewport.svelte';
 
   const mountBoundary = createReaderMountBoundary('idle');
@@ -13,11 +13,21 @@
     progressFraction: 0
   };
   let controlNonce = 0;
-  let controlRequest: { type: 'prev' | 'next' | 'start'; nonce: number } | null = null;
+  let controlRequest: ReaderControlRequest | null = null;
+  let sliderValue = 0;
 
   const issueControl = (type: 'prev' | 'next' | 'start') => {
     controlNonce += 1;
     controlRequest = { type, nonce: controlNonce };
+  };
+
+  const issueFractionControl = (fraction: number) => {
+    controlNonce += 1;
+    controlRequest = {
+      type: 'fraction',
+      nonce: controlNonce,
+      fraction
+    };
   };
 </script>
 
@@ -46,6 +56,7 @@
       hint="中央主舞台先对齐 Readest 的阅读画布比例和安静度；下一步再把真正的阅读引擎挂进来。"
       on:readerstate={({ detail }) => {
         readerPreview = detail;
+        sliderValue = Math.round(detail.progressFraction * 100);
       }}
     />
   </article>
@@ -56,6 +67,19 @@
       <button type="button" on:click={() => issueControl('start')}>Start</button>
       <button type="button" on:click={() => issueControl('next')}>Next</button>
     </div>
+    <label class="progress-strip" aria-label="reader progress preview">
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={sliderValue}
+        on:input={(event) => {
+          sliderValue = Number((event.currentTarget as HTMLInputElement).value);
+        }}
+        on:change={() => issueFractionControl(sliderValue / 100)}
+      />
+      <span>{sliderValue}%</span>
+    </label>
     <span>{readerPreview.progressLabel}</span>
     <span>{readerPreview.chapterLabel}</span>
     <span>{readerPreview.locationLabel} · EPUB · Serif · 110%</span>
@@ -167,6 +191,18 @@
     color: var(--text-primary);
     font: inherit;
     line-height: 1;
+  }
+
+  .progress-strip {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    min-width: min(280px, 100%);
+  }
+
+  .progress-strip input {
+    flex: 1;
+    accent-color: #8c6a3b;
   }
 
   @media (max-width: 900px) {

@@ -9,6 +9,7 @@
     ensureFoliateViewDefinition,
     pickAuthor,
     pickText,
+    type ReaderControlRequest,
     type FoliateViewElement,
     type ReaderEngineMountState
   } from '$lib/reader';
@@ -16,12 +17,7 @@
 
   export let title = 'Foliate Mount Boundary';
   export let state: ReaderEngineMountState = 'idle';
-  export let controlRequest:
-    | {
-        type: 'prev' | 'next' | 'start';
-        nonce: number;
-      }
-    | null = null;
+  export let controlRequest: ReaderControlRequest | null = null;
   export let hint =
     '这里是后续阅读引擎接管的唯一宿主容器。toolbar、sidebar 和 bridge 都不应该直接侵入这个 DOM 边界。';
 
@@ -100,8 +96,10 @@
         await foliateViewElement.prev();
       } else if (controlRequest.type === 'next') {
         await foliateViewElement.next();
-      } else {
+      } else if (controlRequest.type === 'start') {
         await foliateViewElement.goToFraction(0);
+      } else if (controlRequest.type === 'fraction') {
+        await foliateViewElement.goToFraction(controlRequest.fraction);
       }
     } catch (error) {
       console.error(`Failed to handle reader control: ${controlRequest.type}`, error);

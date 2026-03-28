@@ -14,3 +14,14 @@ export type ReaderPreviewState = {
   locationLabel: string;
   progressFraction: number;
 };
+
+export type ReaderControlRequest =
+  | {
+      type: 'prev' | 'next' | 'start';
+      nonce: number;
+    }
+  | {
+      type: 'fraction';
+      nonce: number;
+      fraction: number;
+    };
