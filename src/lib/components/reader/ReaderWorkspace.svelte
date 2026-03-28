@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import { createReaderMountBoundary } from '$lib/reader';
+  import { startCurrentWindowDrag } from '$lib/services';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
   import ReaderViewport from './ReaderViewport.svelte';
 
@@ -90,7 +91,13 @@
 
 <section class:window-mode={isWindowMode} class="reader-workspace">
   <header class:window-mode={isWindowMode} class="reader-head">
-    <div class:window-mode={isWindowMode} class="head-meta" data-tauri-drag-region={isWindowMode ? true : undefined}>
+    <div
+      role="presentation"
+      class:window-mode={isWindowMode}
+      class="head-meta"
+      data-tauri-drag-region={isWindowMode ? true : undefined}
+      on:mousedown={isWindowMode ? startCurrentWindowDrag : undefined}
+    >
       <div class="title-row">
         <strong>{readerPreview.title}</strong>
         <div class="subtitle-row">
@@ -195,6 +202,7 @@
     min-height: 100%;
     padding-left: 2px;
     cursor: grab;
+    padding-right: 16px;
   }
 
   .title-row {

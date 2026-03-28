@@ -330,9 +330,9 @@
   }
 
   .engine-paper.window-mode {
-    gap: 10px;
-    width: min(100%, 980px);
-    padding: 6px 12px 0;
+    gap: 6px;
+    width: min(100%, 1120px);
+    padding: 4px 6px 0;
     background: transparent;
     box-shadow: none;
   }
@@ -360,6 +360,7 @@
   .viewport-shell.window-mode .engine-stage {
     min-height: calc(100vh - 182px);
     background: rgba(255, 255, 255, 0.18);
+    box-shadow: none;
   }
 
   .engine-stage :global(foliate-view.foliate-preview) {
@@ -406,7 +407,7 @@
   .paper-copy.window-mode {
     place-items: center;
     min-height: calc(100vh - 280px);
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1;
   }
 

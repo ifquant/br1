@@ -2,6 +2,7 @@
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderWorkspace } from '$lib/components';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
+  import { startCurrentWindowDrag } from '$lib/services';
 
   let toc: ReaderTocItem[] = [];
   let activeHref = '';
@@ -32,9 +33,20 @@
 
 <section class:window-mode={isWindowMode} class="reader-shell">
   {#if isWindowMode}
-    <header class="window-chrome" data-tauri-drag-region aria-label="reader window chrome">
+    <header
+      class="window-chrome"
+      role="banner"
+      data-tauri-drag-region
+      aria-label="reader window chrome"
+    >
+      <div
+        role="presentation"
+        class="window-drag-strip"
+        data-tauri-drag-region
+        on:mousedown={startCurrentWindowDrag}
+      ></div>
       <div class="traffic-light-gutter" aria-hidden="true"></div>
-      <div class="window-title" data-tauri-drag-region>
+      <div role="presentation" class="window-title" data-tauri-drag-region on:mousedown={startCurrentWindowDrag}>
         <span>Bridge Reader</span>
         <small>Reading window</small>
       </div>
@@ -102,13 +114,21 @@
     display: grid;
     grid-template-columns: 92px minmax(0, 1fr) 92px;
     align-items: center;
+    position: relative;
     min-height: 26px;
     padding: 10px 18px 0;
     background: transparent;
     user-select: none;
   }
 
+  .window-drag-strip {
+    position: absolute;
+    inset: 0;
+  }
+
   .traffic-light-gutter {
+    position: relative;
+    z-index: 1;
     min-height: 16px;
   }
 
@@ -117,6 +137,8 @@
     justify-items: center;
     gap: 0;
     min-width: 0;
+    position: relative;
+    z-index: 1;
     text-align: center;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     opacity: 0.72;
@@ -149,6 +171,8 @@
     justify-content: end;
     gap: 8px;
     min-height: 16px;
+    position: relative;
+    z-index: 1;
   }
 
   .window-actions span {
@@ -169,7 +193,7 @@
   .workspace.window-mode {
     gap: 0;
     min-height: calc(100vh - 26px);
-    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-columns: 224px minmax(0, 1fr);
   }
 
   .bridge-placeholder {
