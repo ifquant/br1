@@ -7,17 +7,21 @@
   };
 
   export let sectionTitle = '最近阅读';
-  export let sectionHint = '先对齐 Readest 的书架、分组和继续阅读主路径。';
   export let books: Book[] = [];
   export let viewMode: 'grid' | 'list' = 'grid';
   export let showImportTile = false;
+
+  $: totalItems = books.length + (showImportTile ? 1 : 0);
 </script>
 
 <section class="shelf">
   <header class="shelf-head">
-    <div>
+    <div class="heading">
       <h2>{sectionTitle}</h2>
-      <p>{sectionHint}</p>
+      <div class="shelf-meta">
+        <span>{totalItems} items</span>
+        <span>{viewMode}</span>
+      </div>
     </div>
     <div class="tools" aria-label="view mode placeholder">
       <div class="modes">
@@ -90,6 +94,11 @@
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
+  .heading {
+    display: grid;
+    gap: 3px;
+  }
+
   h2 {
     margin: 0;
     font-size: 15px;
@@ -97,11 +106,17 @@
     font-weight: 600;
   }
 
-  p {
-    margin: 3px 0 0;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.45;
+  .shelf-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
   .modes {

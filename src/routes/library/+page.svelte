@@ -45,14 +45,12 @@
     <div class="library-scroll">
       <BookshelfPreview
         sectionTitle="继续阅读"
-        sectionHint=""
         books={continueReading}
         showImportTile={true}
       />
 
       <BookshelfPreview
         sectionTitle="最近导入"
-        sectionHint=""
         books={recentImports}
         viewMode="list"
       />
