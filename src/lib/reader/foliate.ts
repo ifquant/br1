@@ -22,6 +22,9 @@ export interface FoliateViewElement extends HTMLElement {
     };
   };
   open(book: string | Blob | File): Promise<void>;
+  prev(): Promise<void>;
+  next(): Promise<void>;
+  goToFraction(fraction: number): Promise<void>;
 }
 
 const isRecord = (value: unknown): value is Record<string, string> =>

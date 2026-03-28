@@ -9,7 +9,15 @@
     author: 'Francis Fukuyama',
     chapterLabel: 'Waiting for sample',
     progressLabel: '0%',
-    locationLabel: 'Not opened'
+    locationLabel: 'Not opened',
+    progressFraction: 0
+  };
+  let controlNonce = 0;
+  let controlRequest: { type: 'prev' | 'next' | 'start'; nonce: number } | null = null;
+
+  const issueControl = (type: 'prev' | 'next' | 'start') => {
+    controlNonce += 1;
+    controlRequest = { type, nonce: controlNonce };
   };
 </script>
 
@@ -34,6 +42,7 @@
     <ReaderViewport
       title="Reader Engine Boundary"
       state={mountBoundary.state}
+      {controlRequest}
       hint="中央主舞台先对齐 Readest 的阅读画布比例和安静度；下一步再把真正的阅读引擎挂进来。"
       on:readerstate={({ detail }) => {
         readerPreview = detail;
@@ -42,6 +51,11 @@
   </article>
 
   <footer class="footer-bar" aria-label="reader footer controls preview">
+    <div class="footer-controls">
+      <button type="button" on:click={() => issueControl('prev')}>Prev</button>
+      <button type="button" on:click={() => issueControl('start')}>Start</button>
+      <button type="button" on:click={() => issueControl('next')}>Next</button>
+    </div>
     <span>{readerPreview.progressLabel}</span>
     <span>{readerPreview.chapterLabel}</span>
     <span>{readerPreview.locationLabel} · EPUB · Serif · 110%</span>
@@ -138,6 +152,21 @@
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 11px;
     letter-spacing: 0.02em;
+  }
+
+  .footer-controls {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .footer-controls button {
+    padding: 5px 8px;
+    border: 1px solid rgba(64, 47, 24, 0.08);
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    color: var(--text-primary);
+    font: inherit;
+    line-height: 1;
   }
 
   @media (max-width: 900px) {

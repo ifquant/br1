@@ -16,6 +16,12 @@
 
   export let title = 'Foliate Mount Boundary';
   export let state: ReaderEngineMountState = 'idle';
+  export let controlRequest:
+    | {
+        type: 'prev' | 'next' | 'start';
+        nonce: number;
+      }
+    | null = null;
   export let hint =
     '这里是后续阅读引擎接管的唯一宿主容器。toolbar、sidebar 和 bridge 都不应该直接侵入这个 DOM 边界。';
 
@@ -28,6 +34,7 @@
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   let sampleStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
   let foliateViewElement: FoliateViewElement | null = null;
+  let handledControlNonce = 0;
 
   const emitReaderState = (partial?: Partial<ReaderPreviewState>) => {
     const book = foliateViewElement?.book;
@@ -46,6 +53,7 @@
       author: pickAuthor(book?.metadata?.creator) || 'Unknown author',
       chapterLabel: lastLocation?.tocItem?.label || fallbackChapter,
       progressLabel: `${progressPercent}%`,
+      progressFraction: fraction,
       locationLabel:
         typeof lastLocation?.current === 'number' && typeof lastLocation?.total === 'number'
           ? `${lastLocation.current} / ${lastLocation.total}`
@@ -80,6 +88,27 @@
       sampleStatus = 'error';
     }
   };
+
+  const applyControlRequest = async () => {
+    if (!controlRequest || handledControlNonce === controlRequest.nonce) return;
+    if (!foliateViewElement || sampleStatus !== 'open') return;
+
+    handledControlNonce = controlRequest.nonce;
+
+    try {
+      if (controlRequest.type === 'prev') {
+        await foliateViewElement.prev();
+      } else if (controlRequest.type === 'next') {
+        await foliateViewElement.next();
+      } else {
+        await foliateViewElement.goToFraction(0);
+      }
+    } catch (error) {
+      console.error(`Failed to handle reader control: ${controlRequest.type}`, error);
+    }
+  };
+
+  $: void applyControlRequest();
 
   onMount(() => {
     let cancelled = false;
