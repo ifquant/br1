@@ -11,16 +11,13 @@
     pickAuthor,
     pickText,
     type ReaderControlRequest,
-    type FoliateViewElement,
-    type ReaderEngineMountState
+    type FoliateViewElement
   } from '$lib/reader';
   import type { ReaderPreviewState, ReaderTocItem } from '$lib/reader';
 
-  export let title = 'Foliate Mount Boundary';
-  export let state: ReaderEngineMountState = 'idle';
+  export let title = 'Reading Surface';
   export let controlRequest: ReaderControlRequest | null = null;
-  export let hint =
-    '这里是后续阅读引擎接管的唯一宿主容器。toolbar、sidebar 和 bridge 都不应该直接侵入这个 DOM 边界。';
+  export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
 
   const dispatch = createEventDispatcher<{
     readerstate: ReaderPreviewState;
@@ -182,9 +179,8 @@
         on:click={loadSampleBook}
         disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
       >
-        {sampleStatus === 'loading' ? 'Loading sample…' : 'Load sample'}
+        {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
       </button>
-      <span class="state" data-state={state}>{state}</span>
     </div>
   </header>
 
@@ -198,21 +194,16 @@
     >
       <div class="engine-paper">
         <div class="paper-header">
-          <span>{sampleStatus === 'open' ? openSourceLabel : 'Chapter 3'}</span>
-          <small>
-            {adapterStatus === 'ready' ? 'foliate-view ready' : `adapter ${adapterStatus}`}
-            ·
-            {sampleStatus === 'open' ? 'sample opened' : `sample ${sampleStatus}`}
-          </small>
+          <span>{sampleStatus === 'open' ? openSourceLabel : 'Preview chapter'}</span>
+          <small>{sampleStatus === 'open' ? 'reading preview' : 'ready to open'}</small>
         </div>
 
         <div class="engine-stage" bind:this={stageElement}></div>
 
         {#if sampleStatus !== 'open'}
           <div class="paper-copy" aria-hidden="true">
-          <p>当制度开始无法自我修复时，政治衰败并不是突然发生的，而是以缓慢、分层和难以立即察觉的方式积累出来。</p>
-          <p>中央正文区必须先像真正的阅读画布，再去承接翻页、选区、注释、TTS 和 bridge 等更复杂的行为。</p>
-          <p>这一块现在已经能显式调用 `view.open()` 载入样例书，下一步再接真实导入、目录和位置恢复。</p>
+            <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
+            <p>现在可以先打开样例书或本地文件，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
           </div>
         {/if}
       </div>
@@ -256,29 +247,17 @@
     font-size: 13px;
   }
 
-  .state {
-    padding: 6px 8px;
-    border: 1px solid rgba(64, 47, 24, 0.08);
-    background: color-mix(in srgb, var(--surface-panel) 92%, white 8%);
+  .sample-trigger {
+    padding: 6px 10px;
+    border: 1px solid rgba(64, 47, 24, 0.07);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 94%, white 6%);
     color: var(--text-secondary);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-    text-transform: uppercase;
     font-size: 11px;
-    letter-spacing: 0.08em;
-  }
-
-  .state[data-state='idle'] {
-    color: var(--text-primary);
-  }
-
-  .sample-trigger {
-    padding: 7px 10px;
-    border: 1px solid rgba(64, 47, 24, 0.08);
-    background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
-    color: var(--text-primary);
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-    font-size: 12px;
     line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .sample-trigger:disabled {
@@ -292,11 +271,11 @@
   .engine-host {
     display: grid;
     min-height: 66vh;
-    padding: clamp(16px, 3vw, 28px) clamp(10px, 2vw, 18px);
-    border: 1px solid rgba(64, 47, 24, 0.06);
+    padding: clamp(14px, 2.6vw, 24px) clamp(8px, 1.8vw, 14px);
+    border: 1px solid rgba(64, 47, 24, 0.05);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-reader) 98%, white 2%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 97%, white 3%);
     outline: none;
   }
 
@@ -307,17 +286,17 @@
   .engine-paper {
     display: grid;
     align-content: start;
-    gap: 20px;
-    width: min(100%, 820px);
+    gap: 14px;
+    width: min(100%, 790px);
     min-height: 100%;
     margin: 0 auto;
-    padding: clamp(18px, 3vw, 24px) clamp(18px, 3vw, 30px);
+    padding: clamp(14px, 2.2vw, 18px) clamp(14px, 2.6vw, 24px);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
       #f8f3e9;
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.5) inset,
-      0 20px 38px rgba(36, 25, 12, 0.08);
+      0 1px 0 rgba(255, 255, 255, 0.44) inset,
+      0 16px 28px rgba(36, 25, 12, 0.06);
   }
 
   .paper-header {
@@ -327,17 +306,17 @@
     align-items: center;
     color: var(--text-muted);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
   .engine-stage {
     min-height: min(66vh, 860px);
-    background: rgba(255, 255, 255, 0.36);
+    background: rgba(255, 255, 255, 0.28);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.7),
-      0 0 0 1px rgba(84, 62, 34, 0.05);
+      inset 0 1px 0 rgba(255, 255, 255, 0.62),
+      0 0 0 1px rgba(84, 62, 34, 0.04);
   }
 
   .engine-stage :global(foliate-view.foliate-preview) {
@@ -375,10 +354,10 @@
 
   .paper-copy {
     display: grid;
-    gap: 18px;
-    font-size: clamp(18px, 2vw, 21px);
-    line-height: 1.95;
-    color: #2c241c;
+    gap: 12px;
+    font-size: clamp(17px, 1.9vw, 20px);
+    line-height: 1.88;
+    color: color-mix(in srgb, #2c241c 88%, white 12%);
   }
 
   .paper-copy p {

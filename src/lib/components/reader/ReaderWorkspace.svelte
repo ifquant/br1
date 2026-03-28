@@ -117,7 +117,6 @@
   <article class="canvas">
     <ReaderViewport
       title="Reader Engine Boundary"
-      state={mountBoundary.state}
       controlRequest={viewportControlRequest}
       hint="中央主舞台先对齐 Readest 的阅读画布比例和安静度；下一步再把真正的阅读引擎挂进来。"
       on:readerstate={({ detail }) => {
