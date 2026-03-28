@@ -18,6 +18,7 @@
   export let title = 'Reading Surface';
   export let controlRequest: ReaderControlRequest | null = null;
   export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
+  export let isWindowMode = false;
 
   const dispatch = createEventDispatcher<{
     readerstate: ReaderPreviewState;
@@ -64,9 +65,9 @@
     if (!renderer) return;
 
     renderer.setAttribute('flow', 'paginated');
-    renderer.setAttribute('margin', '20');
+    renderer.setAttribute('margin', isWindowMode ? '16' : '20');
     renderer.setAttribute('gap', '6%');
-    renderer.setAttribute('max-inline-size', '720px');
+    renderer.setAttribute('max-inline-size', isWindowMode ? '860px' : '720px');
     renderer.setAttribute('max-block-size', '980px');
   };
 
@@ -166,44 +167,60 @@
   });
 </script>
 
-<section class="viewport-shell" aria-label="reader viewport shell">
-  <header class="viewport-head">
-    <div>
-      <span class="label">{title}</span>
-      <p>{hint}</p>
-    </div>
-    <div class="head-statuses">
-      <button
-        type="button"
-        class="sample-trigger"
-        on:click={loadSampleBook}
-        disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
-      >
-        {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
-      </button>
-    </div>
-  </header>
+<section class:window-mode={isWindowMode} class="viewport-shell" aria-label="reader viewport shell">
+  {#if !isWindowMode}
+    <header class="viewport-head">
+      <div>
+        <span class="label">{title}</span>
+        <p>{hint}</p>
+      </div>
+      <div class="head-statuses">
+        <button
+          type="button"
+          class="sample-trigger"
+          on:click={loadSampleBook}
+          disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
+        >
+          {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
+        </button>
+      </div>
+    </header>
+  {/if}
 
   <div class="viewport-frame">
     <div
+      class:window-mode={isWindowMode}
       class="engine-host"
       bind:this={hostElement}
       data-role={READER_ENGINE_HOST_ATTR}
       data-engine-status={READER_ENGINE_STATUS_ATTR}
       aria-label="reader engine host placeholder"
     >
-      <div class="engine-paper">
-        <div class="paper-header">
-          <span>{sampleStatus === 'open' ? openSourceLabel : 'Preview chapter'}</span>
-          <small>{sampleStatus === 'open' ? 'reading preview' : 'ready to open'}</small>
-        </div>
+      <div class:window-mode={isWindowMode} class="engine-paper">
+        {#if !isWindowMode || sampleStatus === 'open'}
+          <div class="paper-header">
+            <span>{sampleStatus === 'open' ? openSourceLabel : 'Preview chapter'}</span>
+            <small>{sampleStatus === 'open' ? 'reading preview' : 'ready to open'}</small>
+          </div>
+        {/if}
 
         <div class="engine-stage" bind:this={stageElement}></div>
 
         {#if sampleStatus !== 'open'}
-          <div class="paper-copy" aria-hidden="true">
-            <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
-            <p>现在可以先打开样例书或本地文件，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
+          <div class:window-mode={isWindowMode} class="paper-copy" aria-hidden="true">
+            {#if isWindowMode}
+              <button
+                type="button"
+                class="sample-trigger inline"
+                on:click={loadSampleBook}
+                disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
+              >
+                {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
+              </button>
+            {:else}
+              <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
+              <p>现在可以先打开样例书或本地文件，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
+            {/if}
           </div>
         {/if}
       </div>
@@ -216,6 +233,10 @@
     display: grid;
     gap: 10px;
     min-width: 0;
+  }
+
+  .viewport-shell.window-mode {
+    gap: 0;
   }
 
   .viewport-head {
@@ -279,6 +300,15 @@
     outline: none;
   }
 
+  .engine-host.window-mode {
+    min-height: calc(100vh - 124px);
+    padding: 0;
+    border: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 98%, white 2%);
+  }
+
   .engine-host :global(foliate-view.foliate-preview) {
     display: none;
   }
@@ -299,6 +329,14 @@
       0 16px 28px rgba(36, 25, 12, 0.06);
   }
 
+  .engine-paper.window-mode {
+    gap: 10px;
+    width: min(100%, 980px);
+    padding: 6px 12px 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
   .paper-header {
     display: flex;
     justify-content: space-between;
@@ -317,6 +355,11 @@
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.62),
       0 0 0 1px rgba(84, 62, 34, 0.04);
+  }
+
+  .viewport-shell.window-mode .engine-stage {
+    min-height: calc(100vh - 182px);
+    background: rgba(255, 255, 255, 0.18);
   }
 
   .engine-stage :global(foliate-view.foliate-preview) {
@@ -360,8 +403,19 @@
     color: color-mix(in srgb, #2c241c 88%, white 12%);
   }
 
+  .paper-copy.window-mode {
+    place-items: center;
+    min-height: calc(100vh - 280px);
+    font-size: 14px;
+    line-height: 1;
+  }
+
   .paper-copy p {
     margin: 0;
+  }
+
+  .sample-trigger.inline {
+    padding-inline: 14px;
   }
 
   @media (max-width: 760px) {

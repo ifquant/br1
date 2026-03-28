@@ -117,9 +117,10 @@
 
   <article class:window-mode={isWindowMode} class="canvas">
     <ReaderViewport
-      title="Reader Engine Boundary"
+      title="Reading Surface"
       controlRequest={viewportControlRequest}
-      hint="中央主舞台先对齐 Readest 的阅读画布比例和安静度；下一步再把真正的阅读引擎挂进来。"
+      hint="正文优先，控制层尽量退到边缘。"
+      {isWindowMode}
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         sliderValue = Math.round(detail.progressFraction * 100);
@@ -178,12 +179,9 @@
   }
 
   .reader-head.window-mode {
-    min-height: 52px;
-    padding: 0 22px 8px 18px;
-    border-bottom: 1px solid rgba(64, 47, 24, 0.06);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-page) 97%, white 3%);
+    min-height: 44px;
+    padding: 0 20px 2px 16px;
+    background: transparent;
   }
 
   .head-meta {
@@ -284,11 +282,9 @@
   }
 
   .canvas.window-mode {
-    padding: 14px 18px 0;
+    padding: 10px 10px 0 12px;
     border: 0;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-reader) 96%, white 4%);
+    background: transparent;
   }
 
   .footer-bar {
@@ -307,9 +303,11 @@
   }
 
   .footer-bar.window-mode {
-    padding: 6px 18px 10px;
-    border-top-color: rgba(64, 47, 24, 0.06);
-    background: color-mix(in srgb, var(--surface-page) 97%, white 3%);
+    padding: 6px 12px 10px;
+    border-top-color: rgba(64, 47, 24, 0.04);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-page) 98%, white 2%);
   }
 
   .footer-controls {

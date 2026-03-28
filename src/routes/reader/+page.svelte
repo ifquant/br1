@@ -63,22 +63,24 @@
       }}
     />
 
-    <aside class:window-mode={isWindowMode} class="bridge-placeholder" aria-label="bridge panel placeholder">
-      <header class="bridge-head">
-        <span class="label">Bridge</span>
-        <button type="button" aria-label="bridge options">⋯</button>
-      </header>
+    {#if !isWindowMode}
+      <aside class="bridge-placeholder" aria-label="bridge panel placeholder">
+        <header class="bridge-head">
+          <span class="label">Bridge</span>
+          <button type="button" aria-label="bridge options">⋯</button>
+        </header>
 
-      <div class="bridge-card">
-        <strong>解释这段</strong>
-        <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧 contextual surface 摆正，不提前接 AI 行为。</p>
-      </div>
+        <div class="bridge-card">
+          <strong>解释这段</strong>
+          <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧 contextual surface 摆正，不提前接 AI 行为。</p>
+        </div>
 
-      <div class="bridge-card secondary">
-        <strong>为什么重要</strong>
-        <p>后续 bridge 可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
-      </div>
-    </aside>
+        <div class="bridge-card secondary">
+          <strong>为什么重要</strong>
+          <p>后续 bridge 可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
+        </div>
+      </aside>
+    {/if}
   </div>
 </section>
 
@@ -167,7 +169,7 @@
   .workspace.window-mode {
     gap: 0;
     min-height: calc(100vh - 26px);
-    grid-template-columns: 220px minmax(0, 1fr) 220px;
+    grid-template-columns: 232px minmax(0, 1fr);
   }
 
   .bridge-placeholder {
@@ -179,16 +181,6 @@
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-panel) 92%, white 8%);
-  }
-
-  .bridge-placeholder.window-mode {
-    border-top: 0;
-    border-right: 0;
-    border-bottom: 0;
-    padding-top: 18px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 96%, white 4%);
   }
 
   .label {
