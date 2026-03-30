@@ -18,13 +18,14 @@
   $: sourcePath = $page.url.searchParams.get('path') ?? '';
   $: sourceLabel = $page.url.searchParams.get('label') ?? '';
   $: sourceFraction = Number($page.url.searchParams.get('fraction') ?? '');
+  $: sourceLocation = $page.url.searchParams.get('location') ?? '';
   $: isWindowMode = $page.url.searchParams.get('mode') === 'window';
   $: autoOpenPicker = source === 'picker';
   $: autoOpenAsset = source === 'asset' && !!sourceUrl;
   $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
 
   $: autoOpenKey = autoOpenLibraryFile
-    ? `${source}:${sourcePath}:${sourceLabel}:${Number.isFinite(sourceFraction) ? sourceFraction : ''}`
+    ? `${source}:${sourcePath}:${sourceLabel}:${sourceLocation}:${Number.isFinite(sourceFraction) ? sourceFraction : ''}`
     : autoOpenAsset
       ? `${source}:${sourceUrl}:${sourceLabel}`
       : source;
@@ -47,7 +48,8 @@
       nonce: controlNonce,
       path: sourcePath,
       label: sourceLabel || 'imported book',
-      restoreFraction: Number.isFinite(sourceFraction) ? sourceFraction : undefined
+      restoreFraction: Number.isFinite(sourceFraction) ? sourceFraction : undefined,
+      restoreLocation: sourceLocation || undefined
     };
     lastAutoKey = autoOpenKey;
   }
@@ -76,7 +78,8 @@
         author: preview.author,
         chapterLabel: preview.chapterLabel,
         progressLabel: preview.progressLabel,
-        progressFraction: preview.progressFraction
+        progressFraction: preview.progressFraction,
+        progressLocation: preview.progressLocation
       });
     }, 500);
   };

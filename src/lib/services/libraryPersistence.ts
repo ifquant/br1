@@ -10,6 +10,7 @@ export type PersistedLibraryBook = {
   sourcePath?: string | null;
   importedAt: number;
   progressFraction?: number | null;
+  progressLocation?: string | null;
   lastOpenedAt?: number | null;
 };
 
@@ -31,6 +32,7 @@ export type LibraryReadingStateUpdate = {
   chapterLabel: string;
   progressLabel: string;
   progressFraction: number;
+  progressLocation?: string;
 };
 
 const isTauriDesktop = () => {
@@ -126,6 +128,10 @@ export const toReaderAssetHref = async (book: PersistedLibraryBook) => {
 
   if (typeof book.progressFraction === 'number') {
     params.set('fraction', String(book.progressFraction));
+  }
+
+  if (book.progressLocation) {
+    params.set('location', book.progressLocation);
   }
 
   return `/reader?${params.toString()}`;

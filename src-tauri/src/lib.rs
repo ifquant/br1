@@ -19,6 +19,7 @@ struct LibraryBookRecord {
     source_path: Option<String>,
     imported_at: u64,
     progress_fraction: Option<f64>,
+    progress_location: Option<String>,
     last_opened_at: Option<u64>,
 }
 
@@ -39,6 +40,12 @@ struct ReadestBookRecord {
     created_at: Option<u64>,
     downloaded_at: Option<u64>,
     progress: Option<Vec<u64>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ReadestBookConfig {
+    location: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -132,6 +139,7 @@ fn import_library_books(
             source_path: Some(file_path.clone()),
             imported_at,
             progress_fraction: None,
+            progress_location: None,
             last_opened_at: None,
         };
 
@@ -186,6 +194,7 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
             .downloaded_at
             .or(readest_record.created_at)
             .unwrap_or(now_millis()?);
+        let readest_config = load_readest_config(&readest_books_root, &readest_record.hash)?;
         let progress = format_readest_progress(readest_record.progress.as_deref());
         let status = if progress == "尚未开始" {
             "从 Readest 导入".to_string()
@@ -209,6 +218,7 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
             source_path: Some(source_file.to_string_lossy().to_string()),
             imported_at,
             progress_fraction: readest_progress_fraction(readest_record.progress.as_deref()),
+            progress_location: readest_config.location,
             last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
         };
 
@@ -230,6 +240,7 @@ fn update_library_reading_state(
     chapter_label: String,
     progress_label: String,
     progress_fraction: f64,
+    progress_location: Option<String>,
 ) -> Result<(), String> {
     let library_json = library_json_path(&app)?;
     let mut records = load_library_records(&library_json)?;
@@ -256,6 +267,7 @@ fn update_library_reading_state(
         "刚刚打开".to_string()
     };
     record.progress_fraction = Some(progress_fraction);
+    record.progress_location = progress_location.filter(|value| !value.trim().is_empty());
     record.last_opened_at = Some(now_millis()?);
 
     save_library_records(&library_json, &records)
@@ -333,6 +345,16 @@ fn load_readest_records(path: &Path) -> Result<Vec<ReadestBookRecord>, String> {
     }
 
     let json = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    serde_json::from_str(&json).map_err(|error| error.to_string())
+}
+
+fn load_readest_config(readest_books_root: &Path, hash: &str) -> Result<ReadestBookConfig, String> {
+    let config_path = readest_books_root.join(hash).join("config.json");
+    if !config_path.exists() {
+        return Ok(ReadestBookConfig::default());
+    }
+
+    let json = fs::read_to_string(config_path).map_err(|error| error.to_string())?;
     serde_json::from_str(&json).map_err(|error| error.to_string())
 }
 

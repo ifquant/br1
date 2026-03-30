@@ -14,6 +14,7 @@ export type ReaderPreviewState = {
   progressLabel: string;
   locationLabel: string;
   progressFraction: number;
+  progressLocation: string;
 };
 
 export type ReaderTocItem = {
@@ -35,6 +36,7 @@ export type ReaderControlRequest =
       path: string;
       label: string;
       restoreFraction?: number;
+      restoreLocation?: string;
     }
   | {
       type: 'prev' | 'next' | 'start';

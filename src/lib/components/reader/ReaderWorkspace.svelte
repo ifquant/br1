@@ -22,7 +22,8 @@
     chapterHref: '',
     progressLabel: '0%',
     locationLabel: 'Not opened',
-    progressFraction: 0
+    progressFraction: 0,
+    progressLocation: ''
   };
   let controlNonce = 0;
   let sliderValue = 0;

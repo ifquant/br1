@@ -26,6 +26,7 @@ export interface FoliateViewElement extends HTMLElement {
       label?: string;
       href?: string;
     };
+    cfi?: string;
   };
   open(book: string | Blob | File): Promise<void>;
   prev(): Promise<void>;

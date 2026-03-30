@@ -54,6 +54,10 @@
       chapterHref: lastLocation?.tocItem?.href || '',
       progressLabel: `${progressPercent}%`,
       progressFraction: fraction,
+      progressLocation:
+        typeof (lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
+          ? ((lastLocation as { cfi?: string }).cfi ?? '')
+          : '',
       locationLabel:
         typeof lastLocation?.location?.current === 'number' && typeof lastLocation?.location?.total === 'number'
           ? `${lastLocation.location.current} / ${lastLocation.location.total}`
@@ -76,7 +80,8 @@
   const openBook = async (
     source: string | File,
     sourceLabel: string,
-    restoreFraction?: number
+    restoreFraction?: number,
+    restoreLocation?: string
   ) => {
     if (!foliateViewElement || openStatus === 'loading') return;
 
@@ -88,9 +93,13 @@
     try {
       await foliateViewElement.open(source);
       configureFoliatePreview();
-      await foliateViewElement.goToFraction(
-        typeof restoreFraction === 'number' && restoreFraction > 0 ? restoreFraction : 0
-      );
+      if (restoreLocation) {
+        await foliateViewElement.goTo(restoreLocation);
+      } else {
+        await foliateViewElement.goToFraction(
+          typeof restoreFraction === 'number' && restoreFraction > 0 ? restoreFraction : 0
+        );
+      }
       openStatus = 'open';
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
       emitReaderState();
@@ -125,7 +134,8 @@
         await openBook(
           file,
           controlRequest.label || file.name,
-          controlRequest.restoreFraction
+          controlRequest.restoreFraction,
+          controlRequest.restoreLocation
         );
       } else if (controlRequest.type === 'prev') {
         await foliateViewElement.prev();

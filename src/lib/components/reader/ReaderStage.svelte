@@ -23,7 +23,8 @@
     chapterHref: '',
     progressLabel: '0%',
     locationLabel: 'Not opened',
-    progressFraction: 0
+    progressFraction: 0,
+    progressLocation: ''
   };
   let importInput: HTMLInputElement | null = null;
   let hasAttemptedAutoPicker = false;
