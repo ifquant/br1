@@ -408,6 +408,7 @@
       {autoOpenPicker}
       {isWindowMode}
       {sidebarVisible}
+      {notes}
       activeSidebarTab={sidebarTab}
       on:togglesidebar={toggleSidebar}
       on:switchsidebartab={({ detail }: CustomEvent<'toc' | 'search' | 'notes'>) => {

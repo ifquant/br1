@@ -2,6 +2,7 @@
   import { createEventDispatcher, tick } from 'svelte';
   import type {
     ReaderControlRequest,
+    ReaderNote,
     ReaderPreviewState,
     ReaderSearchState,
     ReaderSelectionState,
@@ -26,6 +27,7 @@
   export let isWindowMode = false;
   export let sidebarVisible = true;
   export let activeSidebarTab: 'toc' | 'search' | 'notes' = 'toc';
+  export let notes: ReaderNote[] = [];
 
   let readerPreview: ReaderPreviewState = {
     title: '政治秩序与政治衰败',
@@ -171,6 +173,7 @@
       {controlRequest}
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
+      {notes}
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         dispatch('readerstate', detail);

@@ -12,7 +12,9 @@
     type ReaderControlRequest,
     type FoliateViewElement
   } from '$lib/reader';
+  import { Overlayer } from 'foliate-js/overlayer.js';
   import type {
+    ReaderNote,
     ReaderPreviewState,
     ReaderSearchConfig,
     ReaderSelectionState,
@@ -32,6 +34,7 @@
   export let controlRequest: ReaderControlRequest | null = null;
   export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
   export let isWindowMode = false;
+  export let notes: ReaderNote[] = [];
 
   const dispatch = createEventDispatcher<{
     selectionchange: ReaderSelectionState | null;
@@ -54,6 +57,9 @@
   let lastSearchToken = 0;
   let searchCache = new Map<string, ReaderSearchResult[]>();
   let boundSelectionDocs = new WeakSet<Document>();
+  let syncedNoteValues = new Set<string>();
+
+  const NOTE_PREFIX = 'foliate-note:';
 
   const emitSelectionState = (detail: ReaderSelectionState | null) => {
     dispatch('selectionchange', detail);
@@ -140,6 +146,7 @@
     dispatch('searchcachekeychange', cacheBookKey);
     emitSearchState({ query: '', status: 'idle', results: [] });
     emitSelectionState(null);
+    syncedNoteValues = new Set();
 
     try {
       await foliateViewElement.open(source);
@@ -348,6 +355,33 @@
     void applyControlRequest();
   }
 
+  const syncNotesToView = async () => {
+    if (!foliateViewElement || openStatus !== 'open') return;
+    const nextValues = new Set(notes.map((note) => `${NOTE_PREFIX}${note.cfi}`));
+
+    for (const value of syncedNoteValues) {
+      if (!nextValues.has(value)) {
+        await foliateViewElement.addAnnotation({ value }, true);
+      }
+    }
+
+    for (const note of notes) {
+      await foliateViewElement.addAnnotation({
+        ...note,
+        value: `${NOTE_PREFIX}${note.cfi}`
+      });
+    }
+
+    syncedNoteValues = nextValues;
+  };
+
+  $: {
+    notes;
+    foliateViewElement;
+    openStatus;
+    void syncNotesToView();
+  }
+
   onMount(() => {
     let cancelled = false;
 
@@ -369,6 +403,14 @@
           view.className = 'foliate-preview';
           view.addEventListener('load', () => emitReaderState());
           view.addEventListener('relocate', () => emitReaderState());
+          view.addEventListener('draw-annotation', (event: Event) => {
+            const detail = (event as CustomEvent<{
+              draw: (func: typeof Overlayer.highlight, opts?: Record<string, unknown>) => void;
+              annotation?: { value?: string };
+            }>).detail;
+            if (!detail?.annotation?.value?.startsWith(NOTE_PREFIX)) return;
+            detail.draw(Overlayer.highlight, { color: 'rgba(190, 150, 78, 0.28)' });
+          });
           view.addEventListener('load', (event: Event) => {
             const detail = (event as CustomEvent<{ doc: Document; index: number }>).detail;
             if (detail?.doc) bindSelectionTracking(detail.doc, detail.index);

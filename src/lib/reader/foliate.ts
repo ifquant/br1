@@ -35,6 +35,7 @@ export interface FoliateViewElement extends HTMLElement {
   goToFraction(fraction: number): Promise<void>;
   goTo(target: string): Promise<void>;
   getCFI(index: number, range?: Range): string;
+  addAnnotation(annotation: Record<string, unknown>, remove?: boolean): Promise<unknown>;
   search(opts: {
     query: string;
     matchCase?: boolean;
