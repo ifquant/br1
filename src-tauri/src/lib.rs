@@ -85,6 +85,21 @@ struct ReaderSearchCacheResult {
     excerpt: ReaderSearchCacheExcerpt,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReaderSearchCacheEntry {
+    schema_version: u8,
+    saved_at: u64,
+    last_accessed_at: u64,
+    expires_at: u64,
+    results: Vec<ReaderSearchCacheResult>,
+}
+
+const READER_SEARCH_CACHE_SCHEMA_VERSION: u8 = 1;
+const READER_SEARCH_CACHE_TTL_MS: u64 = 1000 * 60 * 60 * 24 * 7;
+const READER_SEARCH_CACHE_MAX_FILES_PER_BOOK: usize = 48;
+const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -367,15 +382,39 @@ fn load_reader_search_cache(
     book_key: String,
     cache_key: String,
 ) -> Result<Option<Vec<ReaderSearchCacheResult>>, String> {
+    prune_reader_search_cache_root(&app)?;
     let cache_path = reader_search_cache_file(&app, &book_key, &cache_key)?;
     if !cache_path.exists() {
         return Ok(None);
     }
 
     let raw = fs::read_to_string(&cache_path).map_err(|error| error.to_string())?;
-    let results =
+    let now = now_millis()?;
+
+    if let Ok(mut entry) = serde_json::from_str::<ReaderSearchCacheEntry>(&raw) {
+        if entry.expires_at <= now {
+            let _ = fs::remove_file(&cache_path);
+            return Ok(None);
+        }
+
+        entry.last_accessed_at = now;
+        let updated = serde_json::to_string(&entry).map_err(|error| error.to_string())?;
+        fs::write(&cache_path, updated).map_err(|error| error.to_string())?;
+        return Ok(Some(entry.results));
+    }
+
+    let legacy_results =
         serde_json::from_str::<Vec<ReaderSearchCacheResult>>(&raw).map_err(|error| error.to_string())?;
-    Ok(Some(results))
+    let entry = ReaderSearchCacheEntry {
+        schema_version: READER_SEARCH_CACHE_SCHEMA_VERSION,
+        saved_at: now,
+        last_accessed_at: now,
+        expires_at: now.saturating_add(READER_SEARCH_CACHE_TTL_MS),
+        results: legacy_results.clone(),
+    };
+    let updated = serde_json::to_string(&entry).map_err(|error| error.to_string())?;
+    fs::write(&cache_path, updated).map_err(|error| error.to_string())?;
+    Ok(Some(legacy_results))
 }
 
 #[tauri::command]
@@ -385,12 +424,23 @@ fn save_reader_search_cache(
     cache_key: String,
     results: Vec<ReaderSearchCacheResult>,
 ) -> Result<(), String> {
+    prune_reader_search_cache_root(&app)?;
     let cache_path = reader_search_cache_file(&app, &book_key, &cache_key)?;
     if let Some(parent) = cache_path.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    let raw = serde_json::to_string(&results).map_err(|error| error.to_string())?;
-    fs::write(cache_path, raw).map_err(|error| error.to_string())
+    let now = now_millis()?;
+    let entry = ReaderSearchCacheEntry {
+        schema_version: READER_SEARCH_CACHE_SCHEMA_VERSION,
+        saved_at: now,
+        last_accessed_at: now,
+        expires_at: now.saturating_add(READER_SEARCH_CACHE_TTL_MS),
+        results,
+    };
+    let raw = serde_json::to_string(&entry).map_err(|error| error.to_string())?;
+    fs::write(cache_path, raw).map_err(|error| error.to_string())?;
+    prune_reader_search_cache_book(&app, &book_key)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -446,6 +496,113 @@ fn reader_search_cache_file(
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(cache_key)
     );
     Ok(root.join(book_dir).join(cache_file))
+}
+
+#[derive(Debug, Clone)]
+struct ReaderSearchCacheFileInfo {
+    path: PathBuf,
+    modified_ms: u64,
+}
+
+fn prune_reader_search_cache_root(app: &tauri::AppHandle) -> Result<(), String> {
+    let root = reader_search_cache_root(app)?;
+    if !root.exists() {
+        return Ok(());
+    }
+
+    let now = now_millis()?;
+    let mut files = collect_reader_search_cache_files(&root)?;
+
+    for info in &files {
+        if reader_search_cache_file_expired(&info.path, now)? {
+            let _ = fs::remove_file(&info.path);
+        }
+    }
+
+    files = collect_reader_search_cache_files(&root)?;
+    if files.len() <= READER_SEARCH_CACHE_MAX_FILES_TOTAL {
+        return Ok(());
+    }
+
+    files.sort_by_key(|info| info.modified_ms);
+    let overflow = files.len().saturating_sub(READER_SEARCH_CACHE_MAX_FILES_TOTAL);
+    for info in files.into_iter().take(overflow) {
+        let _ = fs::remove_file(info.path);
+    }
+
+    Ok(())
+}
+
+fn prune_reader_search_cache_book(app: &tauri::AppHandle, book_key: &str) -> Result<(), String> {
+    let root = reader_search_cache_root(app)?;
+    let book_dir = root.join(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key));
+    if !book_dir.exists() {
+        return Ok(());
+    }
+
+    let now = now_millis()?;
+    let mut files = collect_reader_search_cache_files(&book_dir)?;
+
+    for info in &files {
+        if reader_search_cache_file_expired(&info.path, now)? {
+            let _ = fs::remove_file(&info.path);
+        }
+    }
+
+    files = collect_reader_search_cache_files(&book_dir)?;
+    if files.len() <= READER_SEARCH_CACHE_MAX_FILES_PER_BOOK {
+        return Ok(());
+    }
+
+    files.sort_by_key(|info| info.modified_ms);
+    let overflow = files.len().saturating_sub(READER_SEARCH_CACHE_MAX_FILES_PER_BOOK);
+    for info in files.into_iter().take(overflow) {
+        let _ = fs::remove_file(info.path);
+    }
+
+    Ok(())
+}
+
+fn collect_reader_search_cache_files(root: &Path) -> Result<Vec<ReaderSearchCacheFileInfo>, String> {
+    let mut files = Vec::new();
+    if !root.exists() {
+        return Ok(files);
+    }
+
+    for entry in fs::read_dir(root).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let path = entry.path();
+        if path.is_dir() {
+            files.extend(collect_reader_search_cache_files(&path)?);
+            continue;
+        }
+        if path.extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+
+        let modified_ms = entry
+            .metadata()
+            .map_err(|error| error.to_string())?
+            .modified()
+            .map_err(|error| error.to_string())?
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| error.to_string())?
+            .as_millis() as u64;
+
+        files.push(ReaderSearchCacheFileInfo { path, modified_ms });
+    }
+
+    Ok(files)
+}
+
+fn reader_search_cache_file_expired(path: &Path, now: u64) -> Result<bool, String> {
+    let raw = fs::read_to_string(path).map_err(|error| error.to_string())?;
+
+    if let Ok(entry) = serde_json::from_str::<ReaderSearchCacheEntry>(&raw) {
+        return Ok(entry.expires_at <= now);
+    }
+
+    Ok(false)
 }
 
 fn load_library_records(path: &Path) -> Result<Vec<LibraryBookRecord>, String> {
