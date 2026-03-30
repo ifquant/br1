@@ -95,10 +95,30 @@ struct ReaderSearchCacheEntry {
     results: Vec<ReaderSearchCacheResult>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReaderNoteRecord {
+    id: String,
+    cfi: String,
+    text: String,
+    note: String,
+    chapter_label: String,
+    chapter_href: String,
+    created_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReaderNotesEntry {
+    schema_version: u8,
+    notes: Vec<ReaderNoteRecord>,
+}
+
 const READER_SEARCH_CACHE_SCHEMA_VERSION: u8 = 1;
 const READER_SEARCH_CACHE_TTL_MS: u64 = 1000 * 60 * 60 * 24 * 7;
 const READER_SEARCH_CACHE_MAX_FILES_PER_BOOK: usize = 48;
 const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
+const READER_NOTES_SCHEMA_VERSION: u8 = 1;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -453,6 +473,37 @@ fn clear_reader_search_cache(app: tauri::AppHandle, book_key: String) -> Result<
     Ok(())
 }
 
+#[tauri::command]
+fn load_reader_notes(app: tauri::AppHandle, book_key: String) -> Result<Vec<ReaderNoteRecord>, String> {
+    let notes_path = reader_notes_file(&app, &book_key)?;
+    if !notes_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let raw = fs::read_to_string(notes_path).map_err(|error| error.to_string())?;
+    let entry: ReaderNotesEntry = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+    Ok(entry.notes)
+}
+
+#[tauri::command]
+fn save_reader_notes(
+    app: tauri::AppHandle,
+    book_key: String,
+    notes: Vec<ReaderNoteRecord>,
+) -> Result<(), String> {
+    let notes_path = reader_notes_file(&app, &book_key)?;
+    if let Some(parent) = notes_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+
+    let entry = ReaderNotesEntry {
+        schema_version: READER_NOTES_SCHEMA_VERSION,
+        notes,
+    };
+    let raw = serde_json::to_string_pretty(&entry).map_err(|error| error.to_string())?;
+    fs::write(notes_path, raw).map_err(|error| error.to_string())
+}
+
 fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     let library_root = app_data_dir.join("library");
@@ -484,6 +535,14 @@ fn reader_search_cache_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .join("reader-search"))
 }
 
+fn reader_notes_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("reader-notes"))
+}
+
 fn reader_search_cache_file(
     app: &tauri::AppHandle,
     book_key: &str,
@@ -496,6 +555,12 @@ fn reader_search_cache_file(
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(cache_key)
     );
     Ok(root.join(book_dir).join(cache_file))
+}
+
+fn reader_notes_file(app: &tauri::AppHandle, book_key: &str) -> Result<PathBuf, String> {
+    let root = reader_notes_root(app)?;
+    let safe_key = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key);
+    Ok(root.join(format!("{safe_key}.json")))
 }
 
 #[derive(Debug, Clone)]
@@ -824,10 +889,12 @@ pub fn run() {
             load_library_file_fingerprint,
             load_library_cover_data_urls,
             load_reader_search_cache,
+            load_reader_notes,
             clear_reader_search_cache,
             detect_readest_library,
             import_library_books,
             import_readest_library,
+            save_reader_notes,
             save_reader_search_cache,
             update_library_reading_state
         ])

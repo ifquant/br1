@@ -1,4 +1,5 @@
 export { openReaderTarget } from './readerWindow';
+export { canPersistReaderNotes, loadReaderNotes, saveReaderNotes } from './readerNotes';
 export {
   clearReaderSearchCache,
   loadLibraryFileFingerprint,

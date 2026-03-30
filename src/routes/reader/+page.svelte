@@ -12,7 +12,7 @@
     ReaderTocItem
   } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
-  import { clearReaderSearchCache } from '$lib/services';
+  import { canPersistReaderNotes, clearReaderSearchCache, loadReaderNotes, saveReaderNotes } from '$lib/services';
 
   let toc: ReaderTocItem[] = [];
   let activeHref = '';
@@ -43,7 +43,8 @@
   let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
   let notesSelection: ReaderSelectionState | null = null;
   let notes: ReaderNote[] = [];
-  let lastNotesStorageKey = '';
+  let lastHydratedNotesKey = '';
+  let notesLoadToken = 0;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
   let searchNoticeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -178,20 +179,36 @@
   };
 
   const loadNotes = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (notesStorageKey === lastNotesStorageKey) return;
-    try {
-      const raw = localStorage.getItem(notesStorageKey);
-      notes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
-      lastNotesStorageKey = notesStorageKey;
-    } catch (error) {
-      console.warn('Failed to restore reader notes', error);
-      notes = [];
-      lastNotesStorageKey = notesStorageKey;
-    }
+    const token = ++notesLoadToken;
+    const run = async () => {
+      if (notesStorageKey === lastHydratedNotesKey) return;
+      try {
+        if (canPersistReaderNotes()) {
+          notes = await loadReaderNotes(notesStorageKey);
+        } else if (typeof localStorage !== 'undefined') {
+          const raw = localStorage.getItem(notesStorageKey);
+          notes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
+        } else {
+          notes = [];
+        }
+      } catch (error) {
+        console.warn('Failed to restore reader notes', error);
+        notes = [];
+      }
+
+      if (token !== notesLoadToken) return;
+      lastHydratedNotesKey = notesStorageKey;
+    };
+
+    void run();
   };
 
   const persistNotes = () => {
+    lastHydratedNotesKey = notesStorageKey;
+    if (canPersistReaderNotes()) {
+      void saveReaderNotes(notesStorageKey, notes);
+      return;
+    }
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(notesStorageKey, JSON.stringify(notes));
   };
