@@ -9,6 +9,7 @@ export type PersistedLibraryBook = {
   coverPath?: string | null;
   sourcePath?: string | null;
   importedAt: number;
+  progressFraction?: number | null;
 };
 
 export type ReadestLibrarySummary = {
@@ -116,9 +117,17 @@ export const loadLibraryCoverDataUrls = async (
 export const toReaderAssetHref = async (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';
 
-  return `/reader?source=library-file&path=${encodeURIComponent(
-    book.filePath
-  )}&label=${encodeURIComponent(book.title)}`;
+  const params = new URLSearchParams({
+    source: 'library-file',
+    path: book.filePath,
+    label: book.title
+  });
+
+  if (typeof book.progressFraction === 'number') {
+    params.set('fraction', String(book.progressFraction));
+  }
+
+  return `/reader?${params.toString()}`;
 };
 
 export const toLibraryCoverUrl = async (book: PersistedLibraryBook) => {

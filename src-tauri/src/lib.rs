@@ -18,6 +18,7 @@ struct LibraryBookRecord {
     cover_path: Option<String>,
     source_path: Option<String>,
     imported_at: u64,
+    progress_fraction: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -129,6 +130,7 @@ fn import_library_books(
             cover_path: None,
             source_path: Some(file_path.clone()),
             imported_at,
+            progress_fraction: None,
         };
 
         records.retain(|book| book.source_path.as_deref() != Some(file_path.as_str()));
@@ -204,6 +206,7 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
             cover_path,
             source_path: Some(source_file.to_string_lossy().to_string()),
             imported_at,
+            progress_fraction: readest_progress_fraction(readest_record.progress.as_deref()),
         };
 
         records.retain(|book| book.id != record_id);
@@ -249,6 +252,7 @@ fn update_library_reading_state(
     } else {
         "刚刚打开".to_string()
     };
+    record.progress_fraction = Some(progress_fraction);
 
     save_library_records(&library_json, &records)
 }
@@ -387,6 +391,17 @@ fn format_readest_progress(progress: Option<&[u64]>) -> String {
     };
 
     format!("{current}/{total}")
+}
+
+fn readest_progress_fraction(progress: Option<&[u64]>) -> Option<f64> {
+    let Some([current, total, ..]) = progress else {
+        return None;
+    };
+    if *total == 0 {
+        return None;
+    }
+
+    Some((*current as f64 / *total as f64).clamp(0.0, 1.0))
 }
 
 fn cover_mime_type(path: &Path) -> &'static str {

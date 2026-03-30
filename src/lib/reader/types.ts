@@ -34,6 +34,7 @@ export type ReaderControlRequest =
       nonce: number;
       path: string;
       label: string;
+      restoreFraction?: number;
     }
   | {
       type: 'prev' | 'next' | 'start';

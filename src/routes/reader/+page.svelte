@@ -17,13 +17,14 @@
   $: sourceUrl = $page.url.searchParams.get('url') ?? '';
   $: sourcePath = $page.url.searchParams.get('path') ?? '';
   $: sourceLabel = $page.url.searchParams.get('label') ?? '';
+  $: sourceFraction = Number($page.url.searchParams.get('fraction') ?? '');
   $: isWindowMode = $page.url.searchParams.get('mode') === 'window';
   $: autoOpenPicker = source === 'picker';
   $: autoOpenAsset = source === 'asset' && !!sourceUrl;
   $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
 
   $: autoOpenKey = autoOpenLibraryFile
-    ? `${source}:${sourcePath}:${sourceLabel}`
+    ? `${source}:${sourcePath}:${sourceLabel}:${Number.isFinite(sourceFraction) ? sourceFraction : ''}`
     : autoOpenAsset
       ? `${source}:${sourceUrl}:${sourceLabel}`
       : source;
@@ -45,7 +46,8 @@
       type: 'library-file',
       nonce: controlNonce,
       path: sourcePath,
-      label: sourceLabel || 'imported book'
+      label: sourceLabel || 'imported book',
+      restoreFraction: Number.isFinite(sourceFraction) ? sourceFraction : undefined
     };
     lastAutoKey = autoOpenKey;
   }

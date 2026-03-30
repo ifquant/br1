@@ -73,7 +73,11 @@
     renderer.setAttribute('max-block-size', '980px');
   };
 
-  const openBook = async (source: string | File, sourceLabel: string) => {
+  const openBook = async (
+    source: string | File,
+    sourceLabel: string,
+    restoreFraction?: number
+  ) => {
     if (!foliateViewElement || openStatus === 'loading') return;
 
     openStatus = 'loading';
@@ -84,7 +88,9 @@
     try {
       await foliateViewElement.open(source);
       configureFoliatePreview();
-      await foliateViewElement.goToFraction(0);
+      await foliateViewElement.goToFraction(
+        typeof restoreFraction === 'number' && restoreFraction > 0 ? restoreFraction : 0
+      );
       openStatus = 'open';
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
       emitReaderState();
@@ -116,7 +122,11 @@
         await openBook(controlRequest.url, controlRequest.label);
       } else if (controlRequest.type === 'library-file') {
         const file = await loadLibraryBookFile(controlRequest.path);
-        await openBook(file, controlRequest.label || file.name);
+        await openBook(
+          file,
+          controlRequest.label || file.name,
+          controlRequest.restoreFraction
+        );
       } else if (controlRequest.type === 'prev') {
         await foliateViewElement.prev();
       } else if (controlRequest.type === 'next') {
