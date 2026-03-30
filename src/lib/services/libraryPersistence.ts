@@ -10,6 +10,7 @@ export type PersistedLibraryBook = {
   sourcePath?: string | null;
   importedAt: number;
   progressFraction?: number | null;
+  lastOpenedAt?: number | null;
 };
 
 export type ReadestLibrarySummary = {

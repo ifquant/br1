@@ -81,8 +81,13 @@
     return 3;
   };
 
-  const sortRecordsForReaderValidation = (records: PersistedLibraryBook[]) =>
+  const sortRecordsForLibraryShelf = (records: PersistedLibraryBook[]) =>
     [...records].sort((left, right) => {
+      const leftOpenedAt = left.lastOpenedAt ?? 0;
+      const rightOpenedAt = right.lastOpenedAt ?? 0;
+      const byRecency = rightOpenedAt - leftOpenedAt;
+      if (byRecency !== 0) return byRecency;
+
       const byFormat = readerValidationRank(left) - readerValidationRank(right);
       if (byFormat !== 0) return byFormat;
       return right.importedAt - left.importedAt;
@@ -117,13 +122,13 @@
       await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });
       const migratedRecords = await loadPersistedLibraryBooks();
       importedBooks = await Promise.all(
-        sortRecordsForReaderValidation(migratedRecords).map(mapLibraryRecord)
+        sortRecordsForLibraryShelf(migratedRecords).map(mapLibraryRecord)
       );
       showReadestMigration = migratedRecords.length === 0;
       return;
     }
 
-    importedBooks = await Promise.all(sortRecordsForReaderValidation(records).map(mapLibraryRecord));
+    importedBooks = await Promise.all(sortRecordsForLibraryShelf(records).map(mapLibraryRecord));
     showReadestMigration = readestSummary.available;
   };
 
@@ -144,7 +149,7 @@
         const filePaths = await selectSystemBookPaths();
         if (filePaths.length === 0) return;
 
-        const records = sortRecordsForReaderValidation(await importLibraryBooks(filePaths));
+        const records = sortRecordsForLibraryShelf(await importLibraryBooks(filePaths));
         const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
         importedBooks = [...mappedRecords, ...importedBooks];
         showReadestMigration = false;
@@ -194,7 +199,7 @@
 
     migrationBusy = true;
     try {
-      const records = sortRecordsForReaderValidation(await importReadestLibrary());
+      const records = sortRecordsForLibraryShelf(await importReadestLibrary());
       if (reloadAfterImport) {
         await loadLibrary();
       }

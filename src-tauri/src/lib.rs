@@ -19,6 +19,7 @@ struct LibraryBookRecord {
     source_path: Option<String>,
     imported_at: u64,
     progress_fraction: Option<f64>,
+    last_opened_at: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -131,6 +132,7 @@ fn import_library_books(
             source_path: Some(file_path.clone()),
             imported_at,
             progress_fraction: None,
+            last_opened_at: None,
         };
 
         records.retain(|book| book.source_path.as_deref() != Some(file_path.as_str()));
@@ -207,6 +209,7 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
             source_path: Some(source_file.to_string_lossy().to_string()),
             imported_at,
             progress_fraction: readest_progress_fraction(readest_record.progress.as_deref()),
+            last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
         };
 
         records.retain(|book| book.id != record_id);
@@ -253,6 +256,7 @@ fn update_library_reading_state(
         "刚刚打开".to_string()
     };
     record.progress_fraction = Some(progress_fraction);
+    record.last_opened_at = Some(now_millis()?);
 
     save_library_records(&library_json, &records)
 }
