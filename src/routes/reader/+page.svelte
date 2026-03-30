@@ -140,6 +140,7 @@
   .reader-shell {
     min-height: 100%;
     padding: 0;
+    width: 100%;
   }
 
   .reader-shell.window-mode {
@@ -228,6 +229,7 @@
     grid-template-columns: 248px minmax(0, 1fr) 276px;
     gap: 14px;
     min-height: calc(100vh - 32px);
+    width: 100%;
   }
 
   .workspace.window-mode {

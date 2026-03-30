@@ -114,6 +114,7 @@
 
   .app-root.reader-window-root {
     grid-template-rows: 1fr;
+    width: 100%;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-page) 96%, white 4%);
@@ -201,9 +202,14 @@
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr);
     min-height: 0;
+    width: 100%;
   }
 
   .app-frame:has(.library-main) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-frame:has(.reader-window-main) {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -245,6 +251,7 @@
 
   .app-main.reader-window-main {
     padding: 0;
+    width: 100%;
     background: transparent;
   }
 
