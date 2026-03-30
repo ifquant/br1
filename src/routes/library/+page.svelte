@@ -79,6 +79,7 @@
   let showReadestMigration = false;
   let migrationBusy = false;
   let desktopLibraryMode = false;
+  let libraryViewMode: 'grid' | 'list' = 'grid';
 
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => ({
     title: record.title,
@@ -195,6 +196,10 @@
   const handleReadestMigrationClick = () => {
     void triggerReadestMigration();
   };
+
+  const handleLibraryViewModeChange = (nextViewMode: 'grid' | 'list') => {
+    libraryViewMode = nextViewMode;
+  };
 </script>
 
 <section class="library-page">
@@ -231,8 +236,9 @@
         <BookshelfPreview
           sectionTitle="你的书库"
           books={importedBooks}
-          viewMode="list"
+          viewMode={libraryViewMode}
           onOpenLink={handleOpenReaderLink}
+          onChangeViewMode={handleLibraryViewModeChange}
         />
       {/if}
 

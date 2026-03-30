@@ -1,3 +1,4 @@
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -206,6 +207,23 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
     Ok(imported)
 }
 
+#[tauri::command]
+fn load_library_cover_data_urls(cover_paths: Vec<Option<String>>) -> Result<Vec<Option<String>>, String> {
+    cover_paths
+        .into_iter()
+        .map(|cover_path| {
+            let Some(path) = cover_path else {
+                return Ok(None);
+            };
+
+            let bytes = fs::read(&path).map_err(|error| error.to_string())?;
+            let mime = cover_mime_type(Path::new(&path));
+            let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+            Ok(Some(format!("data:{mime};base64,{encoded}")))
+        })
+        .collect()
+}
+
 fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     let library_root = app_data_dir.join("library");
@@ -308,6 +326,20 @@ fn format_readest_progress(progress: Option<&[u64]>) -> String {
     format!("{current}/{total}")
 }
 
+fn cover_mime_type(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+        .as_str()
+    {
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        _ => "image/png",
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -316,6 +348,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             load_library_books,
+            load_library_cover_data_urls,
             detect_readest_library,
             import_library_books,
             import_readest_library

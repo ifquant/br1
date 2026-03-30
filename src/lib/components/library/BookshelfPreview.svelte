@@ -15,6 +15,9 @@
   export let importHref = '';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
+  export let onChangeViewMode:
+    | ((viewMode: 'grid' | 'list') => void | Promise<void>)
+    | null = null;
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -29,6 +32,11 @@
     event.preventDefault();
     void onImportBooks();
   };
+
+  const handleViewModeClick = (nextViewMode: 'grid' | 'list') => {
+    if (!onChangeViewMode) return;
+    void onChangeViewMode(nextViewMode);
+  };
 </script>
 
 <section class="shelf">
@@ -42,8 +50,24 @@
     </div>
     <div class="tools" aria-label="view mode placeholder">
       <div class="modes">
-        <span class:active={viewMode === 'grid'} class="mode">网格</span>
-        <span class:active={viewMode === 'list'} class="mode">列表</span>
+        <button
+          type="button"
+          class:active={viewMode === 'grid'}
+          class="mode"
+          aria-pressed={viewMode === 'grid'}
+          on:click={() => handleViewModeClick('grid')}
+        >
+          网格
+        </button>
+        <button
+          type="button"
+          class:active={viewMode === 'list'}
+          class="mode"
+          aria-pressed={viewMode === 'list'}
+          on:click={() => handleViewModeClick('list')}
+        >
+          列表
+        </button>
       </div>
       <button type="button" class="tool-button" aria-label="view settings">⋯</button>
     </div>
@@ -217,10 +241,13 @@
 
   .mode {
     padding: 5px 9px;
+    border: 0;
     border-radius: 999px;
     font-size: 11px;
     color: var(--text-muted);
     letter-spacing: -0.01em;
+    background: transparent;
+    font-family: inherit;
   }
 
   .mode.active {

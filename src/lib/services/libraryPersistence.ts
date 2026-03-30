@@ -67,6 +67,18 @@ export const importReadestLibrary = async (): Promise<PersistedLibraryBook[]> =>
   return invoke<PersistedLibraryBook[]>('import_readest_library');
 };
 
+export const loadLibraryCoverDataUrls = async (
+  coverPaths: Array<string | null | undefined>
+): Promise<string[]> => {
+  if (!isTauriDesktop()) return coverPaths.map(() => '');
+
+  const { invoke } = await import('@tauri-apps/api/core');
+  const results = await invoke<Array<string | null>>('load_library_cover_data_urls', {
+    coverPaths
+  });
+  return results.map((value) => value ?? '');
+};
+
 export const toReaderAssetHref = async (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';
 
@@ -80,6 +92,6 @@ export const toReaderAssetHref = async (book: PersistedLibraryBook) => {
 export const toLibraryCoverUrl = async (book: PersistedLibraryBook) => {
   if (!isTauriDesktop() || !book.coverPath) return '';
 
-  const { convertFileSrc } = await import('@tauri-apps/api/core');
-  return convertFileSrc(book.coverPath);
+  const [coverDataUrl] = await loadLibraryCoverDataUrls([book.coverPath]);
+  return coverDataUrl;
 };
