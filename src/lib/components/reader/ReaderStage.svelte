@@ -1,12 +1,18 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
-  import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
+  import type {
+    ReaderControlRequest,
+    ReaderPreviewState,
+    ReaderSearchState,
+    ReaderTocItem
+  } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
     readerstate: ReaderPreviewState;
+    searchchange: ReaderSearchState;
     tocchange: ReaderTocItem[];
     togglesidebar: void;
     switchsidebartab: 'toc' | 'search' | 'notes';
@@ -168,6 +174,9 @@
       }}
       on:tocchange={({ detail }) => {
         dispatch('tocchange', detail);
+      }}
+      on:searchchange={({ detail }) => {
+        dispatch('searchchange', detail);
       }}
     />
   </article>

@@ -10,7 +10,14 @@ export {
   createFoliateViewElement
 } from './foliate';
 export type { FoliateViewElement } from './foliate';
-export type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from './types';
+export type {
+  ReaderControlRequest,
+  ReaderPreviewState,
+  ReaderSearchExcerpt,
+  ReaderSearchResult,
+  ReaderSearchState,
+  ReaderTocItem
+} from './types';
 
 export const READER_ENGINE_HOST_ATTR = 'reader-engine-host';
 export const READER_ENGINE_STATUS_ATTR = 'pending-adapter';

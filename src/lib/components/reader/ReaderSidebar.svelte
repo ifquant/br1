@@ -8,14 +8,23 @@
   export let isWindowMode = false;
   export let isPinned = true;
   export let activeTab: SidebarTab = 'toc';
+  export let searchTerm = '';
+  export let searchStatus: 'idle' | 'searching' | 'done' | 'error' = 'idle';
+  export let searchResults: Array<{
+    cfi: string;
+    label: string;
+    excerpt: { pre: string; match: string; post: string };
+  }> = [];
+  export let searchError = '';
   export let onNavigate: ((href: string) => void) | null = null;
   export let onClose: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
   export let onTabChange: ((tab: SidebarTab) => void) | null = null;
+  export let onSearch: ((query: string) => void) | null = null;
+  export let onSearchResult: ((cfi: string) => void) | null = null;
 
   type SidebarTab = 'toc' | 'search' | 'notes';
-  let searchTerm = '';
   let lastScrolledHref = '';
 
   const scrollActiveIntoView = async () => {
@@ -29,10 +38,6 @@
   };
 
   $: void scrollActiveIntoView();
-
-  $: searchResults = searchTerm.trim()
-    ? toc.filter((item) => item.label.toLowerCase().includes(searchTerm.trim().toLowerCase()))
-    : toc;
 
   $: notePreview = toc.slice(0, 3).map((item, index) => ({
     key: `${item.href}-${index}`,
@@ -169,36 +174,49 @@
       <section class="sidebar-panel" aria-label="search panel preview">
         <label class="search-field">
           <span class="sr-only">Search book contents</span>
-          <input type="search" placeholder="搜索章节标题" bind:value={searchTerm} />
+          <input
+            type="search"
+            placeholder="搜索正文内容"
+            value={searchTerm}
+            on:input={(event) => onSearch?.((event.currentTarget as HTMLInputElement).value)}
+          />
         </label>
 
         <div class="search-summary">
-          {#if searchTerm.trim()}
+          {#if searchStatus === 'searching'}
+            <strong>Searching…</strong>
+            <span>Scanning the current book text.</span>
+          {:else if searchTerm.trim()}
             <strong>{searchResults.length}</strong>
-            <span>matches in current table of contents</span>
+            <span>正文命中结果</span>
           {:else}
-            <strong>{toc.length}</strong>
-            <span>sections available to search</span>
+            <strong>Search</strong>
+            <span>输入关键词后会在正文里搜索，而不只是过滤目录。</span>
           {/if}
         </div>
 
         <div class="search-results" aria-label="search results">
-          {#if searchResults.length}
+          {#if searchStatus === 'error'}
+            <p class="empty">{searchError || '正文搜索失败。'}</p>
+          {:else if searchResults.length}
             {#each searchResults as item}
               <button
                 type="button"
                 class="search-result"
                 on:click={() => {
-                  setActiveTab('toc');
-                  onNavigate?.(item.href);
+                  onSearchResult?.(item.cfi);
                 }}
               >
-                <strong>{item.label}</strong>
-                <span>Jump to this section in the current book.</span>
+                <strong>{item.label || 'Search result'}</strong>
+                <span>
+                  {item.excerpt.pre}<mark>{item.excerpt.match}</mark>{item.excerpt.post}
+                </span>
               </button>
             {/each}
+          {:else if searchTerm.trim() && searchStatus === 'done'}
+            <p class="empty">没有命中正文内容。</p>
           {:else}
-            <p class="empty">没有命中当前目录。后续接正文全文搜索时，这里会扩展成真正的搜索结果面板。</p>
+            <p class="empty">打开书后，这里会显示真正的正文搜索结果。</p>
           {/if}
         </div>
       </section>
@@ -519,6 +537,11 @@
     color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
+  }
+
+  .search-result mark {
+    background: color-mix(in srgb, #f4df9d 72%, white 28%);
+    color: var(--text-primary);
   }
 
   .search-result:hover {

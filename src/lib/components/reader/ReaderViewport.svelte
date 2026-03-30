@@ -12,7 +12,7 @@
     type ReaderControlRequest,
     type FoliateViewElement
   } from '$lib/reader';
-  import type { ReaderPreviewState, ReaderTocItem } from '$lib/reader';
+  import type { ReaderPreviewState, ReaderSearchResult, ReaderSearchState, ReaderTocItem } from '$lib/reader';
   import { loadLibraryBookFile } from '$lib/services/libraryPersistence';
 
   export let title = 'Reading Surface';
@@ -23,6 +23,7 @@
   const dispatch = createEventDispatcher<{
     readerstate: ReaderPreviewState;
     tocchange: ReaderTocItem[];
+    searchchange: ReaderSearchState;
   }>();
 
   let hostElement: HTMLDivElement | null = null;
@@ -34,6 +35,7 @@
   let openFailureMessage = '';
   let foliateViewElement: FoliateViewElement | null = null;
   let handledControlNonce = 0;
+  let lastSearchToken = 0;
 
   const emitReaderState = (partial?: Partial<ReaderPreviewState>) => {
     const book = foliateViewElement?.book;
@@ -111,6 +113,68 @@
     }
   };
 
+  const emitSearchState = (partial: Partial<ReaderSearchState>) => {
+    dispatch('searchchange', {
+      query: '',
+      status: 'idle',
+      results: [],
+      ...partial
+    });
+  };
+
+  const runSearch = async (query: string) => {
+    if (!foliateViewElement) return;
+
+    lastSearchToken += 1;
+    const token = lastSearchToken;
+    const normalizedQuery = query.trim();
+
+    foliateViewElement.clearSearch();
+
+    if (!normalizedQuery) {
+      emitSearchState({ query: '', status: 'idle', results: [] });
+      return;
+    }
+
+    emitSearchState({ query: normalizedQuery, status: 'searching', results: [] });
+
+    try {
+      const results: ReaderSearchResult[] = [];
+      for await (const result of foliateViewElement.search({ query: normalizedQuery })) {
+        if (token !== lastSearchToken) return;
+        if (result === 'done') {
+          emitSearchState({ query: normalizedQuery, status: 'done', results });
+          return;
+        }
+        if ('progress' in result) continue;
+        if ('subitems' in result) {
+          results.push(
+            ...result.subitems.map((item) => ({
+              cfi: item.cfi,
+              label: result.label || 'Search result',
+              excerpt: item.excerpt
+            }))
+          );
+        } else if ('cfi' in result) {
+          results.push({
+            cfi: result.cfi,
+            label: 'Search result',
+            excerpt: result.excerpt
+          });
+        }
+        emitSearchState({ query: normalizedQuery, status: 'searching', results: [...results] });
+      }
+    } catch (error) {
+      if (token !== lastSearchToken) return;
+      emitSearchState({
+        query: normalizedQuery,
+        status: 'error',
+        results: [],
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  };
+
   const applyControlRequest = async () => {
     if (!controlRequest || handledControlNonce === controlRequest.nonce) return;
     if (!foliateViewElement) return;
@@ -145,6 +209,8 @@
         await foliateViewElement.goToFraction(0);
       } else if (controlRequest.type === 'href') {
         await foliateViewElement.goTo(controlRequest.href);
+      } else if (controlRequest.type === 'search') {
+        await runSearch(controlRequest.query);
       } else if (controlRequest.type === 'file') {
         await openBook(controlRequest.file, controlRequest.file.name);
       } else if (controlRequest.type === 'fraction') {

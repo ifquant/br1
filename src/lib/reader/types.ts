@@ -23,6 +23,25 @@ export type ReaderTocItem = {
   level: number;
 };
 
+export type ReaderSearchExcerpt = {
+  pre: string;
+  match: string;
+  post: string;
+};
+
+export type ReaderSearchResult = {
+  cfi: string;
+  label: string;
+  excerpt: ReaderSearchExcerpt;
+};
+
+export type ReaderSearchState = {
+  query: string;
+  status: 'idle' | 'searching' | 'done' | 'error';
+  results: ReaderSearchResult[];
+  error?: string;
+};
+
 export type ReaderControlRequest =
   | {
       type: 'asset';
@@ -51,6 +70,11 @@ export type ReaderControlRequest =
       type: 'href';
       nonce: number;
       href: string;
+    }
+  | {
+      type: 'search';
+      nonce: number;
+      query: string;
     }
   | {
       type: 'file';

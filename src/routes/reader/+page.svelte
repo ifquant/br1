@@ -2,7 +2,12 @@
   import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
-  import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
+  import type {
+    ReaderControlRequest,
+    ReaderPreviewState,
+    ReaderSearchResult,
+    ReaderTocItem
+  } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
 
   let toc: ReaderTocItem[] = [];
@@ -14,6 +19,10 @@
   let sidebarPinned = true;
   let sidebarWidth = 224;
   let sidebarTab: 'toc' | 'search' | 'notes' = 'toc';
+  let sidebarSearchTerm = '';
+  let sidebarSearchStatus: 'idle' | 'searching' | 'done' | 'error' = 'idle';
+  let sidebarSearchResults: ReaderSearchResult[] = [];
+  let sidebarSearchError = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
@@ -77,6 +86,17 @@
   const openSidebarTab = (tab: 'toc' | 'search' | 'notes') => {
     sidebarTab = tab;
     sidebarVisible = true;
+  };
+
+  const issueSearchControl = (query: string) => {
+    sidebarSearchTerm = query;
+    controlNonce += 1;
+    controlRequest = { type: 'search', nonce: controlNonce, query };
+  };
+
+  const issueSearchResultControl = (cfi: string) => {
+    controlNonce += 1;
+    controlRequest = { type: 'href', href: cfi, nonce: controlNonce };
   };
 
   const persistSidebarPrefs = () => {
@@ -182,11 +202,17 @@
         {isWindowMode}
         isPinned={sidebarPinned}
         activeTab={sidebarTab}
+        searchTerm={sidebarSearchTerm}
+        searchStatus={sidebarSearchStatus}
+        searchResults={sidebarSearchResults}
+        searchError={sidebarSearchError}
         onNavigate={issueHrefControl}
         onClose={isWindowMode ? toggleSidebar : null}
         onToggleSidebar={toggleSidebar}
         onTogglePin={isWindowMode ? toggleSidebarPin : null}
         onTabChange={openSidebarTab}
+        onSearch={issueSearchControl}
+        onSearchResult={issueSearchResultControl}
       />
     {/if}
     {#if isWindowMode && sidebarVisible && sidebarPinned}
@@ -213,6 +239,12 @@
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
         activeHref = detail.chapterHref;
         queueLibraryReadingStatePersist(detail);
+      }}
+      on:searchchange={({ detail }) => {
+        sidebarSearchTerm = detail.query;
+        sidebarSearchStatus = detail.status;
+        sidebarSearchResults = detail.results;
+        sidebarSearchError = detail.error ?? '';
       }}
       on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
         toc = detail;

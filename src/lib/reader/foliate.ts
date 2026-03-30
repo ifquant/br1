@@ -34,6 +34,39 @@ export interface FoliateViewElement extends HTMLElement {
   next(): Promise<void>;
   goToFraction(fraction: number): Promise<void>;
   goTo(target: string): Promise<void>;
+  search(opts: {
+    query: string;
+    index?: number;
+    results?: Array<
+      | {
+          cfi: string;
+          excerpt: { pre: string; match: string; post: string };
+        }
+      | {
+          index: number;
+          subitems: Array<{
+            cfi: string;
+            excerpt: { pre: string; match: string; post: string };
+          }>;
+        }
+    >;
+  }): AsyncGenerator<
+    | 'done'
+    | { progress: number }
+    | {
+        index: number;
+        label: string;
+        subitems: Array<{
+          cfi: string;
+          excerpt: { pre: string; match: string; post: string };
+        }>;
+      }
+    | {
+        cfi: string;
+        excerpt: { pre: string; match: string; post: string };
+      }
+  >;
+  clearSearch(): void;
 }
 
 const isRecord = (value: unknown): value is Record<string, string> =>
