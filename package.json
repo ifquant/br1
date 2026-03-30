@@ -10,6 +10,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:e2e": "playwright test",
+    "test:tauri:webdriver": "bash scripts/automation/test-tauri-webdriver.sh",
     "tauri": "tauri"
   },
   "license": "MIT",

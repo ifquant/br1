@@ -14,6 +14,10 @@ edition = "2021"
 name = "br1_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+cargo-clippy = []
+webdriver = ["tauri-plugin-webdriver"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -24,3 +28,4 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-dialog = "2"
+tauri-plugin-webdriver = { version = "0.2", optional = true }

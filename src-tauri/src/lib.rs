@@ -383,9 +383,14 @@ fn book_mime_type(path: &Path) -> &'static str {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+
+    #[cfg(feature = "webdriver")]
+    let builder = builder.plugin(tauri_plugin_webdriver::init());
+
+    builder
         .invoke_handler(tauri::generate_handler![
             greet,
             load_library_books,
@@ -395,6 +400,14 @@ pub fn run() {
             import_library_books,
             import_readest_library
         ])
+        .setup(|app| {
+            #[cfg(feature = "webdriver")]
+            {
+                app.add_capability(include_str!("../capabilities-extra/webdriver.json"))?;
+            }
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
