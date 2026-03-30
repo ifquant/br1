@@ -180,26 +180,27 @@
 
   const loadNotes = () => {
     const token = ++notesLoadToken;
+    const storageKey = notesStorageKey;
     const run = async () => {
-      if (notesStorageKey === lastHydratedNotesKey) return;
+      if (storageKey === lastHydratedNotesKey) return;
       try {
         if (canPersistReaderNotes()) {
-          const persistedNotes = await loadReaderNotes(notesStorageKey);
+          const persistedNotes = await loadReaderNotes(storageKey);
           if (persistedNotes.length > 0) {
             notes = persistedNotes;
           } else if (typeof localStorage !== 'undefined') {
-            const raw = localStorage.getItem(notesStorageKey);
+            const raw = localStorage.getItem(storageKey);
             const legacyNotes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
             notes = legacyNotes;
             if (legacyNotes.length > 0) {
-              await saveReaderNotes(notesStorageKey, legacyNotes);
-              localStorage.removeItem(notesStorageKey);
+              await saveReaderNotes(storageKey, legacyNotes);
+              localStorage.removeItem(storageKey);
             }
           } else {
             notes = [];
           }
         } else if (typeof localStorage !== 'undefined') {
-          const raw = localStorage.getItem(notesStorageKey);
+          const raw = localStorage.getItem(storageKey);
           notes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
         } else {
           notes = [];
@@ -210,7 +211,7 @@
       }
 
       if (token !== notesLoadToken) return;
-      lastHydratedNotesKey = notesStorageKey;
+      lastHydratedNotesKey = storageKey;
     };
 
     void run();
