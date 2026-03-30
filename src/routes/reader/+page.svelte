@@ -222,6 +222,29 @@
     issueHrefControl(cfi);
   };
 
+  const editNote = (id: string) => {
+    const target = notes.find((item) => item.id === id);
+    if (!target) return;
+    const nextValue = window.prompt('编辑这条笔记：', target.note) ?? target.note;
+    notes = notes.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            note: nextValue.trim()
+          }
+        : item
+    );
+    persistNotes();
+  };
+
+  const deleteNote = (id: string) => {
+    const target = notes.find((item) => item.id === id);
+    if (!target) return;
+    if (!window.confirm('删除这条笔记？')) return;
+    notes = notes.filter((item) => item.id !== id);
+    persistNotes();
+  };
+
   const handleSidebarResizeStart = (event: MouseEvent) => {
     if (!isWindowMode || !sidebarPinned) return;
     event.preventDefault();
@@ -352,6 +375,8 @@
         onTabChange={openSidebarTab}
         onAddNote={addNoteFromSelection}
         onOpenNote={openNote}
+        onEditNote={editNote}
+        onDeleteNote={deleteNote}
         onSearch={issueSearchControl}
         onSearchResult={issueSearchResultControl}
         onSearchConfigChange={(config) => {

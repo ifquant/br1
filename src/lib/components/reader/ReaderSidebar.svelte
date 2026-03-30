@@ -43,6 +43,8 @@
   export let onClearSearchCache: (() => void) | null = null;
   export let onAddNote: (() => void) | null = null;
   export let onOpenNote: ((cfi: string) => void) | null = null;
+  export let onEditNote: ((id: string) => void) | null = null;
+  export let onDeleteNote: ((id: string) => void) | null = null;
 
   type SidebarTab = 'toc' | 'search' | 'notes';
   let lastScrolledHref = '';
@@ -359,10 +361,20 @@
           {#if notes.length}
             {#each notes as note}
               <article class="note-card">
-                <button type="button" class="note-link" on:click={() => onOpenNote?.(note.cfi)}>
-                  <strong>{note.chapterLabel || '未命名章节'}</strong>
-                  <time>{formatTimestamp(note.createdAt)}</time>
-                </button>
+                <div class="note-head">
+                  <button type="button" class="note-link" on:click={() => onOpenNote?.(note.cfi)}>
+                    <strong>{note.chapterLabel || '未命名章节'}</strong>
+                    <time>{formatTimestamp(note.createdAt)}</time>
+                  </button>
+                  <div class="note-actions">
+                    <button type="button" class="note-action" on:click={() => onEditNote?.(note.id)}>
+                      编辑
+                    </button>
+                    <button type="button" class="note-action danger" on:click={() => onDeleteNote?.(note.id)}>
+                      删除
+                    </button>
+                  </div>
+                </div>
                 <p class="note-text">{note.text}</p>
                 {#if note.note}
                   <p class="note-body">{note.note}</p>
@@ -815,6 +827,37 @@
     color: inherit;
     text-align: left;
     font: inherit;
+  }
+
+  .note-head {
+    display: grid;
+    gap: 8px;
+  }
+
+  .note-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .note-action {
+    min-height: 24px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .note-action:hover {
+    color: var(--text-primary);
+  }
+
+  .note-action.danger {
+    color: #8a4c40;
   }
 
   .note-link time {
