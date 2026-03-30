@@ -9,12 +9,14 @@
     readerstate: ReaderPreviewState;
     tocchange: ReaderTocItem[];
     togglesidebar: void;
+    switchsidebartab: 'toc' | 'search' | 'notes';
   }>();
 
   export let controlRequest: ReaderControlRequest | null = null;
   export let autoOpenPicker = false;
   export let isWindowMode = false;
   export let sidebarVisible = true;
+  export let activeSidebarTab: 'toc' | 'search' | 'notes' = 'toc';
 
   let readerPreview: ReaderPreviewState = {
     title: '政治秩序与政治衰败',
@@ -75,6 +77,10 @@
 
   const toggleSidebar = () => {
     dispatch('togglesidebar');
+  };
+
+  const openSidebarTab = (tab: 'toc' | 'search' | 'notes') => {
+    dispatch('switchsidebartab', tab);
   };
 
   const clearChromeTimer = () => {
@@ -144,8 +150,10 @@
     {isWindowMode}
     {sidebarVisible}
     isVisible={chromeVisible}
+    {activeSidebarTab}
     onOpenPicker={triggerImportPicker}
     onToggleSidebar={toggleSidebar}
+    onOpenSidebarTab={openSidebarTab}
   />
 
   <article class:window-mode={isWindowMode} class="canvas">

@@ -7,14 +7,14 @@
   export let activeHref = '';
   export let isWindowMode = false;
   export let isPinned = true;
+  export let activeTab: SidebarTab = 'toc';
   export let onNavigate: ((href: string) => void) | null = null;
   export let onClose: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
+  export let onTabChange: ((tab: SidebarTab) => void) | null = null;
 
   type SidebarTab = 'toc' | 'search' | 'notes';
-
-  let activeTab: SidebarTab = 'toc';
   let searchTerm = '';
   let lastScrolledHref = '';
 
@@ -49,7 +49,7 @@
   };
 
   const setActiveTab = (tab: SidebarTab) => {
-    activeTab = tab;
+    onTabChange?.(tab);
   };
 </script>
 

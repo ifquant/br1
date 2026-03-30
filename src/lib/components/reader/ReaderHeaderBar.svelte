@@ -1,13 +1,16 @@
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
   import type { ReaderPreviewState } from '$lib/reader';
+  type SidebarTab = 'toc' | 'search' | 'notes';
 
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;
   export let sidebarVisible = true;
   export let isVisible = true;
+  export let activeSidebarTab: SidebarTab = 'toc';
   export let onOpenPicker: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
+  export let onOpenSidebarTab: ((tab: SidebarTab) => void) | null = null;
 </script>
 
 <header class:window-mode={isWindowMode} class:visible={isVisible} class="reader-head">
@@ -42,8 +45,24 @@
 
   <div class="controls" aria-label="reader controls preview">
     <button type="button" aria-label="Open book" title="Open book" on:click={() => onOpenPicker?.()}>⌂</button>
-    <button type="button" aria-label="Typography" title="Typography">Aa</button>
-    <button type="button" aria-label="Text to speech" title="Text to speech">🔊</button>
+    <button
+      type="button"
+      class:active={activeSidebarTab === 'search' && sidebarVisible}
+      aria-label="Show search panel"
+      title="Show search panel"
+      on:click={() => onOpenSidebarTab?.('search')}
+    >
+      ⌕
+    </button>
+    <button
+      type="button"
+      class:active={activeSidebarTab === 'notes' && sidebarVisible}
+      aria-label="Show notes panel"
+      title="Show notes panel"
+      on:click={() => onOpenSidebarTab?.('notes')}
+    >
+      ✎
+    </button>
     <button type="button" aria-label="More actions" title="More actions">⋯</button>
   </div>
 </header>
@@ -201,5 +220,11 @@
   .controls button:hover {
     background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
     color: var(--text-primary);
+  }
+
+  .controls button.active {
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
   }
 </style>

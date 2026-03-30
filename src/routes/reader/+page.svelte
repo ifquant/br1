@@ -13,6 +13,7 @@
   let sidebarVisible = true;
   let sidebarPinned = true;
   let sidebarWidth = 224;
+  let sidebarTab: 'toc' | 'search' | 'notes' = 'toc';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
@@ -71,6 +72,11 @@
 
   const toggleSidebarPin = () => {
     sidebarPinned = !sidebarPinned;
+  };
+
+  const openSidebarTab = (tab: 'toc' | 'search' | 'notes') => {
+    sidebarTab = tab;
+    sidebarVisible = true;
   };
 
   const persistSidebarPrefs = () => {
@@ -175,10 +181,12 @@
         {activeHref}
         {isWindowMode}
         isPinned={sidebarPinned}
+        activeTab={sidebarTab}
         onNavigate={issueHrefControl}
         onClose={isWindowMode ? toggleSidebar : null}
         onToggleSidebar={toggleSidebar}
         onTogglePin={isWindowMode ? toggleSidebarPin : null}
+        onTabChange={openSidebarTab}
       />
     {/if}
     {#if isWindowMode && sidebarVisible && sidebarPinned}
@@ -194,7 +202,11 @@
       {autoOpenPicker}
       {isWindowMode}
       {sidebarVisible}
+      activeSidebarTab={sidebarTab}
       on:togglesidebar={toggleSidebar}
+      on:switchsidebartab={({ detail }: CustomEvent<'toc' | 'search' | 'notes'>) => {
+        openSidebarTab(detail);
+      }}
       on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
       }}
