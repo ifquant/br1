@@ -6,6 +6,8 @@
     progress: string;
     progressPercentLabel?: string;
     readingStatusLabel?: string;
+    sourceLabel?: string;
+    availabilityLabel?: string;
     coverUrl?: string;
     readerHref?: string;
     restartHref?: string;
@@ -74,6 +76,9 @@
                   {book.readingStatusLabel}
                 </span>
               {/if}
+              {#if book.sourceLabel}
+                <span class="source-pill">{book.sourceLabel}</span>
+              {/if}
             </div>
             <span>{book.author}</span>
             <p>{book.lastOpenedLabel || book.status}</p>
@@ -113,6 +118,10 @@
               <strong>{book.progressPercentLabel || book.progress}</strong>
               <span>状态</span>
               <strong>{book.status}</strong>
+              <span>来源</span>
+              <strong>{book.sourceLabel || '未知来源'}</strong>
+              <span>可用性</span>
+              <strong>{book.availabilityLabel || '未标记'}</strong>
               <span>最近阅读</span>
               <strong>{book.lastOpenedLabel || '刚导入'}</strong>
             </div>
@@ -267,6 +276,16 @@
     background: color-mix(in srgb, #dbeed8 84%, white 16%);
     color: #456246;
     box-shadow: inset 0 0 0 1px rgba(69, 98, 70, 0.12);
+  }
+
+  .source-pill {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: color-mix(in srgb, #dde7f7 82%, white 18%);
+    box-shadow: inset 0 0 0 1px rgba(84, 109, 156, 0.12);
+    font: 600 10px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    color: #516587;
   }
 
   .trailing {

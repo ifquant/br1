@@ -73,6 +73,8 @@
     progress: string;
     progressPercentLabel?: string;
     readingStatusLabel?: string;
+    sourceLabel?: string;
+    availabilityLabel?: string;
     coverUrl?: string;
     readerHref?: string;
     restartHref?: string;
@@ -133,8 +135,14 @@
         : progressFraction >= 1
           ? '已读完'
           : progressFraction > 0
-          ? '在读'
-          : '未开始';
+            ? '在读'
+            : '未开始';
+
+    const sourceLabel = record.id.startsWith('readest-')
+      ? 'Readest'
+      : record.sourcePath
+        ? '本机导入'
+        : '书库';
 
     return {
       title: record.title,
@@ -146,6 +154,8 @@
           ? `${Math.max(0, Math.min(100, Math.round(progressFraction * 100)))}%`
           : '',
       readingStatusLabel,
+      sourceLabel,
+      availabilityLabel: '本地可读',
       coverUrl: await toLibraryCoverUrl(record),
       readerHref: await toReaderAssetHref(record),
       restartHref: await toReaderStartHref(record),
