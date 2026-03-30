@@ -71,6 +71,7 @@
     progress: string;
     coverUrl?: string;
     readerHref?: string;
+    lastOpenedAt?: number | null;
   };
 
   const readerValidationRank = (record: PersistedLibraryBook) => {
@@ -100,6 +101,7 @@
   let migrationBusy = false;
   let desktopLibraryMode = false;
   let libraryViewMode: 'grid' | 'list' = 'grid';
+  let continueReadingBooks: ShelfBook[] = [];
 
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => ({
     title: record.title,
@@ -107,8 +109,14 @@
     status: record.status,
     progress: record.progress,
     coverUrl: await toLibraryCoverUrl(record),
-    readerHref: await toReaderAssetHref(record)
+    readerHref: await toReaderAssetHref(record),
+    lastOpenedAt: record.lastOpenedAt
   });
+
+  const getContinueReadingBooks = (books: ShelfBook[]) =>
+    books
+      .filter((book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0)
+      .slice(0, 4);
 
   const loadLibrary = async () => {
     if (!canPersistLibrary()) return;
@@ -135,6 +143,8 @@
   onMount(() => {
     void loadLibrary();
   });
+
+  $: continueReadingBooks = getContinueReadingBooks(importedBooks);
 
   const handleOpenReaderLink = async (href: string) => {
     const opened = await openReaderTarget(href);
@@ -255,11 +265,22 @@
       options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
     >
       {#if importedBooks.length}
+        {#if continueReadingBooks.length}
+          <BookshelfPreview
+            sectionTitle="继续阅读"
+            books={continueReadingBooks}
+            onOpenLink={handleOpenReaderLink}
+            onChangeViewMode={handleLibraryViewModeChange}
+          />
+        {/if}
+
         <BookshelfPreview
           sectionTitle="你的书库"
           books={importedBooks}
           viewMode={libraryViewMode}
+          showImportTile={true}
           onOpenLink={handleOpenReaderLink}
+          onImportBooks={triggerImportPicker}
           onChangeViewMode={handleLibraryViewModeChange}
         />
       {/if}
