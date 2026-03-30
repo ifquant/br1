@@ -9,11 +9,12 @@ const constructStyleSheetsPolyfill = path.resolve(
 );
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [sveltekit()],
   resolve: {
     alias: {
       "foliate-js": foliateRoot,
+      "@pdfjs/pdf.min.mjs": path.resolve("src/lib/vendor/pdfjs-host-entry.js"),
       "construct-style-sheets-polyfill": constructStyleSheetsPolyfill,
     },
   },
@@ -45,4 +46,4 @@ export default defineConfig(async () => ({
       allow: [foliateRoot],
     },
   },
-}));
+});

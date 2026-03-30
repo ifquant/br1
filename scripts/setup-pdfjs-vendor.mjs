@@ -8,7 +8,15 @@ const foliateRoot = '/Users/dev/workspace2/hc_apps/foliate-js';
 const pdfjsDistRoot = path.join(appRoot, 'node_modules/pdfjs-dist');
 const targetRoot = path.join(appRoot, 'static/vendor/pdfjs');
 
-const buildFiles = ['pdf.min.mjs', 'pdf.worker.min.mjs', 'pdf.d.mts'];
+const buildFiles = [
+  'pdf.min.mjs',
+  'pdf.worker.min.mjs',
+  'pdf.mjs',
+  'pdf.mjs.map',
+  'pdf.worker.mjs',
+  'pdf.worker.mjs.map',
+  'pdf.d.mts',
+];
 const wasmFiles = ['openjpeg.wasm', 'qcms_bg.wasm'];
 const cssFiles = ['annotation_layer_builder.css', 'text_layer_builder.css'];
 const assetDirs = ['cmaps', 'standard_fonts'];
