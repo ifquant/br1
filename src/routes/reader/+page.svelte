@@ -159,14 +159,6 @@
         on:mousedown={startCurrentWindowDrag}
       ></div>
       <div class="traffic-light-gutter" aria-hidden="true"></div>
-      <div role="presentation" class="window-title" data-tauri-drag-region on:mousedown={startCurrentWindowDrag}>
-        <span>Bridge Reader</span>
-        <small>Reading window</small>
-      </div>
-      <div class="window-actions" aria-hidden="true">
-        <span></span>
-        <span></span>
-      </div>
     </header>
   {/if}
 
@@ -253,13 +245,14 @@
 
   .window-chrome {
     display: grid;
-    grid-template-columns: 92px minmax(0, 1fr) 92px;
-    align-items: center;
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: start;
     position: relative;
     min-height: 26px;
-    padding: 10px 18px 0;
+    padding: 8px 18px 0;
     background: transparent;
     user-select: none;
+    pointer-events: none;
   }
 
   .window-drag-strip {
@@ -270,58 +263,7 @@
   .traffic-light-gutter {
     position: relative;
     z-index: 1;
-    min-height: 16px;
-  }
-
-  .window-title {
-    display: grid;
-    justify-items: center;
-    gap: 0;
-    min-width: 0;
-    position: relative;
-    z-index: 1;
-    text-align: center;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-    opacity: 0.72;
-  }
-
-  .window-title span,
-  .window-title small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .window-title span {
-    color: color-mix(in srgb, var(--text-primary) 84%, white 16%);
-    font-size: 10px;
-    line-height: 1.2;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .window-title small {
-    color: var(--text-muted);
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    text-transform: none;
-  }
-
-  .window-actions {
-    display: inline-flex;
-    justify-content: end;
-    gap: 8px;
-    min-height: 16px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .window-actions span {
-    width: 14px;
-    height: 14px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
-    opacity: 0.65;
+    min-height: 20px;
   }
 
   .workspace {
@@ -449,7 +391,7 @@
     }
 
     .window-chrome {
-      grid-template-columns: 56px minmax(0, 1fr) 56px;
+      grid-template-columns: 56px minmax(0, 1fr);
       padding-inline: 10px;
     }
   }

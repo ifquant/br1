@@ -11,6 +11,19 @@
 </script>
 
 <header class:window-mode={isWindowMode} class:visible={isVisible} class="reader-head">
+  {#if isWindowMode}
+    <div class="leading-tools">
+      <button
+        type="button"
+        aria-label={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
+        title={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
+        on:click={() => onToggleSidebar?.()}
+      >
+        ☰
+      </button>
+    </div>
+  {/if}
+
   <div
     role="presentation"
     class:window-mode={isWindowMode}
@@ -28,14 +41,6 @@
   </div>
 
   <div class="controls" aria-label="reader controls preview">
-    <button
-      type="button"
-      aria-label={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
-      title={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
-      on:click={() => onToggleSidebar?.()}
-    >
-      ☰
-    </button>
     <button type="button" aria-label="Open book" title="Open book" on:click={() => onOpenPicker?.()}>⌂</button>
     <button type="button" aria-label="Typography" title="Typography">Aa</button>
     <button type="button" aria-label="Text to speech" title="Text to speech">🔊</button>
@@ -53,15 +58,17 @@
   }
 
   .reader-head.window-mode {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     z-index: 10;
     min-height: 44px;
-    padding: 0 20px 2px 16px;
+    padding: 4px 20px 2px 16px;
     background: transparent;
-    pointer-events: auto;
     opacity: 0;
     transform: translateY(-6px);
     transition:
@@ -76,6 +83,32 @@
     pointer-events: auto;
   }
 
+  .leading-tools {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 0;
+    -webkit-app-region: no-drag;
+  }
+
+  .leading-tools button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  .leading-tools button:hover {
+    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
+    color: var(--text-primary);
+  }
+
   .head-meta {
     display: grid;
     gap: 2px;
@@ -85,9 +118,10 @@
   .head-meta.window-mode {
     align-content: center;
     min-height: 100%;
-    padding-left: 2px;
+    padding-left: 42px;
     padding-right: 16px;
     cursor: grab;
+    text-align: center;
   }
 
   .title-row {
@@ -110,6 +144,10 @@
     line-height: 1.3;
   }
 
+  .window-mode .title-row {
+    justify-items: center;
+  }
+
   .title-row small {
     color: var(--text-muted);
     font-size: 12px;
@@ -119,6 +157,7 @@
     display: flex;
     gap: 8px;
     align-items: center;
+    justify-content: center;
     min-width: 0;
     color: var(--text-muted);
   }
@@ -140,6 +179,10 @@
     gap: 4px;
     flex-wrap: nowrap;
     -webkit-app-region: no-drag;
+  }
+
+  .window-mode .controls {
+    justify-content: flex-end;
   }
 
   .controls button {
