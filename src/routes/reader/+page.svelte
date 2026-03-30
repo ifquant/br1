@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
@@ -11,6 +11,8 @@
   let controlNonce = 0;
   let lastAutoKey = '';
   let sidebarVisible = true;
+  let sidebarPinned = true;
+  let sidebarWidth = 224;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
@@ -67,6 +69,59 @@
     sidebarVisible = !sidebarVisible;
   };
 
+  const toggleSidebarPin = () => {
+    sidebarPinned = !sidebarPinned;
+  };
+
+  const persistSidebarPrefs = () => {
+    if (!isWindowMode || typeof localStorage === 'undefined') return;
+    localStorage.setItem(
+      'br1.reader.sidebar',
+      JSON.stringify({ pinned: sidebarPinned, width: sidebarWidth })
+    );
+  };
+
+  const handleSidebarResizeStart = (event: MouseEvent) => {
+    if (!isWindowMode || !sidebarPinned) return;
+    event.preventDefault();
+
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      sidebarWidth = Math.max(208, Math.min(380, startWidth + delta));
+    };
+
+    const handleUp = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      persistSidebarPrefs();
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  };
+
+  onMount(() => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('br1.reader.sidebar');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { pinned?: boolean; width?: number };
+      if (typeof parsed.pinned === 'boolean') sidebarPinned = parsed.pinned;
+      if (typeof parsed.width === 'number') {
+        sidebarWidth = Math.max(208, Math.min(380, parsed.width));
+      }
+    } catch (error) {
+      console.warn('Failed to restore reader sidebar prefs', error);
+    }
+  });
+
+  $: if (isWindowMode) {
+    persistSidebarPrefs();
+  }
+
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
 
@@ -115,15 +170,32 @@
     </header>
   {/if}
 
-  <div class:window-mode={isWindowMode} class:sidebar-hidden={isWindowMode && !sidebarVisible} class="workspace">
+  <div
+    class:window-mode={isWindowMode}
+    class:sidebar-hidden={isWindowMode && !sidebarVisible}
+    class:sidebar-overlay={isWindowMode && sidebarVisible && !sidebarPinned}
+    class="workspace"
+    style={isWindowMode && sidebarVisible && sidebarPinned ? `--reader-sidebar-width:${sidebarWidth}px;` : undefined}
+  >
     {#if !isWindowMode || sidebarVisible}
       <ReaderSidebar
         {toc}
         {activeHref}
         {isWindowMode}
+        isPinned={sidebarPinned}
         onNavigate={issueHrefControl}
         onClose={isWindowMode ? toggleSidebar : null}
+        onToggleSidebar={toggleSidebar}
+        onTogglePin={isWindowMode ? toggleSidebarPin : null}
       />
+    {/if}
+    {#if isWindowMode && sidebarVisible && sidebarPinned}
+      <button
+        type="button"
+        class="sidebar-resize-handle"
+        aria-label="Resize sidebar"
+        on:mousedown={handleSidebarResizeStart}
+      ></button>
     {/if}
     <ReaderStage
       {controlRequest}
@@ -263,11 +335,36 @@
   .workspace.window-mode {
     gap: 0;
     min-height: calc(100vh - 26px);
-    grid-template-columns: minmax(208px, 224px) minmax(0, 1fr);
+    grid-template-columns: minmax(208px, var(--reader-sidebar-width, 224px)) minmax(0, 1fr);
   }
 
   .workspace.window-mode.sidebar-hidden {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace.window-mode.sidebar-overlay {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar-resize-handle {
+    width: 4px;
+    margin-left: -2px;
+    cursor: col-resize;
+    position: relative;
+    z-index: 21;
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .sidebar-resize-handle::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 1px;
+    width: 1px;
+    background: rgba(64, 47, 24, 0.08);
   }
 
   .bridge-placeholder {

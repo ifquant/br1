@@ -6,8 +6,11 @@
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
   export let isWindowMode = false;
+  export let isPinned = true;
   export let onNavigate: ((href: string) => void) | null = null;
   export let onClose: (() => void) | null = null;
+  export let onToggleSidebar: (() => void) | null = null;
+  export let onTogglePin: (() => void) | null = null;
 
   let lastScrolledHref = '';
 
@@ -21,25 +24,60 @@
   };
 
   $: void scrollActiveIntoView();
+
+  const handleSidebarToggle = () => {
+    onToggleSidebar?.();
+  };
+
+  const handlePinToggle = () => {
+    onTogglePin?.();
+  };
 </script>
 
-<aside class:window-mode={isWindowMode} class="reader-sidebar" aria-label="reader navigation preview">
+<aside
+  class:window-mode={isWindowMode}
+  class:overlay-mode={isWindowMode && !isPinned}
+  class="reader-sidebar"
+  aria-label="reader navigation preview"
+>
   <header class="sidebar-head">
     <div class="sidebar-tools">
-      <button type="button" class="ghost-button" aria-label="toggle sidebar">☰</button>
+      <button
+        type="button"
+        class="ghost-button"
+        aria-label="toggle sidebar"
+        title="Toggle sidebar"
+        on:click={handleSidebarToggle}
+      >
+        ☰
+      </button>
       <div class="sidebar-labels">
         <span class="eyebrow">Contents</span>
         <strong>目录</strong>
       </div>
-      <button
-        type="button"
-        class="ghost-button"
-        aria-label={isWindowMode ? 'Hide sidebar' : 'Pin sidebar'}
-        title={isWindowMode ? 'Hide sidebar' : 'Pin sidebar'}
-        on:click={() => onClose?.()}
-      >
-        {isWindowMode ? '×' : '⌖'}
-      </button>
+      <div class="sidebar-actions">
+        {#if isWindowMode}
+          <button
+            type="button"
+            class:active={isPinned}
+            class="ghost-button pin-button"
+            aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar'}
+            title={isPinned ? 'Unpin sidebar' : 'Pin sidebar'}
+            on:click={handlePinToggle}
+          >
+            {isPinned ? '📌' : '⌖'}
+          </button>
+        {/if}
+        <button
+          type="button"
+          class="ghost-button"
+          aria-label="Hide sidebar"
+          title="Hide sidebar"
+          on:click={() => onClose?.()}
+        >
+          ×
+        </button>
+      </div>
     </div>
   </header>
 
@@ -107,6 +145,17 @@
       color-mix(in srgb, var(--surface-panel) 97%, white 3%);
   }
 
+  .reader-sidebar.overlay-mode {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(320px, 42vw);
+    z-index: 20;
+    border-left: 0;
+    box-shadow: 22px 0 40px rgba(32, 23, 10, 0.08);
+  }
+
   .sidebar-head {
     display: grid;
     gap: 8px;
@@ -114,8 +163,14 @@
 
   .sidebar-tools {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
     gap: 8px;
+    align-items: center;
+  }
+
+  .sidebar-actions {
+    display: inline-flex;
+    gap: 4px;
     align-items: center;
   }
 
@@ -133,6 +188,12 @@
   .ghost-button:hover {
     background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
     color: var(--text-primary);
+  }
+
+  .pin-button.active {
+    background: color-mix(in srgb, var(--surface-reader) 86%, white 14%);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
   }
 
   .sidebar-labels {
