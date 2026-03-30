@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
-  import { startCurrentWindowDrag } from '$lib/services';
+  import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
 
   let toc: ReaderTocItem[] = [];
   let activeHref = '';
@@ -10,6 +11,7 @@
   let controlNonce = 0;
   let lastAutoKey = '';
   let sidebarVisible = true;
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
   $: sourceUrl = $page.url.searchParams.get('url') ?? '';
@@ -60,6 +62,26 @@
   const toggleSidebar = () => {
     sidebarVisible = !sidebarVisible;
   };
+
+  const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
+    if (!autoOpenLibraryFile || !sourcePath) return;
+
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      void updateLibraryReadingState({
+        filePath: sourcePath,
+        title: preview.title,
+        author: preview.author,
+        chapterLabel: preview.chapterLabel,
+        progressLabel: preview.progressLabel,
+        progressFraction: preview.progressFraction
+      });
+    }, 500);
+  };
+
+  onDestroy(() => {
+    if (persistTimer) clearTimeout(persistTimer);
+  });
 </script>
 
 <section class:window-mode={isWindowMode} class="reader-shell">
@@ -109,6 +131,7 @@
       }}
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
         activeHref = detail.chapterHref;
+        queueLibraryReadingStatePersist(detail);
       }}
       on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
         toc = detail;

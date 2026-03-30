@@ -8,5 +8,6 @@ export {
   loadPersistedLibraryBooks,
   selectSystemBookPaths,
   toLibraryCoverUrl,
-  toReaderAssetHref
+  toReaderAssetHref,
+  updateLibraryReadingState
 } from './libraryPersistence';

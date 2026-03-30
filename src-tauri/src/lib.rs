@@ -216,6 +216,44 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
 }
 
 #[tauri::command]
+fn update_library_reading_state(
+    app: tauri::AppHandle,
+    file_path: String,
+    title: String,
+    author: String,
+    chapter_label: String,
+    progress_label: String,
+    progress_fraction: f64,
+) -> Result<(), String> {
+    let library_json = library_json_path(&app)?;
+    let mut records = load_library_records(&library_json)?;
+
+    let Some(record) = records.iter_mut().find(|record| record.file_path == file_path) else {
+        return Ok(());
+    };
+
+    if !title.trim().is_empty() {
+        record.title = title;
+    }
+    if !author.trim().is_empty() {
+        record.author = author;
+    }
+
+    record.status = if progress_fraction > 0.0 {
+        chapter_label
+    } else {
+        "已打开".to_string()
+    };
+    record.progress = if progress_fraction > 0.0 {
+        format!("上次读到 {progress_label}")
+    } else {
+        "刚刚打开".to_string()
+    };
+
+    save_library_records(&library_json, &records)
+}
+
+#[tauri::command]
 fn load_library_cover_data_urls(cover_paths: Vec<Option<String>>) -> Result<Vec<Option<String>>, String> {
     cover_paths
         .into_iter()
@@ -398,12 +436,13 @@ pub fn run() {
             load_library_cover_data_urls,
             detect_readest_library,
             import_library_books,
-            import_readest_library
+            import_readest_library,
+            update_library_reading_state
         ])
-        .setup(|app| {
+        .setup(|_app| {
             #[cfg(feature = "webdriver")]
             {
-                app.add_capability(include_str!("../capabilities-extra/webdriver.json"))?;
+                _app.add_capability(include_str!("../capabilities-extra/webdriver.json"))?;
             }
 
             Ok(())

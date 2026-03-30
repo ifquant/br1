@@ -22,6 +22,15 @@ export type LibraryBookBinary = {
   bytesBase64: string;
 };
 
+export type LibraryReadingStateUpdate = {
+  filePath: string;
+  title: string;
+  author: string;
+  chapterLabel: string;
+  progressLabel: string;
+  progressFraction: number;
+};
+
 const isTauriDesktop = () => {
   if (typeof window === 'undefined') return false;
   return (
@@ -71,6 +80,15 @@ export const importLibraryBooks = async (filePaths: string[]): Promise<Persisted
 export const importReadestLibrary = async (): Promise<PersistedLibraryBook[]> => {
   const { invoke } = await import('@tauri-apps/api/core');
   return invoke<PersistedLibraryBook[]>('import_readest_library');
+};
+
+export const updateLibraryReadingState = async (
+  update: LibraryReadingStateUpdate
+): Promise<void> => {
+  if (!isTauriDesktop()) return;
+
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('update_library_reading_state', update);
 };
 
 export const loadLibraryBookFile = async (filePath: string): Promise<File> => {
