@@ -102,6 +102,7 @@
   let desktopLibraryMode = false;
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let continueReadingBooks: ShelfBook[] = [];
+  let libraryShelfBooks: ShelfBook[] = [];
 
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => ({
     title: record.title,
@@ -117,6 +118,17 @@
     books
       .filter((book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0)
       .slice(0, 4);
+
+  const getLibraryShelfBooks = (books: ShelfBook[], continueReading: ShelfBook[]) => {
+    const continueKeys = new Set(
+      continueReading.map((book) => book.readerHref || `${book.title}::${book.author}`)
+    );
+
+    return books.filter((book) => {
+      const key = book.readerHref || `${book.title}::${book.author}`;
+      return !continueKeys.has(key);
+    });
+  };
 
   const loadLibrary = async () => {
     if (!canPersistLibrary()) return;
@@ -145,6 +157,7 @@
   });
 
   $: continueReadingBooks = getContinueReadingBooks(importedBooks);
+  $: libraryShelfBooks = getLibraryShelfBooks(importedBooks, continueReadingBooks);
 
   const handleOpenReaderLink = async (href: string) => {
     const opened = await openReaderTarget(href);
@@ -276,7 +289,7 @@
 
         <BookshelfPreview
           sectionTitle="你的书库"
-          books={importedBooks}
+          books={libraryShelfBooks}
           viewMode={libraryViewMode}
           showImportTile={true}
           onOpenLink={handleOpenReaderLink}
