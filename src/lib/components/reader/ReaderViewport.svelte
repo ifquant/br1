@@ -37,6 +37,7 @@
   export let notes: ReaderNote[] = [];
 
   const dispatch = createEventDispatcher<{
+    notefocus: string;
     selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
     tocchange: ReaderTocItem[];
@@ -410,6 +411,11 @@
             }>).detail;
             if (!detail?.annotation?.value?.startsWith(NOTE_PREFIX)) return;
             detail.draw(Overlayer.highlight, { color: 'rgba(190, 150, 78, 0.28)' });
+          });
+          view.addEventListener('show-annotation', (event: Event) => {
+            const detail = (event as CustomEvent<{ value?: string }>).detail;
+            if (!detail?.value?.startsWith(NOTE_PREFIX)) return;
+            dispatch('notefocus', detail.value.slice(NOTE_PREFIX.length));
           });
           view.addEventListener('load', (event: Event) => {
             const detail = (event as CustomEvent<{ doc: Document; index: number }>).detail;

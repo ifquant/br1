@@ -13,6 +13,7 @@
   import ReaderViewport from './ReaderViewport.svelte';
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
+    notefocus: string;
     selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
     searchchange: ReaderSearchState;
@@ -177,6 +178,9 @@
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         dispatch('readerstate', detail);
+      }}
+      on:notefocus={({ detail }) => {
+        dispatch('notefocus', detail);
       }}
       on:selectionchange={({ detail }) => {
         dispatch('selectionchange', detail);

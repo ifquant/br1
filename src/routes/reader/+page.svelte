@@ -39,6 +39,7 @@
   let lastSearchHistoryKey = '';
   let currentSearchLocation = '';
   let recentSearchResultCfi = '';
+  let activeNoteCfi = '';
   let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
   let notesSelection: ReaderSelectionState | null = null;
   let notes: ReaderNote[] = [];
@@ -218,6 +219,9 @@
   };
 
   const openNote = (cfi: string) => {
+    activeNoteCfi = cfi;
+    sidebarTab = 'notes';
+    sidebarVisible = true;
     recentSearchResultCfi = '';
     issueHrefControl(cfi);
   };
@@ -366,6 +370,7 @@
         searchNotice={searchNotice}
         activeSearchResultCfi={currentSearchLocation}
         recentSearchResultCfi={recentSearchResultCfi}
+        {activeNoteCfi}
         {notesSelection}
         {notes}
         onNavigate={issueHrefControl}
@@ -421,6 +426,11 @@
         activeHref = detail.chapterHref;
         currentSearchLocation = detail.progressLocation;
         queueLibraryReadingStatePersist(detail);
+      }}
+      on:notefocus={({ detail }: CustomEvent<string>) => {
+        activeNoteCfi = detail;
+        sidebarTab = 'notes';
+        sidebarVisible = true;
       }}
       on:selectionchange={({ detail }: CustomEvent<ReaderSelectionState | null>) => {
         notesSelection = detail;

@@ -28,6 +28,7 @@
   export let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
   export let activeSearchResultCfi = '';
   export let recentSearchResultCfi = '';
+  export let activeNoteCfi = '';
   export let notesSelection: ReaderSelectionState | null = null;
   export let notes: ReaderNote[] = [];
   export let onNavigate: ((href: string) => void) | null = null;
@@ -48,6 +49,7 @@
 
   type SidebarTab = 'toc' | 'search' | 'notes';
   let lastScrolledHref = '';
+  let lastScrolledNoteCfi = '';
 
   const scrollActiveIntoView = async () => {
     if (activeTab !== 'toc') return;
@@ -60,6 +62,18 @@
   };
 
   $: void scrollActiveIntoView();
+
+  const scrollActiveNoteIntoView = async () => {
+    if (activeTab !== 'notes') return;
+    if (!activeNoteCfi || activeNoteCfi === lastScrolledNoteCfi) return;
+    await tick();
+
+    const target = document.querySelector<HTMLElement>(`.note-card[data-note-cfi="${CSS.escape(activeNoteCfi)}"]`);
+    target?.scrollIntoView({ block: 'nearest' });
+    lastScrolledNoteCfi = activeNoteCfi;
+  };
+
+  $: void scrollActiveNoteIntoView();
 
   const formatTimestamp = (value: number) =>
     new Date(value).toLocaleString('zh-CN', {
@@ -360,7 +374,7 @@
         <div class="note-list">
           {#if notes.length}
             {#each notes as note}
-              <article class="note-card">
+              <article class:active-note={note.cfi === activeNoteCfi} class="note-card" data-note-cfi={note.cfi}>
                 <div class="note-head">
                   <button type="button" class="note-link" on:click={() => onOpenNote?.(note.cfi)}>
                     <strong>{note.chapterLabel || '未命名章节'}</strong>
@@ -814,6 +828,13 @@
     box-shadow:
       inset 0 0 0 1px rgba(177, 137, 82, 0.22),
       0 0 0 1px rgba(177, 137, 82, 0.08);
+  }
+
+  .note-card.active-note {
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+    box-shadow:
+      inset 2px 0 0 #b18952,
+      inset 0 0 0 1px rgba(64, 47, 24, 0.08);
   }
 
   .note-link {
