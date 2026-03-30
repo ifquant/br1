@@ -5,11 +5,12 @@
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;
   export let sidebarVisible = true;
+  export let isVisible = true;
   export let onOpenPicker: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
 </script>
 
-<header class:window-mode={isWindowMode} class="reader-head">
+<header class:window-mode={isWindowMode} class:visible={isVisible} class="reader-head">
   <div
     role="presentation"
     class:window-mode={isWindowMode}
@@ -60,6 +61,18 @@
     min-height: 44px;
     padding: 0 20px 2px 16px;
     background: transparent;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease;
+    pointer-events: none;
+  }
+
+  .reader-head.window-mode.visible {
+    opacity: 1;
+    transform: translateY(0);
     pointer-events: auto;
   }
 

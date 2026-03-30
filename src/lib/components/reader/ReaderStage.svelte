@@ -28,6 +28,8 @@
   };
   let importInput: HTMLInputElement | null = null;
   let hasAttemptedAutoPicker = false;
+  let chromeVisible = true;
+  let chromeTimer: ReturnType<typeof setTimeout> | null = null;
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -74,9 +76,61 @@
   const toggleSidebar = () => {
     dispatch('togglesidebar');
   };
+
+  const clearChromeTimer = () => {
+    if (chromeTimer) clearTimeout(chromeTimer);
+    chromeTimer = null;
+  };
+
+  const scheduleChromeHide = () => {
+    if (!isWindowMode || sidebarVisible) return;
+    clearChromeTimer();
+    chromeTimer = setTimeout(() => {
+      chromeVisible = false;
+    }, 1200);
+  };
+
+  const showChrome = () => {
+    chromeVisible = true;
+    scheduleChromeHide();
+  };
+
+  const handleStagePointerMove = (event: MouseEvent) => {
+    if (!isWindowMode) return;
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const offsetY = event.clientY - rect.top;
+    const nearTop = offsetY <= 88;
+    const nearBottom = rect.bottom - event.clientY <= 72;
+    if (nearTop || nearBottom) {
+      showChrome();
+    }
+  };
+
+  const handleStageLeave = () => {
+    scheduleChromeHide();
+  };
+
+  $: if (!isWindowMode) {
+    chromeVisible = true;
+    clearChromeTimer();
+  }
+
+  $: if (isWindowMode && sidebarVisible) {
+    chromeVisible = true;
+    clearChromeTimer();
+  }
 </script>
 
-<section class:window-mode={isWindowMode} class="reader-stage" role="main" aria-label="reader stage">
+<section
+  class:window-mode={isWindowMode}
+  class="reader-stage"
+  role="main"
+  aria-label="reader stage"
+  on:mousemove={handleStagePointerMove}
+  on:mouseleave={handleStageLeave}
+  on:focusin={showChrome}
+>
   <input
     bind:this={importInput}
     class="import-input"
@@ -89,6 +143,7 @@
     preview={readerPreview}
     {isWindowMode}
     {sidebarVisible}
+    isVisible={chromeVisible}
     onOpenPicker={triggerImportPicker}
     onToggleSidebar={toggleSidebar}
   />
@@ -112,6 +167,7 @@
   <ReaderFooterBar
     preview={readerPreview}
     {isWindowMode}
+    isVisible={chromeVisible}
     on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
       dispatch('controlrequest', detail);
     }}

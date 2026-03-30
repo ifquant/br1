@@ -8,6 +8,7 @@
 
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;
+  export let isVisible = true;
 
   let controlNonce = 0;
   let sliderValue = 0;
@@ -29,7 +30,12 @@
   };
 </script>
 
-<footer class:window-mode={isWindowMode} class="footer-bar" aria-label="reader footer controls preview">
+<footer
+  class:window-mode={isWindowMode}
+  class:visible={isVisible}
+  class="footer-bar"
+  aria-label="reader footer controls preview"
+>
   <div class="footer-controls">
     <button type="button" aria-label="Previous page" title="Previous page" on:click={() => issueControl('prev')}>‹</button>
     <button type="button" aria-label="Go to start" title="Go to start" on:click={() => issueControl('start')}>·</button>
@@ -82,6 +88,18 @@
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-page) 98%, white 2%);
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease;
+    pointer-events: none;
+  }
+
+  .footer-bar.window-mode.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
   }
 
   .footer-controls {
