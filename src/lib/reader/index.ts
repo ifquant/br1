@@ -3,7 +3,6 @@ import type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 export type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 export {
   FOLIATE_VIEW_TAG,
-  SAMPLE_READER_BOOK_URL,
   flattenToc,
   pickAuthor,
   pickText,

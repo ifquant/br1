@@ -13,7 +13,6 @@
   }>();
 
   export let controlRequest: ReaderControlRequest | null = null;
-  export let autoOpenSample = false;
   export let autoOpenPicker = false;
   export let isWindowMode = false;
   let readerPreview: ReaderPreviewState = {
@@ -28,11 +27,7 @@
   let controlNonce = 0;
   let sliderValue = 0;
   let importInput: HTMLInputElement | null = null;
-  let viewportControlRequest: ReaderControlRequest | null = null;
   let hasAttemptedAutoPicker = false;
-
-  $: viewportControlRequest =
-    autoOpenSample && !controlRequest ? { type: 'sample', nonce: -1 } : controlRequest;
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -125,7 +120,7 @@
   <article class:window-mode={isWindowMode} class="canvas">
     <ReaderViewport
       title="Reading Surface"
-      controlRequest={viewportControlRequest}
+      {controlRequest}
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
       on:readerstate={({ detail }) => {

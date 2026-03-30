@@ -24,10 +24,6 @@ export type ReaderTocItem = {
 
 export type ReaderControlRequest =
   | {
-      type: 'sample';
-      nonce: number;
-    }
-  | {
       type: 'asset';
       nonce: number;
       url: string;

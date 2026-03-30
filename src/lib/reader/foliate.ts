@@ -1,5 +1,4 @@
 export const FOLIATE_VIEW_TAG = 'foliate-view';
-export const SAMPLE_READER_BOOK_URL = '/samples/reader-step4.epub';
 
 export interface FoliateViewElement extends HTMLElement {
   book?: {
@@ -10,6 +9,11 @@ export interface FoliateViewElement extends HTMLElement {
     toc?: unknown[];
   };
   lastLocation?: {
+    location?: {
+      current?: number;
+      next?: number;
+      total?: number;
+    };
     current?: number;
     next?: number;
     total?: number;

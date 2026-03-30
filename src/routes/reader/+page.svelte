@@ -16,7 +16,6 @@
   $: sourcePath = $page.url.searchParams.get('path') ?? '';
   $: sourceLabel = $page.url.searchParams.get('label') ?? '';
   $: isWindowMode = $page.url.searchParams.get('mode') === 'window';
-  $: autoOpenSample = source === 'sample';
   $: autoOpenPicker = source === 'picker';
   $: autoOpenAsset = source === 'asset' && !!sourceUrl;
   $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
@@ -26,12 +25,6 @@
     : autoOpenAsset
       ? `${source}:${sourceUrl}:${sourceLabel}`
       : source;
-
-  $: if (autoOpenSample && autoOpenKey !== lastAutoKey) {
-    controlNonce += 1;
-    controlRequest = { type: 'sample', nonce: controlNonce };
-    lastAutoKey = autoOpenKey;
-  }
 
   $: if (autoOpenAsset && autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -55,7 +48,7 @@
     lastAutoKey = autoOpenKey;
   }
 
-  $: if (!autoOpenSample && !autoOpenAsset && !autoOpenLibraryFile) {
+  $: if (!autoOpenAsset && !autoOpenLibraryFile) {
     lastAutoKey = '';
   }
 
@@ -107,7 +100,6 @@
     {/if}
     <ReaderStage
       {controlRequest}
-      {autoOpenSample}
       {autoOpenPicker}
       {isWindowMode}
       {sidebarVisible}

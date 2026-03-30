@@ -4,7 +4,6 @@
     FOLIATE_VIEW_TAG,
     READER_ENGINE_HOST_ATTR,
     READER_ENGINE_STATUS_ATTR,
-    SAMPLE_READER_BOOK_URL,
     createFoliateViewElement,
     ensureFoliateViewDefinition,
     flattenToc,
@@ -29,8 +28,8 @@
   let hostElement: HTMLDivElement | null = null;
   let stageElement: HTMLDivElement | null = null;
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
-  let sampleStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
-  let openSourceLabel = 'sample book';
+  let openStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
+  let openSourceLabel = 'book';
   let openFailureSource = '';
   let openFailureMessage = '';
   let foliateViewElement: FoliateViewElement | null = null;
@@ -56,9 +55,9 @@
       progressLabel: `${progressPercent}%`,
       progressFraction: fraction,
       locationLabel:
-        typeof lastLocation?.current === 'number' && typeof lastLocation?.total === 'number'
-          ? `${lastLocation.current} / ${lastLocation.total}`
-          : 'Opening sample',
+        typeof lastLocation?.location?.current === 'number' && typeof lastLocation?.location?.total === 'number'
+          ? `${lastLocation.location.current} / ${lastLocation.location.total}`
+          : 'Opening book',
       ...partial
     });
   };
@@ -75,9 +74,9 @@
   };
 
   const openBook = async (source: string | File, sourceLabel: string) => {
-    if (!foliateViewElement || sampleStatus === 'loading') return;
+    if (!foliateViewElement || openStatus === 'loading') return;
 
-    sampleStatus = 'loading';
+    openStatus = 'loading';
     openSourceLabel = sourceLabel;
     openFailureSource = '';
     openFailureMessage = '';
@@ -85,18 +84,16 @@
     try {
       await foliateViewElement.open(source);
       configureFoliatePreview();
-      sampleStatus = 'open';
+      openStatus = 'open';
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
       emitReaderState();
     } catch (error) {
       console.error(`Failed to open reader source: ${sourceLabel}`, error);
-      sampleStatus = 'error';
+      openStatus = 'error';
       openFailureSource = sourceLabel;
       openFailureMessage = error instanceof Error ? error.message : String(error);
     }
   };
-
-  const loadSampleBook = async () => openBook(SAMPLE_READER_BOOK_URL, 'sample book');
 
   const applyControlRequest = async () => {
     if (!controlRequest || handledControlNonce === controlRequest.nonce) return;
@@ -104,10 +101,9 @@
 
     if (
       controlRequest.type !== 'file' &&
-      controlRequest.type !== 'sample' &&
       controlRequest.type !== 'asset' &&
       controlRequest.type !== 'library-file' &&
-      sampleStatus !== 'open'
+      openStatus !== 'open'
     ) {
       return;
     }
@@ -115,9 +111,7 @@
     handledControlNonce = controlRequest.nonce;
 
     try {
-      if (controlRequest.type === 'sample') {
-        await loadSampleBook();
-      } else if (controlRequest.type === 'asset') {
+      if (controlRequest.type === 'asset') {
         await openBook(controlRequest.url, controlRequest.label);
       } else if (controlRequest.type === 'library-file') {
         const file = await loadLibraryBookFile(controlRequest.path);
@@ -137,7 +131,7 @@
       }
     } catch (error) {
       console.error(`Failed to handle reader control: ${controlRequest.type}`, error);
-      sampleStatus = 'error';
+      openStatus = 'error';
       openFailureSource = controlRequest.type;
       openFailureMessage = error instanceof Error ? error.message : String(error);
     }
@@ -146,7 +140,7 @@
   $: {
     controlRequest?.nonce;
     foliateViewElement;
-    sampleStatus;
+    openStatus;
     void applyControlRequest();
   }
 
@@ -196,16 +190,7 @@
         <span class="label">{title}</span>
         <p>{hint}</p>
       </div>
-      <div class="head-statuses">
-        <button
-          type="button"
-          class="sample-trigger"
-          on:click={loadSampleBook}
-          disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
-        >
-          {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
-        </button>
-      </div>
+      <div class="head-statuses"></div>
     </header>
   {/if}
 
@@ -220,20 +205,20 @@
     >
       {#if isWindowMode}
         <div class="engine-stage window-stage" bind:this={stageElement}>
-          {#if sampleStatus !== 'open'}
+          {#if openStatus !== 'open'}
             <div class="stage-overlay" aria-hidden="true">
               <div class="overlay-stack">
-                <button
-                  type="button"
-                  class="sample-trigger inline"
-                  on:click={loadSampleBook}
-                  disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
-                >
-                  {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
-                </button>
-                {#if sampleStatus === 'error'}
+                <p class="stage-status" aria-live="polite">
+                  {#if openStatus === 'loading'}
+                    Opening {openSourceLabel}…
+                  {:else if openStatus === 'error'}
+                    Failed to open {openFailureSource || 'book'}.
+                  {:else}
+                    Open a book from the library to start reading.
+                  {/if}
+                </p>
+                {#if openStatus === 'error'}
                   <p class="stage-error" aria-live="polite">
-                    Failed to open {openFailureSource || 'reader source'}.
                     {#if openFailureMessage}
                       <span>{openFailureMessage}</span>
                     {/if}
@@ -246,16 +231,16 @@
       {:else}
         <div class="engine-paper">
           <div class="paper-header">
-            <span>{sampleStatus === 'open' ? openSourceLabel : 'Preview chapter'}</span>
-            <small>{sampleStatus === 'open' ? 'reading preview' : 'ready to open'}</small>
+            <span>{openStatus === 'open' ? openSourceLabel : 'Reading surface'}</span>
+            <small>{openStatus === 'open' ? 'book opened' : 'waiting for book'}</small>
           </div>
 
           <div class="engine-stage" bind:this={stageElement}></div>
 
-          {#if sampleStatus !== 'open'}
+          {#if openStatus !== 'open'}
             <div class="paper-copy" aria-hidden="true">
               <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
-              <p>现在可以先打开样例书或本地文件，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
+              <p>从书库中选择一本真实书籍，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
             </div>
           {/if}
         </div>
@@ -303,23 +288,6 @@
     color: var(--text-secondary);
     line-height: 1.55;
     font-size: 13px;
-  }
-
-  .sample-trigger {
-    padding: 6px 10px;
-    border: 1px solid rgba(64, 47, 24, 0.07);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 94%, white 6%);
-    color: var(--text-secondary);
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
-    font-size: 11px;
-    line-height: 1;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .sample-trigger:disabled {
-    opacity: 0.55;
   }
 
   .viewport-frame {
@@ -417,9 +385,23 @@
     padding: 0 20px;
   }
 
-  .stage-overlay .sample-trigger,
+  .stage-status,
   .stage-error {
     pointer-events: auto;
+  }
+
+  .stage-status {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 94%, white 6%);
+    border: 1px solid rgba(64, 47, 24, 0.07);
+    color: var(--text-secondary);
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .stage-error {
@@ -509,11 +491,6 @@
   .paper-copy p {
     margin: 0;
   }
-
-  .sample-trigger.inline {
-    padding-inline: 14px;
-  }
-
   @media (max-width: 760px) {
     .viewport-head,
     .paper-header {
