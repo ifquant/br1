@@ -142,4 +142,97 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the first book to load without a stage error and expose location state'
     });
   });
+
+  it('keeps the rendered book page inside the reader stage instead of the sidebar column', async () => {
+    await switchToLibraryWindow();
+
+    const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+    expect(firstBook).toBeTruthy();
+
+    const initialHandles = await browser.getWindowHandles();
+    await firstBook.click();
+
+    await browser.waitUntil(async () => {
+      const handles = await browser.getWindowHandles();
+      return handles.length > initialHandles.length;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected a reader window to open before checking content geometry'
+    });
+
+    const nextHandles = await browser.getWindowHandles();
+    const readerHandle = nextHandles.find((handle) => !initialHandles.includes(handle));
+    expect(readerHandle).toBeTruthy();
+
+    await browser.switchToWindow(readerHandle!);
+
+    const readGeometry = () =>
+      browser.execute(() => {
+        const stage = document.querySelector('.reader-stage');
+        const sidebar = document.querySelector('.reader-sidebar');
+        const workspace = document.querySelector('.workspace');
+        const shell = document.querySelector('.reader-shell');
+        const canvas = document.querySelector('.canvas');
+        const viewport = document.querySelector('.viewport-shell');
+        const engineHost = document.querySelector('.engine-host');
+        const engineStage = document.querySelector('.engine-stage');
+        const view = document.querySelector('foliate-view') as (HTMLElement & { shadowRoot?: ShadowRoot | null }) | null;
+        const paginator = view?.shadowRoot?.querySelector('foliate-paginator') as HTMLElement | null;
+        const frame = paginator?.shadowRoot?.querySelector('iframe') as HTMLElement | null;
+        const rendered = frame ?? paginator ?? view;
+
+        const rectOf = (node: Element | null) => {
+          if (!node) return null;
+          const rect = node.getBoundingClientRect();
+          return {
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+            right: rect.right,
+            bottom: rect.bottom
+          };
+        };
+
+        return {
+          stage: rectOf(stage),
+          sidebar: rectOf(sidebar),
+          workspace: rectOf(workspace),
+          shell: rectOf(shell),
+          canvas: rectOf(canvas),
+          viewport: rectOf(viewport),
+          engineHost: rectOf(engineHost),
+          engineStage: rectOf(engineStage),
+          foliateView: rectOf(view),
+          paginator: rectOf(paginator),
+          frame: rectOf(frame),
+          rendered: rectOf(rendered),
+          workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : null
+        };
+      });
+
+    let geometry = await readGeometry();
+
+    await browser.waitUntil(async () => {
+      geometry = await readGeometry();
+      const rendered = geometry.rendered;
+      if (!geometry.stage || !geometry.sidebar || !rendered) return false;
+
+      return (
+        rendered.left >= geometry.stage.left - 4 &&
+        rendered.left >= geometry.sidebar.right - 4 &&
+        rendered.top <= geometry.stage.top + geometry.stage.height * 0.25 &&
+        rendered.width >= geometry.stage.width * 0.25 &&
+        rendered.height >= geometry.stage.height * 0.25
+      );
+    }, {
+      timeout: 20000,
+      timeoutMsg: 'expected the rendered book page to stay inside the reader stage instead of slipping into the sidebar area'
+    }).catch(async (error) => {
+      geometry = await readGeometry();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nGeometry: ${JSON.stringify(geometry)}`
+      );
+    });
+  });
 });

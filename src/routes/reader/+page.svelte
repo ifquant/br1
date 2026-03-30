@@ -433,6 +433,7 @@
   }
 
   .workspace.window-mode {
+    position: relative;
     gap: 0;
     min-height: calc(100vh - 26px);
     grid-template-columns: minmax(208px, var(--reader-sidebar-width, 224px)) minmax(0, 1fr);
@@ -448,9 +449,11 @@
 
   .sidebar-resize-handle {
     width: 4px;
-    margin-left: -2px;
     cursor: col-resize;
-    position: relative;
+    position: absolute;
+    left: calc(var(--reader-sidebar-width, 224px) - 2px);
+    top: 0;
+    bottom: 0;
     z-index: 21;
     border: 0;
     padding: 0;

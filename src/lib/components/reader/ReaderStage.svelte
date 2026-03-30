@@ -207,6 +207,7 @@
     position: relative;
     gap: 0;
     min-height: calc(100vh - 26px);
+    height: calc(100vh - 26px);
     overflow: hidden;
   }
 
@@ -226,7 +227,9 @@
   }
 
   .canvas.window-mode {
+    display: grid;
     min-height: calc(100vh - 26px);
+    height: 100%;
     padding: 0;
     border: 0;
     background: transparent;

@@ -434,6 +434,7 @@
   }
 
   .viewport-shell.window-mode {
+    min-height: 100%;
     gap: 0;
   }
 
@@ -467,6 +468,7 @@
   }
 
   .viewport-frame {
+    display: grid;
     min-height: 0;
     height: 100%;
     width: 100%;
@@ -485,8 +487,8 @@
   }
 
   .engine-host.window-mode {
-    display: block;
-    min-height: calc(100vh - 26px);
+    display: grid;
+    min-height: 100%;
     height: 100%;
     padding: 0;
     border: 0;
@@ -534,8 +536,9 @@
   }
 
   .viewport-shell.window-mode .engine-stage {
+    display: grid;
     width: 100%;
-    min-height: calc(100vh - 26px);
+    min-height: 100%;
     height: 100%;
     background: transparent;
     box-shadow: none;
@@ -644,9 +647,7 @@
   }
 
   .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview) {
-    position: absolute;
-    inset: 0;
-    min-height: calc(100vh - 26px);
+    min-height: 100%;
     height: 100%;
   }
 
