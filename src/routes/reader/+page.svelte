@@ -13,13 +13,19 @@
 
   $: source = $page.url.searchParams.get('source') ?? '';
   $: sourceUrl = $page.url.searchParams.get('url') ?? '';
+  $: sourcePath = $page.url.searchParams.get('path') ?? '';
   $: sourceLabel = $page.url.searchParams.get('label') ?? '';
   $: isWindowMode = $page.url.searchParams.get('mode') === 'window';
   $: autoOpenSample = source === 'sample';
   $: autoOpenPicker = source === 'picker';
   $: autoOpenAsset = source === 'asset' && !!sourceUrl;
+  $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
 
-  $: autoOpenKey = autoOpenAsset ? `${source}:${sourceUrl}:${sourceLabel}` : source;
+  $: autoOpenKey = autoOpenLibraryFile
+    ? `${source}:${sourcePath}:${sourceLabel}`
+    : autoOpenAsset
+      ? `${source}:${sourceUrl}:${sourceLabel}`
+      : source;
 
   $: if (autoOpenSample && autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -38,7 +44,18 @@
     lastAutoKey = autoOpenKey;
   }
 
-  $: if (!autoOpenSample && !autoOpenAsset) {
+  $: if (autoOpenLibraryFile && autoOpenKey !== lastAutoKey) {
+    controlNonce += 1;
+    controlRequest = {
+      type: 'library-file',
+      nonce: controlNonce,
+      path: sourcePath,
+      label: sourceLabel || 'imported book'
+    };
+    lastAutoKey = autoOpenKey;
+  }
+
+  $: if (!autoOpenSample && !autoOpenAsset && !autoOpenLibraryFile) {
     lastAutoKey = '';
   }
 

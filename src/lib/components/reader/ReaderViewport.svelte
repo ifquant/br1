@@ -14,6 +14,7 @@
     type FoliateViewElement
   } from '$lib/reader';
   import type { ReaderPreviewState, ReaderTocItem } from '$lib/reader';
+  import { loadLibraryBookFile } from '$lib/services/libraryPersistence';
 
   export let title = 'Reading Surface';
   export let controlRequest: ReaderControlRequest | null = null;
@@ -98,6 +99,8 @@
     if (
       controlRequest.type !== 'file' &&
       controlRequest.type !== 'sample' &&
+      controlRequest.type !== 'asset' &&
+      controlRequest.type !== 'library-file' &&
       sampleStatus !== 'open'
     ) {
       return;
@@ -110,6 +113,9 @@
         await loadSampleBook();
       } else if (controlRequest.type === 'asset') {
         await openBook(controlRequest.url, controlRequest.label);
+      } else if (controlRequest.type === 'library-file') {
+        const file = await loadLibraryBookFile(controlRequest.path);
+        await openBook(file, controlRequest.label || file.name);
       } else if (controlRequest.type === 'prev') {
         await foliateViewElement.prev();
       } else if (controlRequest.type === 'next') {

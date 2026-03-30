@@ -39,6 +39,14 @@ struct ReadestBookRecord {
     progress: Option<Vec<u64>>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LibraryBookBinary {
+    name: String,
+    mime_type: String,
+    bytes_base64: String,
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -224,6 +232,23 @@ fn load_library_cover_data_urls(cover_paths: Vec<Option<String>>) -> Result<Vec<
         .collect()
 }
 
+#[tauri::command]
+fn load_library_book_binary(file_path: String) -> Result<LibraryBookBinary, String> {
+    let path = PathBuf::from(&file_path);
+    let bytes = fs::read(&path).map_err(|error| error.to_string())?;
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "Invalid book filename".to_string())?
+        .to_string();
+
+    Ok(LibraryBookBinary {
+        name,
+        mime_type: book_mime_type(&path).to_string(),
+        bytes_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+    })
+}
+
 fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     let library_root = app_data_dir.join("library");
@@ -340,6 +365,22 @@ fn cover_mime_type(path: &Path) -> &'static str {
     }
 }
 
+fn book_mime_type(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+        .as_str()
+    {
+        "pdf" => "application/pdf",
+        "mobi" => "application/x-mobipocket-ebook",
+        "azw3" => "application/vnd.amazon.ebook",
+        "fb2" => "application/x-fictionbook+xml",
+        _ => "application/epub+zip",
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -348,6 +389,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             load_library_books,
+            load_library_book_binary,
             load_library_cover_data_urls,
             detect_readest_library,
             import_library_books,

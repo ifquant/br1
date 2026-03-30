@@ -34,6 +34,12 @@ export type ReaderControlRequest =
       label: string;
     }
   | {
+      type: 'library-file';
+      nonce: number;
+      path: string;
+      label: string;
+    }
+  | {
       type: 'prev' | 'next' | 'start';
       nonce: number;
     }
