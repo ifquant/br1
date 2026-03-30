@@ -73,6 +73,21 @@
     readerHref?: string;
   };
 
+  const readerValidationRank = (record: PersistedLibraryBook) => {
+    const normalized = record.format.trim().toUpperCase();
+    if (normalized === 'EPUB') return 0;
+    if (normalized === 'FB2' || normalized === 'MOBI' || normalized === 'AZW3') return 1;
+    if (normalized === 'PDF') return 2;
+    return 3;
+  };
+
+  const sortRecordsForReaderValidation = (records: PersistedLibraryBook[]) =>
+    [...records].sort((left, right) => {
+      const byFormat = readerValidationRank(left) - readerValidationRank(right);
+      if (byFormat !== 0) return byFormat;
+      return right.importedAt - left.importedAt;
+    });
+
   let importedBooks: ShelfBook[] = [];
   let importInput: HTMLInputElement | null = null;
   let readestLibraryCount = 0;
@@ -101,12 +116,14 @@
     if (records.length === 0 && readestSummary.available) {
       await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });
       const migratedRecords = await loadPersistedLibraryBooks();
-      importedBooks = await Promise.all(migratedRecords.map(mapLibraryRecord));
+      importedBooks = await Promise.all(
+        sortRecordsForReaderValidation(migratedRecords).map(mapLibraryRecord)
+      );
       showReadestMigration = migratedRecords.length === 0;
       return;
     }
 
-    importedBooks = await Promise.all(records.map(mapLibraryRecord));
+    importedBooks = await Promise.all(sortRecordsForReaderValidation(records).map(mapLibraryRecord));
     showReadestMigration = readestSummary.available;
   };
 
@@ -127,7 +144,7 @@
         const filePaths = await selectSystemBookPaths();
         if (filePaths.length === 0) return;
 
-        const records = await importLibraryBooks(filePaths);
+        const records = sortRecordsForReaderValidation(await importLibraryBooks(filePaths));
         const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
         importedBooks = [...mappedRecords, ...importedBooks];
         showReadestMigration = false;
@@ -177,7 +194,7 @@
 
     migrationBusy = true;
     try {
-      const records = await importReadestLibrary();
+      const records = sortRecordsForReaderValidation(await importReadestLibrary());
       if (reloadAfterImport) {
         await loadLibrary();
       }
