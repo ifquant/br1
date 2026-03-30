@@ -134,7 +134,12 @@
     }
   };
 
-  $: void applyControlRequest();
+  $: {
+    controlRequest?.nonce;
+    foliateViewElement;
+    sampleStatus;
+    void applyControlRequest();
+  }
 
   onMount(() => {
     let cancelled = false;
