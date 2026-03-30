@@ -17,7 +17,8 @@ const buildFiles = [
   'pdf.worker.mjs.map',
   'pdf.d.mts',
 ];
-const wasmFiles = ['openjpeg.wasm', 'qcms_bg.wasm'];
+const wasmFiles = ['jbig2.wasm', 'openjpeg.wasm', 'qcms_bg.wasm'];
+const runtimeFiles = ['openjpeg_nowasm_fallback.js'];
 const cssFiles = ['annotation_layer_builder.css', 'text_layer_builder.css'];
 const assetDirs = ['cmaps', 'standard_fonts'];
 
@@ -25,6 +26,7 @@ const tasks = {
   prepare: preparePublicVendor,
   'copy-js': copyPdfjsJs,
   'copy-wasm': copyPdfjsWasm,
+  'copy-runtime': copyPdfjsRuntime,
   'copy-fonts': copyPdfjsFonts,
   'copy-annotation-css': () => copyFlattenedCss('annotation_layer_builder.css'),
   'copy-text-css': () => copyFlattenedCss('text_layer_builder.css'),
@@ -52,6 +54,7 @@ async function setupPdfjs() {
 async function copyAllPdfjsAssets() {
   copyPdfjsJs();
   copyPdfjsWasm();
+  copyPdfjsRuntime();
   copyPdfjsFonts();
   await copyPdfjsCss();
 }
@@ -71,6 +74,13 @@ function copyPdfjsJs() {
 function copyPdfjsWasm() {
   const wasmRoot = path.join(pdfjsDistRoot, 'wasm');
   for (const fileName of wasmFiles) {
+    copyFile(path.join(wasmRoot, fileName), path.join(targetRoot, fileName));
+  }
+}
+
+function copyPdfjsRuntime() {
+  const wasmRoot = path.join(pdfjsDistRoot, 'wasm');
+  for (const fileName of runtimeFiles) {
     copyFile(path.join(wasmRoot, fileName), path.join(targetRoot, fileName));
   }
 }

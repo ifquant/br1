@@ -16,11 +16,12 @@
     "prepare-public-vendor": "node scripts/setup-pdfjs-vendor.mjs prepare",
     "copy-pdfjs-js": "node scripts/setup-pdfjs-vendor.mjs copy-js",
     "copy-pdfjs-wasm": "node scripts/setup-pdfjs-vendor.mjs copy-wasm",
+    "copy-pdfjs-runtime": "node scripts/setup-pdfjs-vendor.mjs copy-runtime",
     "copy-pdfjs-fonts": "node scripts/setup-pdfjs-vendor.mjs copy-fonts",
     "copy-flatten-pdfjs-annotation-layer-css": "node scripts/setup-pdfjs-vendor.mjs copy-annotation-css",
     "copy-flatten-pdfjs-text-layer-css": "node scripts/setup-pdfjs-vendor.mjs copy-text-css",
     "copy-flatten-pdfjs-css": "node scripts/setup-pdfjs-vendor.mjs copy-css",
-    "copy-pdfjs": "pnpm copy-pdfjs-js && pnpm copy-pdfjs-wasm && pnpm copy-pdfjs-fonts && pnpm copy-flatten-pdfjs-css",
+    "copy-pdfjs": "pnpm copy-pdfjs-js && pnpm copy-pdfjs-wasm && pnpm copy-pdfjs-runtime && pnpm copy-pdfjs-fonts && pnpm copy-flatten-pdfjs-css",
     "setup-pdfjs": "pnpm prepare-public-vendor && pnpm copy-pdfjs",
     "setup-vendors": "pnpm setup-pdfjs"
   },
