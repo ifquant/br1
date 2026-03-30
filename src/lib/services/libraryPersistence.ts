@@ -105,6 +105,13 @@ export const loadLibraryBookFile = async (filePath: string): Promise<File> => {
   return new File([bytes], binary.name, { type: binary.mimeType });
 };
 
+export const openLibraryBookPath = async (filePath: string): Promise<void> => {
+  if (!isTauriDesktop()) return;
+
+  const { openPath } = await import('@tauri-apps/plugin-opener');
+  await openPath(filePath);
+};
+
 export const loadLibraryCoverDataUrls = async (
   coverPaths: Array<string | null | undefined>
 ): Promise<string[]> => {

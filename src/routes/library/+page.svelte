@@ -9,6 +9,7 @@
     importLibraryBooks,
     importReadestLibrary,
     loadPersistedLibraryBooks,
+    openLibraryBookPath,
     openReaderTarget,
     selectSystemBookPaths,
     toLibraryCoverUrl,
@@ -75,6 +76,7 @@
     readingStatusLabel?: string;
     sourceLabel?: string;
     availabilityLabel?: string;
+    sourcePath?: string;
     coverUrl?: string;
     readerHref?: string;
     restartHref?: string;
@@ -156,6 +158,7 @@
       readingStatusLabel,
       sourceLabel,
       availabilityLabel: '本地可读',
+      sourcePath: record.sourcePath || record.filePath,
       coverUrl: await toLibraryCoverUrl(record),
       readerHref: await toReaderAssetHref(record),
       restartHref: await toReaderStartHref(record),
@@ -213,6 +216,14 @@
     const opened = await openReaderTarget(href);
     if (!opened && typeof window !== 'undefined') {
       window.location.href = href;
+    }
+  };
+
+  const handleOpenSourcePath = async (filePath: string) => {
+    try {
+      await openLibraryBookPath(filePath);
+    } catch (error) {
+      console.error('Failed to open the original book path', error);
     }
   };
 
@@ -333,6 +344,7 @@
             sectionTitle="继续阅读"
             books={continueReadingBooks}
             onOpenLink={handleOpenReaderLink}
+            onOpenSourcePath={handleOpenSourcePath}
           />
         {/if}
 

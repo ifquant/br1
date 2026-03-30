@@ -8,6 +8,7 @@
     readingStatusLabel?: string;
     sourceLabel?: string;
     availabilityLabel?: string;
+    sourcePath?: string;
     coverUrl?: string;
     readerHref?: string;
     restartHref?: string;
@@ -17,6 +18,7 @@
   export let sectionTitle = '继续阅读';
   export let books: Book[] = [];
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
+  export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   let expandedKey = '';
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
@@ -36,6 +38,13 @@
     event.preventDefault();
     event.stopPropagation();
     expandedKey = expandedKey === key ? '' : key;
+  };
+
+  const handleSourceOpen = (event: MouseEvent, filePath: string | undefined) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!filePath || !onOpenSourcePath) return;
+    void onOpenSourcePath(filePath);
   };
 </script>
 
@@ -105,6 +114,15 @@
               >
                 详情
               </button>
+              {#if book.sourcePath}
+                <button
+                  type="button"
+                  class="secondary-pill"
+                  on:click={(event: MouseEvent) => handleSourceOpen(event, book.sourcePath)}
+                >
+                  原文件
+                </button>
+              {/if}
               <span class="resume-pill">继续</span>
             </div>
           </div>
@@ -122,6 +140,8 @@
               <strong>{book.sourceLabel || '未知来源'}</strong>
               <span>可用性</span>
               <strong>{book.availabilityLabel || '未标记'}</strong>
+              <span>原文件</span>
+              <strong>{book.sourcePath || '未记录'}</strong>
               <span>最近阅读</span>
               <strong>{book.lastOpenedLabel || '刚导入'}</strong>
             </div>

@@ -6,6 +6,7 @@ export {
   importLibraryBooks,
   importReadestLibrary,
   loadPersistedLibraryBooks,
+  openLibraryBookPath,
   selectSystemBookPaths,
   toLibraryCoverUrl,
   toReaderAssetHref,
