@@ -3,6 +3,9 @@ export type PersistedLibraryBook = {
   title: string;
   author: string;
   format: string;
+  description?: string | null;
+  language?: string | null;
+  publisher?: string | null;
   progress: string;
   status: string;
   filePath: string;

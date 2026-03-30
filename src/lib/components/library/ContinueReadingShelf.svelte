@@ -2,6 +2,10 @@
   type Book = {
     title: string;
     author: string;
+    format: string;
+    description?: string;
+    language?: string;
+    publisher?: string;
     status: string;
     progress: string;
     progressPercentLabel?: string;
@@ -136,6 +140,12 @@
               <strong>{book.progressPercentLabel || book.progress}</strong>
               <span>状态</span>
               <strong>{book.status}</strong>
+              <span>格式</span>
+              <strong>{book.format}</strong>
+              <span>语言</span>
+              <strong>{book.language || '未知'}</strong>
+              <span>出版者</span>
+              <strong>{book.publisher || '未记录'}</strong>
               <span>来源</span>
               <strong>{book.sourceLabel || '未知来源'}</strong>
               <span>可用性</span>
@@ -145,6 +155,12 @@
               <span>最近阅读</span>
               <strong>{book.lastOpenedLabel || '刚导入'}</strong>
             </div>
+            {#if book.description}
+              <div class="detail-description">
+                <span>简介</span>
+                <p>{book.description}</p>
+              </div>
+            {/if}
           </div>
         {/if}
       </article>
@@ -387,6 +403,28 @@
     min-width: 0;
     font: 600 12px/1.35 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     color: var(--text-primary);
+  }
+
+  .detail-description {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid color-mix(in srgb, var(--line-soft) 88%, white 12%);
+  }
+
+  .detail-description span {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .detail-description p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
   }
 
   @media (max-width: 720px) {

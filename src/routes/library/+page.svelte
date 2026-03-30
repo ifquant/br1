@@ -72,6 +72,10 @@
     author: string;
     status: string;
     progress: string;
+    format: string;
+    description?: string;
+    language?: string;
+    publisher?: string;
     progressPercentLabel?: string;
     readingStatusLabel?: string;
     sourceLabel?: string;
@@ -149,6 +153,10 @@
     return {
       title: record.title,
       author: record.author,
+      format: record.format,
+      description: record.description || '',
+      language: record.language || '',
+      publisher: record.publisher || '',
       status: record.status,
       progress: record.progress,
       progressPercentLabel:

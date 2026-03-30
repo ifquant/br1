@@ -12,6 +12,9 @@ struct LibraryBookRecord {
     title: String,
     author: String,
     format: String,
+    description: Option<String>,
+    language: Option<String>,
+    publisher: Option<String>,
     progress: String,
     status: String,
     file_path: String,
@@ -37,6 +40,7 @@ struct ReadestBookRecord {
     format: String,
     title: String,
     author: String,
+    metadata: Option<String>,
     created_at: Option<u64>,
     downloaded_at: Option<u64>,
     progress: Option<Vec<u64>>,
@@ -46,6 +50,14 @@ struct ReadestBookRecord {
 #[serde(rename_all = "camelCase")]
 struct ReadestBookConfig {
     location: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ReadestBookMetadata {
+    description: Option<String>,
+    publisher: Option<serde_json::Value>,
+    language: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -132,6 +144,9 @@ fn import_library_books(
             } else {
                 extension.to_uppercase()
             },
+            description: None,
+            language: None,
+            publisher: None,
             progress: "等待首轮阅读".to_string(),
             status: "新导入".to_string(),
             file_path: stored_path.to_string_lossy().to_string(),
@@ -195,6 +210,7 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
             .or(readest_record.created_at)
             .unwrap_or(now_millis()?);
         let readest_config = load_readest_config(&readest_books_root, &readest_record.hash)?;
+        let readest_metadata = parse_readest_metadata(readest_record.metadata.as_deref())?;
         let progress = format_readest_progress(readest_record.progress.as_deref());
         let status = if progress == "尚未开始" {
             "从 Readest 导入".to_string()
@@ -211,6 +227,9 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
                 readest_record.author.clone()
             },
             format: readest_record.format.clone(),
+            description: readest_metadata.description,
+            language: readest_metadata.language,
+            publisher: readest_metadata.publisher,
             progress,
             status,
             file_path: stored_book_path.to_string_lossy().to_string(),
@@ -356,6 +375,69 @@ fn load_readest_config(readest_books_root: &Path, hash: &str) -> Result<ReadestB
 
     let json = fs::read_to_string(config_path).map_err(|error| error.to_string())?;
     serde_json::from_str(&json).map_err(|error| error.to_string())
+}
+
+fn parse_readest_metadata(metadata: Option<&str>) -> Result<ReadestBookMetadataSummary, String> {
+    let Some(metadata) = metadata else {
+        return Ok(ReadestBookMetadataSummary::default());
+    };
+    if metadata.trim().is_empty() {
+        return Ok(ReadestBookMetadataSummary::default());
+    }
+
+    let parsed: ReadestBookMetadata =
+        serde_json::from_str(metadata).map_err(|error| error.to_string())?;
+
+    Ok(ReadestBookMetadataSummary {
+        description: parsed
+            .description
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
+        publisher: stringify_metadata_value(parsed.publisher),
+        language: stringify_metadata_value(parsed.language),
+    })
+}
+
+#[derive(Debug, Clone, Default)]
+struct ReadestBookMetadataSummary {
+    description: Option<String>,
+    language: Option<String>,
+    publisher: Option<String>,
+}
+
+fn stringify_metadata_value(value: Option<serde_json::Value>) -> Option<String> {
+    let Some(value) = value else {
+        return None;
+    };
+
+    let rendered = match value {
+        serde_json::Value::String(value) => value,
+        serde_json::Value::Array(values) => values
+            .into_iter()
+            .filter_map(|entry| match entry {
+                serde_json::Value::String(text) => Some(text),
+                serde_json::Value::Object(map) => map
+                    .get("name")
+                    .and_then(|name| name.as_str())
+                    .map(|text| text.to_string()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(", "),
+        serde_json::Value::Object(map) => map
+            .get("name")
+            .and_then(|name| name.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        _ => String::new(),
+    };
+
+    let rendered = rendered.trim().to_string();
+    if rendered.is_empty() {
+        None
+    } else {
+        Some(rendered)
+    }
 }
 
 fn save_library_records(path: &Path, records: &[LibraryBookRecord]) -> Result<(), String> {
