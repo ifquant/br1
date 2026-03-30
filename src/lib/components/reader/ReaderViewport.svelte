@@ -31,6 +31,8 @@
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   let sampleStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
   let openSourceLabel = 'sample book';
+  let openFailureSource = '';
+  let openFailureMessage = '';
   let foliateViewElement: FoliateViewElement | null = null;
   let handledControlNonce = 0;
 
@@ -77,6 +79,8 @@
 
     sampleStatus = 'loading';
     openSourceLabel = sourceLabel;
+    openFailureSource = '';
+    openFailureMessage = '';
 
     try {
       await foliateViewElement.open(source);
@@ -87,6 +91,8 @@
     } catch (error) {
       console.error(`Failed to open reader source: ${sourceLabel}`, error);
       sampleStatus = 'error';
+      openFailureSource = sourceLabel;
+      openFailureMessage = error instanceof Error ? error.message : String(error);
     }
   };
 
@@ -131,6 +137,9 @@
       }
     } catch (error) {
       console.error(`Failed to handle reader control: ${controlRequest.type}`, error);
+      sampleStatus = 'error';
+      openFailureSource = controlRequest.type;
+      openFailureMessage = error instanceof Error ? error.message : String(error);
     }
   };
 
@@ -213,14 +222,24 @@
         <div class="engine-stage window-stage" bind:this={stageElement}>
           {#if sampleStatus !== 'open'}
             <div class="stage-overlay" aria-hidden="true">
-              <button
-                type="button"
-                class="sample-trigger inline"
-                on:click={loadSampleBook}
-                disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
-              >
-                {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
-              </button>
+              <div class="overlay-stack">
+                <button
+                  type="button"
+                  class="sample-trigger inline"
+                  on:click={loadSampleBook}
+                  disabled={adapterStatus !== 'ready' || sampleStatus === 'loading'}
+                >
+                  {sampleStatus === 'loading' ? 'Opening…' : 'Open sample'}
+                </button>
+                {#if sampleStatus === 'error'}
+                  <p class="stage-error" aria-live="polite">
+                    Failed to open {openFailureSource || 'reader source'}.
+                    {#if openFailureMessage}
+                      <span>{openFailureMessage}</span>
+                    {/if}
+                  </p>
+                {/if}
+              </div>
             </div>
           {/if}
         </div>
@@ -394,8 +413,39 @@
     pointer-events: none;
   }
 
-  .stage-overlay .sample-trigger {
+  .overlay-stack {
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+    max-width: min(520px, calc(100vw - 64px));
+    padding: 0 20px;
+  }
+
+  .stage-overlay .sample-trigger,
+  .stage-error {
     pointer-events: auto;
+  }
+
+  .stage-error {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: color-mix(in srgb, #f7eee0 88%, white 12%);
+    border: 1px solid rgba(140, 70, 42, 0.12);
+    color: color-mix(in srgb, #523721 88%, white 12%);
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+    box-shadow: 0 10px 20px rgba(41, 28, 14, 0.06);
+  }
+
+  .stage-error span {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-secondary);
+    text-transform: none;
+    letter-spacing: 0;
   }
 
   .engine-stage :global(foliate-view.foliate-preview) {
