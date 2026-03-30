@@ -184,7 +184,20 @@
       if (notesStorageKey === lastHydratedNotesKey) return;
       try {
         if (canPersistReaderNotes()) {
-          notes = await loadReaderNotes(notesStorageKey);
+          const persistedNotes = await loadReaderNotes(notesStorageKey);
+          if (persistedNotes.length > 0) {
+            notes = persistedNotes;
+          } else if (typeof localStorage !== 'undefined') {
+            const raw = localStorage.getItem(notesStorageKey);
+            const legacyNotes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
+            notes = legacyNotes;
+            if (legacyNotes.length > 0) {
+              await saveReaderNotes(notesStorageKey, legacyNotes);
+              localStorage.removeItem(notesStorageKey);
+            }
+          } else {
+            notes = [];
+          }
         } else if (typeof localStorage !== 'undefined') {
           const raw = localStorage.getItem(notesStorageKey);
           notes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
