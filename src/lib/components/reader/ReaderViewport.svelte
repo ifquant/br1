@@ -12,7 +12,13 @@
     type ReaderControlRequest,
     type FoliateViewElement
   } from '$lib/reader';
-  import type { ReaderPreviewState, ReaderSearchResult, ReaderSearchState, ReaderTocItem } from '$lib/reader';
+  import type {
+    ReaderPreviewState,
+    ReaderSearchConfig,
+    ReaderSearchResult,
+    ReaderSearchState,
+    ReaderTocItem
+  } from '$lib/reader';
   import { loadLibraryBookFile } from '$lib/services/libraryPersistence';
 
   export let title = 'Reading Surface';
@@ -36,6 +42,7 @@
   let foliateViewElement: FoliateViewElement | null = null;
   let handledControlNonce = 0;
   let lastSearchToken = 0;
+  let searchCache = new Map<string, ReaderSearchResult[]>();
 
   const emitReaderState = (partial?: Partial<ReaderPreviewState>) => {
     const book = foliateViewElement?.book;
@@ -91,6 +98,8 @@
     openSourceLabel = sourceLabel;
     openFailureSource = '';
     openFailureMessage = '';
+    searchCache = new Map();
+    emitSearchState({ query: '', status: 'idle', results: [] });
 
     try {
       await foliateViewElement.open(source);
@@ -122,7 +131,17 @@
     });
   };
 
-  const runSearch = async (query: string) => {
+  const getSearchCacheKey = (query: string, config: ReaderSearchConfig) =>
+    JSON.stringify({
+      query,
+      scope: config.scope,
+      matchCase: config.matchCase,
+      matchWholeWords: config.matchWholeWords,
+      matchDiacritics: config.matchDiacritics,
+      section: config.scope === 'section' ? foliateViewElement?.lastLocation?.section?.current ?? null : null
+    });
+
+  const runSearch = async (query: string, config: ReaderSearchConfig) => {
     if (!foliateViewElement) return;
 
     lastSearchToken += 1;
@@ -136,13 +155,27 @@
       return;
     }
 
+    const cacheKey = getSearchCacheKey(normalizedQuery, config);
+    const cached = searchCache.get(cacheKey);
+    if (cached) {
+      emitSearchState({ query: normalizedQuery, status: 'done', results: cached });
+      return;
+    }
+
     emitSearchState({ query: normalizedQuery, status: 'searching', results: [] });
 
     try {
       const results: ReaderSearchResult[] = [];
-      for await (const result of foliateViewElement.search({ query: normalizedQuery })) {
+      for await (const result of foliateViewElement.search({
+        query: normalizedQuery,
+        index: config.scope === 'section' ? foliateViewElement.lastLocation?.section?.current : undefined,
+        matchCase: config.matchCase,
+        matchWholeWords: config.matchWholeWords,
+        matchDiacritics: config.matchDiacritics
+      })) {
         if (token !== lastSearchToken) return;
         if (result === 'done') {
+          searchCache.set(cacheKey, [...results]);
           emitSearchState({ query: normalizedQuery, status: 'done', results });
           return;
         }
@@ -210,7 +243,7 @@
       } else if (controlRequest.type === 'href') {
         await foliateViewElement.goTo(controlRequest.href);
       } else if (controlRequest.type === 'search') {
-        await runSearch(controlRequest.query);
+        await runSearch(controlRequest.query, controlRequest.config);
       } else if (controlRequest.type === 'file') {
         await openBook(controlRequest.file, controlRequest.file.name);
       } else if (controlRequest.type === 'fraction') {
@@ -242,6 +275,7 @@
       try {
         await ensureFoliateViewDefinition();
         if (cancelled || !hostElement || !stageElement) return;
+        searchCache = new Map();
 
         const existingView = stageElement.querySelector(FOLIATE_VIEW_TAG);
         if (existingView instanceof HTMLElement) {

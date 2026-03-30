@@ -12,6 +12,7 @@ export {
 export type { FoliateViewElement } from './foliate';
 export type {
   ReaderControlRequest,
+  ReaderSearchConfig,
   ReaderPreviewState,
   ReaderSearchExcerpt,
   ReaderSearchResult,

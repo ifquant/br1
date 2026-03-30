@@ -36,6 +36,9 @@ export interface FoliateViewElement extends HTMLElement {
   goTo(target: string): Promise<void>;
   search(opts: {
     query: string;
+    matchCase?: boolean;
+    matchWholeWords?: boolean;
+    matchDiacritics?: boolean;
     index?: number;
     results?: Array<
       | {

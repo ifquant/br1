@@ -4,6 +4,7 @@
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import type {
     ReaderControlRequest,
+    ReaderSearchConfig,
     ReaderPreviewState,
     ReaderSearchResult,
     ReaderTocItem
@@ -23,6 +24,14 @@
   let sidebarSearchStatus: 'idle' | 'searching' | 'done' | 'error' = 'idle';
   let sidebarSearchResults: ReaderSearchResult[] = [];
   let sidebarSearchError = '';
+  let sidebarSearchHistory: string[] = [];
+  let sidebarSearchConfig: ReaderSearchConfig = {
+    scope: 'book',
+    matchCase: false,
+    matchWholeWords: false,
+    matchDiacritics: false
+  };
+  let lastSearchHistoryKey = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
@@ -88,10 +97,47 @@
     sidebarVisible = true;
   };
 
+  const getSearchHistoryKey = () => {
+    const bookKey = sourcePath || sourceUrl || sourceLabel || 'default';
+    return `br1.reader.search.history:${bookKey}`;
+  };
+
+  const loadSearchConfig = () => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('br1.reader.search.config');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<ReaderSearchConfig>;
+      sidebarSearchConfig = {
+        scope: parsed.scope === 'section' ? 'section' : 'book',
+        matchCase: !!parsed.matchCase,
+        matchWholeWords: !!parsed.matchWholeWords,
+        matchDiacritics: !!parsed.matchDiacritics
+      };
+    } catch (error) {
+      console.warn('Failed to restore reader search config', error);
+    }
+  };
+
+  const loadSearchHistory = () => {
+    if (typeof localStorage === 'undefined') return;
+    const key = getSearchHistoryKey();
+    if (key === lastSearchHistoryKey) return;
+    try {
+      const raw = localStorage.getItem(key);
+      sidebarSearchHistory = raw ? (JSON.parse(raw) as string[]) : [];
+      lastSearchHistoryKey = key;
+    } catch (error) {
+      console.warn('Failed to restore reader search history', error);
+      sidebarSearchHistory = [];
+      lastSearchHistoryKey = key;
+    }
+  };
+
   const issueSearchControl = (query: string) => {
     sidebarSearchTerm = query;
     controlNonce += 1;
-    controlRequest = { type: 'search', nonce: controlNonce, query };
+    controlRequest = { type: 'search', nonce: controlNonce, query, config: sidebarSearchConfig };
   };
 
   const issueSearchResultControl = (cfi: string) => {
@@ -131,6 +177,8 @@
 
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
+    loadSearchConfig();
+    loadSearchHistory();
     try {
       const raw = localStorage.getItem('br1.reader.sidebar');
       if (!raw) return;
@@ -147,6 +195,16 @@
   $: if (isWindowMode) {
     persistSidebarPrefs();
   }
+
+  $: if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('br1.reader.search.config', JSON.stringify(sidebarSearchConfig));
+  }
+
+  $: if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(getSearchHistoryKey(), JSON.stringify(sidebarSearchHistory.slice(0, 10)));
+  }
+
+  $: loadSearchHistory();
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
@@ -206,6 +264,8 @@
         searchStatus={sidebarSearchStatus}
         searchResults={sidebarSearchResults}
         searchError={sidebarSearchError}
+        searchHistory={sidebarSearchHistory}
+        searchConfig={sidebarSearchConfig}
         onNavigate={issueHrefControl}
         onClose={isWindowMode ? toggleSidebar : null}
         onToggleSidebar={toggleSidebar}
@@ -213,6 +273,14 @@
         onTabChange={openSidebarTab}
         onSearch={issueSearchControl}
         onSearchResult={issueSearchResultControl}
+        onSearchConfigChange={(config) => {
+          sidebarSearchConfig = config;
+          if (sidebarSearchTerm.trim()) issueSearchControl(sidebarSearchTerm);
+        }}
+        onSearchHistory={(query) => issueSearchControl(query)}
+        onClearSearchHistory={() => {
+          sidebarSearchHistory = [];
+        }}
       />
     {/if}
     {#if isWindowMode && sidebarVisible && sidebarPinned}
@@ -245,6 +313,12 @@
         sidebarSearchStatus = detail.status;
         sidebarSearchResults = detail.results;
         sidebarSearchError = detail.error ?? '';
+        if (detail.status === 'done' && detail.query.trim() && detail.results.length > 0) {
+          sidebarSearchHistory = [
+            detail.query,
+            ...sidebarSearchHistory.filter((item) => item !== detail.query)
+          ].slice(0, 10);
+        }
       }}
       on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
         toc = detail;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
-  import type { ReaderTocItem } from '$lib/reader';
+  import type { ReaderSearchConfig, ReaderTocItem } from '$lib/reader';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
@@ -16,6 +16,13 @@
     excerpt: { pre: string; match: string; post: string };
   }> = [];
   export let searchError = '';
+  export let searchHistory: string[] = [];
+  export let searchConfig: ReaderSearchConfig = {
+    scope: 'book',
+    matchCase: false,
+    matchWholeWords: false,
+    matchDiacritics: false
+  };
   export let onNavigate: ((href: string) => void) | null = null;
   export let onClose: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
@@ -23,6 +30,9 @@
   export let onTabChange: ((tab: SidebarTab) => void) | null = null;
   export let onSearch: ((query: string) => void) | null = null;
   export let onSearchResult: ((cfi: string) => void) | null = null;
+  export let onSearchConfigChange: ((config: ReaderSearchConfig) => void) | null = null;
+  export let onSearchHistory: ((query: string) => void) | null = null;
+  export let onClearSearchHistory: (() => void) | null = null;
 
   type SidebarTab = 'toc' | 'search' | 'notes';
   let lastScrolledHref = '';
@@ -55,6 +65,13 @@
 
   const setActiveTab = (tab: SidebarTab) => {
     onTabChange?.(tab);
+  };
+
+  const updateSearchConfig = <K extends keyof ReaderSearchConfig>(key: K, value: ReaderSearchConfig[K]) => {
+    onSearchConfigChange?.({
+      ...searchConfig,
+      [key]: value
+    });
   };
 </script>
 
@@ -181,6 +198,67 @@
             on:input={(event) => onSearch?.((event.currentTarget as HTMLInputElement).value)}
           />
         </label>
+
+        <div class="search-options" aria-label="search options">
+          <button
+            type="button"
+            class:active={searchConfig.scope === 'book'}
+            class="option-chip"
+            on:click={() => updateSearchConfig('scope', 'book')}
+          >
+            全书
+          </button>
+          <button
+            type="button"
+            class:active={searchConfig.scope === 'section'}
+            class="option-chip"
+            on:click={() => updateSearchConfig('scope', 'section')}
+          >
+            本章
+          </button>
+          <button
+            type="button"
+            class:active={searchConfig.matchCase}
+            class="option-chip"
+            on:click={() => updateSearchConfig('matchCase', !searchConfig.matchCase)}
+          >
+            区分大小写
+          </button>
+          <button
+            type="button"
+            class:active={searchConfig.matchWholeWords}
+            class="option-chip"
+            on:click={() => updateSearchConfig('matchWholeWords', !searchConfig.matchWholeWords)}
+          >
+            整词
+          </button>
+          <button
+            type="button"
+            class:active={searchConfig.matchDiacritics}
+            class="option-chip"
+            on:click={() => updateSearchConfig('matchDiacritics', !searchConfig.matchDiacritics)}
+          >
+            保留重音
+          </button>
+        </div>
+
+        {#if searchHistory.length > 0 && !searchTerm.trim()}
+          <div class="search-history">
+            <div class="search-history-head">
+              <strong>最近搜索</strong>
+              <button type="button" class="history-clear" on:click={() => onClearSearchHistory?.()}>
+                清空
+              </button>
+            </div>
+            <div class="history-list">
+              {#each searchHistory as item}
+                <button type="button" class="history-chip" on:click={() => onSearchHistory?.(item)}>
+                  {item}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
 
         <div class="search-summary">
           {#if searchStatus === 'searching'}
@@ -483,6 +561,65 @@
     color: var(--text-primary);
     font: inherit;
     font-size: 13px;
+  }
+
+  .search-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .option-chip,
+  .history-chip,
+  .history-clear {
+    border: 0;
+    font: inherit;
+  }
+
+  .option-chip,
+  .history-chip {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .option-chip.active {
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
+    color: var(--text-primary);
+  }
+
+  .search-history {
+    display: grid;
+    gap: 8px;
+  }
+
+  .search-history-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .search-history-head strong {
+    font-size: 12px;
+    line-height: 1.3;
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+  }
+
+  .history-clear {
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  .history-list {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .search-summary,

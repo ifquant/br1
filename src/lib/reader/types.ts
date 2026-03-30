@@ -42,6 +42,13 @@ export type ReaderSearchState = {
   error?: string;
 };
 
+export type ReaderSearchConfig = {
+  scope: 'book' | 'section';
+  matchCase: boolean;
+  matchWholeWords: boolean;
+  matchDiacritics: boolean;
+};
+
 export type ReaderControlRequest =
   | {
       type: 'asset';
@@ -75,6 +82,7 @@ export type ReaderControlRequest =
       type: 'search';
       nonce: number;
       query: string;
+      config: ReaderSearchConfig;
     }
   | {
       type: 'file';
