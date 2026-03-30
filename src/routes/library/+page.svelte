@@ -13,6 +13,8 @@
     selectSystemBookPaths,
     toLibraryCoverUrl,
     toReaderAssetHref
+    ,
+    toReaderStartHref
   } from '$lib/services';
 
   const assetHref = (url: string, label: string) =>
@@ -69,8 +71,10 @@
     author: string;
     status: string;
     progress: string;
+    progressPercentLabel?: string;
     coverUrl?: string;
     readerHref?: string;
+    restartHref?: string;
     lastOpenedAt?: number | null;
     lastOpenedLabel?: string;
   };
@@ -121,8 +125,13 @@
     author: record.author,
     status: record.status,
     progress: record.progress,
+    progressPercentLabel:
+      typeof record.progressFraction === 'number'
+        ? `${Math.max(0, Math.min(100, Math.round(record.progressFraction * 100)))}%`
+        : '',
     coverUrl: await toLibraryCoverUrl(record),
     readerHref: await toReaderAssetHref(record),
+    restartHref: await toReaderStartHref(record),
     lastOpenedAt: record.lastOpenedAt,
     lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt)
   });

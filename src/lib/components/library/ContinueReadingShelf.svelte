@@ -4,8 +4,10 @@
     author: string;
     status: string;
     progress: string;
+    progressPercentLabel?: string;
     coverUrl?: string;
     readerHref?: string;
+    restartHref?: string;
     lastOpenedLabel?: string;
   };
 
@@ -16,6 +18,13 @@
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
     if (!href || !onOpenLink) return;
     event.preventDefault();
+    void onOpenLink(href);
+  };
+
+  const handleActionClick = (event: MouseEvent, href: string | undefined) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!href || !onOpenLink) return;
     void onOpenLink(href);
   };
 </script>
@@ -55,7 +64,21 @@
           </div>
           <div class="trailing">
             <small>{book.progress}</small>
-            <span class="resume-pill">继续</span>
+            {#if book.progressPercentLabel}
+              <span class="progress-pill">{book.progressPercentLabel}</span>
+            {/if}
+            <div class="actions">
+              {#if book.restartHref}
+                <button
+                  type="button"
+                  class="secondary-pill"
+                  on:click={(event: MouseEvent) => handleActionClick(event, book.restartHref)}
+                >
+                  从头开始
+                </button>
+              {/if}
+              <span class="resume-pill">继续</span>
+            </div>
           </div>
         </svelte:element>
       </article>
@@ -190,7 +213,7 @@
     display: grid;
     justify-items: end;
     gap: 6px;
-    min-width: 112px;
+    min-width: 160px;
   }
 
   .trailing small {
@@ -198,14 +221,42 @@
     color: var(--text-secondary);
   }
 
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .progress-pill,
+  .secondary-pill,
   .resume-pill {
     border-radius: 999px;
+    font: 600 11px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+  }
+
+  .progress-pill {
+    padding: 4px 8px;
+    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
+    box-shadow: inset 0 0 0 1px rgba(76, 57, 34, 0.08);
+    color: var(--text-secondary);
+  }
+
+  .secondary-pill {
+    border: 0;
+    padding: 5px 9px;
+    background: transparent;
+    box-shadow: inset 0 0 0 1px rgba(76, 57, 34, 0.12);
+    color: var(--text-secondary);
+  }
+
+  .resume-pill {
     padding: 5px 9px;
     background: color-mix(in srgb, var(--surface-reader) 82%, white 18%);
     box-shadow:
       inset 0 0 0 1px rgba(76, 57, 34, 0.08),
       0 6px 12px rgba(42, 30, 15, 0.04);
-    font: 600 11px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     color: var(--text-primary);
   }
 
@@ -218,6 +269,10 @@
       grid-column: 2;
       justify-items: start;
       min-width: 0;
+    }
+
+    .actions {
+      justify-content: flex-start;
     }
   }
 </style>

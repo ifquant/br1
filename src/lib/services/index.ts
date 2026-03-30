@@ -9,5 +9,6 @@ export {
   selectSystemBookPaths,
   toLibraryCoverUrl,
   toReaderAssetHref,
+  toReaderStartHref,
   updateLibraryReadingState
 } from './libraryPersistence';

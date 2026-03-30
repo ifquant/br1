@@ -137,6 +137,18 @@ export const toReaderAssetHref = async (book: PersistedLibraryBook) => {
   return `/reader?${params.toString()}`;
 };
 
+export const toReaderStartHref = async (book: PersistedLibraryBook) => {
+  if (!isTauriDesktop()) return '';
+
+  const params = new URLSearchParams({
+    source: 'library-file',
+    path: book.filePath,
+    label: book.title
+  });
+
+  return `/reader?${params.toString()}`;
+};
+
 export const toLibraryCoverUrl = async (book: PersistedLibraryBook) => {
   if (!isTauriDesktop() || !book.coverPath) return '';
 
