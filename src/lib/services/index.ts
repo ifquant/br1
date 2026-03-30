@@ -1,5 +1,10 @@
 export { openReaderTarget } from './readerWindow';
-export { loadReaderSearchCache, saveReaderSearchCache } from './readerSearchCache';
+export {
+  clearReaderSearchCache,
+  loadLibraryFileFingerprint,
+  loadReaderSearchCache,
+  saveReaderSearchCache
+} from './readerSearchCache';
 export { startCurrentWindowDrag } from './windowDrag';
 export {
   canPersistLibrary,

@@ -23,6 +23,7 @@
     matchWholeWords: false,
     matchDiacritics: false
   };
+  export let searchCacheKey = '';
   export let onNavigate: ((href: string) => void) | null = null;
   export let onClose: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
@@ -33,6 +34,7 @@
   export let onSearchConfigChange: ((config: ReaderSearchConfig) => void) | null = null;
   export let onSearchHistory: ((query: string) => void) | null = null;
   export let onClearSearchHistory: (() => void) | null = null;
+  export let onClearSearchCache: (() => void) | null = null;
 
   type SidebarTab = 'toc' | 'search' | 'notes';
   let lastScrolledHref = '';
@@ -246,9 +248,16 @@
           <div class="search-history">
             <div class="search-history-head">
               <strong>最近搜索</strong>
-              <button type="button" class="history-clear" on:click={() => onClearSearchHistory?.()}>
-                清空
-              </button>
+              <div class="history-actions">
+                <button type="button" class="history-clear" on:click={() => onClearSearchHistory?.()}>
+                  清空历史
+                </button>
+                {#if searchCacheKey}
+                  <button type="button" class="history-clear" on:click={() => onClearSearchCache?.()}>
+                    清空缓存
+                  </button>
+                {/if}
+              </div>
             </div>
             <div class="history-list">
               {#each searchHistory as item}
@@ -608,6 +617,12 @@
     font-size: 12px;
     line-height: 1.3;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+  }
+
+  .history-actions {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
   }
 
   .history-clear {

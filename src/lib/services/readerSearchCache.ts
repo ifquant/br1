@@ -22,6 +22,24 @@ export const loadReaderSearchCache = async (
   });
 };
 
+export const clearReaderSearchCache = async (bookKey: string): Promise<void> => {
+  if (!isTauriDesktop()) return;
+
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('clear_reader_search_cache', {
+    bookKey
+  });
+};
+
+export const loadLibraryFileFingerprint = async (filePath: string): Promise<string> => {
+  if (!isTauriDesktop()) return filePath;
+
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<string>('load_library_file_fingerprint', {
+    filePath
+  });
+};
+
 export const saveReaderSearchCache = async (
   bookKey: string,
   cacheKey: string,

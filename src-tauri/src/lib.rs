@@ -344,6 +344,24 @@ fn load_library_book_binary(file_path: String) -> Result<LibraryBookBinary, Stri
 }
 
 #[tauri::command]
+fn load_library_file_fingerprint(file_path: String) -> Result<String, String> {
+    let path = PathBuf::from(&file_path);
+    let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
+    let modified = metadata
+        .modified()
+        .map_err(|error| error.to_string())?
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_millis();
+    Ok(format!(
+        "{}:{}:{}",
+        path.to_string_lossy(),
+        metadata.len(),
+        modified
+    ))
+}
+
+#[tauri::command]
 fn load_reader_search_cache(
     app: tauri::AppHandle,
     book_key: String,
@@ -373,6 +391,16 @@ fn save_reader_search_cache(
     }
     let raw = serde_json::to_string(&results).map_err(|error| error.to_string())?;
     fs::write(cache_path, raw).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn clear_reader_search_cache(app: tauri::AppHandle, book_key: String) -> Result<(), String> {
+    let root = reader_search_cache_root(&app)?;
+    let book_dir = root.join(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key));
+    if book_dir.exists() {
+        fs::remove_dir_all(book_dir).map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -627,8 +655,10 @@ pub fn run() {
             greet,
             load_library_books,
             load_library_book_binary,
+            load_library_file_fingerprint,
             load_library_cover_data_urls,
             load_reader_search_cache,
+            clear_reader_search_cache,
             detect_readest_library,
             import_library_books,
             import_readest_library,

@@ -10,6 +10,7 @@
     ReaderTocItem
   } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
+  import { clearReaderSearchCache } from '$lib/services';
 
   let toc: ReaderTocItem[] = [];
   let activeHref = '';
@@ -31,6 +32,7 @@
     matchWholeWords: false,
     matchDiacritics: false
   };
+  let sidebarSearchCacheKey = '';
   let lastSearchHistoryKey = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -266,6 +268,7 @@
         searchError={sidebarSearchError}
         searchHistory={sidebarSearchHistory}
         searchConfig={sidebarSearchConfig}
+        searchCacheKey={sidebarSearchCacheKey}
         onNavigate={issueHrefControl}
         onClose={isWindowMode ? toggleSidebar : null}
         onToggleSidebar={toggleSidebar}
@@ -280,6 +283,10 @@
         onSearchHistory={(query) => issueSearchControl(query)}
         onClearSearchHistory={() => {
           sidebarSearchHistory = [];
+        }}
+        onClearSearchCache={async () => {
+          if (!sidebarSearchCacheKey) return;
+          await clearReaderSearchCache(sidebarSearchCacheKey);
         }}
       />
     {/if}
@@ -319,6 +326,9 @@
             ...sidebarSearchHistory.filter((item) => item !== detail.query)
           ].slice(0, 10);
         }
+      }}
+      on:searchcachekeychange={({ detail }) => {
+        sidebarSearchCacheKey = detail;
       }}
       on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
         toc = detail;

@@ -19,7 +19,13 @@
     ReaderSearchState,
     ReaderTocItem
   } from '$lib/reader';
-  import { loadLibraryBookFile, loadReaderSearchCache, saveReaderSearchCache } from '$lib/services';
+  import {
+    clearReaderSearchCache,
+    loadLibraryBookFile,
+    loadLibraryFileFingerprint,
+    loadReaderSearchCache,
+    saveReaderSearchCache
+  } from '$lib/services';
 
   export let title = 'Reading Surface';
   export let controlRequest: ReaderControlRequest | null = null;
@@ -30,6 +36,7 @@
     readerstate: ReaderPreviewState;
     tocchange: ReaderTocItem[];
     searchchange: ReaderSearchState;
+    searchcachekeychange: string;
   }>();
 
   let hostElement: HTMLDivElement | null = null;
@@ -90,6 +97,7 @@
   const openBook = async (
     source: string | File,
     sourceLabel: string,
+    cacheBookKey: string,
     restoreFraction?: number,
     restoreLocation?: string
   ) => {
@@ -100,7 +108,8 @@
     openFailureSource = '';
     openFailureMessage = '';
     searchCache = new Map();
-    searchCacheBookKey = typeof source === 'string' ? source : sourceLabel;
+    searchCacheBookKey = cacheBookKey;
+    dispatch('searchcachekeychange', cacheBookKey);
     emitSearchState({ query: '', status: 'idle', results: [] });
 
     try {
@@ -239,12 +248,14 @@
 
     try {
       if (controlRequest.type === 'asset') {
-        await openBook(controlRequest.url, controlRequest.label);
+        await openBook(controlRequest.url, controlRequest.label, controlRequest.url);
       } else if (controlRequest.type === 'library-file') {
+        const fingerprint = await loadLibraryFileFingerprint(controlRequest.path);
         const file = await loadLibraryBookFile(controlRequest.path);
         await openBook(
           file,
           controlRequest.label || file.name,
+          fingerprint,
           controlRequest.restoreFraction,
           controlRequest.restoreLocation
         );
@@ -259,7 +270,11 @@
       } else if (controlRequest.type === 'search') {
         await runSearch(controlRequest.query, controlRequest.config);
       } else if (controlRequest.type === 'file') {
-        await openBook(controlRequest.file, controlRequest.file.name);
+        await openBook(
+          controlRequest.file,
+          controlRequest.file.name,
+          `${controlRequest.file.name}:${controlRequest.file.size}:${controlRequest.file.lastModified}`
+        );
       } else if (controlRequest.type === 'fraction') {
         await foliateViewElement.goToFraction(controlRequest.fraction);
       }

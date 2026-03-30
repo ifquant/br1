@@ -13,6 +13,7 @@
     controlrequest: ReaderControlRequest;
     readerstate: ReaderPreviewState;
     searchchange: ReaderSearchState;
+    searchcachekeychange: string;
     tocchange: ReaderTocItem[];
     togglesidebar: void;
     switchsidebartab: 'toc' | 'search' | 'notes';
@@ -177,6 +178,9 @@
       }}
       on:searchchange={({ detail }) => {
         dispatch('searchchange', detail);
+      }}
+      on:searchcachekeychange={({ detail }) => {
+        dispatch('searchcachekeychange', detail);
       }}
     />
   </article>
