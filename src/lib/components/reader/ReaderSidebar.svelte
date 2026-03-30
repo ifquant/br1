@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
-  import type { ReaderSearchConfig, ReaderTocItem } from '$lib/reader';
+  import type { ReaderNote, ReaderSearchConfig, ReaderSelectionState, ReaderTocItem } from '$lib/reader';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
@@ -28,6 +28,8 @@
   export let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
   export let activeSearchResultCfi = '';
   export let recentSearchResultCfi = '';
+  export let notesSelection: ReaderSelectionState | null = null;
+  export let notes: ReaderNote[] = [];
   export let onNavigate: ((href: string) => void) | null = null;
   export let onClose: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
@@ -39,6 +41,8 @@
   export let onSearchHistory: ((query: string) => void) | null = null;
   export let onClearSearchHistory: (() => void) | null = null;
   export let onClearSearchCache: (() => void) | null = null;
+  export let onAddNote: (() => void) | null = null;
+  export let onOpenNote: ((cfi: string) => void) | null = null;
 
   type SidebarTab = 'toc' | 'search' | 'notes';
   let lastScrolledHref = '';
@@ -55,11 +59,13 @@
 
   $: void scrollActiveIntoView();
 
-  $: notePreview = toc.slice(0, 3).map((item, index) => ({
-    key: `${item.href}-${index}`,
-    title: item.label,
-    excerpt: `在 ${item.label} 里留下高亮、批注和 bridge 沉淀后，会先出现在这里。`
-  }));
+  const formatTimestamp = (value: number) =>
+    new Date(value).toLocaleString('zh-CN', {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
   const handleSidebarToggle = () => {
     onToggleSidebar?.();
@@ -329,19 +335,42 @@
       <section class="sidebar-panel" aria-label="notes panel preview">
         <div class="notes-summary">
           <strong>最近笔记</strong>
-          <span>这里先保留成最小的 notes surface，后续会接 Readest 风格的 annotations / notebook。</span>
+          <span>
+            {#if notesSelection}
+              已选中一段正文，可以直接记一条笔记。
+            {:else}
+              先在正文里选中一段文本，再把它存成当前书的笔记。
+            {/if}
+          </span>
+        </div>
+
+        <div class="notes-actions">
+          <button
+            type="button"
+            class="primary-note-action"
+            disabled={!notesSelection}
+            on:click={() => onAddNote?.()}
+          >
+            {notesSelection ? '为当前选中内容记笔记' : '先选中文本'}
+          </button>
         </div>
 
         <div class="note-list">
-          {#if notePreview.length}
-            {#each notePreview as note}
+          {#if notes.length}
+            {#each notes as note}
               <article class="note-card">
-                <strong>{note.title}</strong>
-                <p>{note.excerpt}</p>
+                <button type="button" class="note-link" on:click={() => onOpenNote?.(note.cfi)}>
+                  <strong>{note.chapterLabel || '未命名章节'}</strong>
+                  <time>{formatTimestamp(note.createdAt)}</time>
+                </button>
+                <p class="note-text">{note.text}</p>
+                {#if note.note}
+                  <p class="note-body">{note.note}</p>
+                {/if}
               </article>
             {/each}
           {:else}
-            <p class="empty">打开书并留下高亮后，这里会出现最近的笔记卡片。</p>
+            <p class="empty">打开书并选中一段正文后，这里会出现最近的笔记卡片。</p>
           {/if}
         </div>
       </section>
@@ -682,6 +711,32 @@
     gap: 8px;
   }
 
+  .notes-actions {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .primary-note-action {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+  }
+
+  .primary-note-action:disabled {
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .primary-note-action:not(:disabled):hover {
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+  }
+
   .search-notice {
     padding: 8px 10px;
     border-radius: 10px;
@@ -747,6 +802,34 @@
     box-shadow:
       inset 0 0 0 1px rgba(177, 137, 82, 0.22),
       0 0 0 1px rgba(177, 137, 82, 0.08);
+  }
+
+  .note-link {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: baseline;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+  }
+
+  .note-link time {
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .note-text {
+    color: var(--text-primary);
+  }
+
+  .note-body {
+    padding-top: 6px;
+    border-top: 1px solid rgba(64, 47, 24, 0.06);
   }
 
   .sr-only {

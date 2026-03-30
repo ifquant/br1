@@ -4,9 +4,11 @@
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import type {
     ReaderControlRequest,
+    ReaderNote,
     ReaderSearchConfig,
     ReaderPreviewState,
     ReaderSearchResult,
+    ReaderSelectionState,
     ReaderTocItem
   } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
@@ -38,6 +40,9 @@
   let currentSearchLocation = '';
   let recentSearchResultCfi = '';
   let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
+  let notesSelection: ReaderSelectionState | null = null;
+  let notes: ReaderNote[] = [];
+  let lastNotesStorageKey = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
   let searchNoticeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -51,6 +56,7 @@
   $: autoOpenPicker = source === 'picker';
   $: autoOpenAsset = source === 'asset' && !!sourceUrl;
   $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
+  $: notesStorageKey = `br1.reader.notes:${sourcePath || sourceUrl || sourceLabel || 'default'}`;
 
   $: autoOpenKey = autoOpenLibraryFile
     ? `${source}:${sourcePath}:${sourceLabel}:${sourceLocation}:${Number.isFinite(sourceFraction) ? sourceFraction : ''}`
@@ -170,6 +176,52 @@
     );
   };
 
+  const loadNotes = () => {
+    if (typeof localStorage === 'undefined') return;
+    if (notesStorageKey === lastNotesStorageKey) return;
+    try {
+      const raw = localStorage.getItem(notesStorageKey);
+      notes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
+      lastNotesStorageKey = notesStorageKey;
+    } catch (error) {
+      console.warn('Failed to restore reader notes', error);
+      notes = [];
+      lastNotesStorageKey = notesStorageKey;
+    }
+  };
+
+  const persistNotes = () => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(notesStorageKey, JSON.stringify(notes));
+  };
+
+  const addNoteFromSelection = () => {
+    if (!notesSelection) return;
+    const draft = window.prompt('为当前选中的文本添加笔记：', '') ?? '';
+    const selectedText = notesSelection.text.trim();
+    if (!selectedText) return;
+
+    const note: ReaderNote = {
+      id: `${notesSelection.cfi}:${Date.now()}`,
+      cfi: notesSelection.cfi,
+      text: selectedText,
+      note: draft.trim(),
+      chapterLabel: notesSelection.chapterLabel,
+      chapterHref: notesSelection.chapterHref,
+      createdAt: Date.now()
+    };
+
+    notes = [note, ...notes.filter((item) => item.cfi !== note.cfi)];
+    persistNotes();
+    sidebarTab = 'notes';
+    sidebarVisible = true;
+  };
+
+  const openNote = (cfi: string) => {
+    recentSearchResultCfi = '';
+    issueHrefControl(cfi);
+  };
+
   const handleSidebarResizeStart = (event: MouseEvent) => {
     if (!isWindowMode || !sidebarPinned) return;
     event.preventDefault();
@@ -207,6 +259,7 @@
     } catch (error) {
       console.warn('Failed to restore reader sidebar prefs', error);
     }
+    loadNotes();
   });
 
   $: if (isWindowMode) {
@@ -222,6 +275,7 @@
   }
 
   $: loadSearchHistory();
+  $: loadNotes();
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
@@ -289,11 +343,15 @@
         searchNotice={searchNotice}
         activeSearchResultCfi={currentSearchLocation}
         recentSearchResultCfi={recentSearchResultCfi}
+        {notesSelection}
+        {notes}
         onNavigate={issueHrefControl}
         onClose={isWindowMode ? toggleSidebar : null}
         onToggleSidebar={toggleSidebar}
         onTogglePin={isWindowMode ? toggleSidebarPin : null}
         onTabChange={openSidebarTab}
+        onAddNote={addNoteFromSelection}
+        onOpenNote={openNote}
         onSearch={issueSearchControl}
         onSearchResult={issueSearchResultControl}
         onSearchConfigChange={(config) => {
@@ -337,6 +395,9 @@
         activeHref = detail.chapterHref;
         currentSearchLocation = detail.progressLocation;
         queueLibraryReadingStatePersist(detail);
+      }}
+      on:selectionchange={({ detail }: CustomEvent<ReaderSelectionState | null>) => {
+        notesSelection = detail;
       }}
       on:searchchange={({ detail }) => {
         sidebarSearchTerm = detail.query;

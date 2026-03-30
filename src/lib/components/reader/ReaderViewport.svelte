@@ -15,6 +15,7 @@
   import type {
     ReaderPreviewState,
     ReaderSearchConfig,
+    ReaderSelectionState,
     ReaderSearchResult,
     ReaderSearchState,
     ReaderTocItem
@@ -33,6 +34,7 @@
   export let isWindowMode = false;
 
   const dispatch = createEventDispatcher<{
+    selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
     tocchange: ReaderTocItem[];
     searchchange: ReaderSearchState;
@@ -51,6 +53,32 @@
   let handledControlNonce = 0;
   let lastSearchToken = 0;
   let searchCache = new Map<string, ReaderSearchResult[]>();
+  let boundSelectionDocs = new WeakSet<Document>();
+
+  const emitSelectionState = (detail: ReaderSelectionState | null) => {
+    dispatch('selectionchange', detail);
+  };
+
+  const getSelectionState = (doc: Document, index: number): ReaderSelectionState | null => {
+    if (!foliateViewElement) return null;
+    const selection = doc.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+    const text = selection.toString().trim();
+    if (!text) return null;
+    const range = selection.getRangeAt(0).cloneRange();
+    const cfi = foliateViewElement.getCFI(index, range);
+    const chapterLabel = foliateViewElement.lastLocation?.tocItem?.label || '当前章节';
+    const chapterHref = foliateViewElement.lastLocation?.tocItem?.href || '';
+    return { cfi, text, chapterLabel, chapterHref };
+  };
+
+  const bindSelectionTracking = (doc: Document, index: number) => {
+    if (boundSelectionDocs.has(doc)) return;
+    boundSelectionDocs.add(doc);
+    doc.addEventListener('selectionchange', () => {
+      emitSelectionState(getSelectionState(doc, index));
+    });
+  };
 
   const emitReaderState = (partial?: Partial<ReaderPreviewState>) => {
     const book = foliateViewElement?.book;
@@ -111,6 +139,7 @@
     searchCacheBookKey = cacheBookKey;
     dispatch('searchcachekeychange', cacheBookKey);
     emitSearchState({ query: '', status: 'idle', results: [] });
+    emitSelectionState(null);
 
     try {
       await foliateViewElement.open(source);
@@ -340,6 +369,11 @@
           view.className = 'foliate-preview';
           view.addEventListener('load', () => emitReaderState());
           view.addEventListener('relocate', () => emitReaderState());
+          view.addEventListener('load', (event: Event) => {
+            const detail = (event as CustomEvent<{ doc: Document; index: number }>).detail;
+            if (detail?.doc) bindSelectionTracking(detail.doc, detail.index);
+          });
+          view.addEventListener('relocate', () => emitSelectionState(null));
           stageElement.append(view);
           foliateViewElement = view;
         }

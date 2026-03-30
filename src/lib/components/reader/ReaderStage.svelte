@@ -4,6 +4,7 @@
     ReaderControlRequest,
     ReaderPreviewState,
     ReaderSearchState,
+    ReaderSelectionState,
     ReaderTocItem
   } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
@@ -11,6 +12,7 @@
   import ReaderViewport from './ReaderViewport.svelte';
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
+    selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
     searchchange: ReaderSearchState;
     searchcachekeychange: string;
@@ -172,6 +174,9 @@
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         dispatch('readerstate', detail);
+      }}
+      on:selectionchange={({ detail }) => {
+        dispatch('selectionchange', detail);
       }}
       on:tocchange={({ detail }) => {
         dispatch('tocchange', detail);

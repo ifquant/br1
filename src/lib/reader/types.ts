@@ -50,6 +50,23 @@ export type ReaderSearchConfig = {
   matchDiacritics: boolean;
 };
 
+export type ReaderSelectionState = {
+  cfi: string;
+  text: string;
+  chapterLabel: string;
+  chapterHref: string;
+};
+
+export type ReaderNote = {
+  id: string;
+  cfi: string;
+  text: string;
+  note: string;
+  chapterLabel: string;
+  chapterHref: string;
+  createdAt: number;
+};
+
 export type ReaderControlRequest =
   | {
       type: 'asset';
