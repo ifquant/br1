@@ -66,6 +66,15 @@ importers:
       '@wdio/types':
         specifier: ^9.27.0
         version: 9.27.0
+      pdfjs-dist:
+        specifier: ^5.6.205
+        version: 5.6.205
+      postcss:
+        specifier: ^8.5.8
+        version: 8.5.8
+      postcss-nested:
+        specifier: ^7.0.2
+        version: 7.0.2(postcss@8.5.8)
       svelte:
         specifier: ^5.0.0
         version: 5.55.0
@@ -578,6 +587,81 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@napi-rs/canvas-android-arm64@0.1.97':
+    resolution: {integrity: sha512-V1c/WVw+NzH8vk7ZK/O8/nyBSCQimU8sfMsB/9qeSvdkGKNU7+mxy/bIF0gTgeBFmHpj30S4E9WHMSrxXGQuVQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [android]
+
+  '@napi-rs/canvas-darwin-arm64@0.1.97':
+    resolution: {integrity: sha512-ok+SCEF4YejcxuJ9Rm+WWunHHpf2HmiPxfz6z1a/NFQECGXtsY7A4B8XocK1LmT1D7P174MzwPF9Wy3AUAwEPw==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@napi-rs/canvas-darwin-x64@0.1.97':
+    resolution: {integrity: sha512-PUP6e6/UGlclUvAQNnuXCcnkpdUou6VYZfQOQxExLp86epOylmiwLkqXIvpFmjoTEDmPmXrI+coL/9EFU1gKPA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@napi-rs/canvas-linux-arm-gnueabihf@0.1.97':
+    resolution: {integrity: sha512-XyXH2L/cic8eTNtbrXCcvqHtMX/nEOxN18+7rMrAM2XtLYC/EB5s0wnO1FsLMWmK+04ZSLN9FBGipo7kpIkcOw==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-arm64-gnu@0.1.97':
+    resolution: {integrity: sha512-Kuq/M3djq0K8ktgz6nPlK7Ne5d4uWeDxPpyKWOjWDK2RIOhHVtLtyLiJw2fuldw7Vn4mhw05EZXCEr4Q76rs9w==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@napi-rs/canvas-linux-arm64-musl@0.1.97':
+    resolution: {integrity: sha512-kKmSkQVnWeqg7qdsiXvYxKhAFuHz3tkBjW/zyQv5YKUPhotpaVhpBGv5LqCngzyuRV85SXoe+OFj+Tv0a0QXkQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@napi-rs/canvas-linux-riscv64-gnu@0.1.97':
+    resolution: {integrity: sha512-Jc7I3A51jnEOIAXeLsN/M/+Z28LUeakcsXs07FLq9prXc0eYOtVwsDEv913Gr+06IRo34gJJVgT0TXvmz+N2VA==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@napi-rs/canvas-linux-x64-gnu@0.1.97':
+    resolution: {integrity: sha512-iDUBe7AilfuBSRbSa8/IGX38Mf+iCSBqoVKLSQ5XaY2JLOaqz1TVyPFEyIck7wT6mRQhQt5sN6ogfjIDfi74tg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@napi-rs/canvas-linux-x64-musl@0.1.97':
+    resolution: {integrity: sha512-AKLFd/v0Z5fvgqBDqhvqtAdx+fHMJ5t9JcUNKq4FIZ5WH+iegGm8HPdj00NFlCSnm83Fp3Ln8I2f7uq1aIiWaA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@napi-rs/canvas-win32-arm64-msvc@0.1.97':
+    resolution: {integrity: sha512-u883Yr6A6fO7Vpsy9YE4FVCIxzzo5sO+7pIUjjoDLjS3vQaNMkVzx5bdIpEL+ob+gU88WDK4VcxYMZ6nmnoX9A==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@napi-rs/canvas-win32-x64-msvc@0.1.97':
+    resolution: {integrity: sha512-sWtD2EE3fV0IzN+iiQUqr/Q1SwqWhs2O1FKItFlxtdDkikpEj5g7DKQpY3x55H/MAOnL8iomnlk3mcEeGiUMoQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@napi-rs/canvas@0.1.97':
+    resolution: {integrity: sha512-8cFniXvrIEnVwuNSRCW9wirRZbHvrD3JVujdS2P5n5xiJZNZMOZcfOvJ1pb66c7jXMKHHglJEDVJGbm8XWFcXQ==}
+    engines: {node: '>= 10'}
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -1298,6 +1382,11 @@ packages:
     resolution: {integrity: sha512-u/O3vwbptzhMs3L1fQE82ZSLHQQfto5gyZzwteVIEyeaY5Fc7R4dapF/BvRoSYFeqfBk4m0V1Vafq5Pjv25wvA==}
     engines: {node: '>= 6'}
 
+  cssesc@3.0.0:
+    resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
+    engines: {node: '>=4'}
+    hasBin: true
+
   data-uri-to-buffer@6.0.2:
     resolution: {integrity: sha512-7hvf7/GW8e86rW0ptuwS3OcBGDjIi6SZva7hCyWC0yYry2cOPmLIjXAUHI6DK2HsnwJd9ifmt57i8eV2n4YNpw==}
     engines: {node: '>= 14'}
@@ -1910,6 +1999,9 @@ packages:
     resolution: {integrity: sha512-dBpDMdxv9Irdq66304OLfEmQ9tbNRFnFTuZiLo+bD+r332bBmMJ8GBLXklIXXgxd3+v9+KUnZaUR5PJMa75Gsg==}
     engines: {node: '>= 0.4.0'}
 
+  node-readable-to-web-readable-stream@0.4.2:
+    resolution: {integrity: sha512-/cMZNI34v//jUTrI+UIo4ieHAB5EZRY/+7OmXZgBxaWBMcW2tGdceIw06RFxWxrKZ5Jp3sI2i5TsRo+CBhtVLQ==}
+
   normalize-package-data@6.0.2:
     resolution: {integrity: sha512-V6gygoYb/5EmNI+MEGrWkC+e6+Rr7mTmfHrxDbLzxQogBkgzo76rkok0Am6thgSF7Mv2nLOajAJj5vDJZEFn7g==}
     engines: {node: ^16.14.0 || >=18.0.0}
@@ -2022,6 +2114,10 @@ packages:
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
 
+  pdfjs-dist@5.6.205:
+    resolution: {integrity: sha512-tlUj+2IDa7G1SbvBNN74UHRLJybZDWYom+k6p5KIZl7huBvsA4APi6mKL+zCxd3tLjN5hOOEE9Tv7VdzO88pfg==}
+    engines: {node: '>=20.19.0 || >=22.13.0 || >=24'}
+
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
 
@@ -2045,6 +2141,16 @@ packages:
     resolution: {integrity: sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==}
     engines: {node: '>=18'}
     hasBin: true
+
+  postcss-nested@7.0.2:
+    resolution: {integrity: sha512-5osppouFc0VR9/VYzYxO03VaDa3e8F23Kfd6/9qcZTUI8P58GIYlArOET2Wq0ywSl2o2PjELhYOFI4W7l5QHKw==}
+    engines: {node: '>=18.0'}
+    peerDependencies:
+      postcss: ^8.2.14
+
+  postcss-selector-parser@7.1.1:
+    resolution: {integrity: sha512-orRsuYpJVw8LdAwqqLykBj9ecS5/cRHlI5+nvTo8LcCKmzDmqVORXtOIYEEQuL9D4BxtA1lm5isAqzQZCoQ6Eg==}
+    engines: {node: '>=4'}
 
   postcss@8.5.8:
     resolution: {integrity: sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg==}
@@ -2911,6 +3017,54 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@napi-rs/canvas-android-arm64@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-darwin-arm64@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-darwin-x64@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm-gnueabihf@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm64-gnu@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm64-musl@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-linux-riscv64-gnu@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-linux-x64-gnu@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-linux-x64-musl@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-win32-arm64-msvc@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas-win32-x64-msvc@0.1.97':
+    optional: true
+
+  '@napi-rs/canvas@0.1.97':
+    optionalDependencies:
+      '@napi-rs/canvas-android-arm64': 0.1.97
+      '@napi-rs/canvas-darwin-arm64': 0.1.97
+      '@napi-rs/canvas-darwin-x64': 0.1.97
+      '@napi-rs/canvas-linux-arm-gnueabihf': 0.1.97
+      '@napi-rs/canvas-linux-arm64-gnu': 0.1.97
+      '@napi-rs/canvas-linux-arm64-musl': 0.1.97
+      '@napi-rs/canvas-linux-riscv64-gnu': 0.1.97
+      '@napi-rs/canvas-linux-x64-gnu': 0.1.97
+      '@napi-rs/canvas-linux-x64-musl': 0.1.97
+      '@napi-rs/canvas-win32-arm64-msvc': 0.1.97
+      '@napi-rs/canvas-win32-x64-msvc': 0.1.97
+    optional: true
+
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
@@ -3665,6 +3819,8 @@ snapshots:
 
   css-what@6.2.2: {}
 
+  cssesc@3.0.0: {}
+
   data-uri-to-buffer@6.0.2: {}
 
   debug@4.4.3(supports-color@8.1.1):
@@ -4330,6 +4486,9 @@ snapshots:
 
   netmask@2.0.2: {}
 
+  node-readable-to-web-readable-stream@0.4.2:
+    optional: true
+
   normalize-package-data@6.0.2:
     dependencies:
       hosted-git-info: 7.0.2
@@ -4446,6 +4605,11 @@ snapshots:
 
   pathe@2.0.3: {}
 
+  pdfjs-dist@5.6.205:
+    optionalDependencies:
+      '@napi-rs/canvas': 0.1.97
+      node-readable-to-web-readable-stream: 0.4.2
+
   pend@1.2.0: {}
 
   picocolors@1.1.1: {}
@@ -4461,6 +4625,16 @@ snapshots:
       playwright-core: 1.58.2
     optionalDependencies:
       fsevents: 2.3.2
+
+  postcss-nested@7.0.2(postcss@8.5.8):
+    dependencies:
+      postcss: 8.5.8
+      postcss-selector-parser: 7.1.1
+
+  postcss-selector-parser@7.1.1:
+    dependencies:
+      cssesc: 3.0.0
+      util-deprecate: 1.0.2
 
   postcss@8.5.8:
     dependencies:

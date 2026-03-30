@@ -12,7 +12,17 @@
     "test:e2e": "playwright test",
     "test:e2e:tauri": "bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts",
     "test:tauri:webdriver": "bash scripts/automation/test-tauri-webdriver.sh",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "prepare-public-vendor": "node scripts/setup-pdfjs-vendor.mjs prepare",
+    "copy-pdfjs-js": "node scripts/setup-pdfjs-vendor.mjs copy-js",
+    "copy-pdfjs-wasm": "node scripts/setup-pdfjs-vendor.mjs copy-wasm",
+    "copy-pdfjs-fonts": "node scripts/setup-pdfjs-vendor.mjs copy-fonts",
+    "copy-flatten-pdfjs-annotation-layer-css": "node scripts/setup-pdfjs-vendor.mjs copy-annotation-css",
+    "copy-flatten-pdfjs-text-layer-css": "node scripts/setup-pdfjs-vendor.mjs copy-text-css",
+    "copy-flatten-pdfjs-css": "node scripts/setup-pdfjs-vendor.mjs copy-css",
+    "copy-pdfjs": "pnpm copy-pdfjs-js && pnpm copy-pdfjs-wasm && pnpm copy-pdfjs-fonts && pnpm copy-flatten-pdfjs-css",
+    "setup-pdfjs": "pnpm prepare-public-vendor && pnpm copy-pdfjs",
+    "setup-vendors": "pnpm setup-pdfjs"
   },
   "license": "MIT",
   "dependencies": {
@@ -37,6 +47,9 @@
     "@wdio/mocha-framework": "^9.27.0",
     "@wdio/spec-reporter": "^9.27.0",
     "@wdio/types": "^9.27.0",
+    "pdfjs-dist": "^5.6.205",
+    "postcss": "^8.5.8",
+    "postcss-nested": "^7.0.2",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "~5.6.2",
