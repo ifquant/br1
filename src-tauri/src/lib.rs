@@ -40,7 +40,7 @@ struct ReadestBookRecord {
     format: String,
     title: String,
     author: String,
-    metadata: Option<String>,
+    metadata: Option<serde_json::Value>,
     created_at: Option<u64>,
     downloaded_at: Option<u64>,
     progress: Option<Vec<u64>>,
@@ -242,7 +242,7 @@ fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord
             .or(readest_record.created_at)
             .unwrap_or(now_millis()?);
         let readest_config = load_readest_config(&readest_books_root, &readest_record.hash)?;
-        let readest_metadata = parse_readest_metadata(readest_record.metadata.as_deref())?;
+        let readest_metadata = parse_readest_metadata(readest_record.metadata.as_ref())?;
         let progress = format_readest_progress(readest_record.progress.as_deref());
         let status = if progress == "尚未开始" {
             "从 Readest 导入".to_string()
@@ -633,16 +633,25 @@ fn load_readest_config(readest_books_root: &Path, hash: &str) -> Result<ReadestB
     serde_json::from_str(&json).map_err(|error| error.to_string())
 }
 
-fn parse_readest_metadata(metadata: Option<&str>) -> Result<ReadestBookMetadataSummary, String> {
+fn parse_readest_metadata(
+    metadata: Option<&serde_json::Value>,
+) -> Result<ReadestBookMetadataSummary, String> {
     let Some(metadata) = metadata else {
         return Ok(ReadestBookMetadataSummary::default());
     };
-    if metadata.trim().is_empty() {
-        return Ok(ReadestBookMetadataSummary::default());
-    }
-
-    let parsed: ReadestBookMetadata =
-        serde_json::from_str(metadata).map_err(|error| error.to_string())?;
+    let parsed: ReadestBookMetadata = match metadata {
+        serde_json::Value::Null => return Ok(ReadestBookMetadataSummary::default()),
+        serde_json::Value::String(raw) => {
+            if raw.trim().is_empty() {
+                return Ok(ReadestBookMetadataSummary::default());
+            }
+            serde_json::from_str(raw).map_err(|error| error.to_string())?
+        }
+        serde_json::Value::Object(_) => {
+            serde_json::from_value(metadata.clone()).map_err(|error| error.to_string())?
+        }
+        _ => return Ok(ReadestBookMetadataSummary::default()),
+    };
 
     Ok(ReadestBookMetadataSummary {
         description: parsed
