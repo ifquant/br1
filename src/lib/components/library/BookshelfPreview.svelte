@@ -280,9 +280,8 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, var(--book-width)));
+    grid-template-columns: repeat(auto-fill, minmax(var(--book-width), 1fr));
     gap: 22px 18px;
-    justify-content: start;
     align-items: start;
   }
 
@@ -304,7 +303,8 @@
   .book-card {
     display: grid;
     gap: 7px;
-    width: var(--book-width);
+    width: 100%;
+    max-width: 176px;
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
   }
 
@@ -337,9 +337,13 @@
 
   .cover-shell {
     position: relative;
-    width: var(--book-width);
+    width: 100%;
     aspect-ratio: 28 / 41;
     border-radius: 8px;
+  }
+
+  .grid .book-card {
+    justify-self: stretch;
   }
 
   .list-card .cover-shell {
@@ -606,22 +610,14 @@
     color: var(--text-muted);
   }
 
-  @media (min-width: 1280px) {
-    .grid {
-      grid-template-columns: repeat(6, minmax(0, var(--book-width)));
-    }
-  }
-
-  @media (max-width: 1140px) {
-    .grid {
-      grid-template-columns: repeat(4, minmax(0, var(--book-width)));
-    }
-  }
-
   @media (max-width: 900px) {
     .grid {
-      grid-template-columns: repeat(3, minmax(0, var(--book-width)));
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
       gap: 18px 14px;
+    }
+
+    .book-card {
+      max-width: none;
     }
   }
 
@@ -636,13 +632,8 @@
     }
 
     .grid {
-      grid-template-columns: repeat(3, minmax(0, var(--book-width)));
+      grid-template-columns: repeat(auto-fill, minmax(var(--book-width), 1fr));
       gap: 16px 12px;
-    }
-
-    .book-card,
-    .cover-shell {
-      width: var(--book-width);
     }
 
     .book-card.list-card {
@@ -661,7 +652,7 @@
 
   @media (max-width: 620px) {
     .grid {
-      grid-template-columns: repeat(2, minmax(0, var(--book-width)));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 </style>
