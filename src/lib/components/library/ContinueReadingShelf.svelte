@@ -5,6 +5,7 @@
     status: string;
     progress: string;
     progressPercentLabel?: string;
+    readingStatusLabel?: string;
     coverUrl?: string;
     readerHref?: string;
     restartHref?: string;
@@ -14,6 +15,7 @@
   export let sectionTitle = '继续阅读';
   export let books: Book[] = [];
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
+  let expandedKey = '';
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
     if (!href || !onOpenLink) return;
@@ -27,6 +29,12 @@
     if (!href || !onOpenLink) return;
     void onOpenLink(href);
   };
+
+  const toggleDetails = (event: MouseEvent, key: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    expandedKey = expandedKey === key ? '' : key;
+  };
 </script>
 
 <section class="continue-shelf">
@@ -39,6 +47,7 @@
 
   <div class="rows" aria-label={sectionTitle}>
     {#each books as book}
+      {@const bookKey = book.readerHref || `${book.title}::${book.author}`}
       <article class="row">
         <svelte:element
           this={book.readerHref ? 'a' : 'div'}
@@ -58,7 +67,14 @@
             {/if}
           </div>
           <div class="copy">
-            <strong>{book.title}</strong>
+            <div class="title-row">
+              <strong>{book.title}</strong>
+              {#if book.readingStatusLabel}
+                <span class:finished={book.readingStatusLabel === '已读完'} class="status-pill">
+                  {book.readingStatusLabel}
+                </span>
+              {/if}
+            </div>
             <span>{book.author}</span>
             <p>{book.lastOpenedLabel || book.status}</p>
           </div>
@@ -77,10 +93,31 @@
                   从头开始
                 </button>
               {/if}
+              <button
+                type="button"
+                class="secondary-pill"
+                on:click={(event: MouseEvent) => toggleDetails(event, bookKey)}
+              >
+                详情
+              </button>
               <span class="resume-pill">继续</span>
             </div>
           </div>
         </svelte:element>
+        {#if expandedKey === bookKey}
+          <div class="detail-panel" aria-label={`Details for ${book.title}`}>
+            <div class="detail-grid">
+              <span>作者</span>
+              <strong>{book.author}</strong>
+              <span>进度</span>
+              <strong>{book.progressPercentLabel || book.progress}</strong>
+              <span>状态</span>
+              <strong>{book.status}</strong>
+              <span>最近阅读</span>
+              <strong>{book.lastOpenedLabel || '刚导入'}</strong>
+            </div>
+          </div>
+        {/if}
       </article>
     {/each}
   </div>
@@ -183,6 +220,13 @@
     gap: 2px;
   }
 
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
   .copy strong,
   .copy span,
   .copy p,
@@ -207,6 +251,22 @@
     margin: 0;
     font-size: 12px;
     color: var(--text-muted);
+  }
+
+  .status-pill {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    box-shadow: inset 0 0 0 1px rgba(76, 57, 34, 0.08);
+    font: 600 10px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    color: var(--text-secondary);
+  }
+
+  .status-pill.finished {
+    background: color-mix(in srgb, #dbeed8 84%, white 16%);
+    color: #456246;
+    box-shadow: inset 0 0 0 1px rgba(69, 98, 70, 0.12);
   }
 
   .trailing {
@@ -257,6 +317,36 @@
     box-shadow:
       inset 0 0 0 1px rgba(76, 57, 34, 0.08),
       0 6px 12px rgba(42, 30, 15, 0.04);
+    color: var(--text-primary);
+  }
+
+  .detail-panel {
+    margin-top: 8px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 88%, white 12%);
+    background: color-mix(in srgb, var(--surface-reader) 84%, white 16%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 10px 24px rgba(42, 30, 15, 0.04);
+    padding: 10px 12px;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px 12px;
+    align-items: baseline;
+  }
+
+  .detail-grid span {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .detail-grid strong {
+    min-width: 0;
+    font: 600 12px/1.35 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     color: var(--text-primary);
   }
 

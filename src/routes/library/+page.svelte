@@ -72,6 +72,7 @@
     status: string;
     progress: string;
     progressPercentLabel?: string;
+    readingStatusLabel?: string;
     coverUrl?: string;
     readerHref?: string;
     restartHref?: string;
@@ -120,21 +121,38 @@
     return `${Math.round(deltaMinutes / (60 * 24))} 天前阅读`;
   };
 
-  const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => ({
-    title: record.title,
-    author: record.author,
-    status: record.status,
-    progress: record.progress,
-    progressPercentLabel:
+  const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => {
+    const progressFraction =
       typeof record.progressFraction === 'number'
-        ? `${Math.max(0, Math.min(100, Math.round(record.progressFraction * 100)))}%`
-        : '',
-    coverUrl: await toLibraryCoverUrl(record),
-    readerHref: await toReaderAssetHref(record),
-    restartHref: await toReaderStartHref(record),
-    lastOpenedAt: record.lastOpenedAt,
-    lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt)
-  });
+        ? Math.max(0, Math.min(1, record.progressFraction))
+        : null;
+
+    const readingStatusLabel =
+      progressFraction === null
+        ? ''
+        : progressFraction >= 1
+          ? '已读完'
+          : progressFraction > 0
+          ? '在读'
+          : '未开始';
+
+    return {
+      title: record.title,
+      author: record.author,
+      status: record.status,
+      progress: record.progress,
+      progressPercentLabel:
+        progressFraction !== null
+          ? `${Math.max(0, Math.min(100, Math.round(progressFraction * 100)))}%`
+          : '',
+      readingStatusLabel,
+      coverUrl: await toLibraryCoverUrl(record),
+      readerHref: await toReaderAssetHref(record),
+      restartHref: await toReaderStartHref(record),
+      lastOpenedAt: record.lastOpenedAt,
+      lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt)
+    };
+  };
 
   const getContinueReadingBooks = (books: ShelfBook[]) =>
     books
