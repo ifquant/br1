@@ -29,6 +29,7 @@ export interface FoliateViewElement extends HTMLElement {
     cfi?: string;
   };
   open(book: string | Blob | File): Promise<void>;
+  init(options: { lastLocation?: string; showTextStart?: boolean }): Promise<void>;
   prev(): Promise<void>;
   next(): Promise<void>;
   goToFraction(fraction: number): Promise<void>;

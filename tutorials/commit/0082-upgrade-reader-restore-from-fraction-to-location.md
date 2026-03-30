@@ -12,7 +12,7 @@
 
 - 保存 `location`
 - 也就是更精确的 CFI / locator 字符串
-- 重新打开时优先用 `goTo(location)` 恢复
+- 重新打开时优先用 `view.init({ lastLocation })` 恢复
 
 这次 `br1` 先补了这条最小链。
 
@@ -69,7 +69,7 @@
 
 一起存进 `library.json`。
 
-### 4. 重新打开书时，优先用 location 恢复
+### 4. 重新打开书时，优先用 `lastLocation` 恢复
 
 文件：
 
@@ -83,11 +83,12 @@
 
 恢复时的优先级是：
 
-1. 先 `goTo(location)`
+1. 先 `init({ lastLocation: location })`
 2. 没有 location 时再 `goToFraction(fraction)`
 3. 都没有时才回到 0
 
-这就比上一版更接近 `Readest`。
+这样做的原因是，`Readest` 自己也是先把上次的精确位置交给 viewer 初始化，再让 viewer 内部完成定位恢复。  
+这比直接 `goTo(location)` 更接近它的真实打开顺序。
 
 ### 5. 从 `Readest` 导入时也尽量带上 location
 
@@ -134,7 +135,6 @@
 
 ## 这次还没做什么
 
-- 还没有把 `location` 做成完整的 `view.init({ lastLocation })` 流程
 - 还没有处理格式差异更大的恢复策略，比如 PDF 专用位置恢复
 - 还没有给搜索/标注等功能复用这份 `progressLocation`
 

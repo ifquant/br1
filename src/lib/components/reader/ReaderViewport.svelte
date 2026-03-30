@@ -94,7 +94,7 @@
       await foliateViewElement.open(source);
       configureFoliatePreview();
       if (restoreLocation) {
-        await foliateViewElement.goTo(restoreLocation);
+        await foliateViewElement.init({ lastLocation: restoreLocation });
       } else {
         await foliateViewElement.goToFraction(
           typeof restoreFraction === 'number' && restoreFraction > 0 ? restoreFraction : 0
