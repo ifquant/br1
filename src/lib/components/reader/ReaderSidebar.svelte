@@ -16,6 +16,7 @@
     excerpt: { pre: string; match: string; post: string };
   }> = [];
   export let searchError = '';
+  export let searchProgress = 0;
   export let searchHistory: string[] = [];
   export let searchConfig: ReaderSearchConfig = {
     scope: 'book',
@@ -24,6 +25,9 @@
     matchDiacritics: false
   };
   export let searchCacheKey = '';
+  export let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
+  export let activeSearchResultCfi = '';
+  export let recentSearchResultCfi = '';
   export let onNavigate: ((href: string) => void) | null = null;
   export let onClose: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
@@ -272,7 +276,13 @@
         <div class="search-summary">
           {#if searchStatus === 'searching'}
             <strong>Searching…</strong>
-            <span>Scanning the current book text.</span>
+            <span>
+              {#if searchProgress > 0}
+                已扫描 {Math.round(searchProgress * 100)}%
+              {:else}
+                正在扫描当前书的正文。
+              {/if}
+            </span>
           {:else if searchTerm.trim()}
             <strong>{searchResults.length}</strong>
             <span>正文命中结果</span>
@@ -282,6 +292,12 @@
           {/if}
         </div>
 
+        {#if searchNotice}
+          <div class:error={searchNotice.kind === 'error'} class="search-notice" role="status">
+            {searchNotice.message}
+          </div>
+        {/if}
+
         <div class="search-results" aria-label="search results">
           {#if searchStatus === 'error'}
             <p class="empty">{searchError || '正文搜索失败。'}</p>
@@ -289,6 +305,8 @@
             {#each searchResults as item}
               <button
                 type="button"
+                class:active-result={item.cfi === activeSearchResultCfi}
+                class:recent-result={item.cfi === recentSearchResultCfi}
                 class="search-result"
                 on:click={() => {
                   onSearchResult?.(item.cfi);
@@ -664,6 +682,22 @@
     gap: 8px;
   }
 
+  .search-notice {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .search-notice.error {
+    background: color-mix(in srgb, #f4d8d3 72%, white 28%);
+    color: #7b3a31;
+    box-shadow: inset 0 0 0 1px rgba(123, 58, 49, 0.12);
+  }
+
   .search-result,
   .note-card {
     display: grid;
@@ -699,6 +733,20 @@
   .search-result:hover {
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
+  }
+
+  .search-result.active-result {
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+    box-shadow:
+      inset 2px 0 0 #b18952,
+      inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    color: var(--text-primary);
+  }
+
+  .search-result.recent-result {
+    box-shadow:
+      inset 0 0 0 1px rgba(177, 137, 82, 0.22),
+      0 0 0 1px rgba(177, 137, 82, 0.08);
   }
 
   .sr-only {

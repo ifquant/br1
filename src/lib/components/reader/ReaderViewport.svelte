@@ -138,6 +138,7 @@
       query: '',
       status: 'idle',
       results: [],
+      progress: 0,
       ...partial
     });
   };
@@ -162,14 +163,14 @@
     foliateViewElement.clearSearch();
 
     if (!normalizedQuery) {
-      emitSearchState({ query: '', status: 'idle', results: [] });
+      emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
       return;
     }
 
     const cacheKey = getSearchCacheKey(normalizedQuery, config);
     const cached = searchCache.get(cacheKey);
     if (cached) {
-      emitSearchState({ query: normalizedQuery, status: 'done', results: cached });
+      emitSearchState({ query: normalizedQuery, status: 'done', results: cached, progress: 1 });
       return;
     }
 
@@ -178,11 +179,11 @@
       : null;
     if (diskCached?.length) {
       searchCache.set(cacheKey, diskCached);
-      emitSearchState({ query: normalizedQuery, status: 'done', results: diskCached });
+      emitSearchState({ query: normalizedQuery, status: 'done', results: diskCached, progress: 1 });
       return;
     }
 
-    emitSearchState({ query: normalizedQuery, status: 'searching', results: [] });
+    emitSearchState({ query: normalizedQuery, status: 'searching', results: [], progress: 0 });
 
     try {
       const results: ReaderSearchResult[] = [];
@@ -199,10 +200,21 @@
           if (searchCacheBookKey && results.length) {
             await saveReaderSearchCache(searchCacheBookKey, cacheKey, results);
           }
-          emitSearchState({ query: normalizedQuery, status: 'done', results });
+          emitSearchState({ query: normalizedQuery, status: 'done', results, progress: 1 });
           return;
         }
-        if ('progress' in result) continue;
+        if ('progress' in result) {
+          emitSearchState({
+            query: normalizedQuery,
+            status: 'searching',
+            results: [...results],
+            progress:
+              typeof result.progress === 'number'
+                ? Math.max(0, Math.min(1, result.progress > 1 ? result.progress / 100 : result.progress))
+                : 0
+          });
+          continue;
+        }
         if ('subitems' in result) {
           results.push(
             ...result.subitems.map((item) => ({
@@ -218,7 +230,12 @@
             excerpt: result.excerpt
           });
         }
-        emitSearchState({ query: normalizedQuery, status: 'searching', results: [...results] });
+        emitSearchState({
+          query: normalizedQuery,
+          status: 'searching',
+          results: [...results],
+          progress: results.length > 0 ? undefined : 0
+        });
       }
     } catch (error) {
       if (token !== lastSearchToken) return;
@@ -226,6 +243,7 @@
         query: normalizedQuery,
         status: 'error',
         results: [],
+        progress: 0,
         error: error instanceof Error ? error.message : String(error)
       });
     }
@@ -269,6 +287,14 @@
         await foliateViewElement.goTo(controlRequest.href);
       } else if (controlRequest.type === 'search') {
         await runSearch(controlRequest.query, controlRequest.config);
+      } else if (controlRequest.type === 'clear-search-cache') {
+        lastSearchToken += 1;
+        searchCache = new Map();
+        foliateViewElement.clearSearch();
+        if (searchCacheBookKey) {
+          await clearReaderSearchCache(searchCacheBookKey);
+        }
+        emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
       } else if (controlRequest.type === 'file') {
         await openBook(
           controlRequest.file,

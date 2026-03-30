@@ -39,6 +39,7 @@ export type ReaderSearchState = {
   query: string;
   status: 'idle' | 'searching' | 'done' | 'error';
   results: ReaderSearchResult[];
+  progress?: number;
   error?: string;
 };
 
@@ -83,6 +84,10 @@ export type ReaderControlRequest =
       nonce: number;
       query: string;
       config: ReaderSearchConfig;
+    }
+  | {
+      type: 'clear-search-cache';
+      nonce: number;
     }
   | {
       type: 'file';

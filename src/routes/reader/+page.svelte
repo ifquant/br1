@@ -25,6 +25,7 @@
   let sidebarSearchStatus: 'idle' | 'searching' | 'done' | 'error' = 'idle';
   let sidebarSearchResults: ReaderSearchResult[] = [];
   let sidebarSearchError = '';
+  let sidebarSearchProgress = 0;
   let sidebarSearchHistory: string[] = [];
   let sidebarSearchConfig: ReaderSearchConfig = {
     scope: 'book',
@@ -34,7 +35,11 @@
   };
   let sidebarSearchCacheKey = '';
   let lastSearchHistoryKey = '';
+  let currentSearchLocation = '';
+  let recentSearchResultCfi = '';
+  let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let searchNoticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
   $: sourceUrl = $page.url.searchParams.get('url') ?? '';
@@ -138,13 +143,23 @@
 
   const issueSearchControl = (query: string) => {
     sidebarSearchTerm = query;
+    recentSearchResultCfi = '';
     controlNonce += 1;
     controlRequest = { type: 'search', nonce: controlNonce, query, config: sidebarSearchConfig };
   };
 
   const issueSearchResultControl = (cfi: string) => {
+    recentSearchResultCfi = cfi;
     controlNonce += 1;
     controlRequest = { type: 'href', href: cfi, nonce: controlNonce };
+  };
+
+  const showSearchNotice = (kind: 'success' | 'error', message: string) => {
+    searchNotice = { kind, message };
+    if (searchNoticeTimer) clearTimeout(searchNoticeTimer);
+    searchNoticeTimer = setTimeout(() => {
+      searchNotice = null;
+    }, 2500);
   };
 
   const persistSidebarPrefs = () => {
@@ -227,6 +242,7 @@
 
   onDestroy(() => {
     if (persistTimer) clearTimeout(persistTimer);
+    if (searchNoticeTimer) clearTimeout(searchNoticeTimer);
   });
 </script>
 
@@ -266,9 +282,13 @@
         searchStatus={sidebarSearchStatus}
         searchResults={sidebarSearchResults}
         searchError={sidebarSearchError}
+        searchProgress={sidebarSearchProgress}
         searchHistory={sidebarSearchHistory}
         searchConfig={sidebarSearchConfig}
         searchCacheKey={sidebarSearchCacheKey}
+        searchNotice={searchNotice}
+        activeSearchResultCfi={currentSearchLocation}
+        recentSearchResultCfi={recentSearchResultCfi}
         onNavigate={issueHrefControl}
         onClose={isWindowMode ? toggleSidebar : null}
         onToggleSidebar={toggleSidebar}
@@ -286,7 +306,9 @@
         }}
         onClearSearchCache={async () => {
           if (!sidebarSearchCacheKey) return;
-          await clearReaderSearchCache(sidebarSearchCacheKey);
+          controlNonce += 1;
+          controlRequest = { type: 'clear-search-cache', nonce: controlNonce };
+          showSearchNotice('success', '已清空当前书的搜索缓存。');
         }}
       />
     {/if}
@@ -313,18 +335,26 @@
       }}
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
         activeHref = detail.chapterHref;
+        currentSearchLocation = detail.progressLocation;
         queueLibraryReadingStatePersist(detail);
       }}
       on:searchchange={({ detail }) => {
         sidebarSearchTerm = detail.query;
         sidebarSearchStatus = detail.status;
         sidebarSearchResults = detail.results;
+        sidebarSearchProgress = detail.progress ?? 0;
         sidebarSearchError = detail.error ?? '';
+        if (detail.status === 'error') {
+          showSearchNotice('error', detail.error ?? '正文搜索失败。');
+        }
         if (detail.status === 'done' && detail.query.trim() && detail.results.length > 0) {
           sidebarSearchHistory = [
             detail.query,
             ...sidebarSearchHistory.filter((item) => item !== detail.query)
           ].slice(0, 10);
+        }
+        if (detail.status === 'idle') {
+          recentSearchResultCfi = '';
         }
       }}
       on:searchcachekeychange={({ detail }) => {
