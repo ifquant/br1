@@ -282,8 +282,8 @@
           <BookshelfPreview
             sectionTitle="继续阅读"
             books={continueReadingBooks}
+            viewMode="list"
             onOpenLink={handleOpenReaderLink}
-            onChangeViewMode={handleLibraryViewModeChange}
           />
         {/if}
 
