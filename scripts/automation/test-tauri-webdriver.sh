@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TEST_COMMAND="${*:-}"
 DEV_PORT="${DEV_PORT:-1420}"
 WEBDRIVER_PORT="${WEBDRIVER_PORT:-4445}"
 POLL_INTERVAL="${POLL_INTERVAL:-2}"
@@ -68,3 +69,8 @@ while ! curl -sf "http://127.0.0.1:${WEBDRIVER_PORT}/status" >/dev/null 2>&1; do
 done
 
 echo "PASS: WebDriver is ready on port $WEBDRIVER_PORT"
+
+if [[ -n "$TEST_COMMAND" ]]; then
+  echo "Running WebDriver test command: $TEST_COMMAND"
+  eval "$TEST_COMMAND"
+fi
