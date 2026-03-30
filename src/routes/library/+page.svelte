@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
-  import { BookshelfPreview, LibraryHeader } from '$lib/components';
+  import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
   import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
   import {
     canPersistLibrary,
@@ -279,10 +279,9 @@
     >
       {#if importedBooks.length}
         {#if continueReadingBooks.length}
-          <BookshelfPreview
+          <ContinueReadingShelf
             sectionTitle="继续阅读"
             books={continueReadingBooks}
-            viewMode="list"
             onOpenLink={handleOpenReaderLink}
           />
         {/if}
