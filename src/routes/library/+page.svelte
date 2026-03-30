@@ -72,6 +72,7 @@
     coverUrl?: string;
     readerHref?: string;
     lastOpenedAt?: number | null;
+    lastOpenedLabel?: string;
   };
 
   const readerValidationRank = (record: PersistedLibraryBook) => {
@@ -104,6 +105,17 @@
   let continueReadingBooks: ShelfBook[] = [];
   let libraryShelfBooks: ShelfBook[] = [];
 
+  const formatLastOpenedLabel = (timestamp: number | null | undefined) => {
+    if (typeof timestamp !== 'number' || timestamp <= 0) return '';
+
+    const deltaMs = Date.now() - timestamp;
+    const deltaMinutes = Math.max(1, Math.round(deltaMs / 60000));
+
+    if (deltaMinutes < 60) return `${deltaMinutes} 分钟前阅读`;
+    if (deltaMinutes < 60 * 24) return `${Math.round(deltaMinutes / 60)} 小时前阅读`;
+    return `${Math.round(deltaMinutes / (60 * 24))} 天前阅读`;
+  };
+
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => ({
     title: record.title,
     author: record.author,
@@ -111,7 +123,8 @@
     progress: record.progress,
     coverUrl: await toLibraryCoverUrl(record),
     readerHref: await toReaderAssetHref(record),
-    lastOpenedAt: record.lastOpenedAt
+    lastOpenedAt: record.lastOpenedAt,
+    lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt)
   });
 
   const getContinueReadingBooks = (books: ShelfBook[]) =>

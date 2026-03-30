@@ -6,6 +6,7 @@
     progress: string;
     coverUrl?: string;
     readerHref?: string;
+    lastOpenedLabel?: string;
   };
 
   export let sectionTitle = '继续阅读';
@@ -50,7 +51,7 @@
           <div class="copy">
             <strong>{book.title}</strong>
             <span>{book.author}</span>
-            <p>{book.status}</p>
+            <p>{book.lastOpenedLabel || book.status}</p>
           </div>
           <div class="trailing">
             <small>{book.progress}</small>
