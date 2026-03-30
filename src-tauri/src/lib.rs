@@ -68,6 +68,23 @@ struct LibraryBookBinary {
     bytes_base64: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReaderSearchCacheExcerpt {
+    pre: String,
+    #[serde(rename = "match")]
+    match_text: String,
+    post: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReaderSearchCacheResult {
+    cfi: String,
+    label: String,
+    excerpt: ReaderSearchCacheExcerpt,
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -326,6 +343,38 @@ fn load_library_book_binary(file_path: String) -> Result<LibraryBookBinary, Stri
     })
 }
 
+#[tauri::command]
+fn load_reader_search_cache(
+    app: tauri::AppHandle,
+    book_key: String,
+    cache_key: String,
+) -> Result<Option<Vec<ReaderSearchCacheResult>>, String> {
+    let cache_path = reader_search_cache_file(&app, &book_key, &cache_key)?;
+    if !cache_path.exists() {
+        return Ok(None);
+    }
+
+    let raw = fs::read_to_string(&cache_path).map_err(|error| error.to_string())?;
+    let results =
+        serde_json::from_str::<Vec<ReaderSearchCacheResult>>(&raw).map_err(|error| error.to_string())?;
+    Ok(Some(results))
+}
+
+#[tauri::command]
+fn save_reader_search_cache(
+    app: tauri::AppHandle,
+    book_key: String,
+    cache_key: String,
+    results: Vec<ReaderSearchCacheResult>,
+) -> Result<(), String> {
+    let cache_path = reader_search_cache_file(&app, &book_key, &cache_key)?;
+    if let Some(parent) = cache_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let raw = serde_json::to_string(&results).map_err(|error| error.to_string())?;
+    fs::write(cache_path, raw).map_err(|error| error.to_string())
+}
+
 fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     let library_root = app_data_dir.join("library");
@@ -347,6 +396,28 @@ fn readest_books_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 fn library_json_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(ensure_library_root(app)?.join("library.json"))
+}
+
+fn reader_search_cache_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("reader-search"))
+}
+
+fn reader_search_cache_file(
+    app: &tauri::AppHandle,
+    book_key: &str,
+    cache_key: &str,
+) -> Result<PathBuf, String> {
+    let root = reader_search_cache_root(app)?;
+    let book_dir = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key);
+    let cache_file = format!(
+        "{}.json",
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(cache_key)
+    );
+    Ok(root.join(book_dir).join(cache_file))
 }
 
 fn load_library_records(path: &Path) -> Result<Vec<LibraryBookRecord>, String> {
@@ -557,9 +628,11 @@ pub fn run() {
             load_library_books,
             load_library_book_binary,
             load_library_cover_data_urls,
+            load_reader_search_cache,
             detect_readest_library,
             import_library_books,
             import_readest_library,
+            save_reader_search_cache,
             update_library_reading_state
         ])
         .setup(|_app| {

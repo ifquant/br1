@@ -19,7 +19,7 @@
     ReaderSearchState,
     ReaderTocItem
   } from '$lib/reader';
-  import { loadLibraryBookFile } from '$lib/services/libraryPersistence';
+  import { loadLibraryBookFile, loadReaderSearchCache, saveReaderSearchCache } from '$lib/services';
 
   export let title = 'Reading Surface';
   export let controlRequest: ReaderControlRequest | null = null;
@@ -39,6 +39,7 @@
   let openSourceLabel = 'book';
   let openFailureSource = '';
   let openFailureMessage = '';
+  let searchCacheBookKey = '';
   let foliateViewElement: FoliateViewElement | null = null;
   let handledControlNonce = 0;
   let lastSearchToken = 0;
@@ -99,6 +100,7 @@
     openFailureSource = '';
     openFailureMessage = '';
     searchCache = new Map();
+    searchCacheBookKey = typeof source === 'string' ? source : sourceLabel;
     emitSearchState({ query: '', status: 'idle', results: [] });
 
     try {
@@ -162,6 +164,15 @@
       return;
     }
 
+    const diskCached = searchCacheBookKey
+      ? await loadReaderSearchCache(searchCacheBookKey, cacheKey)
+      : null;
+    if (diskCached?.length) {
+      searchCache.set(cacheKey, diskCached);
+      emitSearchState({ query: normalizedQuery, status: 'done', results: diskCached });
+      return;
+    }
+
     emitSearchState({ query: normalizedQuery, status: 'searching', results: [] });
 
     try {
@@ -176,6 +187,9 @@
         if (token !== lastSearchToken) return;
         if (result === 'done') {
           searchCache.set(cacheKey, [...results]);
+          if (searchCacheBookKey && results.length) {
+            await saveReaderSearchCache(searchCacheBookKey, cacheKey, results);
+          }
           emitSearchState({ query: normalizedQuery, status: 'done', results });
           return;
         }
