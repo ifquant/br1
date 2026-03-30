@@ -352,10 +352,6 @@
     overflow: hidden;
   }
 
-  .engine-host :global(foliate-view.foliate-preview) {
-    display: none;
-  }
-
   .engine-paper {
     display: grid;
     align-content: start;
