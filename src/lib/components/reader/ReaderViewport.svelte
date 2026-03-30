@@ -84,6 +84,7 @@
     try {
       await foliateViewElement.open(source);
       configureFoliatePreview();
+      await foliateViewElement.goToFraction(0);
       openStatus = 'open';
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
       emitReaderState();
@@ -426,9 +427,17 @@
     letter-spacing: 0;
   }
 
+  :global(foliate-view.foliate-preview) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
   .engine-stage :global(foliate-view.foliate-preview) {
     display: block;
     width: 100%;
+    height: 100%;
     min-height: min(66vh, 860px);
     color: #2b221a;
     background: transparent;
@@ -460,6 +469,8 @@
   }
 
   .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview) {
+    position: absolute;
+    inset: 0;
     min-height: calc(100vh - 26px);
     height: 100%;
   }
