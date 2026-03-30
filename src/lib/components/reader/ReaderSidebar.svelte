@@ -12,9 +12,14 @@
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
 
+  type SidebarTab = 'toc' | 'search' | 'notes';
+
+  let activeTab: SidebarTab = 'toc';
+  let searchTerm = '';
   let lastScrolledHref = '';
 
   const scrollActiveIntoView = async () => {
+    if (activeTab !== 'toc') return;
     if (!activeHref || activeHref === lastScrolledHref) return;
     await tick();
 
@@ -25,12 +30,26 @@
 
   $: void scrollActiveIntoView();
 
+  $: searchResults = searchTerm.trim()
+    ? toc.filter((item) => item.label.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    : toc;
+
+  $: notePreview = toc.slice(0, 3).map((item, index) => ({
+    key: `${item.href}-${index}`,
+    title: item.label,
+    excerpt: `在 ${item.label} 里留下高亮、批注和 bridge 沉淀后，会先出现在这里。`
+  }));
+
   const handleSidebarToggle = () => {
     onToggleSidebar?.();
   };
 
   const handlePinToggle = () => {
     onTogglePin?.();
+  };
+
+  const setActiveTab = (tab: SidebarTab) => {
+    activeTab = tab;
   };
 </script>
 
@@ -81,10 +100,37 @@
     </div>
   </header>
 
-  <div class="tabs" aria-label="sidebar tabs preview">
-    <span class="tab active">目录</span>
-    <span class="tab">搜索</span>
-    <span class="tab">笔记</span>
+  <div class="tabs" role="tablist" aria-label="reader sidebar tabs">
+    <button
+      type="button"
+      role="tab"
+      class:active={activeTab === 'toc'}
+      class="tab"
+      aria-selected={activeTab === 'toc'}
+      on:click={() => setActiveTab('toc')}
+    >
+      目录
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class:active={activeTab === 'search'}
+      class="tab"
+      aria-selected={activeTab === 'search'}
+      on:click={() => setActiveTab('search')}
+    >
+      搜索
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class:active={activeTab === 'notes'}
+      class="tab"
+      aria-selected={activeTab === 'notes'}
+      on:click={() => setActiveTab('notes')}
+    >
+      笔记
+    </button>
   </div>
 
   <OverlayScrollbarsComponent
@@ -101,23 +147,82 @@
       </div>
     </div>
 
-    <nav class="toc" aria-label="table of contents preview">
-      {#if toc.length}
-        {#each toc as item}
-          <button
-            type="button"
-            class:active={item.href === activeHref}
-            data-href={item.href}
-            style={`--toc-level:${item.level};`}
-            on:click={() => onNavigate?.(item.href)}
-          >
-            {item.label}
-          </button>
-        {/each}
-      {:else}
-        <p class="empty">打开样例书后，这里会显示最小章节列表。</p>
-      {/if}
-    </nav>
+    {#if activeTab === 'toc'}
+      <nav class="toc" aria-label="table of contents preview">
+        {#if toc.length}
+          {#each toc as item}
+            <button
+              type="button"
+              class:active={item.href === activeHref}
+              data-href={item.href}
+              style={`--toc-level:${item.level};`}
+              on:click={() => onNavigate?.(item.href)}
+            >
+              {item.label}
+            </button>
+          {/each}
+        {:else}
+          <p class="empty">打开书后，这里会显示最小章节列表。</p>
+        {/if}
+      </nav>
+    {:else if activeTab === 'search'}
+      <section class="sidebar-panel" aria-label="search panel preview">
+        <label class="search-field">
+          <span class="sr-only">Search book contents</span>
+          <input type="search" placeholder="搜索章节标题" bind:value={searchTerm} />
+        </label>
+
+        <div class="search-summary">
+          {#if searchTerm.trim()}
+            <strong>{searchResults.length}</strong>
+            <span>matches in current table of contents</span>
+          {:else}
+            <strong>{toc.length}</strong>
+            <span>sections available to search</span>
+          {/if}
+        </div>
+
+        <div class="search-results" aria-label="search results">
+          {#if searchResults.length}
+            {#each searchResults as item}
+              <button
+                type="button"
+                class="search-result"
+                on:click={() => {
+                  setActiveTab('toc');
+                  onNavigate?.(item.href);
+                }}
+              >
+                <strong>{item.label}</strong>
+                <span>Jump to this section in the current book.</span>
+              </button>
+            {/each}
+          {:else}
+            <p class="empty">没有命中当前目录。后续接正文全文搜索时，这里会扩展成真正的搜索结果面板。</p>
+          {/if}
+        </div>
+      </section>
+    {:else}
+      <section class="sidebar-panel" aria-label="notes panel preview">
+        <div class="notes-summary">
+          <strong>最近笔记</strong>
+          <span>这里先保留成最小的 notes surface，后续会接 Readest 风格的 annotations / notebook。</span>
+        </div>
+
+        <div class="note-list">
+          {#if notePreview.length}
+            {#each notePreview as note}
+              <article class="note-card">
+                <strong>{note.title}</strong>
+                <p>{note.excerpt}</p>
+              </article>
+            {/each}
+          {:else}
+            <p class="empty">打开书并留下高亮后，这里会出现最近的笔记卡片。</p>
+          {/if}
+        </div>
+      </section>
+    {/if}
   </OverlayScrollbarsComponent>
 </aside>
 
@@ -229,11 +334,14 @@
   .tab {
     flex: 1 1 0;
     padding: 5px 8px;
+    border: 0;
     border-radius: 999px;
+    background: transparent;
     color: var(--text-muted);
     text-align: center;
     font-size: 10px;
     letter-spacing: 0.03em;
+    font: inherit;
   }
 
   .tab.active {
@@ -242,6 +350,10 @@
     box-shadow:
       inset 0 0 0 1px rgba(64, 47, 24, 0.08),
       0 1px 2px rgba(35, 25, 13, 0.05);
+  }
+
+  .tab:hover {
+    color: var(--text-primary);
   }
 
   .toc {
@@ -334,5 +446,95 @@
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 12px;
     line-height: 1.5;
+  }
+
+  .sidebar-panel {
+    display: grid;
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  .search-field input {
+    width: 100%;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .search-summary,
+  .notes-summary {
+    display: grid;
+    gap: 2px;
+    padding: 0 2px;
+  }
+
+  .search-summary strong,
+  .notes-summary strong {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .search-summary span,
+  .notes-summary span {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .search-results,
+  .note-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .search-result,
+  .note-card {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface-reader) 93%, white 7%);
+    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.07);
+    text-align: left;
+  }
+
+  .search-result strong,
+  .note-card strong {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .search-result span,
+  .note-card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .search-result:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>
