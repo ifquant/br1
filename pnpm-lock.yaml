@@ -17,6 +17,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.3
+      construct-style-sheets-polyfill:
+        specifier: ^3.1.0
+        version: 3.1.0
       foliate-js:
         specifier: file:../foliate-js
         version: file:../foliate-js

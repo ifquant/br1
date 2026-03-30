@@ -19,6 +19,7 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "construct-style-sheets-polyfill": "^3.1.0",
     "foliate-js": "file:../foliate-js",
     "overlayscrollbars": "^2.14.0",
     "overlayscrollbars-svelte": "^0.5.5"

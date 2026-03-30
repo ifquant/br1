@@ -1,11 +1,22 @@
+import path from "node:path";
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 
 const host = process.env.TAURI_DEV_HOST;
+const foliateRoot = path.resolve("../foliate-js");
+const constructStyleSheetsPolyfill = path.resolve(
+  "node_modules/construct-style-sheets-polyfill"
+);
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [sveltekit()],
+  resolve: {
+    alias: {
+      "foliate-js": foliateRoot,
+      "construct-style-sheets-polyfill": constructStyleSheetsPolyfill,
+    },
+  },
   optimizeDeps: {
     exclude: ["foliate-js", "foliate-js/view.js"],
   },
@@ -29,6 +40,9 @@ export default defineConfig(async () => ({
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
+    },
+    fs: {
+      allow: [foliateRoot],
     },
   },
 }));

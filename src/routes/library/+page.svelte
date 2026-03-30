@@ -75,9 +75,9 @@
 
   const readerValidationRank = (record: PersistedLibraryBook) => {
     const normalized = record.format.trim().toUpperCase();
-    if (normalized === 'EPUB') return 0;
-    if (normalized === 'FB2' || normalized === 'MOBI' || normalized === 'AZW3') return 1;
-    if (normalized === 'PDF') return 2;
+    if (normalized === 'PDF') return 0;
+    if (normalized === 'EPUB') return 1;
+    if (normalized === 'FB2' || normalized === 'MOBI' || normalized === 'AZW3') return 2;
     return 3;
   };
 
