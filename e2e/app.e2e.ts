@@ -61,6 +61,101 @@ describe('br1 desktop app', () => {
     });
   };
 
+  const readCurrentReaderLocation = async () =>
+    browser.execute(() => {
+      const view = document.querySelector('foliate-view') as
+        | (HTMLElement & {
+            lastLocation?: {
+              cfi?: string;
+              tocItem?: { label?: string; href?: string };
+            };
+          })
+        | null;
+
+      return {
+        cfi: view?.lastLocation?.cfi ?? null,
+        chapterLabel: view?.lastLocation?.tocItem?.label ?? null,
+        chapterHref: view?.lastLocation?.tocItem?.href ?? null
+      };
+    });
+
+  const reopenReaderWithLegacyNote = async (seed: {
+    text: string;
+    note: string;
+    chapterLabelFallback: string;
+  }) => {
+    const libraryHandle = await switchToLibraryWindow();
+    const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+    expect(firstBook).toBeTruthy();
+
+    const href = await firstBook.getAttribute('href');
+    expect(href).toBeTruthy();
+
+    const target = new URL(href!, 'http://localhost');
+    const bookKey =
+      target.searchParams.get('path') ||
+      target.searchParams.get('url') ||
+      target.searchParams.get('label') ||
+      'default';
+    const notesStorageKey = `br1.reader.notes:${bookKey}`;
+
+    await openReaderFromBook(firstBook);
+    await clearAllReaderNotes();
+    await browser.execute((key) => {
+      localStorage.removeItem(key);
+    }, notesStorageKey);
+
+    await browser.waitUntil(async () => {
+      const location = await readCurrentReaderLocation();
+      return !!location.cfi;
+    }, {
+      timeout: 15000,
+      timeoutMsg: 'expected the first book to expose a valid CFI before seeding legacy notes'
+    });
+
+    const location = await readCurrentReaderLocation();
+    const legacyNote = {
+      id: `legacy:${Date.now()}`,
+      cfi: location.cfi!,
+      text: seed.text,
+      note: seed.note,
+      chapterLabel: location.chapterLabel || seed.chapterLabelFallback,
+      chapterHref: location.chapterHref || '',
+      createdAt: Date.now()
+    };
+
+    await browser.execute(([key, note]) => {
+      localStorage.setItem(key, JSON.stringify([note]));
+    }, [notesStorageKey, legacyNote] as const);
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+
+    const [sameBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+    expect(sameBook).toBeTruthy();
+    await openReaderFromBook(sameBook);
+    await switchReaderToNotesTab();
+
+    await browser.waitUntil(async () => {
+      const noteCards = await $$('.note-card');
+      if (!noteCards.length) return false;
+      const noteBody = await $('.note-body');
+      return (await noteBody.getText()) === legacyNote.note;
+    }, {
+      timeout: 15000,
+      timeoutMsg: 'expected the migrated legacy note to appear in the notes panel after reopening the book'
+    });
+
+    await browser.waitUntil(async () => {
+      const raw = await browser.execute((key) => localStorage.getItem(key), notesStorageKey);
+      return raw === null;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the legacy browser notes key to be removed after host migration'
+    });
+
+    return { libraryHandle, notesStorageKey, legacyNote };
+  };
+
   it('shows the library route by default', async () => {
     const url = await browser.getUrl();
     expect(url).toMatch(/library|localhost/);
@@ -285,101 +380,10 @@ describe('br1 desktop app', () => {
   });
 
   it('migrates legacy browser notes into the host-side book store when reopening a book', async () => {
-    const libraryHandle = await switchToLibraryWindow();
-    const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(firstBook).toBeTruthy();
-
-    const href = await firstBook.getAttribute('href');
-    expect(href).toBeTruthy();
-
-    const target = new URL(href!, 'http://localhost');
-    const bookKey =
-      target.searchParams.get('path') ||
-      target.searchParams.get('url') ||
-      target.searchParams.get('label') ||
-      'default';
-    const notesStorageKey = `br1.reader.notes:${bookKey}`;
-
-    await openReaderFromBook(firstBook);
-    await clearAllReaderNotes();
-    await browser.execute((key) => {
-      localStorage.removeItem(key);
-    }, notesStorageKey);
-
-    const readLocation = async () =>
-      browser.execute(() => {
-        const view = document.querySelector('foliate-view') as
-          | (HTMLElement & {
-              lastLocation?: {
-                cfi?: string;
-                tocItem?: { label?: string; href?: string };
-              };
-            })
-          | null;
-
-        return {
-          cfi: view?.lastLocation?.cfi ?? null,
-          chapterLabel: view?.lastLocation?.tocItem?.label ?? null,
-          chapterHref: view?.lastLocation?.tocItem?.href ?? null
-        };
-      });
-
-    await browser.waitUntil(async () => {
-      const location = await readLocation();
-      return !!location.cfi;
-    }, {
-      timeout: 15000,
-      timeoutMsg: 'expected the first book to expose a valid CFI before seeding legacy notes'
-    });
-
-    const location = await readLocation();
-    const legacyNote = {
-      id: `legacy:${Date.now()}`,
-      cfi: location.cfi!,
+    const { libraryHandle, notesStorageKey, legacyNote } = await reopenReaderWithLegacyNote({
       text: 'legacy migrated note text',
       note: 'legacy migrated note body',
-      chapterLabel: location.chapterLabel || 'Legacy chapter',
-      chapterHref: location.chapterHref || '',
-      createdAt: Date.now()
-    };
-
-    await browser.execute(([key, note]) => {
-      localStorage.setItem(key, JSON.stringify([note]));
-    }, [notesStorageKey, legacyNote] as const);
-    await browser.closeWindow();
-    await browser.switchToWindow(libraryHandle);
-
-    const [sameBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(sameBook).toBeTruthy();
-    await openReaderFromBook(sameBook);
-
-    await switchReaderToNotesTab();
-
-    await browser.waitUntil(async () => {
-      const noteCards = await $$('.note-card');
-      if (!noteCards.length) return false;
-      const noteBody = await $('.note-body');
-      return (await noteBody.getText()) === legacyNote.note;
-    }, {
-      timeout: 15000,
-      timeoutMsg: 'expected the migrated legacy note to appear in the notes panel after reopening the book'
-    }).catch(async (error) => {
-      const debug = await browser.execute((key) => ({
-        legacyRaw: localStorage.getItem(key),
-        noteCardCount: document.querySelectorAll('.note-card').length,
-        noteBodies: Array.from(document.querySelectorAll('.note-body')).map((node) => node.textContent?.trim() ?? '')
-      }), notesStorageKey);
-      throw new Error(
-        `${error instanceof Error ? error.message : String(error)}\nDebug: ${JSON.stringify(debug)}`
-      );
-    });
-
-    await browser.waitUntil(async () => {
-      const raw = await browser.execute((key) => localStorage.getItem(key), notesStorageKey);
-      return raw === null;
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected the legacy browser notes key to be removed after host migration'
+      chapterLabelFallback: 'Legacy chapter'
     });
 
     await browser.closeWindow();
@@ -403,5 +407,39 @@ describe('br1 desktop app', () => {
     await browser.execute((key) => {
       localStorage.removeItem(key);
     }, notesStorageKey);
+  });
+
+  it('focuses the matching sidebar note when a document highlight is activated', async () => {
+    const { libraryHandle, legacyNote } = await reopenReaderWithLegacyNote({
+      text: 'highlight focus text',
+      note: 'highlight focus body',
+      chapterLabelFallback: 'Highlight chapter'
+    });
+
+    const tocTab = await $('//button[@role="tab" and normalize-space()="目录"]');
+    await tocTab.click();
+
+    await browser.execute((cfi) => {
+      const view = document.querySelector('foliate-view');
+      view?.dispatchEvent(
+        new CustomEvent('show-annotation', {
+          detail: { value: `foliate-note:${cfi}` }
+        })
+      );
+    }, legacyNote.cfi);
+
+    await browser.waitUntil(async () => {
+      const notesTab = await $('//button[@role="tab" and normalize-space()="笔记"]');
+      const isSelected = (await notesTab.getAttribute('aria-selected')) === 'true';
+      const activeNote = await $(`.note-card.active-note[data-note-cfi="${legacyNote.cfi.replace(/"/g, '\\"')}"]`);
+      return isSelected && (await activeNote.isExisting());
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the annotation activation to switch to notes and focus the matching sidebar note'
+    });
+
+    await clearAllReaderNotes();
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
   });
 });
