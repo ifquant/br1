@@ -128,6 +128,10 @@ export const updateLibraryReadingState = async (
 };
 
 export const loadLibraryBookFile = async (filePath: string): Promise<File> => {
+  if (!isTauriDesktop()) {
+    throw new Error('library-file reader sources require the Tauri desktop runtime');
+  }
+
   const binary = await invokeTauri<LibraryBookBinary>('load_library_book_binary', {
     filePath
   });

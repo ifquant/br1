@@ -22,7 +22,9 @@ export const clearReaderSearchCache = async (bookKey: string): Promise<void> => 
 };
 
 export const loadLibraryFileFingerprint = async (filePath: string): Promise<string> => {
-  if (!isTauriDesktop()) return filePath;
+  if (!isTauriDesktop()) {
+    throw new Error('library-file reader sources require the Tauri desktop runtime');
+  }
 
   return invokeTauri<string>('load_library_file_fingerprint', {
     filePath
