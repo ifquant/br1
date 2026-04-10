@@ -442,4 +442,75 @@ describe('br1 desktop app', () => {
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
   });
+
+  it('persists note edits and deletions through the host-side store', async () => {
+    const { libraryHandle, notesStorageKey, legacyNote } = await reopenReaderWithLegacyNote({
+      text: 'editable note text',
+      note: 'editable note body',
+      chapterLabelFallback: 'Editable chapter'
+    });
+
+    await browser.execute(() => {
+      window.prompt = () => 'edited note body';
+      window.confirm = () => true;
+    });
+
+    const editButton = await $('.note-action');
+    await editButton.click();
+
+    await browser.waitUntil(async () => {
+      const noteBody = await $('.note-body');
+      return (await noteBody.getText()) === 'edited note body';
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the edited note body to appear before reopening the reader'
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    const [reopenedBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+    expect(reopenedBook).toBeTruthy();
+    await openReaderFromBook(reopenedBook);
+    await switchReaderToNotesTab();
+
+    await browser.waitUntil(async () => {
+      const noteBody = await $('.note-body');
+      return (await noteBody.getText()) === 'edited note body';
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the edited note body to persist after reopening the book'
+    });
+
+    const deleteButton = await $('.note-action.danger');
+    await deleteButton.click();
+
+    await browser.waitUntil(async () => {
+      const noteCards = await $$('.note-card');
+      return noteCards.length === 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the note list to be empty after deleting the edited note'
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    const [thirdOpen] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+    expect(thirdOpen).toBeTruthy();
+    await openReaderFromBook(thirdOpen);
+    await switchReaderToNotesTab();
+
+    await browser.waitUntil(async () => {
+      const noteCards = await $$('.note-card');
+      return noteCards.length === 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the deleted note to stay removed after reopening the book'
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await browser.execute((key) => {
+      localStorage.removeItem(key);
+    }, notesStorageKey);
+  });
 });
