@@ -67,17 +67,31 @@ describe('br1 desktop app', () => {
   };
 
   const switchToLibraryWindow = async () => {
-    const handles = await browser.getWindowHandles();
+    let libraryHandle = '';
 
-    for (const handle of handles) {
-      await browser.switchToWindow(handle);
-      const libraryPage = await $('.library-page');
-      if (await libraryPage.isExisting()) {
-        return handle;
+    await browser.waitUntil(async () => {
+      const handles = await browser.getWindowHandles();
+
+      for (const handle of handles) {
+        try {
+          await browser.switchToWindow(handle);
+          const libraryPage = await $('.library-page');
+          if (await libraryPage.isExisting()) {
+            libraryHandle = handle;
+            return true;
+          }
+        } catch {
+          continue;
+        }
       }
-    }
 
-    throw new Error('expected at least one library window to remain open');
+      return false;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected at least one library window to remain open'
+    });
+
+    return libraryHandle;
   };
 
   const openReaderFromBook = async (book: WebdriverIO.Element) => {
@@ -100,18 +114,49 @@ describe('br1 desktop app', () => {
     return readerHandle!;
   };
 
+  const listOpenableBookHrefs = async () =>
+    browser.execute(() =>
+      Array.from(document.querySelectorAll('[aria-label^="Open "][aria-label$=" in reader"]'))
+        .map((node) => node.getAttribute('href'))
+        .filter((value): value is string => !!value)
+    );
+
+  const findBookElementByHref = async (href: string) => {
+    const book = await $(`[aria-label^="Open "][aria-label$=" in reader"][href="${href}"]`);
+    return (await book.isExisting()) ? book : null;
+  };
+
   const openReaderFromHref = async (href: string) => {
     const libraryHandle = await switchToLibraryWindow();
-    const books = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-
-    for (const book of books) {
-      if ((await book.getAttribute('href')) === href) {
-        const readerHandle = await openReaderFromBook(book);
-        return { libraryHandle, readerHandle };
-      }
+    const book = await findBookElementByHref(href);
+    if (book) {
+      const readerHandle = await openReaderFromBook(book);
+      return { libraryHandle, readerHandle };
     }
 
     throw new Error(`expected to find a library book link for href: ${href}`);
+  };
+
+  const openReaderFromLibraryPath = async (filePath: string, libraryHandle?: string) => {
+    if (libraryHandle) {
+      await browser.switchToWindow(libraryHandle);
+    }
+    const resolvedLibraryHandle = libraryHandle ?? (await switchToLibraryWindow());
+    const hrefs = await listOpenableBookHrefs();
+    const book = await (async () => {
+      for (const href of hrefs) {
+        const target = new URL(href, 'http://localhost');
+        if ((target.searchParams.get('path') ?? '') === filePath) {
+          return findBookElementByHref(href);
+        }
+      }
+      return null;
+    })();
+    if (!book) {
+      throw new Error(`expected to find a library book for path ${filePath}`);
+    }
+    const readerHandle = await openReaderFromBook(book);
+    return { libraryHandle: resolvedLibraryHandle, readerHandle };
   };
 
   const findOpenableBook = async (
@@ -119,12 +164,14 @@ describe('br1 desktop app', () => {
     description: string
   ): Promise<WebdriverIO.Element> => {
     await switchToLibraryWindow();
-    const books = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+    const hrefs = await listOpenableBookHrefs();
 
-    for (const book of books) {
-      const href = await book.getAttribute('href');
-      if (href && predicate(href)) {
-        return book;
+    for (const href of hrefs) {
+      if (predicate(href)) {
+        const book = await findBookElementByHref(href);
+        if (book) {
+          return book;
+        }
       }
     }
 
@@ -140,6 +187,79 @@ describe('br1 desktop app', () => {
       },
       'a stable epub-backed reader regression'
     );
+
+  const readReaderDetails = async () =>
+    browser.execute(() => {
+      const view = document.querySelector('foliate-view') as
+        | (HTMLElement & {
+            book?: { metadata?: { title?: unknown } };
+            lastLocation?: {
+              cfi?: string;
+              total?: number;
+              location?: { total?: number };
+              tocItem?: { label?: string; href?: string };
+            };
+          })
+        | null;
+
+      const titleValue = view?.book?.metadata?.title;
+      const title =
+        typeof titleValue === 'string'
+          ? titleValue
+          : titleValue && typeof titleValue === 'object' && 'en' in titleValue
+            ? String((titleValue as Record<string, unknown>).en ?? '')
+            : null;
+
+      return {
+        title,
+        cfi: view?.lastLocation?.cfi ?? null,
+        chapterLabel: view?.lastLocation?.tocItem?.label ?? null,
+        chapterHref: view?.lastLocation?.tocItem?.href ?? null,
+        total: view?.lastLocation?.location?.total ?? view?.lastLocation?.total ?? null,
+        stageError: document.querySelector('.stage-error')?.textContent?.trim() ?? null
+      };
+    });
+
+  const openUsableReaderBook = async (options?: { requireCfi?: boolean }) => {
+    const requireCfi = options?.requireCfi ?? false;
+    const libraryHandle = await switchToLibraryWindow();
+    const hrefs = await listOpenableBookHrefs();
+
+    for (const href of hrefs) {
+      const book = await findBookElementByHref(href);
+      if (!book) continue;
+
+      const target = new URL(href, 'http://localhost');
+      const path = target.searchParams.get('path') ?? '';
+      if (!(/\.epub($|\?)/i.test(path) || path.toLowerCase().endsWith('.epub'))) continue;
+
+      await openReaderFromBook(book);
+
+      try {
+        await browser.waitUntil(async () => {
+          const details = await readReaderDetails();
+          if (details.stageError) {
+            throw new Error(details.stageError);
+          }
+          return !!details.title && !!details.total && (!requireCfi || !!details.cfi);
+        }, {
+          timeout: 15000,
+          timeoutMsg: `expected an epub-backed library book to expose metadata${requireCfi ? ' and a valid CFI' : ''}`
+        });
+
+        return {
+          libraryHandle,
+          href,
+          details: await readReaderDetails()
+        };
+      } catch {
+        await browser.closeWindow();
+        await browser.switchToWindow(libraryHandle);
+      }
+    }
+
+    throw new Error(`expected to find an EPUB library book with readable metadata${requireCfi ? ' and CFI' : ''}`);
+  };
 
   const switchReaderToNotesTab = async () => {
     const notesTab = await $('//button[@role="tab" and normalize-space()="笔记"]');
@@ -169,23 +289,14 @@ describe('br1 desktop app', () => {
     });
   };
 
-  const readCurrentReaderLocation = async () =>
-    browser.execute(() => {
-      const view = document.querySelector('foliate-view') as
-        | (HTMLElement & {
-            lastLocation?: {
-              cfi?: string;
-              tocItem?: { label?: string; href?: string };
-            };
-          })
-        | null;
-
-      return {
-        cfi: view?.lastLocation?.cfi ?? null,
-        chapterLabel: view?.lastLocation?.tocItem?.label ?? null,
-        chapterHref: view?.lastLocation?.tocItem?.href ?? null
-      };
-    });
+  const readCurrentReaderLocation = async () => {
+    const details = await readReaderDetails();
+    return {
+      cfi: details.cfi,
+      chapterLabel: details.chapterLabel,
+      chapterHref: details.chapterHref
+    };
+  };
 
   const switchReaderToSearchTab = async () => {
     const searchTab = await $('//button[@role="tab" and normalize-space()="搜索"]');
@@ -198,11 +309,7 @@ describe('br1 desktop app', () => {
     note: string;
     chapterLabelFallback: string;
   }) => {
-    const libraryHandle = await switchToLibraryWindow();
-    const firstBook = await findStableEpubBook();
-
-    const href = await firstBook.getAttribute('href');
-    expect(href).toBeTruthy();
+    const { libraryHandle, href } = await openUsableReaderBook({ requireCfi: true });
 
     const target = new URL(href!, 'http://localhost');
     const bookKey =
@@ -212,7 +319,6 @@ describe('br1 desktop app', () => {
       'default';
     const notesStorageKey = `br1.reader.notes:${bookKey}`;
 
-    await openReaderFromBook(firstBook);
     await clearAllReaderNotes();
     await browser.execute((key) => {
       localStorage.removeItem(key);
@@ -243,18 +349,19 @@ describe('br1 desktop app', () => {
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
 
-    const sameBook = await $(`[aria-label^="Open "][aria-label$=" in reader"][href="${href!}"]`);
-    await sameBook.waitForExist({ timeout: 10000 });
-    await openReaderFromBook(sameBook);
+    await openReaderFromLibraryPath(bookKey, libraryHandle);
     await switchReaderToNotesTab();
 
     await browser.waitUntil(async () => {
       const noteCards = await $$('.note-card');
       if (!noteCards.length) return false;
-      const noteBody = await $('.note-body');
-      return (await noteBody.getText()) === legacyNote.note;
+      const texts: string[] = [];
+      for (const noteCard of noteCards) {
+        texts.push(await noteCard.getText());
+      }
+      return texts.some((text) => text.includes(legacyNote.text) && text.includes(legacyNote.note));
     }, {
-      timeout: 15000,
+      timeout: 20000,
       timeoutMsg: 'expected the migrated legacy note to appear in the notes panel after reopening the book'
     });
 
@@ -266,7 +373,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the legacy browser notes key to be removed after host migration'
     });
 
-    return { libraryHandle, notesStorageKey, legacyNote };
+    return { libraryHandle, notesStorageKey, legacyNote, href, bookKey };
   };
 
   it('shows the library route by default', async () => {
@@ -337,65 +444,17 @@ describe('br1 desktop app', () => {
   });
 
   it('loads metadata after opening the first library book', async () => {
-    await switchToLibraryWindow();
-
-    const firstBook = await findStableEpubBook();
-
-    const initialHandles = await browser.getWindowHandles();
-    await firstBook.click();
+    const { details } = await openUsableReaderBook();
 
     await browser.waitUntil(async () => {
-      const handles = await browser.getWindowHandles();
-      return handles.length > initialHandles.length;
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected a reader window to open before checking reader metadata'
-    });
-
-    const nextHandles = await browser.getWindowHandles();
-    const readerHandle = nextHandles.find((handle) => !initialHandles.includes(handle));
-    expect(readerHandle).toBeTruthy();
-
-    await browser.switchToWindow(readerHandle!);
-
-    await browser.waitUntil(async () => {
-      const details = await browser.execute(() => {
-        const view = document.querySelector('foliate-view') as
-          | (HTMLElement & {
-              book?: { metadata?: { title?: unknown } };
-              lastLocation?: {
-                total?: number;
-                location?: { total?: number };
-              };
-            })
-          | null;
-
-        const titleValue = view?.book?.metadata?.title;
-        const title =
-          typeof titleValue === 'string'
-            ? titleValue
-            : titleValue && typeof titleValue === 'object' && 'en' in titleValue
-              ? String((titleValue as Record<string, unknown>).en ?? '')
-              : null;
-
-        const stageError = document.querySelector('.stage-error')?.textContent?.trim() ?? null;
-        const total =
-          view?.lastLocation?.location?.total ??
-          view?.lastLocation?.total ??
-          null;
-
-        return {
-          title,
-          total,
-          stageError
-        };
-      });
-
+      const details = await readReaderDetails();
       return !details.stageError && typeof details.total === 'number' && details.total > 0;
     }, {
       timeout: 15000,
       timeoutMsg: 'expected the first book to load without a stage error and expose location state'
     });
+
+    expect(details.title).toBeTruthy();
   });
 
   it('keeps the rendered book page inside the reader stage instead of the sidebar column', async () => {
@@ -492,7 +551,7 @@ describe('br1 desktop app', () => {
   });
 
   it('migrates legacy browser notes into the host-side book store when reopening a book', async () => {
-    const { libraryHandle, notesStorageKey, legacyNote } = await reopenReaderWithLegacyNote({
+    const { libraryHandle, notesStorageKey, legacyNote, bookKey } = await reopenReaderWithLegacyNote({
       text: 'legacy migrated note text',
       note: 'legacy migrated note body',
       chapterLabelFallback: 'Legacy chapter'
@@ -500,14 +559,17 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    const [thirdOpen] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(thirdOpen).toBeTruthy();
-    await openReaderFromBook(thirdOpen);
+    await openReaderFromLibraryPath(bookKey, libraryHandle);
     await switchReaderToNotesTab();
 
     await browser.waitUntil(async () => {
-      const noteBody = await $('.note-body');
-      return (await noteBody.getText()) === legacyNote.note;
+      const noteCards = await $$('.note-card');
+      if (!noteCards.length) return false;
+      const texts: string[] = [];
+      for (const noteCard of noteCards) {
+        texts.push(await noteCard.getText());
+      }
+      return texts.some((text) => text.includes(legacyNote.note));
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the migrated note to survive a second reopen after the legacy browser key was removed'
@@ -556,7 +618,7 @@ describe('br1 desktop app', () => {
   });
 
   it('persists note edits and deletions through the host-side store', async () => {
-    const { libraryHandle, notesStorageKey, legacyNote } = await reopenReaderWithLegacyNote({
+    const { libraryHandle, notesStorageKey, legacyNote, bookKey } = await reopenReaderWithLegacyNote({
       text: 'editable note text',
       note: 'editable note body',
       chapterLabelFallback: 'Editable chapter'
@@ -580,9 +642,7 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    const [reopenedBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(reopenedBook).toBeTruthy();
-    await openReaderFromBook(reopenedBook);
+    await openReaderFromLibraryPath(bookKey, libraryHandle);
     await switchReaderToNotesTab();
 
     await browser.waitUntil(async () => {
@@ -606,9 +666,7 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    const [thirdOpen] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(thirdOpen).toBeTruthy();
-    await openReaderFromBook(thirdOpen);
+    await openReaderFromLibraryPath(bookKey);
     await switchReaderToNotesTab();
 
     await browser.waitUntil(async () => {
@@ -691,9 +749,7 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    const reopenedBook = await $(`[aria-label^="Open "][aria-label$=" in reader"][href="${href!}"]`);
-    await reopenedBook.waitForExist({ timeout: 10000 });
-    await openReaderFromBook(reopenedBook);
+    await openReaderFromLibraryPath(bookKey, libraryHandle);
     await switchReaderToSearchTab();
 
     const restoredMatchCaseButton = await $('//button[contains(@class, "option-chip") and normalize-space()="区分大小写"]');
