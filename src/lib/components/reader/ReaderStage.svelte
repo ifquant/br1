@@ -4,6 +4,7 @@
     ReaderControlRequest,
     ReaderNote,
     ReaderPreviewState,
+    SidebarTab,
     ReaderSearchState,
     ReaderSelectionState,
     ReaderTocItem
@@ -27,7 +28,7 @@
   export let autoOpenPicker = false;
   export let isWindowMode = false;
   export let sidebarVisible = true;
-  export let activeSidebarTab: 'toc' | 'search' | 'notes' = 'toc';
+  export let activeSidebarTab: SidebarTab = 'toc';
   export let notes: ReaderNote[] = [];
 
   let readerPreview: ReaderPreviewState = {
@@ -91,7 +92,7 @@
     dispatch('togglesidebar');
   };
 
-  const openSidebarTab = (tab: 'toc' | 'search' | 'notes') => {
+  const openSidebarTab = (tab: SidebarTab) => {
     dispatch('switchsidebartab', tab);
   };
 

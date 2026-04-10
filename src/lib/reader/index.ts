@@ -21,7 +21,11 @@ export type {
   ReaderSearchExcerpt,
   ReaderSearchResult,
   ReaderSearchState,
-  ReaderTocItem
+  ReaderTocItem,
+  ReaderSidebarCallbacks,
+  ReaderSidebarNotesState,
+  ReaderSidebarSearchState,
+  SidebarTab
 } from './types';
 
 export const READER_ENGINE_HOST_ATTR = 'reader-engine-host';

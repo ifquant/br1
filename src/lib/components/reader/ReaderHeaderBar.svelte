@@ -1,7 +1,6 @@
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
-  import type { ReaderPreviewState } from '$lib/reader';
-  type SidebarTab = 'toc' | 'search' | 'notes';
+  import type { ReaderPreviewState, SidebarTab } from '$lib/reader';
 
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;

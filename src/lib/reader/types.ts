@@ -17,6 +17,8 @@ export type ReaderPreviewState = {
   progressLocation: string;
 };
 
+export type SidebarTab = 'toc' | 'search' | 'notes';
+
 export type ReaderTocItem = {
   label: string;
   href: string;
@@ -111,3 +113,41 @@ export type ReaderControlRequest =
       nonce: number;
       file: File;
     };
+
+export type ReaderSidebarSearchState = {
+  term: string;
+  status: 'idle' | 'searching' | 'done' | 'error';
+  results: ReaderSearchResult[];
+  error: string;
+  progress: number;
+  history: string[];
+  config: ReaderSearchConfig;
+  cacheKey: string;
+  notice: { kind: 'success' | 'error'; message: string } | null;
+  activeResultCfi: string;
+  recentResultCfi: string;
+};
+
+export type ReaderSidebarNotesState = {
+  activeCfi: string;
+  selection: ReaderSelectionState | null;
+  notes: ReaderNote[];
+};
+
+export type ReaderSidebarCallbacks = {
+  onNavigate: ((href: string) => void) | null;
+  onClose: (() => void) | null;
+  onToggleSidebar: (() => void) | null;
+  onTogglePin: (() => void) | null;
+  onTabChange: ((tab: SidebarTab) => void) | null;
+  onSearch: ((query: string) => void) | null;
+  onSearchResult: ((cfi: string) => void) | null;
+  onSearchConfigChange: ((config: ReaderSearchConfig) => void) | null;
+  onSearchHistory: ((query: string) => void) | null;
+  onClearSearchHistory: (() => void) | null;
+  onClearSearchCache: (() => void) | null;
+  onAddNote: (() => void) | null;
+  onOpenNote: ((cfi: string) => void) | null;
+  onEditNote: ((id: string) => void) | null;
+  onDeleteNote: ((id: string) => void) | null;
+};

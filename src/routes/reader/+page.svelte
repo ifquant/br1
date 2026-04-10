@@ -7,8 +7,12 @@
     ReaderNote,
     ReaderSearchConfig,
     ReaderPreviewState,
+    ReaderSidebarCallbacks,
+    ReaderSidebarNotesState,
+    ReaderSidebarSearchState,
     ReaderSearchResult,
     ReaderSelectionState,
+    SidebarTab,
     ReaderTocItem
   } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
@@ -22,7 +26,7 @@
   let sidebarVisible = true;
   let sidebarPinned = true;
   let sidebarWidth = 224;
-  let sidebarTab: 'toc' | 'search' | 'notes' = 'toc';
+  let sidebarTab: SidebarTab = 'toc';
   let sidebarSearchTerm = '';
   let sidebarSearchStatus: 'idle' | 'searching' | 'done' | 'error' = 'idle';
   let sidebarSearchResults: ReaderSearchResult[] = [];
@@ -108,7 +112,7 @@
     sidebarPinned = !sidebarPinned;
   };
 
-  const openSidebarTab = (tab: 'toc' | 'search' | 'notes') => {
+  const openSidebarTab = (tab: SidebarTab) => {
     sidebarTab = tab;
     sidebarVisible = true;
   };
@@ -358,6 +362,54 @@
     if (persistTimer) clearTimeout(persistTimer);
     if (searchNoticeTimer) clearTimeout(searchNoticeTimer);
   });
+
+  $: sidebarSearchState = {
+    term: sidebarSearchTerm,
+    status: sidebarSearchStatus,
+    results: sidebarSearchResults,
+    error: sidebarSearchError,
+    progress: sidebarSearchProgress,
+    history: sidebarSearchHistory,
+    config: sidebarSearchConfig,
+    cacheKey: sidebarSearchCacheKey,
+    notice: searchNotice,
+    activeResultCfi: currentSearchLocation,
+    recentResultCfi: recentSearchResultCfi
+  } satisfies ReaderSidebarSearchState;
+
+  $: sidebarNotesState = {
+    activeCfi: activeNoteCfi,
+    selection: notesSelection,
+    notes
+  } satisfies ReaderSidebarNotesState;
+
+  $: sidebarCallbacks = {
+    onNavigate: issueHrefControl,
+    onClose: isWindowMode ? toggleSidebar : null,
+    onToggleSidebar: toggleSidebar,
+    onTogglePin: isWindowMode ? toggleSidebarPin : null,
+    onTabChange: openSidebarTab,
+    onAddNote: addNoteFromSelection,
+    onOpenNote: openNote,
+    onEditNote: editNote,
+    onDeleteNote: deleteNote,
+    onSearch: issueSearchControl,
+    onSearchResult: issueSearchResultControl,
+    onSearchConfigChange: (config) => {
+      sidebarSearchConfig = config;
+      if (sidebarSearchTerm.trim()) issueSearchControl(sidebarSearchTerm);
+    },
+    onSearchHistory: (query) => issueSearchControl(query),
+    onClearSearchHistory: () => {
+      sidebarSearchHistory = [];
+    },
+    onClearSearchCache: async () => {
+      if (!sidebarSearchCacheKey) return;
+      controlNonce += 1;
+      controlRequest = { type: 'clear-search-cache', nonce: controlNonce };
+      showSearchNotice('success', '已清空当前书的搜索缓存。');
+    }
+  } satisfies ReaderSidebarCallbacks;
 </script>
 
 <section class:window-mode={isWindowMode} class="reader-shell">
@@ -392,45 +444,9 @@
         {isWindowMode}
         isPinned={sidebarPinned}
         activeTab={sidebarTab}
-        searchTerm={sidebarSearchTerm}
-        searchStatus={sidebarSearchStatus}
-        searchResults={sidebarSearchResults}
-        searchError={sidebarSearchError}
-        searchProgress={sidebarSearchProgress}
-        searchHistory={sidebarSearchHistory}
-        searchConfig={sidebarSearchConfig}
-        searchCacheKey={sidebarSearchCacheKey}
-        searchNotice={searchNotice}
-        activeSearchResultCfi={currentSearchLocation}
-        recentSearchResultCfi={recentSearchResultCfi}
-        {activeNoteCfi}
-        {notesSelection}
-        {notes}
-        onNavigate={issueHrefControl}
-        onClose={isWindowMode ? toggleSidebar : null}
-        onToggleSidebar={toggleSidebar}
-        onTogglePin={isWindowMode ? toggleSidebarPin : null}
-        onTabChange={openSidebarTab}
-        onAddNote={addNoteFromSelection}
-        onOpenNote={openNote}
-        onEditNote={editNote}
-        onDeleteNote={deleteNote}
-        onSearch={issueSearchControl}
-        onSearchResult={issueSearchResultControl}
-        onSearchConfigChange={(config) => {
-          sidebarSearchConfig = config;
-          if (sidebarSearchTerm.trim()) issueSearchControl(sidebarSearchTerm);
-        }}
-        onSearchHistory={(query) => issueSearchControl(query)}
-        onClearSearchHistory={() => {
-          sidebarSearchHistory = [];
-        }}
-        onClearSearchCache={async () => {
-          if (!sidebarSearchCacheKey) return;
-          controlNonce += 1;
-          controlRequest = { type: 'clear-search-cache', nonce: controlNonce };
-          showSearchNotice('success', '已清空当前书的搜索缓存。');
-        }}
+        search={sidebarSearchState}
+        notesState={sidebarNotesState}
+        callbacks={sidebarCallbacks}
       />
     {/if}
     {#if isWindowMode && sidebarVisible && sidebarPinned}

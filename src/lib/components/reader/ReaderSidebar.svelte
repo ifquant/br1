@@ -1,53 +1,60 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
-  import type { ReaderNote, ReaderSearchConfig, ReaderSelectionState, ReaderTocItem } from '$lib/reader';
+  import type {
+    ReaderSearchConfig,
+    ReaderSidebarCallbacks,
+    ReaderSidebarNotesState,
+    ReaderSidebarSearchState,
+    ReaderTocItem,
+    SidebarTab
+  } from '$lib/reader';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
   export let isWindowMode = false;
   export let isPinned = true;
   export let activeTab: SidebarTab = 'toc';
-  export let searchTerm = '';
-  export let searchStatus: 'idle' | 'searching' | 'done' | 'error' = 'idle';
-  export let searchResults: Array<{
-    cfi: string;
-    label: string;
-    excerpt: { pre: string; match: string; post: string };
-  }> = [];
-  export let searchError = '';
-  export let searchProgress = 0;
-  export let searchHistory: string[] = [];
-  export let searchConfig: ReaderSearchConfig = {
-    scope: 'book',
-    matchCase: false,
-    matchWholeWords: false,
-    matchDiacritics: false
+  export let search: ReaderSidebarSearchState = {
+    term: '',
+    status: 'idle',
+    results: [],
+    error: '',
+    progress: 0,
+    history: [],
+    config: {
+      scope: 'book',
+      matchCase: false,
+      matchWholeWords: false,
+      matchDiacritics: false
+    },
+    cacheKey: '',
+    notice: null,
+    activeResultCfi: '',
+    recentResultCfi: ''
   };
-  export let searchCacheKey = '';
-  export let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
-  export let activeSearchResultCfi = '';
-  export let recentSearchResultCfi = '';
-  export let activeNoteCfi = '';
-  export let notesSelection: ReaderSelectionState | null = null;
-  export let notes: ReaderNote[] = [];
-  export let onNavigate: ((href: string) => void) | null = null;
-  export let onClose: (() => void) | null = null;
-  export let onToggleSidebar: (() => void) | null = null;
-  export let onTogglePin: (() => void) | null = null;
-  export let onTabChange: ((tab: SidebarTab) => void) | null = null;
-  export let onSearch: ((query: string) => void) | null = null;
-  export let onSearchResult: ((cfi: string) => void) | null = null;
-  export let onSearchConfigChange: ((config: ReaderSearchConfig) => void) | null = null;
-  export let onSearchHistory: ((query: string) => void) | null = null;
-  export let onClearSearchHistory: (() => void) | null = null;
-  export let onClearSearchCache: (() => void) | null = null;
-  export let onAddNote: (() => void) | null = null;
-  export let onOpenNote: ((cfi: string) => void) | null = null;
-  export let onEditNote: ((id: string) => void) | null = null;
-  export let onDeleteNote: ((id: string) => void) | null = null;
-
-  type SidebarTab = 'toc' | 'search' | 'notes';
+  export let notesState: ReaderSidebarNotesState = {
+    activeCfi: '',
+    selection: null,
+    notes: []
+  };
+  export let callbacks: ReaderSidebarCallbacks = {
+    onNavigate: null,
+    onClose: null,
+    onToggleSidebar: null,
+    onTogglePin: null,
+    onTabChange: null,
+    onSearch: null,
+    onSearchResult: null,
+    onSearchConfigChange: null,
+    onSearchHistory: null,
+    onClearSearchHistory: null,
+    onClearSearchCache: null,
+    onAddNote: null,
+    onOpenNote: null,
+    onEditNote: null,
+    onDeleteNote: null
+  };
   let lastScrolledHref = '';
   let lastScrolledNoteCfi = '';
 
@@ -65,12 +72,14 @@
 
   const scrollActiveNoteIntoView = async () => {
     if (activeTab !== 'notes') return;
-    if (!activeNoteCfi || activeNoteCfi === lastScrolledNoteCfi) return;
+    if (!notesState.activeCfi || notesState.activeCfi === lastScrolledNoteCfi) return;
     await tick();
 
-    const target = document.querySelector<HTMLElement>(`.note-card[data-note-cfi="${CSS.escape(activeNoteCfi)}"]`);
+    const target = document.querySelector<HTMLElement>(
+      `.note-card[data-note-cfi="${CSS.escape(notesState.activeCfi)}"]`
+    );
     target?.scrollIntoView({ block: 'nearest' });
-    lastScrolledNoteCfi = activeNoteCfi;
+    lastScrolledNoteCfi = notesState.activeCfi;
   };
 
   $: void scrollActiveNoteIntoView();
@@ -84,20 +93,20 @@
     });
 
   const handleSidebarToggle = () => {
-    onToggleSidebar?.();
+    callbacks.onToggleSidebar?.();
   };
 
   const handlePinToggle = () => {
-    onTogglePin?.();
+    callbacks.onTogglePin?.();
   };
 
   const setActiveTab = (tab: SidebarTab) => {
-    onTabChange?.(tab);
+    callbacks.onTabChange?.(tab);
   };
 
   const updateSearchConfig = <K extends keyof ReaderSearchConfig>(key: K, value: ReaderSearchConfig[K]) => {
-    onSearchConfigChange?.({
-      ...searchConfig,
+    callbacks.onSearchConfigChange?.({
+      ...search.config,
       [key]: value
     });
   };
@@ -142,7 +151,7 @@
           class="ghost-button"
           aria-label="Hide sidebar"
           title="Hide sidebar"
-          on:click={() => onClose?.()}
+          on:click={() => callbacks.onClose?.()}
         >
           ×
         </button>
@@ -206,7 +215,7 @@
               class:active={item.href === activeHref}
               data-href={item.href}
               style={`--toc-level:${item.level};`}
-              on:click={() => onNavigate?.(item.href)}
+              on:click={() => callbacks.onNavigate?.(item.href)}
             >
               {item.label}
             </button>
@@ -222,15 +231,15 @@
           <input
             type="search"
             placeholder="搜索正文内容"
-            value={searchTerm}
-            on:input={(event) => onSearch?.((event.currentTarget as HTMLInputElement).value)}
+            value={search.term}
+            on:input={(event) => callbacks.onSearch?.((event.currentTarget as HTMLInputElement).value)}
           />
         </label>
 
         <div class="search-options" aria-label="search options">
           <button
             type="button"
-            class:active={searchConfig.scope === 'book'}
+            class:active={search.config.scope === 'book'}
             class="option-chip"
             on:click={() => updateSearchConfig('scope', 'book')}
           >
@@ -238,7 +247,7 @@
           </button>
           <button
             type="button"
-            class:active={searchConfig.scope === 'section'}
+            class:active={search.config.scope === 'section'}
             class="option-chip"
             on:click={() => updateSearchConfig('scope', 'section')}
           >
@@ -246,48 +255,48 @@
           </button>
           <button
             type="button"
-            class:active={searchConfig.matchCase}
+            class:active={search.config.matchCase}
             class="option-chip"
-            on:click={() => updateSearchConfig('matchCase', !searchConfig.matchCase)}
+            on:click={() => updateSearchConfig('matchCase', !search.config.matchCase)}
           >
             区分大小写
           </button>
           <button
             type="button"
-            class:active={searchConfig.matchWholeWords}
+            class:active={search.config.matchWholeWords}
             class="option-chip"
-            on:click={() => updateSearchConfig('matchWholeWords', !searchConfig.matchWholeWords)}
+            on:click={() => updateSearchConfig('matchWholeWords', !search.config.matchWholeWords)}
           >
             整词
           </button>
           <button
             type="button"
-            class:active={searchConfig.matchDiacritics}
+            class:active={search.config.matchDiacritics}
             class="option-chip"
-            on:click={() => updateSearchConfig('matchDiacritics', !searchConfig.matchDiacritics)}
+            on:click={() => updateSearchConfig('matchDiacritics', !search.config.matchDiacritics)}
           >
             保留重音
           </button>
         </div>
 
-        {#if searchHistory.length > 0 && !searchTerm.trim()}
+        {#if search.history.length > 0 && !search.term.trim()}
           <div class="search-history">
             <div class="search-history-head">
               <strong>最近搜索</strong>
               <div class="history-actions">
-                <button type="button" class="history-clear" on:click={() => onClearSearchHistory?.()}>
+                <button type="button" class="history-clear" on:click={() => callbacks.onClearSearchHistory?.()}>
                   清空历史
                 </button>
-                {#if searchCacheKey}
-                  <button type="button" class="history-clear" on:click={() => onClearSearchCache?.()}>
+                {#if search.cacheKey}
+                  <button type="button" class="history-clear" on:click={() => callbacks.onClearSearchCache?.()}>
                     清空缓存
                   </button>
                 {/if}
               </div>
             </div>
             <div class="history-list">
-              {#each searchHistory as item}
-                <button type="button" class="history-chip" on:click={() => onSearchHistory?.(item)}>
+              {#each search.history as item}
+                <button type="button" class="history-chip" on:click={() => callbacks.onSearchHistory?.(item)}>
                   {item}
                 </button>
               {/each}
@@ -296,17 +305,17 @@
         {/if}
 
         <div class="search-summary">
-          {#if searchStatus === 'searching'}
+          {#if search.status === 'searching'}
             <strong>Searching…</strong>
             <span>
-              {#if searchProgress > 0}
-                已扫描 {Math.round(searchProgress * 100)}%
+              {#if search.progress > 0}
+                已扫描 {Math.round(search.progress * 100)}%
               {:else}
                 正在扫描当前书的正文。
               {/if}
             </span>
-          {:else if searchTerm.trim()}
-            <strong>{searchResults.length}</strong>
+          {:else if search.term.trim()}
+            <strong>{search.results.length}</strong>
             <span>正文命中结果</span>
           {:else}
             <strong>Search</strong>
@@ -314,24 +323,24 @@
           {/if}
         </div>
 
-        {#if searchNotice}
-          <div class:error={searchNotice.kind === 'error'} class="search-notice" role="status">
-            {searchNotice.message}
+        {#if search.notice}
+          <div class:error={search.notice.kind === 'error'} class="search-notice" role="status">
+            {search.notice.message}
           </div>
         {/if}
 
         <div class="search-results" aria-label="search results">
-          {#if searchStatus === 'error'}
-            <p class="empty">{searchError || '正文搜索失败。'}</p>
-          {:else if searchResults.length}
-            {#each searchResults as item}
+          {#if search.status === 'error'}
+            <p class="empty">{search.error || '正文搜索失败。'}</p>
+          {:else if search.results.length}
+            {#each search.results as item}
               <button
                 type="button"
-                class:active-result={item.cfi === activeSearchResultCfi}
-                class:recent-result={item.cfi === recentSearchResultCfi}
+                class:active-result={item.cfi === search.activeResultCfi}
+                class:recent-result={item.cfi === search.recentResultCfi}
                 class="search-result"
                 on:click={() => {
-                  onSearchResult?.(item.cfi);
+                  callbacks.onSearchResult?.(item.cfi);
                 }}
               >
                 <strong>{item.label || 'Search result'}</strong>
@@ -340,7 +349,7 @@
                 </span>
               </button>
             {/each}
-          {:else if searchTerm.trim() && searchStatus === 'done'}
+          {:else if search.term.trim() && search.status === 'done'}
             <p class="empty">没有命中正文内容。</p>
           {:else}
             <p class="empty">打开书后，这里会显示真正的正文搜索结果。</p>
@@ -352,7 +361,7 @@
         <div class="notes-summary">
           <strong>最近笔记</strong>
           <span>
-            {#if notesSelection}
+            {#if notesState.selection}
               已选中一段正文，可以直接记一条笔记。
             {:else}
               先在正文里选中一段文本，再把它存成当前书的笔记。
@@ -364,27 +373,27 @@
           <button
             type="button"
             class="primary-note-action"
-            disabled={!notesSelection}
-            on:click={() => onAddNote?.()}
+            disabled={!notesState.selection}
+            on:click={() => callbacks.onAddNote?.()}
           >
-            {notesSelection ? '为当前选中内容记笔记' : '先选中文本'}
+            {notesState.selection ? '为当前选中内容记笔记' : '先选中文本'}
           </button>
         </div>
 
         <div class="note-list">
-          {#if notes.length}
-            {#each notes as note}
-              <article class:active-note={note.cfi === activeNoteCfi} class="note-card" data-note-cfi={note.cfi}>
+          {#if notesState.notes.length}
+            {#each notesState.notes as note}
+              <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
                 <div class="note-head">
-                  <button type="button" class="note-link" on:click={() => onOpenNote?.(note.cfi)}>
+                  <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
                     <strong>{note.chapterLabel || '未命名章节'}</strong>
                     <time>{formatTimestamp(note.createdAt)}</time>
                   </button>
                   <div class="note-actions">
-                    <button type="button" class="note-action" on:click={() => onEditNote?.(note.id)}>
+                    <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
                       编辑
                     </button>
-                    <button type="button" class="note-action danger" on:click={() => onDeleteNote?.(note.id)}>
+                    <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
                       删除
                     </button>
                   </div>
