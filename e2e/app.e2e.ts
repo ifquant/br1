@@ -458,27 +458,7 @@ describe('br1 desktop app', () => {
   });
 
   it('keeps the rendered book page inside the reader stage instead of the sidebar column', async () => {
-    await switchToLibraryWindow();
-
-    const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(firstBook).toBeTruthy();
-
-    const initialHandles = await browser.getWindowHandles();
-    await firstBook.click();
-
-    await browser.waitUntil(async () => {
-      const handles = await browser.getWindowHandles();
-      return handles.length > initialHandles.length;
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected a reader window to open before checking content geometry'
-    });
-
-    const nextHandles = await browser.getWindowHandles();
-    const readerHandle = nextHandles.find((handle) => !initialHandles.includes(handle));
-    expect(readerHandle).toBeTruthy();
-
-    await browser.switchToWindow(readerHandle!);
+    await openUsableReaderBook();
 
     const readGeometry = () =>
       browser.execute(() => {
@@ -494,6 +474,8 @@ describe('br1 desktop app', () => {
         const paginator = view?.shadowRoot?.querySelector('foliate-paginator') as HTMLElement | null;
         const frame = paginator?.shadowRoot?.querySelector('iframe') as HTMLElement | null;
         const rendered = frame ?? paginator ?? view;
+        const frameWindow = (frame as HTMLIFrameElement | null)?.contentWindow ?? null;
+        const frameDocument = (frame as HTMLIFrameElement | null)?.contentDocument ?? null;
 
         const rectOf = (node: Element | null) => {
           if (!node) return null;
@@ -508,6 +490,38 @@ describe('br1 desktop app', () => {
           };
         };
 
+        const firstVisibleTextRect = (() => {
+          if (!frameDocument || !frameWindow || !frame) return null;
+          const candidates = Array.from(
+            frameDocument.body?.querySelectorAll('h1, h2, h3, p, li, blockquote, pre') ?? []
+          );
+
+          for (const candidate of candidates) {
+            const rect = candidate.getBoundingClientRect();
+            if (
+              rect.width < 40 ||
+              rect.height < 12 ||
+              rect.bottom <= 0 ||
+              rect.top >= frameWindow.innerHeight
+            ) {
+              continue;
+            }
+
+            const frameRect = frame.getBoundingClientRect();
+            return {
+              left: frameRect.left + rect.left,
+              top: frameRect.top + rect.top,
+              width: rect.width,
+              height: rect.height,
+              right: frameRect.left + rect.right,
+              bottom: frameRect.top + rect.bottom,
+              text: candidate.textContent?.trim().slice(0, 80) ?? ''
+            };
+          }
+
+          return null;
+        })();
+
         return {
           stage: rectOf(stage),
           sidebar: rectOf(sidebar),
@@ -521,6 +535,7 @@ describe('br1 desktop app', () => {
           paginator: rectOf(paginator),
           frame: rectOf(frame),
           rendered: rectOf(rendered),
+          firstVisibleTextRect,
           workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : null
         };
       });
@@ -530,18 +545,25 @@ describe('br1 desktop app', () => {
     await browser.waitUntil(async () => {
       geometry = await readGeometry();
       const rendered = geometry.rendered;
-      if (!geometry.stage || !geometry.sidebar || !rendered) return false;
+      const firstVisibleTextRect = geometry.firstVisibleTextRect;
+      if (!geometry.stage || !geometry.sidebar || !rendered || !firstVisibleTextRect) return false;
 
       return (
         rendered.left >= geometry.stage.left - 4 &&
         rendered.left >= geometry.sidebar.right - 4 &&
         rendered.top <= geometry.stage.top + geometry.stage.height * 0.25 &&
         rendered.width >= geometry.stage.width * 0.25 &&
-        rendered.height >= geometry.stage.height * 0.25
+        rendered.height >= geometry.stage.height * 0.25 &&
+        firstVisibleTextRect.left >= geometry.stage.left + geometry.stage.width * 0.08 &&
+        firstVisibleTextRect.right <= geometry.stage.right - geometry.stage.width * 0.08 &&
+        firstVisibleTextRect.top >= geometry.stage.top &&
+        firstVisibleTextRect.top <= geometry.stage.top + geometry.stage.height * 0.72 &&
+        firstVisibleTextRect.width >= geometry.stage.width * 0.18
       );
     }, {
       timeout: 20000,
-      timeoutMsg: 'expected the rendered book page to stay inside the reader stage instead of slipping into the sidebar area'
+      timeoutMsg:
+        'expected the rendered book page and its first visible text block to stay inside the reader stage instead of collapsing toward the sidebar or lower-left corner'
     }).catch(async (error) => {
       geometry = await readGeometry();
       throw new Error(

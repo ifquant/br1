@@ -61,6 +61,25 @@
   let searchCache = new Map<string, ReaderSearchResult[]>();
   let boundSelectionDocs = new WeakSet<Document>();
   let syncedNoteValues = new Set<string>();
+  let stageResizeObserver: ResizeObserver | null = null;
+
+  const getViewportStageSize = () => {
+    const width = stageElement?.clientWidth || hostElement?.clientWidth || window.innerWidth;
+    const height = stageElement?.clientHeight || hostElement?.clientHeight || window.innerHeight;
+    return { width, height };
+  };
+
+  const getResponsiveMaxInlineSize = () => {
+    const { width, height } = getViewportStageSize();
+    const aspectRatio = width / Math.max(height, 1);
+    const isUnfoldedWindow = aspectRatio < 1.3 && aspectRatio > 0.77 && width > 600;
+    return isUnfoldedWindow ? 576 : 720;
+  };
+
+  const getResponsiveMaxColumnCount = () => {
+    const { width } = getViewportStageSize();
+    return width >= 1120 ? 2 : 1;
+  };
 
   const NOTE_PREFIX = 'foliate-note:';
 
@@ -123,6 +142,8 @@
   const configureFoliatePreview = () => {
     const renderer = foliateViewElement?.renderer;
     if (!renderer) return;
+    const maxInlineSize = getResponsiveMaxInlineSize();
+    const maxColumnCount = getResponsiveMaxColumnCount();
 
     renderer.setStyles?.(getReaderViewStyles());
     renderer.setAttribute('flow', 'paginated');
@@ -131,9 +152,9 @@
     renderer.setAttribute('margin-bottom', isWindowMode ? '44px' : '36px');
     renderer.setAttribute('margin-left', isWindowMode ? '30px' : '34px');
     renderer.setAttribute('gap', '5%');
-    renderer.setAttribute('max-inline-size', isWindowMode ? '960px' : '760px');
+    renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
     renderer.setAttribute('max-block-size', isWindowMode ? '1440px' : '1180px');
-    renderer.setAttribute('max-column-count', isWindowMode ? '2' : '1');
+    renderer.setAttribute('max-column-count', `${maxColumnCount}`);
   };
 
   const openBook = async (
@@ -409,10 +430,7 @@
         } else {
           const view = wrapFoliateViewElement(createFoliateViewElement());
           view.className = 'foliate-preview';
-          view.addEventListener('load', () => {
-            configureFoliatePreview();
-            emitReaderState();
-          });
+          view.addEventListener('load', () => emitReaderState());
           view.addEventListener('relocate', () => emitReaderState());
           view.addEventListener('draw-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{
@@ -436,6 +454,18 @@
           foliateViewElement = view;
         }
 
+        stageResizeObserver?.disconnect();
+        stageResizeObserver =
+          typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(() => {
+                configureFoliatePreview();
+              })
+            : null;
+        if (stageResizeObserver && stageElement) {
+          stageResizeObserver.observe(stageElement);
+        }
+        configureFoliatePreview();
+
         adapterStatus = 'ready';
       } catch (error) {
         console.error('Failed to prepare foliate-view host', error);
@@ -447,6 +477,8 @@
 
     return () => {
       cancelled = true;
+      stageResizeObserver?.disconnect();
+      stageResizeObserver = null;
     };
   });
 </script>
