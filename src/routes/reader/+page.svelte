@@ -245,6 +245,7 @@
       notes={$notesState.notes}
       activeSidebarTab={$sidebarState.tab}
       on:togglesidebar={sidebarController.toggleVisible}
+      on:togglepin={sidebarController.togglePinned}
       on:switchsidebartab={({ detail }) => {
         sidebarController.toggleTab(detail);
       }}

@@ -9,8 +9,39 @@
   export let activeSidebarTab: SidebarTab = 'toc';
   export let onOpenPicker: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
+  export let onTogglePin: (() => void) | null = null;
   export let onOpenSidebarTab: ((tab: SidebarTab) => void) | null = null;
+
+  let menuOpen = false;
+
+  const toggleMenu = () => {
+    menuOpen = !menuOpen;
+  };
+
+  const closeMenu = () => {
+    menuOpen = false;
+  };
+
+  const runMenuAction = (action: (() => void) | null | undefined) => {
+    closeMenu();
+    action?.();
+  };
+
+  const handleWindowPointerDown = (event: MouseEvent) => {
+    if (!menuOpen) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('.menu-anchor')) return;
+    closeMenu();
+  };
+
+  const handleWindowKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      closeMenu();
+    }
+  };
 </script>
+
+<svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
 
 <header class:window-mode={isWindowMode} class:visible={isVisible} class="reader-head">
   {#if isWindowMode}
@@ -62,7 +93,31 @@
     >
       ✎
     </button>
-    <button type="button" aria-label="More actions" title="More actions">⋯</button>
+    <div class="menu-anchor">
+      <button
+        type="button"
+        class:active={menuOpen}
+        aria-label="More actions"
+        aria-expanded={menuOpen}
+        title="More actions"
+        on:click={toggleMenu}
+      >
+        ⋯
+      </button>
+
+      {#if menuOpen}
+        <div class="header-menu" role="menu" aria-label="reader quick actions">
+          <button type="button" role="menuitem" on:click={() => runMenuAction(onOpenPicker)}>
+            Open book
+          </button>
+          {#if isWindowMode}
+            <button type="button" role="menuitem" on:click={() => runMenuAction(onTogglePin)}>
+              {sidebarVisible ? 'Unpin sidebar' : 'Pin sidebar'}
+            </button>
+          {/if}
+        </div>
+      {/if}
+    </div>
   </div>
 </header>
 
@@ -203,6 +258,10 @@
     justify-content: flex-end;
   }
 
+  .menu-anchor {
+    position: relative;
+  }
+
   .controls button {
     min-width: 30px;
     height: 30px;
@@ -225,5 +284,32 @@
     background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
     color: var(--text-primary);
     box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .header-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    display: grid;
+    min-width: 156px;
+    padding: 6px;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 242, 231, 0.98));
+    box-shadow:
+      0 18px 40px rgba(56, 40, 18, 0.12),
+      0 3px 12px rgba(56, 40, 18, 0.08);
+  }
+
+  .header-menu button {
+    justify-content: flex-start;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    text-align: left;
   }
 </style>

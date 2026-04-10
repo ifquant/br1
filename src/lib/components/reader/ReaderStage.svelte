@@ -21,6 +21,7 @@
     searchcachekeychange: string;
     tocchange: ReaderTocItem[];
     togglesidebar: void;
+    togglepin: void;
     switchsidebartab: 'toc' | 'search' | 'notes';
   }>();
 
@@ -92,6 +93,10 @@
 
   const toggleSidebar = () => {
     dispatch('togglesidebar');
+  };
+
+  const togglePinned = () => {
+    dispatch('togglepin');
   };
 
   const openSidebarTab = (tab: SidebarTab) => {
@@ -168,6 +173,7 @@
     {activeSidebarTab}
     onOpenPicker={triggerImportPicker}
     onToggleSidebar={toggleSidebar}
+    onTogglePin={isWindowMode ? togglePinned : null}
     onOpenSidebarTab={openSidebarTab}
   />
 
