@@ -79,6 +79,23 @@ export const createReaderSidebarController = ({
     }));
   };
 
+  const toggleTab = (tab: SidebarTab) => {
+    state.update((current) => {
+      if (current.visible && current.tab === tab) {
+        return {
+          ...current,
+          visible: false
+        };
+      }
+
+      return {
+        ...current,
+        tab,
+        visible: true
+      };
+    });
+  };
+
   const show = () => {
     state.update((current) => ({
       ...current,
@@ -134,6 +151,7 @@ export const createReaderSidebarController = ({
     toggleVisible,
     togglePinned,
     openTab,
+    toggleTab,
     show,
     setWidth,
     beginResize

@@ -246,7 +246,7 @@
       activeSidebarTab={$sidebarState.tab}
       on:togglesidebar={sidebarController.toggleVisible}
       on:switchsidebartab={({ detail }) => {
-        sidebarController.openTab(detail);
+        sidebarController.toggleTab(detail);
       }}
       on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
