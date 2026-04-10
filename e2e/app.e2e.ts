@@ -741,6 +741,7 @@ describe('br1 desktop app', () => {
 
       if (!geometry.stage || !geometry.sidebar || !rendered) return false;
       if (!details.title || details.progressLabel === '0%' || details.locationLabel === 'Opening book') return false;
+      if (details.formatLabel !== 'PDF') return false;
 
       const restoredByLocation = !!expectedLocation && details.cfi && details.cfi !== expectedLocation;
       const restoredByFraction =

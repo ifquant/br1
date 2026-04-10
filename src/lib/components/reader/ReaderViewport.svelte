@@ -65,6 +65,21 @@
   let boundSelectionDocs = new WeakSet<Document>();
   let syncedNoteValues = new Set<string>();
   let stageResizeObserver: ResizeObserver | null = null;
+  let currentFormatLabel = 'BOOK';
+
+  const inferReaderFormatLabel = (source: string | File, sourceLabel: string) => {
+    const fromName = (value: string) => {
+      const match = value.toLowerCase().match(/\.([a-z0-9]+)(?:$|[?#])/i);
+      return match?.[1]?.toUpperCase() ?? '';
+    };
+
+    if (source instanceof File) {
+      if (source.type === 'application/pdf') return 'PDF';
+      return fromName(source.name) || 'BOOK';
+    }
+
+    return fromName(source) || fromName(sourceLabel) || 'BOOK';
+  };
 
   const getViewportStageSize = () => {
     const width = stageElement?.clientWidth || hostElement?.clientWidth || window.innerWidth;
@@ -138,6 +153,7 @@
         typeof lastLocation?.location?.current === 'number' && typeof lastLocation?.location?.total === 'number'
           ? `${lastLocation.location.current} / ${lastLocation.location.total}`
           : 'Opening book',
+      formatLabel: currentFormatLabel,
       ...partial
     });
   };
@@ -189,6 +205,7 @@
     syncedNoteValues = new Set();
 
     try {
+      currentFormatLabel = inferReaderFormatLabel(source, sourceLabel);
       let openTarget: string | File | ReaderBookDocument = source;
       if (source instanceof File) {
         openTarget = await loadReaderBookDocument(source);

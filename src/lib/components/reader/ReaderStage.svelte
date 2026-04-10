@@ -32,12 +32,13 @@
   export let notes: ReaderNote[] = [];
 
   let readerPreview: ReaderPreviewState = {
-    title: '政治秩序与政治衰败',
-    author: 'Francis Fukuyama',
-    chapterLabel: 'Waiting for sample',
+    title: 'Bridge Reader',
+    author: 'Open a book to start reading',
+    chapterLabel: 'Waiting for book',
     chapterHref: '',
     progressLabel: '0%',
     locationLabel: 'Not opened',
+    formatLabel: 'BOOK',
     progressFraction: 0,
     progressLocation: ''
   };

@@ -56,7 +56,7 @@
   </label>
   <div class="footer-meta">
     <span>{preview.locationLabel}</span>
-    <span>EPUB</span>
+    <span>{preview.formatLabel}</span>
     <span>Serif</span>
   </div>
 </footer>

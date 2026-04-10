@@ -13,6 +13,7 @@ export type ReaderPreviewState = {
   chapterHref: string;
   progressLabel: string;
   locationLabel: string;
+  formatLabel: string;
   progressFraction: number;
   progressLocation: string;
 };
