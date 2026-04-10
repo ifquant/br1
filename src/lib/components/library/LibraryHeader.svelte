@@ -55,7 +55,7 @@
     gap: 10px;
     min-height: 48px;
     padding: 0 0 8px;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     border-bottom: 1px solid var(--line-soft);
   }
 
@@ -78,7 +78,7 @@
     background: color-mix(in srgb, var(--surface-panel) 62%, white 38%);
     color: var(--text-muted);
     box-shadow:
-      inset 0 0 0 1px rgba(76, 57, 34, 0.08),
+      inset 0 0 0 1px var(--border-light),
       0 1px 0 rgba(255, 255, 255, 0.34);
   }
 

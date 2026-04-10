@@ -183,7 +183,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .heading {
@@ -194,7 +194,7 @@
   h2 {
     margin: 0;
     font-size: 15px;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-weight: 600;
   }
 
@@ -208,7 +208,7 @@
     line-height: 1.2;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .shelf-meta span + span {
@@ -234,9 +234,9 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
     box-shadow:
-      inset 0 0 0 1px rgba(76, 57, 34, 0.08),
+      inset 0 0 0 1px var(--border-light),
       0 1px 0 rgba(255, 255, 255, 0.28);
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .mode {
@@ -292,7 +292,7 @@
 
   .list .book-card {
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(76, 57, 34, 0.08);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .list .book-card:last-child {
@@ -305,7 +305,7 @@
     gap: 7px;
     width: 100%;
     max-width: 176px;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .book-link {
@@ -393,12 +393,7 @@
   .cover-title {
     align-self: center;
     text-align: center;
-    font-family:
-      "Iowan Old Style",
-      "Palatino Linotype",
-      "Noto Serif SC",
-      Georgia,
-      serif;
+    font-family: var(--font-reading);
     font-size: 14px;
     line-height: 1.16;
     font-weight: 550;

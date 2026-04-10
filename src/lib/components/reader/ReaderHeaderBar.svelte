@@ -152,7 +152,7 @@
   .title-row strong,
   .title-row small,
   .subtitle-row span {
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -225,6 +225,6 @@
   .controls button.active {
     background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
     color: var(--text-primary);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-light);
   }
 </style>

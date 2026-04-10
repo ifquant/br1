@@ -412,7 +412,7 @@
     min-height: 0;
     height: 100%;
     padding: 10px 10px 8px;
-    border: 1px solid rgba(64, 47, 24, 0.08);
+    border: 1px solid var(--border-light);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-panel) 96%, white 4%);
@@ -476,7 +476,7 @@
   .pin-button.active {
     background: color-mix(in srgb, var(--surface-reader) 86%, white 14%);
     color: var(--text-primary);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-light);
   }
 
   .sidebar-labels {
@@ -490,11 +490,11 @@
     font-size: 10px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .sidebar-labels strong {
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 13px;
     line-height: 1.2;
   }
@@ -505,8 +505,8 @@
     padding: 1px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    font-family: var(--font-chrome);
   }
 
   .tab {
@@ -526,7 +526,7 @@
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-panel) 66%, white 34%);
     box-shadow:
-      inset 0 0 0 1px rgba(64, 47, 24, 0.08),
+      inset 0 0 0 1px var(--border-light),
       0 1px 2px rgba(35, 25, 13, 0.05);
   }
 
@@ -563,7 +563,7 @@
     gap: 10px;
     align-items: start;
     padding: 10px;
-    border: 1px solid rgba(64, 47, 24, 0.07);
+    border: 1px solid color-mix(in srgb, var(--border-light) 88%, transparent 12%);
     background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
   }
 
@@ -583,7 +583,7 @@
     display: grid;
     gap: 3px;
     min-width: 0;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .book-copy strong {
@@ -605,7 +605,7 @@
     background: transparent;
     color: var(--text-secondary);
     border-radius: 6px;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.4;
     text-align: left;
@@ -621,7 +621,7 @@
     margin: 0;
     padding: 8px 10px 0;
     color: var(--text-muted);
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.5;
   }
@@ -639,7 +639,7 @@
     border: 0;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-light);
     color: var(--text-primary);
     font: inherit;
     font-size: 13px;
@@ -663,7 +663,7 @@
     padding: 6px 10px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-light);
     color: var(--text-secondary);
     font-size: 11px;
     line-height: 1;
@@ -689,7 +689,7 @@
   .search-history-head strong {
     font-size: 12px;
     line-height: 1.3;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .history-actions {
@@ -719,7 +719,7 @@
 
   .search-summary strong,
   .notes-summary strong {
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.3;
   }
@@ -751,7 +751,7 @@
     color: var(--text-primary);
     font: inherit;
     font-size: 12px;
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-light);
   }
 
   .primary-note-action:disabled {
@@ -767,7 +767,7 @@
     padding: 8px 10px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-light);
     color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.4;
@@ -787,13 +787,13 @@
     border: 0;
     border-radius: 14px;
     background: color-mix(in srgb, var(--surface-reader) 93%, white 7%);
-    box-shadow: inset 0 0 0 1px rgba(64, 47, 24, 0.07);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-light) 88%, transparent 12%);
     text-align: left;
   }
 
   .search-result strong,
   .note-card strong {
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.35;
   }
@@ -820,7 +820,7 @@
     background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
     box-shadow:
       inset 2px 0 0 #b18952,
-      inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+      inset 0 0 0 1px var(--border-light);
     color: var(--text-primary);
   }
 
@@ -834,7 +834,7 @@
     background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
     box-shadow:
       inset 2px 0 0 #b18952,
-      inset 0 0 0 1px rgba(64, 47, 24, 0.08);
+      inset 0 0 0 1px var(--border-light);
   }
 
   .note-link {

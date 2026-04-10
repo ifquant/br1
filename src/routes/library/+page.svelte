@@ -457,7 +457,10 @@
   }
 
   .migration-copy strong {
-    font: 600 13px/1.2 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
     color: var(--text-primary);
   }
 
@@ -472,7 +475,10 @@
     padding: 10px 14px;
     background: color-mix(in srgb, var(--text-primary) 94%, white 6%);
     color: white;
-    font: 600 12px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
     box-shadow: 0 10px 20px rgba(42, 30, 15, 0.12);
   }
 
@@ -491,7 +497,10 @@
   }
 
   .empty-copy strong {
-    font: 600 15px/1.2 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
     color: var(--text-primary);
   }
 
@@ -508,9 +517,12 @@
     padding: 10px 14px;
     background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
     color: var(--text-primary);
-    font: 600 12px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
     box-shadow:
-      inset 0 0 0 1px rgba(76, 57, 34, 0.08),
+      inset 0 0 0 1px var(--border-light),
       0 10px 20px rgba(42, 30, 15, 0.06);
   }
 

@@ -68,10 +68,10 @@
     gap: 10px 14px;
     flex-wrap: wrap;
     padding: 8px 12px 10px;
-    border-top: 1px solid rgba(64, 47, 24, 0.08);
+    border-top: 1px solid var(--border-light);
     background: color-mix(in srgb, var(--surface-panel) 96%, white 4%);
     color: var(--text-secondary);
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 10px;
     letter-spacing: 0.05em;
     text-transform: uppercase;

@@ -232,7 +232,7 @@
     min-height: 0;
     width: 100%;
     padding: 8px 14px 0;
-    border: 1px solid rgba(64, 47, 24, 0.08);
+    border: 1px solid var(--border-light);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-reader) 94%, white 6%);

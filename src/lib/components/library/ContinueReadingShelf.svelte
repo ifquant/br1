@@ -190,7 +190,7 @@
   h2 {
     margin: 0;
     font-size: 15px;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -283,7 +283,10 @@
   }
 
   .copy strong {
-    font: 600 14px/1.2 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
     color: var(--text-primary);
   }
 
@@ -303,8 +306,11 @@
     border-radius: 999px;
     padding: 4px 8px;
     background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
-    box-shadow: inset 0 0 0 1px rgba(76, 57, 34, 0.08);
-    font: 600 10px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    font-family: var(--font-chrome);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
     color: var(--text-secondary);
   }
 
@@ -320,7 +326,10 @@
     padding: 4px 8px;
     background: color-mix(in srgb, #dde7f7 82%, white 18%);
     box-shadow: inset 0 0 0 1px rgba(84, 109, 156, 0.12);
-    font: 600 10px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
     color: #516587;
   }
 
@@ -348,13 +357,16 @@
   .secondary-pill,
   .resume-pill {
     border-radius: 999px;
-    font: 600 11px/1 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
   }
 
   .progress-pill {
     padding: 4px 8px;
     background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
-    box-shadow: inset 0 0 0 1px rgba(76, 57, 34, 0.08);
+    box-shadow: inset 0 0 0 1px var(--border-light);
     color: var(--text-secondary);
   }
 
@@ -370,7 +382,7 @@
     padding: 5px 9px;
     background: color-mix(in srgb, var(--surface-reader) 82%, white 18%);
     box-shadow:
-      inset 0 0 0 1px rgba(76, 57, 34, 0.08),
+      inset 0 0 0 1px var(--border-light),
       0 6px 12px rgba(42, 30, 15, 0.04);
     color: var(--text-primary);
   }
@@ -401,7 +413,10 @@
 
   .detail-grid strong {
     min-width: 0;
-    font: 600 12px/1.35 "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
     color: var(--text-primary);
   }
 

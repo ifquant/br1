@@ -61,13 +61,17 @@
 
 <style>
   :root {
+    --font-chrome: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    --font-reading: "Iowan Old Style", "Palatino Linotype", "Noto Serif SC", Georgia, serif;
+    --border-light: rgba(64, 47, 24, 0.08);
+    --border-medium: rgba(64, 47, 24, 0.12);
     --surface-page: #f3eee4;
     --surface-panel: #efe7da;
     --surface-reader: #faf6ee;
     --text-primary: #17130f;
     --text-secondary: #5f5548;
     --text-muted: #7c7062;
-    --line-soft: rgba(64, 47, 24, 0.12);
+    --line-soft: var(--border-medium);
     --line-strong: rgba(64, 47, 24, 0.24);
     --accent-reading: #8e5f2a;
   }
@@ -85,12 +89,7 @@
 
   :global(body) {
     margin: 0;
-    font-family:
-      "Iowan Old Style",
-      "Palatino Linotype",
-      "Noto Serif SC",
-      Georgia,
-      serif;
+    font-family: var(--font-reading);
     background: var(--surface-page);
     color: var(--text-primary);
   }
@@ -135,11 +134,7 @@
     height: 40px;
     background: var(--surface-panel);
     border: 1px solid var(--line-soft);
-    font-family:
-      "IBM Plex Sans",
-      "Helvetica Neue",
-      "Noto Sans SC",
-      sans-serif;
+    font-family: var(--font-chrome);
     font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
@@ -148,11 +143,7 @@
   .copy {
     display: grid;
     gap: 2px;
-    font-family:
-      "IBM Plex Sans",
-      "Helvetica Neue",
-      "Noto Sans SC",
-      sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .copy small {
@@ -161,11 +152,7 @@
 
   .top-nav,
   .side-rail {
-    font-family:
-      "IBM Plex Sans",
-      "Helvetica Neue",
-      "Noto Sans SC",
-      sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .top-nav {

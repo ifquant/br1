@@ -211,7 +211,7 @@
   .title-row strong,
   .title-row small,
   .subtitle-row span {
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -281,7 +281,7 @@
     min-height: 0;
     width: 100%;
     padding: 8px 14px 0;
-    border: 1px solid rgba(64, 47, 24, 0.08);
+    border: 1px solid var(--border-light);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-reader) 94%, white 6%);
@@ -299,10 +299,10 @@
     gap: 10px 14px;
     flex-wrap: wrap;
     padding: 8px 12px 10px;
-    border-top: 1px solid rgba(64, 47, 24, 0.08);
+    border-top: 1px solid var(--border-light);
     background: color-mix(in srgb, var(--surface-panel) 96%, white 4%);
     color: var(--text-secondary);
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 10px;
     letter-spacing: 0.05em;
     text-transform: uppercase;

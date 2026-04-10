@@ -597,7 +597,7 @@
     bottom: 0;
     left: 1px;
     width: 1px;
-    background: rgba(64, 47, 24, 0.08);
+    background: var(--border-light);
   }
 
   .bridge-placeholder {
@@ -616,7 +616,7 @@
     font-size: 11px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
   }
 
   .bridge-head {
@@ -641,7 +641,7 @@
     display: grid;
     gap: 6px;
     padding: 14px 14px 12px;
-    border: 1px solid rgba(64, 47, 24, 0.08);
+    border: 1px solid var(--border-light);
     background: color-mix(in srgb, var(--surface-reader) 76%, white 24%);
   }
 
@@ -650,7 +650,7 @@
   }
 
   .bridge-card strong {
-    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-family: var(--font-chrome);
     font-size: 13px;
     line-height: 1.3;
   }
