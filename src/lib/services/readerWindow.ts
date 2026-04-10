@@ -22,8 +22,10 @@ export const openReaderTarget = async (href: string): Promise<boolean> => {
 
     new WebviewWindow(label, {
       url,
-      width: 980,
-      height: 760,
+      width: 1480,
+      height: 920,
+      minWidth: 1200,
+      minHeight: 760,
       center: true,
       resizable: true,
       title: '',

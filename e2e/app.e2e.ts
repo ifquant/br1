@@ -472,10 +472,11 @@ describe('br1 desktop app', () => {
         const engineStage = document.querySelector('.engine-stage');
         const view = document.querySelector('foliate-view') as (HTMLElement & { shadowRoot?: ShadowRoot | null }) | null;
         const paginator = view?.shadowRoot?.querySelector('foliate-paginator') as HTMLElement | null;
-        const frame = paginator?.shadowRoot?.querySelector('iframe') as HTMLElement | null;
+        const frames = Array.from(
+          paginator?.shadowRoot?.querySelectorAll('iframe') ?? []
+        ) as HTMLIFrameElement[];
+        const frame = frames[0] ?? null;
         const rendered = frame ?? paginator ?? view;
-        const frameWindow = (frame as HTMLIFrameElement | null)?.contentWindow ?? null;
-        const frameDocument = (frame as HTMLIFrameElement | null)?.contentDocument ?? null;
 
         const rectOf = (node: Element | null) => {
           if (!node) return null;
@@ -491,32 +492,46 @@ describe('br1 desktop app', () => {
         };
 
         const firstVisibleTextRect = (() => {
-          if (!frameDocument || !frameWindow || !frame) return null;
-          const candidates = Array.from(
-            frameDocument.body?.querySelectorAll('h1, h2, h3, p, li, blockquote, pre') ?? []
-          );
+          for (const currentFrame of frames) {
+            const frameWindow = currentFrame.contentWindow ?? null;
+            const frameDocument = currentFrame.contentDocument ?? null;
+            if (!frameDocument || !frameWindow) continue;
 
-          for (const candidate of candidates) {
-            const rect = candidate.getBoundingClientRect();
-            if (
-              rect.width < 40 ||
-              rect.height < 12 ||
-              rect.bottom <= 0 ||
-              rect.top >= frameWindow.innerHeight
-            ) {
-              continue;
+            const walker = frameDocument.createTreeWalker(frameDocument.body, NodeFilter.SHOW_TEXT, {
+              acceptNode(node) {
+                return node.textContent && node.textContent.trim().length > 8
+                  ? NodeFilter.FILTER_ACCEPT
+                  : NodeFilter.FILTER_SKIP;
+              }
+            });
+
+            let node: Node | null = null;
+            while ((node = walker.nextNode())) {
+              const range = frameDocument.createRange();
+              range.selectNodeContents(node);
+
+              for (const rect of Array.from(range.getClientRects())) {
+                if (
+                  rect.width < 24 ||
+                  rect.height < 10 ||
+                  rect.bottom <= 0 ||
+                  rect.top >= frameWindow.innerHeight
+                ) {
+                  continue;
+                }
+
+                const frameRect = currentFrame.getBoundingClientRect();
+                return {
+                  left: frameRect.left + rect.left,
+                  top: frameRect.top + rect.top,
+                  width: rect.width,
+                  height: rect.height,
+                  right: frameRect.left + rect.right,
+                  bottom: frameRect.top + rect.bottom,
+                  text: node.textContent?.trim().slice(0, 80) ?? ''
+                };
+              }
             }
-
-            const frameRect = frame.getBoundingClientRect();
-            return {
-              left: frameRect.left + rect.left,
-              top: frameRect.top + rect.top,
-              width: rect.width,
-              height: rect.height,
-              right: frameRect.left + rect.right,
-              bottom: frameRect.top + rect.bottom,
-              text: candidate.textContent?.trim().slice(0, 80) ?? ''
-            };
           }
 
           return null;
