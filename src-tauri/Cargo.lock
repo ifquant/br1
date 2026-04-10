@@ -345,6 +345,7 @@ dependencies = [
  "base64 0.22.1",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

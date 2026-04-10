@@ -1,5 +1,6 @@
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -466,7 +467,7 @@ fn save_reader_search_cache(
 #[tauri::command]
 fn clear_reader_search_cache(app: tauri::AppHandle, book_key: String) -> Result<(), String> {
     let root = reader_search_cache_root(&app)?;
-    let book_dir = root.join(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key));
+    let book_dir = root.join(reader_search_cache_component_key(&book_key));
     if book_dir.exists() {
         fs::remove_dir_all(book_dir).map_err(|error| error.to_string())?;
     }
@@ -543,17 +544,20 @@ fn reader_notes_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .join("reader-notes"))
 }
 
+fn reader_search_cache_component_key(value: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(value.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
 fn reader_search_cache_file(
     app: &tauri::AppHandle,
     book_key: &str,
     cache_key: &str,
 ) -> Result<PathBuf, String> {
     let root = reader_search_cache_root(app)?;
-    let book_dir = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key);
-    let cache_file = format!(
-        "{}.json",
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(cache_key)
-    );
+    let book_dir = reader_search_cache_component_key(book_key);
+    let cache_file = format!("{}.json", reader_search_cache_component_key(cache_key));
     Ok(root.join(book_dir).join(cache_file))
 }
 

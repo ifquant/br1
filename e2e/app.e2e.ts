@@ -1,4 +1,71 @@
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 describe('br1 desktop app', () => {
+  const appDataRoot = join(homedir(), 'Library/Application Support', 'com.tauri-app.br1');
+  const readerSearchRoot = join(appDataRoot, 'reader-search');
+
+  const readerSearchCacheComponentKey = (value: string) => createHash('sha256').update(value).digest('hex');
+
+  const buildReaderSearchCacheBookKey = async (filePath: string) => {
+    const metadata = await stat(filePath);
+    return `${filePath}:${metadata.size}:${Math.trunc(metadata.mtimeMs)}`;
+  };
+
+  const readerSearchCacheFilePath = (bookKey: string, cacheKey: string) =>
+    join(
+      readerSearchRoot,
+      readerSearchCacheComponentKey(bookKey),
+      `${readerSearchCacheComponentKey(cacheKey)}.json`
+    );
+
+  const clearReaderSearchCacheOnDisk = async (bookKey: string) => {
+    await rm(join(readerSearchRoot, readerSearchCacheComponentKey(bookKey)), { recursive: true, force: true });
+  };
+
+  const seedReaderSearchCacheOnDisk = async (
+    bookKey: string,
+    cacheKey: string,
+    results: Array<{
+      cfi: string;
+      label: string;
+      excerpt: { pre: string; match: string; post: string };
+    }>
+  ) => {
+    const cacheFile = readerSearchCacheFilePath(bookKey, cacheKey);
+    await mkdir(join(readerSearchRoot, readerSearchCacheComponentKey(bookKey)), { recursive: true });
+    const now = Date.now();
+    await writeFile(
+      cacheFile,
+      JSON.stringify({
+        schemaVersion: 1,
+        savedAt: now,
+        lastAccessedAt: now,
+        expiresAt: now + 1000 * 60 * 60 * 24 * 7,
+        results
+      }),
+      'utf8'
+    );
+  };
+
+  const loadReaderSearchCacheOnDisk = async (bookKey: string, cacheKey: string) => {
+    const cacheFile = readerSearchCacheFilePath(bookKey, cacheKey);
+    const raw = await readFile(cacheFile, 'utf8');
+    return JSON.parse(raw) as {
+      schemaVersion: number;
+      savedAt: number;
+      lastAccessedAt: number;
+      expiresAt: number;
+      results: Array<{
+        cfi: string;
+        label: string;
+        excerpt: { pre: string; match: string; post: string };
+      }>;
+    };
+  };
+
   const switchToLibraryWindow = async () => {
     const handles = await browser.getWindowHandles();
 
@@ -32,6 +99,47 @@ describe('br1 desktop app', () => {
     await browser.switchToWindow(readerHandle!);
     return readerHandle!;
   };
+
+  const openReaderFromHref = async (href: string) => {
+    const libraryHandle = await switchToLibraryWindow();
+    const books = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+
+    for (const book of books) {
+      if ((await book.getAttribute('href')) === href) {
+        const readerHandle = await openReaderFromBook(book);
+        return { libraryHandle, readerHandle };
+      }
+    }
+
+    throw new Error(`expected to find a library book link for href: ${href}`);
+  };
+
+  const findOpenableBook = async (
+    predicate: (href: string) => boolean,
+    description: string
+  ): Promise<WebdriverIO.Element> => {
+    await switchToLibraryWindow();
+    const books = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
+
+    for (const book of books) {
+      const href = await book.getAttribute('href');
+      if (href && predicate(href)) {
+        return book;
+      }
+    }
+
+    throw new Error(`expected to find an openable library book for ${description}`);
+  };
+
+  const findStableEpubBook = async () =>
+    findOpenableBook(
+      (href) => {
+        const target = new URL(href, 'http://localhost');
+        const path = target.searchParams.get('path') ?? '';
+        return /\.epub($|\?)/i.test(path) || path.toLowerCase().endsWith('.epub');
+      },
+      'a stable epub-backed reader regression'
+    );
 
   const switchReaderToNotesTab = async () => {
     const notesTab = await $('//button[@role="tab" and normalize-space()="笔记"]');
@@ -79,14 +187,19 @@ describe('br1 desktop app', () => {
       };
     });
 
+  const switchReaderToSearchTab = async () => {
+    const searchTab = await $('//button[@role="tab" and normalize-space()="搜索"]');
+    await searchTab.waitForDisplayed({ timeout: 10000 });
+    await searchTab.click();
+  };
+
   const reopenReaderWithLegacyNote = async (seed: {
     text: string;
     note: string;
     chapterLabelFallback: string;
   }) => {
     const libraryHandle = await switchToLibraryWindow();
-    const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(firstBook).toBeTruthy();
+    const firstBook = await findStableEpubBook();
 
     const href = await firstBook.getAttribute('href');
     expect(href).toBeTruthy();
@@ -130,8 +243,8 @@ describe('br1 desktop app', () => {
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
 
-    const [sameBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(sameBook).toBeTruthy();
+    const sameBook = await $(`[aria-label^="Open "][aria-label$=" in reader"][href="${href!}"]`);
+    await sameBook.waitForExist({ timeout: 10000 });
     await openReaderFromBook(sameBook);
     await switchReaderToNotesTab();
 
@@ -226,8 +339,7 @@ describe('br1 desktop app', () => {
   it('loads metadata after opening the first library book', async () => {
     await switchToLibraryWindow();
 
-    const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(firstBook).toBeTruthy();
+    const firstBook = await findStableEpubBook();
 
     const initialHandles = await browser.getWindowHandles();
     await firstBook.click();
@@ -512,5 +624,124 @@ describe('br1 desktop app', () => {
     await browser.execute((key) => {
       localStorage.removeItem(key);
     }, notesStorageKey);
+  });
+
+  it('restores search history, options, and disk cache after reopening the same book', async () => {
+    const libraryHandle = await switchToLibraryWindow();
+    const firstBook = await findStableEpubBook();
+
+    const href = await firstBook.getAttribute('href');
+    expect(href).toBeTruthy();
+
+    const target = new URL(href!, 'http://localhost');
+    const bookKey =
+      target.searchParams.get('path') ||
+      target.searchParams.get('url') ||
+      target.searchParams.get('label') ||
+      'default';
+    const historyKey = `br1.reader.search.history:${bookKey}`;
+
+    await openReaderFromBook(firstBook);
+    const searchCacheBookKey = await buildReaderSearchCacheBookKey(bookKey);
+
+    await browser.execute(([nextHistoryKey]) => {
+      localStorage.removeItem(nextHistoryKey);
+      localStorage.removeItem('br1.reader.search.config');
+    }, [historyKey] as const);
+    await clearReaderSearchCacheOnDisk(searchCacheBookKey);
+
+    const query = 'reader-history-cache-regression';
+    const seededResults = [
+      {
+        cfi: 'epubcfi(/6/2[regression]!/4/2/6)',
+        label: 'Regression Fixture',
+        excerpt: {
+          pre: 'Seeded search cache restored for ',
+          match: query,
+          post: ' after reopening the same desktop book.'
+        }
+      }
+    ];
+
+    const cacheKey = JSON.stringify({
+      query,
+      scope: 'book',
+      matchCase: true,
+      matchWholeWords: false,
+      matchDiacritics: false,
+      section: null
+    });
+
+    await browser.execute(([nextHistoryKey, nextQuery]) => {
+      localStorage.setItem(nextHistoryKey, JSON.stringify([nextQuery]));
+      localStorage.setItem(
+        'br1.reader.search.config',
+        JSON.stringify({
+          scope: 'book',
+          matchCase: true,
+          matchWholeWords: false,
+          matchDiacritics: false
+        })
+      );
+    }, [historyKey, query] as const);
+    await seedReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey, seededResults);
+
+    const persistedCache = await loadReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey);
+    expect(persistedCache.results).toHaveLength(1);
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    const reopenedBook = await $(`[aria-label^="Open "][aria-label$=" in reader"][href="${href!}"]`);
+    await reopenedBook.waitForExist({ timeout: 10000 });
+    await openReaderFromBook(reopenedBook);
+    await switchReaderToSearchTab();
+
+    const restoredMatchCaseButton = await $('//button[contains(@class, "option-chip") and normalize-space()="区分大小写"]');
+    await browser.waitUntil(async () => {
+      const className = (await restoredMatchCaseButton.getAttribute('class')) ?? '';
+      return className.includes('active');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the match-case search option to persist after reopening the same book'
+    });
+
+    const reopenedSearchInput = await $('input[type="search"]');
+    await reopenedSearchInput.clearValue();
+
+    await browser.waitUntil(async () => {
+      const historyChips = await $$('.history-chip');
+      const labels = [];
+      for (const chip of historyChips) {
+        labels.push(await chip.getText());
+      }
+      return labels.includes(query);
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the previous query to appear in the reader search history after reopening the book'
+    });
+
+    const historyChip = await $(`//button[contains(@class, "history-chip") and normalize-space()="${query}"]`);
+    await historyChip.click();
+
+    await browser.waitUntil(async () => {
+      const results = await $$('.search-result');
+      if (!results.length) return false;
+      const texts = [];
+      for (const result of results) {
+        texts.push(await result.getText());
+      }
+      return texts.some((text) => text.includes('Regression Fixture') && text.includes(query));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected replaying a saved history query to restore cached search results'
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await browser.execute(([nextHistoryKey]) => {
+      localStorage.removeItem(nextHistoryKey);
+      localStorage.removeItem('br1.reader.search.config');
+    }, [historyKey] as const);
+    await clearReaderSearchCacheOnDisk(searchCacheBookKey);
   });
 });

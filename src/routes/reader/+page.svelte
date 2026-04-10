@@ -37,6 +37,7 @@
   };
   let sidebarSearchCacheKey = '';
   let lastSearchHistoryKey = '';
+  let canPersistSearchPrefs = false;
   let currentSearchLocation = '';
   let recentSearchResultCfi = '';
   let activeNoteCfi = '';
@@ -306,6 +307,7 @@
     if (typeof localStorage === 'undefined') return;
     loadSearchConfig();
     loadSearchHistory();
+    canPersistSearchPrefs = true;
     try {
       const raw = localStorage.getItem('br1.reader.sidebar');
       if (!raw) return;
@@ -324,11 +326,11 @@
     persistSidebarPrefs();
   }
 
-  $: if (typeof localStorage !== 'undefined') {
+  $: if (canPersistSearchPrefs && typeof localStorage !== 'undefined') {
     localStorage.setItem('br1.reader.search.config', JSON.stringify(sidebarSearchConfig));
   }
 
-  $: if (typeof localStorage !== 'undefined') {
+  $: if (canPersistSearchPrefs && typeof localStorage !== 'undefined') {
     localStorage.setItem(getSearchHistoryKey(), JSON.stringify(sidebarSearchHistory.slice(0, 10)));
   }
 
