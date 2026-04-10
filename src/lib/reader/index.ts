@@ -13,6 +13,7 @@ export {
 } from './foliate';
 export { createReaderSearchController } from './searchController';
 export { createReaderNotesController } from './notesController';
+export { createReaderSidebarController } from './sidebarController';
 export type { FoliateViewElement } from './foliate';
 export type {
   ReaderControlRequest,

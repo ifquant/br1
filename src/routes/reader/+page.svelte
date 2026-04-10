@@ -7,10 +7,13 @@
     ReaderPreviewState,
     ReaderSidebarCallbacks,
     ReaderSearchResult,
-    SidebarTab,
     ReaderTocItem
   } from '$lib/reader';
-  import { createReaderNotesController, createReaderSearchController } from '$lib/reader';
+  import {
+    createReaderNotesController,
+    createReaderSearchController,
+    createReaderSidebarController
+  } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
   import { canPersistReaderNotes, clearReaderSearchCache, loadReaderNotes, saveReaderNotes } from '$lib/services';
 
@@ -19,10 +22,6 @@
   let controlRequest: ReaderControlRequest | null = null;
   let controlNonce = 0;
   let lastAutoKey = '';
-  let sidebarVisible = true;
-  let sidebarPinned = true;
-  let sidebarWidth = 224;
-  let sidebarTab: SidebarTab = 'toc';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
@@ -76,19 +75,6 @@
     controlRequest = { type: 'href', href, nonce: controlNonce };
   };
 
-  const toggleSidebar = () => {
-    sidebarVisible = !sidebarVisible;
-  };
-
-  const toggleSidebarPin = () => {
-    sidebarPinned = !sidebarPinned;
-  };
-
-  const openSidebarTab = (tab: SidebarTab) => {
-    sidebarTab = tab;
-    sidebarVisible = true;
-  };
-
   const searchController = createReaderSearchController({
     getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
     getHistoryKey: () => {
@@ -109,6 +95,11 @@
     }
   });
   const searchState = searchController.state;
+  const sidebarController = createReaderSidebarController({
+    getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+    isWindowMode: () => isWindowMode
+  });
+  const sidebarState = sidebarController.state;
   const notesController = createReaderNotesController({
     getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
     getStorageKey: () => notesStorageKey,
@@ -120,25 +111,15 @@
   });
   const notesState = notesController.state;
 
-  const persistSidebarPrefs = () => {
-    if (!isWindowMode || typeof localStorage === 'undefined') return;
-    localStorage.setItem(
-      'br1.reader.sidebar',
-      JSON.stringify({ pinned: sidebarPinned, width: sidebarWidth })
-    );
-  };
-
   const addNoteFromSelection = () => {
     const added = notesController.addFromSelection();
     if (!added) return;
-    sidebarTab = 'notes';
-    sidebarVisible = true;
+    sidebarController.openTab('notes');
   };
 
   const openNote = (cfi: string) => {
     notesController.open(cfi);
-    sidebarTab = 'notes';
-    sidebarVisible = true;
+    sidebarController.openTab('notes');
     searchController.clearRecentResultCfi();
     issueHrefControl(cfi);
   };
@@ -151,53 +132,18 @@
     notesController.remove(id);
   };
 
-  const handleSidebarResizeStart = (event: MouseEvent) => {
-    if (!isWindowMode || !sidebarPinned) return;
-    event.preventDefault();
-
-    const startX = event.clientX;
-    const startWidth = sidebarWidth;
-
-    const handleMove = (moveEvent: MouseEvent) => {
-      const delta = moveEvent.clientX - startX;
-      sidebarWidth = Math.max(208, Math.min(380, startWidth + delta));
-    };
-
-    const handleUp = () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      persistSidebarPrefs();
-    };
-
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  };
-
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
     searchController.restoreConfig();
     searchController.refreshHistory();
     searchController.enablePersistence();
-    try {
-      const raw = localStorage.getItem('br1.reader.sidebar');
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { pinned?: boolean; width?: number };
-      if (typeof parsed.pinned === 'boolean') sidebarPinned = parsed.pinned;
-      if (typeof parsed.width === 'number') {
-        sidebarWidth = Math.max(208, Math.min(380, parsed.width));
-      }
-    } catch (error) {
-      console.warn('Failed to restore reader sidebar prefs', error);
-    }
+    sidebarController.restore();
     notesController.refresh();
   });
 
-  $: if (isWindowMode) {
-    persistSidebarPrefs();
-  }
-
   $: searchController.refreshHistory();
   $: searchController.persist($searchState);
+  $: sidebarController.persist($sidebarState);
   $: notesController.refresh();
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
@@ -224,10 +170,10 @@
 
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
-    onClose: isWindowMode ? toggleSidebar : null,
-    onToggleSidebar: toggleSidebar,
-    onTogglePin: isWindowMode ? toggleSidebarPin : null,
-    onTabChange: openSidebarTab,
+    onClose: isWindowMode ? sidebarController.toggleVisible : null,
+    onToggleSidebar: sidebarController.toggleVisible,
+    onTogglePin: isWindowMode ? sidebarController.togglePinned : null,
+    onTabChange: sidebarController.openTab,
     onAddNote: addNoteFromSelection,
     onOpenNote: openNote,
     onEditNote: editNote,
@@ -261,41 +207,41 @@
 
   <div
     class:window-mode={isWindowMode}
-    class:sidebar-hidden={isWindowMode && !sidebarVisible}
-    class:sidebar-overlay={isWindowMode && sidebarVisible && !sidebarPinned}
+    class:sidebar-hidden={isWindowMode && !$sidebarState.visible}
+    class:sidebar-overlay={isWindowMode && $sidebarState.visible && !$sidebarState.pinned}
     class="workspace"
-    style={isWindowMode && sidebarVisible && sidebarPinned ? `--reader-sidebar-width:${sidebarWidth}px;` : undefined}
+    style={isWindowMode && $sidebarState.visible && $sidebarState.pinned ? `--reader-sidebar-width:${$sidebarState.width}px;` : undefined}
   >
-    {#if !isWindowMode || sidebarVisible}
+    {#if !isWindowMode || $sidebarState.visible}
       <ReaderSidebar
         {toc}
         {activeHref}
         {isWindowMode}
-        isPinned={sidebarPinned}
-        activeTab={sidebarTab}
+        isPinned={$sidebarState.pinned}
+        activeTab={$sidebarState.tab}
         search={$searchState}
         notesState={$notesState}
         callbacks={sidebarCallbacks}
       />
     {/if}
-    {#if isWindowMode && sidebarVisible && sidebarPinned}
+    {#if isWindowMode && $sidebarState.visible && $sidebarState.pinned}
       <button
         type="button"
         class="sidebar-resize-handle"
         aria-label="Resize sidebar"
-        on:mousedown={handleSidebarResizeStart}
+        on:mousedown={sidebarController.beginResize}
       ></button>
     {/if}
-      <ReaderStage
+    <ReaderStage
       {controlRequest}
       {autoOpenPicker}
       {isWindowMode}
-      {sidebarVisible}
+      sidebarVisible={$sidebarState.visible}
       notes={$notesState.notes}
-      activeSidebarTab={sidebarTab}
-      on:togglesidebar={toggleSidebar}
-      on:switchsidebartab={({ detail }: CustomEvent<'toc' | 'search' | 'notes'>) => {
-        openSidebarTab(detail);
+      activeSidebarTab={$sidebarState.tab}
+      on:togglesidebar={sidebarController.toggleVisible}
+      on:switchsidebartab={({ detail }) => {
+        sidebarController.openTab(detail);
       }}
       on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
@@ -307,8 +253,7 @@
       }}
       on:notefocus={({ detail }: CustomEvent<string>) => {
         notesController.setActiveCfi(detail);
-        sidebarTab = 'notes';
-        sidebarVisible = true;
+        sidebarController.openTab('notes');
       }}
       on:selectionchange={({ detail }) => {
         notesController.setSelection(detail);
