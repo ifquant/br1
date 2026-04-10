@@ -7,7 +7,9 @@ export {
   pickAuthor,
   pickText,
   ensureFoliateViewDefinition,
-  createFoliateViewElement
+  createFoliateViewElement,
+  getReaderViewStyles,
+  wrapFoliateViewElement
 } from './foliate';
 export type { FoliateViewElement } from './foliate';
 export type {

@@ -72,6 +72,12 @@ export interface FoliateViewElement extends HTMLElement {
       }
   >;
   clearSearch(): void;
+  renderer?: {
+    setAttribute(name: string, value: string | number): void;
+    removeAttribute(name: string): void;
+    setStyles?(css: string): void;
+    getContents?(): Array<{ doc: Document; index?: number; overlayer?: unknown }>;
+  };
 }
 
 const isRecord = (value: unknown): value is Record<string, string> =>
@@ -119,6 +125,121 @@ export const ensureFoliateViewDefinition = async () => {
 
   await foliateViewModulePromise;
 };
+
+export const wrapFoliateViewElement = (originalView: FoliateViewElement): FoliateViewElement => {
+  const originalAddAnnotation = originalView.addAnnotation.bind(originalView);
+  originalView.addAnnotation = (annotation: Record<string, unknown>, remove = false) => {
+    const value =
+      typeof annotation.value === 'string'
+        ? annotation.value
+        : typeof annotation.cfi === 'string'
+          ? annotation.cfi
+          : '';
+    return originalAddAnnotation(
+      {
+        value,
+        ...annotation
+      },
+      remove
+    );
+  };
+  return originalView;
+};
+
+export const getReaderViewStyles = () => `
+  html {
+    --theme-bg-color: #fbf7ef;
+    --theme-fg-color: #2b221a;
+    --theme-primary-color: #8c6a3b;
+    --serif: "Source Serif 4", "Noto Serif SC", Georgia, serif;
+    --sans-serif: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    --monospace: "IBM Plex Mono", "SFMono-Regular", monospace;
+    --font-size: 20px;
+    --min-font-size: 16px;
+    --font-weight: 400;
+    --default-text-align: start;
+    color-scheme: light;
+    background-color: var(--theme-bg-color, transparent);
+    hanging-punctuation: allow-end last;
+    orphans: 2;
+    widows: 2;
+  }
+
+  html,
+  body {
+    color: var(--theme-fg-color);
+    font-size: var(--font-size) !important;
+    font-weight: var(--font-weight);
+    line-height: 1.78;
+    max-height: unset;
+    text-align: var(--default-text-align);
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: text;
+  }
+
+  html {
+    font-family: var(--serif);
+  }
+
+  body {
+    margin: unset;
+    padding: unset;
+    overflow: unset;
+    background: transparent;
+    font-family: var(--serif);
+  }
+
+  p,
+  blockquote,
+  dd,
+  li,
+  div:not(:has(*:not(b, a, em, i, strong, u, span))) {
+    line-height: 1.78;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+  }
+
+  p {
+    margin-top: 0.9em;
+    margin-bottom: 0.9em;
+    text-indent: 2em;
+  }
+
+  p:has(> img:only-child),
+  p:has(> span:only-child > img:only-child),
+  p:has(> img:not(.has-text-siblings)),
+  p:has(> a:first-child + img:last-child),
+  li p,
+  ol p,
+  ul p,
+  td p {
+    text-indent: initial !important;
+  }
+
+  img,
+  svg {
+    max-width: 100%;
+    height: auto;
+    background-color: transparent !important;
+  }
+
+  pre,
+  code,
+  kbd {
+    font-family: var(--monospace);
+  }
+
+  pre {
+    white-space: pre-wrap !important;
+  }
+
+  a:any-link {
+    color: var(--theme-primary-color);
+    text-decoration: none;
+  }
+`;
 
 export const createFoliateViewElement = () =>
   document.createElement(FOLIATE_VIEW_TAG) as FoliateViewElement;

@@ -7,8 +7,10 @@
     createFoliateViewElement,
     ensureFoliateViewDefinition,
     flattenToc,
+    getReaderViewStyles,
     pickAuthor,
     pickText,
+    wrapFoliateViewElement,
     type ReaderControlRequest,
     type FoliateViewElement
   } from '$lib/reader';
@@ -119,14 +121,19 @@
   };
 
   const configureFoliatePreview = () => {
-    const renderer = (foliateViewElement as (FoliateViewElement & { renderer?: HTMLElement }) | null)?.renderer;
+    const renderer = foliateViewElement?.renderer;
     if (!renderer) return;
 
+    renderer.setStyles?.(getReaderViewStyles());
     renderer.setAttribute('flow', 'paginated');
-    renderer.setAttribute('margin', isWindowMode ? '16' : '20');
-    renderer.setAttribute('gap', '6%');
-    renderer.setAttribute('max-inline-size', isWindowMode ? '860px' : '720px');
-    renderer.setAttribute('max-block-size', '980px');
+    renderer.setAttribute('margin-top', isWindowMode ? '46px' : '36px');
+    renderer.setAttribute('margin-right', isWindowMode ? '30px' : '34px');
+    renderer.setAttribute('margin-bottom', isWindowMode ? '44px' : '36px');
+    renderer.setAttribute('margin-left', isWindowMode ? '30px' : '34px');
+    renderer.setAttribute('gap', '5%');
+    renderer.setAttribute('max-inline-size', isWindowMode ? '960px' : '760px');
+    renderer.setAttribute('max-block-size', isWindowMode ? '1440px' : '1180px');
+    renderer.setAttribute('max-column-count', isWindowMode ? '2' : '1');
   };
 
   const openBook = async (
@@ -400,9 +407,12 @@
         if (existingView instanceof HTMLElement) {
           foliateViewElement = existingView as FoliateViewElement;
         } else {
-          const view = createFoliateViewElement();
+          const view = wrapFoliateViewElement(createFoliateViewElement());
           view.className = 'foliate-preview';
-          view.addEventListener('load', () => emitReaderState());
+          view.addEventListener('load', () => {
+            configureFoliatePreview();
+            emitReaderState();
+          });
           view.addEventListener('relocate', () => emitReaderState());
           view.addEventListener('draw-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{
@@ -572,6 +582,7 @@
     display: grid;
     min-height: 100%;
     height: 100%;
+    min-width: 0;
     padding: 0;
     border: 0;
     background:
@@ -622,6 +633,7 @@
     width: 100%;
     min-height: 100%;
     height: 100%;
+    min-width: 0;
     background: transparent;
     box-shadow: none;
   }
@@ -731,6 +743,7 @@
   .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview) {
     min-height: 100%;
     height: 100%;
+    min-width: 0;
   }
 
   .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview::part(filter)) {
