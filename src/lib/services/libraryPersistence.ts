@@ -40,7 +40,48 @@ export type LibraryReadingStateUpdate = {
   progressLocation?: string;
 };
 
+type ReaderHrefOptions = {
+  source: 'asset' | 'library-file';
+  label: string;
+  url?: string;
+  path?: string;
+  fraction?: number;
+  location?: string;
+};
+
 export const canPersistLibrary = () => isTauriDesktop();
+
+const toReaderHref = ({
+  source,
+  label,
+  url,
+  path,
+  fraction,
+  location
+}: ReaderHrefOptions) => {
+  const params = new URLSearchParams({
+    source,
+    label
+  });
+
+  if (url) {
+    params.set('url', url);
+  }
+
+  if (path) {
+    params.set('path', path);
+  }
+
+  if (typeof fraction === 'number') {
+    params.set('fraction', String(fraction));
+  }
+
+  if (location) {
+    params.set('location', location);
+  }
+
+  return `/reader?${params.toString()}`;
+};
 
 export const loadPersistedLibraryBooks = async (): Promise<PersistedLibraryBook[]> => {
   if (!isTauriDesktop()) return [];
@@ -113,36 +154,33 @@ export const loadLibraryCoverDataUrls = async (
   return results.map((value) => value ?? '');
 };
 
+export const toAssetReaderHref = (url: string, label: string) =>
+  toReaderHref({
+    source: 'asset',
+    url,
+    label
+  });
+
 export const toReaderAssetHref = (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';
 
-  const params = new URLSearchParams({
+  return toReaderHref({
     source: 'library-file',
     path: book.filePath,
-    label: book.title
+    label: book.title,
+    fraction: book.progressFraction ?? undefined,
+    location: book.progressLocation ?? undefined
   });
-
-  if (typeof book.progressFraction === 'number') {
-    params.set('fraction', String(book.progressFraction));
-  }
-
-  if (book.progressLocation) {
-    params.set('location', book.progressLocation);
-  }
-
-  return `/reader?${params.toString()}`;
 };
 
 export const toReaderStartHref = (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';
 
-  const params = new URLSearchParams({
+  return toReaderHref({
     source: 'library-file',
     path: book.filePath,
     label: book.title
   });
-
-  return `/reader?${params.toString()}`;
 };
 
 export const toLibraryCoverUrl = async (book: PersistedLibraryBook) => {

@@ -13,13 +13,11 @@
     openLibraryBookPath,
     openReaderTarget,
     selectSystemBookPaths,
+    toAssetReaderHref,
     toLibraryCoverUrl,
     toReaderAssetHref,
     toReaderStartHref
   } from '$lib/services';
-
-  const assetHref = (url: string, label: string) =>
-    `/reader?source=asset&url=${encodeURIComponent(url)}&label=${encodeURIComponent(label)}`;
 
   const starterBooks = [
     {
@@ -28,7 +26,7 @@
       status: '继续阅读 · 第 3 章',
       progress: '上次读到 34%',
       coverUrl: '/covers/political-order.svg',
-      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
     },
     {
       title: '置身事内',
@@ -36,7 +34,7 @@
       status: '最近导入 · 尚未开始',
       progress: '等待首轮阅读',
       coverUrl: '/covers/inside-china.svg',
-      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
     },
     {
       title: 'A Theory of Justice',
@@ -44,7 +42,7 @@
       status: '英文原版 · 建议启用导读',
       progress: '可作为 bridge 验证样本',
       coverUrl: '/covers/theory-of-justice.svg',
-      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
     }
   ];
 
@@ -55,7 +53,7 @@
       status: '新导入',
       progress: '等待元数据整理',
       coverUrl: '/covers/spirit-of-law.svg',
-      readerHref: assetHref('/samples/sample-outline.pdf', 'Sample Outline')
+      readerHref: toAssetReaderHref('/samples/sample-outline.pdf', 'Sample Outline')
     },
     {
       title: '叫魂',
@@ -63,7 +61,7 @@
       status: '最近整理',
       progress: '封面与作者信息待接真实数据',
       coverUrl: '/covers/soulstealers.svg',
-      readerHref: assetHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
     }
   ];
 
@@ -257,7 +255,7 @@
     if (!file) return;
 
     const objectUrl = URL.createObjectURL(file);
-    await handleOpenReaderLink(assetHref(objectUrl, file.name));
+    await handleOpenReaderLink(toAssetReaderHref(objectUrl, file.name));
 
     input.value = '';
   };

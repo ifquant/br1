@@ -1,4 +1,8 @@
 <script lang="ts">
+  /**
+   * @deprecated Prefer ReaderStage for active reader work. This component is kept
+   * only as a legacy preview shell until the old surface is removed.
+   */
   import { createEventDispatcher, tick } from 'svelte';
   import { createReaderMountBoundary } from '$lib/reader';
   import { startCurrentWindowDrag } from '$lib/services';

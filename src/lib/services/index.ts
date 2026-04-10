@@ -16,6 +16,7 @@ export {
   loadPersistedLibraryBooks,
   openLibraryBookPath,
   selectSystemBookPaths,
+  toAssetReaderHref,
   toLibraryCoverUrl,
   toReaderAssetHref,
   toReaderStartHref,

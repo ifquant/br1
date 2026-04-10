@@ -6,4 +6,5 @@ export { default as ReaderStage } from './reader/ReaderStage.svelte';
 export { default as ReaderHeaderBar } from './reader/ReaderHeaderBar.svelte';
 export { default as ReaderFooterBar } from './reader/ReaderFooterBar.svelte';
 export { default as ReaderViewport } from './reader/ReaderViewport.svelte';
+// @deprecated Prefer ReaderStage for active reader composition.
 export { default as ReaderWorkspace } from './reader/ReaderWorkspace.svelte';
