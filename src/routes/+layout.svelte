@@ -14,15 +14,6 @@
     ($page) =>
       $page.url.pathname === '/reader' && $page.url.searchParams.get('mode') === 'window'
   );
-
-  // 模仿 readest-app 的主题初始化逻辑：在加载前设置 data-theme
-  if (typeof document !== 'undefined') {
-    const themeMode = localStorage.getItem('themeMode');
-    const themeColor = localStorage.getItem('themeColor');
-    if (themeMode && themeColor) {
-      document.documentElement.setAttribute('data-theme', `${themeColor}-${themeMode}`);
-    }
-  }
 </script>
 
 <svelte:head>
@@ -30,7 +21,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Readest" />
+  <meta name="apple-mobile-web-app-title" content="br1" />
 </svelte:head>
 
 <div class:reader-window-root={$isReaderWindowRoute} class="app-root">

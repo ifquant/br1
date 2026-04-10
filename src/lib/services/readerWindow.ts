@@ -1,11 +1,4 @@
-const isTauriDesktop = () => {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.location.protocol === 'tauri:' ||
-    window.location.hostname === 'tauri.localhost' ||
-    '__TAURI_INTERNALS__' in window
-  );
-};
+import { isTauriDesktop } from './platform';
 
 const toWindowReaderUrl = (href: string) => {
   const url = new URL(href, window.location.origin);

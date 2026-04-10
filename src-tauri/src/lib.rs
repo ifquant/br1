@@ -122,11 +122,6 @@ const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
 const READER_NOTES_SCHEMA_VERSION: u8 = 1;
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
 fn load_library_books(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord>, String> {
     let library_json = library_json_path(&app)?;
     load_library_records(&library_json)
@@ -887,7 +882,6 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![
-            greet,
             load_library_books,
             load_library_book_binary,
             load_library_file_fingerprint,

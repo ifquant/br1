@@ -13,8 +13,7 @@
     openReaderTarget,
     selectSystemBookPaths,
     toLibraryCoverUrl,
-    toReaderAssetHref
-    ,
+    toReaderAssetHref,
     toReaderStartHref
   } from '$lib/services';
 
@@ -168,8 +167,8 @@
       availabilityLabel: '本地可读',
       sourcePath: record.sourcePath || record.filePath,
       coverUrl: await toLibraryCoverUrl(record),
-      readerHref: await toReaderAssetHref(record),
-      restartHref: await toReaderStartHref(record),
+      readerHref: toReaderAssetHref(record),
+      restartHref: toReaderStartHref(record),
       lastOpenedAt: record.lastOpenedAt,
       lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt)
     };
@@ -248,7 +247,7 @@
 
         const [firstRecord] = records;
         if (firstRecord) {
-          const href = await toReaderAssetHref(firstRecord);
+          const href = toReaderAssetHref(firstRecord);
           await handleOpenReaderLink(href);
         }
       } catch (error) {
@@ -299,7 +298,7 @@
 
       const [firstRecord] = records;
       if (autoOpenFirstBook && firstRecord) {
-        const href = await toReaderAssetHref(firstRecord);
+        const href = toReaderAssetHref(firstRecord);
         await handleOpenReaderLink(href);
       }
     } finally {

@@ -1,13 +1,5 @@
 import type { ReaderSearchResult } from '$lib/reader';
-
-const isTauriDesktop = () => {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.location.protocol === 'tauri:' ||
-    window.location.hostname === 'tauri.localhost' ||
-    '__TAURI_INTERNALS__' in window
-  );
-};
+import { invokeTauri, isTauriDesktop } from './platform';
 
 export const loadReaderSearchCache = async (
   bookKey: string,
@@ -15,8 +7,7 @@ export const loadReaderSearchCache = async (
 ): Promise<ReaderSearchResult[] | null> => {
   if (!isTauriDesktop()) return null;
 
-  const { invoke } = await import('@tauri-apps/api/core');
-  return invoke<ReaderSearchResult[] | null>('load_reader_search_cache', {
+  return invokeTauri<ReaderSearchResult[] | null>('load_reader_search_cache', {
     bookKey,
     cacheKey
   });
@@ -25,8 +16,7 @@ export const loadReaderSearchCache = async (
 export const clearReaderSearchCache = async (bookKey: string): Promise<void> => {
   if (!isTauriDesktop()) return;
 
-  const { invoke } = await import('@tauri-apps/api/core');
-  await invoke('clear_reader_search_cache', {
+  await invokeTauri('clear_reader_search_cache', {
     bookKey
   });
 };
@@ -34,8 +24,7 @@ export const clearReaderSearchCache = async (bookKey: string): Promise<void> => 
 export const loadLibraryFileFingerprint = async (filePath: string): Promise<string> => {
   if (!isTauriDesktop()) return filePath;
 
-  const { invoke } = await import('@tauri-apps/api/core');
-  return invoke<string>('load_library_file_fingerprint', {
+  return invokeTauri<string>('load_library_file_fingerprint', {
     filePath
   });
 };
@@ -47,8 +36,7 @@ export const saveReaderSearchCache = async (
 ): Promise<void> => {
   if (!isTauriDesktop()) return;
 
-  const { invoke } = await import('@tauri-apps/api/core');
-  await invoke('save_reader_search_cache', {
+  await invokeTauri('save_reader_search_cache', {
     bookKey,
     cacheKey,
     results
