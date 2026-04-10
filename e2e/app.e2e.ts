@@ -188,6 +188,49 @@ describe('br1 desktop app', () => {
       'a stable epub-backed reader regression'
     );
 
+  const openRestorableReaderBook = async () => {
+    const libraryHandle = await switchToLibraryWindow();
+    const hrefs = await listOpenableBookHrefs();
+
+    for (const href of hrefs) {
+      const target = new URL(href, 'http://localhost');
+      const path = target.searchParams.get('path') ?? '';
+      const location = target.searchParams.get('location') ?? '';
+      if (!location) continue;
+      if (!(/\.epub($|\?)/i.test(path) || path.toLowerCase().endsWith('.epub'))) continue;
+
+      const book = await findBookElementByHref(href);
+      if (!book) continue;
+
+      await openReaderFromBook(book);
+
+      try {
+        await browser.waitUntil(async () => {
+          const details = await readReaderDetails();
+          if (details.stageError) {
+            throw new Error(details.stageError);
+          }
+          return !!details.title && !!details.cfi && !!details.chapterHref;
+        }, {
+          timeout: 20000,
+          timeoutMsg: 'expected a restorable EPUB library book to reopen with a valid restored reader location'
+        });
+
+        return {
+          libraryHandle,
+          href,
+          expectedLocation: location,
+          details: await readReaderDetails()
+        };
+      } catch {
+        await browser.closeWindow();
+        await browser.switchToWindow(libraryHandle);
+      }
+    }
+
+    throw new Error('expected to find an EPUB library book with a stored restore location');
+  };
+
   const readReaderDetails = async () =>
     browser.execute(() => {
       const view = document.querySelector('foliate-view') as
@@ -297,6 +340,101 @@ describe('br1 desktop app', () => {
       chapterHref: details.chapterHref
     };
   };
+
+  const readReaderGeometry = () =>
+    browser.execute(() => {
+      const stage = document.querySelector('.reader-stage');
+      const sidebar = document.querySelector('.reader-sidebar');
+      const workspace = document.querySelector('.workspace');
+      const shell = document.querySelector('.reader-shell');
+      const canvas = document.querySelector('.canvas');
+      const viewport = document.querySelector('.viewport-shell');
+      const engineHost = document.querySelector('.engine-host');
+      const engineStage = document.querySelector('.engine-stage');
+      const view = document.querySelector('foliate-view') as (HTMLElement & { shadowRoot?: ShadowRoot | null }) | null;
+      const paginator = view?.shadowRoot?.querySelector('foliate-paginator') as HTMLElement | null;
+      const frames = Array.from(
+        paginator?.shadowRoot?.querySelectorAll('iframe') ?? []
+      ) as HTMLIFrameElement[];
+      const frame = frames[0] ?? null;
+      const rendered = frame ?? paginator ?? view;
+
+      const rectOf = (node: Element | null) => {
+        if (!node) return null;
+        const rect = node.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          right: rect.right,
+          bottom: rect.bottom
+        };
+      };
+
+      const firstVisibleTextRect = (() => {
+        for (const currentFrame of frames) {
+          const frameWindow = currentFrame.contentWindow ?? null;
+          const frameDocument = currentFrame.contentDocument ?? null;
+          if (!frameDocument || !frameWindow) continue;
+
+          const walker = frameDocument.createTreeWalker(frameDocument.body, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+              return node.textContent && node.textContent.trim().length > 8
+                ? NodeFilter.FILTER_ACCEPT
+                : NodeFilter.FILTER_SKIP;
+            }
+          });
+
+          let node: Node | null = null;
+          while ((node = walker.nextNode())) {
+            const range = frameDocument.createRange();
+            range.selectNodeContents(node);
+
+            for (const rect of Array.from(range.getClientRects())) {
+              if (
+                rect.width < 24 ||
+                rect.height < 10 ||
+                rect.bottom <= 0 ||
+                rect.top >= frameWindow.innerHeight
+              ) {
+                continue;
+              }
+
+              const frameRect = currentFrame.getBoundingClientRect();
+              return {
+                left: frameRect.left + rect.left,
+                top: frameRect.top + rect.top,
+                width: rect.width,
+                height: rect.height,
+                right: frameRect.left + rect.right,
+                bottom: frameRect.top + rect.bottom,
+                text: node.textContent?.trim().slice(0, 80) ?? ''
+              };
+            }
+          }
+        }
+
+        return null;
+      })();
+
+      return {
+        stage: rectOf(stage),
+        sidebar: rectOf(sidebar),
+        workspace: rectOf(workspace),
+        shell: rectOf(shell),
+        canvas: rectOf(canvas),
+        viewport: rectOf(viewport),
+        engineHost: rectOf(engineHost),
+        engineStage: rectOf(engineStage),
+        foliateView: rectOf(view),
+        paginator: rectOf(paginator),
+        frame: rectOf(frame),
+        rendered: rectOf(rendered),
+        firstVisibleTextRect,
+        workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : null
+      };
+    });
 
   const switchReaderToSearchTab = async () => {
     const searchTab = await $('//button[@role="tab" and normalize-space()="搜索"]');
@@ -460,105 +598,10 @@ describe('br1 desktop app', () => {
   it('keeps the rendered book page inside the reader stage instead of the sidebar column', async () => {
     await openUsableReaderBook();
 
-    const readGeometry = () =>
-      browser.execute(() => {
-        const stage = document.querySelector('.reader-stage');
-        const sidebar = document.querySelector('.reader-sidebar');
-        const workspace = document.querySelector('.workspace');
-        const shell = document.querySelector('.reader-shell');
-        const canvas = document.querySelector('.canvas');
-        const viewport = document.querySelector('.viewport-shell');
-        const engineHost = document.querySelector('.engine-host');
-        const engineStage = document.querySelector('.engine-stage');
-        const view = document.querySelector('foliate-view') as (HTMLElement & { shadowRoot?: ShadowRoot | null }) | null;
-        const paginator = view?.shadowRoot?.querySelector('foliate-paginator') as HTMLElement | null;
-        const frames = Array.from(
-          paginator?.shadowRoot?.querySelectorAll('iframe') ?? []
-        ) as HTMLIFrameElement[];
-        const frame = frames[0] ?? null;
-        const rendered = frame ?? paginator ?? view;
-
-        const rectOf = (node: Element | null) => {
-          if (!node) return null;
-          const rect = node.getBoundingClientRect();
-          return {
-            left: rect.left,
-            top: rect.top,
-            width: rect.width,
-            height: rect.height,
-            right: rect.right,
-            bottom: rect.bottom
-          };
-        };
-
-        const firstVisibleTextRect = (() => {
-          for (const currentFrame of frames) {
-            const frameWindow = currentFrame.contentWindow ?? null;
-            const frameDocument = currentFrame.contentDocument ?? null;
-            if (!frameDocument || !frameWindow) continue;
-
-            const walker = frameDocument.createTreeWalker(frameDocument.body, NodeFilter.SHOW_TEXT, {
-              acceptNode(node) {
-                return node.textContent && node.textContent.trim().length > 8
-                  ? NodeFilter.FILTER_ACCEPT
-                  : NodeFilter.FILTER_SKIP;
-              }
-            });
-
-            let node: Node | null = null;
-            while ((node = walker.nextNode())) {
-              const range = frameDocument.createRange();
-              range.selectNodeContents(node);
-
-              for (const rect of Array.from(range.getClientRects())) {
-                if (
-                  rect.width < 24 ||
-                  rect.height < 10 ||
-                  rect.bottom <= 0 ||
-                  rect.top >= frameWindow.innerHeight
-                ) {
-                  continue;
-                }
-
-                const frameRect = currentFrame.getBoundingClientRect();
-                return {
-                  left: frameRect.left + rect.left,
-                  top: frameRect.top + rect.top,
-                  width: rect.width,
-                  height: rect.height,
-                  right: frameRect.left + rect.right,
-                  bottom: frameRect.top + rect.bottom,
-                  text: node.textContent?.trim().slice(0, 80) ?? ''
-                };
-              }
-            }
-          }
-
-          return null;
-        })();
-
-        return {
-          stage: rectOf(stage),
-          sidebar: rectOf(sidebar),
-          workspace: rectOf(workspace),
-          shell: rectOf(shell),
-          canvas: rectOf(canvas),
-          viewport: rectOf(viewport),
-          engineHost: rectOf(engineHost),
-          engineStage: rectOf(engineStage),
-          foliateView: rectOf(view),
-          paginator: rectOf(paginator),
-          frame: rectOf(frame),
-          rendered: rectOf(rendered),
-          firstVisibleTextRect,
-          workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : null
-        };
-      });
-
-    let geometry = await readGeometry();
+    let geometry = await readReaderGeometry();
 
     await browser.waitUntil(async () => {
-      geometry = await readGeometry();
+      geometry = await readReaderGeometry();
       const rendered = geometry.rendered;
       const firstVisibleTextRect = geometry.firstVisibleTextRect;
       if (!geometry.stage || !geometry.sidebar || !rendered || !firstVisibleTextRect) return false;
@@ -580,9 +623,49 @@ describe('br1 desktop app', () => {
       timeoutMsg:
         'expected the rendered book page and its first visible text block to stay inside the reader stage instead of collapsing toward the sidebar or lower-left corner'
     }).catch(async (error) => {
-      geometry = await readGeometry();
+      geometry = await readReaderGeometry();
       throw new Error(
         `${error instanceof Error ? error.message : String(error)}\nGeometry: ${JSON.stringify(geometry)}`
+      );
+    });
+  });
+
+  it('restores a library-file epub into a visible reading position inside the reader stage', async () => {
+    const { expectedLocation } = await openRestorableReaderBook();
+
+    let geometry = await readReaderGeometry();
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      geometry = await readReaderGeometry();
+      const rendered = geometry.rendered;
+      const firstVisibleTextRect = geometry.firstVisibleTextRect;
+
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+
+      if (!geometry.stage || !geometry.sidebar || !rendered || !firstVisibleTextRect) return false;
+      if (!details.cfi || details.cfi === expectedLocation) return false;
+
+      return (
+        rendered.left >= geometry.stage.left - 4 &&
+        rendered.right <= geometry.stage.right + 4 &&
+        rendered.width >= geometry.stage.width * 0.2 &&
+        firstVisibleTextRect.left >= geometry.stage.left + geometry.stage.width * 0.04 &&
+        firstVisibleTextRect.right <= geometry.stage.right - geometry.stage.width * 0.04 &&
+        firstVisibleTextRect.top >= geometry.stage.top &&
+        firstVisibleTextRect.bottom <= geometry.stage.bottom
+      );
+    }, {
+      timeout: 20000,
+      timeoutMsg:
+        'expected a restorable library-file EPUB to reopen at a valid reading position with visible text inside the reader stage'
+    }).catch(async (error) => {
+      const details = await readReaderDetails();
+      geometry = await readReaderGeometry();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nGeometry: ${JSON.stringify(geometry)}`
       );
     });
   });
