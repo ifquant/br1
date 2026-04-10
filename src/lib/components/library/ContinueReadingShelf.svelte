@@ -1,26 +1,8 @@
 <script lang="ts">
-  type Book = {
-    title: string;
-    author: string;
-    format: string;
-    description?: string;
-    language?: string;
-    publisher?: string;
-    status: string;
-    progress: string;
-    progressPercentLabel?: string;
-    readingStatusLabel?: string;
-    sourceLabel?: string;
-    availabilityLabel?: string;
-    sourcePath?: string;
-    coverUrl?: string;
-    readerHref?: string;
-    restartHref?: string;
-    lastOpenedLabel?: string;
-  };
+  import type { ContinueReadingBook } from '$lib/library/types';
 
   export let sectionTitle = '继续阅读';
-  export let books: Book[] = [];
+  export let books: ContinueReadingBook[] = [];
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   let expandedKey = '';

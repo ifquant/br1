@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
+  import type { LibraryShelfBook } from '$lib/library/types';
   import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
   import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
   import {
@@ -66,27 +67,6 @@
     }
   ];
 
-  type ShelfBook = {
-    title: string;
-    author: string;
-    status: string;
-    progress: string;
-    format: string;
-    description?: string;
-    language?: string;
-    publisher?: string;
-    progressPercentLabel?: string;
-    readingStatusLabel?: string;
-    sourceLabel?: string;
-    availabilityLabel?: string;
-    sourcePath?: string;
-    coverUrl?: string;
-    readerHref?: string;
-    restartHref?: string;
-    lastOpenedAt?: number | null;
-    lastOpenedLabel?: string;
-  };
-
   const readerValidationRank = (record: PersistedLibraryBook) => {
     const normalized = record.format.trim().toUpperCase();
     if (normalized === 'PDF') return 0;
@@ -107,15 +87,15 @@
       return right.importedAt - left.importedAt;
     });
 
-  let importedBooks: ShelfBook[] = [];
+  let importedBooks: LibraryShelfBook[] = [];
   let importInput: HTMLInputElement | null = null;
   let readestLibraryCount = 0;
   let showReadestMigration = false;
   let migrationBusy = false;
   let desktopLibraryMode = false;
   let libraryViewMode: 'grid' | 'list' = 'grid';
-  let continueReadingBooks: ShelfBook[] = [];
-  let libraryShelfBooks: ShelfBook[] = [];
+  let continueReadingBooks: LibraryShelfBook[] = [];
+  let libraryShelfBooks: LibraryShelfBook[] = [];
 
   const formatLastOpenedLabel = (timestamp: number | null | undefined) => {
     if (typeof timestamp !== 'number' || timestamp <= 0) return '';
@@ -128,7 +108,7 @@
     return `${Math.round(deltaMinutes / (60 * 24))} 天前阅读`;
   };
 
-  const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<ShelfBook> => {
+  const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<LibraryShelfBook> => {
     const progressFraction =
       typeof record.progressFraction === 'number'
         ? Math.max(0, Math.min(1, record.progressFraction))
@@ -174,12 +154,15 @@
     };
   };
 
-  const getContinueReadingBooks = (books: ShelfBook[]) =>
+  const getContinueReadingBooks = (books: LibraryShelfBook[]) =>
     books
       .filter((book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0)
       .slice(0, 4);
 
-  const getLibraryShelfBooks = (books: ShelfBook[], continueReading: ShelfBook[]) => {
+  const getLibraryShelfBooks = (
+    books: LibraryShelfBook[],
+    continueReading: LibraryShelfBook[]
+  ) => {
     const continueKeys = new Set(
       continueReading.map((book) => book.readerHref || `${book.title}::${book.author}`)
     );

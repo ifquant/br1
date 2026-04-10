@@ -1,15 +1,8 @@
 <script lang="ts">
-  type Book = {
-    title: string;
-    author: string;
-    status: string;
-    progress: string;
-    coverUrl?: string;
-    readerHref?: string;
-  };
+  import type { BookshelfPreviewBook } from '$lib/library/types';
 
   export let sectionTitle = '最近阅读';
-  export let books: Book[] = [];
+  export let books: BookshelfPreviewBook[] = [];
   export let viewMode: 'grid' | 'list' = 'grid';
   export let showImportTile = false;
   export let importHref = '';
