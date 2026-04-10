@@ -109,7 +109,7 @@ pub(crate) fn prune_reader_search_cache_book(
     book_key: &str,
 ) -> Result<(), String> {
     let root = reader_search_cache_root(app)?;
-    let book_dir = root.join(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key));
+    let book_dir = root.join(reader_search_cache_component_key(book_key));
     if !book_dir.exists() {
         return Ok(());
     }

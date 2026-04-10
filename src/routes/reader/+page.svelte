@@ -34,7 +34,8 @@
   $: autoOpenPicker = source === 'picker';
   $: autoOpenAsset = source === 'asset' && !!sourceUrl;
   $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
-  $: notesStorageKey = `br1.reader.notes:${sourcePath || sourceUrl || sourceLabel || 'default'}`;
+  $: readerBookKey = sourcePath || sourceUrl || sourceLabel || 'default';
+  $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
 
   $: autoOpenKey = autoOpenLibraryFile
     ? `${source}:${sourcePath}:${sourceLabel}:${sourceLocation}:${Number.isFinite(sourceFraction) ? sourceFraction : ''}`
@@ -135,16 +136,20 @@
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
     searchController.restoreConfig();
-    searchController.refreshHistory();
     searchController.enablePersistence();
     sidebarController.restore();
-    notesController.refresh();
   });
 
-  $: searchController.refreshHistory();
+  $: {
+    readerBookKey;
+    searchController.refreshHistory();
+  }
   $: searchController.persist($searchState);
   $: sidebarController.persist($sidebarState);
-  $: notesController.refresh();
+  $: {
+    notesStorageKey;
+    notesController.refresh();
+  }
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;

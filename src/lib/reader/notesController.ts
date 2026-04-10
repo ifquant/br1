@@ -51,6 +51,13 @@ export const createReaderNotesController = ({
     const run = async () => {
       if (storageKey === lastHydratedStorageKey) return;
 
+      state.update((current) => ({
+        ...current,
+        activeCfi: '',
+        selection: null,
+        notes: []
+      }));
+
       try {
         let nextNotes: ReaderNote[] = [];
         const storage = getStorage();
@@ -77,6 +84,8 @@ export const createReaderNotesController = ({
 
         state.update((current) => ({
           ...current,
+          activeCfi: '',
+          selection: null,
           notes: nextNotes
         }));
         lastHydratedStorageKey = storageKey;
@@ -85,6 +94,8 @@ export const createReaderNotesController = ({
         if (token !== loadToken) return;
         state.update((current) => ({
           ...current,
+          activeCfi: '',
+          selection: null,
           notes: []
         }));
         lastHydratedStorageKey = storageKey;
