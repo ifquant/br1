@@ -1,0 +1,130 @@
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LibraryBookRecord {
+    pub(crate) id: String,
+    pub(crate) title: String,
+    pub(crate) author: String,
+    pub(crate) format: String,
+    pub(crate) description: Option<String>,
+    pub(crate) language: Option<String>,
+    pub(crate) publisher: Option<String>,
+    pub(crate) progress: String,
+    pub(crate) status: String,
+    pub(crate) file_path: String,
+    pub(crate) cover_path: Option<String>,
+    pub(crate) source_path: Option<String>,
+    pub(crate) imported_at: u64,
+    pub(crate) progress_fraction: Option<f64>,
+    pub(crate) progress_location: Option<String>,
+    pub(crate) last_opened_at: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReadestLibrarySummary {
+    pub(crate) available: bool,
+    pub(crate) count: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReadestBookRecord {
+    pub(crate) hash: String,
+    pub(crate) format: String,
+    pub(crate) title: String,
+    pub(crate) author: String,
+    pub(crate) metadata: Option<serde_json::Value>,
+    pub(crate) created_at: Option<u64>,
+    pub(crate) downloaded_at: Option<u64>,
+    pub(crate) progress: Option<Vec<u64>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReadestBookConfig {
+    pub(crate) location: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReadestBookMetadata {
+    pub(crate) description: Option<String>,
+    pub(crate) publisher: Option<serde_json::Value>,
+    pub(crate) language: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LibraryBookBinary {
+    pub(crate) name: String,
+    pub(crate) mime_type: String,
+    pub(crate) bytes_base64: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderSearchCacheExcerpt {
+    pub(crate) pre: String,
+    #[serde(rename = "match")]
+    pub(crate) match_text: String,
+    pub(crate) post: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderSearchCacheResult {
+    pub(crate) cfi: String,
+    pub(crate) label: String,
+    pub(crate) excerpt: ReaderSearchCacheExcerpt,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderSearchCacheEntry {
+    pub(crate) schema_version: u8,
+    pub(crate) saved_at: u64,
+    pub(crate) last_accessed_at: u64,
+    pub(crate) expires_at: u64,
+    pub(crate) results: Vec<ReaderSearchCacheResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderNoteRecord {
+    pub(crate) id: String,
+    pub(crate) cfi: String,
+    pub(crate) text: String,
+    pub(crate) note: String,
+    pub(crate) chapter_label: String,
+    pub(crate) chapter_href: String,
+    pub(crate) created_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderNotesEntry {
+    pub(crate) schema_version: u8,
+    pub(crate) notes: Vec<ReaderNoteRecord>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ReaderSearchCacheFileInfo {
+    pub(crate) path: PathBuf,
+    pub(crate) modified_ms: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ReadestBookMetadataSummary {
+    pub(crate) description: Option<String>,
+    pub(crate) language: Option<String>,
+    pub(crate) publisher: Option<String>,
+}
+
+pub(crate) const READER_SEARCH_CACHE_SCHEMA_VERSION: u8 = 1;
+pub(crate) const READER_SEARCH_CACHE_TTL_MS: u64 = 1000 * 60 * 60 * 24 * 7;
+pub(crate) const READER_SEARCH_CACHE_MAX_FILES_PER_BOOK: usize = 48;
+pub(crate) const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
+pub(crate) const READER_NOTES_SCHEMA_VERSION: u8 = 1;
