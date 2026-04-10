@@ -11,6 +11,7 @@ export {
   getReaderViewStyles,
   wrapFoliateViewElement
 } from './foliate';
+export { createReaderSearchController } from './searchController';
 export type { FoliateViewElement } from './foliate';
 export type {
   ReaderControlRequest,

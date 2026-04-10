@@ -5,16 +5,15 @@
   import type {
     ReaderControlRequest,
     ReaderNote,
-    ReaderSearchConfig,
     ReaderPreviewState,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
-    ReaderSidebarSearchState,
     ReaderSearchResult,
     ReaderSelectionState,
     SidebarTab,
     ReaderTocItem
   } from '$lib/reader';
+  import { createReaderSearchController } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
   import { canPersistReaderNotes, clearReaderSearchCache, loadReaderNotes, saveReaderNotes } from '$lib/services';
 
@@ -27,31 +26,12 @@
   let sidebarPinned = true;
   let sidebarWidth = 224;
   let sidebarTab: SidebarTab = 'toc';
-  let sidebarSearchTerm = '';
-  let sidebarSearchStatus: 'idle' | 'searching' | 'done' | 'error' = 'idle';
-  let sidebarSearchResults: ReaderSearchResult[] = [];
-  let sidebarSearchError = '';
-  let sidebarSearchProgress = 0;
-  let sidebarSearchHistory: string[] = [];
-  let sidebarSearchConfig: ReaderSearchConfig = {
-    scope: 'book',
-    matchCase: false,
-    matchWholeWords: false,
-    matchDiacritics: false
-  };
-  let sidebarSearchCacheKey = '';
-  let lastSearchHistoryKey = '';
-  let canPersistSearchPrefs = false;
-  let currentSearchLocation = '';
-  let recentSearchResultCfi = '';
   let activeNoteCfi = '';
-  let searchNotice: { kind: 'success' | 'error'; message: string } | null = null;
   let notesSelection: ReaderSelectionState | null = null;
   let notes: ReaderNote[] = [];
   let lastHydratedNotesKey = '';
   let notesLoadToken = 0;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
-  let searchNoticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
   $: sourceUrl = $page.url.searchParams.get('url') ?? '';
@@ -117,63 +97,26 @@
     sidebarVisible = true;
   };
 
-  const getSearchHistoryKey = () => {
-    const bookKey = sourcePath || sourceUrl || sourceLabel || 'default';
-    return `br1.reader.search.history:${bookKey}`;
-  };
-
-  const loadSearchConfig = () => {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      const raw = localStorage.getItem('br1.reader.search.config');
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<ReaderSearchConfig>;
-      sidebarSearchConfig = {
-        scope: parsed.scope === 'section' ? 'section' : 'book',
-        matchCase: !!parsed.matchCase,
-        matchWholeWords: !!parsed.matchWholeWords,
-        matchDiacritics: !!parsed.matchDiacritics
-      };
-    } catch (error) {
-      console.warn('Failed to restore reader search config', error);
+  const searchController = createReaderSearchController({
+    getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+    getHistoryKey: () => {
+      const bookKey = sourcePath || sourceUrl || sourceLabel || 'default';
+      return `br1.reader.search.history:${bookKey}`;
+    },
+    dispatchSearch: (query, config) => {
+      controlNonce += 1;
+      controlRequest = { type: 'search', nonce: controlNonce, query, config };
+    },
+    dispatchSearchResult: (cfi) => {
+      controlNonce += 1;
+      controlRequest = { type: 'href', href: cfi, nonce: controlNonce };
+    },
+    dispatchClearSearchCache: () => {
+      controlNonce += 1;
+      controlRequest = { type: 'clear-search-cache', nonce: controlNonce };
     }
-  };
-
-  const loadSearchHistory = () => {
-    if (typeof localStorage === 'undefined') return;
-    const key = getSearchHistoryKey();
-    if (key === lastSearchHistoryKey) return;
-    try {
-      const raw = localStorage.getItem(key);
-      sidebarSearchHistory = raw ? (JSON.parse(raw) as string[]) : [];
-      lastSearchHistoryKey = key;
-    } catch (error) {
-      console.warn('Failed to restore reader search history', error);
-      sidebarSearchHistory = [];
-      lastSearchHistoryKey = key;
-    }
-  };
-
-  const issueSearchControl = (query: string) => {
-    sidebarSearchTerm = query;
-    recentSearchResultCfi = '';
-    controlNonce += 1;
-    controlRequest = { type: 'search', nonce: controlNonce, query, config: sidebarSearchConfig };
-  };
-
-  const issueSearchResultControl = (cfi: string) => {
-    recentSearchResultCfi = cfi;
-    controlNonce += 1;
-    controlRequest = { type: 'href', href: cfi, nonce: controlNonce };
-  };
-
-  const showSearchNotice = (kind: 'success' | 'error', message: string) => {
-    searchNotice = { kind, message };
-    if (searchNoticeTimer) clearTimeout(searchNoticeTimer);
-    searchNoticeTimer = setTimeout(() => {
-      searchNotice = null;
-    }, 2500);
-  };
+  });
+  const searchState = searchController.state;
 
   const persistSidebarPrefs = () => {
     if (!isWindowMode || typeof localStorage === 'undefined') return;
@@ -258,7 +201,7 @@
     activeNoteCfi = cfi;
     sidebarTab = 'notes';
     sidebarVisible = true;
-    recentSearchResultCfi = '';
+    searchController.clearRecentResultCfi();
     issueHrefControl(cfi);
   };
 
@@ -309,9 +252,9 @@
 
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
-    loadSearchConfig();
-    loadSearchHistory();
-    canPersistSearchPrefs = true;
+    searchController.restoreConfig();
+    searchController.refreshHistory();
+    searchController.enablePersistence();
     try {
       const raw = localStorage.getItem('br1.reader.sidebar');
       if (!raw) return;
@@ -330,15 +273,8 @@
     persistSidebarPrefs();
   }
 
-  $: if (canPersistSearchPrefs && typeof localStorage !== 'undefined') {
-    localStorage.setItem('br1.reader.search.config', JSON.stringify(sidebarSearchConfig));
-  }
-
-  $: if (canPersistSearchPrefs && typeof localStorage !== 'undefined') {
-    localStorage.setItem(getSearchHistoryKey(), JSON.stringify(sidebarSearchHistory.slice(0, 10)));
-  }
-
-  $: loadSearchHistory();
+  $: searchController.refreshHistory();
+  $: searchController.persist($searchState);
   $: loadNotes();
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
@@ -360,22 +296,8 @@
 
   onDestroy(() => {
     if (persistTimer) clearTimeout(persistTimer);
-    if (searchNoticeTimer) clearTimeout(searchNoticeTimer);
+    searchController.destroy();
   });
-
-  $: sidebarSearchState = {
-    term: sidebarSearchTerm,
-    status: sidebarSearchStatus,
-    results: sidebarSearchResults,
-    error: sidebarSearchError,
-    progress: sidebarSearchProgress,
-    history: sidebarSearchHistory,
-    config: sidebarSearchConfig,
-    cacheKey: sidebarSearchCacheKey,
-    notice: searchNotice,
-    activeResultCfi: currentSearchLocation,
-    recentResultCfi: recentSearchResultCfi
-  } satisfies ReaderSidebarSearchState;
 
   $: sidebarNotesState = {
     activeCfi: activeNoteCfi,
@@ -393,22 +315,12 @@
     onOpenNote: openNote,
     onEditNote: editNote,
     onDeleteNote: deleteNote,
-    onSearch: issueSearchControl,
-    onSearchResult: issueSearchResultControl,
-    onSearchConfigChange: (config) => {
-      sidebarSearchConfig = config;
-      if (sidebarSearchTerm.trim()) issueSearchControl(sidebarSearchTerm);
-    },
-    onSearchHistory: (query) => issueSearchControl(query),
-    onClearSearchHistory: () => {
-      sidebarSearchHistory = [];
-    },
-    onClearSearchCache: async () => {
-      if (!sidebarSearchCacheKey) return;
-      controlNonce += 1;
-      controlRequest = { type: 'clear-search-cache', nonce: controlNonce };
-      showSearchNotice('success', '已清空当前书的搜索缓存。');
-    }
+    onSearch: searchController.issueSearch,
+    onSearchResult: searchController.issueSearchResult,
+    onSearchConfigChange: searchController.updateConfig,
+    onSearchHistory: searchController.issueSearch,
+    onClearSearchHistory: searchController.clearHistory,
+    onClearSearchCache: searchController.clearCurrentBookCache
   } satisfies ReaderSidebarCallbacks;
 </script>
 
@@ -444,7 +356,7 @@
         {isWindowMode}
         isPinned={sidebarPinned}
         activeTab={sidebarTab}
-        search={sidebarSearchState}
+        search={$searchState}
         notesState={sidebarNotesState}
         callbacks={sidebarCallbacks}
       />
@@ -473,7 +385,7 @@
       }}
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
         activeHref = detail.chapterHref;
-        currentSearchLocation = detail.progressLocation;
+        searchController.setActiveResultCfi(detail.progressLocation);
         queueLibraryReadingStatePersist(detail);
       }}
       on:notefocus={({ detail }: CustomEvent<string>) => {
@@ -485,26 +397,10 @@
         notesSelection = detail;
       }}
       on:searchchange={({ detail }) => {
-        sidebarSearchTerm = detail.query;
-        sidebarSearchStatus = detail.status;
-        sidebarSearchResults = detail.results;
-        sidebarSearchProgress = detail.progress ?? 0;
-        sidebarSearchError = detail.error ?? '';
-        if (detail.status === 'error') {
-          showSearchNotice('error', detail.error ?? '正文搜索失败。');
-        }
-        if (detail.status === 'done' && detail.query.trim() && detail.results.length > 0) {
-          sidebarSearchHistory = [
-            detail.query,
-            ...sidebarSearchHistory.filter((item) => item !== detail.query)
-          ].slice(0, 10);
-        }
-        if (detail.status === 'idle') {
-          recentSearchResultCfi = '';
-        }
+        searchController.handleSearchChange(detail);
       }}
       on:searchcachekeychange={({ detail }) => {
-        sidebarSearchCacheKey = detail;
+        searchController.setCacheKey(detail);
       }}
       on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
         toc = detail;
