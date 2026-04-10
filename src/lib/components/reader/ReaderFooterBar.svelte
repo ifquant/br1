@@ -57,7 +57,7 @@
   <div class="footer-meta">
     <span>{preview.locationLabel}</span>
     <span>{preview.formatLabel}</span>
-    <span>Serif</span>
+    <span>{preview.layoutLabel}</span>
   </div>
 </footer>
 

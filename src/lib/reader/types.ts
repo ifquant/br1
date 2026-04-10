@@ -14,6 +14,7 @@ export type ReaderPreviewState = {
   progressLabel: string;
   locationLabel: string;
   formatLabel: string;
+  layoutLabel: string;
   progressFraction: number;
   progressLocation: string;
 };

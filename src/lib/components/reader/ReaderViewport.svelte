@@ -66,6 +66,7 @@
   let syncedNoteValues = new Set<string>();
   let stageResizeObserver: ResizeObserver | null = null;
   let currentFormatLabel = 'BOOK';
+  let currentLayoutLabel = 'WAITING';
 
   const inferReaderFormatLabel = (source: string | File, sourceLabel: string) => {
     const fromName = (value: string) => {
@@ -79,6 +80,13 @@
     }
 
     return fromName(source) || fromName(sourceLabel) || 'BOOK';
+  };
+
+  const inferReaderLayoutLabel = (book: ReaderBookDocument | undefined, formatLabel: string) => {
+    if (formatLabel === 'PDF' || book?.rendition?.layout === 'pre-paginated') {
+      return 'FIXED';
+    }
+    return 'PAGINATED';
   };
 
   const getViewportStageSize = () => {
@@ -154,6 +162,7 @@
           ? `${lastLocation.location.current} / ${lastLocation.location.total}`
           : 'Opening book',
       formatLabel: currentFormatLabel,
+      layoutLabel: currentLayoutLabel,
       ...partial
     });
   };
@@ -212,6 +221,7 @@
       }
 
       await foliateViewElement.open(openTarget);
+      currentLayoutLabel = inferReaderLayoutLabel(foliateViewElement.book, currentFormatLabel);
       installReaderBookTransformGuards(foliateViewElement.book);
       configureFoliatePreview();
       if (restoreLocation) {

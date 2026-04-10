@@ -27,6 +27,7 @@
     progressLabel: '0%',
     locationLabel: 'Not opened',
     formatLabel: 'BOOK',
+    layoutLabel: 'WAITING',
     progressFraction: 0,
     progressLocation: ''
   };
