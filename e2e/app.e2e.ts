@@ -231,6 +231,51 @@ describe('br1 desktop app', () => {
     throw new Error('expected to find an EPUB library book with a stored restore location');
   };
 
+  const openRestorablePdfBook = async () => {
+    const libraryHandle = await switchToLibraryWindow();
+    const hrefs = await listOpenableBookHrefs();
+
+    for (const href of hrefs) {
+      const target = new URL(href, 'http://localhost');
+      const path = target.searchParams.get('path') ?? '';
+      const location = target.searchParams.get('location') ?? '';
+      const fraction = Number(target.searchParams.get('fraction') ?? '0');
+      if (!(path.toLowerCase().endsWith('.pdf') || /\.pdf($|\?)/i.test(path))) continue;
+      if (!location && !(Number.isFinite(fraction) && fraction > 0)) continue;
+
+      const book = await findBookElementByHref(href);
+      if (!book) continue;
+
+      await openReaderFromBook(book);
+
+      try {
+        await browser.waitUntil(async () => {
+          const details = await readReaderDetails();
+          if (details.stageError) {
+            throw new Error(details.stageError);
+          }
+          return !!details.title && details.progressLabel !== '0%' && details.locationLabel !== 'Opening book';
+        }, {
+          timeout: 20000,
+          timeoutMsg: 'expected a restorable PDF library book to reopen with visible reader progress metadata'
+        });
+
+        return {
+          libraryHandle,
+          href,
+          expectedLocation: location,
+          expectedFraction: fraction,
+          details: await readReaderDetails()
+        };
+      } catch {
+        await browser.closeWindow();
+        await browser.switchToWindow(libraryHandle);
+      }
+    }
+
+    throw new Error('expected to find a PDF library book with a stored restore location or fraction');
+  };
+
   const readReaderDetails = async () =>
     browser.execute(() => {
       const view = document.querySelector('foliate-view') as
@@ -253,12 +298,22 @@ describe('br1 desktop app', () => {
             ? String((titleValue as Record<string, unknown>).en ?? '')
             : null;
 
+      const footer = document.querySelector('[aria-label="reader footer controls preview"]');
+      const footerMeta = Array.from(footer?.querySelectorAll('.footer-meta span') ?? []).map((node) =>
+        node.textContent?.trim() ?? ''
+      );
+      const progressLabel =
+        footer?.querySelector('.progress-strip span')?.textContent?.trim() ?? null;
+
       return {
         title,
         cfi: view?.lastLocation?.cfi ?? null,
         chapterLabel: view?.lastLocation?.tocItem?.label ?? null,
         chapterHref: view?.lastLocation?.tocItem?.href ?? null,
         total: view?.lastLocation?.location?.total ?? view?.lastLocation?.total ?? null,
+        progressLabel,
+        locationLabel: footerMeta[0] ?? null,
+        formatLabel: footerMeta[1] ?? null,
         stageError: document.querySelector('.stage-error')?.textContent?.trim() ?? null
       };
     });
@@ -661,6 +716,52 @@ describe('br1 desktop app', () => {
       timeout: 20000,
       timeoutMsg:
         'expected a restorable library-file EPUB to reopen at a valid reading position with visible text inside the reader stage'
+    }).catch(async (error) => {
+      const details = await readReaderDetails();
+      geometry = await readReaderGeometry();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nGeometry: ${JSON.stringify(geometry)}`
+      );
+    });
+  });
+
+  it('reopens a library-file pdf with restored progress inside the reader stage', async () => {
+    const { expectedLocation, expectedFraction } = await openRestorablePdfBook();
+
+    let geometry = await readReaderGeometry();
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      geometry = await readReaderGeometry();
+      const rendered = geometry.rendered;
+
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+
+      if (!geometry.stage || !geometry.sidebar || !rendered) return false;
+      if (!details.title || details.progressLabel === '0%' || details.locationLabel === 'Opening book') return false;
+
+      const restoredByLocation = !!expectedLocation && details.cfi && details.cfi !== expectedLocation;
+      const restoredByFraction =
+        !expectedLocation &&
+        typeof expectedFraction === 'number' &&
+        expectedFraction > 0 &&
+        details.progressLabel !== `${Math.round(expectedFraction * 100)}%` ? true : false;
+
+      return (
+        (restoredByLocation || restoredByFraction || details.locationLabel !== 'Not opened') &&
+        rendered.left >= geometry.stage.left - 4 &&
+        rendered.right <= geometry.stage.right + 4 &&
+        rendered.top >= geometry.stage.top - 4 &&
+        rendered.bottom <= geometry.stage.bottom + 4 &&
+        rendered.width >= geometry.stage.width * 0.2 &&
+        rendered.height >= geometry.stage.height * 0.25
+      );
+    }, {
+      timeout: 20000,
+      timeoutMsg:
+        'expected a restorable library-file PDF to reopen with progress and a rendered surface inside the reader stage'
     }).catch(async (error) => {
       const details = await readReaderDetails();
       geometry = await readReaderGeometry();
