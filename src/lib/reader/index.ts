@@ -12,6 +12,7 @@ export {
   wrapFoliateViewElement
 } from './foliate';
 export { createReaderSearchController } from './searchController';
+export { createReaderNotesController } from './notesController';
 export type { FoliateViewElement } from './foliate';
 export type {
   ReaderControlRequest,

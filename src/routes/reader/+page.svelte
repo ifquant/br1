@@ -4,16 +4,13 @@
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import type {
     ReaderControlRequest,
-    ReaderNote,
     ReaderPreviewState,
     ReaderSidebarCallbacks,
-    ReaderSidebarNotesState,
     ReaderSearchResult,
-    ReaderSelectionState,
     SidebarTab,
     ReaderTocItem
   } from '$lib/reader';
-  import { createReaderSearchController } from '$lib/reader';
+  import { createReaderNotesController, createReaderSearchController } from '$lib/reader';
   import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
   import { canPersistReaderNotes, clearReaderSearchCache, loadReaderNotes, saveReaderNotes } from '$lib/services';
 
@@ -26,11 +23,6 @@
   let sidebarPinned = true;
   let sidebarWidth = 224;
   let sidebarTab: SidebarTab = 'toc';
-  let activeNoteCfi = '';
-  let notesSelection: ReaderSelectionState | null = null;
-  let notes: ReaderNote[] = [];
-  let lastHydratedNotesKey = '';
-  let notesLoadToken = 0;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: source = $page.url.searchParams.get('source') ?? '';
@@ -117,6 +109,16 @@
     }
   });
   const searchState = searchController.state;
+  const notesController = createReaderNotesController({
+    getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+    getStorageKey: () => notesStorageKey,
+    canPersistNotes: canPersistReaderNotes,
+    loadPersistedNotes: loadReaderNotes,
+    savePersistedNotes: saveReaderNotes,
+    promptNoteDraft: (message, initialValue = '') => window.prompt(message, initialValue),
+    confirmDelete: (message) => window.confirm(message)
+  });
+  const notesState = notesController.state;
 
   const persistSidebarPrefs = () => {
     if (!isWindowMode || typeof localStorage === 'undefined') return;
@@ -126,79 +128,15 @@
     );
   };
 
-  const loadNotes = () => {
-    const token = ++notesLoadToken;
-    const storageKey = notesStorageKey;
-    const run = async () => {
-      if (storageKey === lastHydratedNotesKey) return;
-      try {
-        if (canPersistReaderNotes()) {
-          const persistedNotes = await loadReaderNotes(storageKey);
-          if (persistedNotes.length > 0) {
-            notes = persistedNotes;
-          } else if (typeof localStorage !== 'undefined') {
-            const raw = localStorage.getItem(storageKey);
-            const legacyNotes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
-            notes = legacyNotes;
-            if (legacyNotes.length > 0) {
-              await saveReaderNotes(storageKey, legacyNotes);
-              localStorage.removeItem(storageKey);
-            }
-          } else {
-            notes = [];
-          }
-        } else if (typeof localStorage !== 'undefined') {
-          const raw = localStorage.getItem(storageKey);
-          notes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
-        } else {
-          notes = [];
-        }
-      } catch (error) {
-        console.warn('Failed to restore reader notes', error);
-        notes = [];
-      }
-
-      if (token !== notesLoadToken) return;
-      lastHydratedNotesKey = storageKey;
-    };
-
-    void run();
-  };
-
-  const persistNotes = () => {
-    lastHydratedNotesKey = notesStorageKey;
-    if (canPersistReaderNotes()) {
-      void saveReaderNotes(notesStorageKey, notes);
-      return;
-    }
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(notesStorageKey, JSON.stringify(notes));
-  };
-
   const addNoteFromSelection = () => {
-    if (!notesSelection) return;
-    const draft = window.prompt('为当前选中的文本添加笔记：', '') ?? '';
-    const selectedText = notesSelection.text.trim();
-    if (!selectedText) return;
-
-    const note: ReaderNote = {
-      id: `${notesSelection.cfi}:${Date.now()}`,
-      cfi: notesSelection.cfi,
-      text: selectedText,
-      note: draft.trim(),
-      chapterLabel: notesSelection.chapterLabel,
-      chapterHref: notesSelection.chapterHref,
-      createdAt: Date.now()
-    };
-
-    notes = [note, ...notes.filter((item) => item.cfi !== note.cfi)];
-    persistNotes();
+    const added = notesController.addFromSelection();
+    if (!added) return;
     sidebarTab = 'notes';
     sidebarVisible = true;
   };
 
   const openNote = (cfi: string) => {
-    activeNoteCfi = cfi;
+    notesController.open(cfi);
     sidebarTab = 'notes';
     sidebarVisible = true;
     searchController.clearRecentResultCfi();
@@ -206,26 +144,11 @@
   };
 
   const editNote = (id: string) => {
-    const target = notes.find((item) => item.id === id);
-    if (!target) return;
-    const nextValue = window.prompt('编辑这条笔记：', target.note) ?? target.note;
-    notes = notes.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            note: nextValue.trim()
-          }
-        : item
-    );
-    persistNotes();
+    notesController.edit(id);
   };
 
   const deleteNote = (id: string) => {
-    const target = notes.find((item) => item.id === id);
-    if (!target) return;
-    if (!window.confirm('删除这条笔记？')) return;
-    notes = notes.filter((item) => item.id !== id);
-    persistNotes();
+    notesController.remove(id);
   };
 
   const handleSidebarResizeStart = (event: MouseEvent) => {
@@ -266,7 +189,7 @@
     } catch (error) {
       console.warn('Failed to restore reader sidebar prefs', error);
     }
-    loadNotes();
+    notesController.refresh();
   });
 
   $: if (isWindowMode) {
@@ -275,7 +198,7 @@
 
   $: searchController.refreshHistory();
   $: searchController.persist($searchState);
-  $: loadNotes();
+  $: notesController.refresh();
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
@@ -298,12 +221,6 @@
     if (persistTimer) clearTimeout(persistTimer);
     searchController.destroy();
   });
-
-  $: sidebarNotesState = {
-    activeCfi: activeNoteCfi,
-    selection: notesSelection,
-    notes
-  } satisfies ReaderSidebarNotesState;
 
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
@@ -357,7 +274,7 @@
         isPinned={sidebarPinned}
         activeTab={sidebarTab}
         search={$searchState}
-        notesState={sidebarNotesState}
+        notesState={$notesState}
         callbacks={sidebarCallbacks}
       />
     {/if}
@@ -369,12 +286,12 @@
         on:mousedown={handleSidebarResizeStart}
       ></button>
     {/if}
-    <ReaderStage
+      <ReaderStage
       {controlRequest}
       {autoOpenPicker}
       {isWindowMode}
       {sidebarVisible}
-      {notes}
+      notes={$notesState.notes}
       activeSidebarTab={sidebarTab}
       on:togglesidebar={toggleSidebar}
       on:switchsidebartab={({ detail }: CustomEvent<'toc' | 'search' | 'notes'>) => {
@@ -389,12 +306,12 @@
         queueLibraryReadingStatePersist(detail);
       }}
       on:notefocus={({ detail }: CustomEvent<string>) => {
-        activeNoteCfi = detail;
+        notesController.setActiveCfi(detail);
         sidebarTab = 'notes';
         sidebarVisible = true;
       }}
-      on:selectionchange={({ detail }: CustomEvent<ReaderSelectionState | null>) => {
-        notesSelection = detail;
+      on:selectionchange={({ detail }) => {
+        notesController.setSelection(detail);
       }}
       on:searchchange={({ detail }) => {
         searchController.handleSearchChange(detail);
