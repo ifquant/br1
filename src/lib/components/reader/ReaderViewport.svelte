@@ -8,10 +8,13 @@
     ensureFoliateViewDefinition,
     flattenToc,
     getReaderViewStyles,
+    installReaderBookTransformGuards,
+    loadReaderBookDocument,
     pickAuthor,
     pickText,
     wrapFoliateViewElement,
     type ReaderControlRequest,
+    type ReaderBookDocument,
     type FoliateViewElement
   } from '$lib/reader';
   import { Overlayer } from 'foliate-js/overlayer.js';
@@ -157,6 +160,14 @@
     renderer.setAttribute('max-column-count', `${maxColumnCount}`);
   };
 
+  const bindOpenRendererDocs = () => {
+    const docs = foliateViewElement?.renderer?.getContents?.() ?? [];
+    for (const { doc, index } of docs) {
+      if (!(doc instanceof Document) || typeof index !== 'number') continue;
+      bindSelectionTracking(doc, index);
+    }
+  };
+
   const openBook = async (
     source: string | File,
     sourceLabel: string,
@@ -178,7 +189,13 @@
     syncedNoteValues = new Set();
 
     try {
-      await foliateViewElement.open(source);
+      let openTarget: string | File | ReaderBookDocument = source;
+      if (source instanceof File) {
+        openTarget = await loadReaderBookDocument(source);
+      }
+
+      await foliateViewElement.open(openTarget);
+      installReaderBookTransformGuards(foliateViewElement.book);
       configureFoliatePreview();
       if (restoreLocation) {
         await foliateViewElement.init({ lastLocation: restoreLocation });
@@ -188,6 +205,7 @@
         );
       }
       openStatus = 'open';
+      bindOpenRendererDocs();
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
       emitReaderState();
     } catch (error) {

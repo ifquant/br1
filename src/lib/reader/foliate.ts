@@ -1,13 +1,7 @@
 export const FOLIATE_VIEW_TAG = 'foliate-view';
 
 export interface FoliateViewElement extends HTMLElement {
-  book?: {
-    metadata?: {
-      title?: string | Record<string, string>;
-      creator?: string | { name?: string } | Array<string | { name?: string }>;
-    };
-    toc?: unknown[];
-  };
+  book?: ReaderBookDocument;
   lastLocation?: {
     location?: {
       current?: number;
@@ -28,7 +22,7 @@ export interface FoliateViewElement extends HTMLElement {
     };
     cfi?: string;
   };
-  open(book: string | Blob | File): Promise<void>;
+  open(book: string | Blob | File | ReaderBookDocument): Promise<void>;
   init(options: { lastLocation?: string; showTextStart?: boolean }): Promise<void>;
   prev(): Promise<void>;
   next(): Promise<void>;
@@ -80,6 +74,21 @@ export interface FoliateViewElement extends HTMLElement {
   };
 }
 
+export interface ReaderBookDocument {
+  metadata?: {
+    title?: string | Record<string, string>;
+    creator?: string | { name?: string } | Array<string | { name?: string }>;
+    language?: string | string[];
+  };
+  toc?: unknown[];
+  sections?: Array<{ createDocument?: () => Promise<Document> }>;
+  rendition?: {
+    layout?: 'pre-paginated' | 'reflowable';
+  };
+  dir?: string;
+  transformTarget?: EventTarget;
+}
+
 const isRecord = (value: unknown): value is Record<string, string> =>
   typeof value === 'object' && value !== null;
 
@@ -115,6 +124,7 @@ export const flattenToc = (items: unknown, level = 0): Array<{ label: string; hr
 };
 
 let foliateViewModulePromise: Promise<unknown> | null = null;
+const guardedTransformTargets = new WeakSet<EventTarget>();
 
 export const ensureFoliateViewDefinition = async () => {
   if (customElements.get(FOLIATE_VIEW_TAG)) return;
@@ -124,6 +134,38 @@ export const ensureFoliateViewDefinition = async () => {
   }
 
   await foliateViewModulePromise;
+};
+
+export const installReaderBookTransformGuards = (book: ReaderBookDocument | undefined | null) => {
+  const target = book?.transformTarget;
+  if (!target || guardedTransformTargets.has(target)) return;
+
+  guardedTransformTargets.add(target);
+  target.addEventListener('data', ((event: Event) => {
+    const detail = (event as CustomEvent<{ data?: unknown; name?: string }>).detail;
+    if (!detail) return;
+
+    detail.data = Promise.resolve(detail.data).catch((error) => {
+      console.error(new Error(`Failed to load ${detail.name ?? 'reader resource'}`, { cause: error }));
+      return '';
+    });
+  }) as EventListener);
+};
+
+export const loadReaderBookDocument = async (
+  source: Blob | File
+): Promise<ReaderBookDocument> => {
+  const module = (await import('foliate-js/view.js')) as {
+    makeBook?: (file: Blob | File) => Promise<ReaderBookDocument>;
+  };
+
+  if (typeof module.makeBook !== 'function') {
+    throw new Error('foliate-js/view.js does not expose makeBook()');
+  }
+
+  const book = await module.makeBook(source);
+  installReaderBookTransformGuards(book);
+  return book;
 };
 
 export const wrapFoliateViewElement = (originalView: FoliateViewElement): FoliateViewElement => {

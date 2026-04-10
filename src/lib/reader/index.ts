@@ -9,12 +9,14 @@ export {
   ensureFoliateViewDefinition,
   createFoliateViewElement,
   getReaderViewStyles,
+  installReaderBookTransformGuards,
+  loadReaderBookDocument,
   wrapFoliateViewElement
 } from './foliate';
 export { createReaderSearchController } from './searchController';
 export { createReaderNotesController } from './notesController';
 export { createReaderSidebarController } from './sidebarController';
-export type { FoliateViewElement } from './foliate';
+export type { FoliateViewElement, ReaderBookDocument } from './foliate';
 export type {
   ReaderControlRequest,
   ReaderNote,
