@@ -82,6 +82,7 @@
   let lastScrolledNoteCfi = '';
   let lastScrolledBookmarkLocator = '';
   let bookMenuOpen = false;
+  let notesFilter: 'all' | 'chapter' = 'all';
 
   const scrollActiveIntoView = async () => {
     if (activeTab !== 'toc') return;
@@ -177,6 +178,10 @@
   };
 
   $: hasOpenedBook = !!preview.progressLocation || preview.title !== 'Bridge Reader';
+  $: filteredNotes =
+    notesFilter === 'chapter' && activeHref
+      ? notesState.notes.filter((note) => note.chapterHref === activeHref)
+      : notesState.notes;
 </script>
 
 <svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
@@ -546,7 +551,32 @@
 
         <div class="notes-meta-row">
           <span>{notesState.notes.length} 笔记</span>
+          <span>{notesFilter === 'chapter' ? `${filteredNotes.length} 当前章节` : '全部章节'}</span>
           <span>{notesState.selection ? '已选中文本' : '未选中文本'}</span>
+        </div>
+
+        <div class="notes-filter-row" aria-label="notes filter controls">
+          <button
+            type="button"
+            class:active={notesFilter === 'all'}
+            class="notes-filter-chip"
+            on:click={() => {
+              notesFilter = 'all';
+            }}
+          >
+            全部
+          </button>
+          <button
+            type="button"
+            class:active={notesFilter === 'chapter'}
+            class="notes-filter-chip"
+            disabled={!activeHref}
+            on:click={() => {
+              notesFilter = 'chapter';
+            }}
+          >
+            当前章节
+          </button>
         </div>
 
         {#if notesState.selection}
@@ -568,8 +598,8 @@
         </div>
 
         <div class="note-list">
-          {#if notesState.notes.length}
-            {#each notesState.notes as note}
+          {#if filteredNotes.length}
+            {#each filteredNotes as note}
               <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
                 <div class="note-head">
                   <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
@@ -591,6 +621,8 @@
                 {/if}
               </article>
             {/each}
+          {:else if notesState.notes.length && notesFilter === 'chapter'}
+            <p class="empty">当前章节还没有笔记，可以切回“全部”查看其他章节内容。</p>
           {:else}
             <p class="empty">打开书并选中一段正文后，这里会出现最近的笔记卡片。</p>
           {/if}
@@ -1062,6 +1094,35 @@
   .bookmark-list {
     display: grid;
     gap: 8px;
+  }
+
+  .notes-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .notes-filter-chip {
+    min-height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .notes-filter-chip.active {
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
+    color: var(--text-primary);
+  }
+
+  .notes-filter-chip:disabled {
+    opacity: 0.55;
   }
 
   .selection-card {
