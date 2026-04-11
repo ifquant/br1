@@ -3,6 +3,7 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type {
     ReaderBookmarksState,
+    ReaderPreviewState,
     ReaderSearchConfig,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
@@ -16,6 +17,18 @@
   export let isWindowMode = false;
   export let isPinned = true;
   export let activeTab: SidebarTab = 'toc';
+  export let preview: ReaderPreviewState = {
+    title: 'Bridge Reader',
+    author: 'Open a book to start reading',
+    chapterLabel: 'Waiting for book',
+    chapterHref: '',
+    progressLabel: '0%',
+    locationLabel: 'Not opened',
+    formatLabel: 'BOOK',
+    layoutLabel: 'WAITING',
+    progressFraction: 0,
+    progressLocation: ''
+  };
   export let search: ReaderSidebarSearchState = {
     term: '',
     status: 'idle',
@@ -132,6 +145,8 @@
       [key]: value
     });
   };
+
+  $: hasOpenedBook = !!preview.progressLocation || preview.title !== 'Bridge Reader';
 </script>
 
 <aside
@@ -220,11 +235,25 @@
     class="sidebar-scroll"
     options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
   >
-    <div class="book-chip" aria-hidden="true">
+    <div class="book-chip">
       <div class="book-spine"></div>
       <div class="book-copy">
-        <strong>当前阅读</strong>
-        <span>{toc.length ? `${toc.length} sections available` : 'Open a book to populate the sidebar'}</span>
+        <span class="book-kicker">{preview.formatLabel} · {preview.layoutLabel}</span>
+        <strong>{preview.title}</strong>
+        <span>{preview.author}</span>
+        <span>{preview.chapterLabel}</span>
+        <div class="book-stats">
+          <span>{preview.progressLabel}</span>
+          <span>{preview.locationLabel}</span>
+        </div>
+        <div class="book-meta-row">
+          <span>{toc.length} 章节</span>
+          <span>{bookmarksState.bookmarks.length} 书签</span>
+          <span>{notesState.notes.length} 笔记</span>
+        </div>
+        {#if !hasOpenedBook}
+          <p class="book-empty">打开一本书后，这里会显示更完整的书籍信息。</p>
+        {/if}
       </div>
     </div>
 
@@ -667,6 +696,38 @@
   }
 
   .book-copy span {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .book-kicker {
+    color: var(--text-secondary);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .book-stats,
+  .book-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .book-meta-row span {
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    color: var(--text-secondary);
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .book-empty {
+    margin: 0;
     color: var(--text-muted);
     font-size: 11px;
     line-height: 1.45;

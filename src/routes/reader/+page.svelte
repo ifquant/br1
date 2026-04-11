@@ -283,6 +283,7 @@
         {toc}
         {activeHref}
         {isWindowMode}
+        preview={currentPreview}
         isPinned={$sidebarState.pinned}
         activeTab={$sidebarState.tab}
         search={$searchState}
