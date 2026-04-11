@@ -533,7 +533,6 @@
       </section>
     {:else}
       <section class="sidebar-panel" aria-label="notes panel preview">
-
         <div class="notes-summary">
           <strong>最近笔记</strong>
           <span>
@@ -544,6 +543,18 @@
             {/if}
           </span>
         </div>
+
+        <div class="notes-meta-row">
+          <span>{notesState.notes.length} 笔记</span>
+          <span>{notesState.selection ? '已选中文本' : '未选中文本'}</span>
+        </div>
+
+        {#if notesState.selection}
+          <div class="selection-card" aria-label="current text selection preview">
+            <strong>{notesState.selection.chapterLabel || '当前选中内容'}</strong>
+            <p>{notesState.selection.text}</p>
+          </div>
+        {/if}
 
         <div class="notes-actions">
           <button
@@ -805,14 +816,16 @@
   }
 
   .book-stats,
-  .book-meta-row {
+  .book-meta-row,
+  .notes-meta-row {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
   }
 
-  .book-meta-row span {
+  .book-meta-row span,
+  .notes-meta-row span {
     padding: 3px 6px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
@@ -1049,6 +1062,34 @@
   .bookmark-list {
     display: grid;
     gap: 8px;
+  }
+
+  .selection-card {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-light) 88%, transparent 12%);
+  }
+
+  .selection-card strong {
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+
+  .selection-card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+    line-clamp: 4;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .notes-actions {
