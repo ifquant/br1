@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type {
+    ReaderBookmarksState,
     ReaderSearchConfig,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
@@ -38,8 +39,13 @@
     selection: null,
     notes: []
   };
+  export let bookmarksState: ReaderBookmarksState = {
+    activeLocator: '',
+    bookmarks: []
+  };
   export let callbacks: ReaderSidebarCallbacks = {
     onNavigate: null,
+    onOpenBookmark: null,
     onClose: null,
     onToggleSidebar: null,
     onTogglePin: null,
@@ -57,6 +63,7 @@
   };
   let lastScrolledHref = '';
   let lastScrolledNoteCfi = '';
+  let lastScrolledBookmarkLocator = '';
 
   const scrollActiveIntoView = async () => {
     if (activeTab !== 'toc') return;
@@ -83,6 +90,20 @@
   };
 
   $: void scrollActiveNoteIntoView();
+
+  const scrollActiveBookmarkIntoView = async () => {
+    if (activeTab !== 'notes') return;
+    if (!bookmarksState.activeLocator || bookmarksState.activeLocator === lastScrolledBookmarkLocator) return;
+    await tick();
+
+    const target = document.querySelector<HTMLElement>(
+      `.bookmark-card[data-bookmark-locator="${CSS.escape(bookmarksState.activeLocator)}"]`
+    );
+    target?.scrollIntoView({ block: 'nearest' });
+    lastScrolledBookmarkLocator = bookmarksState.activeLocator;
+  };
+
+  $: void scrollActiveBookmarkIntoView();
 
   const formatTimestamp = (value: number) =>
     new Date(value).toLocaleString('zh-CN', {
@@ -358,6 +379,41 @@
       </section>
     {:else}
       <section class="sidebar-panel" aria-label="notes panel preview">
+        <div class="bookmarks-summary">
+          <strong>书签</strong>
+          <span>
+            {#if bookmarksState.bookmarks.length}
+              已保存 {bookmarksState.bookmarks.length} 个阅读位置，可直接跳回正文。
+            {:else}
+              用顶栏星标把当前位置存成书签。
+            {/if}
+          </span>
+        </div>
+
+        <div class="bookmark-list">
+          {#if bookmarksState.bookmarks.length}
+            {#each bookmarksState.bookmarks as bookmark}
+              <article
+                class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
+                class="bookmark-card"
+                data-bookmark-locator={bookmark.locator}
+              >
+                <button
+                  type="button"
+                  class="bookmark-link"
+                  on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
+                >
+                  <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
+                  <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
+                  <time>{formatTimestamp(bookmark.createdAt)}</time>
+                </button>
+              </article>
+            {/each}
+          {:else}
+            <p class="empty">还没有书签，先在顶栏点一下星标保存当前位置。</p>
+          {/if}
+        </div>
+
         <div class="notes-summary">
           <strong>最近笔记</strong>
           <span>
@@ -720,28 +776,32 @@
   }
 
   .search-summary,
-  .notes-summary {
+  .notes-summary,
+  .bookmarks-summary {
     display: grid;
     gap: 2px;
     padding: 0 2px;
   }
 
   .search-summary strong,
-  .notes-summary strong {
+  .notes-summary strong,
+  .bookmarks-summary strong {
     font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.3;
   }
 
   .search-summary span,
-  .notes-summary span {
+  .notes-summary span,
+  .bookmarks-summary span {
     color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
   }
 
   .search-results,
-  .note-list {
+  .note-list,
+  .bookmark-list {
     display: grid;
     gap: 8px;
   }
@@ -789,7 +849,8 @@
   }
 
   .search-result,
-  .note-card {
+  .note-card,
+  .bookmark-card {
     display: grid;
     gap: 3px;
     padding: 10px 12px;
@@ -801,14 +862,17 @@
   }
 
   .search-result strong,
-  .note-card strong {
+  .note-card strong,
+  .bookmark-card strong {
     font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.35;
   }
 
   .search-result span,
-  .note-card p {
+  .note-card p,
+  .bookmark-card span,
+  .bookmark-card time {
     margin: 0;
     color: var(--text-muted);
     font-size: 12px;
@@ -846,11 +910,29 @@
       inset 0 0 0 1px var(--border-light);
   }
 
+  .bookmark-card.active-bookmark {
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+    box-shadow:
+      inset 2px 0 0 #b18952,
+      inset 0 0 0 1px var(--border-light);
+  }
+
   .note-link {
     display: flex;
     justify-content: space-between;
     gap: 8px;
     align-items: baseline;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+  }
+
+  .bookmark-link {
+    display: grid;
+    gap: 4px;
     border: 0;
     padding: 0;
     background: transparent;

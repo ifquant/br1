@@ -220,8 +220,16 @@
     bookmarksController.toggleCurrent(currentPreview);
   };
 
+  const openBookmark = (href: string) => {
+    if (!href) return;
+    sidebarController.openTab('notes');
+    searchController.clearRecentResultCfi();
+    issueHrefControl(href);
+  };
+
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
+    onOpenBookmark: openBookmark,
     onClose: isWindowMode ? sidebarController.toggleVisible : null,
     onToggleSidebar: sidebarController.toggleVisible,
     onTogglePin: isWindowMode ? sidebarController.togglePinned : null,
@@ -272,6 +280,7 @@
         isPinned={$sidebarState.pinned}
         activeTab={$sidebarState.tab}
         search={$searchState}
+        bookmarksState={$bookmarksState}
         notesState={$notesState}
         callbacks={sidebarCallbacks}
       />

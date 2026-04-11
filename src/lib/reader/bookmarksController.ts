@@ -32,6 +32,12 @@ const buildBookmarkLocator = (preview: ReaderPreviewState): string => {
   return '';
 };
 
+const buildBookmarkTargetHref = (preview: ReaderPreviewState): string => {
+  const normalizedLocation = preview.progressLocation.trim();
+  if (normalizedLocation) return normalizedLocation;
+  return preview.chapterHref.trim();
+};
+
 export const createReaderBookmarksController = ({
   getStorage,
   getStorageKey,
@@ -102,7 +108,8 @@ export const createReaderBookmarksController = ({
 
   const toggleCurrent = (preview: ReaderPreviewState) => {
     const locator = buildBookmarkLocator(preview);
-    if (!locator) return false;
+    const targetHref = buildBookmarkTargetHref(preview);
+    if (!locator || !targetHref) return false;
 
     const current = get(state);
     const existing = current.bookmarks.find((bookmark) => bookmark.locator === locator);
@@ -112,6 +119,7 @@ export const createReaderBookmarksController = ({
           {
             id: `${locator}:${Date.now()}`,
             locator,
+            targetHref,
             chapterLabel: preview.chapterLabel,
             chapterHref: preview.chapterHref,
             progressLabel: preview.progressLabel,

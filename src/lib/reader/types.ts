@@ -74,6 +74,7 @@ export type ReaderNote = {
 export type ReaderBookmark = {
   id: string;
   locator: string;
+  targetHref: string;
   chapterLabel: string;
   chapterHref: string;
   progressLabel: string;
@@ -153,6 +154,7 @@ export type ReaderBookmarksState = {
 
 export type ReaderSidebarCallbacks = {
   onNavigate: ((href: string) => void) | null;
+  onOpenBookmark: ((href: string) => void) | null;
   onClose: (() => void) | null;
   onToggleSidebar: (() => void) | null;
   onTogglePin: (() => void) | null;
