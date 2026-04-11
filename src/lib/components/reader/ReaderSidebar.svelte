@@ -81,6 +81,7 @@
   let lastScrolledHref = '';
   let lastScrolledNoteCfi = '';
   let lastScrolledBookmarkLocator = '';
+  let bookMenuOpen = false;
 
   const scrollActiveIntoView = async () => {
     if (activeTab !== 'toc') return;
@@ -149,8 +150,36 @@
     });
   };
 
+  const toggleBookMenu = () => {
+    bookMenuOpen = !bookMenuOpen;
+  };
+
+  const closeBookMenu = () => {
+    bookMenuOpen = false;
+  };
+
+  const runBookMenuAction = (action: (() => void) | null | undefined) => {
+    closeBookMenu();
+    action?.();
+  };
+
+  const handleWindowPointerDown = (event: MouseEvent) => {
+    if (!bookMenuOpen) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('.book-menu-anchor')) return;
+    closeBookMenu();
+  };
+
+  const handleWindowKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      closeBookMenu();
+    }
+  };
+
   $: hasOpenedBook = !!preview.progressLocation || preview.title !== 'Bridge Reader';
 </script>
+
+<svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
 
 <aside
   class:window-mode={isWindowMode}
@@ -261,14 +290,34 @@
           <span>{notesState.notes.length} 笔记</span>
         </div>
         <div class="book-actions-row">
-          <button type="button" class="book-action-chip" on:click={() => callbacks.onGoToLibrary?.()}>
+          <button type="button" class="book-action-chip primary" on:click={() => callbacks.onGoToLibrary?.()}>
             回到书库
           </button>
-          {#if callbacks.onOpenSourcePath}
-            <button type="button" class="book-action-chip" on:click={() => callbacks.onOpenSourcePath?.()}>
-              打开原文件
+          <div class="book-menu-anchor">
+            <button
+              type="button"
+              class:active={bookMenuOpen}
+              class="book-action-chip menu-trigger"
+              aria-label="更多书籍操作"
+              aria-expanded={bookMenuOpen}
+              on:click={toggleBookMenu}
+            >
+              ⋯
             </button>
-          {/if}
+
+            {#if bookMenuOpen}
+              <div class="book-action-menu" role="menu" aria-label="书籍更多操作">
+                <button type="button" role="menuitem" on:click={() => runBookMenuAction(callbacks.onGoToLibrary)}>
+                  回到书库
+                </button>
+                {#if callbacks.onOpenSourcePath}
+                  <button type="button" role="menuitem" on:click={() => runBookMenuAction(callbacks.onOpenSourcePath)}>
+                    打开原文件
+                  </button>
+                {/if}
+              </div>
+            {/if}
+          </div>
         </div>
         {#if !hasOpenedBook}
           <p class="book-empty">打开一本书后，这里会显示更完整的书籍信息。</p>
@@ -768,6 +817,7 @@
   }
 
   .book-action-chip {
+    position: relative;
     min-height: 26px;
     padding: 0 10px;
     border: 0;
@@ -782,6 +832,59 @@
 
   .book-action-chip:hover {
     background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+  }
+
+  .book-action-chip.primary {
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+  }
+
+  .book-action-chip.menu-trigger {
+    min-width: 30px;
+    padding: 0 9px;
+  }
+
+  .book-action-chip.menu-trigger.active {
+    background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
+  }
+
+  .book-menu-anchor {
+    position: relative;
+  }
+
+  .book-action-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    display: grid;
+    min-width: 132px;
+    padding: 6px;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 242, 231, 0.98));
+    box-shadow:
+      0 18px 40px rgba(56, 40, 18, 0.12),
+      0 3px 12px rgba(56, 40, 18, 0.08);
+    z-index: 4;
+  }
+
+  .book-action-menu button {
+    justify-content: flex-start;
+    width: 100%;
+    min-width: 0;
+    min-height: 30px;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+  }
+
+  .book-action-menu button:hover {
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
   }
 
   .book-empty {
