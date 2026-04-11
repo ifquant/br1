@@ -21,11 +21,13 @@
     canPersistReaderNotes,
     clearReaderSearchCache,
     goToLibrarySurface,
+    loadPersistedLibraryBooks,
     loadReaderBookmarks,
     loadReaderNotes,
     saveReaderBookmarks,
     saveReaderNotes,
     startCurrentWindowDrag,
+    toLibraryCoverUrl,
     updateLibraryReadingState
   } from '$lib/services';
 
@@ -35,6 +37,7 @@
   let controlNonce = 0;
   let lastAutoKey = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let currentCoverUrl = '';
   let currentPreview: ReaderPreviewState = {
     title: 'Bridge Reader',
     author: 'Open a book to start reading',
@@ -188,6 +191,24 @@
     bookmarksStorageKey;
     void bookmarksController.refresh();
   }
+  $: {
+    sourcePath;
+    void (async () => {
+      if (!sourcePath || !autoOpenLibraryFile) {
+        currentCoverUrl = '';
+        return;
+      }
+
+      try {
+        const records = await loadPersistedLibraryBooks();
+        const match = records.find((record) => record.filePath === sourcePath);
+        currentCoverUrl = match ? await toLibraryCoverUrl(match) : '';
+      } catch (error) {
+        console.warn('Failed to resolve reader cover for sidebar book card', error);
+        currentCoverUrl = '';
+      }
+    })();
+  }
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
@@ -283,6 +304,7 @@
         {toc}
         {activeHref}
         {isWindowMode}
+        coverUrl={currentCoverUrl}
         preview={currentPreview}
         isPinned={$sidebarState.pinned}
         activeTab={$sidebarState.tab}

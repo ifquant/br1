@@ -17,6 +17,7 @@
   export let isWindowMode = false;
   export let isPinned = true;
   export let activeTab: SidebarTab = 'toc';
+  export let coverUrl = '';
   export let preview: ReaderPreviewState = {
     title: 'Bridge Reader',
     author: 'Open a book to start reading',
@@ -236,7 +237,13 @@
     options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
   >
     <div class="book-chip">
-      <div class="book-spine"></div>
+      <div class="book-visual" aria-hidden="true">
+        {#if coverUrl}
+          <img class="book-cover-image" src={coverUrl} alt="" loading="lazy" />
+        {:else}
+          <div class="book-spine"></div>
+        {/if}
+      </div>
       <div class="book-copy">
         <span class="book-kicker">{preview.formatLabel} · {preview.layoutLabel}</span>
         <strong>{preview.title}</strong>
@@ -663,7 +670,7 @@
 
   .book-chip {
     display: grid;
-    grid-template-columns: 8px minmax(0, 1fr);
+    grid-template-columns: 56px minmax(0, 1fr);
     gap: 10px;
     align-items: start;
     padding: 10px;
@@ -671,16 +678,31 @@
     background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
   }
 
+  .book-visual {
+    display: grid;
+    width: 56px;
+    min-height: 76px;
+  }
+
+  .book-cover-image,
   .book-spine {
-    width: 8px;
-    min-height: 42px;
-    border-radius: 4px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
-      linear-gradient(180deg, #c8a878, #a98350);
+    width: 56px;
+    min-height: 76px;
+    border-radius: 10px;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.28),
       0 0 0 1px rgba(84, 62, 34, 0.08);
+  }
+
+  .book-cover-image {
+    object-fit: cover;
+    background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
+  }
+
+  .book-spine {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
+      linear-gradient(180deg, #c8a878, #a98350);
   }
 
   .book-copy {
