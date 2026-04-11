@@ -14,6 +14,7 @@
   import ReaderViewport from './ReaderViewport.svelte';
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
+    gotolibrary: void;
     notefocus: string;
     selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
@@ -95,6 +96,10 @@
     dispatch('togglesidebar');
   };
 
+  const goToLibrary = () => {
+    dispatch('gotolibrary');
+  };
+
   const togglePinned = () => {
     dispatch('togglepin');
   };
@@ -171,6 +176,7 @@
     {sidebarVisible}
     isVisible={chromeVisible}
     {activeSidebarTab}
+    onGoToLibrary={goToLibrary}
     onOpenPicker={triggerImportPicker}
     onToggleSidebar={toggleSidebar}
     onTogglePin={isWindowMode ? togglePinned : null}

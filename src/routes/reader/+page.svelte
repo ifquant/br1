@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
@@ -14,7 +15,7 @@
     createReaderSearchController,
     createReaderSidebarController
   } from '$lib/reader';
-  import { startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
+  import { goToLibrarySurface, startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
   import { canPersistReaderNotes, clearReaderSearchCache, loadReaderNotes, saveReaderNotes } from '$lib/services';
 
   let toc: ReaderTocItem[] = [];
@@ -173,6 +174,12 @@
     searchController.destroy();
   });
 
+  const handleGoToLibrary = async () => {
+    const handledByDesktopWindowing = await goToLibrarySurface();
+    if (handledByDesktopWindowing) return;
+    await goto('/library');
+  };
+
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
     onClose: isWindowMode ? sidebarController.toggleVisible : null,
@@ -244,6 +251,7 @@
       sidebarVisible={$sidebarState.visible}
       notes={$notesState.notes}
       activeSidebarTab={$sidebarState.tab}
+      on:gotolibrary={handleGoToLibrary}
       on:togglesidebar={sidebarController.toggleVisible}
       on:togglepin={sidebarController.togglePinned}
       on:switchsidebartab={({ detail }) => {

@@ -40,3 +40,31 @@ export const openReaderTarget = async (href: string): Promise<boolean> => {
     return false;
   }
 };
+
+export const goToLibrarySurface = async (): Promise<boolean> => {
+  if (!isTauriDesktop() || typeof window === 'undefined') return false;
+
+  try {
+    const { getAllWindows, getCurrentWindow } = await import('@tauri-apps/api/window');
+
+    const currentWindow = getCurrentWindow();
+    if (currentWindow.label === 'main') {
+      return false;
+    }
+
+    const windows = await getAllWindows();
+    const mainWindow = windows.find((entry) => entry.label === 'main') ?? null;
+
+    if (mainWindow) {
+      await mainWindow.show();
+      await mainWindow.setFocus();
+      await currentWindow.close();
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Failed to return to library surface', error);
+    return false;
+  }
+};
