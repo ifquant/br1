@@ -110,7 +110,7 @@
   $: void scrollActiveNoteIntoView();
 
   const scrollActiveBookmarkIntoView = async () => {
-    if (activeTab !== 'notes') return;
+    if (activeTab !== 'bookmarks') return;
     if (!bookmarksState.activeLocator || bookmarksState.activeLocator === lastScrolledBookmarkLocator) return;
     await tick();
 
@@ -248,6 +248,16 @@
       on:click={() => setActiveTab('search')}
     >
       搜索
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class:active={activeTab === 'bookmarks'}
+      class="tab"
+      aria-selected={activeTab === 'bookmarks'}
+      on:click={() => setActiveTab('bookmarks')}
+    >
+      书签
     </button>
     <button
       type="button"
@@ -475,8 +485,8 @@
           {/if}
         </div>
       </section>
-    {:else}
-      <section class="sidebar-panel" aria-label="notes panel preview">
+    {:else if activeTab === 'bookmarks'}
+      <section class="sidebar-panel" aria-label="bookmarks panel preview">
         <div class="bookmarks-summary">
           <strong>书签</strong>
           <span>
@@ -520,6 +530,9 @@
             <p class="empty">还没有书签，先在顶栏点一下星标保存当前位置。</p>
           {/if}
         </div>
+      </section>
+    {:else}
+      <section class="sidebar-panel" aria-label="notes panel preview">
 
         <div class="notes-summary">
           <strong>最近笔记</strong>

@@ -24,7 +24,7 @@
     togglebookmark: void;
     togglesidebar: void;
     togglepin: void;
-    switchsidebartab: 'toc' | 'search' | 'notes';
+    switchsidebartab: SidebarTab;
   }>();
 
   export let controlRequest: ReaderControlRequest | null = null;

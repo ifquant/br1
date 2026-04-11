@@ -19,7 +19,7 @@ export type ReaderPreviewState = {
   progressLocation: string;
 };
 
-export type SidebarTab = 'toc' | 'search' | 'notes';
+export type SidebarTab = 'toc' | 'search' | 'bookmarks' | 'notes';
 
 export type ReaderTocItem = {
   label: string;

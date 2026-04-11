@@ -240,18 +240,24 @@
   };
 
   const handleToggleBookmark = () => {
-    bookmarksController.toggleCurrent(currentPreview);
+    const changed = bookmarksController.toggleCurrent(currentPreview);
+    if (changed) {
+      sidebarController.openTab('bookmarks');
+    }
   };
 
   const openBookmark = (href: string) => {
     if (!href) return;
-    sidebarController.openTab('notes');
+    sidebarController.openTab('bookmarks');
     searchController.clearRecentResultCfi();
     issueHrefControl(href);
   };
 
   const deleteBookmark = (id: string) => {
-    bookmarksController.remove(id);
+    const removed = bookmarksController.remove(id);
+    if (removed) {
+      sidebarController.openTab('bookmarks');
+    }
   };
 
   const openCurrentSourcePath = async () => {
