@@ -21,6 +21,7 @@
     searchchange: ReaderSearchState;
     searchcachekeychange: string;
     tocchange: ReaderTocItem[];
+    togglebookmark: void;
     togglesidebar: void;
     togglepin: void;
     switchsidebartab: 'toc' | 'search' | 'notes';
@@ -31,6 +32,7 @@
   export let isWindowMode = false;
   export let sidebarVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
+  export let isCurrentLocationBookmarked = false;
   export let notes: ReaderNote[] = [];
 
   let readerPreview: ReaderPreviewState = {
@@ -98,6 +100,10 @@
 
   const goToLibrary = () => {
     dispatch('gotolibrary');
+  };
+
+  const toggleBookmark = () => {
+    dispatch('togglebookmark');
   };
 
   const togglePinned = () => {
@@ -176,7 +182,9 @@
     {sidebarVisible}
     isVisible={chromeVisible}
     {activeSidebarTab}
+    {isCurrentLocationBookmarked}
     onGoToLibrary={goToLibrary}
+    onToggleBookmark={toggleBookmark}
     onOpenPicker={triggerImportPicker}
     onToggleSidebar={toggleSidebar}
     onTogglePin={isWindowMode ? togglePinned : null}

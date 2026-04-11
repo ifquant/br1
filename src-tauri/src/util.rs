@@ -52,6 +52,14 @@ pub(crate) fn reader_notes_root(app: &tauri::AppHandle) -> Result<PathBuf, Strin
         .join("reader-notes"))
 }
 
+pub(crate) fn reader_bookmarks_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("reader-bookmarks"))
+}
+
 pub(crate) fn reader_search_cache_component_key(value: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(value.as_bytes());
@@ -71,6 +79,15 @@ pub(crate) fn reader_search_cache_file(
 
 pub(crate) fn reader_notes_file(app: &tauri::AppHandle, book_key: &str) -> Result<PathBuf, String> {
     let root = reader_notes_root(app)?;
+    let safe_key = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key);
+    Ok(root.join(format!("{safe_key}.json")))
+}
+
+pub(crate) fn reader_bookmarks_file(
+    app: &tauri::AppHandle,
+    book_key: &str,
+) -> Result<PathBuf, String> {
+    let root = reader_bookmarks_root(app)?;
     let safe_key = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(book_key);
     Ok(root.join(format!("{safe_key}.json")))
 }

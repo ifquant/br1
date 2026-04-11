@@ -93,6 +93,25 @@ pub(crate) struct ReaderSearchCacheEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderBookmarkRecord {
+    pub(crate) id: String,
+    pub(crate) locator: String,
+    pub(crate) chapter_label: String,
+    pub(crate) chapter_href: String,
+    pub(crate) progress_label: String,
+    pub(crate) location_label: String,
+    pub(crate) created_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderBookmarksEntry {
+    pub(crate) schema_version: u8,
+    pub(crate) bookmarks: Vec<ReaderBookmarkRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ReaderNoteRecord {
     pub(crate) id: String,
     pub(crate) cfi: String,
@@ -127,4 +146,5 @@ pub(crate) const READER_SEARCH_CACHE_SCHEMA_VERSION: u8 = 1;
 pub(crate) const READER_SEARCH_CACHE_TTL_MS: u64 = 1000 * 60 * 60 * 24 * 7;
 pub(crate) const READER_SEARCH_CACHE_MAX_FILES_PER_BOOK: usize = 48;
 pub(crate) const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
+pub(crate) const READER_BOOKMARKS_SCHEMA_VERSION: u8 = 1;
 pub(crate) const READER_NOTES_SCHEMA_VERSION: u8 = 1;

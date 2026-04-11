@@ -7,7 +7,9 @@
   export let sidebarVisible = true;
   export let isVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
+  export let isCurrentLocationBookmarked = false;
   export let onGoToLibrary: (() => void) | null = null;
+  export let onToggleBookmark: (() => void) | null = null;
   export let onOpenPicker: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
@@ -76,6 +78,15 @@
 
   <div class="controls" aria-label="reader controls preview">
     <button type="button" aria-label="Go to library" title="Go to library" on:click={() => onGoToLibrary?.()}>⌂</button>
+    <button
+      type="button"
+      class:active={isCurrentLocationBookmarked}
+      aria-label={isCurrentLocationBookmarked ? 'Remove bookmark at current position' : 'Add bookmark at current position'}
+      title={isCurrentLocationBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+      on:click={() => onToggleBookmark?.()}
+    >
+      {isCurrentLocationBookmarked ? '★' : '☆'}
+    </button>
     <button
       type="button"
       class:active={activeSidebarTab === 'search' && sidebarVisible}

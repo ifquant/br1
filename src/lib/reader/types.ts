@@ -71,6 +71,16 @@ export type ReaderNote = {
   createdAt: number;
 };
 
+export type ReaderBookmark = {
+  id: string;
+  locator: string;
+  chapterLabel: string;
+  chapterHref: string;
+  progressLabel: string;
+  locationLabel: string;
+  createdAt: number;
+};
+
 export type ReaderControlRequest =
   | {
       type: 'asset';
@@ -134,6 +144,11 @@ export type ReaderSidebarNotesState = {
   activeCfi: string;
   selection: ReaderSelectionState | null;
   notes: ReaderNote[];
+};
+
+export type ReaderBookmarksState = {
+  activeLocator: string;
+  bookmarks: ReaderBookmark[];
 };
 
 export type ReaderSidebarCallbacks = {

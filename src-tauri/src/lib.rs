@@ -1,3 +1,4 @@
+#[cfg(feature = "webdriver")]
 use tauri::Manager;
 
 mod commands;
@@ -15,6 +16,7 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![
+            commands::bookmarks::load_reader_bookmarks,
             commands::library::load_library_books,
             commands::library::load_library_book_binary,
             commands::library::load_library_file_fingerprint,
@@ -25,6 +27,7 @@ pub fn run() {
             commands::library::detect_readest_library,
             commands::library::import_library_books,
             commands::library::import_readest_library,
+            commands::bookmarks::save_reader_bookmarks,
             commands::notes::save_reader_notes,
             commands::search_cache::save_reader_search_cache,
             commands::library::update_library_reading_state

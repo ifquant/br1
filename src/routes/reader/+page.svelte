@@ -11,12 +11,23 @@
     ReaderTocItem
   } from '$lib/reader';
   import {
+    createReaderBookmarksController,
     createReaderNotesController,
     createReaderSearchController,
     createReaderSidebarController
   } from '$lib/reader';
-  import { goToLibrarySurface, startCurrentWindowDrag, updateLibraryReadingState } from '$lib/services';
-  import { canPersistReaderNotes, clearReaderSearchCache, loadReaderNotes, saveReaderNotes } from '$lib/services';
+  import {
+    canPersistReaderBookmarks,
+    canPersistReaderNotes,
+    clearReaderSearchCache,
+    goToLibrarySurface,
+    loadReaderBookmarks,
+    loadReaderNotes,
+    saveReaderBookmarks,
+    saveReaderNotes,
+    startCurrentWindowDrag,
+    updateLibraryReadingState
+  } from '$lib/services';
 
   let toc: ReaderTocItem[] = [];
   let activeHref = '';
@@ -24,6 +35,18 @@
   let controlNonce = 0;
   let lastAutoKey = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let currentPreview: ReaderPreviewState = {
+    title: 'Bridge Reader',
+    author: 'Open a book to start reading',
+    chapterLabel: 'Waiting for book',
+    chapterHref: '',
+    progressLabel: '0%',
+    locationLabel: 'Not opened',
+    formatLabel: 'BOOK',
+    layoutLabel: 'WAITING',
+    progressFraction: 0,
+    progressLocation: ''
+  };
 
   $: source = $page.url.searchParams.get('source') ?? '';
   $: sourceUrl = $page.url.searchParams.get('url') ?? '';
@@ -37,6 +60,7 @@
   $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
   $: readerBookKey = sourcePath || sourceUrl || sourceLabel || 'default';
   $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
+  $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
 
   $: autoOpenKey = autoOpenLibraryFile
     ? `${source}:${sourcePath}:${sourceLabel}:${sourceLocation}:${Number.isFinite(sourceFraction) ? sourceFraction : ''}`
@@ -112,6 +136,14 @@
     confirmDelete: (message) => window.confirm(message)
   });
   const notesState = notesController.state;
+  const bookmarksController = createReaderBookmarksController({
+    getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+    getStorageKey: () => bookmarksStorageKey,
+    canPersistBookmarks: canPersistReaderBookmarks,
+    loadPersistedBookmarks: loadReaderBookmarks,
+    savePersistedBookmarks: saveReaderBookmarks
+  });
+  const bookmarksState = bookmarksController.state;
 
   const addNoteFromSelection = () => {
     const added = notesController.addFromSelection();
@@ -151,6 +183,10 @@
     notesStorageKey;
     notesController.refresh();
   }
+  $: {
+    bookmarksStorageKey;
+    void bookmarksController.refresh();
+  }
 
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
@@ -178,6 +214,10 @@
     const handledByDesktopWindowing = await goToLibrarySurface();
     if (handledByDesktopWindowing) return;
     await goto('/library');
+  };
+
+  const handleToggleBookmark = () => {
+    bookmarksController.toggleCurrent(currentPreview);
   };
 
   $: sidebarCallbacks = {
@@ -249,9 +289,13 @@
       {autoOpenPicker}
       {isWindowMode}
       sidebarVisible={$sidebarState.visible}
+      isCurrentLocationBookmarked={$bookmarksState.bookmarks.some(
+        (bookmark) => bookmark.locator === $bookmarksState.activeLocator
+      )}
       notes={$notesState.notes}
       activeSidebarTab={$sidebarState.tab}
       on:gotolibrary={handleGoToLibrary}
+      on:togglebookmark={handleToggleBookmark}
       on:togglesidebar={sidebarController.toggleVisible}
       on:togglepin={sidebarController.togglePinned}
       on:switchsidebartab={({ detail }) => {
@@ -261,8 +305,10 @@
         controlRequest = detail;
       }}
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
+        currentPreview = detail;
         activeHref = detail.chapterHref;
         searchController.setActiveResultCfi(detail.progressLocation);
+        bookmarksController.syncPreview(detail);
         queueLibraryReadingStatePersist(detail);
       }}
       on:notefocus={({ detail }: CustomEvent<string>) => {

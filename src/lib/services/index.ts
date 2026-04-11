@@ -1,4 +1,5 @@
 export { goToLibrarySurface, openReaderTarget } from './readerWindow';
+export { canPersistReaderBookmarks, loadReaderBookmarks, saveReaderBookmarks } from './readerBookmarks';
 export { canPersistReaderNotes, loadReaderNotes, saveReaderNotes } from './readerNotes';
 export {
   clearReaderSearchCache,

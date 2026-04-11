@@ -1,0 +1,139 @@
+import { get, writable } from 'svelte/store';
+import type { ReaderBookmark, ReaderBookmarksState, ReaderPreviewState } from './types';
+
+type ReaderBookmarksControllerOptions = {
+  getStorage: () => Storage | undefined;
+  getStorageKey: () => string;
+  canPersistBookmarks: () => boolean;
+  loadPersistedBookmarks: (storageKey: string) => Promise<ReaderBookmark[]>;
+  savePersistedBookmarks: (storageKey: string, bookmarks: ReaderBookmark[]) => Promise<void>;
+};
+
+const defaultBookmarksState = (): ReaderBookmarksState => ({
+  activeLocator: '',
+  bookmarks: []
+});
+
+const buildBookmarkLocator = (preview: ReaderPreviewState): string => {
+  const normalizedLocation = preview.progressLocation.trim();
+  if (normalizedLocation) return normalizedLocation;
+
+  const normalizedChapterHref = preview.chapterHref.trim();
+  const normalizedLocationLabel = preview.locationLabel.trim();
+  if (normalizedChapterHref && normalizedLocationLabel) {
+    return `href:${normalizedChapterHref}::${normalizedLocationLabel}`;
+  }
+  if (normalizedLocationLabel && normalizedLocationLabel !== 'Opening book') {
+    return `location:${normalizedLocationLabel}`;
+  }
+  if (normalizedChapterHref) {
+    return `href:${normalizedChapterHref}`;
+  }
+  return '';
+};
+
+export const createReaderBookmarksController = ({
+  getStorage,
+  getStorageKey,
+  canPersistBookmarks,
+  loadPersistedBookmarks,
+  savePersistedBookmarks
+}: ReaderBookmarksControllerOptions) => {
+  const state = writable<ReaderBookmarksState>(defaultBookmarksState());
+  let lastHydratedStorageKey = '';
+
+  const persist = (bookmarks: ReaderBookmark[]) => {
+    const storageKey = getStorageKey();
+    lastHydratedStorageKey = storageKey;
+
+    if (canPersistBookmarks()) {
+      void savePersistedBookmarks(storageKey, bookmarks);
+      return;
+    }
+
+    const storage = getStorage();
+    if (!storage) return;
+    storage.setItem(storageKey, JSON.stringify(bookmarks));
+  };
+
+  const refresh = async () => {
+    const storageKey = getStorageKey();
+    if (storageKey === lastHydratedStorageKey) return;
+
+    state.update((current) => ({
+      ...current,
+      activeLocator: '',
+      bookmarks: []
+    }));
+
+    try {
+      let nextBookmarks: ReaderBookmark[] = [];
+      const storage = getStorage();
+
+      if (canPersistBookmarks()) {
+        nextBookmarks = await loadPersistedBookmarks(storageKey);
+      } else if (storage) {
+        const raw = storage.getItem(storageKey);
+        nextBookmarks = raw ? (JSON.parse(raw) as ReaderBookmark[]) : [];
+      }
+
+      state.update((current) => ({
+        ...current,
+        bookmarks: nextBookmarks
+      }));
+      lastHydratedStorageKey = storageKey;
+    } catch (error) {
+      console.warn('Failed to restore reader bookmarks', error);
+      state.update((current) => ({
+        ...current,
+        bookmarks: []
+      }));
+      lastHydratedStorageKey = storageKey;
+    }
+  };
+
+  const syncPreview = (preview: ReaderPreviewState) => {
+    const activeLocator = buildBookmarkLocator(preview);
+    state.update((current) => ({
+      ...current,
+      activeLocator
+    }));
+  };
+
+  const toggleCurrent = (preview: ReaderPreviewState) => {
+    const locator = buildBookmarkLocator(preview);
+    if (!locator) return false;
+
+    const current = get(state);
+    const existing = current.bookmarks.find((bookmark) => bookmark.locator === locator);
+    const nextBookmarks = existing
+      ? current.bookmarks.filter((bookmark) => bookmark.locator !== locator)
+      : [
+          {
+            id: `${locator}:${Date.now()}`,
+            locator,
+            chapterLabel: preview.chapterLabel,
+            chapterHref: preview.chapterHref,
+            progressLabel: preview.progressLabel,
+            locationLabel: preview.locationLabel,
+            createdAt: Date.now()
+          },
+          ...current.bookmarks
+        ];
+
+    state.update((value) => ({
+      ...value,
+      activeLocator: locator,
+      bookmarks: nextBookmarks
+    }));
+    persist(nextBookmarks);
+    return true;
+  };
+
+  return {
+    state,
+    refresh,
+    syncPreview,
+    toggleCurrent
+  };
+};

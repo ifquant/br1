@@ -15,10 +15,13 @@ export {
 } from './foliate';
 export { createReaderSearchController } from './searchController';
 export { createReaderNotesController } from './notesController';
+export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export type { FoliateViewElement, ReaderBookDocument } from './foliate';
 export type {
   ReaderControlRequest,
+  ReaderBookmark,
+  ReaderBookmarksState,
   ReaderNote,
   ReaderSearchConfig,
   ReaderSelectionState,
