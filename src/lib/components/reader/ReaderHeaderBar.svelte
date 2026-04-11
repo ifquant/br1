@@ -89,6 +89,15 @@
     </button>
     <button
       type="button"
+      class:active={activeSidebarTab === 'bookmarks' && sidebarVisible}
+      aria-label="Show bookmarks panel"
+      title="Show bookmarks panel"
+      on:click={() => onOpenSidebarTab?.('bookmarks')}
+    >
+      🔖
+    </button>
+    <button
+      type="button"
       class:active={activeSidebarTab === 'search' && sidebarVisible}
       aria-label="Show search panel"
       title="Show search panel"
