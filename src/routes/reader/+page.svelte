@@ -141,7 +141,8 @@
     getStorageKey: () => bookmarksStorageKey,
     canPersistBookmarks: canPersistReaderBookmarks,
     loadPersistedBookmarks: loadReaderBookmarks,
-    savePersistedBookmarks: saveReaderBookmarks
+    savePersistedBookmarks: saveReaderBookmarks,
+    confirmDelete: (message) => window.confirm(message)
   });
   const bookmarksState = bookmarksController.state;
 
@@ -227,9 +228,14 @@
     issueHrefControl(href);
   };
 
+  const deleteBookmark = (id: string) => {
+    bookmarksController.remove(id);
+  };
+
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
     onOpenBookmark: openBookmark,
+    onDeleteBookmark: deleteBookmark,
     onClose: isWindowMode ? sidebarController.toggleVisible : null,
     onToggleSidebar: sidebarController.toggleVisible,
     onTogglePin: isWindowMode ? sidebarController.togglePinned : null,

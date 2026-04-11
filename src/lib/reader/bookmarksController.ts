@@ -7,6 +7,7 @@ type ReaderBookmarksControllerOptions = {
   canPersistBookmarks: () => boolean;
   loadPersistedBookmarks: (storageKey: string) => Promise<ReaderBookmark[]>;
   savePersistedBookmarks: (storageKey: string, bookmarks: ReaderBookmark[]) => Promise<void>;
+  confirmDelete: (message: string) => boolean;
 };
 
 const defaultBookmarksState = (): ReaderBookmarksState => ({
@@ -43,7 +44,8 @@ export const createReaderBookmarksController = ({
   getStorageKey,
   canPersistBookmarks,
   loadPersistedBookmarks,
-  savePersistedBookmarks
+  savePersistedBookmarks,
+  confirmDelete
 }: ReaderBookmarksControllerOptions) => {
   const state = writable<ReaderBookmarksState>(defaultBookmarksState());
   let lastHydratedStorageKey = '';
@@ -138,10 +140,26 @@ export const createReaderBookmarksController = ({
     return true;
   };
 
+  const remove = (id: string) => {
+    const current = get(state);
+    const target = current.bookmarks.find((bookmark) => bookmark.id === id);
+    if (!target) return false;
+    if (!confirmDelete('删除这条书签？')) return false;
+
+    const nextBookmarks = current.bookmarks.filter((bookmark) => bookmark.id !== id);
+    state.update((value) => ({
+      ...value,
+      bookmarks: nextBookmarks
+    }));
+    persist(nextBookmarks);
+    return true;
+  };
+
   return {
     state,
     refresh,
     syncPreview,
-    toggleCurrent
+    toggleCurrent,
+    remove
   };
 };

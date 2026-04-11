@@ -46,6 +46,7 @@
   export let callbacks: ReaderSidebarCallbacks = {
     onNavigate: null,
     onOpenBookmark: null,
+    onDeleteBookmark: null,
     onClose: null,
     onToggleSidebar: null,
     onTogglePin: null,
@@ -398,15 +399,24 @@
                 class="bookmark-card"
                 data-bookmark-locator={bookmark.locator}
               >
-                <button
-                  type="button"
-                  class="bookmark-link"
-                  on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
-                >
-                  <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
-                  <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
-                  <time>{formatTimestamp(bookmark.createdAt)}</time>
-                </button>
+                <div class="bookmark-head">
+                  <button
+                    type="button"
+                    class="bookmark-link"
+                    on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
+                  >
+                    <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
+                    <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
+                    <time>{formatTimestamp(bookmark.createdAt)}</time>
+                  </button>
+                  <button
+                    type="button"
+                    class="bookmark-action danger"
+                    on:click={() => callbacks.onDeleteBookmark?.(bookmark.id)}
+                  >
+                    删除
+                  </button>
+                </div>
               </article>
             {/each}
           {:else}
@@ -933,12 +943,39 @@
   .bookmark-link {
     display: grid;
     gap: 4px;
+    min-width: 0;
     border: 0;
     padding: 0;
     background: transparent;
     color: inherit;
     text-align: left;
     font: inherit;
+  }
+
+  .bookmark-head {
+    display: grid;
+    gap: 8px;
+  }
+
+  .bookmark-action {
+    min-height: 24px;
+    width: fit-content;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .bookmark-action:hover {
+    color: var(--text-primary);
+  }
+
+  .bookmark-action.danger {
+    color: #8a4c40;
   }
 
   .note-head {
