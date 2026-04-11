@@ -182,6 +182,25 @@
     notesFilter === 'chapter' && activeHref
       ? notesState.notes.filter((note) => note.chapterHref === activeHref)
       : notesState.notes;
+  $: groupedNotes = filteredNotes.reduce<Array<{ chapterHref: string; chapterLabel: string; notes: typeof filteredNotes }>>(
+    (groups, note) => {
+      const chapterHref = note.chapterHref || '__unknown__';
+      const chapterLabel = note.chapterLabel || '未命名章节';
+      const existingGroup = groups.find((group) => group.chapterHref === chapterHref);
+      if (existingGroup) {
+        existingGroup.notes.push(note);
+        return groups;
+      }
+
+      groups.push({
+        chapterHref,
+        chapterLabel,
+        notes: [note]
+      });
+      return groups;
+    },
+    []
+  );
 </script>
 
 <svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
@@ -598,28 +617,37 @@
         </div>
 
         <div class="note-list">
-          {#if filteredNotes.length}
-            {#each filteredNotes as note}
-              <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
-                <div class="note-head">
-                  <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
-                    <strong>{note.chapterLabel || '未命名章节'}</strong>
-                    <time>{formatTimestamp(note.createdAt)}</time>
-                  </button>
-                  <div class="note-actions">
-                    <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
-                      编辑
-                    </button>
-                    <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
-                      删除
-                    </button>
-                  </div>
+          {#if groupedNotes.length}
+            {#each groupedNotes as group}
+              <section class="note-group" aria-label={`notes for ${group.chapterLabel}`}>
+                <div class="note-group-head">
+                  <strong>{group.chapterLabel}</strong>
+                  <span>{group.notes.length} 条</span>
                 </div>
-                <p class="note-text">{note.text}</p>
-                {#if note.note}
-                  <p class="note-body">{note.note}</p>
-                {/if}
-              </article>
+
+                {#each group.notes as note}
+                  <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
+                    <div class="note-head">
+                      <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
+                        <strong>{note.chapterLabel || '未命名章节'}</strong>
+                        <time>{formatTimestamp(note.createdAt)}</time>
+                      </button>
+                      <div class="note-actions">
+                        <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
+                          编辑
+                        </button>
+                        <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                    <p class="note-text">{note.text}</p>
+                    {#if note.note}
+                      <p class="note-body">{note.note}</p>
+                    {/if}
+                  </article>
+                {/each}
+              </section>
             {/each}
           {:else if notesState.notes.length && notesFilter === 'chapter'}
             <p class="empty">当前章节还没有笔记，可以切回“全部”查看其他章节内容。</p>
@@ -1094,6 +1122,32 @@
   .bookmark-list {
     display: grid;
     gap: 8px;
+  }
+
+  .note-group {
+    display: grid;
+    gap: 8px;
+  }
+
+  .note-group-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    padding: 0 2px;
+  }
+
+  .note-group-head strong {
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+
+  .note-group-head span {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1;
   }
 
   .notes-filter-row {
