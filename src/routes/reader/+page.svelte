@@ -24,6 +24,7 @@
     loadPersistedLibraryBooks,
     loadReaderBookmarks,
     loadReaderNotes,
+    openLibraryBookPath,
     saveReaderBookmarks,
     saveReaderNotes,
     startCurrentWindowDrag,
@@ -253,10 +254,17 @@
     bookmarksController.remove(id);
   };
 
+  const openCurrentSourcePath = async () => {
+    if (!autoOpenLibraryFile || !sourcePath) return;
+    await openLibraryBookPath(sourcePath);
+  };
+
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
     onOpenBookmark: openBookmark,
     onDeleteBookmark: deleteBookmark,
+    onGoToLibrary: handleGoToLibrary,
+    onOpenSourcePath: autoOpenLibraryFile && sourcePath ? openCurrentSourcePath : null,
     onClose: isWindowMode ? sidebarController.toggleVisible : null,
     onToggleSidebar: sidebarController.toggleVisible,
     onTogglePin: isWindowMode ? sidebarController.togglePinned : null,

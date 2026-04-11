@@ -61,6 +61,8 @@
     onNavigate: null,
     onOpenBookmark: null,
     onDeleteBookmark: null,
+    onGoToLibrary: null,
+    onOpenSourcePath: null,
     onClose: null,
     onToggleSidebar: null,
     onTogglePin: null,
@@ -257,6 +259,16 @@
           <span>{toc.length} 章节</span>
           <span>{bookmarksState.bookmarks.length} 书签</span>
           <span>{notesState.notes.length} 笔记</span>
+        </div>
+        <div class="book-actions-row">
+          <button type="button" class="book-action-chip" on:click={() => callbacks.onGoToLibrary?.()}>
+            回到书库
+          </button>
+          {#if callbacks.onOpenSourcePath}
+            <button type="button" class="book-action-chip" on:click={() => callbacks.onOpenSourcePath?.()}>
+              打开原文件
+            </button>
+          {/if}
         </div>
         {#if !hasOpenedBook}
           <p class="book-empty">打开一本书后，这里会显示更完整的书籍信息。</p>
@@ -746,6 +758,30 @@
     color: var(--text-secondary);
     font-size: 10px;
     line-height: 1;
+  }
+
+  .book-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .book-action-chip {
+    min-height: 26px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .book-action-chip:hover {
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
   }
 
   .book-empty {
