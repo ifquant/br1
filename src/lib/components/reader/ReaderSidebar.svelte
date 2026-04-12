@@ -59,6 +59,7 @@
   };
   export let callbacks: ReaderSidebarCallbacks = {
     onNavigate: null,
+    onToggleCurrentBookmark: null,
     onOpenBookmark: null,
     onDeleteBookmark: null,
     onGoToLibrary: null,
@@ -179,6 +180,9 @@
   };
 
   $: hasOpenedBook = !!preview.progressLocation || preview.title !== 'Bridge Reader';
+  $: isCurrentLocationBookmarked =
+    !!bookmarksState.activeLocator &&
+    bookmarksState.bookmarks.some((bookmark) => bookmark.locator === bookmarksState.activeLocator);
   $: filteredNotes =
     notesFilter === 'chapter' && activeHref
       ? notesState.notes.filter((note) => note.chapterHref === activeHref)
@@ -557,6 +561,21 @@
               用顶栏星标把当前位置存成书签。
             {/if}
           </span>
+        </div>
+
+        <div class="bookmarks-meta-row">
+          <span>{bookmarksState.bookmarks.length} 书签</span>
+          <span>{isCurrentLocationBookmarked ? '当前位置已保存' : '当前位置未保存'}</span>
+        </div>
+
+        <div class="bookmarks-actions">
+          <button
+            type="button"
+            class="primary-bookmark-action"
+            on:click={() => callbacks.onToggleCurrentBookmark?.()}
+          >
+            {isCurrentLocationBookmarked ? '取消当前位置书签' : '保存当前位置为书签'}
+          </button>
         </div>
 
         <div class="bookmark-list">
@@ -941,7 +960,8 @@
 
   .book-stats,
   .book-meta-row,
-  .notes-meta-row {
+  .notes-meta-row,
+  .bookmarks-meta-row {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -949,7 +969,8 @@
   }
 
   .book-meta-row span,
-  .notes-meta-row span {
+  .notes-meta-row span,
+  .bookmarks-meta-row span {
     padding: 3px 6px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
@@ -1232,6 +1253,27 @@
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
+  }
+
+  .bookmarks-actions {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .primary-bookmark-action {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .primary-bookmark-action:hover {
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
   }
 
   .notes-filter-chip {

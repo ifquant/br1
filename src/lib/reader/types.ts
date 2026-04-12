@@ -154,6 +154,7 @@ export type ReaderBookmarksState = {
 
 export type ReaderSidebarCallbacks = {
   onNavigate: ((href: string) => void) | null;
+  onToggleCurrentBookmark: (() => void) | null;
   onOpenBookmark: ((href: string) => void) | null;
   onDeleteBookmark: ((id: string) => void) | null;
   onGoToLibrary: (() => void) | null;

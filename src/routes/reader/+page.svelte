@@ -267,6 +267,7 @@
 
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
+    onToggleCurrentBookmark: handleToggleBookmark,
     onOpenBookmark: openBookmark,
     onDeleteBookmark: deleteBookmark,
     onGoToLibrary: handleGoToLibrary,
