@@ -4,6 +4,7 @@
     ReaderControlRequest,
     ReaderNote,
     ReaderPreviewState,
+    ReaderViewWidthMode,
     SidebarTab,
     ReaderSearchState,
     ReaderSelectionState,
@@ -51,6 +52,9 @@
   let hasAttemptedAutoPicker = false;
   let chromeVisible = true;
   let chromeTimer: ReturnType<typeof setTimeout> | null = null;
+  let viewWidthMode: ReaderViewWidthMode = 'standard';
+
+  const readerViewWidthStorageKey = 'br1.reader.view.width';
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -114,6 +118,12 @@
     dispatch('switchsidebartab', tab);
   };
 
+  const setViewWidthMode = (mode: ReaderViewWidthMode) => {
+    viewWidthMode = mode;
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(readerViewWidthStorageKey, mode);
+  };
+
   const clearChromeTimer = () => {
     if (chromeTimer) clearTimeout(chromeTimer);
     chromeTimer = null;
@@ -157,6 +167,13 @@
     chromeVisible = true;
     clearChromeTimer();
   }
+
+  $: if (typeof localStorage !== 'undefined' && viewWidthMode === 'standard') {
+    const persistedMode = localStorage.getItem(readerViewWidthStorageKey);
+    if (persistedMode === 'focus' || persistedMode === 'wide') {
+      viewWidthMode = persistedMode;
+    }
+  }
 </script>
 
 <section
@@ -183,15 +200,22 @@
     isVisible={chromeVisible}
     {activeSidebarTab}
     {isCurrentLocationBookmarked}
+    {viewWidthMode}
     onGoToLibrary={goToLibrary}
     onToggleBookmark={toggleBookmark}
     onOpenPicker={triggerImportPicker}
     onToggleSidebar={toggleSidebar}
     onTogglePin={isWindowMode ? togglePinned : null}
     onOpenSidebarTab={openSidebarTab}
+    onSetViewWidthMode={setViewWidthMode}
   />
 
-  <article class:window-mode={isWindowMode} class="canvas">
+  <article
+    class:window-mode={isWindowMode}
+    class:focus-width={viewWidthMode === 'focus'}
+    class:wide-width={viewWidthMode === 'wide'}
+    class="canvas"
+  >
     <ReaderViewport
       title="Reading Surface"
       {controlRequest}
@@ -268,5 +292,15 @@
     padding: 0;
     border: 0;
     background: transparent;
+    width: min(100%, 1080px);
+    margin-inline: auto;
+  }
+
+  .canvas.window-mode.focus-width {
+    width: min(100%, 920px);
+  }
+
+  .canvas.window-mode.wide-width {
+    width: min(100%, 1320px);
   }
 </style>

@@ -19,6 +19,8 @@ export type ReaderPreviewState = {
   progressLocation: string;
 };
 
+export type ReaderViewWidthMode = 'focus' | 'standard' | 'wide';
+
 export type SidebarTab = 'toc' | 'search' | 'bookmarks' | 'notes';
 
 export type ReaderTocItem = {

@@ -26,6 +26,7 @@ export type {
   ReaderSearchConfig,
   ReaderSelectionState,
   ReaderPreviewState,
+  ReaderViewWidthMode,
   ReaderSearchExcerpt,
   ReaderSearchResult,
   ReaderSearchState,

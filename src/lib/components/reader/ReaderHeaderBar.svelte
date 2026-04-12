@@ -1,6 +1,6 @@
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
-  import type { ReaderPreviewState, SidebarTab } from '$lib/reader';
+  import type { ReaderPreviewState, ReaderViewWidthMode, SidebarTab } from '$lib/reader';
 
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;
@@ -8,12 +8,14 @@
   export let isVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
   export let isCurrentLocationBookmarked = false;
+  export let viewWidthMode: ReaderViewWidthMode = 'standard';
   export let onGoToLibrary: (() => void) | null = null;
   export let onToggleBookmark: (() => void) | null = null;
   export let onOpenPicker: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
   export let onOpenSidebarTab: ((tab: SidebarTab) => void) | null = null;
+  export let onSetViewWidthMode: ((mode: ReaderViewWidthMode) => void) | null = null;
 
   let menuOpen = false;
 
@@ -128,6 +130,38 @@
 
       {#if menuOpen}
         <div class="header-menu" role="menu" aria-label="reader quick actions">
+          <div class="menu-section" role="presentation">
+            <span class="menu-section-label">阅读宽度</span>
+            <div class="menu-option-group" role="group" aria-label="reading width">
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={viewWidthMode === 'focus'}
+                class:active-option={viewWidthMode === 'focus'}
+                on:click={() => runMenuAction(() => onSetViewWidthMode?.('focus'))}
+              >
+                专注
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={viewWidthMode === 'standard'}
+                class:active-option={viewWidthMode === 'standard'}
+                on:click={() => runMenuAction(() => onSetViewWidthMode?.('standard'))}
+              >
+                标准
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={viewWidthMode === 'wide'}
+                class:active-option={viewWidthMode === 'wide'}
+                on:click={() => runMenuAction(() => onSetViewWidthMode?.('wide'))}
+              >
+                宽阔
+              </button>
+            </div>
+          </div>
           <button type="button" role="menuitem" on:click={() => runMenuAction(onOpenPicker)}>
             Open book
           </button>
@@ -332,5 +366,31 @@
     border-radius: 10px;
     font-size: 12px;
     text-align: left;
+  }
+
+  .menu-section {
+    display: grid;
+    gap: 6px;
+    padding: 4px 6px 8px;
+  }
+
+  .menu-section-label {
+    color: var(--text-muted);
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .menu-option-group {
+    display: grid;
+    gap: 4px;
+  }
+
+  .header-menu button.active-option {
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px var(--border-light);
   }
 </style>
