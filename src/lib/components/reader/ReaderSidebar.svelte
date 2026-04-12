@@ -202,6 +202,15 @@
     },
     []
   );
+  $: collapsibleGroupKeys = groupedNotes
+    .map((group) => group.chapterHref)
+    .filter((chapterHref) => chapterHref && chapterHref !== '__unknown__');
+  $: areAllNoteGroupsExpanded =
+    collapsibleGroupKeys.length > 0 &&
+    collapsibleGroupKeys.every((chapterHref) => !collapsedNoteGroups.has(chapterHref));
+  $: areAllNoteGroupsCollapsed =
+    collapsibleGroupKeys.length > 0 &&
+    collapsibleGroupKeys.every((chapterHref) => collapsedNoteGroups.has(chapterHref));
   $: {
     const activeNote = notesState.notes.find((note) => note.cfi === notesState.activeCfi);
     if (activeNote?.chapterHref) {
@@ -220,6 +229,14 @@
       collapsedNoteGroups.add(chapterHref);
     }
     collapsedNoteGroups = new Set(collapsedNoteGroups);
+  };
+
+  const expandAllNoteGroups = () => {
+    collapsedNoteGroups = new Set();
+  };
+
+  const collapseAllNoteGroups = () => {
+    collapsedNoteGroups = new Set(collapsibleGroupKeys);
   };
 </script>
 
@@ -595,27 +612,47 @@
         </div>
 
         <div class="notes-filter-row" aria-label="notes filter controls">
-          <button
-            type="button"
-            class:active={notesFilter === 'all'}
-            class="notes-filter-chip"
-            on:click={() => {
-              notesFilter = 'all';
-            }}
-          >
-            全部
-          </button>
-          <button
-            type="button"
-            class:active={notesFilter === 'chapter'}
-            class="notes-filter-chip"
-            disabled={!activeHref}
-            on:click={() => {
-              notesFilter = 'chapter';
-            }}
-          >
-            当前章节
-          </button>
+          <div class="notes-filter-chips">
+            <button
+              type="button"
+              class:active={notesFilter === 'all'}
+              class="notes-filter-chip"
+              on:click={() => {
+                notesFilter = 'all';
+              }}
+            >
+              全部
+            </button>
+            <button
+              type="button"
+              class:active={notesFilter === 'chapter'}
+              class="notes-filter-chip"
+              disabled={!activeHref}
+              on:click={() => {
+                notesFilter = 'chapter';
+              }}
+            >
+              当前章节
+            </button>
+          </div>
+          <div class="notes-group-actions">
+            <button
+              type="button"
+              class="notes-filter-chip"
+              disabled={!groupedNotes.length || areAllNoteGroupsExpanded}
+              on:click={expandAllNoteGroups}
+            >
+              全部展开
+            </button>
+            <button
+              type="button"
+              class="notes-filter-chip"
+              disabled={!groupedNotes.length || areAllNoteGroupsCollapsed}
+              on:click={collapseAllNoteGroups}
+            >
+              全部折叠
+            </button>
+          </div>
         </div>
 
         {#if notesState.selection}
@@ -1182,6 +1219,15 @@
   }
 
   .notes-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .notes-filter-chips,
+  .notes-group-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
