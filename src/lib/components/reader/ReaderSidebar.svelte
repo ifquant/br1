@@ -216,6 +216,15 @@
     });
     return groups;
   }, []);
+  $: collapsibleBookmarkGroupKeys = groupedBookmarks
+    .map((group) => group.chapterHref)
+    .filter((chapterHref) => chapterHref && chapterHref !== '__unknown__');
+  $: areAllBookmarkGroupsExpanded =
+    collapsibleBookmarkGroupKeys.length > 0 &&
+    collapsibleBookmarkGroupKeys.every((chapterHref) => !collapsedBookmarkGroups.has(chapterHref));
+  $: areAllBookmarkGroupsCollapsed =
+    collapsibleBookmarkGroupKeys.length > 0 &&
+    collapsibleBookmarkGroupKeys.every((chapterHref) => collapsedBookmarkGroups.has(chapterHref));
   $: {
     const activeBookmark = bookmarksState.bookmarks.find((bookmark) => bookmark.locator === bookmarksState.activeLocator);
     if (activeBookmark?.chapterHref) {
@@ -293,6 +302,14 @@
       collapsedBookmarkGroups.add(chapterHref);
     }
     collapsedBookmarkGroups = new Set(collapsedBookmarkGroups);
+  };
+
+  const expandAllBookmarkGroups = () => {
+    collapsedBookmarkGroups = new Set();
+  };
+
+  const collapseAllBookmarkGroups = () => {
+    collapsedBookmarkGroups = new Set(collapsibleBookmarkGroupKeys);
   };
 </script>
 
@@ -676,6 +693,24 @@
               }}
             >
               章节顺序
+            </button>
+          </div>
+          <div class="bookmarks-group-actions">
+            <button
+              type="button"
+              class="bookmarks-filter-chip"
+              disabled={bookmarksSort !== 'chapter' || !groupedBookmarks.length || areAllBookmarkGroupsExpanded}
+              on:click={expandAllBookmarkGroups}
+            >
+              全部展开
+            </button>
+            <button
+              type="button"
+              class="bookmarks-filter-chip"
+              disabled={bookmarksSort !== 'chapter' || !groupedBookmarks.length || areAllBookmarkGroupsCollapsed}
+              on:click={collapseAllBookmarkGroups}
+            >
+              全部折叠
             </button>
           </div>
         </div>
@@ -1399,6 +1434,7 @@
 
   .bookmarks-filter-chips,
   .bookmarks-sort-chips,
+  .bookmarks-group-actions,
   .notes-filter-chips,
   .notes-group-actions {
     display: flex;
