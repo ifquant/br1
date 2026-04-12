@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import type {
+    ReaderAtmosphereMode,
     ReaderChromeMode,
     ReaderControlRequest,
     ReaderNote,
@@ -53,9 +54,11 @@
   let hasAttemptedAutoPicker = false;
   let chromeVisible = true;
   let chromeTimer: ReturnType<typeof setTimeout> | null = null;
+  let atmosphereMode: ReaderAtmosphereMode = 'paper';
   let chromeMode: ReaderChromeMode = 'auto';
   let viewWidthMode: ReaderViewWidthMode = 'standard';
 
+  const readerAtmosphereModeStorageKey = 'br1.reader.view.atmosphere';
   const readerChromeModeStorageKey = 'br1.reader.chrome.mode';
   const readerViewWidthStorageKey = 'br1.reader.view.width';
 
@@ -127,6 +130,12 @@
     localStorage.setItem(readerViewWidthStorageKey, mode);
   };
 
+  const setAtmosphereMode = (mode: ReaderAtmosphereMode) => {
+    atmosphereMode = mode;
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(readerAtmosphereModeStorageKey, mode);
+  };
+
   const setChromeMode = (mode: ReaderChromeMode) => {
     chromeMode = mode;
     chromeVisible = true;
@@ -189,6 +198,13 @@
     }
   }
 
+  $: if (typeof localStorage !== 'undefined' && atmosphereMode === 'paper') {
+    const persistedAtmosphereMode = localStorage.getItem(readerAtmosphereModeStorageKey);
+    if (persistedAtmosphereMode === 'warm' || persistedAtmosphereMode === 'soft') {
+      atmosphereMode = persistedAtmosphereMode;
+    }
+  }
+
   $: if (typeof localStorage !== 'undefined' && viewWidthMode === 'standard') {
     const persistedMode = localStorage.getItem(readerViewWidthStorageKey);
     if (persistedMode === 'focus' || persistedMode === 'wide') {
@@ -198,6 +214,9 @@
 </script>
 
 <section
+  class:paper-atmosphere={atmosphereMode === 'paper'}
+  class:warm-atmosphere={atmosphereMode === 'warm'}
+  class:soft-atmosphere={atmosphereMode === 'soft'}
   class:window-mode={isWindowMode}
   class="reader-stage"
   role="main"
@@ -221,6 +240,7 @@
     isVisible={chromeVisible}
     {activeSidebarTab}
     {isCurrentLocationBookmarked}
+    {atmosphereMode}
     {chromeMode}
     {viewWidthMode}
     onGoToLibrary={goToLibrary}
@@ -229,6 +249,7 @@
     onToggleSidebar={toggleSidebar}
     onTogglePin={isWindowMode ? togglePinned : null}
     onOpenSidebarTab={openSidebarTab}
+    onSetAtmosphereMode={setAtmosphereMode}
     onSetChromeMode={setChromeMode}
     onSetViewWidthMode={setViewWidthMode}
   />
@@ -279,10 +300,31 @@
 
 <style>
   .reader-stage {
+    --reader-stage-fill:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 94%, white 6%);
     display: grid;
     gap: 12px;
     min-width: 0;
     width: 100%;
+  }
+
+  .reader-stage.paper-atmosphere {
+    --reader-stage-fill:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 94%, white 6%);
+  }
+
+  .reader-stage.warm-atmosphere {
+    --reader-stage-fill:
+      linear-gradient(180deg, rgba(255, 248, 238, 0.18), rgba(255, 244, 229, 0)),
+      color-mix(in srgb, #f4ead6 78%, white 22%);
+  }
+
+  .reader-stage.soft-atmosphere {
+    --reader-stage-fill:
+      linear-gradient(180deg, rgba(246, 247, 244, 0.22), rgba(236, 241, 236, 0)),
+      color-mix(in srgb, #e5ece4 68%, white 32%);
   }
 
   .reader-stage.window-mode {
@@ -303,9 +345,7 @@
     width: 100%;
     padding: 8px 14px 0;
     border: 1px solid var(--border-light);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-reader) 94%, white 6%);
+    background: var(--reader-stage-fill);
   }
 
   .canvas.window-mode {

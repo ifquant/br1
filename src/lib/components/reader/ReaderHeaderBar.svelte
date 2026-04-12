@@ -1,6 +1,12 @@
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
-  import type { ReaderChromeMode, ReaderPreviewState, ReaderViewWidthMode, SidebarTab } from '$lib/reader';
+  import type {
+    ReaderAtmosphereMode,
+    ReaderChromeMode,
+    ReaderPreviewState,
+    ReaderViewWidthMode,
+    SidebarTab
+  } from '$lib/reader';
 
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;
@@ -8,6 +14,7 @@
   export let isVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
   export let isCurrentLocationBookmarked = false;
+  export let atmosphereMode: ReaderAtmosphereMode = 'paper';
   export let chromeMode: ReaderChromeMode = 'auto';
   export let viewWidthMode: ReaderViewWidthMode = 'standard';
   export let onGoToLibrary: (() => void) | null = null;
@@ -16,6 +23,7 @@
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
   export let onOpenSidebarTab: ((tab: SidebarTab) => void) | null = null;
+  export let onSetAtmosphereMode: ((mode: ReaderAtmosphereMode) => void) | null = null;
   export let onSetChromeMode: ((mode: ReaderChromeMode) => void) | null = null;
   export let onSetViewWidthMode: ((mode: ReaderViewWidthMode) => void) | null = null;
 
@@ -132,6 +140,38 @@
 
       {#if menuOpen}
         <div class="header-menu" role="menu" aria-label="reader quick actions">
+          <div class="menu-section" role="presentation">
+            <span class="menu-section-label">阅读氛围</span>
+            <div class="menu-option-group" role="group" aria-label="reader atmosphere">
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={atmosphereMode === 'paper'}
+                class:active-option={atmosphereMode === 'paper'}
+                on:click={() => runMenuAction(() => onSetAtmosphereMode?.('paper'))}
+              >
+                纸白
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={atmosphereMode === 'warm'}
+                class:active-option={atmosphereMode === 'warm'}
+                on:click={() => runMenuAction(() => onSetAtmosphereMode?.('warm'))}
+              >
+                暖纸
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={atmosphereMode === 'soft'}
+                class:active-option={atmosphereMode === 'soft'}
+                on:click={() => runMenuAction(() => onSetAtmosphereMode?.('soft'))}
+              >
+                柔和
+              </button>
+            </div>
+          </div>
           <div class="menu-section" role="presentation">
             <span class="menu-section-label">界面显隐</span>
             <div class="menu-option-group" role="group" aria-label="reader chrome visibility">
