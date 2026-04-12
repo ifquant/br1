@@ -1,6 +1,6 @@
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
-  import type { ReaderPreviewState, ReaderViewWidthMode, SidebarTab } from '$lib/reader';
+  import type { ReaderChromeMode, ReaderPreviewState, ReaderViewWidthMode, SidebarTab } from '$lib/reader';
 
   export let preview: ReaderPreviewState;
   export let isWindowMode = false;
@@ -8,6 +8,7 @@
   export let isVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
   export let isCurrentLocationBookmarked = false;
+  export let chromeMode: ReaderChromeMode = 'auto';
   export let viewWidthMode: ReaderViewWidthMode = 'standard';
   export let onGoToLibrary: (() => void) | null = null;
   export let onToggleBookmark: (() => void) | null = null;
@@ -15,6 +16,7 @@
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
   export let onOpenSidebarTab: ((tab: SidebarTab) => void) | null = null;
+  export let onSetChromeMode: ((mode: ReaderChromeMode) => void) | null = null;
   export let onSetViewWidthMode: ((mode: ReaderViewWidthMode) => void) | null = null;
 
   let menuOpen = false;
@@ -130,6 +132,29 @@
 
       {#if menuOpen}
         <div class="header-menu" role="menu" aria-label="reader quick actions">
+          <div class="menu-section" role="presentation">
+            <span class="menu-section-label">界面显隐</span>
+            <div class="menu-option-group" role="group" aria-label="reader chrome visibility">
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={chromeMode === 'auto'}
+                class:active-option={chromeMode === 'auto'}
+                on:click={() => runMenuAction(() => onSetChromeMode?.('auto'))}
+              >
+                自动
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={chromeMode === 'always'}
+                class:active-option={chromeMode === 'always'}
+                on:click={() => runMenuAction(() => onSetChromeMode?.('always'))}
+              >
+                总是显示
+              </button>
+            </div>
+          </div>
           <div class="menu-section" role="presentation">
             <span class="menu-section-label">阅读宽度</span>
             <div class="menu-option-group" role="group" aria-label="reading width">

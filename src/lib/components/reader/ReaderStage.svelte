@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import type {
+    ReaderChromeMode,
     ReaderControlRequest,
     ReaderNote,
     ReaderPreviewState,
@@ -52,8 +53,10 @@
   let hasAttemptedAutoPicker = false;
   let chromeVisible = true;
   let chromeTimer: ReturnType<typeof setTimeout> | null = null;
+  let chromeMode: ReaderChromeMode = 'auto';
   let viewWidthMode: ReaderViewWidthMode = 'standard';
 
+  const readerChromeModeStorageKey = 'br1.reader.chrome.mode';
   const readerViewWidthStorageKey = 'br1.reader.view.width';
 
   const triggerImportPicker = async () => {
@@ -124,13 +127,24 @@
     localStorage.setItem(readerViewWidthStorageKey, mode);
   };
 
+  const setChromeMode = (mode: ReaderChromeMode) => {
+    chromeMode = mode;
+    chromeVisible = true;
+    clearChromeTimer();
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(readerChromeModeStorageKey, mode);
+    if (mode === 'auto') {
+      scheduleChromeHide();
+    }
+  };
+
   const clearChromeTimer = () => {
     if (chromeTimer) clearTimeout(chromeTimer);
     chromeTimer = null;
   };
 
   const scheduleChromeHide = () => {
-    if (!isWindowMode || sidebarVisible) return;
+    if (!isWindowMode || sidebarVisible || chromeMode === 'always') return;
     clearChromeTimer();
     chromeTimer = setTimeout(() => {
       chromeVisible = false;
@@ -163,9 +177,16 @@
     clearChromeTimer();
   }
 
-  $: if (isWindowMode && sidebarVisible) {
+  $: if (isWindowMode && (sidebarVisible || chromeMode === 'always')) {
     chromeVisible = true;
     clearChromeTimer();
+  }
+
+  $: if (typeof localStorage !== 'undefined' && chromeMode === 'auto') {
+    const persistedChromeMode = localStorage.getItem(readerChromeModeStorageKey);
+    if (persistedChromeMode === 'always') {
+      chromeMode = persistedChromeMode;
+    }
   }
 
   $: if (typeof localStorage !== 'undefined' && viewWidthMode === 'standard') {
@@ -200,6 +221,7 @@
     isVisible={chromeVisible}
     {activeSidebarTab}
     {isCurrentLocationBookmarked}
+    {chromeMode}
     {viewWidthMode}
     onGoToLibrary={goToLibrary}
     onToggleBookmark={toggleBookmark}
@@ -207,6 +229,7 @@
     onToggleSidebar={toggleSidebar}
     onTogglePin={isWindowMode ? togglePinned : null}
     onOpenSidebarTab={openSidebarTab}
+    onSetChromeMode={setChromeMode}
     onSetViewWidthMode={setViewWidthMode}
   />
 
