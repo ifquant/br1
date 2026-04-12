@@ -83,6 +83,7 @@
   let lastScrolledBookmarkLocator = '';
   let bookMenuOpen = false;
   let notesFilter: 'all' | 'chapter' = 'all';
+  let collapsedNoteGroups = new Set<string>();
 
   const scrollActiveIntoView = async () => {
     if (activeTab !== 'toc') return;
@@ -201,6 +202,25 @@
     },
     []
   );
+  $: {
+    const activeNote = notesState.notes.find((note) => note.cfi === notesState.activeCfi);
+    if (activeNote?.chapterHref) {
+      collapsedNoteGroups.delete(activeNote.chapterHref);
+      collapsedNoteGroups = new Set(collapsedNoteGroups);
+    }
+  }
+
+  const isNoteGroupCollapsed = (chapterHref: string) => collapsedNoteGroups.has(chapterHref);
+
+  const toggleNoteGroup = (chapterHref: string) => {
+    if (!chapterHref || chapterHref === '__unknown__') return;
+    if (collapsedNoteGroups.has(chapterHref)) {
+      collapsedNoteGroups.delete(chapterHref);
+    } else {
+      collapsedNoteGroups.add(chapterHref);
+    }
+    collapsedNoteGroups = new Set(collapsedNoteGroups);
+  };
 </script>
 
 <svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
@@ -620,33 +640,40 @@
           {#if groupedNotes.length}
             {#each groupedNotes as group}
               <section class="note-group" aria-label={`notes for ${group.chapterLabel}`}>
-                <div class="note-group-head">
+                <button
+                  type="button"
+                  class="note-group-head"
+                  aria-expanded={!isNoteGroupCollapsed(group.chapterHref)}
+                  on:click={() => toggleNoteGroup(group.chapterHref)}
+                >
                   <strong>{group.chapterLabel}</strong>
-                  <span>{group.notes.length} 条</span>
-                </div>
+                  <span>{group.notes.length} 条 {!isNoteGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
+                </button>
 
-                {#each group.notes as note}
-                  <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
-                    <div class="note-head">
-                      <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
-                        <strong>{note.chapterLabel || '未命名章节'}</strong>
-                        <time>{formatTimestamp(note.createdAt)}</time>
-                      </button>
-                      <div class="note-actions">
-                        <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
-                          编辑
+                {#if !isNoteGroupCollapsed(group.chapterHref)}
+                  {#each group.notes as note}
+                    <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
+                      <div class="note-head">
+                        <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
+                          <strong>{note.chapterLabel || '未命名章节'}</strong>
+                          <time>{formatTimestamp(note.createdAt)}</time>
                         </button>
-                        <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
-                          删除
-                        </button>
+                        <div class="note-actions">
+                          <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
+                            编辑
+                          </button>
+                          <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
+                            删除
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <p class="note-text">{note.text}</p>
-                    {#if note.note}
-                      <p class="note-body">{note.note}</p>
-                    {/if}
-                  </article>
-                {/each}
+                      <p class="note-text">{note.text}</p>
+                      {#if note.note}
+                        <p class="note-body">{note.note}</p>
+                      {/if}
+                    </article>
+                  {/each}
+                {/if}
               </section>
             {/each}
           {:else if notesState.notes.length && notesFilter === 'chapter'}
@@ -1135,6 +1162,10 @@
     gap: 8px;
     align-items: center;
     padding: 0 2px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font: inherit;
   }
 
   .note-group-head strong {
