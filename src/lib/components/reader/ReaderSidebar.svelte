@@ -86,6 +86,7 @@
   let notesFilter: 'all' | 'chapter' = 'all';
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
+  let collapsedBookmarkGroups = new Set<string>();
   let collapsedNoteGroups = new Set<string>();
 
   const scrollActiveIntoView = async () => {
@@ -197,6 +198,31 @@
           return right.createdAt - left.createdAt;
         })
       : filteredBookmarks;
+  $: groupedBookmarks = sortedBookmarks.reduce<
+    Array<{ chapterHref: string; chapterLabel: string; bookmarks: typeof sortedBookmarks }>
+  >((groups, bookmark) => {
+    const chapterHref = bookmark.chapterHref || '__unknown__';
+    const chapterLabel = bookmark.chapterLabel || '未命名章节';
+    const existingGroup = groups.find((group) => group.chapterHref === chapterHref);
+    if (existingGroup) {
+      existingGroup.bookmarks.push(bookmark);
+      return groups;
+    }
+
+    groups.push({
+      chapterHref,
+      chapterLabel,
+      bookmarks: [bookmark]
+    });
+    return groups;
+  }, []);
+  $: {
+    const activeBookmark = bookmarksState.bookmarks.find((bookmark) => bookmark.locator === bookmarksState.activeLocator);
+    if (activeBookmark?.chapterHref) {
+      collapsedBookmarkGroups.delete(activeBookmark.chapterHref);
+      collapsedBookmarkGroups = new Set(collapsedBookmarkGroups);
+    }
+  }
   $: filteredNotes =
     notesFilter === 'chapter' && activeHref
       ? notesState.notes.filter((note) => note.chapterHref === activeHref)
@@ -255,6 +281,18 @@
 
   const collapseAllNoteGroups = () => {
     collapsedNoteGroups = new Set(collapsibleGroupKeys);
+  };
+
+  const isBookmarkGroupCollapsed = (chapterHref: string) => collapsedBookmarkGroups.has(chapterHref);
+
+  const toggleBookmarkGroup = (chapterHref: string) => {
+    if (!chapterHref || chapterHref === '__unknown__') return;
+    if (collapsedBookmarkGroups.has(chapterHref)) {
+      collapsedBookmarkGroups.delete(chapterHref);
+    } else {
+      collapsedBookmarkGroups.add(chapterHref);
+    }
+    collapsedBookmarkGroups = new Set(collapsedBookmarkGroups);
   };
 </script>
 
@@ -644,32 +682,77 @@
 
         <div class="bookmark-list">
           {#if sortedBookmarks.length}
-            {#each sortedBookmarks as bookmark}
-              <article
-                class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
-                class="bookmark-card"
-                data-bookmark-locator={bookmark.locator}
-              >
-                <div class="bookmark-head">
+            {#if bookmarksSort === 'chapter'}
+              {#each groupedBookmarks as group}
+                <section class="bookmark-group" aria-label={`bookmarks for ${group.chapterLabel}`}>
                   <button
                     type="button"
-                    class="bookmark-link"
-                    on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
+                    class="bookmark-group-head"
+                    aria-expanded={!isBookmarkGroupCollapsed(group.chapterHref)}
+                    on:click={() => toggleBookmarkGroup(group.chapterHref)}
                   >
-                    <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
-                    <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
-                    <time>{formatTimestamp(bookmark.createdAt)}</time>
+                    <strong>{group.chapterLabel}</strong>
+                    <span>{group.bookmarks.length} 条 {!isBookmarkGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
                   </button>
-                  <button
-                    type="button"
-                    class="bookmark-action danger"
-                    on:click={() => callbacks.onDeleteBookmark?.(bookmark.id)}
-                  >
-                    删除
-                  </button>
-                </div>
-              </article>
-            {/each}
+
+                  {#if !isBookmarkGroupCollapsed(group.chapterHref)}
+                    {#each group.bookmarks as bookmark}
+                      <article
+                        class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
+                        class="bookmark-card"
+                        data-bookmark-locator={bookmark.locator}
+                      >
+                        <div class="bookmark-head">
+                          <button
+                            type="button"
+                            class="bookmark-link"
+                            on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
+                          >
+                            <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
+                            <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
+                            <time>{formatTimestamp(bookmark.createdAt)}</time>
+                          </button>
+                          <button
+                            type="button"
+                            class="bookmark-action danger"
+                            on:click={() => callbacks.onDeleteBookmark?.(bookmark.id)}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </article>
+                    {/each}
+                  {/if}
+                </section>
+              {/each}
+            {:else}
+              {#each sortedBookmarks as bookmark}
+                <article
+                  class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
+                  class="bookmark-card"
+                  data-bookmark-locator={bookmark.locator}
+                >
+                  <div class="bookmark-head">
+                    <button
+                      type="button"
+                      class="bookmark-link"
+                      on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
+                    >
+                      <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
+                      <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
+                      <time>{formatTimestamp(bookmark.createdAt)}</time>
+                    </button>
+                    <button
+                      type="button"
+                      class="bookmark-action danger"
+                      on:click={() => callbacks.onDeleteBookmark?.(bookmark.id)}
+                    >
+                      删除
+                    </button>
+                  </div>
+                </article>
+              {/each}
+            {/if}
           {:else if bookmarksState.bookmarks.length && bookmarksFilter === 'chapter'}
             <p class="empty">当前章节还没有书签，可以切回“全部”查看其他位置。</p>
           {:else}
@@ -1451,6 +1534,36 @@
     background: color-mix(in srgb, var(--surface-reader) 93%, white 7%);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-light) 88%, transparent 12%);
     text-align: left;
+  }
+
+  .bookmark-group {
+    display: grid;
+    gap: 8px;
+  }
+
+  .bookmark-group-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .bookmark-group-head strong {
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+
+  .bookmark-group-head span {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1;
   }
 
   .search-result strong,
