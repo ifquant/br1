@@ -84,6 +84,8 @@
   let lastScrolledBookmarkLocator = '';
   let bookMenuOpen = false;
   let notesFilter: 'all' | 'chapter' = 'all';
+  let bookmarksFilter: 'all' | 'chapter' = 'all';
+  let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedNoteGroups = new Set<string>();
 
   const scrollActiveIntoView = async () => {
@@ -183,6 +185,18 @@
   $: isCurrentLocationBookmarked =
     !!bookmarksState.activeLocator &&
     bookmarksState.bookmarks.some((bookmark) => bookmark.locator === bookmarksState.activeLocator);
+  $: filteredBookmarks =
+    bookmarksFilter === 'chapter' && activeHref
+      ? bookmarksState.bookmarks.filter((bookmark) => bookmark.chapterHref === activeHref)
+      : bookmarksState.bookmarks;
+  $: sortedBookmarks =
+    bookmarksSort === 'chapter'
+      ? [...filteredBookmarks].sort((left, right) => {
+          const chapterCompare = (left.chapterLabel || '').localeCompare(right.chapterLabel || '', 'zh-CN');
+          if (chapterCompare !== 0) return chapterCompare;
+          return right.createdAt - left.createdAt;
+        })
+      : filteredBookmarks;
   $: filteredNotes =
     notesFilter === 'chapter' && activeHref
       ? notesState.notes.filter((note) => note.chapterHref === activeHref)
@@ -566,6 +580,8 @@
         <div class="bookmarks-meta-row">
           <span>{bookmarksState.bookmarks.length} 书签</span>
           <span>{isCurrentLocationBookmarked ? '当前位置已保存' : '当前位置未保存'}</span>
+          <span>{bookmarksFilter === 'chapter' ? `${sortedBookmarks.length} 当前章节` : '全部章节'}</span>
+          <span>{bookmarksSort === 'recent' ? '最近添加优先' : '按章节排序'}</span>
         </div>
 
         <div class="bookmarks-actions">
@@ -578,9 +594,57 @@
           </button>
         </div>
 
+        <div class="bookmarks-filter-row" aria-label="bookmark filter controls">
+          <div class="bookmarks-filter-chips">
+            <button
+              type="button"
+              class:active={bookmarksFilter === 'all'}
+              class="bookmarks-filter-chip"
+              on:click={() => {
+                bookmarksFilter = 'all';
+              }}
+            >
+              全部
+            </button>
+            <button
+              type="button"
+              class:active={bookmarksFilter === 'chapter'}
+              class="bookmarks-filter-chip"
+              disabled={!activeHref}
+              on:click={() => {
+                bookmarksFilter = 'chapter';
+              }}
+            >
+              当前章节
+            </button>
+          </div>
+          <div class="bookmarks-sort-chips">
+            <button
+              type="button"
+              class:active={bookmarksSort === 'recent'}
+              class="bookmarks-filter-chip"
+              on:click={() => {
+                bookmarksSort = 'recent';
+              }}
+            >
+              最近添加
+            </button>
+            <button
+              type="button"
+              class:active={bookmarksSort === 'chapter'}
+              class="bookmarks-filter-chip"
+              on:click={() => {
+                bookmarksSort = 'chapter';
+              }}
+            >
+              章节顺序
+            </button>
+          </div>
+        </div>
+
         <div class="bookmark-list">
-          {#if bookmarksState.bookmarks.length}
-            {#each bookmarksState.bookmarks as bookmark}
+          {#if sortedBookmarks.length}
+            {#each sortedBookmarks as bookmark}
               <article
                 class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
                 class="bookmark-card"
@@ -606,6 +670,8 @@
                 </div>
               </article>
             {/each}
+          {:else if bookmarksState.bookmarks.length && bookmarksFilter === 'chapter'}
+            <p class="empty">当前章节还没有书签，可以切回“全部”查看其他位置。</p>
           {:else}
             <p class="empty">还没有书签，先在顶栏点一下星标保存当前位置。</p>
           {/if}
@@ -1239,6 +1305,7 @@
     line-height: 1;
   }
 
+  .bookmarks-filter-row,
   .notes-filter-row {
     display: flex;
     flex-wrap: wrap;
@@ -1247,6 +1314,8 @@
     align-items: center;
   }
 
+  .bookmarks-filter-chips,
+  .bookmarks-sort-chips,
   .notes-filter-chips,
   .notes-group-actions {
     display: flex;
@@ -1276,6 +1345,7 @@
     background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
   }
 
+  .bookmarks-filter-chip,
   .notes-filter-chip {
     min-height: 28px;
     padding: 0 10px;
@@ -1289,11 +1359,13 @@
     line-height: 1;
   }
 
+  .bookmarks-filter-chip.active,
   .notes-filter-chip.active {
     background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
     color: var(--text-primary);
   }
 
+  .bookmarks-filter-chip:disabled,
   .notes-filter-chip:disabled {
     opacity: 0.55;
   }
