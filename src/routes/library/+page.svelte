@@ -7,12 +7,11 @@
   import {
     canPersistLibrary,
     detectReadestLibrary,
-    importLibraryBooks,
-    importReadestLibrary,
+    importBooksFromDesktopPicker,
+    importBooksFromReadest,
     loadPersistedLibraryBooks,
     openLibraryBookPath,
     openReaderTarget,
-    selectSystemBookPaths,
     toAssetReaderHref,
     toLibraryCoverUrl,
     toReaderAssetHref,
@@ -218,19 +217,14 @@
   const triggerImportPicker = async () => {
     if (canPersistLibrary()) {
       try {
-        const filePaths = await selectSystemBookPaths();
-        if (filePaths.length === 0) return;
+        const result = await importBooksFromDesktopPicker();
+        if (result.kind !== 'imported') return;
 
-        const records = sortRecordsForLibraryShelf(await importLibraryBooks(filePaths));
+        const records = sortRecordsForLibraryShelf(result.records);
         const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
         importedBooks = [...mappedRecords, ...importedBooks];
         showReadestMigration = false;
-
-        const [firstRecord] = records;
-        if (firstRecord) {
-          const href = toReaderAssetHref(firstRecord);
-          await handleOpenReaderLink(href);
-        }
+        await handleOpenReaderLink(result.firstReaderHref);
       } catch (error) {
         console.error('Failed to open the desktop import picker', error);
       }
@@ -271,16 +265,15 @@
 
     migrationBusy = true;
     try {
-      const records = sortRecordsForLibraryShelf(await importReadestLibrary());
+      const result = await importBooksFromReadest();
+      const records = sortRecordsForLibraryShelf(result.records);
       if (reloadAfterImport) {
         await loadLibrary();
       }
       showReadestMigration = true;
 
-      const [firstRecord] = records;
-      if (autoOpenFirstBook && firstRecord) {
-        const href = toReaderAssetHref(firstRecord);
-        await handleOpenReaderLink(href);
+      if (autoOpenFirstBook && result.kind === 'imported') {
+        await handleOpenReaderLink(result.firstReaderHref);
       }
     } finally {
       migrationBusy = false;

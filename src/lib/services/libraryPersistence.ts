@@ -40,6 +40,20 @@ export type LibraryReadingStateUpdate = {
   progressLocation?: string;
 };
 
+export type LibraryImportActionResult =
+  | {
+      kind: 'cancelled';
+      records: [];
+      firstRecord: null;
+      firstReaderHref: '';
+    }
+  | {
+      kind: 'imported';
+      records: PersistedLibraryBook[];
+      firstRecord: PersistedLibraryBook | null;
+      firstReaderHref: string;
+    };
+
 type ReaderHrefOptions = {
   source: 'asset' | 'library-file';
   label: string;
@@ -50,6 +64,12 @@ type ReaderHrefOptions = {
 };
 
 export const canPersistLibrary = () => isTauriDesktop();
+
+const requireTauriLibraryRuntime = (action: string) => {
+  if (!isTauriDesktop()) {
+    throw new Error(`${action} requires the Tauri desktop runtime`);
+  }
+};
 
 const toReaderHref = ({
   source,
@@ -97,7 +117,7 @@ export const detectReadestLibrary = async (): Promise<ReadestLibrarySummary> => 
 };
 
 export const selectSystemBookPaths = async (): Promise<string[]> => {
-  if (!isTauriDesktop()) return [];
+  requireTauriLibraryRuntime('selectSystemBookPaths');
 
   const { open } = await import('@tauri-apps/plugin-dialog');
   const selected = await open({
@@ -141,7 +161,7 @@ export const loadLibraryBookFile = async (filePath: string): Promise<File> => {
 };
 
 export const openLibraryBookPath = async (filePath: string): Promise<void> => {
-  if (!isTauriDesktop()) return;
+  requireTauriLibraryRuntime('openLibraryBookPath');
 
   const { openPath } = await import('@tauri-apps/plugin-opener');
   await openPath(filePath);
@@ -164,6 +184,46 @@ export const toAssetReaderHref = (url: string, label: string) =>
     url,
     label
   });
+
+const toImportedReaderActionResult = (
+  records: PersistedLibraryBook[]
+): LibraryImportActionResult => {
+  const [firstRecord] = records;
+  if (!firstRecord) {
+    return {
+      kind: 'cancelled',
+      records: [],
+      firstRecord: null,
+      firstReaderHref: ''
+    };
+  }
+
+  return {
+    kind: 'imported',
+    records,
+    firstRecord,
+    firstReaderHref: toReaderAssetHref(firstRecord)
+  };
+};
+
+export const importBooksFromDesktopPicker = async (): Promise<LibraryImportActionResult> => {
+  const filePaths = await selectSystemBookPaths();
+  if (filePaths.length === 0) {
+    return {
+      kind: 'cancelled',
+      records: [],
+      firstRecord: null,
+      firstReaderHref: ''
+    };
+  }
+
+  return toImportedReaderActionResult(await importLibraryBooks(filePaths));
+};
+
+export const importBooksFromReadest = async (): Promise<LibraryImportActionResult> => {
+  requireTauriLibraryRuntime('importBooksFromReadest');
+  return toImportedReaderActionResult(await importReadestLibrary());
+};
 
 export const toReaderAssetHref = (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';

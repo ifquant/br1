@@ -11,6 +11,8 @@ export { startCurrentWindowDrag } from './windowDrag';
 export {
   canPersistLibrary,
   detectReadestLibrary,
+  importBooksFromDesktopPicker,
+  importBooksFromReadest,
   importLibraryBooks,
   importReadestLibrary,
   loadLibraryBookFile,

@@ -262,7 +262,11 @@
 
   const openCurrentSourcePath = async () => {
     if (!autoOpenLibraryFile || !sourcePath) return;
-    await openLibraryBookPath(sourcePath);
+    try {
+      await openLibraryBookPath(sourcePath);
+    } catch (error) {
+      console.error('Failed to open the original book path', error);
+    }
   };
 
   $: sidebarCallbacks = {
