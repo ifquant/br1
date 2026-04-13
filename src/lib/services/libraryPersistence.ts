@@ -49,6 +49,13 @@ export type LibraryImportActionResult =
       firstReaderHref: '';
     }
   | {
+      kind: 'empty';
+      records: [];
+      firstRecord: null;
+      firstReaderTarget: null;
+      firstReaderHref: '';
+    }
+  | {
       kind: 'imported';
       records: PersistedLibraryBook[];
       firstRecord: PersistedLibraryBook | null;
@@ -240,12 +247,16 @@ export const toLibraryReaderTarget = (
 };
 
 const toImportedReaderActionResult = (
-  records: PersistedLibraryBook[]
+  records: PersistedLibraryBook[],
+  options: {
+    emptyKind?: 'cancelled' | 'empty';
+  } = {}
 ): LibraryImportActionResult => {
+  const emptyKind = options.emptyKind ?? 'cancelled';
   const [firstRecord] = records;
   if (!firstRecord) {
     return {
-      kind: 'cancelled',
+      kind: emptyKind,
       records: [],
       firstRecord: null,
       firstReaderTarget: null,
@@ -276,12 +287,16 @@ export const importBooksFromDesktopPicker = async (): Promise<LibraryImportActio
     };
   }
 
-  return toImportedReaderActionResult(await importLibraryBooks(filePaths));
+  return toImportedReaderActionResult(await importLibraryBooks(filePaths), {
+    emptyKind: 'empty'
+  });
 };
 
 export const importBooksFromReadest = async (): Promise<LibraryImportActionResult> => {
   requireTauriLibraryRuntime('importBooksFromReadest');
-  return toImportedReaderActionResult(await importReadestLibrary());
+  return toImportedReaderActionResult(await importReadestLibrary(), {
+    emptyKind: 'empty'
+  });
 };
 
 export const toReaderAssetHref = (book: PersistedLibraryBook) => {

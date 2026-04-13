@@ -98,6 +98,12 @@
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let continueReadingBooks: LibraryShelfBook[] = [];
   let libraryShelfBooks: LibraryShelfBook[] = [];
+  let libraryNotice:
+    | {
+        kind: 'error' | 'info';
+        message: string;
+      }
+    | null = null;
 
   const formatLastOpenedLabel = (timestamp: number | null | undefined) => {
     if (typeof timestamp !== 'number' || timestamp <= 0) return '';
@@ -204,7 +210,16 @@
   $: continueReadingBooks = getContinueReadingBooks(importedBooks);
   $: libraryShelfBooks = getLibraryShelfBooks(importedBooks, continueReadingBooks);
 
+  const clearLibraryNotice = () => {
+    libraryNotice = null;
+  };
+
+  const setLibraryNotice = (kind: 'error' | 'info', message: string) => {
+    libraryNotice = { kind, message };
+  };
+
   const handleOpenReaderTarget = async (target: string | LibraryReaderTarget) => {
+    clearLibraryNotice();
     const href = typeof target === 'string' ? target : target.href;
     const opened = await openReaderTarget(target);
     if (!opened && typeof window !== 'undefined') {
@@ -214,17 +229,24 @@
 
   const handleOpenSourcePath = async (filePath: string) => {
     try {
+      clearLibraryNotice();
       await openLibraryBookPath(filePath);
     } catch (error) {
       console.error('Failed to open the original book path', error);
+      setLibraryNotice('error', '无法打开原文件，请确认当前运行在桌面环境且文件路径仍然有效。');
     }
   };
 
   const triggerImportPicker = async () => {
     if (canPersistLibrary()) {
       try {
+        clearLibraryNotice();
         const result = await importBooksFromDesktopPicker();
-        if (result.kind !== 'imported') return;
+        if (result.kind === 'cancelled') return;
+        if (result.kind === 'empty') {
+          setLibraryNotice('info', '没有导入到可用书籍，请确认所选文件仍然存在且格式受支持。');
+          return;
+        }
 
         const records = sortRecordsForLibraryShelf(result.records);
         const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
@@ -235,6 +257,7 @@
         }
       } catch (error) {
         console.error('Failed to open the desktop import picker', error);
+        setLibraryNotice('error', '无法完成桌面导入，请确认文件选择器和导入权限正常。');
       }
       return;
     }
@@ -256,6 +279,7 @@
     const [file] = input.files ?? [];
     if (!file) return;
 
+    clearLibraryNotice();
     const objectUrl = URL.createObjectURL(file);
     await handleOpenReaderTarget(toAssetReaderTarget(objectUrl, file.name));
 
@@ -273,7 +297,13 @@
 
     migrationBusy = true;
     try {
+      clearLibraryNotice();
       const result = await importBooksFromReadest();
+      if (result.kind === 'empty') {
+        showReadestMigration = true;
+        setLibraryNotice('info', '没有从 Readest 迁移到可用书籍，请确认本机 Readest 书库仍然完整。');
+        return;
+      }
       const records = sortRecordsForLibraryShelf(result.records);
       if (reloadAfterImport) {
         await loadLibrary();
@@ -285,6 +315,9 @@
           await handleOpenReaderTarget(result.firstReaderTarget);
         }
       }
+    } catch (error) {
+      console.error('Failed to import books from Readest', error);
+      setLibraryNotice('error', '从 Readest 导入失败，请确认本机书库路径和权限可用。');
     } finally {
       migrationBusy = false;
     }
@@ -310,6 +343,17 @@
     />
 
     <LibraryHeader />
+
+    {#if libraryNotice}
+      <section
+        class:error={libraryNotice.kind === 'error'}
+        class="library-notice"
+        aria-live="polite"
+      >
+        <span>{libraryNotice.message}</span>
+        <button type="button" class="notice-dismiss" on:click={clearLibraryNotice}>知道了</button>
+      </section>
+    {/if}
 
     {#if showReadestMigration}
       <section class="migration-banner" aria-label="readest migration">
@@ -433,6 +477,50 @@
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
       0 8px 24px rgba(42, 30, 15, 0.05);
+  }
+
+  .library-notice {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      0 8px 24px rgba(42, 30, 15, 0.05);
+  }
+
+  .library-notice.error {
+    border-color: color-mix(in srgb, #b04133 28%, var(--line-soft) 72%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, #fff2ee 82%, var(--surface-panel) 18%);
+  }
+
+  .library-notice span {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
+  .notice-dismiss {
+    border: 0;
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
+    color: var(--text-primary);
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    box-shadow:
+      inset 0 0 0 1px var(--border-light),
+      0 6px 14px rgba(42, 30, 15, 0.06);
   }
 
   .migration-copy {
