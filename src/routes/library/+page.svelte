@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
+  import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type { LibraryShelfBook } from '$lib/library/types';
   import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
   import type {
@@ -96,6 +97,7 @@
 
   let importedBooks: LibraryShelfBook[] = [];
   let importInput: HTMLInputElement | null = null;
+  let libraryScrollRef: OverlayScrollbarsComponentRef<'div'> | null = null;
   let readestLibraryCount = 0;
   let showReadestMigration = false;
   let migrationBusy = false;
@@ -110,6 +112,7 @@
   let filteredContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
   let visibleLibraryBooksCount = 0;
+  let libraryScrollContextKey = '';
   let libraryNotice:
     | {
         kind: 'error' | 'info';
@@ -251,6 +254,38 @@
     return books.filter((book) => matchesLibraryQuery(book, normalizedQuery));
   };
 
+  const getLibraryViewport = () => libraryScrollRef?.osInstance()?.elements().viewport ?? null;
+
+  const buildLibraryScrollContextKey = () =>
+    [
+      'br1-library-scroll',
+      desktopLibraryMode ? 'desktop' : 'web',
+      libraryViewMode,
+      librarySortBy,
+      librarySearchActive ? normalizeLibrarySearchText(libraryQuery) : 'browse'
+    ].join(':');
+
+  const saveLibraryScrollPosition = (contextKey: string) => {
+    if (typeof window === 'undefined' || !contextKey) return;
+    const viewport = getLibraryViewport();
+    if (!viewport) return;
+    window.sessionStorage.setItem(contextKey, String(viewport.scrollTop));
+  };
+
+  const restoreLibraryScrollPosition = async (contextKey: string) => {
+    if (typeof window === 'undefined' || !contextKey) return;
+    await tick();
+    const viewport = getLibraryViewport();
+    if (!viewport) return;
+    const savedPosition = window.sessionStorage.getItem(contextKey);
+    viewport.scrollTop = savedPosition ? Number(savedPosition) || 0 : 0;
+  };
+
+  const syncLibraryScrollContext = async (previousKey: string, nextKey: string) => {
+    if (previousKey) saveLibraryScrollPosition(previousKey);
+    await restoreLibraryScrollPosition(nextKey);
+  };
+
   const loadLibrary = async () => {
     if (!canPersistLibrary()) return;
     desktopLibraryMode = true;
@@ -275,6 +310,40 @@
 
   onMount(() => {
     void loadLibrary();
+
+    const handleBeforeUnload = () => {
+      saveLibraryScrollPosition(libraryScrollContextKey);
+    };
+
+    const attachViewportListener = () => {
+      const viewport = getLibraryViewport();
+      if (!viewport) return () => {};
+      const handleScroll = () => {
+        saveLibraryScrollPosition(libraryScrollContextKey);
+      };
+      viewport.addEventListener('scroll', handleScroll, { passive: true });
+      return () => {
+        viewport.removeEventListener('scroll', handleScroll);
+      };
+    };
+
+    let detachViewportListener = attachViewportListener();
+    const refreshViewportListener = window.setInterval(() => {
+      const viewport = getLibraryViewport();
+      if (!viewport) return;
+      detachViewportListener();
+      detachViewportListener = attachViewportListener();
+      window.clearInterval(refreshViewportListener);
+    }, 120);
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.clearInterval(refreshViewportListener);
+      detachViewportListener();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveLibraryScrollPosition(libraryScrollContextKey);
+    };
   });
 
   $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;
@@ -289,6 +358,12 @@
   $: filteredContinueReadingBooks = continueReadingBooks;
   $: filteredLibraryShelfBooks = libraryShelfBooks;
   $: visibleLibraryBooksCount = filteredContinueReadingBooks.length + filteredLibraryShelfBooks.length;
+  $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
+  $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
+    const previousKey = libraryScrollContextKey;
+    libraryScrollContextKey = nextLibraryScrollContextKey;
+    void syncLibraryScrollContext(previousKey, libraryScrollContextKey);
+  }
 
   const clearLibraryNotice = () => {
     libraryNotice = null;
@@ -468,10 +543,11 @@
     {/if}
 
     <OverlayScrollbarsComponent
+      bind:this={libraryScrollRef}
       defer
       element="div"
       class="library-scroll"
-      options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
+      options={{ scrollbars: { autoHide: 'leave', theme: 'os-theme-readest' } }}
     >
       {#if importedBooks.length}
         {#if filteredContinueReadingBooks.length}
@@ -719,7 +795,7 @@
 
   :global(.library-scroll) {
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     display: grid;
     align-content: start;
     gap: 18px;
