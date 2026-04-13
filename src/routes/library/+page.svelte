@@ -101,7 +101,10 @@
   let migrationBusy = false;
   let desktopLibraryMode = false;
   let libraryViewMode: 'grid' | 'list' = 'grid';
+  let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   let libraryQuery = '';
+  let librarySearchActive = false;
+  let searchedLibraryBooks: LibraryShelfBook[] = [];
   let continueReadingBooks: LibraryShelfBook[] = [];
   let libraryShelfBooks: LibraryShelfBook[] = [];
   let filteredContinueReadingBooks: LibraryShelfBook[] = [];
@@ -167,7 +170,8 @@
       readerHref: toReaderAssetHref(record),
       restartHref: toReaderStartHref(record),
       lastOpenedAt: record.lastOpenedAt,
-      lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt)
+      lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt),
+      importedAt: record.importedAt
     };
   };
 
@@ -175,6 +179,33 @@
     books
       .filter((book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0)
       .slice(0, 4);
+
+  const sortBooksForDisplay = (
+    books: LibraryShelfBook[],
+    sortBy: 'recent' | 'added' | 'title' | 'author' | 'format'
+  ) =>
+    [...books].sort((left, right) => {
+      if (sortBy === 'title') {
+        return left.title.localeCompare(right.title, 'zh-Hans-CN');
+      }
+      if (sortBy === 'author') {
+        return left.author.localeCompare(right.author, 'zh-Hans-CN');
+      }
+      if (sortBy === 'format') {
+        return left.format.localeCompare(right.format, 'en');
+      }
+      if (sortBy === 'added') {
+        const leftAdded = left.importedAt ?? 0;
+        const rightAdded = right.importedAt ?? 0;
+        if (leftAdded !== rightAdded) return rightAdded - leftAdded;
+        return left.title.localeCompare(right.title, 'zh-Hans-CN');
+      }
+
+      const leftRecent = left.lastOpenedAt ?? 0;
+      const rightRecent = right.lastOpenedAt ?? 0;
+      if (leftRecent !== rightRecent) return rightRecent - leftRecent;
+      return left.title.localeCompare(right.title, 'zh-Hans-CN');
+    });
 
   const normalizeLibrarySearchText = (value: string) => value.trim().toLowerCase();
 
@@ -246,10 +277,17 @@
     void loadLibrary();
   });
 
-  $: continueReadingBooks = getContinueReadingBooks(importedBooks);
-  $: libraryShelfBooks = getLibraryShelfBooks(importedBooks, continueReadingBooks);
-  $: filteredContinueReadingBooks = getFilteredBooks(continueReadingBooks, libraryQuery);
-  $: filteredLibraryShelfBooks = getFilteredBooks(libraryShelfBooks, libraryQuery);
+  $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;
+  $: searchedLibraryBooks = getFilteredBooks(
+    sortBooksForDisplay(importedBooks, librarySortBy),
+    libraryQuery
+  );
+  $: continueReadingBooks = librarySearchActive ? [] : getContinueReadingBooks(importedBooks);
+  $: libraryShelfBooks = librarySearchActive
+    ? searchedLibraryBooks
+    : getLibraryShelfBooks(sortBooksForDisplay(importedBooks, librarySortBy), continueReadingBooks);
+  $: filteredContinueReadingBooks = continueReadingBooks;
+  $: filteredLibraryShelfBooks = libraryShelfBooks;
   $: visibleLibraryBooksCount = filteredContinueReadingBooks.length + filteredLibraryShelfBooks.length;
 
   const clearLibraryNotice = () => {
@@ -376,6 +414,12 @@
   const handleLibraryQueryChange = (event: CustomEvent<{ query: string }>) => {
     libraryQuery = event.detail.query;
   };
+
+  const handleLibrarySortChange = (
+    event: CustomEvent<{ sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' }>
+  ) => {
+    librarySortBy = event.detail.sortBy;
+  };
 </script>
 
 <section class="library-page">
@@ -392,9 +436,11 @@
       totalBooks={importedBooks.length || starterBooks.length + starterImports.length}
       query={libraryQuery}
       viewMode={libraryViewMode}
+      sortBy={librarySortBy}
       importDisabled={migrationBusy}
       on:querychange={handleLibraryQueryChange}
       on:importbooks={triggerImportPicker}
+      on:sortchange={handleLibrarySortChange}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />
 
@@ -438,7 +484,7 @@
         {/if}
 
         <BookshelfPreview
-          sectionTitle="你的书库"
+          sectionTitle={librarySearchActive ? '搜索结果' : '你的书库'}
           books={filteredLibraryShelfBooks}
           viewMode={libraryViewMode}
           showImportTile={true}
@@ -481,19 +527,21 @@
         {/if}
       {:else}
         <BookshelfPreview
-          sectionTitle={libraryQuery ? '搜索结果' : importedBooks.length ? '样例书架' : '继续阅读'}
-          books={getFilteredBooks(starterBooks, libraryQuery)}
+          sectionTitle={librarySearchActive ? '搜索结果' : importedBooks.length ? '样例书架' : '继续阅读'}
+          books={getFilteredBooks(sortBooksForDisplay(starterBooks, librarySortBy), libraryQuery)}
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
         />
 
-        <BookshelfPreview
-          sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
-          books={getFilteredBooks(starterImports, libraryQuery)}
-          viewMode="list"
-          onOpenLink={handleOpenReaderTarget}
-        />
+        {#if !librarySearchActive}
+          <BookshelfPreview
+            sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
+            books={sortBooksForDisplay(starterImports, librarySortBy)}
+            viewMode="list"
+            onOpenLink={handleOpenReaderTarget}
+          />
+        {/if}
       {/if}
     </OverlayScrollbarsComponent>
   </div>

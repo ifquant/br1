@@ -1,16 +1,22 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { onMount } from 'svelte';
 
   export let totalBooks = 0;
   export let query = '';
   export let placeholder = '搜索书库、作者、标签';
   export let viewMode: 'grid' | 'list' = 'grid';
+  export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let importDisabled = false;
+
+  let sortMenuOpen = false;
+  let sortMenuElement: HTMLDivElement | null = null;
 
   const dispatch = createEventDispatcher<{
     querychange: { query: string };
     importbooks: void;
     viewmodechange: { viewMode: 'grid' | 'list' };
+    sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
   }>();
 
   const actions = [
@@ -25,6 +31,14 @@
       svg: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="1.35" fill="currentColor"/><circle cx="10" cy="10" r="1.35" fill="currentColor"/><circle cx="15" cy="10" r="1.35" fill="currentColor"/></svg>`
     }
   ];
+
+  const sortOptions = [
+    { value: 'recent', label: '最近阅读' },
+    { value: 'added', label: '最近导入' },
+    { value: 'title', label: '书名' },
+    { value: 'author', label: '作者' },
+    { value: 'format', label: '格式' }
+  ] as const;
 
   $: derivedPlaceholder =
     query || totalBooks <= 0 ? placeholder : `在 ${totalBooks} 本书籍中搜索...`;
@@ -42,7 +56,42 @@
     if (nextViewMode === viewMode) return;
     dispatch('viewmodechange', { viewMode: nextViewMode });
   };
+
+  const handleSortChange = (nextSortBy: 'recent' | 'added' | 'title' | 'author' | 'format') => {
+    if (nextSortBy === sortBy) {
+      sortMenuOpen = false;
+      return;
+    }
+    dispatch('sortchange', { sortBy: nextSortBy });
+    sortMenuOpen = false;
+  };
+
+  const handleToggleSortMenu = () => {
+    sortMenuOpen = !sortMenuOpen;
+  };
+
+  const handleWindowClick = (event: MouseEvent) => {
+    if (!sortMenuOpen || !sortMenuElement) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (sortMenuElement.contains(target)) return;
+    sortMenuOpen = false;
+  };
+
+  const handleWindowKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      sortMenuOpen = false;
+    }
+  };
+
+  onMount(() => {
+    return () => {
+      sortMenuOpen = false;
+    };
+  });
 </script>
+
+<svelte:window on:click={handleWindowClick} on:keydown={handleWindowKeydown} />
 
 <header class="library-header">
   <div class="search-shell" aria-label="library search">
@@ -86,15 +135,51 @@
       </button>
     </div>
     {#each actions as action}
-      <button
-        type="button"
-        class={`ghost ${action.className}`}
-        aria-label={action.label}
-        disabled={action.className === 'plus' ? importDisabled : true}
-        on:click={action.className === 'plus' ? handleImportBooks : undefined}
-      >
-        <span aria-hidden="true">{@html action.svg}</span>
-      </button>
+      {#if action.className === 'view'}
+        <div bind:this={sortMenuElement} class:open={sortMenuOpen} class="menu-shell">
+          <button
+            type="button"
+            class={`ghost ${action.className}`}
+            aria-label={action.label}
+            aria-expanded={sortMenuOpen}
+            aria-haspopup="menu"
+            on:click={handleToggleSortMenu}
+          >
+            <span aria-hidden="true">{@html action.svg}</span>
+          </button>
+
+          {#if sortMenuOpen}
+            <div class="sort-menu" role="menu" aria-label="library sort options">
+              <span class="sort-menu-label">排序方式</span>
+              {#each sortOptions as option}
+                <button
+                  type="button"
+                  class:active-sort={sortBy === option.value}
+                  class="sort-option"
+                  role="menuitemradio"
+                  aria-checked={sortBy === option.value}
+                  on:click={() => handleSortChange(option.value)}
+                >
+                  <span>{option.label}</span>
+                  {#if sortBy === option.value}
+                    <small>当前</small>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <button
+          type="button"
+          class={`ghost ${action.className}`}
+          aria-label={action.label}
+          disabled={importDisabled}
+          on:click={handleImportBooks}
+        >
+          <span aria-hidden="true">{@html action.svg}</span>
+        </button>
+      {/if}
     {/each}
   </div>
 </header>
@@ -115,6 +200,10 @@
     align-items: center;
     gap: 0;
     flex: 0 0 auto;
+  }
+
+  .menu-shell {
+    position: relative;
   }
 
   .search-shell {
@@ -208,6 +297,64 @@
   button.ghost:hover {
     background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
     color: var(--text-primary);
+  }
+
+  .menu-shell.open button.ghost,
+  .mode.active {
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    color: var(--text-primary);
+  }
+
+  .sort-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 3;
+    min-width: 156px;
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    border-radius: 12px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 92%, white 8%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 16px 32px rgba(42, 30, 15, 0.08);
+  }
+
+  .sort-menu-label {
+    padding: 2px 4px 6px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sort-option {
+    width: 100%;
+    height: auto;
+    justify-content: space-between;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  .sort-option:hover,
+  .sort-option.active-sort {
+    background: color-mix(in srgb, var(--surface-reader) 82%, white 18%);
+    color: var(--text-primary);
+  }
+
+  .sort-option small {
+    color: var(--text-muted);
+    font-size: 9px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   button:disabled {

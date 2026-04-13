@@ -17,6 +17,7 @@ export type LibraryShelfBook = {
   restartHref?: string;
   lastOpenedAt?: number | null;
   lastOpenedLabel?: string;
+  importedAt?: number | null;
 };
 
 export type BookshelfPreviewBook = Pick<
