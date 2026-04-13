@@ -27,6 +27,7 @@
     {
       title: '政治秩序与政治衰败',
       author: 'Francis Fukuyama',
+      format: 'EPUB',
       status: '继续阅读 · 第 3 章',
       progress: '上次读到 34%',
       coverUrl: '/covers/political-order.svg',
@@ -35,6 +36,7 @@
     {
       title: '置身事内',
       author: '兰小欢',
+      format: 'EPUB',
       status: '最近导入 · 尚未开始',
       progress: '等待首轮阅读',
       coverUrl: '/covers/inside-china.svg',
@@ -43,6 +45,7 @@
     {
       title: 'A Theory of Justice',
       author: 'John Rawls',
+      format: 'EPUB',
       status: '英文原版 · 建议启用导读',
       progress: '可作为 bridge 验证样本',
       coverUrl: '/covers/theory-of-justice.svg',
@@ -54,6 +57,7 @@
     {
       title: '论法的精神',
       author: 'Montesquieu',
+      format: 'PDF',
       status: '新导入',
       progress: '等待元数据整理',
       coverUrl: '/covers/spirit-of-law.svg',
@@ -62,6 +66,7 @@
     {
       title: '叫魂',
       author: '孔飞力',
+      format: 'EPUB',
       status: '最近整理',
       progress: '封面与作者信息待接真实数据',
       coverUrl: '/covers/soulstealers.svg',
@@ -96,8 +101,12 @@
   let migrationBusy = false;
   let desktopLibraryMode = false;
   let libraryViewMode: 'grid' | 'list' = 'grid';
+  let libraryQuery = '';
   let continueReadingBooks: LibraryShelfBook[] = [];
   let libraryShelfBooks: LibraryShelfBook[] = [];
+  let filteredContinueReadingBooks: LibraryShelfBook[] = [];
+  let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
+  let visibleLibraryBooksCount = 0;
   let libraryNotice:
     | {
         kind: 'error' | 'info';
@@ -167,6 +176,30 @@
       .filter((book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0)
       .slice(0, 4);
 
+  const normalizeLibrarySearchText = (value: string) => value.trim().toLowerCase();
+
+  const matchesLibraryQuery = (book: LibraryShelfBook, query: string) => {
+    if (!query) return true;
+
+    const haystack = [
+      book.title,
+      book.author,
+      book.status,
+      book.progress,
+      book.description,
+      book.language,
+      book.publisher,
+      book.sourceLabel,
+      book.availabilityLabel,
+      book.format
+    ]
+      .filter((value): value is string => !!value)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(query);
+  };
+
   const getLibraryShelfBooks = (
     books: LibraryShelfBook[],
     continueReading: LibraryShelfBook[]
@@ -179,6 +212,12 @@
       const key = book.readerHref || `${book.title}::${book.author}`;
       return !continueKeys.has(key);
     });
+  };
+
+  const getFilteredBooks = (books: LibraryShelfBook[], query: string) => {
+    const normalizedQuery = normalizeLibrarySearchText(query);
+    if (!normalizedQuery) return books;
+    return books.filter((book) => matchesLibraryQuery(book, normalizedQuery));
   };
 
   const loadLibrary = async () => {
@@ -209,6 +248,9 @@
 
   $: continueReadingBooks = getContinueReadingBooks(importedBooks);
   $: libraryShelfBooks = getLibraryShelfBooks(importedBooks, continueReadingBooks);
+  $: filteredContinueReadingBooks = getFilteredBooks(continueReadingBooks, libraryQuery);
+  $: filteredLibraryShelfBooks = getFilteredBooks(libraryShelfBooks, libraryQuery);
+  $: visibleLibraryBooksCount = filteredContinueReadingBooks.length + filteredLibraryShelfBooks.length;
 
   const clearLibraryNotice = () => {
     libraryNotice = null;
@@ -330,6 +372,10 @@
   const handleLibraryViewModeChange = (nextViewMode: 'grid' | 'list') => {
     libraryViewMode = nextViewMode;
   };
+
+  const handleLibraryQueryChange = (event: CustomEvent<{ query: string }>) => {
+    libraryQuery = event.detail.query;
+  };
 </script>
 
 <section class="library-page">
@@ -342,7 +388,15 @@
       on:change={handleImportChange}
     />
 
-    <LibraryHeader />
+    <LibraryHeader
+      totalBooks={importedBooks.length || starterBooks.length + starterImports.length}
+      query={libraryQuery}
+      viewMode={libraryViewMode}
+      importDisabled={migrationBusy}
+      on:querychange={handleLibraryQueryChange}
+      on:importbooks={triggerImportPicker}
+      on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
+    />
 
     {#if libraryNotice}
       <section
@@ -374,10 +428,10 @@
       options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
     >
       {#if importedBooks.length}
-        {#if continueReadingBooks.length}
+        {#if filteredContinueReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="继续阅读"
-            books={continueReadingBooks}
+            books={filteredContinueReadingBooks}
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
           />
@@ -385,12 +439,11 @@
 
         <BookshelfPreview
           sectionTitle="你的书库"
-          books={libraryShelfBooks}
+          books={filteredLibraryShelfBooks}
           viewMode={libraryViewMode}
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
-          onChangeViewMode={handleLibraryViewModeChange}
         />
       {/if}
 
@@ -418,11 +471,18 @@
               {/if}
             </div>
           </section>
+        {:else if libraryQuery && visibleLibraryBooksCount === 0}
+          <section class="empty-library" aria-label="empty search results">
+            <div class="empty-copy">
+              <strong>没有找到匹配的书籍</strong>
+              <span>试试搜索标题、作者、格式或当前阅读状态。</span>
+            </div>
+          </section>
         {/if}
       {:else}
         <BookshelfPreview
-          sectionTitle={importedBooks.length ? '样例书架' : '继续阅读'}
-          books={starterBooks}
+          sectionTitle={libraryQuery ? '搜索结果' : importedBooks.length ? '样例书架' : '继续阅读'}
+          books={getFilteredBooks(starterBooks, libraryQuery)}
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
@@ -430,7 +490,7 @@
 
         <BookshelfPreview
           sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
-          books={starterImports}
+          books={getFilteredBooks(starterImports, libraryQuery)}
           viewMode="list"
           onOpenLink={handleOpenReaderTarget}
         />

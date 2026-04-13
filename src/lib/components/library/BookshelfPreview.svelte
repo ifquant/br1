@@ -8,9 +8,6 @@
   export let importHref = '';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
-  export let onChangeViewMode:
-    | ((viewMode: 'grid' | 'list') => void | Promise<void>)
-    | null = null;
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -26,10 +23,6 @@
     void onImportBooks();
   };
 
-  const handleViewModeClick = (nextViewMode: 'grid' | 'list') => {
-    if (!onChangeViewMode) return;
-    void onChangeViewMode(nextViewMode);
-  };
 </script>
 
 <section class="shelf">
@@ -40,29 +33,6 @@
         <span>{totalItems} items</span>
         <span>{viewMode}</span>
       </div>
-    </div>
-    <div class="tools" aria-label="view mode placeholder">
-      <div class="modes">
-        <button
-          type="button"
-          class:active={viewMode === 'grid'}
-          class="mode"
-          aria-pressed={viewMode === 'grid'}
-          on:click={() => handleViewModeClick('grid')}
-        >
-          网格
-        </button>
-        <button
-          type="button"
-          class:active={viewMode === 'list'}
-          class="mode"
-          aria-pressed={viewMode === 'list'}
-          on:click={() => handleViewModeClick('list')}
-        >
-          列表
-        </button>
-      </div>
-      <button type="button" class="tool-button" aria-label="view settings">⋯</button>
     </div>
   </header>
 
@@ -172,13 +142,6 @@
     padding-inline: 2px;
   }
 
-  .tools {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--font-chrome);
-  }
-
   .heading {
     display: grid;
     gap: 3px;
@@ -221,55 +184,6 @@
     transform: translateY(-50%);
   }
 
-  .modes {
-    display: inline-flex;
-    padding: 1px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
-    box-shadow:
-      inset 0 0 0 1px var(--border-light),
-      0 1px 0 rgba(255, 255, 255, 0.28);
-    font-family: var(--font-chrome);
-  }
-
-  .mode {
-    padding: 5px 9px;
-    border: 0;
-    border-radius: 999px;
-    font-size: 11px;
-    color: var(--text-muted);
-    letter-spacing: -0.01em;
-    background: transparent;
-    font-family: inherit;
-  }
-
-  .mode.active {
-    color: var(--text-primary);
-    background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
-    box-shadow:
-      inset 0 0 0 1px rgba(76, 57, 34, 0.06),
-      0 1px 2px rgba(35, 25, 13, 0.06);
-  }
-
-  .tool-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--text-muted);
-    font: inherit;
-    font-size: 13px;
-  }
-
-  .tool-button:hover {
-    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-    color: var(--text-primary);
-  }
 
   .grid {
     display: grid;
