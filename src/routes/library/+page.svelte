@@ -114,6 +114,12 @@
   let filteredRecentReadingBooks: LibraryShelfBook[] = [];
   let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
   let visibleLibraryBooksCount = 0;
+  let readingWorkflowNotice:
+    | {
+        title: string;
+        message: string;
+      }
+    | null = null;
   let libraryScrollContextKey = '';
   let libraryNotice:
     | {
@@ -393,6 +399,41 @@
     filteredContinueReadingBooks.length +
     filteredRecentReadingBooks.length +
     filteredLibraryShelfBooks.length;
+  $: readingWorkflowNotice = !librarySearchActive
+    ? (() => {
+        const hasReadingHistory = importedBooks.some(
+          (book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0
+        );
+        const hasFinishedBooks = importedBooks.some((book) => book.readingStatusLabel === '已读完');
+        const hasUnstartedBooks = importedBooks.some(
+          (book) =>
+            book.readingStatusLabel === '未开始' ||
+            book.progressPercentLabel === '0%' ||
+            (!book.lastOpenedAt && !book.progressPercentLabel)
+        );
+
+        if (filteredContinueReadingBooks.length > 0) return null;
+        if (filteredRecentReadingBooks.length > 0) {
+          return {
+            title: '当前没有进行中的书',
+            message: '最近阅读保留在下方；重新打开任意一本未读完的书后，它会重新回到继续阅读。'
+          };
+        }
+        if (!hasReadingHistory && hasUnstartedBooks) {
+          return {
+            title: '继续阅读还没有建立',
+            message: '先打开一本到 reader，书库会在下次回到这里时把它放进继续阅读。'
+          };
+        }
+        if (hasFinishedBooks) {
+          return {
+            title: '最近没有在读书',
+            message: '已读完的书仍保留在书库里；重新打开任意一本书后，继续阅读会重新出现。'
+          };
+        }
+        return null;
+      })()
+    : null;
   $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
     const previousKey = libraryScrollContextKey;
@@ -585,6 +626,13 @@
       options={{ scrollbars: { autoHide: 'leave', theme: 'os-theme-readest' } }}
     >
       {#if importedBooks.length}
+        {#if readingWorkflowNotice}
+          <section class="reading-workflow-note" aria-label="reading workflow note">
+            <strong>{readingWorkflowNotice.title}</strong>
+            <span>{readingWorkflowNotice.message}</span>
+          </section>
+        {/if}
+
         {#if filteredContinueReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="继续阅读"
@@ -784,6 +832,33 @@
     font-weight: 600;
     line-height: 1;
     box-shadow: 0 10px 20px rgba(42, 30, 15, 0.12);
+  }
+
+  .reading-workflow-note {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 86%, white 14%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 10px 24px rgba(42, 30, 15, 0.04);
+  }
+
+  .reading-workflow-note strong {
+    font-family: var(--font-chrome);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--text-primary);
+  }
+
+  .reading-workflow-note span {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-secondary);
   }
 
   .empty-library {
