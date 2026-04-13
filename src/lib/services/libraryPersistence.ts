@@ -45,13 +45,33 @@ export type LibraryImportActionResult =
       kind: 'cancelled';
       records: [];
       firstRecord: null;
+      firstReaderTarget: null;
       firstReaderHref: '';
     }
   | {
       kind: 'imported';
       records: PersistedLibraryBook[];
       firstRecord: PersistedLibraryBook | null;
+      firstReaderTarget: LibraryReaderTarget | null;
       firstReaderHref: string;
+    };
+
+export type LibraryReaderTarget =
+  | {
+      kind: 'asset';
+      mode: 'resume';
+      label: string;
+      href: string;
+      url: string;
+    }
+  | {
+      kind: 'library-file';
+      mode: 'resume' | 'start';
+      label: string;
+      href: string;
+      path: string;
+      restoreFraction?: number;
+      restoreLocation?: string;
     };
 
 type ReaderHrefOptions = {
@@ -185,6 +205,40 @@ export const toAssetReaderHref = (url: string, label: string) =>
     label
   });
 
+export const toAssetReaderTarget = (url: string, label: string): LibraryReaderTarget => ({
+  kind: 'asset',
+  mode: 'resume',
+  label,
+  url,
+  href: toAssetReaderHref(url, label)
+});
+
+export const toLibraryReaderTarget = (
+  book: PersistedLibraryBook,
+  options: {
+    restart?: boolean;
+  } = {}
+): LibraryReaderTarget => {
+  const restart = options.restart ?? false;
+  const href = toReaderHref({
+    source: 'library-file',
+    path: book.filePath,
+    label: book.title,
+    fraction: restart ? undefined : book.progressFraction ?? undefined,
+    location: restart ? undefined : book.progressLocation ?? undefined
+  });
+
+  return {
+    kind: 'library-file',
+    mode: restart ? 'start' : 'resume',
+    label: book.title,
+    path: book.filePath,
+    href,
+    restoreFraction: restart ? undefined : book.progressFraction ?? undefined,
+    restoreLocation: restart ? undefined : book.progressLocation ?? undefined
+  };
+};
+
 const toImportedReaderActionResult = (
   records: PersistedLibraryBook[]
 ): LibraryImportActionResult => {
@@ -194,15 +248,19 @@ const toImportedReaderActionResult = (
       kind: 'cancelled',
       records: [],
       firstRecord: null,
+      firstReaderTarget: null,
       firstReaderHref: ''
     };
   }
+
+  const firstReaderTarget = toLibraryReaderTarget(firstRecord);
 
   return {
     kind: 'imported',
     records,
     firstRecord,
-    firstReaderHref: toReaderAssetHref(firstRecord)
+    firstReaderTarget,
+    firstReaderHref: firstReaderTarget.href
   };
 };
 
@@ -213,6 +271,7 @@ export const importBooksFromDesktopPicker = async (): Promise<LibraryImportActio
       kind: 'cancelled',
       records: [],
       firstRecord: null,
+      firstReaderTarget: null,
       firstReaderHref: ''
     };
   }
@@ -227,24 +286,12 @@ export const importBooksFromReadest = async (): Promise<LibraryImportActionResul
 
 export const toReaderAssetHref = (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';
-
-  return toReaderHref({
-    source: 'library-file',
-    path: book.filePath,
-    label: book.title,
-    fraction: book.progressFraction ?? undefined,
-    location: book.progressLocation ?? undefined
-  });
+  return toLibraryReaderTarget(book).href;
 };
 
 export const toReaderStartHref = (book: PersistedLibraryBook) => {
   if (!isTauriDesktop()) return '';
-
-  return toReaderHref({
-    source: 'library-file',
-    path: book.filePath,
-    label: book.title
-  });
+  return toLibraryReaderTarget(book, { restart: true }).href;
 };
 
 export const toLibraryCoverUrl = async (book: PersistedLibraryBook) => {

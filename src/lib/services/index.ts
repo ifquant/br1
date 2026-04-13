@@ -20,7 +20,9 @@ export {
   openLibraryBookPath,
   selectSystemBookPaths,
   toAssetReaderHref,
+  toAssetReaderTarget,
   toLibraryCoverUrl,
+  toLibraryReaderTarget,
   toReaderAssetHref,
   toReaderStartHref,
   updateLibraryReadingState

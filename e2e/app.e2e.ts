@@ -605,6 +605,11 @@ describe('br1 desktop app', () => {
 
     const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
     expect(firstBook).toBeTruthy();
+    const expectedHref = await firstBook.getAttribute('href');
+    expect(expectedHref).toBeTruthy();
+    const expectedTarget = new URL(expectedHref!, 'http://localhost');
+    expect(expectedTarget.searchParams.get('source')).toBe('library-file');
+    expect(expectedTarget.searchParams.get('path')).toBeTruthy();
 
     const initialHandles = await browser.getWindowHandles();
     await firstBook.click();
@@ -630,6 +635,13 @@ describe('br1 desktop app', () => {
     const readerChrome = await $('[aria-label="reader window chrome"]');
     await readerChrome.waitForExist({ timeout: 10000 });
     expect(await readerChrome.isExisting()).toBe(true);
+
+    const readerUrl = await browser.getUrl();
+    const openedTarget = new URL(readerUrl, 'http://localhost');
+    expect(openedTarget.pathname).toBe(expectedTarget.pathname);
+    expect(openedTarget.searchParams.get('mode')).toBe('window');
+    expect(openedTarget.searchParams.get('source')).toBe('library-file');
+    expect(openedTarget.searchParams.get('path')).toBe(expectedTarget.searchParams.get('path'));
 
     const readerStage = await $('[aria-label="reader stage"]');
     await readerStage.waitForDisplayed({ timeout: 10000 });

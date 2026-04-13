@@ -3,7 +3,10 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { LibraryShelfBook } from '$lib/library/types';
   import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
-  import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
+  import type {
+    LibraryReaderTarget,
+    PersistedLibraryBook
+  } from '$lib/services/libraryPersistence';
   import {
     canPersistLibrary,
     detectReadestLibrary,
@@ -13,7 +16,9 @@
     openLibraryBookPath,
     openReaderTarget,
     toAssetReaderHref,
+    toAssetReaderTarget,
     toLibraryCoverUrl,
+    toLibraryReaderTarget,
     toReaderAssetHref,
     toReaderStartHref
   } from '$lib/services';
@@ -25,7 +30,7 @@
       status: '继续阅读 · 第 3 章',
       progress: '上次读到 34%',
       coverUrl: '/covers/political-order.svg',
-      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
     },
     {
       title: '置身事内',
@@ -33,7 +38,7 @@
       status: '最近导入 · 尚未开始',
       progress: '等待首轮阅读',
       coverUrl: '/covers/inside-china.svg',
-      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
     },
     {
       title: 'A Theory of Justice',
@@ -41,7 +46,7 @@
       status: '英文原版 · 建议启用导读',
       progress: '可作为 bridge 验证样本',
       coverUrl: '/covers/theory-of-justice.svg',
-      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
     }
   ];
 
@@ -52,7 +57,7 @@
       status: '新导入',
       progress: '等待元数据整理',
       coverUrl: '/covers/spirit-of-law.svg',
-      readerHref: toAssetReaderHref('/samples/sample-outline.pdf', 'Sample Outline')
+      readerHref: toAssetReaderTarget('/samples/sample-outline.pdf', 'Sample Outline').href
     },
     {
       title: '叫魂',
@@ -60,7 +65,7 @@
       status: '最近整理',
       progress: '封面与作者信息待接真实数据',
       coverUrl: '/covers/soulstealers.svg',
-      readerHref: toAssetReaderHref('/samples/sample-book.epub', 'Sample Book')
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
     }
   ];
 
@@ -199,8 +204,9 @@
   $: continueReadingBooks = getContinueReadingBooks(importedBooks);
   $: libraryShelfBooks = getLibraryShelfBooks(importedBooks, continueReadingBooks);
 
-  const handleOpenReaderLink = async (href: string) => {
-    const opened = await openReaderTarget(href);
+  const handleOpenReaderTarget = async (target: string | LibraryReaderTarget) => {
+    const href = typeof target === 'string' ? target : target.href;
+    const opened = await openReaderTarget(target);
     if (!opened && typeof window !== 'undefined') {
       window.location.href = href;
     }
@@ -224,7 +230,9 @@
         const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
         importedBooks = [...mappedRecords, ...importedBooks];
         showReadestMigration = false;
-        await handleOpenReaderLink(result.firstReaderHref);
+        if (result.firstReaderTarget) {
+          await handleOpenReaderTarget(result.firstReaderTarget);
+        }
       } catch (error) {
         console.error('Failed to open the desktop import picker', error);
       }
@@ -249,7 +257,7 @@
     if (!file) return;
 
     const objectUrl = URL.createObjectURL(file);
-    await handleOpenReaderLink(toAssetReaderHref(objectUrl, file.name));
+    await handleOpenReaderTarget(toAssetReaderTarget(objectUrl, file.name));
 
     input.value = '';
   };
@@ -273,7 +281,9 @@
       showReadestMigration = true;
 
       if (autoOpenFirstBook && result.kind === 'imported') {
-        await handleOpenReaderLink(result.firstReaderHref);
+        if (result.firstReaderTarget) {
+          await handleOpenReaderTarget(result.firstReaderTarget);
+        }
       }
     } finally {
       migrationBusy = false;
@@ -324,7 +334,7 @@
           <ContinueReadingShelf
             sectionTitle="继续阅读"
             books={continueReadingBooks}
-            onOpenLink={handleOpenReaderLink}
+            onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
           />
         {/if}
@@ -334,7 +344,7 @@
           books={libraryShelfBooks}
           viewMode={libraryViewMode}
           showImportTile={true}
-          onOpenLink={handleOpenReaderLink}
+          onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
           onChangeViewMode={handleLibraryViewModeChange}
         />
@@ -370,7 +380,7 @@
           sectionTitle={importedBooks.length ? '样例书架' : '继续阅读'}
           books={starterBooks}
           showImportTile={true}
-          onOpenLink={handleOpenReaderLink}
+          onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
         />
 
@@ -378,7 +388,7 @@
           sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
           books={starterImports}
           viewMode="list"
-          onOpenLink={handleOpenReaderLink}
+          onOpenLink={handleOpenReaderTarget}
         />
       {/if}
     </OverlayScrollbarsComponent>

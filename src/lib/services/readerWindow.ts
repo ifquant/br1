@@ -1,12 +1,15 @@
 import { isTauriDesktop } from './platform';
 
-const toWindowReaderUrl = (href: string) => {
+type ReaderWindowTarget = string | { href: string };
+
+const toWindowReaderUrl = (target: ReaderWindowTarget) => {
+  const href = typeof target === 'string' ? target : target.href;
   const url = new URL(href, window.location.origin);
   url.searchParams.set('mode', 'window');
   return `${url.pathname}${url.search}`;
 };
 
-export const openReaderTarget = async (href: string): Promise<boolean> => {
+export const openReaderTarget = async (target: ReaderWindowTarget): Promise<boolean> => {
   if (!isTauriDesktop() || typeof window === 'undefined') return false;
 
   try {
@@ -18,7 +21,7 @@ export const openReaderTarget = async (href: string): Promise<boolean> => {
     const currentWindow = getCurrentWindow();
     const labelPrefix = currentWindow.label === 'main' ? 'reader' : currentWindow.label;
     const label = `${labelPrefix}-${Date.now()}`;
-    const url = toWindowReaderUrl(href);
+    const url = toWindowReaderUrl(target);
 
     new WebviewWindow(label, {
       url,
