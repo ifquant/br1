@@ -108,8 +108,10 @@
   let librarySearchActive = false;
   let searchedLibraryBooks: LibraryShelfBook[] = [];
   let continueReadingBooks: LibraryShelfBook[] = [];
+  let recentReadingBooks: LibraryShelfBook[] = [];
   let libraryShelfBooks: LibraryShelfBook[] = [];
   let filteredContinueReadingBooks: LibraryShelfBook[] = [];
+  let filteredRecentReadingBooks: LibraryShelfBook[] = [];
   let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
   let visibleLibraryBooksCount = 0;
   let libraryScrollContextKey = '';
@@ -180,8 +182,31 @@
 
   const getContinueReadingBooks = (books: LibraryShelfBook[]) =>
     books
+      .filter(
+        (book) =>
+          typeof book.lastOpenedAt === 'number' &&
+          book.lastOpenedAt > 0 &&
+          book.readingStatusLabel !== '已读完' &&
+          (book.progressPercentLabel ? book.progressPercentLabel !== '0%' : true)
+      )
+      .slice(0, 3);
+
+  const getRecentReadingBooks = (
+    books: LibraryShelfBook[],
+    continueReading: LibraryShelfBook[]
+  ) => {
+    const continueKeys = new Set(
+      continueReading.map((book) => book.readerHref || `${book.title}::${book.author}`)
+    );
+
+    return books
       .filter((book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0)
-      .slice(0, 4);
+      .filter((book) => {
+        const key = book.readerHref || `${book.title}::${book.author}`;
+        return !continueKeys.has(key);
+      })
+      .slice(0, 6);
+  };
 
   const sortBooksForDisplay = (
     books: LibraryShelfBook[],
@@ -352,12 +377,22 @@
     libraryQuery
   );
   $: continueReadingBooks = librarySearchActive ? [] : getContinueReadingBooks(importedBooks);
+  $: recentReadingBooks = librarySearchActive
+    ? []
+    : getRecentReadingBooks(sortBooksForDisplay(importedBooks, 'recent'), continueReadingBooks);
   $: libraryShelfBooks = librarySearchActive
     ? searchedLibraryBooks
-    : getLibraryShelfBooks(sortBooksForDisplay(importedBooks, librarySortBy), continueReadingBooks);
+    : getLibraryShelfBooks(
+        sortBooksForDisplay(importedBooks, librarySortBy),
+        [...continueReadingBooks, ...recentReadingBooks]
+      );
   $: filteredContinueReadingBooks = continueReadingBooks;
+  $: filteredRecentReadingBooks = recentReadingBooks;
   $: filteredLibraryShelfBooks = libraryShelfBooks;
-  $: visibleLibraryBooksCount = filteredContinueReadingBooks.length + filteredLibraryShelfBooks.length;
+  $: visibleLibraryBooksCount =
+    filteredContinueReadingBooks.length +
+    filteredRecentReadingBooks.length +
+    filteredLibraryShelfBooks.length;
   $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
     const previousKey = libraryScrollContextKey;
@@ -553,7 +588,20 @@
         {#if filteredContinueReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="继续阅读"
+            sectionDescription="回到当前正在读的书。"
+            primaryActionLabel="继续"
             books={filteredContinueReadingBooks}
+            onOpenLink={handleOpenReaderTarget}
+            onOpenSourcePath={handleOpenSourcePath}
+          />
+        {/if}
+
+        {#if filteredRecentReadingBooks.length}
+          <ContinueReadingShelf
+            sectionTitle="最近阅读"
+            sectionDescription="重新打开你最近看过，但当前不在继续阅读队列中的书。"
+            primaryActionLabel="重开"
+            books={filteredRecentReadingBooks}
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
           />

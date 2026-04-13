@@ -2,6 +2,8 @@
   import type { ContinueReadingBook } from '$lib/library/types';
 
   export let sectionTitle = '继续阅读';
+  export let sectionDescription = '回到上次停下来的地方。';
+  export let primaryActionLabel = '继续';
   export let books: ContinueReadingBook[] = [];
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
@@ -38,7 +40,7 @@
   <header class="shelf-head">
     <div class="heading">
       <h2>{sectionTitle}</h2>
-      <p>回到上次停下来的地方。</p>
+      <p>{sectionDescription}</p>
     </div>
   </header>
 
@@ -109,7 +111,7 @@
                   原文件
                 </button>
               {/if}
-              <span class="resume-pill">继续</span>
+              <span class="resume-pill">{primaryActionLabel}</span>
             </div>
           </div>
         </svelte:element>
