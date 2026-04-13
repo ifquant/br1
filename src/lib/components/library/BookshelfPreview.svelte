@@ -23,6 +23,24 @@
     void onImportBooks();
   };
 
+  const getPrimaryProgress = (book: BookshelfPreviewBook) => {
+    if (book.progressPercentLabel) return book.progressPercentLabel;
+    return book.progress;
+  };
+
+  const getPrimaryStatus = (book: BookshelfPreviewBook) => {
+    if (book.readingStatusLabel) return book.readingStatusLabel;
+    return book.status;
+  };
+
+  const getSecondaryMeta = (book: BookshelfPreviewBook) => {
+    if (book.readingStatusLabel && book.status && book.status !== book.readingStatusLabel) {
+      return book.status;
+    }
+    if (book.sourceLabel) return book.sourceLabel;
+    return book.author;
+  };
+
 </script>
 
 <section class="shelf">
@@ -49,6 +67,11 @@
           on:click={(event: MouseEvent) => handleLinkClick(event, book.readerHref)}
         >
           <div class="cover-shell">
+            <div class="cover-badges" aria-hidden="true">
+              {#if book.format}
+                <span class="cover-badge">{book.format}</span>
+              {/if}
+            </div>
             {#if book.coverUrl}
               <div class="cover" aria-hidden="true">
                 <img class="cover-image" src={book.coverUrl} alt="" loading="lazy" />
@@ -62,8 +85,8 @@
               </div>
             {/if}
             <div class:list-hidden={viewMode === 'list'} class="cover-actions" aria-hidden="true">
-              <span class="action-dot">i</span>
-              <span class="action-dot">⇣</span>
+              <span class="action-dot">⋯</span>
+              <span class="action-dot">↗</span>
             </div>
           </div>
           {#if viewMode === 'list'}
@@ -71,13 +94,22 @@
               <div class="list-copy">
                 <strong>{book.title}</strong>
                 <span>{book.author}</span>
-                <p>{book.status}</p>
+                <div class="meta-pills">
+                  {#if book.format}
+                    <span class="meta-pill strong">{book.format}</span>
+                  {/if}
+                  <span class="meta-pill">{getPrimaryStatus(book)}</span>
+                  {#if book.sourceLabel}
+                    <span class="meta-pill">{book.sourceLabel}</span>
+                  {/if}
+                </div>
               </div>
               <div class="list-trailing">
-                <small>{book.progress}</small>
+                <small>{getPrimaryProgress(book)}</small>
+                <em>{getSecondaryMeta(book)}</em>
                 <div class="inline-actions" aria-hidden="true">
-                  <span class="action-dot">i</span>
-                  <span class="action-dot">⇣</span>
+                  <span class="action-dot">⋯</span>
+                  <span class="action-dot">↗</span>
                 </div>
               </div>
             </div>
@@ -85,9 +117,10 @@
             <div class="meta">
               <strong>{book.title}</strong>
               <span>{book.author}</span>
+              <p>{getSecondaryMeta(book)}</p>
               <div class="status-row">
-                <small>{book.progress}</small>
-                <em>{book.status}</em>
+                <small>{getPrimaryProgress(book)}</small>
+                <em>{getPrimaryStatus(book)}</em>
               </div>
             </div>
           {/if}
@@ -119,7 +152,8 @@
           </div>
           <div class="meta import-meta">
             <strong>导入书籍</strong>
-            <span>epub / pdf / mobi</span>
+            <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
+            <p>把本机已有书籍并入当前书库。</p>
           </div>
         </svelte:element>
       </article>
@@ -249,6 +283,34 @@
     border-radius: 8px;
   }
 
+  .cover-badges {
+    position: absolute;
+    left: 7px;
+    top: 7px;
+    z-index: 1;
+    display: flex;
+    gap: 5px;
+    pointer-events: none;
+  }
+
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(255, 250, 243, 0.92);
+    color: color-mix(in srgb, var(--text-secondary) 86%, white 14%);
+    font-size: 8px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 3px 8px rgba(25, 18, 10, 0.08);
+  }
+
   .grid .book-card {
     justify-self: stretch;
   }
@@ -355,7 +417,7 @@
     border-radius: 999px;
     background: rgba(255, 251, 244, 0.94);
     color: color-mix(in srgb, var(--text-secondary) 82%, white 18%);
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1;
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.5) inset,
@@ -364,7 +426,7 @@
 
   .meta {
     display: grid;
-    gap: 1px;
+    gap: 3px;
     min-width: 0;
   }
 
@@ -374,15 +436,21 @@
 
   .meta strong {
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: -0.01em;
+    line-height: 1.28;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
   }
 
   .list-card .meta strong {
     font-size: 12px;
+    line-clamp: 1;
+    -webkit-line-clamp: 1;
   }
 
   .meta span,
@@ -411,7 +479,7 @@
 
   .meta p {
     margin: 0;
-    color: color-mix(in srgb, var(--text-secondary) 88%, white 12%);
+    color: color-mix(in srgb, var(--text-secondary) 84%, white 16%);
   }
 
   .list-meta {
@@ -423,21 +491,58 @@
 
   .list-copy {
     display: grid;
-    gap: 2px;
+    gap: 4px;
     min-width: 0;
+  }
+
+  .meta-pills {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
+    color: color-mix(in srgb, var(--text-secondary) 84%, white 16%);
+    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
+    font-size: 9px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .meta-pill.strong {
+    color: color-mix(in srgb, var(--text-primary) 88%, white 12%);
+    background: color-mix(in srgb, var(--surface-reader) 74%, white 26%);
   }
 
   .list-trailing {
     display: grid;
     justify-items: end;
-    gap: 7px;
-    min-width: 82px;
+    gap: 5px;
+    min-width: 96px;
   }
 
   .list-trailing small {
     color: var(--text-muted);
     font-size: 9px;
     letter-spacing: 0.01em;
+    text-align: right;
+  }
+
+  .list-trailing em {
+    max-width: 100%;
+    color: color-mix(in srgb, var(--text-secondary) 80%, white 20%);
+    font-style: normal;
+    font-size: 9px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-align: right;
   }
 
@@ -456,7 +561,7 @@
     justify-content: space-between;
     gap: 6px;
     min-width: 0;
-    padding-top: 1px;
+    align-items: baseline;
   }
 
   .status-row small,
@@ -510,6 +615,10 @@
 
   .import-meta span {
     color: var(--text-muted);
+  }
+
+  .import-meta p {
+    color: color-mix(in srgb, var(--text-secondary) 80%, white 20%);
   }
 
   @media (max-width: 900px) {

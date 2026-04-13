@@ -21,7 +21,16 @@ export type LibraryShelfBook = {
 
 export type BookshelfPreviewBook = Pick<
   LibraryShelfBook,
-  'title' | 'author' | 'status' | 'progress' | 'coverUrl' | 'readerHref'
+  | 'title'
+  | 'author'
+  | 'status'
+  | 'progress'
+  | 'format'
+  | 'progressPercentLabel'
+  | 'readingStatusLabel'
+  | 'sourceLabel'
+  | 'coverUrl'
+  | 'readerHref'
 >;
 
 export type ContinueReadingBook = Pick<
