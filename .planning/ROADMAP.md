@@ -59,7 +59,7 @@ Plans:
   1. 书库中存在与 `Readest` 对齐的 continue reading / 最近阅读分区
   2. 图书状态、恢复位置和书架组织可以可靠回流到书库
   3. `Readest` 现有本地藏书信息可以被 `br1` 识别、迁移或兼容
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
 - [ ] 03-01: 完成 continue reading 和最近阅读的产品化分区
@@ -208,9 +208,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Library Ingestion Baseline | 0/3 | Not started | - |
-| 2. Library Visual and Data Parity | 0/3 | Not started | - |
-| 3. Library Workflow Completion | 0/3 | Not started | - |
+| 1. Library Ingestion Baseline | 3/3 | Planned and executed | 2026-04-13 |
+| 2. Library Visual and Data Parity | 3/3 | Planned and executed | 2026-04-13 |
+| 3. Library Workflow Completion | 0/3 | Planned | - |
 | 4. Reader Open Pipeline and Format Base | 0/3 | Not started | - |
 | 5. Reader Layout Parity | 0/3 | Not started | - |
 | 6. Desktop Window and Restore Parity | 0/3 | Not started | - |

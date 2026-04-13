@@ -5,13 +5,13 @@
 See: `.planning/PROJECT.md` (updated 2026-04-13)
 
 **Core value:** 先把 `Readest` 的完整阅读器能力高保真复刻到 `br1`，为后续真正的 AI 阅读机制提供不残缺的底座。  
-**Current focus:** Phase 2 planning for library visual and data parity
+**Current focus:** Phase 3 planning for library workflow completion
 
 ## Current Status
 
-- Milestone state: 初始规划中
-- Current phase: 未开始执行 Phase 1
-- Latest planning artifact: `.planning/phases/02-library-visual-and-data-parity/02-03-PLAN.md`
+- Milestone state: 初始规划中，Phase 1 与 Phase 2 已执行完成
+- Current phase: 已进入 Phase 3 planning
+- Latest planning artifact: `.planning/phases/03-library-workflow-completion/03-03-PLAN.md`
 - Codebase map: 已存在于 `.planning/codebase/`
 
 ## Decisions In Force
@@ -23,14 +23,15 @@ See: `.planning/PROJECT.md` (updated 2026-04-13)
 
 ## Next Suggested Actions
 
-1. 按 `02-01-PLAN.md` 开始对齐书库顶部工具条和搜索行为
-2. 接着执行 `02-02-PLAN.md`，对齐卡片、封面、元数据和状态层
-3. 用 `02-03-PLAN.md` 收口排序、筛选和滚动行为
+1. 按 `03-01-PLAN.md` 收口 continue reading 与最近阅读的产品化分区
+2. 接着执行 `03-02-PLAN.md`，打通 reader 状态回流与书库排序
+3. 用 `03-03-PLAN.md` 完成 Readest 本地藏书兼容与迁移语义
 
 ## Notes
 
 - 用户提供的《阅读器设计探索》文档定义了长期 AI 阅读器方向，但当前里程碑先以 `Readest` 全量对齐为主
 - `br1` 已有不少功能雏形，因此后续 phase planning 必须以 brownfield 改造和补齐为中心
+- Phase 3 会继续留在 library/workflow 层，不提前跳去 reader 视觉对齐
 
 ---
 *Last updated: 2026-04-13 after creating the full Phase 2 planning set*
