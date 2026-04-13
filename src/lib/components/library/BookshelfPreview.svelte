@@ -105,8 +105,10 @@
                 </div>
               </div>
               <div class="list-trailing">
-                <small>{getPrimaryProgress(book)}</small>
-                <em>{getSecondaryMeta(book)}</em>
+                <div class="trailing-copy">
+                  <small>{getPrimaryProgress(book)}</small>
+                  <em>{getSecondaryMeta(book)}</em>
+                </div>
                 <div class="inline-actions" aria-hidden="true">
                   <span class="action-dot">⋯</span>
                   <span class="action-dot">↗</span>
@@ -150,11 +152,33 @@
               <div class="import-plus">＋</div>
             </div>
           </div>
-          <div class="meta import-meta">
-            <strong>导入书籍</strong>
-            <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
-            <p>把本机已有书籍并入当前书库。</p>
-          </div>
+          {#if viewMode === 'list'}
+            <div class="meta list-meta import-meta import-meta-list">
+              <div class="list-copy">
+                <strong>导入书籍</strong>
+                <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
+                <div class="meta-pills">
+                  <span class="meta-pill strong">SYSTEM</span>
+                  <span class="meta-pill">本机文件</span>
+                </div>
+              </div>
+              <div class="list-trailing">
+                <div class="trailing-copy">
+                  <small>立即导入</small>
+                  <em>把本机已有书籍并入当前书库。</em>
+                </div>
+                <div class="inline-actions" aria-hidden="true">
+                  <span class="action-dot">＋</span>
+                </div>
+              </div>
+            </div>
+          {:else}
+            <div class="meta import-meta">
+              <strong>导入书籍</strong>
+              <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
+              <p>把本机已有书籍并入当前书库。</p>
+            </div>
+          {/if}
         </svelte:element>
       </article>
     {/if}
@@ -164,6 +188,9 @@
 <style>
   .shelf {
     --book-width: 132px;
+    --cover-radius: 10px;
+    --list-cover-width: 84px;
+    --card-row-height: 122px;
     display: grid;
     gap: 10px;
   }
@@ -232,7 +259,7 @@
   }
 
   .list .book-card {
-    padding-bottom: 12px;
+    padding: 6px 0 14px;
     border-bottom: 1px solid var(--border-light);
   }
 
@@ -247,6 +274,7 @@
     width: 100%;
     max-width: 176px;
     font-family: var(--font-chrome);
+    transition: transform 120ms ease;
   }
 
   .book-link {
@@ -256,6 +284,10 @@
     text-decoration: none;
   }
 
+  .book-card:hover {
+    transform: translateY(-1px);
+  }
+
   .book-link:focus-visible {
     outline: 2px solid color-mix(in srgb, #8c6a3b 72%, white 28%);
     outline-offset: 4px;
@@ -263,16 +295,17 @@
   }
 
   .book-link.list-link {
-    grid-template-columns: 76px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: var(--list-cover-width) minmax(0, 1fr);
+    gap: 16px;
     align-items: center;
+    min-height: var(--card-row-height);
   }
 
   .book-card.list-card {
     width: auto;
     min-width: 0;
-    grid-template-columns: 76px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: var(--list-cover-width) minmax(0, 1fr);
+    gap: 16px;
     align-items: center;
   }
 
@@ -280,7 +313,7 @@
     position: relative;
     width: 100%;
     aspect-ratio: 28 / 41;
-    border-radius: 8px;
+    border-radius: var(--cover-radius);
   }
 
   .cover-badges {
@@ -316,7 +349,7 @@
   }
 
   .list-card .cover-shell {
-    width: 76px;
+    width: var(--list-cover-width);
   }
 
   .cover {
@@ -324,7 +357,7 @@
     overflow: hidden;
     width: 100%;
     height: 100%;
-    border-radius: 8px;
+    border-radius: var(--cover-radius);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.18) inset,
       0 8px 18px rgba(51, 37, 18, 0.11);
@@ -333,6 +366,16 @@
       linear-gradient(155deg, rgba(151, 108, 56, 0.08), rgba(78, 55, 31, 0.03)),
       color-mix(in srgb, var(--surface-panel) 84%, white 16%);
     border: 1px solid rgba(75, 56, 31, 0.1);
+    transition:
+      box-shadow 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .book-card:hover .cover {
+    border-color: rgba(75, 56, 31, 0.15);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.2) inset,
+      0 12px 24px rgba(51, 37, 18, 0.14);
   }
 
   .cover-image {
@@ -401,9 +444,13 @@
     transition:
       opacity 120ms ease,
       transform 120ms ease;
+    pointer-events: none;
   }
 
-  .book-card:hover .cover-actions {
+  .book-card:hover .cover-actions,
+  .book-card:hover .inline-actions,
+  .book-card:focus-within .cover-actions,
+  .book-card:focus-within .inline-actions {
     opacity: 1;
     transform: translateY(0);
   }
@@ -428,10 +475,13 @@
     display: grid;
     gap: 3px;
     min-width: 0;
+    align-self: stretch;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
   }
 
   .list-card .meta {
-    gap: 6px;
+    gap: 8px;
+    grid-template-rows: none;
   }
 
   .meta strong {
@@ -486,7 +536,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    column-gap: 14px;
+    column-gap: 16px;
   }
 
   .list-copy {
@@ -524,7 +574,18 @@
     display: grid;
     justify-items: end;
     gap: 5px;
-    min-width: 96px;
+    min-width: 110px;
+    align-self: stretch;
+    grid-template-rows: minmax(0, 1fr) auto;
+    padding-block: 2px;
+  }
+
+  .trailing-copy {
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    justify-items: end;
+    min-width: 0;
   }
 
   .list-trailing small {
@@ -550,6 +611,11 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    opacity: 0;
+    transform: translateY(2px);
+    transition:
+      opacity 120ms ease,
+      transform 120ms ease;
   }
 
   .list-hidden {
@@ -619,6 +685,11 @@
 
   .import-meta p {
     color: color-mix(in srgb, var(--text-secondary) 80%, white 20%);
+  }
+
+  .import-meta-list .inline-actions {
+    opacity: 1;
+    transform: none;
   }
 
   @media (max-width: 900px) {
