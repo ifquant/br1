@@ -17,7 +17,9 @@ export { createReaderSearchController } from './searchController';
 export { createReaderNotesController } from './notesController';
 export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
+export { parseReaderRouteOpenState, toReaderOpenControlRequest } from './route';
 export type { FoliateViewElement, ReaderBookDocument } from './foliate';
+export type { ReaderRouteOpenState, ReaderRouteOpenTarget } from './route';
 export type {
   ReaderControlRequest,
   ReaderBookmark,

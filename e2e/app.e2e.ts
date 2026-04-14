@@ -382,12 +382,18 @@ describe('br1 desktop app', () => {
         })()
       }))
       .filter((record) => record.path.toLowerCase().endsWith('.pdf'))
-      .filter((record) => !record.location)
-      .filter((record) => !(Number.isFinite(record.fraction) && record.fraction > 0))
       .sort((left, right) => {
         const leftPenalty = /reader sample/i.test(left.title) ? 1 : 0;
         const rightPenalty = /reader sample/i.test(right.title) ? 1 : 0;
-        return leftPenalty - rightPenalty || left.size - right.size;
+        const leftStartedPenalty =
+          left.location || (Number.isFinite(left.fraction) && left.fraction > 0) ? 1 : 0;
+        const rightStartedPenalty =
+          right.location || (Number.isFinite(right.fraction) && right.fraction > 0) ? 1 : 0;
+        return (
+          leftPenalty - rightPenalty ||
+          leftStartedPenalty - rightStartedPenalty ||
+          left.size - right.size
+        );
       })
       .slice(0, 5);
 
@@ -556,6 +562,8 @@ describe('br1 desktop app', () => {
 
       await browser.closeWindow();
       await browser.switchToWindow(seeded.libraryHandle);
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
       let restorableHref: string | null = null;
       await browser.waitUntil(async () => {

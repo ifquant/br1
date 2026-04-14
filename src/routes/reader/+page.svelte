@@ -6,6 +6,7 @@
   import type {
     ReaderControlRequest,
     ReaderPreviewState,
+    ReaderRouteOpenState,
     ReaderSidebarCallbacks,
     ReaderSearchResult,
     ReaderTocItem
@@ -14,7 +15,9 @@
     createReaderBookmarksController,
     createReaderNotesController,
     createReaderSearchController,
-    createReaderSidebarController
+    createReaderSidebarController,
+    parseReaderRouteOpenState,
+    toReaderOpenControlRequest
   } from '$lib/reader';
   import {
     canPersistReaderBookmarks,
@@ -55,51 +58,26 @@
     progressLocation: ''
   };
 
-  $: source = $page.url.searchParams.get('source') ?? '';
-  $: sourceUrl = $page.url.searchParams.get('url') ?? '';
-  $: sourcePath = $page.url.searchParams.get('path') ?? '';
-  $: sourceLabel = $page.url.searchParams.get('label') ?? '';
-  $: sourceFraction = Number($page.url.searchParams.get('fraction') ?? '');
-  $: sourceLocation = $page.url.searchParams.get('location') ?? '';
-  $: isWindowMode = $page.url.searchParams.get('mode') === 'window';
-  $: autoOpenPicker = source === 'picker';
-  $: autoOpenAsset = source === 'asset' && !!sourceUrl;
-  $: autoOpenLibraryFile = source === 'library-file' && !!sourcePath;
-  $: readerBookKey = sourcePath || sourceUrl || sourceLabel || 'default';
+  $: routeOpenState = parseReaderRouteOpenState($page.url) satisfies ReaderRouteOpenState;
+  $: isWindowMode = routeOpenState.isWindowMode;
+  $: autoOpenPicker = routeOpenState.pickerRequested;
+  $: autoOpenTarget = routeOpenState.target;
+  $: autoOpenAsset = autoOpenTarget?.kind === 'asset';
+  $: autoOpenLibraryFile = autoOpenTarget?.kind === 'library-file';
+  $: sourceUrl = autoOpenTarget?.kind === 'asset' ? autoOpenTarget.url : '';
+  $: sourcePath = autoOpenTarget?.kind === 'library-file' ? autoOpenTarget.path : '';
+  $: sourceLabel = autoOpenTarget?.label ?? '';
+  $: readerBookKey = routeOpenState.bookKey;
   $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
   $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
 
-  $: autoOpenKey = autoOpenLibraryFile
-    ? `${source}:${sourcePath}:${sourceLabel}:${sourceLocation}:${Number.isFinite(sourceFraction) ? sourceFraction : ''}`
-    : autoOpenAsset
-      ? `${source}:${sourceUrl}:${sourceLabel}`
-      : source;
-
-  $: if (autoOpenAsset && autoOpenKey !== lastAutoKey) {
+  $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
-    controlRequest = {
-      type: 'asset',
-      nonce: controlNonce,
-      url: sourceUrl,
-      label: sourceLabel || 'imported book'
-    };
-    lastAutoKey = autoOpenKey;
+    controlRequest = toReaderOpenControlRequest(autoOpenTarget, controlNonce);
+    lastAutoKey = routeOpenState.autoOpenKey;
   }
 
-  $: if (autoOpenLibraryFile && autoOpenKey !== lastAutoKey) {
-    controlNonce += 1;
-    controlRequest = {
-      type: 'library-file',
-      nonce: controlNonce,
-      path: sourcePath,
-      label: sourceLabel || 'imported book',
-      restoreFraction: Number.isFinite(sourceFraction) ? sourceFraction : undefined,
-      restoreLocation: sourceLocation || undefined
-    };
-    lastAutoKey = autoOpenKey;
-  }
-
-  $: if (!autoOpenAsset && !autoOpenLibraryFile) {
+  $: if (!autoOpenTarget) {
     lastAutoKey = '';
   }
 
