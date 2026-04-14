@@ -205,6 +205,58 @@ pub(crate) fn load_library_records(path: &Path) -> Result<Vec<LibraryBookRecord>
     serde_json::from_str(&json).map_err(|error| error.to_string())
 }
 
+pub(crate) fn normalize_pdf_progress_location(record: &mut LibraryBookRecord) -> bool {
+    if !record.format.eq_ignore_ascii_case("PDF") {
+        return false;
+    }
+
+    let Some(progress_location) = record.progress_location.as_deref() else {
+        return false;
+    };
+
+    let normalized = if let Some((current, total)) = parse_page_location(progress_location) {
+        Some(format!("Page {} / {}", current.max(1), total.max(1)))
+    } else if progress_location.starts_with("epubcfi(") {
+        parse_section_status(&record.status).map(|(current, total)| {
+            format!("Page {} / {}", current.max(1), total.max(1))
+        })
+    } else {
+        None
+    };
+
+    if record.progress_location == normalized {
+        return false;
+    }
+
+    record.progress_location = normalized;
+    true
+}
+
+pub(crate) fn normalize_library_records(records: &mut [LibraryBookRecord]) -> bool {
+    let mut changed = false;
+    for record in records {
+        changed |= normalize_pdf_progress_location(record);
+    }
+    changed
+}
+
+fn parse_section_status(status: &str) -> Option<(u64, u64)> {
+    let trimmed = status.trim();
+    let remainder = trimmed.strip_prefix("Section ")?;
+    let (current, total) = remainder.split_once(" / ")?;
+    let current = current.trim().parse::<u64>().ok()?;
+    let total = total.trim().parse::<u64>().ok()?;
+    Some((current, total))
+}
+
+fn parse_page_location(progress_location: &str) -> Option<(u64, u64)> {
+    let remainder = progress_location.trim().strip_prefix("Page ")?;
+    let (current, total) = remainder.split_once(" / ")?;
+    let current = current.trim().parse::<u64>().ok()?;
+    let total = total.trim().parse::<u64>().ok()?;
+    Some((current, total))
+}
+
 pub(crate) fn load_readest_records(path: &Path) -> Result<Vec<ReadestBookRecord>, String> {
     if !path.exists() {
         return Ok(Vec::new());

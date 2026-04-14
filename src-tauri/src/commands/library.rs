@@ -4,8 +4,9 @@ use crate::models::{
 use crate::util::{
     book_mime_type, cover_mime_type, ensure_library_root, find_readest_book_file,
     format_readest_progress, library_json_path, load_library_records, load_readest_config,
-    load_readest_records, now_millis, parse_readest_metadata, readest_books_root,
-    readest_library_json_path, readest_progress_fraction, sanitize_filename, save_library_records,
+    load_readest_records, normalize_library_records, normalize_pdf_progress_location, now_millis,
+    parse_readest_metadata, readest_books_root, readest_library_json_path, readest_progress_fraction,
+    sanitize_filename, save_library_records,
 };
 use base64::Engine;
 use std::fs;
@@ -14,7 +15,11 @@ use std::path::{Path, PathBuf};
 #[tauri::command]
 pub(crate) fn load_library_books(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord>, String> {
     let library_json = library_json_path(&app)?;
-    load_library_records(&library_json)
+    let mut records = load_library_records(&library_json)?;
+    if normalize_library_records(&mut records) {
+        save_library_records(&library_json, &records)?;
+    }
+    Ok(records)
 }
 
 #[tauri::command]
@@ -163,7 +168,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             "继续阅读".to_string()
         };
 
-        let record = LibraryBookRecord {
+        let mut record = LibraryBookRecord {
             id: record_id.clone(),
             title: readest_record.title.clone(),
             author: if readest_record.author.trim().is_empty() {
@@ -185,6 +190,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             progress_location: readest_config.location,
             last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
         };
+        normalize_pdf_progress_location(&mut record);
 
         let previous_len = records.len();
         records.retain(|book| book.id != record_id);

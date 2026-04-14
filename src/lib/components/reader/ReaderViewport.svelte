@@ -128,7 +128,10 @@
     const current = lastLocation?.location?.current;
     const total = lastLocation?.location?.total;
     if (typeof current !== 'number' || typeof total !== 'number') return 'Opening book';
-    return formatLabel === 'PDF' ? `Page ${current} / ${total}` : `${current} / ${total}`;
+    if (formatLabel === 'PDF') {
+      return `Page ${Math.max(1, current)} / ${Math.max(1, total)}`;
+    }
+    return `${current} / ${total}`;
   };
 
   const getViewportStageSize = () => {

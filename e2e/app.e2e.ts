@@ -1120,6 +1120,7 @@ describe('br1 desktop app', () => {
     expect(persistedLocation).toBeTruthy();
     expect(persistedLocation.startsWith('epubcfi(')).toBe(false);
     expect(persistedLocation.startsWith('Page ')).toBe(true);
+    expect(persistedLocation.startsWith('Page 0 /')).toBe(false);
 
     let geometry = await readReaderGeometry();
 
@@ -1136,6 +1137,7 @@ describe('br1 desktop app', () => {
       if (!details.title || details.locationLabel === 'Opening book') return false;
       if (details.formatLabel !== 'PDF') return false;
       if (!details.locationLabel?.startsWith('Page ')) return false;
+      if (details.locationLabel.startsWith('Page 0 /')) return false;
 
       const restoredByLocation = !!expectedLocation && details.cfi && details.cfi !== expectedLocation;
       const restoredByFraction =
