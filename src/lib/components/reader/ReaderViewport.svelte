@@ -68,6 +68,22 @@
   let currentFormatLabel = 'BOOK';
   let currentLayoutLabel = 'WAITING';
 
+  const getFallbackReaderState = (
+    overrides: Partial<ReaderPreviewState> = {}
+  ): ReaderPreviewState => ({
+    title: openSourceLabel || 'Bridge Reader',
+    author: 'Reader workspace',
+    chapterLabel: 'Waiting for book',
+    chapterHref: '',
+    progressLabel: '0%',
+    progressFraction: 0,
+    progressLocation: '',
+    locationLabel: 'Not opened',
+    formatLabel: currentFormatLabel,
+    layoutLabel: currentLayoutLabel,
+    ...overrides
+  });
+
   const inferReaderFormatLabel = (source: string | File, sourceLabel: string) => {
     const fromName = (value: string) => {
       const match = value.toLowerCase().match(/\.([a-z0-9]+)(?:$|[?#])/i);
@@ -137,6 +153,10 @@
   const emitReaderState = (partial?: Partial<ReaderPreviewState>) => {
     const book = foliateViewElement?.book;
     const lastLocation = foliateViewElement?.lastLocation;
+    if (!book || openStatus !== 'open') {
+      dispatch('readerstate', getFallbackReaderState(partial));
+      return;
+    }
     const fraction = typeof lastLocation?.fraction === 'number' ? lastLocation.fraction : 0;
     const progressPercent = Math.round(fraction * 100);
     const sectionCurrent = lastLocation?.section?.current;
@@ -147,7 +167,8 @@
         : 'Waiting for location';
 
     dispatch('readerstate', {
-      title: pickText(book?.metadata?.title) || 'Reader sample',
+      ...getFallbackReaderState(),
+      title: pickText(book?.metadata?.title) || openSourceLabel || 'Bridge Reader',
       author: pickAuthor(book?.metadata?.creator) || 'Unknown author',
       chapterLabel: lastLocation?.tocItem?.label || fallbackChapter,
       chapterHref: lastLocation?.tocItem?.href || '',
@@ -206,12 +227,19 @@
     openSourceLabel = sourceLabel;
     openFailureSource = '';
     openFailureMessage = '';
+    currentLayoutLabel = 'WAITING';
     searchCache = new Map();
     searchCacheBookKey = cacheBookKey;
     dispatch('searchcachekeychange', cacheBookKey);
     emitSearchState({ query: '', status: 'idle', results: [] });
     emitSelectionState(null);
     syncedNoteValues = new Set();
+    emitReaderState({
+      title: sourceLabel || 'Bridge Reader',
+      author: 'Preparing book',
+      chapterLabel: 'Opening book',
+      locationLabel: 'Opening book'
+    });
 
     try {
       currentFormatLabel = inferReaderFormatLabel(source, sourceLabel);
@@ -240,6 +268,12 @@
       openStatus = 'error';
       openFailureSource = sourceLabel;
       openFailureMessage = error instanceof Error ? error.message : String(error);
+      emitReaderState({
+        title: sourceLabel || 'Bridge Reader',
+        author: 'Open failed',
+        chapterLabel: 'Unable to open book',
+        locationLabel: 'Open failed'
+      });
     }
   };
 
@@ -419,6 +453,12 @@
       openStatus = 'error';
       openFailureSource = controlRequest.type;
       openFailureMessage = error instanceof Error ? error.message : String(error);
+      emitReaderState({
+        title: openSourceLabel || 'Bridge Reader',
+        author: 'Open failed',
+        chapterLabel: 'Unable to open book',
+        locationLabel: 'Open failed'
+      });
     }
   };
 
