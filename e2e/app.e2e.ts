@@ -943,6 +943,22 @@ describe('br1 desktop app', () => {
       };
     });
 
+  const setReaderViewWidthMode = async (mode: 'focus' | 'standard' | 'wide') => {
+    const moreActions = await $('[aria-label="More actions"]');
+    await moreActions.waitForDisplayed({ timeout: 10000 });
+    await moreActions.click();
+
+    const labels = {
+      focus: '专注',
+      standard: '标准',
+      wide: '宽阔'
+    } as const;
+
+    const option = await $(`//button[@role="menuitemradio" and normalize-space()="${labels[mode]}"]`);
+    await option.waitForDisplayed({ timeout: 10000 });
+    await option.click();
+  };
+
   const switchReaderToSearchTab = async () => {
     const searchTab = await $('//button[@role="tab" and normalize-space()="搜索"]');
     await searchTab.waitForDisplayed({ timeout: 10000 });
@@ -1187,6 +1203,42 @@ describe('br1 desktop app', () => {
         `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nGeometry: ${JSON.stringify(geometry)}`
       );
     });
+  });
+
+  it('changes the visible epub reading column width when the view width mode changes', async () => {
+    await openUsableReaderBook();
+
+    await browser.waitUntil(async () => {
+      const geometry = await readReaderGeometry();
+      return !!geometry.paginatorContainer?.width;
+    }, {
+      timeout: 15000,
+      timeoutMsg: 'expected the EPUB reader to expose a paginator container before testing width modes'
+    });
+
+    await setReaderViewWidthMode('focus');
+    let focusGeometry = await readReaderGeometry();
+    await browser.waitUntil(async () => {
+      focusGeometry = await readReaderGeometry();
+      return !!focusGeometry.paginatorContainer?.width;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected focus mode to keep a visible paginator container'
+    });
+
+    await setReaderViewWidthMode('wide');
+    let wideGeometry = await readReaderGeometry();
+    await browser.waitUntil(async () => {
+      wideGeometry = await readReaderGeometry();
+      return !!wideGeometry.paginatorContainer?.width;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected wide mode to keep a visible paginator container'
+    });
+
+    expect(focusGeometry.paginatorContainer).toBeTruthy();
+    expect(wideGeometry.paginatorContainer).toBeTruthy();
+    expect(wideGeometry.paginatorContainer.width).toBeGreaterThan(focusGeometry.paginatorContainer.width + 40);
   });
 
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {

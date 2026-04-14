@@ -25,7 +25,8 @@
     ReaderSelectionState,
     ReaderSearchResult,
     ReaderSearchState,
-    ReaderTocItem
+    ReaderTocItem,
+    ReaderViewWidthMode
   } from '$lib/reader';
   import {
     clearReaderSearchCache,
@@ -40,6 +41,7 @@
   export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
   export let isWindowMode = false;
   export let notes: ReaderNote[] = [];
+  export let viewWidthMode: ReaderViewWidthMode = 'standard';
 
   const dispatch = createEventDispatcher<{
     notefocus: string;
@@ -177,6 +179,12 @@
     const { width, height } = getViewportStageSize();
     const aspectRatio = width / Math.max(height, 1);
     const isUnfoldedWindow = aspectRatio < 1.3 && aspectRatio > 0.77 && width > 600;
+    if (viewWidthMode === 'focus') {
+      return isUnfoldedWindow ? 520 : 640;
+    }
+    if (viewWidthMode === 'wide') {
+      return isUnfoldedWindow ? 660 : 840;
+    }
     return isUnfoldedWindow ? 576 : 720;
   };
 
@@ -185,6 +193,13 @@
     // Readest-style desktop reader windows keep reflowable books on a
     // single visible page instead of opening into a two-page spread.
     return isWindowMode ? 1 : width >= 1120 ? 2 : 1;
+  };
+
+  const getResponsiveHorizontalMargin = () => {
+    if (!isWindowMode) return '34px';
+    if (viewWidthMode === 'focus') return '48px';
+    if (viewWidthMode === 'wide') return '18px';
+    return '30px';
   };
 
   const NOTE_PREFIX = 'foliate-note:';
@@ -258,9 +273,9 @@
     renderer.setStyles?.(getReaderViewStyles());
     renderer.setAttribute('flow', 'paginated');
     renderer.setAttribute('margin-top', isWindowMode ? '46px' : '36px');
-    renderer.setAttribute('margin-right', isWindowMode ? '30px' : '34px');
+    renderer.setAttribute('margin-right', getResponsiveHorizontalMargin());
     renderer.setAttribute('margin-bottom', isWindowMode ? '44px' : '36px');
-    renderer.setAttribute('margin-left', isWindowMode ? '30px' : '34px');
+    renderer.setAttribute('margin-left', getResponsiveHorizontalMargin());
     renderer.setAttribute('gap', '5%');
     renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
     renderer.setAttribute('max-block-size', isWindowMode ? '1440px' : '1180px');
@@ -586,6 +601,15 @@
     foliateViewElement;
     openStatus;
     void applyControlRequest();
+  }
+
+  $: {
+    viewWidthMode;
+    isWindowMode;
+    foliateViewElement;
+    if (foliateViewElement && openStatus === 'open') {
+      configureFoliatePreview();
+    }
   }
 
   const syncNotesToView = async () => {

@@ -266,6 +266,7 @@
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
       {notes}
+      {viewWidthMode}
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         dispatch('readerstate', detail);
