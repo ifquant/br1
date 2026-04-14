@@ -24,6 +24,14 @@ export type ReadestLibrarySummary = {
   count: number;
 };
 
+export type ReadestImportSummary = {
+  records: PersistedLibraryBook[];
+  totalDetected: number;
+  importedCount: number;
+  replacedCount: number;
+  skippedMissingFiles: number;
+};
+
 export type LibraryBookBinary = {
   name: string;
   mimeType: string;
@@ -47,6 +55,10 @@ export type LibraryImportActionResult =
       firstRecord: null;
       firstReaderTarget: null;
       firstReaderHref: '';
+      totalDetected?: number;
+      importedCount?: number;
+      replacedCount?: number;
+      skippedMissingFiles?: number;
     }
   | {
       kind: 'empty';
@@ -54,6 +66,10 @@ export type LibraryImportActionResult =
       firstRecord: null;
       firstReaderTarget: null;
       firstReaderHref: '';
+      totalDetected?: number;
+      importedCount?: number;
+      replacedCount?: number;
+      skippedMissingFiles?: number;
     }
   | {
       kind: 'imported';
@@ -61,6 +77,10 @@ export type LibraryImportActionResult =
       firstRecord: PersistedLibraryBook | null;
       firstReaderTarget: LibraryReaderTarget | null;
       firstReaderHref: string;
+      totalDetected?: number;
+      importedCount?: number;
+      replacedCount?: number;
+      skippedMissingFiles?: number;
     };
 
 export type LibraryReaderTarget =
@@ -162,8 +182,8 @@ export const importLibraryBooks = async (filePaths: string[]): Promise<Persisted
   });
 };
 
-export const importReadestLibrary = async (): Promise<PersistedLibraryBook[]> => {
-  return invokeTauri<PersistedLibraryBook[]>('import_readest_library');
+export const importReadestLibrary = async (): Promise<ReadestImportSummary> => {
+  return invokeTauri<ReadestImportSummary>('import_readest_library');
 };
 
 export const updateLibraryReadingState = async (
@@ -250,6 +270,7 @@ const toImportedReaderActionResult = (
   records: PersistedLibraryBook[],
   options: {
     emptyKind?: 'cancelled' | 'empty';
+    summary?: Omit<ReadestImportSummary, 'records'>;
   } = {}
 ): LibraryImportActionResult => {
   const emptyKind = options.emptyKind ?? 'cancelled';
@@ -260,7 +281,11 @@ const toImportedReaderActionResult = (
       records: [],
       firstRecord: null,
       firstReaderTarget: null,
-      firstReaderHref: ''
+      firstReaderHref: '',
+      totalDetected: options.summary?.totalDetected,
+      importedCount: options.summary?.importedCount,
+      replacedCount: options.summary?.replacedCount,
+      skippedMissingFiles: options.summary?.skippedMissingFiles
     };
   }
 
@@ -271,7 +296,11 @@ const toImportedReaderActionResult = (
     records,
     firstRecord,
     firstReaderTarget,
-    firstReaderHref: firstReaderTarget.href
+    firstReaderHref: firstReaderTarget.href,
+    totalDetected: options.summary?.totalDetected,
+    importedCount: options.summary?.importedCount,
+    replacedCount: options.summary?.replacedCount,
+    skippedMissingFiles: options.summary?.skippedMissingFiles
   };
 };
 
@@ -294,8 +323,15 @@ export const importBooksFromDesktopPicker = async (): Promise<LibraryImportActio
 
 export const importBooksFromReadest = async (): Promise<LibraryImportActionResult> => {
   requireTauriLibraryRuntime('importBooksFromReadest');
-  return toImportedReaderActionResult(await importReadestLibrary(), {
-    emptyKind: 'empty'
+  const result = await importReadestLibrary();
+  return toImportedReaderActionResult(result.records, {
+    emptyKind: 'empty',
+    summary: {
+      totalDetected: result.totalDetected,
+      importedCount: result.importedCount,
+      replacedCount: result.replacedCount,
+      skippedMissingFiles: result.skippedMissingFiles
+    }
   });
 };
 

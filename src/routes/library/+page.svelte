@@ -585,6 +585,31 @@
     libraryNotice = { kind, message };
   };
 
+  const describeReadestMigrationResult = (result: Awaited<ReturnType<typeof importBooksFromReadest>>) => {
+    const totalDetected = result.totalDetected ?? 0;
+    const importedCount = result.importedCount ?? result.records.length;
+    const replacedCount = result.replacedCount ?? 0;
+    const skippedMissingFiles = result.skippedMissingFiles ?? 0;
+    const syncedCount = importedCount;
+
+    if (result.kind === 'empty') {
+      if (totalDetected > 0 && skippedMissingFiles > 0) {
+        return `发现 ${totalDetected} 本 Readest 藏书，但有 ${skippedMissingFiles} 本缺少本地文件，暂时无法兼容。`;
+      }
+      return '没有从 Readest 迁移到可用书籍，请确认本机 Readest 书库仍然完整。';
+    }
+
+    const messageParts = [`已同步 ${syncedCount} 本 Readest 藏书`];
+    if (replacedCount > 0) {
+      messageParts.push(`刷新了 ${replacedCount} 本已有兼容记录`);
+    }
+    if (skippedMissingFiles > 0) {
+      messageParts.push(`跳过了 ${skippedMissingFiles} 本缺少本地文件的条目`);
+    }
+
+    return `${messageParts.join('，')}。`;
+  };
+
   const handleOpenReaderTarget = async (target: string | LibraryReaderTarget) => {
     clearLibraryNotice();
     const href = typeof target === 'string' ? target : target.href;
@@ -668,14 +693,18 @@
       const result = await importBooksFromReadest();
       if (result.kind === 'empty') {
         showReadestMigration = true;
-        setLibraryNotice('info', '没有从 Readest 迁移到可用书籍，请确认本机 Readest 书库仍然完整。');
+        setLibraryNotice('info', describeReadestMigrationResult(result));
         return;
       }
-      const records = sortRecordsForLibraryShelf(result.records);
       if (reloadAfterImport) {
         await loadLibrary();
+      } else {
+        const records = sortRecordsForLibraryShelf(result.records);
+        const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
+        importedBooks = [...mappedRecords, ...importedBooks];
       }
       showReadestMigration = true;
+      setLibraryNotice('info', describeReadestMigrationResult(result));
 
       if (autoOpenFirstBook && result.kind === 'imported') {
         if (result.firstReaderTarget) {

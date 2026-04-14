@@ -1,4 +1,6 @@
-use crate::models::{LibraryBookBinary, LibraryBookRecord, ReadestLibrarySummary};
+use crate::models::{
+    LibraryBookBinary, LibraryBookRecord, ReadestImportResult, ReadestLibrarySummary,
+};
 use crate::util::{
     book_mime_type, cover_mime_type, ensure_library_root, find_readest_book_file,
     format_readest_progress, library_json_path, load_library_records, load_readest_config,
@@ -105,7 +107,7 @@ pub(crate) fn import_library_books(
 }
 
 #[tauri::command]
-pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord>, String> {
+pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImportResult, String> {
     let readest_library_json = readest_library_json_path(&app)?;
     let readest_books_root = readest_books_root(&app)?;
     let readest_records = load_readest_records(&readest_library_json)?;
@@ -115,9 +117,13 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<Librar
     let library_json = library_root.join("library.json");
     let mut records = load_library_records(&library_json)?;
     let mut imported = Vec::new();
+    let total_detected = readest_records.len();
+    let mut replaced_count = 0usize;
+    let mut skipped_missing_files = 0usize;
 
     for readest_record in readest_records {
         let Some(source_file) = find_readest_book_file(&readest_books_root, &readest_record)? else {
+            skipped_missing_files += 1;
             continue;
         };
 
@@ -177,13 +183,23 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<Vec<Librar
             last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
         };
 
+        let previous_len = records.len();
         records.retain(|book| book.id != record_id);
+        if records.len() != previous_len {
+            replaced_count += 1;
+        }
         records.insert(0, record.clone());
         imported.push(record);
     }
 
     save_library_records(&library_json, &records)?;
-    Ok(imported)
+    Ok(ReadestImportResult {
+        imported_count: imported.len(),
+        records: imported,
+        replaced_count,
+        skipped_missing_files,
+        total_detected,
+    })
 }
 
 #[tauri::command]

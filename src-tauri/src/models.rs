@@ -29,6 +29,16 @@ pub(crate) struct ReadestLibrarySummary {
     pub(crate) count: usize,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReadestImportResult {
+    pub(crate) records: Vec<LibraryBookRecord>,
+    pub(crate) total_detected: usize,
+    pub(crate) imported_count: usize,
+    pub(crate) replaced_count: usize,
+    pub(crate) skipped_missing_files: usize,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReadestBookRecord {
