@@ -3,11 +3,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+BIN_DIR="$REPO_ROOT/node_modules/.bin"
 TEST_COMMAND="${*:-}"
 DEV_PORT="${DEV_PORT:-1420}"
 WEBDRIVER_PORT="${WEBDRIVER_PORT:-4445}"
 POLL_INTERVAL="${POLL_INTERVAL:-2}"
 TIMEOUT="${TIMEOUT:-120}"
+
+if [[ ! -x "$BIN_DIR/vite" ]]; then
+  echo "ERROR: missing local vite binary at $BIN_DIR/vite. Run pnpm install first." >&2
+  exit 1
+fi
+
+if [[ ! -x "$BIN_DIR/tauri" ]]; then
+  echo "ERROR: missing local tauri binary at $BIN_DIR/tauri. Run pnpm install first." >&2
+  exit 1
+fi
 
 cleanup() {
   if [[ -n "${TAURI_PID:-}" ]]; then
@@ -31,7 +42,7 @@ trap cleanup EXIT INT TERM
 cd "$REPO_ROOT"
 
 echo "Starting Vite dev server on port $DEV_PORT..."
-pnpm dev --host 127.0.0.1 --port "$DEV_PORT" &
+"$BIN_DIR/vite" dev --host 127.0.0.1 --port "$DEV_PORT" &
 DEV_PID=$!
 
 echo "Waiting for dev server..."
@@ -50,7 +61,7 @@ while ! curl -sf "http://127.0.0.1:${DEV_PORT}" >/dev/null 2>&1; do
 done
 
 echo "Starting Tauri with webdriver..."
-pnpm tauri dev --features webdriver --no-watch --config '{"build":{"beforeDevCommand":""}}' &
+"$BIN_DIR/tauri" dev --features webdriver --no-watch --config '{"build":{"beforeDevCommand":""}}' &
 TAURI_PID=$!
 
 echo "Waiting for WebDriver server on port $WEBDRIVER_PORT..."
