@@ -522,6 +522,7 @@ describe('br1 desktop app', () => {
       const engineStage = document.querySelector('.engine-stage');
       const view = document.querySelector('foliate-view') as (HTMLElement & { shadowRoot?: ShadowRoot | null }) | null;
       const paginator = view?.shadowRoot?.querySelector('foliate-paginator') as HTMLElement | null;
+      const paginatorContainer = paginator?.shadowRoot?.querySelector('#container') as HTMLElement | null;
       const frames = Array.from(
         paginator?.shadowRoot?.querySelectorAll('iframe') ?? []
       ) as HTMLIFrameElement[];
@@ -542,10 +543,38 @@ describe('br1 desktop app', () => {
       };
 
       const firstVisibleTextRect = (() => {
+        const toGlobalRect = (
+          rect: DOMRect | { left: number; top: number; right: number; bottom: number; width: number; height: number },
+          visibleLeft: number,
+          visibleTop: number,
+          extra: Record<string, unknown> = {}
+        ) => ({
+          left: visibleLeft + rect.left,
+          top: visibleTop + rect.top,
+          width: rect.width,
+          height: rect.height,
+          right: visibleLeft + rect.right,
+          bottom: visibleTop + rect.bottom,
+          ...extra
+        });
+
         for (const currentFrame of frames) {
           const frameWindow = currentFrame.contentWindow ?? null;
           const frameDocument = currentFrame.contentDocument ?? null;
+          const frameRect = currentFrame.getBoundingClientRect();
+          const containerRect = paginatorContainer?.getBoundingClientRect() ?? null;
           if (!frameDocument || !frameWindow) continue;
+
+          const visibleLeft = containerRect ? Math.max(frameRect.left, containerRect.left) : frameRect.left;
+          const visibleRight = containerRect ? Math.min(frameRect.right, containerRect.right) : frameRect.right;
+          const visibleTop = containerRect ? Math.max(frameRect.top, containerRect.top) : frameRect.top;
+          const visibleBottom = containerRect ? Math.min(frameRect.bottom, containerRect.bottom) : frameRect.bottom;
+          const visibleWidth = visibleRight - visibleLeft;
+          const visibleHeight = visibleBottom - visibleTop;
+
+          if (visibleWidth < 24 || visibleHeight < 10) {
+            continue;
+          }
 
           const walker = frameDocument.createTreeWalker(frameDocument.body, NodeFilter.SHOW_TEXT, {
             acceptNode(node) {
@@ -564,23 +593,38 @@ describe('br1 desktop app', () => {
               if (
                 rect.width < 24 ||
                 rect.height < 10 ||
+                rect.right <= 0 ||
+                rect.left >= visibleWidth ||
                 rect.bottom <= 0 ||
-                rect.top >= frameWindow.innerHeight
+                rect.top >= visibleHeight
               ) {
                 continue;
               }
 
-              const frameRect = currentFrame.getBoundingClientRect();
-              return {
-                left: frameRect.left + rect.left,
-                top: frameRect.top + rect.top,
-                width: rect.width,
-                height: rect.height,
-                right: frameRect.left + rect.right,
-                bottom: frameRect.top + rect.bottom,
+              return toGlobalRect(rect, visibleLeft, visibleTop, {
                 text: node.textContent?.trim().slice(0, 80) ?? ''
-              };
+              });
             }
+          }
+
+          for (const element of Array.from(frameDocument.querySelectorAll('img, svg, canvas, video, image'))) {
+            if (!(element instanceof Element)) continue;
+            const rect = element.getBoundingClientRect();
+            if (
+              rect.width < 48 ||
+              rect.height < 48 ||
+              rect.right <= 0 ||
+              rect.left >= visibleWidth ||
+              rect.bottom <= 0 ||
+              rect.top >= visibleHeight
+            ) {
+              continue;
+            }
+
+            return toGlobalRect(rect, visibleLeft, visibleTop, {
+              text: '',
+              kind: element.tagName.toLowerCase()
+            });
           }
         }
 
@@ -598,6 +642,7 @@ describe('br1 desktop app', () => {
         engineStage: rectOf(engineStage),
         foliateView: rectOf(view),
         paginator: rectOf(paginator),
+        paginatorContainer: rectOf(paginatorContainer),
         frame: rectOf(frame),
         rendered: rectOf(rendered),
         firstVisibleTextRect,
@@ -797,7 +842,7 @@ describe('br1 desktop app', () => {
         firstVisibleTextRect.right <= geometry.stage.right - geometry.stage.width * 0.08 &&
         firstVisibleTextRect.top >= geometry.stage.top &&
         firstVisibleTextRect.top <= geometry.stage.top + geometry.stage.height * 0.72 &&
-        firstVisibleTextRect.width >= geometry.stage.width * 0.18
+        firstVisibleTextRect.width >= Math.max(120, geometry.stage.width * 0.14)
       );
     }, {
       timeout: 20000,

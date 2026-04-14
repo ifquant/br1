@@ -128,7 +128,9 @@
 
   const getResponsiveMaxColumnCount = () => {
     const { width } = getViewportStageSize();
-    return width >= 1120 ? 2 : 1;
+    // Readest-style desktop reader windows keep reflowable books on a
+    // single visible page instead of opening into a two-page spread.
+    return isWindowMode ? 1 : width >= 1120 ? 2 : 1;
   };
 
   const NOTE_PREFIX = 'foliate-note:';
@@ -318,8 +320,7 @@
   ) => {
     if (!foliateViewElement) return;
 
-    const fallbackFraction =
-      typeof restoreFraction === 'number' && restoreFraction > 0 ? restoreFraction : 0;
+    const hasRestoreFraction = typeof restoreFraction === 'number' && restoreFraction > 0;
 
     if (restoreLocation) {
       try {
@@ -330,7 +331,12 @@
       }
     }
 
-    await foliateViewElement.goToFraction(fallbackFraction);
+    if (hasRestoreFraction) {
+      await foliateViewElement.goToFraction(restoreFraction);
+      return;
+    }
+
+    await foliateViewElement.init({ showTextStart: true });
   };
 
   const emitSearchState = (partial: Partial<ReaderSearchState>) => {
