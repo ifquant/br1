@@ -342,7 +342,66 @@ describe('br1 desktop app', () => {
       }
     }
 
-    throw new Error('expected to find an EPUB library book with a stored restore location');
+    const seeded = await openUsableShelfEpubFromLibrary();
+
+    try {
+      await browser.waitUntil(async () => {
+        const record = await loadLibraryRecordOnDisk(seeded.path);
+        return !!record?.progressLocation;
+      }, {
+        timeout: 15000,
+        timeoutMsg: 'expected opening a shelf EPUB to persist a restore location to library.json'
+      });
+
+      await browser.closeWindow();
+      await browser.switchToWindow(seeded.libraryHandle);
+
+      let restorableHref: string | null = null;
+      await browser.waitUntil(async () => {
+        restorableHref = await readLibraryHrefForPath(seeded.path);
+        if (!restorableHref) return false;
+        const target = new URL(restorableHref, 'http://localhost');
+        return !!target.searchParams.get('location');
+      }, {
+        timeout: 15000,
+        timeoutMsg: 'expected the library surface to expose a stored restore location after seeding an EPUB'
+      });
+
+      const book = await findBookElementByHref(restorableHref!);
+      if (!book) {
+        throw new Error(`expected to find a seeded EPUB library book for href ${restorableHref}`);
+      }
+
+      await openReaderFromBook(book);
+
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+        return !!details.title && !!details.cfi && !!details.chapterHref;
+      }, {
+        timeout: 20000,
+        timeoutMsg: 'expected a seeded EPUB library book to reopen with a valid restored reader location'
+      });
+
+      const expectedLocation = new URL(restorableHref!, 'http://localhost').searchParams.get('location') ?? '';
+
+      return {
+        libraryHandle: seeded.libraryHandle,
+        href: restorableHref!,
+        expectedLocation,
+        details: await readReaderDetails()
+      };
+    } catch (error) {
+      try {
+        await browser.closeWindow();
+      } catch {
+        // ignore cleanup errors from already-closed windows
+      }
+      await browser.switchToWindow(seeded.libraryHandle);
+      throw error;
+    }
   };
 
   const openRestorablePdfBook = async () => {
@@ -864,7 +923,7 @@ describe('br1 desktop app', () => {
     await browser.waitUntil(async () => {
       const details = await readReaderDetails();
       geometry = await readReaderGeometry();
-      const rendered = geometry.rendered;
+      const rendered = geometry.paginatorContainer ?? geometry.rendered;
       const firstVisibleTextRect = geometry.firstVisibleTextRect;
 
       if (details.stageError) {
