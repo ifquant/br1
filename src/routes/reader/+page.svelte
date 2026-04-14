@@ -228,12 +228,44 @@
     }, 500);
   };
 
+  const flushLibraryReadingStatePersist = (preview: ReaderPreviewState = currentPreview) => {
+    if (!autoOpenLibraryFile || !sourcePath) return;
+
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+
+    void updateLibraryReadingState({
+      filePath: sourcePath,
+      title: preview.title,
+      author: preview.author,
+      chapterLabel: preview.chapterLabel,
+      progressLabel: preview.progressLabel,
+      progressFraction: preview.progressFraction,
+      progressLocation: preview.progressLocation
+    });
+  };
+
+  onMount(() => {
+    const handlePageHide = () => {
+      flushLibraryReadingStatePersist();
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  });
+
   onDestroy(() => {
-    if (persistTimer) clearTimeout(persistTimer);
+    flushLibraryReadingStatePersist();
     searchController.destroy();
   });
 
   const handleGoToLibrary = async () => {
+    flushLibraryReadingStatePersist();
     const handledByDesktopWindowing = await goToLibrarySurface();
     if (handledByDesktopWindowing) return;
     await goto('/library');

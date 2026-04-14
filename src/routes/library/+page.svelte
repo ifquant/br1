@@ -388,6 +388,15 @@
       saveLibraryScrollPosition(libraryScrollContextKey);
     };
 
+    const handleWindowFocus = () => {
+      void loadLibrary();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      void loadLibrary();
+    };
+
     const attachViewportListener = () => {
       const viewport = getLibraryViewport();
       if (!viewport) return () => {};
@@ -410,11 +419,15 @@
     }, 120);
 
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.clearInterval(refreshViewportListener);
       detachViewportListener();
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       saveLibraryScrollPosition(libraryScrollContextKey);
     };
   });
