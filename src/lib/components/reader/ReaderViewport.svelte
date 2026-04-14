@@ -113,6 +113,24 @@
     return 'PAGINATED';
   };
 
+  const formatReaderLocationLabel = (
+    formatLabel: string,
+    lastLocation:
+      | {
+          location?: {
+            current?: number;
+            total?: number;
+          };
+        }
+      | null
+      | undefined
+  ) => {
+    const current = lastLocation?.location?.current;
+    const total = lastLocation?.location?.total;
+    if (typeof current !== 'number' || typeof total !== 'number') return 'Opening book';
+    return formatLabel === 'PDF' ? `Page ${current} / ${total}` : `${current} / ${total}`;
+  };
+
   const getViewportStageSize = () => {
     const width = stageElement?.clientWidth || hostElement?.clientWidth || window.innerWidth;
     const height = stageElement?.clientHeight || hostElement?.clientHeight || window.innerHeight;
@@ -188,10 +206,7 @@
         typeof (lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
           ? ((lastLocation as { cfi?: string }).cfi ?? '')
           : '',
-      locationLabel:
-        typeof lastLocation?.location?.current === 'number' && typeof lastLocation?.location?.total === 'number'
-          ? `${lastLocation.location.current} / ${lastLocation.location.total}`
-          : 'Opening book',
+      locationLabel: formatReaderLocationLabel(currentFormatLabel, lastLocation),
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
       ...partial
