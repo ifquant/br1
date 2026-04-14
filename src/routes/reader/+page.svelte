@@ -22,6 +22,7 @@
     clearReaderSearchCache,
     goToLibrarySurface,
     loadPersistedLibraryBooks,
+    notifyLibrarySurfaceReadingStateChanged,
     loadReaderBookmarks,
     loadReaderNotes,
     openLibraryBookPath,
@@ -38,6 +39,8 @@
   let controlNonce = 0;
   let lastAutoKey = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let persistSequence = 0;
+  let lastPersistPromise: Promise<void> = Promise.resolve();
   let currentCoverUrl = '';
   let currentPreview: ReaderPreviewState = {
     title: 'Bridge Reader',
@@ -211,32 +214,11 @@
     })();
   }
 
-  const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
-    if (!autoOpenLibraryFile || !sourcePath) return;
+  const persistLibraryReadingState = (preview: ReaderPreviewState) => {
+    if (!autoOpenLibraryFile || !sourcePath) return Promise.resolve();
 
-    if (persistTimer) clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => {
-      void updateLibraryReadingState({
-        filePath: sourcePath,
-        title: preview.title,
-        author: preview.author,
-        chapterLabel: preview.chapterLabel,
-        progressLabel: preview.progressLabel,
-        progressFraction: preview.progressFraction,
-        progressLocation: preview.progressLocation
-      });
-    }, 500);
-  };
-
-  const flushLibraryReadingStatePersist = (preview: ReaderPreviewState = currentPreview) => {
-    if (!autoOpenLibraryFile || !sourcePath) return;
-
-    if (persistTimer) {
-      clearTimeout(persistTimer);
-      persistTimer = null;
-    }
-
-    void updateLibraryReadingState({
+    const sequence = ++persistSequence;
+    const persistPromise = updateLibraryReadingState({
       filePath: sourcePath,
       title: preview.title,
       author: preview.author,
@@ -244,7 +226,39 @@
       progressLabel: preview.progressLabel,
       progressFraction: preview.progressFraction,
       progressLocation: preview.progressLocation
+    }).catch((error) => {
+      console.error('Failed to persist library reading state', error);
     });
+
+    lastPersistPromise = persistPromise.finally(() => {
+      if (persistSequence === sequence) {
+        lastPersistPromise = Promise.resolve();
+      }
+    });
+
+    return persistPromise;
+  };
+
+  const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
+    if (!autoOpenLibraryFile || !sourcePath) return;
+
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      void persistLibraryReadingState(preview);
+    }, 500);
+  };
+
+  const flushLibraryReadingStatePersist = async (preview: ReaderPreviewState = currentPreview) => {
+    if (!autoOpenLibraryFile || !sourcePath) return;
+
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+
+    await lastPersistPromise;
+    await persistLibraryReadingState(preview);
   };
 
   onMount(() => {
@@ -265,7 +279,8 @@
   });
 
   const handleGoToLibrary = async () => {
-    flushLibraryReadingStatePersist();
+    await flushLibraryReadingStatePersist();
+    await notifyLibrarySurfaceReadingStateChanged();
     const handledByDesktopWindowing = await goToLibrarySurface();
     if (handledByDesktopWindowing) return;
     await goto('/library');

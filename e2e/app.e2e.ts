@@ -25,6 +25,22 @@ describe('br1 desktop app', () => {
     await rm(join(readerSearchRoot, readerSearchCacheComponentKey(bookKey)), { recursive: true, force: true });
   };
 
+  const loadLibraryRecordOnDisk = async (filePath: string) => {
+    const libraryFile = join(appDataRoot, 'library', 'library.json');
+    const raw = await readFile(libraryFile, 'utf8');
+    const records = JSON.parse(raw) as Array<{
+      filePath?: string;
+      file_path?: string;
+      progressFraction?: number | null;
+      progressLocation?: string | null;
+      lastOpenedAt?: number | null;
+    }>;
+
+    return (
+      records.find((record) => (record.filePath ?? record.file_path ?? '') === filePath) ?? null
+    );
+  };
+
   const seedReaderSearchCacheOnDisk = async (
     bookKey: string,
     cacheKey: string,
@@ -187,6 +203,89 @@ describe('br1 desktop app', () => {
       },
       'a stable epub-backed reader regression'
     );
+
+  const readLibraryWorkflowSections = async () =>
+    browser.execute(() => {
+      const readSectionPaths = (sectionLabel: string) => {
+        const section = document.querySelector(`[aria-label="${sectionLabel}"]`);
+        if (!section) return [] as string[];
+
+        return Array.from(section.querySelectorAll('a[href]'))
+          .map((node) => node.getAttribute('href') ?? '')
+          .map((href) => {
+            const target = new URL(href, window.location.origin);
+            return target.searchParams.get('path') ?? '';
+          })
+          .filter(Boolean);
+      };
+
+      return {
+        continueReading: readSectionPaths('继续阅读'),
+        recentReading: readSectionPaths('最近阅读'),
+        shelf: readSectionPaths('你的书库')
+      };
+    });
+
+  const readLibraryHrefForPath = async (path: string) =>
+    browser.execute((targetPath) => {
+      const links = Array.from(document.querySelectorAll('a[href]'));
+      const match = links.find((node) => {
+        const href = node.getAttribute('href');
+        if (!href) return false;
+        const target = new URL(href, window.location.origin);
+        return (target.searchParams.get('path') ?? '') === targetPath;
+      });
+
+      return match?.getAttribute('href') ?? null;
+    }, path);
+
+  const hasUsableReaderState = (details: Awaited<ReturnType<typeof readReaderDetails>>) =>
+    !!details.title &&
+    details.title !== 'Bridge Reader' &&
+    details.locationLabel !== 'Not opened' &&
+    details.locationLabel !== 'Opening book' &&
+    (!!details.chapterHref || !!details.cfi);
+
+  const openUsableShelfEpubFromLibrary = async () => {
+    const libraryHandle = await switchToLibraryWindow();
+    const shelfBooks = await $$('[aria-label="你的书库"] [aria-label^="Open "][aria-label$=" in reader"]');
+
+    for (const shelfBook of shelfBooks) {
+      const href = await shelfBook.getAttribute('href');
+      if (!href) continue;
+
+      const target = new URL(href, 'http://localhost');
+      const path = target.searchParams.get('path') ?? '';
+      const location = target.searchParams.get('location') ?? '';
+      const fraction = Number(target.searchParams.get('fraction') ?? '0');
+      if (!(/\.epub($|\?)/i.test(path) || path.toLowerCase().endsWith('.epub'))) continue;
+      if (location) continue;
+      if (Number.isFinite(fraction) && fraction > 0) continue;
+
+      await openReaderFromBook(shelfBook);
+
+      try {
+        await browser.waitUntil(async () => {
+          const details = await readReaderDetails();
+          if (details.stageError) {
+            throw new Error(details.stageError);
+          }
+
+          return hasUsableReaderState(details);
+        }, {
+          timeout: 15000,
+          timeoutMsg: 'expected a shelf EPUB to expose usable reader state before validating return-to-library flow'
+        });
+
+        return { libraryHandle, path, href };
+      } catch {
+        await browser.closeWindow();
+        await browser.switchToWindow(libraryHandle);
+      }
+    }
+
+    throw new Error('expected to find a shelf EPUB with usable reader state in your library section');
+  };
 
   const openRestorableReaderBook = async () => {
     const libraryHandle = await switchToLibraryWindow();
@@ -780,6 +879,55 @@ describe('br1 desktop app', () => {
       geometry = await readReaderGeometry();
       throw new Error(
         `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nGeometry: ${JSON.stringify(geometry)}`
+      );
+    });
+  });
+
+  it('moves a newly opened shelf epub into the reading workflow after returning from reader', async () => {
+    const { libraryHandle, path, href: originalHref } = await openUsableShelfEpubFromLibrary();
+    const originalRecord = await loadLibraryRecordOnDisk(path);
+    const originalOpenedAt = originalRecord?.lastOpenedAt ?? 0;
+
+    const goToLibraryButton = await $('[aria-label="Go to library"]');
+    await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+    await goToLibraryButton.click();
+
+    await browser.switchToWindow(libraryHandle);
+
+    await browser.waitUntil(async () => {
+      const updatedRecord = await loadLibraryRecordOnDisk(path);
+      if (!updatedRecord) return false;
+
+      return (
+        (updatedRecord.lastOpenedAt ?? 0) > originalOpenedAt &&
+        ((typeof updatedRecord.progressFraction === 'number' && updatedRecord.progressFraction > 0) ||
+          !!updatedRecord.progressLocation)
+      );
+    }, {
+      timeout: 30000,
+      timeoutMsg:
+        'expected returning from reader to persist a newer library reading-state record for the opened shelf EPUB'
+    });
+
+    await browser.refresh();
+
+    await browser.waitUntil(async () => {
+      const sections = await readLibraryWorkflowSections();
+      const refreshedHref = await readLibraryHrefForPath(path);
+      const inWorkflow =
+        sections.continueReading.includes(path) || sections.recentReading.includes(path);
+      const stillOnShelf = sections.shelf.includes(path);
+      return (inWorkflow && !stillOnShelf) || (!!refreshedHref && refreshedHref !== originalHref);
+    }, {
+      timeout: 30000,
+      timeoutMsg:
+        'expected a shelf EPUB opened in reader to either move into the reading workflow or expose a refreshed reader href after returning to the library'
+    }).catch(async (error) => {
+      const sections = await readLibraryWorkflowSections();
+      const refreshedHref = await readLibraryHrefForPath(path);
+      const updatedRecord = await loadLibraryRecordOnDisk(path);
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nPath: ${path}\nOriginal href: ${originalHref}\nRefreshed href: ${refreshedHref}\nPersisted record: ${JSON.stringify(updatedRecord)}\nSections: ${JSON.stringify(sections)}`
       );
     });
   });

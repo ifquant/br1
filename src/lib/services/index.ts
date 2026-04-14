@@ -1,4 +1,9 @@
-export { goToLibrarySurface, openReaderTarget } from './readerWindow';
+export {
+  goToLibrarySurface,
+  LIBRARY_SURFACE_RELOAD_EVENT,
+  notifyLibrarySurfaceReadingStateChanged,
+  openReaderTarget
+} from './readerWindow';
 export { canPersistReaderBookmarks, loadReaderBookmarks, saveReaderBookmarks } from './readerBookmarks';
 export { canPersistReaderNotes, loadReaderNotes, saveReaderNotes } from './readerNotes';
 export {

@@ -1,6 +1,7 @@
 import { isTauriDesktop } from './platform';
 
 type ReaderWindowTarget = string | { href: string };
+export const LIBRARY_SURFACE_RELOAD_EVENT = 'br1:library-reading-state-updated';
 
 const toWindowReaderUrl = (target: ReaderWindowTarget) => {
   const href = typeof target === 'string' ? target : target.href;
@@ -69,5 +70,16 @@ export const goToLibrarySurface = async (): Promise<boolean> => {
   } catch (error) {
     console.error('Failed to return to library surface', error);
     return false;
+  }
+};
+
+export const notifyLibrarySurfaceReadingStateChanged = async (): Promise<void> => {
+  if (!isTauriDesktop() || typeof window === 'undefined') return;
+
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().emitTo('main', LIBRARY_SURFACE_RELOAD_EVENT);
+  } catch (error) {
+    console.error('Failed to notify the library surface about reading-state changes', error);
   }
 };

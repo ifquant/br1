@@ -13,6 +13,7 @@
     detectReadestLibrary,
     importBooksFromDesktopPicker,
     importBooksFromReadest,
+    LIBRARY_SURFACE_RELOAD_EVENT,
     loadPersistedLibraryBooks,
     openLibraryBookPath,
     openReaderTarget,
@@ -447,9 +448,27 @@
     window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    let detachLibraryReloadListener = () => {};
+    if (canPersistLibrary()) {
+      void (async () => {
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          detachLibraryReloadListener = await getCurrentWindow().listen(
+            LIBRARY_SURFACE_RELOAD_EVENT,
+            () => {
+              void loadLibrary();
+            }
+          );
+        } catch (error) {
+          console.warn('Failed to attach the library surface reload listener', error);
+        }
+      })();
+    }
+
     return () => {
       window.clearInterval(refreshViewportListener);
       detachViewportListener();
+      detachLibraryReloadListener();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
