@@ -129,6 +129,9 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
 
         let record_id = format!("readest-{}", readest_record.hash);
         let destination_dir = books_dir.join(&record_id);
+        if destination_dir.exists() {
+            fs::remove_dir_all(&destination_dir).map_err(|error| error.to_string())?;
+        }
         fs::create_dir_all(&destination_dir).map_err(|error| error.to_string())?;
 
         let source_filename = source_file

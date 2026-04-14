@@ -435,7 +435,7 @@
       await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });
       const migratedRecords = await loadPersistedLibraryBooks();
       await applyPersistedLibraryRecords(migratedRecords);
-      showReadestMigration = migratedRecords.length === 0;
+      showReadestMigration = readestSummary.available;
       return;
     }
 
