@@ -415,6 +415,14 @@
     await restoreLibraryScrollPosition(nextKey);
   };
 
+  const countReadestCompatibleRecords = (records: PersistedLibraryBook[]) =>
+    records.filter((record) => record.id.startsWith('readest-')).length;
+
+  const applyPersistedLibraryRecords = async (records: PersistedLibraryBook[]) => {
+    readestCompatibleCount = countReadestCompatibleRecords(records);
+    importedBooks = await Promise.all(sortRecordsForLibraryShelf(records).map(mapLibraryRecord));
+  };
+
   const loadLibrary = async () => {
     if (!canPersistLibrary()) return;
     desktopLibraryMode = true;
@@ -422,19 +430,16 @@
     const records = await loadPersistedLibraryBooks();
     const readestSummary = await detectReadestLibrary();
     readestLibraryCount = readestSummary.count;
-    readestCompatibleCount = records.filter((record) => record.id.startsWith('readest-')).length;
 
     if (records.length === 0 && readestSummary.available) {
       await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });
       const migratedRecords = await loadPersistedLibraryBooks();
-      importedBooks = await Promise.all(
-        sortRecordsForLibraryShelf(migratedRecords).map(mapLibraryRecord)
-      );
+      await applyPersistedLibraryRecords(migratedRecords);
       showReadestMigration = migratedRecords.length === 0;
       return;
     }
 
-    importedBooks = await Promise.all(sortRecordsForLibraryShelf(records).map(mapLibraryRecord));
+    await applyPersistedLibraryRecords(records);
     showReadestMigration = readestSummary.available;
   };
 
@@ -714,9 +719,8 @@
       if (reloadAfterImport) {
         await loadLibrary();
       } else {
-        const records = sortRecordsForLibraryShelf(result.records);
-        const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
-        importedBooks = [...mappedRecords, ...importedBooks];
+        const currentRecords = await loadPersistedLibraryBooks();
+        await applyPersistedLibraryRecords(currentRecords);
       }
       showReadestMigration = true;
 
