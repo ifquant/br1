@@ -68,6 +68,14 @@
   let currentFormatLabel = 'BOOK';
   let currentLayoutLabel = 'WAITING';
 
+  type ResolvedReaderOpenSource = {
+    source: string | File;
+    sourceLabel: string;
+    cacheBookKey: string;
+    restoreFraction?: number;
+    restoreLocation?: string;
+  };
+
   const getFallbackReaderState = (
     overrides: Partial<ReaderPreviewState> = {}
   ): ReaderPreviewState => ({
@@ -212,6 +220,39 @@
       if (!(doc instanceof Document) || typeof index !== 'number') continue;
       bindSelectionTracking(doc, index);
     }
+  };
+
+  const resolveControlOpenSource = async (
+    request: Extract<ReaderControlRequest, { type: 'asset' | 'library-file' | 'file' }>
+  ): Promise<ResolvedReaderOpenSource> => {
+    if (request.type === 'asset') {
+      return {
+        source: request.url,
+        sourceLabel: request.label,
+        cacheBookKey: request.url
+      };
+    }
+
+    if (request.type === 'library-file') {
+      const [fingerprint, file] = await Promise.all([
+        loadLibraryFileFingerprint(request.path),
+        loadLibraryBookFile(request.path)
+      ]);
+
+      return {
+        source: file,
+        sourceLabel: request.label || file.name,
+        cacheBookKey: fingerprint,
+        restoreFraction: request.restoreFraction,
+        restoreLocation: request.restoreLocation
+      };
+    }
+
+    return {
+      source: request.file,
+      sourceLabel: request.file.name,
+      cacheBookKey: `${request.file.name}:${request.file.size}:${request.file.lastModified}`
+    };
   };
 
   const openBook = async (
@@ -409,17 +450,18 @@
     handledControlNonce = controlRequest.nonce;
 
     try {
-      if (controlRequest.type === 'asset') {
-        await openBook(controlRequest.url, controlRequest.label, controlRequest.url);
-      } else if (controlRequest.type === 'library-file') {
-        const fingerprint = await loadLibraryFileFingerprint(controlRequest.path);
-        const file = await loadLibraryBookFile(controlRequest.path);
+      if (
+        controlRequest.type === 'asset' ||
+        controlRequest.type === 'library-file' ||
+        controlRequest.type === 'file'
+      ) {
+        const resolvedSource = await resolveControlOpenSource(controlRequest);
         await openBook(
-          file,
-          controlRequest.label || file.name,
-          fingerprint,
-          controlRequest.restoreFraction,
-          controlRequest.restoreLocation
+          resolvedSource.source,
+          resolvedSource.sourceLabel,
+          resolvedSource.cacheBookKey,
+          resolvedSource.restoreFraction,
+          resolvedSource.restoreLocation
         );
       } else if (controlRequest.type === 'prev') {
         await foliateViewElement.prev();
@@ -439,12 +481,6 @@
           await clearReaderSearchCache(searchCacheBookKey);
         }
         emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
-      } else if (controlRequest.type === 'file') {
-        await openBook(
-          controlRequest.file,
-          controlRequest.file.name,
-          `${controlRequest.file.name}:${controlRequest.file.size}:${controlRequest.file.lastModified}`
-        );
       } else if (controlRequest.type === 'fraction') {
         await foliateViewElement.goToFraction(controlRequest.fraction);
       }
