@@ -213,8 +213,10 @@
     const compatibilitySignals = [
       record.coverPath ? '封面' : '',
       record.description ? '简介' : '',
-      record.language || record.publisher ? '元数据' : '',
-      record.progressLocation || progressFraction !== null ? '阅读位置' : ''
+      record.language ? '语言' : '',
+      record.publisher ? '出版者' : '',
+      record.progressLocation ? '恢复定位' : '',
+      record.progressLocation ? '' : progressFraction !== null ? '阅读进度' : ''
     ].filter(Boolean);
 
     const compatibilityLabel = isReadestCompatible
@@ -230,6 +232,7 @@
       description: record.description || '',
       language: record.language || '',
       publisher: record.publisher || '',
+      progressLocation: record.progressLocation || '',
       status: record.status,
       progress: record.progress,
       progressFraction,
