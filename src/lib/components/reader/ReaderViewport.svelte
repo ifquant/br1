@@ -293,13 +293,7 @@
       currentLayoutLabel = inferReaderLayoutLabel(foliateViewElement.book, currentFormatLabel);
       installReaderBookTransformGuards(foliateViewElement.book);
       configureFoliatePreview();
-      if (restoreLocation) {
-        await foliateViewElement.init({ lastLocation: restoreLocation });
-      } else {
-        await foliateViewElement.goToFraction(
-          typeof restoreFraction === 'number' && restoreFraction > 0 ? restoreFraction : 0
-        );
-      }
+      await applyInitialNavigation(restoreFraction, restoreLocation);
       openStatus = 'open';
       bindOpenRendererDocs();
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
@@ -316,6 +310,27 @@
         locationLabel: 'Open failed'
       });
     }
+  };
+
+  const applyInitialNavigation = async (
+    restoreFraction?: number,
+    restoreLocation?: string
+  ) => {
+    if (!foliateViewElement) return;
+
+    const fallbackFraction =
+      typeof restoreFraction === 'number' && restoreFraction > 0 ? restoreFraction : 0;
+
+    if (restoreLocation) {
+      try {
+        await foliateViewElement.init({ lastLocation: restoreLocation });
+        return;
+      } catch (error) {
+        console.warn('Failed to restore reader location, falling back to fraction navigation', error);
+      }
+    }
+
+    await foliateViewElement.goToFraction(fallbackFraction);
   };
 
   const emitSearchState = (partial: Partial<ReaderSearchState>) => {
