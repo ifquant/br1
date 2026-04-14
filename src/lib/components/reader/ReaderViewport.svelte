@@ -134,6 +134,39 @@
     return `${current} / ${total}`;
   };
 
+  const waitForReaderLayoutToSettle = async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  };
+
+  const normalizeReaderOpenFailureMessage = (
+    error: unknown,
+    formatLabel: string,
+    sourceLabel: string
+  ) => {
+    const detail = error instanceof Error ? error.message : String(error);
+
+    if (
+      detail.includes('requires the Tauri desktop runtime') ||
+      detail.includes('library-file reader sources require the Tauri desktop runtime')
+    ) {
+      return 'This book source can only be opened in the Tauri desktop app.';
+    }
+
+    if (detail.includes('PDF vendor assets are unavailable')) {
+      return detail;
+    }
+
+    if (detail.includes('does not expose makeBook()') || detail.includes('makeBook')) {
+      return `Failed to prepare ${formatLabel} book data before opening ${sourceLabel}.`;
+    }
+
+    if (detail.toLowerCase().includes('unsupported')) {
+      return `Unsupported ${formatLabel} source: ${sourceLabel}.`;
+    }
+
+    return detail || `Unable to open ${sourceLabel}.`;
+  };
+
   const getViewportStageSize = () => {
     const width = stageElement?.clientWidth || hostElement?.clientWidth || window.innerWidth;
     const height = stageElement?.clientHeight || hostElement?.clientHeight || window.innerHeight;
@@ -314,6 +347,9 @@
       installReaderBookTransformGuards(foliateViewElement.book);
       configureFoliatePreview();
       await applyInitialNavigation(restoreFraction, restoreLocation);
+      await waitForReaderLayoutToSettle();
+      configureFoliatePreview();
+      await waitForReaderLayoutToSettle();
       openStatus = 'open';
       bindOpenRendererDocs();
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
@@ -322,7 +358,11 @@
       console.error(`Failed to open reader source: ${sourceLabel}`, error);
       openStatus = 'error';
       openFailureSource = sourceLabel;
-      openFailureMessage = error instanceof Error ? error.message : String(error);
+      openFailureMessage = normalizeReaderOpenFailureMessage(
+        error,
+        currentFormatLabel,
+        sourceLabel || 'book'
+      );
       emitReaderState({
         title: sourceLabel || 'Bridge Reader',
         author: 'Open failed',
@@ -527,7 +567,11 @@
       console.error(`Failed to handle reader control: ${controlRequest.type}`, error);
       openStatus = 'error';
       openFailureSource = controlRequest.type;
-      openFailureMessage = error instanceof Error ? error.message : String(error);
+      openFailureMessage = normalizeReaderOpenFailureMessage(
+        error,
+        currentFormatLabel,
+        openSourceLabel || controlRequest.type
+      );
       emitReaderState({
         title: openSourceLabel || 'Bridge Reader',
         author: 'Open failed',

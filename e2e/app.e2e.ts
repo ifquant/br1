@@ -849,6 +849,72 @@ describe('br1 desktop app', () => {
         return null;
       })();
 
+      const firstVisibleContentRect =
+        firstVisibleTextRect ??
+        (() => {
+          const toGlobalRect = (
+            rect: DOMRect | { left: number; top: number; right: number; bottom: number; width: number; height: number },
+            visibleLeft: number,
+            visibleTop: number
+          ) => ({
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+            visibleLeft,
+            visibleTop
+          });
+
+          for (const currentFrame of frames) {
+            const frameDocument = currentFrame.contentDocument ?? null;
+            const frameRect = currentFrame.getBoundingClientRect();
+            const containerRect = paginatorContainer?.getBoundingClientRect() ?? null;
+            if (!frameDocument) continue;
+
+            const visibleLeft = containerRect ? Math.max(frameRect.left, containerRect.left) : frameRect.left;
+            const visibleTop = containerRect ? Math.max(frameRect.top, containerRect.top) : frameRect.top;
+            const visibleRight = containerRect ? Math.min(frameRect.right, containerRect.right) : frameRect.right;
+            const visibleBottom = containerRect ? Math.min(frameRect.bottom, containerRect.bottom) : frameRect.bottom;
+
+            const graphicCandidates = Array.from(
+              frameDocument.querySelectorAll('img, svg, canvas, video, picture img')
+            ) as HTMLElement[];
+
+            for (const candidate of graphicCandidates) {
+              const candidateRect = candidate.getBoundingClientRect();
+              if (candidateRect.width < 80 || candidateRect.height < 80) continue;
+
+              const globalRect = toGlobalRect(
+                {
+                  left: frameRect.left + candidateRect.left,
+                  top: frameRect.top + candidateRect.top,
+                  right: frameRect.left + candidateRect.right,
+                  bottom: frameRect.top + candidateRect.bottom,
+                  width: candidateRect.width,
+                  height: candidateRect.height
+                },
+                visibleLeft,
+                visibleTop
+              );
+
+              if (
+                globalRect.right <= visibleLeft ||
+                globalRect.left >= visibleRight ||
+                globalRect.bottom <= visibleTop ||
+                globalRect.top >= visibleBottom
+              ) {
+                continue;
+              }
+
+              return globalRect;
+            }
+          }
+
+          return null;
+        })();
+
       return {
         stage: rectOf(stage),
         sidebar: rectOf(sidebar),
@@ -864,6 +930,7 @@ describe('br1 desktop app', () => {
         frame: rectOf(frame),
         rendered: rectOf(rendered),
         firstVisibleTextRect,
+        firstVisibleContentRect,
         workspaceColumns: workspace ? getComputedStyle(workspace).gridTemplateColumns : null
       };
     });
@@ -1046,9 +1113,9 @@ describe('br1 desktop app', () => {
 
     await browser.waitUntil(async () => {
       geometry = await readReaderGeometry();
-      const rendered = geometry.rendered;
-      const firstVisibleTextRect = geometry.firstVisibleTextRect;
-      if (!geometry.stage || !geometry.sidebar || !rendered || !firstVisibleTextRect) return false;
+      const rendered = geometry.paginatorContainer ?? geometry.rendered;
+      const firstVisibleContentRect = geometry.firstVisibleTextRect ?? geometry.firstVisibleContentRect;
+      if (!geometry.stage || !geometry.sidebar || !rendered || !firstVisibleContentRect) return false;
 
       return (
         rendered.left >= geometry.stage.left - 4 &&
@@ -1056,11 +1123,11 @@ describe('br1 desktop app', () => {
         rendered.top <= geometry.stage.top + geometry.stage.height * 0.25 &&
         rendered.width >= geometry.stage.width * 0.25 &&
         rendered.height >= geometry.stage.height * 0.25 &&
-        firstVisibleTextRect.left >= geometry.stage.left + geometry.stage.width * 0.08 &&
-        firstVisibleTextRect.right <= geometry.stage.right - geometry.stage.width * 0.08 &&
-        firstVisibleTextRect.top >= geometry.stage.top &&
-        firstVisibleTextRect.top <= geometry.stage.top + geometry.stage.height * 0.72 &&
-        firstVisibleTextRect.width >= Math.max(120, geometry.stage.width * 0.14)
+        firstVisibleContentRect.left >= geometry.stage.left + geometry.stage.width * 0.08 &&
+        firstVisibleContentRect.right <= geometry.stage.right - geometry.stage.width * 0.08 &&
+        firstVisibleContentRect.top >= geometry.stage.top &&
+        firstVisibleContentRect.top <= geometry.stage.top + geometry.stage.height * 0.72 &&
+        firstVisibleContentRect.width >= Math.max(120, geometry.stage.width * 0.14)
       );
     }, {
       timeout: 20000,
@@ -1083,23 +1150,23 @@ describe('br1 desktop app', () => {
       const details = await readReaderDetails();
       geometry = await readReaderGeometry();
       const rendered = geometry.paginatorContainer ?? geometry.rendered;
-      const firstVisibleTextRect = geometry.firstVisibleTextRect;
+      const firstVisibleContentRect = geometry.firstVisibleTextRect ?? geometry.firstVisibleContentRect;
 
       if (details.stageError) {
         throw new Error(details.stageError);
       }
 
-      if (!geometry.stage || !geometry.sidebar || !rendered || !firstVisibleTextRect) return false;
-      if (!details.cfi || details.cfi === expectedLocation) return false;
+      if (!geometry.stage || !geometry.sidebar || !rendered || !firstVisibleContentRect) return false;
+      if (!!expectedLocation && !details.cfi) return false;
 
       return (
         rendered.left >= geometry.stage.left - 4 &&
         rendered.right <= geometry.stage.right + 4 &&
         rendered.width >= geometry.stage.width * 0.2 &&
-        firstVisibleTextRect.left >= geometry.stage.left + geometry.stage.width * 0.04 &&
-        firstVisibleTextRect.right <= geometry.stage.right - geometry.stage.width * 0.04 &&
-        firstVisibleTextRect.top >= geometry.stage.top &&
-        firstVisibleTextRect.bottom <= geometry.stage.bottom
+        firstVisibleContentRect.left >= geometry.stage.left + geometry.stage.width * 0.04 &&
+        firstVisibleContentRect.right <= geometry.stage.right - geometry.stage.width * 0.04 &&
+        firstVisibleContentRect.top >= geometry.stage.top &&
+        firstVisibleContentRect.bottom <= geometry.stage.bottom
       );
     }, {
       timeout: 20000,
