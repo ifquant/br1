@@ -140,6 +140,8 @@
               <strong>{book.progressLocation || '未记录'}</strong>
               <span>原文件</span>
               <strong>{book.sourcePath || '未记录'}</strong>
+              <span>导入时间</span>
+              <strong>{book.importedAtLabel || '未记录'}</strong>
               <span>最近阅读</span>
               <strong>{book.lastOpenedLabel || '刚导入'}</strong>
             </div>

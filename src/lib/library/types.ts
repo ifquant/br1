@@ -21,6 +21,7 @@ export type LibraryShelfBook = {
   lastOpenedAt?: number | null;
   lastOpenedLabel?: string;
   importedAt?: number | null;
+  importedAtLabel?: string;
 };
 
 export type BookshelfPreviewBook = Pick<
@@ -59,4 +60,5 @@ export type ContinueReadingBook = Pick<
   | 'readerHref'
   | 'restartHref'
   | 'lastOpenedLabel'
+  | 'importedAtLabel'
 >;

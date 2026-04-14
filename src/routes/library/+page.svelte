@@ -188,6 +188,16 @@
     return `${Math.round(deltaMinutes / (60 * 24))} 天前阅读`;
   };
 
+  const formatImportedAtLabel = (timestamp: number | null | undefined) => {
+    if (typeof timestamp !== 'number' || timestamp <= 0) return '';
+
+    return new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date(timestamp));
+  };
+
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<LibraryShelfBook> => {
     const isReadestCompatible = record.id.startsWith('readest-');
     const progressFraction =
@@ -250,7 +260,8 @@
       restartHref: toReaderStartHref(record),
       lastOpenedAt: record.lastOpenedAt,
       lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt),
-      importedAt: record.importedAt
+      importedAt: record.importedAt,
+      importedAtLabel: formatImportedAtLabel(record.importedAt)
     };
   };
 
