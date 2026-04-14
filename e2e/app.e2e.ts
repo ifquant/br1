@@ -239,6 +239,21 @@ describe('br1 desktop app', () => {
       return match?.getAttribute('href') ?? null;
     }, path);
 
+  const readReadestMigrationSurface = async () =>
+    browser.execute(() => {
+      const banner = document.querySelector('[aria-label="readest migration"]');
+      const notice = document.querySelector('.library-notice');
+      const compatibleTexts = Array.from(document.querySelectorAll('.book-card, .reading-card'))
+        .map((node) => node.textContent ?? '')
+        .filter((text) => text.includes('Readest 兼容') || text.includes('兼容 Readest 本地藏书'));
+
+      return {
+        bannerText: banner?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+        noticeText: notice?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+        compatibleCardCount: compatibleTexts.length
+      };
+    });
+
   const hasUsableReaderState = (details: Awaited<ReturnType<typeof readReaderDetails>>) =>
     !!details.title &&
     details.title !== 'Bridge Reader' &&
@@ -930,6 +945,52 @@ describe('br1 desktop app', () => {
         `${error instanceof Error ? error.message : String(error)}\nPath: ${path}\nOriginal href: ${originalHref}\nRefreshed href: ${refreshedHref}\nPersisted record: ${JSON.stringify(updatedRecord)}\nSections: ${JSON.stringify(sections)}`
       );
     });
+  });
+
+  it('reports Readest migration outcomes through the library banner and notice flow', async () => {
+    const libraryHandle = await switchToLibraryWindow();
+
+    const migrationBanner = await $('[aria-label="readest migration"]');
+    await migrationBanner.waitForDisplayed({ timeout: 15000 });
+
+    const handlesBeforeClick = await browser.getWindowHandles();
+    const migrationButton = await $('[aria-label="readest migration"] .migration-button');
+    await migrationButton.waitForDisplayed({ timeout: 10000 });
+    await migrationButton.click();
+
+    await browser.waitUntil(async () => {
+      const handles = await browser.getWindowHandles();
+      return handles.length >= handlesBeforeClick.length;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the Readest migration flow to either stay in place or open a reader window'
+    });
+
+    await browser.switchToWindow(libraryHandle);
+
+    await browser.waitUntil(async () => {
+      const { noticeText } = await readReadestMigrationSurface();
+      return (
+        noticeText.includes('已同步') ||
+        noticeText.includes('没有从 Readest 迁移到可用书籍') ||
+        noticeText.includes('缺少本地文件')
+      );
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected syncing the Readest library to produce an explicit migration result notice'
+    });
+
+    const migrationState = await readReadestMigrationSurface();
+    expect(migrationState.bannerText).toContain('发现 Readest 书库');
+    expect(
+      migrationState.noticeText.includes('已同步') ||
+        migrationState.noticeText.includes('没有从 Readest 迁移到可用书籍') ||
+        migrationState.noticeText.includes('缺少本地文件')
+    ).toBe(true);
+
+    if (migrationState.noticeText.includes('已同步') || migrationState.bannerText.includes('已有')) {
+      expect(migrationState.compatibleCardCount).toBeGreaterThan(0);
+    }
   });
 
   it('migrates legacy browser notes into the host-side book store when reopening a book', async () => {

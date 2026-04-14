@@ -691,9 +691,10 @@
     try {
       clearLibraryNotice();
       const result = await importBooksFromReadest();
+      const migrationMessage = describeReadestMigrationResult(result);
       if (result.kind === 'empty') {
         showReadestMigration = true;
-        setLibraryNotice('info', describeReadestMigrationResult(result));
+        setLibraryNotice('info', migrationMessage);
         return;
       }
       if (reloadAfterImport) {
@@ -704,13 +705,13 @@
         importedBooks = [...mappedRecords, ...importedBooks];
       }
       showReadestMigration = true;
-      setLibraryNotice('info', describeReadestMigrationResult(result));
 
       if (autoOpenFirstBook && result.kind === 'imported') {
         if (result.firstReaderTarget) {
           await handleOpenReaderTarget(result.firstReaderTarget);
         }
       }
+      setLibraryNotice('info', migrationMessage);
     } catch (error) {
       console.error('Failed to import books from Readest', error);
       setLibraryNotice('error', '从 Readest 导入失败，请确认本机书库路径和权限可用。');
