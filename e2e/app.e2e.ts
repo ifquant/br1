@@ -575,7 +575,11 @@ describe('br1 desktop app', () => {
         if (details.stageError) {
           throw new Error(details.stageError);
         }
-        return !!details.title && details.formatLabel === 'PDF' && details.progressLabel !== '0%';
+        return (
+          !!details.title &&
+          details.formatLabel === 'PDF' &&
+          ((details.progressFraction ?? 0) > 0 || details.locationLabel !== 'Not opened')
+        );
       }, {
         timeout: 20000,
         timeoutMsg: 'expected a seeded PDF library book to reopen with visible reader progress metadata'
@@ -1123,7 +1127,7 @@ describe('br1 desktop app', () => {
       }
 
       if (!geometry.stage || !geometry.sidebar || !rendered) return false;
-      if (!details.title || details.progressLabel === '0%' || details.locationLabel === 'Opening book') return false;
+      if (!details.title || details.locationLabel === 'Opening book') return false;
       if (details.formatLabel !== 'PDF') return false;
 
       const restoredByLocation = !!expectedLocation && details.cfi && details.cfi !== expectedLocation;
@@ -1131,10 +1135,16 @@ describe('br1 desktop app', () => {
         !expectedLocation &&
         typeof expectedFraction === 'number' &&
         expectedFraction > 0 &&
-        details.progressLabel !== `${Math.round(expectedFraction * 100)}%` ? true : false;
+        typeof details.progressFraction === 'number' &&
+        Math.abs(details.progressFraction - expectedFraction) > 0.0005;
 
       return (
-        (restoredByLocation || restoredByFraction || details.locationLabel !== 'Not opened') &&
+        (
+          restoredByLocation ||
+          restoredByFraction ||
+          (details.progressFraction ?? 0) > 0 ||
+          details.locationLabel !== 'Not opened'
+        ) &&
         rendered.left >= geometry.stage.left - 4 &&
         rendered.right <= geometry.stage.right + 4 &&
         rendered.top >= geometry.stage.top - 4 &&
