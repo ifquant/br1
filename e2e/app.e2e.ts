@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
@@ -40,6 +41,33 @@ describe('br1 desktop app', () => {
       records.find((record) => (record.filePath ?? record.file_path ?? '') === filePath) ?? null
     );
   };
+
+  const loadLibraryRecordsOnDisk = async () => {
+    const libraryFile = join(appDataRoot, 'library', 'library.json');
+    const raw = await readFile(libraryFile, 'utf8');
+    return JSON.parse(raw) as Array<{
+      title?: string;
+      filePath?: string;
+      file_path?: string;
+      progressFraction?: number | null;
+      progressLocation?: string | null;
+      lastOpenedAt?: number | null;
+    }>;
+  };
+
+  const nudgeReaderForward = async () =>
+    browser.execute(async () => {
+      const view = document.querySelector('foliate-view') as
+        | (HTMLElement & {
+            next?: () => Promise<void>;
+            lastLocation?: { fraction?: number };
+          })
+        | null;
+
+      if (!view?.next) return view?.lastLocation?.fraction ?? null;
+      await view.next();
+      return view.lastLocation?.fraction ?? null;
+    });
 
   const seedReaderSearchCacheOnDisk = async (
     bookKey: string,
@@ -130,15 +158,50 @@ describe('br1 desktop app', () => {
     return readerHandle!;
   };
 
+  const recoverLibraryWindow = async (preferredHandle: string) => {
+    const handles = await browser.getWindowHandles();
+    if (!handles.length) {
+      throw new Error('expected at least one desktop window handle to remain available');
+    }
+
+    const nextHandle = handles.includes(preferredHandle) ? preferredHandle : handles[0]!;
+    await browser.switchToWindow(nextHandle);
+    return nextHandle;
+  };
+
+  const cleanupReaderAttempt = async (libraryHandle: string) => {
+    const handles = await browser.getWindowHandles().catch(() => [] as string[]);
+    if (!handles.length) return;
+
+    const currentHandle = await browser.getWindowHandle().catch(() => null);
+    const shouldCloseCurrentReader =
+      !!currentHandle && currentHandle !== libraryHandle && handles.includes(currentHandle) && handles.length > 1;
+
+    if (shouldCloseCurrentReader) {
+      try {
+        await browser.closeWindow();
+      } catch {
+        // ignore already-closed window cleanup
+      }
+    }
+
+    await recoverLibraryWindow(libraryHandle);
+  };
+
   const listOpenableBookHrefs = async () =>
     browser.execute(() =>
-      Array.from(document.querySelectorAll('[aria-label^="Open "][aria-label$=" in reader"]'))
+      Array.from(document.querySelectorAll('a[href]'))
         .map((node) => node.getAttribute('href'))
         .filter((value): value is string => !!value)
+        .filter((value) => {
+          const target = new URL(value, window.location.origin);
+          return target.pathname === '/reader' && ['asset', 'library-file'].includes(target.searchParams.get('source') ?? '');
+        })
     );
 
   const findBookElementByHref = async (href: string) => {
-    const book = await $(`[aria-label^="Open "][aria-label$=" in reader"][href="${href}"]`);
+    const escapedHref = href.replace(/"/g, '\\"');
+    const book = await $(`a[href="${escapedHref}"]`);
     return (await book.isExisting()) ? book : null;
   };
 
@@ -302,6 +365,80 @@ describe('br1 desktop app', () => {
     throw new Error('expected to find a shelf EPUB with usable reader state in your library section');
   };
 
+  const openUsableShelfPdfFromLibrary = async () => {
+    const libraryHandle = await switchToLibraryWindow();
+    const shelfPdfPaths = (await loadLibraryRecordsOnDisk())
+      .map((record) => ({
+        title: record.title ?? '',
+        path: record.filePath ?? record.file_path ?? '',
+        fraction: record.progressFraction ?? 0,
+        location: record.progressLocation ?? '',
+        size: (() => {
+          try {
+            return statSync(record.filePath ?? record.file_path ?? '').size;
+          } catch {
+            return Number.POSITIVE_INFINITY;
+          }
+        })()
+      }))
+      .filter((record) => record.path.toLowerCase().endsWith('.pdf'))
+      .filter((record) => !record.location)
+      .filter((record) => !(Number.isFinite(record.fraction) && record.fraction > 0))
+      .sort((left, right) => {
+        const leftPenalty = /reader sample/i.test(left.title) ? 1 : 0;
+        const rightPenalty = /reader sample/i.test(right.title) ? 1 : 0;
+        return leftPenalty - rightPenalty || left.size - right.size;
+      })
+      .slice(0, 5);
+
+    for (const candidate of shelfPdfPaths) {
+      const href = await readLibraryHrefForPath(candidate.path);
+      if (!href) continue;
+
+      try {
+        await openReaderFromLibraryPath(candidate.path, libraryHandle);
+
+        await browser.waitUntil(async () => {
+          const details = await readReaderDetails();
+          if (details.stageError) {
+            throw new Error(details.stageError);
+          }
+
+          return (
+            !!details.title &&
+            details.formatLabel === 'PDF' &&
+            details.locationLabel !== 'Opening book'
+          );
+        }, {
+          timeout: 20000,
+          timeoutMsg: 'expected a shelf PDF to expose visible reader metadata before seeding restore flow'
+        });
+
+        let details = await readReaderDetails();
+        if ((details.progressFraction ?? 0) <= 0 && details.progressLabel === '0%') {
+          await nudgeReaderForward();
+          await browser.waitUntil(async () => {
+            details = await readReaderDetails();
+            if (details.stageError) {
+              throw new Error(details.stageError);
+            }
+
+            return (details.progressFraction ?? 0) > 0 || details.progressLabel !== '0%';
+          }, {
+            timeout: 15000,
+            timeoutMsg: 'expected a shelf PDF to move beyond the starting page before validating restore flow'
+          });
+        }
+
+        return { libraryHandle, path: candidate.path, href };
+      } catch {
+        await cleanupReaderAttempt(libraryHandle);
+      }
+    }
+
+    throw new Error('expected to find a shelf PDF that can seed restorable PDF progress in your library section');
+  };
+
   const openRestorableReaderBook = async () => {
     const libraryHandle = await switchToLibraryWindow();
     const hrefs = await listOpenableBookHrefs();
@@ -394,59 +531,73 @@ describe('br1 desktop app', () => {
         details: await readReaderDetails()
       };
     } catch (error) {
-      try {
-        await browser.closeWindow();
-      } catch {
-        // ignore cleanup errors from already-closed windows
-      }
-      await browser.switchToWindow(seeded.libraryHandle);
-      throw error;
+      await cleanupReaderAttempt(seeded.libraryHandle);
+      throw new Error(
+        `failed to reopen the seeded PDF restore flow for ${seeded.path}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   };
 
   const openRestorablePdfBook = async () => {
-    const libraryHandle = await switchToLibraryWindow();
-    const hrefs = await listOpenableBookHrefs();
+    const seeded = await openUsableShelfPdfFromLibrary();
 
-    for (const href of hrefs) {
-      const target = new URL(href, 'http://localhost');
-      const path = target.searchParams.get('path') ?? '';
-      const location = target.searchParams.get('location') ?? '';
-      const fraction = Number(target.searchParams.get('fraction') ?? '0');
-      if (!(path.toLowerCase().endsWith('.pdf') || /\.pdf($|\?)/i.test(path))) continue;
-      if (!location && !(Number.isFinite(fraction) && fraction > 0)) continue;
+    try {
+      await browser.waitUntil(async () => {
+        const record = await loadLibraryRecordOnDisk(seeded.path);
+        return !!record?.progressLocation || ((record?.progressFraction ?? 0) > 0);
+      }, {
+        timeout: 15000,
+        timeoutMsg: 'expected opening a shelf PDF to persist a restore location or fraction to library.json'
+      });
 
-      const book = await findBookElementByHref(href);
-      if (!book) continue;
+      await browser.closeWindow();
+      await browser.switchToWindow(seeded.libraryHandle);
 
-      await openReaderFromBook(book);
+      let restorableHref: string | null = null;
+      await browser.waitUntil(async () => {
+        restorableHref = await readLibraryHrefForPath(seeded.path);
+        if (!restorableHref) return false;
+        const target = new URL(restorableHref, 'http://localhost');
+        const location = target.searchParams.get('location') ?? '';
+        const fraction = Number(target.searchParams.get('fraction') ?? '0');
+        return !!location || (Number.isFinite(fraction) && fraction > 0);
+      }, {
+        timeout: 15000,
+        timeoutMsg: 'expected the library surface to expose stored restore progress after seeding a PDF'
+      });
 
-      try {
-        await browser.waitUntil(async () => {
-          const details = await readReaderDetails();
-          if (details.stageError) {
-            throw new Error(details.stageError);
-          }
-          return !!details.title && details.progressLabel !== '0%' && details.locationLabel !== 'Opening book';
-        }, {
-          timeout: 20000,
-          timeoutMsg: 'expected a restorable PDF library book to reopen with visible reader progress metadata'
-        });
+      await openReaderFromLibraryPath(seeded.path, seeded.libraryHandle);
 
-        return {
-          libraryHandle,
-          href,
-          expectedLocation: location,
-          expectedFraction: fraction,
-          details: await readReaderDetails()
-        };
-      } catch {
-        await browser.closeWindow();
-        await browser.switchToWindow(libraryHandle);
-      }
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+        return !!details.title && details.formatLabel === 'PDF' && details.progressLabel !== '0%';
+      }, {
+        timeout: 20000,
+        timeoutMsg: 'expected a seeded PDF library book to reopen with visible reader progress metadata'
+      });
+
+      const target = new URL(restorableHref!, 'http://localhost');
+
+      return {
+        libraryHandle: seeded.libraryHandle,
+        href: restorableHref!,
+        expectedLocation: target.searchParams.get('location') ?? '',
+        expectedFraction: Number(target.searchParams.get('fraction') ?? '0'),
+        details: await readReaderDetails()
+      };
+    } catch (error) {
+      await cleanupReaderAttempt(seeded.libraryHandle);
+      throw new Error(
+        `failed to reopen the seeded PDF restore flow for ${seeded.path}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
-
-    throw new Error('expected to find a PDF library book with a stored restore location or fraction');
   };
 
   const readReaderDetails = async () =>
@@ -481,6 +632,7 @@ describe('br1 desktop app', () => {
       return {
         title,
         cfi: view?.lastLocation?.cfi ?? null,
+        progressFraction: view?.lastLocation?.fraction ?? null,
         chapterLabel: view?.lastLocation?.tocItem?.label ?? null,
         chapterHref: view?.lastLocation?.tocItem?.href ?? null,
         total: view?.lastLocation?.location?.total ?? view?.lastLocation?.total ?? null,
@@ -955,7 +1107,8 @@ describe('br1 desktop app', () => {
     });
   });
 
-  it('reopens a library-file pdf with restored progress inside the reader stage', async () => {
+  it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
+    this.timeout(120000);
     const { expectedLocation, expectedFraction } = await openRestorablePdfBook();
 
     let geometry = await readReaderGeometry();

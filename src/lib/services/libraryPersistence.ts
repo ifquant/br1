@@ -247,12 +247,15 @@ export const toLibraryReaderTarget = (
   } = {}
 ): LibraryReaderTarget => {
   const restart = options.restart ?? false;
+  const normalizedFormat = book.format.trim().toUpperCase();
+  const restoreLocation =
+    !restart && normalizedFormat !== 'PDF' ? book.progressLocation ?? undefined : undefined;
   const href = toReaderHref({
     source: 'library-file',
     path: book.filePath,
     label: book.title,
     fraction: restart ? undefined : book.progressFraction ?? undefined,
-    location: restart ? undefined : book.progressLocation ?? undefined
+    location: restoreLocation
   });
 
   return {
@@ -262,7 +265,7 @@ export const toLibraryReaderTarget = (
     path: book.filePath,
     href,
     restoreFraction: restart ? undefined : book.progressFraction ?? undefined,
-    restoreLocation: restart ? undefined : book.progressLocation ?? undefined
+    restoreLocation
   };
 };
 
