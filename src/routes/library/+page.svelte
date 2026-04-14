@@ -24,24 +24,56 @@
     toReaderStartHref
   } from '$lib/services';
 
-  const starterBooks = [
+  const sampleNow = Date.parse('2026-04-14T10:00:00+08:00');
+
+  const starterLibraryBooks: LibraryShelfBook[] = [
     {
       title: '政治秩序与政治衰败',
       author: 'Francis Fukuyama',
       format: 'EPUB',
       status: '继续阅读 · 第 3 章',
       progress: '上次读到 34%',
+      progressPercentLabel: '34%',
+      readingStatusLabel: '在读',
+      sourceLabel: '样例书库',
+      availabilityLabel: '本地可读',
+      lastOpenedAt: sampleNow - 45 * 60 * 1000,
+      lastOpenedLabel: '45 分钟前阅读',
+      importedAt: sampleNow - 12 * 24 * 60 * 60 * 1000,
       coverUrl: '/covers/political-order.svg',
-      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', '政治秩序与政治衰败').href
     },
     {
       title: '置身事内',
       author: '兰小欢',
       format: 'EPUB',
-      status: '最近导入 · 尚未开始',
-      progress: '等待首轮阅读',
+      status: '继续阅读 · 第 1 章',
+      progress: '上次读到 12%',
+      progressPercentLabel: '12%',
+      readingStatusLabel: '在读',
+      sourceLabel: '样例书库',
+      availabilityLabel: '本地可读',
+      lastOpenedAt: sampleNow - 6 * 60 * 60 * 1000,
+      lastOpenedLabel: '6 小时前阅读',
+      importedAt: sampleNow - 9 * 24 * 60 * 60 * 1000,
       coverUrl: '/covers/inside-china.svg',
-      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', '置身事内').href
+    },
+    {
+      title: '胡雪岩',
+      author: '高阳',
+      format: 'EPUB',
+      status: '上次停在尾声',
+      progress: '上次读到 100%',
+      progressPercentLabel: '100%',
+      readingStatusLabel: '已读完',
+      sourceLabel: '样例书库',
+      availabilityLabel: '本地可读',
+      lastOpenedAt: sampleNow - 24 * 60 * 60 * 1000,
+      lastOpenedLabel: '1 天前阅读',
+      importedAt: sampleNow - 30 * 24 * 60 * 60 * 1000,
+      coverUrl: '/covers/soulstealers.svg',
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', '胡雪岩').href
     },
     {
       title: 'A Theory of Justice',
@@ -49,29 +81,27 @@
       format: 'EPUB',
       status: '英文原版 · 建议启用导读',
       progress: '可作为 bridge 验证样本',
+      progressPercentLabel: '0%',
+      readingStatusLabel: '未开始',
+      sourceLabel: '样例书库',
+      availabilityLabel: '本地可读',
+      importedAt: sampleNow - 3 * 24 * 60 * 60 * 1000,
       coverUrl: '/covers/theory-of-justice.svg',
-      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
-    }
-  ];
-
-  const starterImports = [
+      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'A Theory of Justice').href
+    },
     {
       title: '论法的精神',
       author: 'Montesquieu',
       format: 'PDF',
       status: '新导入',
       progress: '等待元数据整理',
+      progressPercentLabel: '0%',
+      readingStatusLabel: '未开始',
+      sourceLabel: '样例书库',
+      availabilityLabel: '本地可读',
+      importedAt: sampleNow - 2 * 24 * 60 * 60 * 1000,
       coverUrl: '/covers/spirit-of-law.svg',
-      readerHref: toAssetReaderTarget('/samples/sample-outline.pdf', 'Sample Outline').href
-    },
-    {
-      title: '叫魂',
-      author: '孔飞力',
-      format: 'EPUB',
-      status: '最近整理',
-      progress: '封面与作者信息待接真实数据',
-      coverUrl: '/covers/soulstealers.svg',
-      readerHref: toAssetReaderTarget('/samples/sample-book.epub', 'Sample Book').href
+      readerHref: toAssetReaderTarget('/samples/sample-outline.pdf', '论法的精神').href
     }
   ];
 
@@ -110,9 +140,15 @@
   let continueReadingBooks: LibraryShelfBook[] = [];
   let recentReadingBooks: LibraryShelfBook[] = [];
   let libraryShelfBooks: LibraryShelfBook[] = [];
+  let starterContinueReadingBooks: LibraryShelfBook[] = [];
+  let starterRecentReadingBooks: LibraryShelfBook[] = [];
+  let starterShelfBooks: LibraryShelfBook[] = [];
   let filteredContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredRecentReadingBooks: LibraryShelfBook[] = [];
   let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
+  let filteredStarterContinueReadingBooks: LibraryShelfBook[] = [];
+  let filteredStarterRecentReadingBooks: LibraryShelfBook[] = [];
+  let filteredStarterShelfBooks: LibraryShelfBook[] = [];
   let visibleLibraryBooksCount = 0;
   let readingWorkflowNotice:
     | {
@@ -124,6 +160,12 @@
   let libraryNotice:
     | {
         kind: 'error' | 'info';
+        message: string;
+      }
+    | null = null;
+  let starterReadingWorkflowNotice:
+    | {
+        title: string;
         message: string;
       }
     | null = null;
@@ -434,6 +476,31 @@
         return null;
       })()
     : null;
+  $: starterContinueReadingBooks = librarySearchActive ? [] : getContinueReadingBooks(starterLibraryBooks);
+  $: starterRecentReadingBooks = librarySearchActive
+    ? []
+    : getRecentReadingBooks(sortBooksForDisplay(starterLibraryBooks, 'recent'), starterContinueReadingBooks);
+  $: starterShelfBooks = librarySearchActive
+    ? getFilteredBooks(sortBooksForDisplay(starterLibraryBooks, librarySortBy), libraryQuery)
+    : getLibraryShelfBooks(
+        sortBooksForDisplay(starterLibraryBooks, librarySortBy),
+        [...starterContinueReadingBooks, ...starterRecentReadingBooks]
+      );
+  $: filteredStarterContinueReadingBooks = starterContinueReadingBooks;
+  $: filteredStarterRecentReadingBooks = starterRecentReadingBooks;
+  $: filteredStarterShelfBooks = starterShelfBooks;
+  $: starterReadingWorkflowNotice = !librarySearchActive
+    ? (() => {
+        if (filteredStarterContinueReadingBooks.length > 0) return null;
+        if (filteredStarterRecentReadingBooks.length > 0) {
+          return {
+            title: '样例书架当前没有进行中的书',
+            message: '最近阅读保留在下方；重新打开任意一本未读完的样例书后，它会回到继续阅读。'
+          };
+        }
+        return null;
+      })()
+    : null;
   $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
     const previousKey = libraryScrollContextKey;
@@ -584,7 +651,7 @@
     />
 
     <LibraryHeader
-      totalBooks={importedBooks.length || starterBooks.length + starterImports.length}
+      totalBooks={importedBooks.length || starterLibraryBooks.length}
       query={libraryQuery}
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
@@ -698,22 +765,40 @@
           </section>
         {/if}
       {:else}
+        {#if starterReadingWorkflowNotice}
+          <section class="reading-workflow-note" aria-label="sample reading workflow note">
+            <strong>{starterReadingWorkflowNotice.title}</strong>
+            <span>{starterReadingWorkflowNotice.message}</span>
+          </section>
+        {/if}
+
+        {#if filteredStarterContinueReadingBooks.length}
+          <ContinueReadingShelf
+            sectionTitle="继续阅读"
+            sectionDescription="回到当前正在读的样例书。"
+            primaryActionLabel="继续"
+            books={filteredStarterContinueReadingBooks}
+            onOpenLink={handleOpenReaderTarget}
+          />
+        {/if}
+
+        {#if filteredStarterRecentReadingBooks.length}
+          <ContinueReadingShelf
+            sectionTitle="最近阅读"
+            sectionDescription="重新打开你最近看过的样例书。"
+            primaryActionLabel="重开"
+            books={filteredStarterRecentReadingBooks}
+            onOpenLink={handleOpenReaderTarget}
+          />
+        {/if}
+
         <BookshelfPreview
-          sectionTitle={librarySearchActive ? '搜索结果' : importedBooks.length ? '样例书架' : '继续阅读'}
-          books={getFilteredBooks(sortBooksForDisplay(starterBooks, librarySortBy), libraryQuery)}
+          sectionTitle={librarySearchActive ? '搜索结果' : '你的书库'}
+          books={filteredStarterShelfBooks}
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
         />
-
-        {#if !librarySearchActive}
-          <BookshelfPreview
-            sectionTitle={importedBooks.length ? '参考导入' : '最近导入'}
-            books={sortBooksForDisplay(starterImports, librarySortBy)}
-            viewMode="list"
-            onOpenLink={handleOpenReaderTarget}
-          />
-        {/if}
       {/if}
     </OverlayScrollbarsComponent>
   </div>
