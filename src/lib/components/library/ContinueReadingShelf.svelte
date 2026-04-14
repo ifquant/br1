@@ -134,6 +134,8 @@
               <strong>{book.sourceLabel || '未知来源'}</strong>
               <span>可用性</span>
               <strong>{book.availabilityLabel || '未标记'}</strong>
+              <span>兼容信息</span>
+              <strong>{book.compatibilityLabel || '标准本地书籍'}</strong>
               <span>原文件</span>
               <strong>{book.sourcePath || '未记录'}</strong>
               <span>最近阅读</span>

@@ -34,6 +34,7 @@
   };
 
   const getSecondaryMeta = (book: BookshelfPreviewBook) => {
+    if (book.compatibilityLabel) return book.compatibilityLabel;
     if (book.readingStatusLabel && book.status && book.status !== book.readingStatusLabel) {
       return book.status;
     }

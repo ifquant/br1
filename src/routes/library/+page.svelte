@@ -135,6 +135,7 @@
   let importInput: HTMLInputElement | null = null;
   let libraryScrollRef: OverlayScrollbarsComponentRef<'div'> | null = null;
   let readestLibraryCount = 0;
+  let readestCompatibleCount = 0;
   let showReadestMigration = false;
   let migrationBusy = false;
   let desktopLibraryMode = false;
@@ -188,6 +189,7 @@
   };
 
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<LibraryShelfBook> => {
+    const isReadestCompatible = record.id.startsWith('readest-');
     const progressFraction =
       typeof record.progressFraction === 'number'
         ? Math.max(0, Math.min(1, record.progressFraction))
@@ -202,11 +204,24 @@
             ? '在读'
             : '未开始';
 
-    const sourceLabel = record.id.startsWith('readest-')
-      ? 'Readest'
+    const sourceLabel = isReadestCompatible
+      ? 'Readest 兼容'
       : record.sourcePath
         ? '本机导入'
         : '书库';
+
+    const compatibilitySignals = [
+      record.coverPath ? '封面' : '',
+      record.description ? '简介' : '',
+      record.language || record.publisher ? '元数据' : '',
+      record.progressLocation || progressFraction !== null ? '阅读位置' : ''
+    ].filter(Boolean);
+
+    const compatibilityLabel = isReadestCompatible
+      ? compatibilitySignals.length > 0
+        ? `保留 ${compatibilitySignals.join(' / ')}`
+        : '兼容 Readest 本地藏书'
+      : '';
 
     return {
       title: record.title,
@@ -224,7 +239,8 @@
           : '',
       readingStatusLabel,
       sourceLabel,
-      availabilityLabel: '本地可读',
+      availabilityLabel: isReadestCompatible ? '兼容 Readest 本地藏书' : '本地可读',
+      compatibilityLabel,
       sourcePath: record.sourcePath || record.filePath,
       coverUrl: await toLibraryCoverUrl(record),
       readerHref: toReaderAssetHref(record),
@@ -392,6 +408,7 @@
     const records = await loadPersistedLibraryBooks();
     const readestSummary = await detectReadestLibrary();
     readestLibraryCount = readestSummary.count;
+    readestCompatibleCount = records.filter((record) => record.id.startsWith('readest-')).length;
 
     if (records.length === 0 && readestSummary.available) {
       await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });
@@ -729,10 +746,17 @@
       <section class="migration-banner" aria-label="readest migration">
         <div class="migration-copy">
           <strong>发现 Readest 书库</strong>
-          <span>本机找到 {readestLibraryCount} 本书，可继续同步进 br1 书库。</span>
+          <span>
+            本机找到 {readestLibraryCount} 本 Readest 藏书；
+            {#if readestCompatibleCount > 0}
+              当前已有 {readestCompatibleCount} 本以兼容方式进入 br1，可继续同步补齐新增内容。
+            {:else}
+              还没有兼容进 br1，可开始同步本地元数据、封面和阅读位置。
+            {/if}
+          </span>
         </div>
         <button type="button" class="migration-button" on:click={handleReadestMigrationClick}>
-          {migrationBusy ? '迁移中…' : `从 Readest 导入`}
+          {migrationBusy ? '兼容中…' : `同步 Readest 藏书`}
         </button>
       </section>
     {/if}
@@ -803,7 +827,7 @@
                   class="empty-action secondary"
                   on:click={handleReadestMigrationClick}
                 >
-                  {migrationBusy ? '迁移中…' : `导入 Readest 的 ${readestLibraryCount} 本书`}
+                  {migrationBusy ? '兼容中…' : `同步 Readest 的 ${readestLibraryCount} 本书`}
                 </button>
               {/if}
             </div>

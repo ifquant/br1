@@ -12,6 +12,7 @@ export type LibraryShelfBook = {
   readingStatusLabel?: string;
   sourceLabel?: string;
   availabilityLabel?: string;
+  compatibilityLabel?: string;
   sourcePath?: string;
   coverUrl?: string;
   readerHref?: string;
@@ -31,6 +32,7 @@ export type BookshelfPreviewBook = Pick<
   | 'progressPercentLabel'
   | 'readingStatusLabel'
   | 'sourceLabel'
+  | 'compatibilityLabel'
   | 'coverUrl'
   | 'readerHref'
 >;
@@ -49,6 +51,7 @@ export type ContinueReadingBook = Pick<
   | 'readingStatusLabel'
   | 'sourceLabel'
   | 'availabilityLabel'
+  | 'compatibilityLabel'
   | 'sourcePath'
   | 'coverUrl'
   | 'readerHref'
