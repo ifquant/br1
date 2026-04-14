@@ -74,7 +74,7 @@ Plans:
   1. 用户可以稳定打开 `EPUB` 和 `PDF` 进入 reader
   2. `foliate-js`、`pdf.js`、wasm/vendor 等依赖采用正式化接入方式
   3. reader 打开链路不再依赖样书、临时 fallback 或不透明补丁
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
 - [ ] 04-01: 稳定 EPUB 打开链路与正文渲染
