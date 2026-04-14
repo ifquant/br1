@@ -33,6 +33,7 @@
       format: 'EPUB',
       status: '继续阅读 · 第 3 章',
       progress: '上次读到 34%',
+      progressFraction: 0.34,
       progressPercentLabel: '34%',
       readingStatusLabel: '在读',
       sourceLabel: '样例书库',
@@ -49,6 +50,7 @@
       format: 'EPUB',
       status: '继续阅读 · 第 1 章',
       progress: '上次读到 12%',
+      progressFraction: 0.12,
       progressPercentLabel: '12%',
       readingStatusLabel: '在读',
       sourceLabel: '样例书库',
@@ -65,6 +67,7 @@
       format: 'EPUB',
       status: '上次停在尾声',
       progress: '上次读到 100%',
+      progressFraction: 1,
       progressPercentLabel: '100%',
       readingStatusLabel: '已读完',
       sourceLabel: '样例书库',
@@ -81,6 +84,7 @@
       format: 'EPUB',
       status: '英文原版 · 建议启用导读',
       progress: '可作为 bridge 验证样本',
+      progressFraction: 0,
       progressPercentLabel: '0%',
       readingStatusLabel: '未开始',
       sourceLabel: '样例书库',
@@ -95,6 +99,7 @@
       format: 'PDF',
       status: '新导入',
       progress: '等待元数据整理',
+      progressFraction: 0,
       progressPercentLabel: '0%',
       readingStatusLabel: '未开始',
       sourceLabel: '样例书库',
@@ -211,6 +216,7 @@
       publisher: record.publisher || '',
       status: record.status,
       progress: record.progress,
+      progressFraction,
       progressPercentLabel:
         progressFraction !== null
           ? `${Math.max(0, Math.min(100, Math.round(progressFraction * 100)))}%`
@@ -228,30 +234,52 @@
     };
   };
 
+  const getLibraryBookKey = (book: LibraryShelfBook) => book.readerHref || `${book.title}::${book.author}`;
+
+  const getBookProgressFraction = (book: LibraryShelfBook) => {
+    if (typeof book.progressFraction === 'number') {
+      return Math.max(0, Math.min(1, book.progressFraction));
+    }
+    if (!book.progressPercentLabel) return null;
+
+    const parsedPercent = Number(book.progressPercentLabel.replace('%', ''));
+    if (!Number.isFinite(parsedPercent)) return null;
+    return Math.max(0, Math.min(1, parsedPercent / 100));
+  };
+
+  const hasBookBeenOpened = (book: LibraryShelfBook) =>
+    typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0;
+
+  const isBookFinished = (book: LibraryShelfBook) => {
+    const progressFraction = getBookProgressFraction(book);
+    return progressFraction !== null && progressFraction >= 1;
+  };
+
+  const isBookInProgress = (book: LibraryShelfBook) => {
+    if (!hasBookBeenOpened(book)) return false;
+    const progressFraction = getBookProgressFraction(book);
+    return progressFraction !== null && progressFraction > 0 && progressFraction < 1;
+  };
+
+  const isBookUnstarted = (book: LibraryShelfBook) => {
+    const progressFraction = getBookProgressFraction(book);
+    if (progressFraction !== null) return progressFraction <= 0;
+    return !hasBookBeenOpened(book);
+  };
+
   const getContinueReadingBooks = (books: LibraryShelfBook[]) =>
-    books
-      .filter(
-        (book) =>
-          typeof book.lastOpenedAt === 'number' &&
-          book.lastOpenedAt > 0 &&
-          book.readingStatusLabel !== '已读完' &&
-          (book.progressPercentLabel ? book.progressPercentLabel !== '0%' : true)
-      )
-      .slice(0, 3);
+    books.filter((book) => isBookInProgress(book)).slice(0, 3);
 
   const getRecentReadingBooks = (
     books: LibraryShelfBook[],
     continueReading: LibraryShelfBook[]
   ) => {
-    const continueKeys = new Set(
-      continueReading.map((book) => book.readerHref || `${book.title}::${book.author}`)
-    );
+    const continueKeys = new Set(continueReading.map(getLibraryBookKey));
 
     return books
-      .filter((book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0)
+      .filter((book) => hasBookBeenOpened(book))
       .filter((book) => {
-        const key = book.readerHref || `${book.title}::${book.author}`;
-        return !continueKeys.has(key);
+        return !continueKeys.has(getLibraryBookKey(book));
       })
       .slice(0, 6);
   };
@@ -311,13 +339,10 @@
     books: LibraryShelfBook[],
     continueReading: LibraryShelfBook[]
   ) => {
-    const continueKeys = new Set(
-      continueReading.map((book) => book.readerHref || `${book.title}::${book.author}`)
-    );
+    const continueKeys = new Set(continueReading.map(getLibraryBookKey));
 
     return books.filter((book) => {
-      const key = book.readerHref || `${book.title}::${book.author}`;
-      return !continueKeys.has(key);
+      return !continueKeys.has(getLibraryBookKey(book));
     });
   };
 
@@ -457,15 +482,10 @@
   $: readingWorkflowNotice = !librarySearchActive
     ? (() => {
         const hasReadingHistory = importedBooks.some(
-          (book) => typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0
+          (book) => hasBookBeenOpened(book)
         );
-        const hasFinishedBooks = importedBooks.some((book) => book.readingStatusLabel === '已读完');
-        const hasUnstartedBooks = importedBooks.some(
-          (book) =>
-            book.readingStatusLabel === '未开始' ||
-            book.progressPercentLabel === '0%' ||
-            (!book.lastOpenedAt && !book.progressPercentLabel)
-        );
+        const hasFinishedBooks = importedBooks.some((book) => isBookFinished(book));
+        const hasUnstartedBooks = importedBooks.some((book) => isBookUnstarted(book));
 
         if (filteredContinueReadingBooks.length > 0) return null;
         if (filteredRecentReadingBooks.length > 0) {

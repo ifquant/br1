@@ -7,6 +7,7 @@ export type LibraryShelfBook = {
   description?: string;
   language?: string;
   publisher?: string;
+  progressFraction?: number | null;
   progressPercentLabel?: string;
   readingStatusLabel?: string;
   sourceLabel?: string;
