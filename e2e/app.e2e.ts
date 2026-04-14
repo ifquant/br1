@@ -552,6 +552,8 @@ describe('br1 desktop app', () => {
         timeoutMsg: 'expected opening a shelf PDF to persist a restore location or fraction to library.json'
       });
 
+      const seededRecord = await loadLibraryRecordOnDisk(seeded.path);
+
       await browser.closeWindow();
       await browser.switchToWindow(seeded.libraryHandle);
 
@@ -592,6 +594,7 @@ describe('br1 desktop app', () => {
         href: restorableHref!,
         expectedLocation: target.searchParams.get('location') ?? '',
         expectedFraction: Number(target.searchParams.get('fraction') ?? '0'),
+        persistedLocation: seededRecord?.progressLocation ?? '',
         details: await readReaderDetails()
       };
     } catch (error) {
@@ -1113,7 +1116,9 @@ describe('br1 desktop app', () => {
 
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
-    const { expectedLocation, expectedFraction } = await openRestorablePdfBook();
+    const { expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
+    expect(persistedLocation).toBeTruthy();
+    expect(persistedLocation.startsWith('epubcfi(')).toBe(false);
 
     let geometry = await readReaderGeometry();
 

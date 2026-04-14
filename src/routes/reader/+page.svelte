@@ -217,6 +217,13 @@
   const persistLibraryReadingState = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return Promise.resolve();
 
+    const normalizedProgressLocation =
+      preview.formatLabel === 'PDF'
+        ? preview.locationLabel && preview.locationLabel !== 'Opening book' && preview.locationLabel !== 'Not opened'
+          ? preview.locationLabel
+          : ''
+        : preview.progressLocation;
+
     const sequence = ++persistSequence;
     const persistPromise = updateLibraryReadingState({
       filePath: sourcePath,
@@ -225,7 +232,7 @@
       chapterLabel: preview.chapterLabel,
       progressLabel: preview.progressLabel,
       progressFraction: preview.progressFraction,
-      progressLocation: preview.progressLocation
+      progressLocation: normalizedProgressLocation
     }).catch((error) => {
       console.error('Failed to persist library reading state', error);
     });
