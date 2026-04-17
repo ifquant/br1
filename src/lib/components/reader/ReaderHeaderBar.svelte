@@ -59,232 +59,257 @@
 <svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
 
 <header class:window-mode={isWindowMode} class:visible={isVisible} class="reader-head">
-  {#if isWindowMode}
-    <div class="leading-tools">
-      <button
-        type="button"
-        aria-label={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
-        title={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
-        on:click={() => onToggleSidebar?.()}
-      >
-        ☰
-      </button>
-    </div>
-  {/if}
-
   <div
-    role="presentation"
     class:window-mode={isWindowMode}
-    class="head-meta"
-    data-tauri-drag-region={isWindowMode ? true : undefined}
-    on:mousedown={isWindowMode ? startCurrentWindowDrag : undefined}
+    class:focus-width={viewWidthMode === 'focus'}
+    class:wide-width={viewWidthMode === 'wide'}
+    class="reader-head-frame"
   >
-    <div class="title-row">
-      <strong>{preview.title}</strong>
-      <div class="subtitle-row">
-        <small>{preview.author}</small>
-        <span>{preview.chapterLabel}</span>
+    {#if isWindowMode}
+      <div class="leading-tools">
+        <button
+          type="button"
+          aria-label={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
+          title={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
+          on:click={() => onToggleSidebar?.()}
+        >
+          ☰
+        </button>
+      </div>
+    {/if}
+
+    <div
+      role="presentation"
+      class:window-mode={isWindowMode}
+      class="head-meta"
+      data-tauri-drag-region={isWindowMode ? true : undefined}
+      on:mousedown={isWindowMode ? startCurrentWindowDrag : undefined}
+    >
+      <div class="title-row">
+        <strong>{preview.title}</strong>
+        <div class="subtitle-row">
+          <small>{preview.author}</small>
+          <span>{preview.chapterLabel}</span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="controls" aria-label="reader controls preview">
-    <button type="button" aria-label="Go to library" title="Go to library" on:click={() => onGoToLibrary?.()}>⌂</button>
-    <button
-      type="button"
-      class:active={isCurrentLocationBookmarked}
-      aria-label={isCurrentLocationBookmarked ? 'Remove bookmark at current position' : 'Add bookmark at current position'}
-      title={isCurrentLocationBookmarked ? 'Remove bookmark' : 'Add bookmark'}
-      on:click={() => onToggleBookmark?.()}
-    >
-      {isCurrentLocationBookmarked ? '★' : '☆'}
-    </button>
-    <button
-      type="button"
-      class:active={activeSidebarTab === 'bookmarks' && sidebarVisible}
-      aria-label="Show bookmarks panel"
-      title="Show bookmarks panel"
-      on:click={() => onOpenSidebarTab?.('bookmarks')}
-    >
-      🔖
-    </button>
-    <button
-      type="button"
-      class:active={activeSidebarTab === 'search' && sidebarVisible}
-      aria-label="Show search panel"
-      title="Show search panel"
-      on:click={() => onOpenSidebarTab?.('search')}
-    >
-      ⌕
-    </button>
-    <button
-      type="button"
-      class:active={activeSidebarTab === 'notes' && sidebarVisible}
-      aria-label="Show notes panel"
-      title="Show notes panel"
-      on:click={() => onOpenSidebarTab?.('notes')}
-    >
-      ✎
-    </button>
-    <div class="menu-anchor">
+    <div class="controls" aria-label="reader controls preview">
+      <button type="button" aria-label="Go to library" title="Go to library" on:click={() => onGoToLibrary?.()}>⌂</button>
       <button
         type="button"
-        class:active={menuOpen}
-        aria-label="More actions"
-        aria-expanded={menuOpen}
-        title="More actions"
-        on:click={toggleMenu}
+        class:active={isCurrentLocationBookmarked}
+        aria-label={isCurrentLocationBookmarked ? 'Remove bookmark at current position' : 'Add bookmark at current position'}
+        title={isCurrentLocationBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+        on:click={() => onToggleBookmark?.()}
       >
-        ⋯
+        {isCurrentLocationBookmarked ? '★' : '☆'}
       </button>
+      <button
+        type="button"
+        class:active={activeSidebarTab === 'bookmarks' && sidebarVisible}
+        aria-label="Show bookmarks panel"
+        title="Show bookmarks panel"
+        on:click={() => onOpenSidebarTab?.('bookmarks')}
+      >
+        🔖
+      </button>
+      <button
+        type="button"
+        class:active={activeSidebarTab === 'search' && sidebarVisible}
+        aria-label="Show search panel"
+        title="Show search panel"
+        on:click={() => onOpenSidebarTab?.('search')}
+      >
+        ⌕
+      </button>
+      <button
+        type="button"
+        class:active={activeSidebarTab === 'notes' && sidebarVisible}
+        aria-label="Show notes panel"
+        title="Show notes panel"
+        on:click={() => onOpenSidebarTab?.('notes')}
+      >
+        ✎
+      </button>
+      <div class="menu-anchor">
+        <button
+          type="button"
+          class:active={menuOpen}
+          aria-label="More actions"
+          aria-expanded={menuOpen}
+          title="More actions"
+          on:click={toggleMenu}
+        >
+          ⋯
+        </button>
 
-      {#if menuOpen}
-        <div class="header-menu" role="menu" aria-label="reader view menu">
-          <div class="menu-section" role="presentation">
-            <span class="menu-section-label">阅读设置</span>
-            <div class="menu-option-stack" role="presentation">
-              <div class="menu-subsection" role="presentation">
-                <span class="menu-subsection-label">阅读氛围</span>
-                <div class="menu-option-group" role="group" aria-label="reader atmosphere">
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={atmosphereMode === 'paper'}
-                    class:active-option={atmosphereMode === 'paper'}
-                    on:click={() => runMenuAction(() => onSetAtmosphereMode?.('paper'))}
-                  >
-                    纸白
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={atmosphereMode === 'warm'}
-                    class:active-option={atmosphereMode === 'warm'}
-                    on:click={() => runMenuAction(() => onSetAtmosphereMode?.('warm'))}
-                  >
-                    暖纸
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={atmosphereMode === 'soft'}
-                    class:active-option={atmosphereMode === 'soft'}
-                    on:click={() => runMenuAction(() => onSetAtmosphereMode?.('soft'))}
-                  >
-                    柔和
-                  </button>
+        {#if menuOpen}
+          <div class="header-menu" role="menu" aria-label="reader view menu">
+            <div class="menu-section" role="presentation">
+              <span class="menu-section-label">阅读设置</span>
+              <div class="menu-option-stack" role="presentation">
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">阅读氛围</span>
+                  <div class="menu-option-group" role="group" aria-label="reader atmosphere">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={atmosphereMode === 'paper'}
+                      class:active-option={atmosphereMode === 'paper'}
+                      on:click={() => runMenuAction(() => onSetAtmosphereMode?.('paper'))}
+                    >
+                      纸白
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={atmosphereMode === 'warm'}
+                      class:active-option={atmosphereMode === 'warm'}
+                      on:click={() => runMenuAction(() => onSetAtmosphereMode?.('warm'))}
+                    >
+                      暖纸
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={atmosphereMode === 'soft'}
+                      class:active-option={atmosphereMode === 'soft'}
+                      on:click={() => runMenuAction(() => onSetAtmosphereMode?.('soft'))}
+                    >
+                      柔和
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div class="menu-subsection" role="presentation">
-                <span class="menu-subsection-label">界面显隐</span>
-                <div class="menu-option-group" role="group" aria-label="reader chrome visibility">
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={chromeMode === 'auto'}
-                    class:active-option={chromeMode === 'auto'}
-                    on:click={() => runMenuAction(() => onSetChromeMode?.('auto'))}
-                  >
-                    自动
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={chromeMode === 'always'}
-                    class:active-option={chromeMode === 'always'}
-                    on:click={() => runMenuAction(() => onSetChromeMode?.('always'))}
-                  >
-                    总是显示
-                  </button>
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">界面显隐</span>
+                  <div class="menu-option-group" role="group" aria-label="reader chrome visibility">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={chromeMode === 'auto'}
+                      class:active-option={chromeMode === 'auto'}
+                      on:click={() => runMenuAction(() => onSetChromeMode?.('auto'))}
+                    >
+                      自动
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={chromeMode === 'always'}
+                      class:active-option={chromeMode === 'always'}
+                      on:click={() => runMenuAction(() => onSetChromeMode?.('always'))}
+                    >
+                      总是显示
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div class="menu-subsection" role="presentation">
-                <span class="menu-subsection-label">阅读宽度</span>
-                <div class="menu-option-group" role="group" aria-label="reading width">
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={viewWidthMode === 'focus'}
-                    class:active-option={viewWidthMode === 'focus'}
-                    on:click={() => runMenuAction(() => onSetViewWidthMode?.('focus'))}
-                  >
-                    专注
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={viewWidthMode === 'standard'}
-                    class:active-option={viewWidthMode === 'standard'}
-                    on:click={() => runMenuAction(() => onSetViewWidthMode?.('standard'))}
-                  >
-                    标准
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={viewWidthMode === 'wide'}
-                    class:active-option={viewWidthMode === 'wide'}
-                    on:click={() => runMenuAction(() => onSetViewWidthMode?.('wide'))}
-                  >
-                    宽阔
-                  </button>
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">阅读宽度</span>
+                  <div class="menu-option-group" role="group" aria-label="reading width">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={viewWidthMode === 'focus'}
+                      class:active-option={viewWidthMode === 'focus'}
+                      on:click={() => runMenuAction(() => onSetViewWidthMode?.('focus'))}
+                    >
+                      专注
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={viewWidthMode === 'standard'}
+                      class:active-option={viewWidthMode === 'standard'}
+                      on:click={() => runMenuAction(() => onSetViewWidthMode?.('standard'))}
+                    >
+                      标准
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={viewWidthMode === 'wide'}
+                      class:active-option={viewWidthMode === 'wide'}
+                      on:click={() => runMenuAction(() => onSetViewWidthMode?.('wide'))}
+                    >
+                      宽阔
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="menu-divider" role="separator"></div>
+            <div class="menu-divider" role="separator"></div>
 
-          <div class="menu-section" role="presentation">
-            <span class="menu-section-label">操作</span>
-            <div class="menu-option-group" role="group" aria-label="reader actions">
-              <button
-                type="button"
-                role="menuitem"
-                on:click={() => runMenuAction(onOpenPicker)}
-              >
-                导入书籍
-              </button>
-              {#if isWindowMode}
-                <button type="button" role="menuitem" on:click={() => runMenuAction(onTogglePin)}>
-                  {sidebarVisible ? '取消固定侧栏' : '固定侧栏'}
+            <div class="menu-section" role="presentation">
+              <span class="menu-section-label">操作</span>
+              <div class="menu-option-group" role="group" aria-label="reader actions">
+                <button
+                  type="button"
+                  role="menuitem"
+                  on:click={() => runMenuAction(onOpenPicker)}
+                >
+                  导入书籍
                 </button>
-              {/if}
+                {#if isWindowMode}
+                  <button type="button" role="menuitem" on:click={() => runMenuAction(onTogglePin)}>
+                    {sidebarVisible ? '取消固定侧栏' : '固定侧栏'}
+                  </button>
+                {/if}
+              </div>
             </div>
           </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
     </div>
   </div>
 </header>
 
 <style>
   .reader-head {
+    width: 100%;
+  }
+
+  .reader-head-frame {
     display: flex;
     justify-content: space-between;
     gap: 16px;
     align-items: center;
     padding: 0;
+    width: 100%;
   }
 
   .reader-head.window-mode {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    align-items: center;
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     z-index: 10;
-    min-height: 44px;
-    padding: 4px 20px 2px 16px;
-    background: transparent;
     opacity: 0;
     transform: translateY(-6px);
     transition:
       opacity 180ms ease,
       transform 180ms ease;
     pointer-events: none;
+  }
+
+  .reader-head-frame.window-mode {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    width: min(100%, 1080px);
+    margin: 0 auto;
+    min-height: 44px;
+    padding: 4px 20px 2px 16px;
+    background: transparent;
+  }
+
+  .reader-head-frame.window-mode.focus-width {
+    width: min(100%, 920px);
+  }
+
+  .reader-head-frame.window-mode.wide-width {
+    width: min(100%, 1320px);
   }
 
   .reader-head.window-mode.visible {

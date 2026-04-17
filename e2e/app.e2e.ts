@@ -943,6 +943,32 @@ describe('br1 desktop app', () => {
       };
     });
 
+  const readReaderChromeGeometry = () =>
+    browser.execute(() => {
+      const canvas = document.querySelector('.canvas');
+      const headerFrame = document.querySelector('.reader-head-frame');
+      const footerFrame = document.querySelector('.footer-frame');
+
+      const rectOf = (node: Element | null) => {
+        if (!node) return null;
+        const rect = node.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          right: rect.right,
+          bottom: rect.bottom
+        };
+      };
+
+      return {
+        canvas: rectOf(canvas),
+        headerFrame: rectOf(headerFrame),
+        footerFrame: rectOf(footerFrame)
+      };
+    });
+
   const setReaderViewWidthMode = async (mode: 'focus' | 'standard' | 'wide') => {
     const moreActions = await $('[aria-label="More actions"]');
     await moreActions.waitForDisplayed({ timeout: 10000 });
@@ -1218,9 +1244,11 @@ describe('br1 desktop app', () => {
 
     await setReaderViewWidthMode('focus');
     let focusGeometry = await readReaderGeometry();
+    let focusChrome = await readReaderChromeGeometry();
     await browser.waitUntil(async () => {
       focusGeometry = await readReaderGeometry();
-      return !!focusGeometry.paginatorContainer?.width;
+      focusChrome = await readReaderChromeGeometry();
+      return !!focusGeometry.paginatorContainer?.width && !!focusChrome.headerFrame?.width && !!focusChrome.footerFrame?.width;
     }, {
       timeout: 10000,
       timeoutMsg: 'expected focus mode to keep a visible paginator container'
@@ -1228,9 +1256,11 @@ describe('br1 desktop app', () => {
 
     await setReaderViewWidthMode('wide');
     let wideGeometry = await readReaderGeometry();
+    let wideChrome = await readReaderChromeGeometry();
     await browser.waitUntil(async () => {
       wideGeometry = await readReaderGeometry();
-      return !!wideGeometry.paginatorContainer?.width;
+      wideChrome = await readReaderChromeGeometry();
+      return !!wideGeometry.paginatorContainer?.width && !!wideChrome.headerFrame?.width && !!wideChrome.footerFrame?.width;
     }, {
       timeout: 10000,
       timeoutMsg: 'expected wide mode to keep a visible paginator container'
@@ -1239,6 +1269,16 @@ describe('br1 desktop app', () => {
     expect(focusGeometry.paginatorContainer).toBeTruthy();
     expect(wideGeometry.paginatorContainer).toBeTruthy();
     expect(wideGeometry.paginatorContainer.width).toBeGreaterThan(focusGeometry.paginatorContainer.width + 40);
+    expect(focusChrome.canvas).toBeTruthy();
+    expect(focusChrome.headerFrame).toBeTruthy();
+    expect(focusChrome.footerFrame).toBeTruthy();
+    expect(wideChrome.canvas).toBeTruthy();
+    expect(wideChrome.headerFrame).toBeTruthy();
+    expect(wideChrome.footerFrame).toBeTruthy();
+    expect(Math.abs(focusChrome.headerFrame.width - focusChrome.canvas.width)).toBeLessThanOrEqual(40);
+    expect(Math.abs(focusChrome.footerFrame.width - focusChrome.canvas.width)).toBeLessThanOrEqual(40);
+    expect(Math.abs(wideChrome.headerFrame.width - wideChrome.canvas.width)).toBeLessThanOrEqual(40);
+    expect(Math.abs(wideChrome.footerFrame.width - wideChrome.canvas.width)).toBeLessThanOrEqual(40);
   });
 
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {

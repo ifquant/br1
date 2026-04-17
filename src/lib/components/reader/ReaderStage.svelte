@@ -293,6 +293,7 @@
     preview={readerPreview}
     {isWindowMode}
     isVisible={chromeVisible}
+    {viewWidthMode}
     on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
       dispatch('controlrequest', detail);
     }}
