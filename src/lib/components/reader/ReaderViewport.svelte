@@ -265,6 +265,34 @@
     dispatch('selectionchange', detail);
   };
 
+  const getPlainTextSelectionState = (): ReaderSelectionState | null => {
+    if (!plainTextScroller) return null;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+    const text = selection.toString().trim();
+    if (!text) return null;
+
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+    const containerNode =
+      container.nodeType === Node.TEXT_NODE ? container.parentElement : (container as Element | null);
+    if (!(containerNode instanceof Node) || !plainTextScroller.contains(containerNode)) {
+      return null;
+    }
+
+    const fraction = getPlainTextScrollFraction();
+    return {
+      cfi: `txt:${fraction.toFixed(6)}`,
+      text,
+      chapterLabel: 'Plain text',
+      chapterHref: ''
+    };
+  };
+
+  const emitPlainTextSelectionState = () => {
+    emitSelectionState(getPlainTextSelectionState());
+  };
+
   const getSelectionState = (doc: Document, index: number): ReaderSelectionState | null => {
     if (!foliateViewElement) return null;
     const selection = doc.getSelection();
@@ -729,6 +757,12 @@
         } else if (controlRequest.type === 'start' && plainTextScroller) {
           plainTextScroller.scrollTop = 0;
           emitPlainTextReaderState();
+        } else if (controlRequest.type === 'href' && controlRequest.href.startsWith('txt:')) {
+          const parsed = Number(controlRequest.href.slice(4).split(':')[0]);
+          if (!Number.isNaN(parsed)) {
+            await applyPlainTextFraction(parsed);
+            emitPlainTextReaderState({ progressLocation: `txt:${parsed.toFixed(6)}` });
+          }
         } else if (controlRequest.type === 'fraction') {
           await applyPlainTextFraction(controlRequest.fraction);
           emitPlainTextReaderState();
@@ -820,6 +854,10 @@
 
   onMount(() => {
     let cancelled = false;
+    const handleDocumentSelectionChange = () => {
+      if (openEngineMode !== 'plain-text' || openStatus !== 'open') return;
+      emitPlainTextSelectionState();
+    };
 
     const setupFoliateHost = async () => {
       if (!hostElement || !stageElement) return;
@@ -882,11 +920,13 @@
     };
 
     setupFoliateHost();
+    document.addEventListener('selectionchange', handleDocumentSelectionChange);
 
     return () => {
       cancelled = true;
       stageResizeObserver?.disconnect();
       stageResizeObserver = null;
+      document.removeEventListener('selectionchange', handleDocumentSelectionChange);
     };
   });
 </script>
@@ -1125,7 +1165,8 @@
 
   .plain-text-surface.inline-surface {
     position: relative;
-    min-height: min(66vh, 860px);
+    height: min(66vh, 860px);
+    max-height: min(66vh, 860px);
   }
 
   .plain-text-paper {
