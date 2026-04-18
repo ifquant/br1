@@ -3357,9 +3357,59 @@ describe('br1 desktop app', () => {
         }
         throw new Error(
           `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nReopen meta: ${metaText}\nReopen cards: ${JSON.stringify(
-            texts
-          )}\nPersisted notes: ${JSON.stringify(persistedNotes)}`
+          texts
+        )}\nPersisted notes: ${JSON.stringify(persistedNotes)}`
         );
+      });
+
+      await clickAnnotationKindFilter('高亮');
+      await browser.waitUntil(async () => {
+        const metaText = await $('.notes-meta-row').getText();
+        const cards = await $$('.note-card');
+        const texts: string[] = [];
+        for (const card of cards) {
+          texts.push(await card.getText());
+        }
+
+        return (
+          metaText.includes('仅看高亮') &&
+          cards.length === 1 &&
+          texts[0]?.includes('高亮') &&
+          texts[0]?.includes(firstSelectionText.slice(0, 20))
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop notes workspace to filter down to the persisted highlight only`
+      });
+
+      await clickAnnotationKindFilter('笔记');
+      await browser.waitUntil(async () => {
+        const metaText = await $('.notes-meta-row').getText();
+        const cards = await $$('.note-card');
+        const texts: string[] = [];
+        for (const card of cards) {
+          texts.push(await card.getText());
+        }
+
+        return (
+          metaText.includes('仅看笔记') &&
+          cards.length === 1 &&
+          texts[0]?.includes(`desktop ${sample.format.toLowerCase()} note body`) &&
+          !texts[0]?.includes('高亮')
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop notes workspace to filter down to the persisted note only`
+      });
+
+      await clickAnnotationKindFilter('全部类型');
+      await browser.waitUntil(async () => {
+        const metaText = await $('.notes-meta-row').getText();
+        const cards = await $$('.note-card');
+        return metaText.includes('全部类型') && cards.length === 2;
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop notes workspace to restore the full annotation list after clearing the kind filter`
       });
 
       await clearAllReaderNotes();
