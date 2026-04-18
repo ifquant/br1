@@ -246,10 +246,6 @@ fn derive_kindle_metadata(source: &Path) -> KindleMetadata {
         bytes[mobi_base + 114],
         bytes[mobi_base + 115],
     ]);
-    if exth_flags & 0x40 == 0 {
-        return KindleMetadata::default();
-    }
-
     let search_end = bytes.len().min(mobi_base.saturating_add(65_536));
     let exth_offset = bytes[mobi_base..search_end]
         .windows(4)
@@ -258,6 +254,10 @@ fn derive_kindle_metadata(source: &Path) -> KindleMetadata {
     let Some(exth_offset) = exth_offset else {
         return KindleMetadata::default();
     };
+    if exth_flags & 0x40 == 0 {
+        // Some legacy MOBI files still carry a valid EXTH block without setting the
+        // dedicated flag bit. If we can see the marker in-bounds, trust the data.
+    }
     if bytes.len() < exth_offset + 12 {
         return KindleMetadata::default();
     }

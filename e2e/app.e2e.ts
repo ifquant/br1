@@ -2175,17 +2175,26 @@ describe('br1 desktop app', () => {
     }
   });
 
-  it('imports azw3 metadata from the kindle container before any reader round-trip', async function () {
+  it('imports kindle-family metadata before any reader round-trip', async function () {
     this.timeout(120000);
     const importedBooks = await importDesktopSampleLibraryBooks();
+    const mobiBook = importedBooks.find((entry) => entry.format === 'MOBI');
     const azw3Book = importedBooks.find((entry) => entry.format === 'AZW3');
+    expect(mobiBook).toBeTruthy();
+    expect(mobiBook?.filePath).toBeTruthy();
     expect(azw3Book).toBeTruthy();
     expect(azw3Book?.filePath).toBeTruthy();
 
     await browser.waitUntil(async () => {
+      const mobiRecord = await loadLibraryRecordOnDisk(mobiBook!.filePath);
       const record = await loadLibraryRecordOnDisk(azw3Book!.filePath);
-      if (!record) return false;
+      if (!mobiRecord || !record) return false;
       return (
+        mobiRecord.title === 'sample-book' &&
+        mobiRecord.author === 'Unknown author' &&
+        mobiRecord.language === 'en' &&
+        !mobiRecord.publisher &&
+        !mobiRecord.description &&
         record.title === 'Around the World in 28 Languages' &&
         record.author === 'Infogrid Pacific' &&
         record.language === 'en' &&
@@ -2195,11 +2204,15 @@ describe('br1 desktop app', () => {
       );
     }, {
       timeout: 15000,
-      timeoutMsg: 'expected the imported AZW3 sample to expose author/language/publisher/description before opening it in the reader'
+      timeoutMsg:
+        'expected MOBI to keep clean fallback metadata and AZW3 to expose rich container metadata before opening either book in the reader'
     }).catch(async (error) => {
+      const mobiRecord = await loadLibraryRecordOnDisk(mobiBook!.filePath);
       const record = await loadLibraryRecordOnDisk(azw3Book!.filePath);
       throw new Error(
-        `${error instanceof Error ? error.message : String(error)}\nPersisted AZW3 record: ${JSON.stringify(record)}`
+        `${error instanceof Error ? error.message : String(error)}\nPersisted MOBI record: ${JSON.stringify(
+          mobiRecord
+        )}\nPersisted AZW3 record: ${JSON.stringify(record)}`
       );
     });
   });
