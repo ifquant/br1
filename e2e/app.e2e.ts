@@ -53,6 +53,33 @@ describe('br1 desktop app', () => {
     );
   };
 
+  const loadLibraryRecordBySourcePathOnDisk = async (sourcePath: string) => {
+    const libraryFile = join(appDataRoot, 'library', 'library.json');
+    const raw = await readFile(libraryFile, 'utf8');
+    const records = JSON.parse(raw) as Array<{
+      title?: string;
+      author?: string;
+      progress?: string;
+      status?: string;
+      coverPath?: string | null;
+      cover_path?: string | null;
+      description?: string | null;
+      language?: string | null;
+      publisher?: string | null;
+      filePath?: string;
+      file_path?: string;
+      sourcePath?: string;
+      source_path?: string;
+      progressFraction?: number | null;
+      progressLocation?: string | null;
+      lastOpenedAt?: number | null;
+    }>;
+
+    return (
+      records.find((record) => (record.sourcePath ?? record.source_path ?? '') === sourcePath) ?? null
+    );
+  };
+
   const loadLibraryCoverDataUrl = async (coverPath: string) => {
     const result = await browser.executeAsync((path, done) => {
       const tauriInternals = (window as typeof window & {
@@ -1037,7 +1064,7 @@ describe('br1 desktop app', () => {
 
     for (let attempt = 0; attempt < 12; attempt += 1) {
       try {
-        return await browser.execute((targetSegmentIndex) => {
+        const selected = await browser.execute((targetSegmentIndex) => {
           const view = document.querySelector('foliate-view') as
             | (HTMLElement & {
                 renderer?: {
@@ -1126,6 +1153,30 @@ describe('br1 desktop app', () => {
 
           throw new Error('expected a visible foliate text node to select');
         }, segmentIndex);
+
+        await browser.waitUntil(async () => {
+          const diagnostics = await browser.execute(() => {
+            const selectionText = document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
+            const actions = Array.from(
+              document.querySelectorAll('.secondary-note-action, .primary-note-action')
+            ).map((button) => ({
+              text: (button as HTMLButtonElement).textContent?.trim() ?? '',
+              disabled: (button as HTMLButtonElement).disabled
+            }));
+
+            return { selectionText, actions };
+          });
+
+          const hasSelectionPreview = diagnostics.selectionText.includes(selected.slice(0, 20));
+          const hasEnabledAction = diagnostics.actions.some((action) => !action.disabled);
+          return hasSelectionPreview && hasEnabledAction;
+        }, {
+          timeout: 1500,
+          interval: 100,
+          timeoutMsg: `expected notes workspace to accept the selected foliate text: ${selected}`
+        });
+
+        return selected;
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
         await browser.pause(250);
@@ -3035,7 +3086,10 @@ describe('br1 desktop app', () => {
         throw new Error(`expected ${sample.format} sample to expose a file path`);
       }
 
-      await openReaderFromLibraryPath(importedBook.filePath, libraryHandle);
+      const refreshedBook = await loadLibraryRecordBySourcePathOnDisk(importedBook.sourcePath);
+      const currentFilePath = (refreshedBook?.filePath ?? refreshedBook?.file_path ?? importedBook.filePath) as string;
+
+      await openReaderFromLibraryPath(currentFilePath, libraryHandle);
       await switchReaderToNotesTab();
       await clearAllReaderNotes();
 
@@ -3048,6 +3102,23 @@ describe('br1 desktop app', () => {
       }, {
         timeout: 10000,
         timeoutMsg: `expected the ${sample.format} reader to expose the first selected text in the notes workspace`
+      }).catch(async (error) => {
+        const diagnostics = await browser.execute(() => {
+          const selectionText = document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
+          const metaText = document.querySelector('.notes-meta-row')?.textContent?.trim() ?? '';
+          const buttons = Array.from(document.querySelectorAll('.secondary-note-action, .primary-note-action')).map(
+            (button) => ({
+              text: (button as HTMLButtonElement).textContent?.trim() ?? '',
+              disabled: (button as HTMLButtonElement).disabled
+            })
+          );
+          return { selectionText, metaText, buttons };
+        });
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nFirst selection: ${firstSelectionText}\nDiagnostics: ${JSON.stringify(
+            diagnostics
+          )}`
+        );
       });
 
       const highlightButton = await $('.secondary-note-action');
@@ -3103,7 +3174,7 @@ describe('br1 desktop app', () => {
         timeoutMsg: `expected the ${sample.format} desktop notes workspace to show one highlight and one note`
       });
 
-      const notesStorageKey = `br1.reader.notes:${importedBook.filePath}`;
+      const notesStorageKey = `br1.reader.notes:${currentFilePath}`;
       await browser.waitUntil(async () => {
         try {
           const persistedNotes = await loadReaderNotesOnDisk(notesStorageKey);
@@ -3136,7 +3207,7 @@ describe('br1 desktop app', () => {
 
       await browser.closeWindow();
       await browser.switchToWindow(libraryHandle);
-      await openReaderFromLibraryPath(importedBook.filePath, libraryHandle);
+      await openReaderFromLibraryPath(currentFilePath, libraryHandle);
       await switchReaderToNotesTab();
 
       await browser.waitUntil(async () => {
@@ -3178,6 +3249,178 @@ describe('br1 desktop app', () => {
       await browser.closeWindow();
       await browser.switchToWindow(libraryHandle);
     }
+  });
+
+  it('persists FB2 highlights and notes separately through the desktop reader store', async function () {
+    this.timeout(180000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const importedBook = importedBooks.find((entry) => entry.format === 'FB2');
+    if (!importedBook) {
+      throw new Error('expected an imported FB2 desktop sample');
+    }
+    if (!importedBook.filePath) {
+      throw new Error('expected the FB2 sample to expose a file path');
+    }
+
+    const refreshedBook = await loadLibraryRecordBySourcePathOnDisk(importedBook.sourcePath);
+    const currentFilePath = (refreshedBook?.filePath ?? refreshedBook?.file_path ?? importedBook.filePath) as string;
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    await openReaderFromLibraryPath(currentFilePath, libraryHandle);
+    await switchReaderToNotesTab();
+    await clearAllReaderNotes();
+
+    const firstSelectionText = await selectVisibleFoliateTextInReader();
+    await browser.waitUntil(async () => {
+      const selectionText = await browser.execute(() => {
+        return document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
+      });
+      return selectionText.includes(firstSelectionText.slice(0, 20));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 reader to expose the first selected text in the notes workspace'
+    }).catch(async (error) => {
+      const diagnostics = await browser.execute(() => {
+        const selectionText = document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
+        const metaText = document.querySelector('.notes-meta-row')?.textContent?.trim() ?? '';
+        const buttons = Array.from(document.querySelectorAll('.secondary-note-action, .primary-note-action')).map(
+          (button) => ({
+            text: (button as HTMLButtonElement).textContent?.trim() ?? '',
+            disabled: (button as HTMLButtonElement).disabled
+          })
+        );
+        return { selectionText, metaText, buttons };
+      });
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nFirst selection: ${firstSelectionText}\nDiagnostics: ${JSON.stringify(
+          diagnostics
+        )}`
+      );
+    });
+
+    const highlightButton = await $('.secondary-note-action');
+    await highlightButton.click();
+
+    await browser.waitUntil(async () => {
+      const cards = await $$('.note-card');
+      if (!cards.length) return false;
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20)));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 reader to persist a highlight entry in the desktop notes workspace'
+    });
+
+    const secondSelectionText = await selectVisibleFoliateTextInReader(1);
+    await browser.waitUntil(async () => {
+      const selectionText = await browser.execute(() => {
+        return document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
+      });
+      return selectionText.includes(secondSelectionText.slice(0, 20));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 reader to expose the second selected text in the notes workspace'
+    });
+
+    await browser.execute(() => {
+      window.prompt = () => 'desktop fb2 note body';
+    });
+
+    const noteButton = await $('.primary-note-action');
+    await noteButton.click();
+
+    await browser.waitUntil(async () => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('1 高亮') &&
+        metaText.includes('1 笔记') &&
+        texts.some((text) => text.includes('desktop fb2 note body')) &&
+        texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20)))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop notes workspace to show one highlight and one note'
+    });
+
+    const notesStorageKey = `br1.reader.notes:${currentFilePath}`;
+    await browser.waitUntil(async () => {
+      try {
+        const persistedNotes = await loadReaderNotesOnDisk(notesStorageKey);
+        return (
+          persistedNotes.length === 2 &&
+          persistedNotes.some(
+            (note) =>
+              note.kind === 'highlight' && (note.text ?? '').includes(firstSelectionText.slice(0, 20))
+          ) &&
+          persistedNotes.some((note) => note.kind === 'note' && note.note === 'desktop fb2 note body')
+        );
+      } catch {
+        return false;
+      }
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 reader notes store to persist both the highlight and the note before closing the window'
+    });
+
+    const persistedNotes = await loadReaderNotesOnDisk(notesStorageKey);
+    const persistedHighlight = persistedNotes.find((note) => note.kind === 'highlight');
+    const persistedNote = persistedNotes.find((note) => note.kind === 'note');
+    if (!persistedHighlight?.text || !persistedNote?.note) {
+      throw new Error('expected persisted FB2 notes to include both a highlight and a note body');
+    }
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await openReaderFromLibraryPath(currentFilePath, libraryHandle);
+    await switchReaderToNotesTab();
+
+    await browser.waitUntil(async () => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('1 高亮') &&
+        metaText.includes('1 笔记') &&
+        texts.some((text) => text.includes(persistedNote.note!)) &&
+        texts.some((text) => text.includes('高亮') && text.includes(persistedHighlight.text!.slice(0, 20)))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop notes workspace to persist both the highlight and the note after reopen'
+    }).catch(async (error) => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReopen meta: ${metaText}\nReopen cards: ${JSON.stringify(
+          texts
+        )}\nPersisted notes: ${JSON.stringify(persistedNotes)}`
+      );
+    });
+
+    await clearAllReaderNotes();
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
   });
 
   it('restores search history, options, and disk cache after reopening the same book', async () => {
