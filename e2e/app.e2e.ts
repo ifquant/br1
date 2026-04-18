@@ -1076,12 +1076,12 @@ describe('br1 desktop app', () => {
     }, needle);
   };
 
-  const selectVisibleFoliateTextInReader = async (segmentIndex = 0) => {
+  const selectVisibleFoliateTextInReader = async (segmentIndex = 0, excludedTexts: string[] = []) => {
     let lastError = 'expected a visible foliate text node to select';
 
     for (let attempt = 0; attempt < 12; attempt += 1) {
       try {
-        const selected = await browser.execute((targetSegmentIndex) => {
+        const selected = await browser.execute((targetSegmentIndex, ignoredTexts) => {
           const view = document.querySelector('foliate-view') as
             | (HTMLElement & {
                 renderer?: {
@@ -1096,6 +1096,10 @@ describe('br1 desktop app', () => {
           const paginatorContainer = paginator?.shadowRoot?.querySelector('#container') as HTMLElement | null;
           const frames = Array.from(paginator?.shadowRoot?.querySelectorAll('iframe') ?? []) as HTMLIFrameElement[];
 
+          const ignoredSet = new Set(
+            ignoredTexts.map((text) => text.replace(/\s+/g, ' ').trim()).filter(Boolean)
+          );
+
           const selectFirstSubstantialText = (frameDocument: Document, frameWindow: Window) => {
             const walker = frameDocument.createTreeWalker(frameDocument.body, NodeFilter.SHOW_TEXT, {
               acceptNode(node) {
@@ -1109,6 +1113,7 @@ describe('br1 desktop app', () => {
             while ((node = walker.nextNode())) {
               const raw = node.textContent?.replace(/\s+/g, ' ').trim() ?? '';
               if (raw.length < 8) continue;
+              if (ignoredSet.has(raw)) continue;
 
               const selectionLength = Math.min(Math.max(24, Math.floor(raw.length / 2)), 72);
               const nodeText = node.textContent ?? '';
@@ -1169,7 +1174,7 @@ describe('br1 desktop app', () => {
           }
 
           throw new Error('expected a visible foliate text node to select');
-        }, segmentIndex);
+        }, segmentIndex, excludedTexts);
 
         await browser.waitUntil(async () => {
           const diagnostics = await browser.execute(() => {
@@ -3440,7 +3445,10 @@ describe('br1 desktop app', () => {
     await switchReaderToNotesTab();
     await clearAllReaderNotes();
 
-    const firstSelectionText = await selectVisibleFoliateTextInReader();
+    const fb2ReaderTitle = await browser.execute(() => {
+      return document.querySelector('.book-card h2')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    });
+    const firstSelectionText = await selectVisibleFoliateTextInReader(0, [fb2ReaderTitle, 'Chapter 1']);
     await browser.waitUntil(async () => {
       const selectionText = await browser.execute(() => {
         return document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
@@ -3484,7 +3492,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 reader to persist a highlight entry in the desktop notes workspace'
     });
 
-    const secondSelectionText = await selectVisibleFoliateTextInReader(1);
+    const secondSelectionText = await selectVisibleFoliateTextInReader(1, [fb2ReaderTitle, 'Chapter 1']);
     await browser.waitUntil(async () => {
       const selectionText = await browser.execute(() => {
         return document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
