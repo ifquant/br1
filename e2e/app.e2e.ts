@@ -47,6 +47,19 @@ describe('br1 desktop app', () => {
     );
   };
 
+  const readLibraryProgressBadgeForTitle = async (title: string) =>
+    browser.execute((expectedTitle) => {
+      const rows = Array.from(document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row'));
+      for (const row of rows) {
+        const text = row.textContent ?? '';
+        if (!text.includes(expectedTitle)) continue;
+        const progressBadge = row.querySelector('.progress-pill, .meta-pill');
+        const value = progressBadge?.textContent?.trim() ?? '';
+        if (value) return value;
+      }
+      return '';
+    }, title);
+
   const loadLibraryRecordsOnDisk = async () => {
     const libraryFile = join(appDataRoot, 'library', 'library.json');
     const raw = await readFile(libraryFile, 'utf8');
@@ -1868,7 +1881,7 @@ describe('br1 desktop app', () => {
     this.timeout(120000);
     const importedBooks = await importDesktopSampleLibraryBooks();
     const expectedByFormat = new Map([
-      ['FB2', { title: 'Bridge Reader Sample FB2', author: 'Bridge Team' }],
+      ['FB2', { title: 'Bridge Reader Sample FB2', author: 'Bridge Team', language: 'en' }],
       ['MOBI', { title: 'libmobi ncx test' }],
       ['AZW3', { title: 'Around the World in 28 Languages' }]
     ]);
@@ -1924,7 +1937,7 @@ describe('br1 desktop app', () => {
         if (!record) return false;
         if (record.title !== expected.title) return false;
         if (format === 'FB2') {
-          return record.author === expected.author;
+          return record.author === expected.author && record.language === expected.language;
         }
         const progress = typeof record.progress === 'string' ? record.progress : '';
         return !!progress && progress !== '上次读到 0%';
@@ -1939,6 +1952,21 @@ describe('br1 desktop app', () => {
           )}`
         );
       });
+
+      if (format === 'MOBI' || format === 'AZW3') {
+        await browser.waitUntil(async () => {
+          const progressBadge = await readLibraryProgressBadgeForTitle(expected.title);
+          return !!progressBadge && progressBadge !== '0%';
+        }, {
+          timeout: 10000,
+          timeoutMsg: `expected ${format} library UI to avoid a rounded 0 percent progress badge after returning from reader`
+        }).catch(async (error) => {
+          const progressBadge = await readLibraryProgressBadgeForTitle(expected.title);
+          throw new Error(
+            `${error instanceof Error ? error.message : String(error)}\nFormat: ${format}\nLibrary progress badge: ${progressBadge}`
+          );
+        });
+      }
     }
   });
 

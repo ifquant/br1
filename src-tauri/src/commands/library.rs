@@ -98,6 +98,38 @@ fn derive_fb2_author(source: &Path) -> Option<String> {
     }
 }
 
+fn derive_fb2_language(source: &Path) -> Option<String> {
+    let raw = fs::read_to_string(source).ok()?;
+    let mut reader = Reader::from_str(&raw);
+    reader.config_mut().trim_text(true);
+
+    let mut in_title_info = false;
+    let mut in_lang = false;
+
+    loop {
+        match reader.read_event().ok()? {
+            Event::Start(event) => match event.name() {
+                QName(b"title-info") => in_title_info = true,
+                QName(b"lang") if in_title_info => in_lang = true,
+                _ => {}
+            },
+            Event::End(event) => match event.name() {
+                QName(b"title-info") if in_title_info => in_title_info = false,
+                QName(b"lang") if in_lang => in_lang = false,
+                _ => {}
+            },
+            Event::Text(text) if in_lang => {
+                let value = String::from_utf8_lossy(text.as_ref()).trim().to_string();
+                if !value.is_empty() {
+                    return Some(value);
+                }
+            }
+            Event::Eof => return None,
+            _ => {}
+        }
+    }
+}
+
 fn derive_library_title(record: &LibraryBookRecord, incoming_title: &str) -> String {
     let trimmed = incoming_title.trim();
     if trimmed.is_empty() || title_looks_like_stored_filename(trimmed) {
@@ -225,6 +257,11 @@ pub(crate) fn import_library_books(
         } else {
             "Unknown author".to_string()
         };
+        let language = if extension == "fb2" {
+            derive_fb2_language(source)
+        } else {
+            None
+        };
 
         let record = LibraryBookRecord {
             id,
@@ -236,7 +273,7 @@ pub(crate) fn import_library_books(
                 extension.to_uppercase()
             },
             description: None,
-            language: None,
+            language,
             publisher: None,
             progress: "等待首轮阅读".to_string(),
             status: "新导入".to_string(),

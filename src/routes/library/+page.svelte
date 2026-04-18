@@ -199,6 +199,13 @@
     }).format(new Date(timestamp));
   };
 
+  const formatProgressPercentLabel = (fraction: number | null) => {
+    if (fraction === null) return '';
+    const normalized = Math.max(0, Math.min(1, fraction));
+    if (normalized <= 0) return '0%';
+    return `${Math.max(1, Math.min(100, Math.round(normalized * 100)))}%`;
+  };
+
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<LibraryShelfBook> => {
     const isReadestCompatible = record.id.startsWith('readest-');
     const progressFraction =
@@ -248,9 +255,7 @@
       progress: record.progress,
       progressFraction,
       progressPercentLabel:
-        progressFraction !== null
-          ? `${Math.max(0, Math.min(100, Math.round(progressFraction * 100)))}%`
-          : '',
+        formatProgressPercentLabel(progressFraction),
       readingStatusLabel,
       sourceLabel,
       availabilityLabel: isReadestCompatible ? '兼容 Readest 本地藏书' : '本地可读',
