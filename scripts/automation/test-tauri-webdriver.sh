@@ -9,6 +9,7 @@ DEV_PORT="${DEV_PORT:-1420}"
 WEBDRIVER_PORT="${WEBDRIVER_PORT:-4445}"
 POLL_INTERVAL="${POLL_INTERVAL:-2}"
 TIMEOUT="${TIMEOUT:-120}"
+APP_OPEN_ARGS="${APP_OPEN_ARGS:-}"
 
 if [[ ! -x "$BIN_DIR/vite" ]]; then
   echo "ERROR: missing local vite binary at $BIN_DIR/vite. Run pnpm install first." >&2
@@ -61,7 +62,15 @@ while ! curl -sf "http://127.0.0.1:${DEV_PORT}" >/dev/null 2>&1; do
 done
 
 echo "Starting Tauri with webdriver..."
-"$BIN_DIR/tauri" dev --features webdriver --no-watch --config '{"build":{"beforeDevCommand":""}}' &
+TAURI_CMD=("$BIN_DIR/tauri" dev --features webdriver --no-watch --config '{"build":{"beforeDevCommand":""}}')
+if [[ -n "$APP_OPEN_ARGS" ]]; then
+  # Pass application arguments through `tauri dev -- -- ...` so they reach the app
+  # instead of cargo runner args.
+  # shellcheck disable=SC2206
+  EXTRA_APP_ARGS=($APP_OPEN_ARGS)
+  TAURI_CMD+=("--" "--" "${EXTRA_APP_ARGS[@]}")
+fi
+"${TAURI_CMD[@]}" &
 TAURI_PID=$!
 
 echo "Waiting for WebDriver server on port $WEBDRIVER_PORT..."

@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 describe('br1 desktop app', () => {
+  const startupAssociatedBookPath = process.env.BR1_TEST_ASSOCIATED_FILE_PATH ?? '';
   const appDataRoot = join(homedir(), 'Library/Application Support', 'com.tauri-app.br1');
   const readerSearchRoot = join(appDataRoot, 'reader-search');
   const staticSamplesRoot = join(process.cwd(), 'static', 'samples');
@@ -1272,6 +1273,76 @@ describe('br1 desktop app', () => {
   it('can execute JavaScript inside the desktop webview', async () => {
     const readyState = await browser.execute(() => document.readyState);
     expect(readyState).toBe('complete');
+  });
+
+  it('opens a startup associated book argument in a separate reader window', async function () {
+    if (!startupAssociatedBookPath) {
+      this.skip();
+      return;
+    }
+
+    const expectedReaderWindow = async () => {
+      const handles = await browser.getWindowHandles();
+      const urls: Array<{ handle: string; url: string }> = [];
+      for (const handle of handles) {
+        await browser.switchToWindow(handle);
+        urls.push({ handle, url: await browser.getUrl() });
+      }
+
+      const matched = urls.find(({ url }) => {
+        const parsed = new URL(url, 'http://localhost');
+        return (
+          parsed.searchParams.get('mode') === 'window' &&
+          parsed.searchParams.get('source') === 'library-file' &&
+          parsed.searchParams.get('path') === startupAssociatedBookPath
+        );
+      });
+
+      return {
+        handles,
+        urls,
+        matchedHandle: matched?.handle ?? null
+      };
+    };
+
+    let startupState = await expectedReaderWindow();
+
+    await browser.waitUntil(async () => {
+      startupState = await expectedReaderWindow();
+      return !!startupState.matchedHandle;
+    }, {
+      timeout: 15000,
+      timeoutMsg: `expected a startup associated book argument to open a reader window\nStartup state: ${JSON.stringify(startupState)}`
+    });
+
+    expect(startupState.matchedHandle).toBeTruthy();
+    await browser.switchToWindow(startupState.matchedHandle!);
+
+    const readerShell = await $('.reader-shell');
+    await readerShell.waitForDisplayed({ timeout: 10000 });
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+      return details.title === 'Bridge Reader Sample FB2' && details.formatLabel === 'FB2';
+    }, {
+      timeout: 20000,
+      timeoutMsg: 'expected the startup associated FB2 argument to open in a reader window with readable metadata'
+    });
+
+    const readerUrl = new URL(await browser.getUrl());
+    expect(readerUrl.searchParams.get('mode')).toBe('window');
+    expect(readerUrl.searchParams.get('source')).toBe('library-file');
+    expect(readerUrl.searchParams.get('path')).toBe(startupAssociatedBookPath);
+
+    const remainingHandles = await browser.getWindowHandles();
+    if (remainingHandles.length > 1) {
+      await browser.closeWindow();
+      const fallbackHandle = remainingHandles.find((handle) => handle !== startupState.matchedHandle) ?? remainingHandles[0];
+      await browser.switchToWindow(fallbackHandle!);
+    }
   });
 
   it('opens the first library book in a separate reader window', async () => {
