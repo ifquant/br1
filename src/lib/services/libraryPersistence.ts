@@ -249,8 +249,9 @@ export const toLibraryReaderTarget = (
 ): LibraryReaderTarget => {
   const restart = options.restart ?? false;
   const normalizedFormat = book.format.trim().toUpperCase();
+  const supportsLocationRestore = !['PDF', 'MOBI', 'AZW3'].includes(normalizedFormat);
   const restoreLocation =
-    !restart && normalizedFormat !== 'PDF' ? book.progressLocation ?? undefined : undefined;
+    !restart && supportsLocationRestore ? book.progressLocation ?? undefined : undefined;
   const href = toReaderHref({
     source: 'library-file',
     path: book.filePath,

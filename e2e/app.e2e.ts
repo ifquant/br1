@@ -156,6 +156,43 @@ describe('br1 desktop app', () => {
       return view.lastLocation?.fraction ?? null;
     });
 
+  const advanceReaderBeyond = async (
+    openedDetails: Awaited<ReturnType<typeof readReaderDetails>>,
+    description: string
+  ) => {
+    const openedFraction = openedDetails.progressFraction ?? 0;
+    const openedCfi = openedDetails.cfi ?? '';
+    const openedLocationLabel = openedDetails.locationLabel ?? '';
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await nudgeReaderForward();
+      await browser.pause(250);
+
+      const details = await readReaderDetails();
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+
+      const moved =
+        (details.progressFraction ?? 0) > openedFraction ||
+        (!!details.cfi && details.cfi !== openedCfi) ||
+        (!!details.locationLabel &&
+          details.locationLabel !== 'Opening book' &&
+          details.locationLabel !== openedLocationLabel);
+
+      if (moved) {
+        return details;
+      }
+    }
+
+    const finalDetails = await readReaderDetails();
+    throw new Error(
+      `expected ${description} to advance beyond its initial reader state\nOpened details: ${JSON.stringify(
+        openedDetails
+      )}\nCurrent reader: ${JSON.stringify(finalDetails)}`
+    );
+  };
+
   const seedReaderSearchCacheOnDisk = async (
     bookKey: string,
     cacheKey: string,
@@ -1472,36 +1509,16 @@ describe('br1 desktop app', () => {
       });
 
       const openedDetails = await readReaderDetails();
-      const openedFraction = openedDetails.progressFraction ?? 0;
-      const openedCfi = openedDetails.cfi ?? '';
-      const openedLocationLabel = openedDetails.locationLabel ?? '';
-
-      await nudgeReaderForward();
-
-      await browser.waitUntil(async () => {
-        const details = await readReaderDetails();
-        if (details.stageError) {
-          throw new Error(details.stageError);
+      await advanceReaderBeyond(openedDetails, `${sample.format} sample before validating persisted restore state`).catch(
+        async (error) => {
+          const details = await readReaderDetails();
+          throw new Error(
+            `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nReader URL: ${readerUrl}\nCurrent reader: ${JSON.stringify(
+              details
+            )}`
+          );
         }
-
-        return (
-          (details.progressFraction ?? 0) > openedFraction ||
-          (!!details.cfi && details.cfi !== openedCfi) ||
-          (!!details.locationLabel &&
-            details.locationLabel !== 'Opening book' &&
-            details.locationLabel !== openedLocationLabel)
-        );
-      }, {
-        timeout: 15000,
-        timeoutMsg: `expected ${sample.format} sample to advance before validating persisted restore state`
-      }).catch(async (error) => {
-        const details = await readReaderDetails();
-        throw new Error(
-          `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nReader URL: ${readerUrl}\nOpened details: ${JSON.stringify(
-            openedDetails
-          )}\nCurrent reader: ${JSON.stringify(details)}`
-        );
-      });
+      );
 
       const goToLibraryButton = await $('[aria-label="Go to library"]');
       await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
@@ -1556,6 +1573,148 @@ describe('br1 desktop app', () => {
           )}`
         );
       });
+    }
+  });
+
+  it('reopens FB2, MOBI, AZW3, and CBZ imports with stored restore progress', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    for (const sample of sampleLibraryFormats) {
+      const sourcePath = join(staticSamplesRoot, sample.fileName);
+      const importedBook = importedBooks.find((book) => book.sourcePath === sourcePath);
+      expect(importedBook).toBeTruthy();
+      expect(importedBook?.filePath).toBeTruthy();
+
+      let initialHref: string | null = null;
+      await browser.waitUntil(async () => {
+        initialHref = await readLibraryHrefForPath(importedBook!.filePath);
+        return !!initialHref;
+      }, {
+        timeout: 15000,
+        timeoutMsg: `expected ${sample.format} sample to expose an initial library reader href before seeding restore progress`
+      });
+
+      const initialReaderUrl = new URL(initialHref!, 'http://127.0.0.1:1420').toString();
+
+      await browser.switchToWindow(libraryHandle);
+      await browser.url(initialReaderUrl);
+      await $('.reader-stage').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+
+        return (
+          !!details.title &&
+          details.formatLabel === sample.expectedLabel &&
+          details.layoutLabel === sample.expectedLayout &&
+          details.locationLabel !== 'Opening book'
+        );
+      }, {
+        timeout: 20000,
+        timeoutMsg: `expected ${sample.format} sample to open before seeding restore progress`
+      });
+
+      const openedDetails = await readReaderDetails();
+      await advanceReaderBeyond(openedDetails, `${sample.format} sample before reopening it with restore progress`);
+
+      const goToLibraryButton = await $('[aria-label="Go to library"]');
+      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+      await goToLibraryButton.click();
+
+      await browser.switchToWindow(libraryHandle);
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const record = await loadLibraryRecordOnDisk(importedBook!.filePath);
+        return !!record && (((record.progressFraction ?? 0) > 0) || !!record.progressLocation);
+      }, {
+        timeout: 30000,
+        timeoutMsg: `expected ${sample.format} sample to persist restore progress before reopening it`
+      });
+
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      let restorableHref: string | null = null;
+      await browser.waitUntil(async () => {
+        restorableHref = await readLibraryHrefForPath(importedBook!.filePath);
+        if (!restorableHref) return false;
+        const target = new URL(restorableHref, 'http://localhost');
+        return !!target.searchParams.get('location') || Number(target.searchParams.get('fraction') ?? '0') > 0;
+      }, {
+        timeout: 30000,
+        timeoutMsg: `expected ${sample.format} sample to expose a restorable library reader href after returning from reader`
+      });
+
+      const persistedRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+      expect(persistedRecord).toBeTruthy();
+      expect(
+        !!persistedRecord?.progressLocation || ((persistedRecord?.progressFraction ?? 0) > 0)
+      ).toBe(true);
+
+      const restorableTarget = new URL(restorableHref!, 'http://localhost');
+      const expectedFraction = Number(restorableTarget.searchParams.get('fraction') ?? '0');
+      const expectedLocation = restorableTarget.searchParams.get('location') ?? '';
+
+      const { readerHandle } = await openReaderFromLibraryPath(importedBook!.filePath, libraryHandle);
+
+      try {
+        await browser.waitUntil(async () => {
+          const details = await readReaderDetails();
+          if (details.stageError) {
+            throw new Error(details.stageError);
+          }
+
+          const restoredByFraction =
+            expectedFraction > 0 &&
+            typeof details.progressFraction === 'number' &&
+            details.progressFraction >=
+              Math.max(openedDetails.progressFraction ?? 0, expectedFraction - 0.05);
+          const restoredByLocation =
+            !!expectedLocation &&
+            ((!!details.cfi && details.cfi !== (openedDetails.cfi ?? '')) ||
+              (!!details.locationLabel &&
+                details.locationLabel !== 'Opening book' &&
+                details.locationLabel !== (openedDetails.locationLabel ?? '')));
+          const restoredByVisibleState =
+            !expectedLocation &&
+            expectedFraction <= 0 &&
+            !!details.locationLabel &&
+            details.locationLabel !== 'Not opened' &&
+            details.locationLabel !== 'Opening book' &&
+            details.locationLabel !== (openedDetails.locationLabel ?? '');
+
+          return (
+            !!details.title &&
+            details.formatLabel === sample.expectedLabel &&
+            details.layoutLabel === sample.expectedLayout &&
+            (restoredByFraction || restoredByLocation || restoredByVisibleState)
+          );
+        }, {
+          timeout: 30000,
+          timeoutMsg: `expected ${sample.format} sample to reopen with visible restore progress inside the reader stage`
+        }).catch(async (error) => {
+          const details = await readReaderDetails();
+          throw new Error(
+            `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nRestorable href: ${
+              restorableHref ?? ''
+            }\nPersisted record: ${JSON.stringify(persistedRecord)}\nOpened details: ${JSON.stringify(
+              openedDetails
+            )}\nCurrent reader: ${JSON.stringify(details)}`
+          );
+        });
+      } finally {
+        await browser.switchToWindow(readerHandle);
+        await cleanupReaderAttempt(libraryHandle);
+      }
     }
   });
 

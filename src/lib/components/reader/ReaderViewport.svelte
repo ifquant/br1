@@ -409,10 +409,20 @@
     if (!foliateViewElement) return;
 
     const hasRestoreFraction = typeof restoreFraction === 'number' && restoreFraction > 0;
+    const waitForNavigation = async (operation: Promise<unknown>, label: string) => {
+      return Promise.race([
+        operation,
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => {
+            reject(new Error(`${label} timed out`));
+          }, 5000);
+        })
+      ]);
+    };
 
     if (restoreLocation) {
       try {
-        await foliateViewElement.init({ lastLocation: restoreLocation });
+        await waitForNavigation(foliateViewElement.init({ lastLocation: restoreLocation }), 'restoreLocation');
         return;
       } catch (error) {
         console.warn('Failed to restore reader location, falling back to fraction navigation', error);
@@ -420,11 +430,11 @@
     }
 
     if (hasRestoreFraction) {
-      await foliateViewElement.goToFraction(restoreFraction);
+      await waitForNavigation(foliateViewElement.goToFraction(restoreFraction), 'restoreFraction');
       return;
     }
 
-    await foliateViewElement.init({ showTextStart: true });
+    await waitForNavigation(foliateViewElement.init({ showTextStart: true }), 'showTextStart');
   };
 
   const emitSearchState = (partial: Partial<ReaderSearchState>) => {
