@@ -52,3 +52,19 @@ export const isPlannedReaderFormatLabel = (label: string) =>
   PLANNED_READER_FILE_EXTENSIONS.includes(
     normalizeReaderFormatToken(label) as (typeof PLANNED_READER_FILE_EXTENSIONS)[number]
   );
+
+export const supportsTextAnnotationsForFormat = (label: string) => {
+  const normalized = normalizeReaderFormatToken(label);
+  return normalized !== 'cbz' && normalized !== 'txt';
+};
+
+export const getTextAnnotationSupportMessage = (label: string) => {
+  const normalized = normalizeReaderFormatToken(label);
+  if (normalized === 'cbz') {
+    return '当前 CBZ 只支持阅读进度和书签，还不支持正文文本批注。';
+  }
+  if (normalized === 'txt') {
+    return '当前 TXT 已支持阅读和恢复位置，但正文批注还未产品化。';
+  }
+  return '先在正文里选中一段文本，再把它存成当前书的笔记。';
+};

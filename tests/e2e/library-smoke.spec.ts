@@ -46,6 +46,30 @@ test('reader opens txt assets in web mode', async ({ page }) => {
   await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
 
+test('reader shows explicit text-annotation limits for txt and cbz assets in web mode', async ({ page }) => {
+  const cases = [
+    {
+      assetPath: '/samples/sample-book.txt',
+      label: 'Sample TXT Book',
+      message: '当前 TXT 已支持阅读和恢复位置，但正文批注还未产品化。'
+    },
+    {
+      assetPath: '/samples/sample-comic.cbz',
+      label: 'Sample CBZ Book',
+      message: '当前 CBZ 只支持阅读进度和书签，还不支持正文文本批注。'
+    }
+  ] as const;
+
+  for (const sample of cases) {
+    await page.goto(
+      `/reader?source=asset&url=${encodeURIComponent(sample.assetPath)}&label=${encodeURIComponent(sample.label)}`
+    );
+    await page.getByRole('tab', { name: '笔记' }).click();
+    await expect(page.getByLabel('notes panel preview')).toContainText(sample.message);
+    await expect(page.getByRole('button', { name: '当前格式暂不支持批注' })).toBeDisabled();
+  }
+});
+
 const sampleReaderCases = [
   {
     assetPath: '/samples/sample-book.fb2',

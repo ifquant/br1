@@ -19,6 +19,7 @@
     parseReaderRouteOpenState,
     toReaderOpenControlRequest
   } from '$lib/reader';
+  import { supportsTextAnnotationsForFormat } from '$lib/reader/formats';
   import {
     canPersistReaderBookmarks,
     canPersistReaderNotes,
@@ -172,6 +173,10 @@
   $: {
     bookmarksStorageKey;
     void bookmarksController.refresh();
+  }
+
+  $: if (!supportsTextAnnotationsForFormat(currentPreview.formatLabel)) {
+    notesController.setSelection(null);
   }
   $: {
     sourcePath;

@@ -11,6 +11,7 @@
     ReaderTocItem,
     SidebarTab
   } from '$lib/reader';
+  import { getTextAnnotationSupportMessage, supportsTextAnnotationsForFormat } from '$lib/reader/formats';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
@@ -88,6 +89,8 @@
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
   let collapsedNoteGroups = new Set<string>();
+  $: supportsTextAnnotations = supportsTextAnnotationsForFormat(preview.formatLabel);
+  $: textAnnotationSupportMessage = getTextAnnotationSupportMessage(preview.formatLabel);
 
   const scrollActiveIntoView = async () => {
     if (activeTab !== 'toc') return;
@@ -801,10 +804,12 @@
         <div class="notes-summary">
           <strong>最近笔记</strong>
           <span>
-            {#if notesState.selection}
+            {#if !supportsTextAnnotations}
+              {textAnnotationSupportMessage}
+            {:else if notesState.selection}
               已选中一段正文，可以直接记一条笔记。
             {:else}
-              先在正文里选中一段文本，再把它存成当前书的笔记。
+              {textAnnotationSupportMessage}
             {/if}
           </span>
         </div>
@@ -812,7 +817,15 @@
         <div class="notes-meta-row">
           <span>{notesState.notes.length} 笔记</span>
           <span>{notesFilter === 'chapter' ? `${filteredNotes.length} 当前章节` : '全部章节'}</span>
-          <span>{notesState.selection ? '已选中文本' : '未选中文本'}</span>
+          <span>
+            {#if !supportsTextAnnotations}
+              当前格式未开放正文批注
+            {:else if notesState.selection}
+              已选中文本
+            {:else}
+              未选中文本
+            {/if}
+          </span>
         </div>
 
         <div class="notes-filter-row" aria-label="notes filter controls">
@@ -859,10 +872,15 @@
           </div>
         </div>
 
-        {#if notesState.selection}
+        {#if supportsTextAnnotations && notesState.selection}
           <div class="selection-card" aria-label="current text selection preview">
             <strong>{notesState.selection.chapterLabel || '当前选中内容'}</strong>
             <p>{notesState.selection.text}</p>
+          </div>
+        {:else if !supportsTextAnnotations}
+          <div class="selection-card unsupported-selection" aria-label="text annotation support notice">
+            <strong>当前格式暂不支持正文批注</strong>
+            <p>{textAnnotationSupportMessage}</p>
           </div>
         {/if}
 
@@ -870,10 +888,16 @@
           <button
             type="button"
             class="primary-note-action"
-            disabled={!notesState.selection}
+            disabled={!supportsTextAnnotations || !notesState.selection}
             on:click={() => callbacks.onAddNote?.()}
           >
-            {notesState.selection ? '为当前选中内容记笔记' : '先选中文本'}
+            {#if !supportsTextAnnotations}
+              当前格式暂不支持批注
+            {:else if notesState.selection}
+              为当前选中内容记笔记
+            {:else}
+              先选中文本
+            {/if}
           </button>
         </div>
 
