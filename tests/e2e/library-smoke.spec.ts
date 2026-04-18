@@ -140,6 +140,25 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await page.locator('.note-card', { hasText: 'txt note body' }).locator('.note-link').click();
   await expect(page.locator('[aria-label="reader footer controls preview"]')).toHaveText(progressBeforeJump ?? '');
 
+  const notesMetaRow = page.locator('.notes-meta-row');
+  const notesCards = page.locator('.note-card');
+  const kindFilters = page.getByLabel('annotation kind filter controls');
+  await kindFilters.getByRole('button', { name: '高亮', exact: true }).click();
+  await expect(notesMetaRow).toContainText('仅看高亮');
+  await expect(notesCards).toHaveCount(1);
+  await expect(notesCards.first()).toContainText('高亮');
+  await expect(page.getByText('当前筛选下还没有高亮')).toHaveCount(0);
+
+  await kindFilters.getByRole('button', { name: '笔记', exact: true }).click();
+  await expect(notesMetaRow).toContainText('仅看笔记');
+  await expect(notesCards).toHaveCount(1);
+  await expect(notesCards.first()).toContainText('txt note body');
+  await expect(notesCards.first()).not.toContainText('高亮');
+
+  await kindFilters.getByRole('button', { name: '全部类型', exact: true }).click();
+  await expect(notesMetaRow).toContainText('全部类型');
+  await expect(notesCards).toHaveCount(2);
+
   await page.reload();
   await page.getByRole('tab', { name: '笔记' }).click();
   await expect(page.locator('.note-card', { hasText: 'txt note body' })).toContainText('txt note body');

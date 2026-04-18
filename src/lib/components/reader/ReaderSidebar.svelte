@@ -86,6 +86,7 @@
   let lastScrolledBookmarkLocator = '';
   let bookMenuOpen = false;
   let notesFilter: 'all' | 'chapter' = 'all';
+  let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -236,10 +237,16 @@
       collapsedBookmarkGroups = new Set(collapsedBookmarkGroups);
     }
   }
-  $: filteredNotes =
+  $: notesByScope =
     notesFilter === 'chapter' && activeHref
       ? notesState.notes.filter((note) => note.chapterHref === activeHref)
       : notesState.notes;
+  $: filteredNotes =
+    notesKindFilter === 'highlight'
+      ? notesByScope.filter((note) => note.kind === 'highlight')
+      : notesKindFilter === 'note'
+        ? notesByScope.filter((note) => note.kind !== 'highlight')
+        : notesByScope;
   $: groupedNotes = filteredNotes.reduce<Array<{ chapterHref: string; chapterLabel: string; notes: typeof filteredNotes }>>(
     (groups, note) => {
       const chapterHref = note.chapterHref || '__unknown__';
@@ -819,7 +826,16 @@
           <span>{notesState.notes.length} 标注</span>
           <span>{notesState.notes.filter((note) => note.kind === 'highlight').length} 高亮</span>
           <span>{notesState.notes.filter((note) => note.kind !== 'highlight').length} 笔记</span>
-          <span>{notesFilter === 'chapter' ? `${filteredNotes.length} 当前章节` : '全部章节'}</span>
+          <span>{notesFilter === 'chapter' ? `${notesByScope.length} 当前章节` : '全部章节'}</span>
+          <span>
+            {#if notesKindFilter === 'highlight'}
+              仅看高亮
+            {:else if notesKindFilter === 'note'}
+              仅看笔记
+            {:else}
+              全部类型
+            {/if}
+          </span>
           <span>
             {#if !supportsTextAnnotations}
               当前格式未开放正文批注
@@ -853,6 +869,40 @@
               }}
             >
               当前章节
+            </button>
+          </div>
+          <div class="notes-filter-chips" aria-label="annotation kind filter controls">
+            <button
+              type="button"
+              class:active={notesKindFilter === 'all'}
+              class="notes-filter-chip"
+              on:click={() => {
+                notesKindFilter = 'all';
+              }}
+            >
+              全部类型
+            </button>
+            <button
+              type="button"
+              class:active={notesKindFilter === 'highlight'}
+              class="notes-filter-chip"
+              disabled={!notesState.notes.some((note) => note.kind === 'highlight')}
+              on:click={() => {
+                notesKindFilter = 'highlight';
+              }}
+            >
+              高亮
+            </button>
+            <button
+              type="button"
+              class:active={notesKindFilter === 'note'}
+              class="notes-filter-chip"
+              disabled={!notesState.notes.some((note) => note.kind !== 'highlight')}
+              on:click={() => {
+                notesKindFilter = 'note';
+              }}
+            >
+              笔记
             </button>
           </div>
           <div class="notes-group-actions">
@@ -963,6 +1013,10 @@
                 {/if}
               </section>
             {/each}
+          {:else if notesByScope.length && notesKindFilter !== 'all'}
+            <p class="empty">
+              当前筛选下还没有{notesKindFilter === 'highlight' ? '高亮' : '笔记'}，可以切回“全部类型”查看其他标注。
+            </p>
           {:else if notesState.notes.length && notesFilter === 'chapter'}
             <p class="empty">当前章节还没有笔记，可以切回“全部”查看其他章节内容。</p>
           {:else}
