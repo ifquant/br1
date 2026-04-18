@@ -1416,6 +1416,97 @@ describe('br1 desktop app', () => {
     }
   });
 
+  it('moves FB2, MOBI, AZW3, and CBZ imports into the library reading workflow after returning from reader', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    for (const sample of sampleLibraryFormats) {
+      const sourcePath = join(staticSamplesRoot, sample.fileName);
+      const importedBook = importedBooks.find((book) => book.sourcePath === sourcePath);
+      expect(importedBook).toBeTruthy();
+      expect(importedBook?.filePath).toBeTruthy();
+
+      const originalRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+      const originalOpenedAt = originalRecord?.lastOpenedAt ?? 0;
+      const readerHref = await readLibraryHrefForPath(importedBook!.filePath);
+      expect(readerHref).toBeTruthy();
+      const readerUrl = new URL(readerHref!, 'http://127.0.0.1:1420').toString();
+
+      await browser.switchToWindow(libraryHandle);
+      await browser.url(readerUrl);
+      await $('.reader-stage').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+
+        return (
+          !!details.title &&
+          details.formatLabel === sample.expectedLabel &&
+          details.layoutLabel === sample.expectedLayout &&
+          details.locationLabel !== 'Opening book'
+        );
+      }, {
+        timeout: 20000,
+        timeoutMsg: `expected ${sample.format} sample to open before validating library workflow persistence`
+      }).catch(async (error) => {
+        const details = await readReaderDetails();
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nReader URL: ${readerUrl}\nReader: ${JSON.stringify(
+            details
+          )}`
+        );
+      });
+
+      const goToLibraryButton = await $('[aria-label="Go to library"]');
+      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+      await goToLibraryButton.click();
+
+      await browser.switchToWindow(libraryHandle);
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const updatedRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+        if (!updatedRecord) return false;
+        return (updatedRecord.lastOpenedAt ?? 0) > originalOpenedAt;
+      }, {
+        timeout: 30000,
+        timeoutMsg: `expected returning from ${sample.format} reader to persist a newer lastOpenedAt`
+      });
+
+      await browser.refresh();
+
+      await browser.waitUntil(async () => {
+        const sections = await readLibraryWorkflowSections();
+        return (
+          (sections.continueReading.includes(importedBook!.filePath) ||
+            sections.recentReading.includes(importedBook!.filePath)) &&
+          !sections.shelf.includes(importedBook!.filePath)
+        );
+      }, {
+        timeout: 30000,
+        timeoutMsg: `expected ${sample.format} to move from shelf into continue/recent reading after returning from reader`
+      }).catch(async (error) => {
+        const updatedRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+        const sections = await readLibraryWorkflowSections();
+        const refreshedHref = await readLibraryHrefForPath(importedBook!.filePath);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nFile path: ${
+            importedBook!.filePath
+          }\nPersisted record: ${JSON.stringify(updatedRecord)}\nReader href: ${refreshedHref}\nSections: ${JSON.stringify(
+            sections
+          )}`
+        );
+      });
+    }
+  });
+
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
     const { expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
