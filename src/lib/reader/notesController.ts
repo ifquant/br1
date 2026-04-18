@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store';
-import type { ReaderNote, ReaderSelectionState, ReaderSidebarNotesState } from './types';
+import type { ReaderAnnotationKind, ReaderNote, ReaderSelectionState, ReaderSidebarNotesState } from './types';
 
 type ReaderNotesControllerOptions = {
   getStorage: () => Storage | undefined;
@@ -16,6 +16,12 @@ const defaultNotesState = (): ReaderSidebarNotesState => ({
   selection: null,
   notes: []
 });
+
+const normalizeReaderNotes = (notes: ReaderNote[]): ReaderNote[] =>
+  notes.map((note) => ({
+    ...note,
+    kind: note.kind === 'highlight' ? 'highlight' : 'note'
+  }));
 
 export const createReaderNotesController = ({
   getStorage,
@@ -63,12 +69,12 @@ export const createReaderNotesController = ({
         const storage = getStorage();
 
         if (canPersistNotes()) {
-          const persistedNotes = await loadPersistedNotes(storageKey);
+          const persistedNotes = normalizeReaderNotes(await loadPersistedNotes(storageKey));
           if (persistedNotes.length > 0) {
             nextNotes = persistedNotes;
           } else if (storage) {
             const raw = storage.getItem(storageKey);
-            const legacyNotes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
+            const legacyNotes = raw ? normalizeReaderNotes(JSON.parse(raw) as ReaderNote[]) : [];
             nextNotes = legacyNotes;
             if (legacyNotes.length > 0) {
               await savePersistedNotes(storageKey, legacyNotes);
@@ -77,7 +83,7 @@ export const createReaderNotesController = ({
           }
         } else if (storage) {
           const raw = storage.getItem(storageKey);
-          nextNotes = raw ? (JSON.parse(raw) as ReaderNote[]) : [];
+          nextNotes = raw ? normalizeReaderNotes(JSON.parse(raw) as ReaderNote[]) : [];
         }
 
         if (token !== loadToken) return;
@@ -119,17 +125,19 @@ export const createReaderNotesController = ({
     }));
   };
 
-  const addFromSelection = () => {
+  const addFromSelection = (kind: ReaderAnnotationKind = 'note') => {
     const current = get(state);
     const selection = current.selection;
     if (!selection) return false;
 
-    const draft = promptNoteDraft('为当前选中的文本添加笔记：', '') ?? '';
+    const draft =
+      kind === 'note' ? (promptNoteDraft('为当前选中的文本添加笔记：', '') ?? '') : '';
     const selectedText = selection.text.trim();
     if (!selectedText) return false;
 
     const note: ReaderNote = {
       id: `${selection.cfi}:${Date.now()}`,
+      kind,
       cfi: selection.cfi,
       text: selectedText,
       note: draft.trim(),
@@ -196,6 +204,7 @@ export const createReaderNotesController = ({
     setSelection,
     setActiveCfi,
     addFromSelection,
+    addHighlightFromSelection: () => addFromSelection('highlight'),
     open,
     edit,
     remove

@@ -135,12 +135,18 @@ pub(crate) struct ReaderBookmarksEntry {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReaderNoteRecord {
     pub(crate) id: String,
+    #[serde(default = "default_reader_note_kind")]
+    pub(crate) kind: String,
     pub(crate) cfi: String,
     pub(crate) text: String,
     pub(crate) note: String,
     pub(crate) chapter_label: String,
     pub(crate) chapter_href: String,
     pub(crate) created_at: u64,
+}
+
+fn default_reader_note_kind() -> String {
+    "note".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -138,6 +138,12 @@
     sidebarController.openTab('notes');
   };
 
+  const addHighlightFromSelection = () => {
+    const added = notesController.addHighlightFromSelection();
+    if (!added) return;
+    sidebarController.openTab('notes');
+  };
+
   const openNote = (cfi: string) => {
     notesController.open(cfi);
     sidebarController.openTab('notes');
@@ -317,6 +323,7 @@
     onToggleSidebar: sidebarController.toggleVisible,
     onTogglePin: isWindowMode ? sidebarController.togglePinned : null,
     onTabChange: sidebarController.openTab,
+    onAddHighlight: addHighlightFromSelection,
     onAddNote: addNoteFromSelection,
     onOpenNote: openNote,
     onEditNote: editNote,

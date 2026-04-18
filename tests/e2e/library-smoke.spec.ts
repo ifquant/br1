@@ -68,36 +68,60 @@ test('reader shows explicit text-annotation limits for txt and cbz assets in web
 test('reader supports txt notes through selection, persistence, and note reopen in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
+  const selectText = async (needle: string) => {
+    await page.evaluate((targetText) => {
+      const pre = document.querySelector('.plain-text-paper pre');
+      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
+      const textNode = pre.firstChild;
+      const raw = textNode.textContent ?? '';
+      const start = raw.indexOf(targetText);
+      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
+      const range = document.createRange();
+      range.setStart(textNode, start);
+      range.setEnd(textNode, start + targetText.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }, needle);
+  };
 
   await page.goto(readerUrl);
   await page.getByRole('tab', { name: '笔记' }).click();
   const noteButton = page.locator('.primary-note-action');
+  const highlightButton = page.locator('.secondary-note-action');
   await expect(noteButton).toBeDisabled();
+  await expect(highlightButton).toBeDisabled();
 
-  await page.evaluate(() => {
-    const pre = document.querySelector('.plain-text-paper pre');
-    if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
-    const textNode = pre.firstChild;
-    const raw = textNode.textContent ?? '';
-    const start = raw.indexOf('plain text file exists');
-    if (start < 0) throw new Error('expected the TXT fixture text to contain the selection anchor');
-    const range = document.createRange();
-    range.setStart(textNode, start);
-    range.setEnd(textNode, start + 'plain text file exists'.length);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    const surface = document.querySelector('.plain-text-surface');
-    surface?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-  });
+  await selectText('plain text file exists');
 
   await expect(page.locator('.selection-card p')).toContainText('plain text file exists');
   await expect(noteButton).toBeEnabled();
+  await expect(highlightButton).toBeEnabled();
   await expect(noteButton).toHaveText('为当前选中内容记笔记');
+  await expect(highlightButton).toHaveText('先高亮当前选中内容');
+
+  await highlightButton.click();
+  await expect(page.locator('.note-card').first()).toContainText('高亮');
+  await expect(page.locator('.note-card').first()).toContainText('plain text file exists');
+
+  await page.locator('.plain-text-surface').evaluate((element) => {
+    const maxScroll = element.scrollHeight - element.clientHeight;
+    if (maxScroll <= 0) {
+      throw new Error('expected the TXT fixture to produce a scrollable plain-text surface');
+    }
+    element.scrollTop = maxScroll * 0.35;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+  await selectText('The rest of this fixture just adds enough steady reading length');
+  await expect(page.locator('.selection-card p')).toContainText(
+    'The rest of this fixture just adds enough steady reading length'
+  );
 
   page.once('dialog', (dialog) => dialog.accept('txt note body'));
   await noteButton.click();
-  await expect(page.locator('.note-card')).toContainText('txt note body');
+  await expect(page.locator('.note-card', { hasText: 'txt note body' })).toContainText('txt note body');
+  await expect(page.locator('.notes-meta-row')).toContainText('1 高亮');
+  await expect(page.locator('.notes-meta-row')).toContainText('1 笔记');
 
   const progressBeforeJump = await page
     .locator('[aria-label="reader footer controls preview"]')
@@ -113,12 +137,13 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   });
   await expect(page.locator('[aria-label="reader footer controls preview"]')).not.toHaveText(progressBeforeJump ?? '');
 
-  await page.locator('.note-card .note-link').click();
+  await page.locator('.note-card', { hasText: 'txt note body' }).locator('.note-link').click();
   await expect(page.locator('[aria-label="reader footer controls preview"]')).toHaveText(progressBeforeJump ?? '');
 
   await page.reload();
   await page.getByRole('tab', { name: '笔记' }).click();
-  await expect(page.locator('.note-card')).toContainText('txt note body');
+  await expect(page.locator('.note-card', { hasText: 'txt note body' })).toContainText('txt note body');
+  await expect(page.locator('.note-card', { hasText: '高亮' })).toContainText('plain text file exists');
 });
 
 const sampleReaderCases = [

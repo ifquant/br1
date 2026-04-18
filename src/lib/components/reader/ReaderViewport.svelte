@@ -880,10 +880,15 @@
           view.addEventListener('draw-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{
               draw: (func: typeof Overlayer.highlight, opts?: Record<string, unknown>) => void;
-              annotation?: { value?: string };
+              annotation?: { value?: string; kind?: string };
             }>).detail;
             if (!detail?.annotation?.value?.startsWith(NOTE_PREFIX)) return;
-            detail.draw(Overlayer.highlight, { color: 'rgba(190, 150, 78, 0.28)' });
+            detail.draw(Overlayer.highlight, {
+              color:
+                detail.annotation.kind === 'highlight'
+                  ? 'rgba(218, 193, 112, 0.42)'
+                  : 'rgba(190, 150, 78, 0.28)'
+            });
           });
           view.addEventListener('show-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{ value?: string }>).detail;

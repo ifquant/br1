@@ -75,6 +75,7 @@
     onSearchHistory: null,
     onClearSearchHistory: null,
     onClearSearchCache: null,
+    onAddHighlight: null,
     onAddNote: null,
     onOpenNote: null,
     onEditNote: null,
@@ -815,7 +816,9 @@
         </div>
 
         <div class="notes-meta-row">
-          <span>{notesState.notes.length} 笔记</span>
+          <span>{notesState.notes.length} 标注</span>
+          <span>{notesState.notes.filter((note) => note.kind === 'highlight').length} 高亮</span>
+          <span>{notesState.notes.filter((note) => note.kind !== 'highlight').length} 笔记</span>
           <span>{notesFilter === 'chapter' ? `${filteredNotes.length} 当前章节` : '全部章节'}</span>
           <span>
             {#if !supportsTextAnnotations}
@@ -887,6 +890,20 @@
         <div class="notes-actions">
           <button
             type="button"
+            class="secondary-note-action"
+            disabled={!supportsTextAnnotations || !notesState.selection}
+            on:click={() => callbacks.onAddHighlight?.()}
+          >
+            {#if !supportsTextAnnotations}
+              当前格式暂不支持高亮
+            {:else if notesState.selection}
+              先高亮当前选中内容
+            {:else}
+              先选中文本
+            {/if}
+          </button>
+          <button
+            type="button"
             class="primary-note-action"
             disabled={!supportsTextAnnotations || !notesState.selection}
             on:click={() => callbacks.onAddNote?.()}
@@ -921,12 +938,17 @@
                       <div class="note-head">
                         <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
                           <strong>{note.chapterLabel || '未命名章节'}</strong>
+                          <span class:highlight-badge={note.kind === 'highlight'} class="annotation-kind-badge">
+                            {note.kind === 'highlight' ? '高亮' : '笔记'}
+                          </span>
                           <time>{formatTimestamp(note.createdAt)}</time>
                         </button>
                         <div class="note-actions">
-                          <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
-                            编辑
-                          </button>
+                          {#if note.kind !== 'highlight'}
+                            <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
+                              编辑
+                            </button>
+                          {/if}
                           <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
                             删除
                           </button>
@@ -1561,6 +1583,8 @@
   .notes-actions {
     display: flex;
     justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .primary-note-action {
@@ -1582,6 +1606,27 @@
 
   .primary-note-action:not(:disabled):hover {
     background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+  }
+
+  .secondary-note-action {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .secondary-note-action:disabled {
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .secondary-note-action:not(:disabled):hover {
+    background: color-mix(in srgb, var(--surface-panel) 72%, white 28%);
   }
 
   .search-notice {
@@ -1700,10 +1745,8 @@
   }
 
   .note-link {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    align-items: baseline;
+    display: grid;
+    gap: 6px;
     border: 0;
     padding: 0;
     background: transparent;
@@ -1785,6 +1828,25 @@
     color: var(--text-muted);
     font-size: 11px;
     white-space: nowrap;
+  }
+
+  .annotation-kind-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .annotation-kind-badge.highlight-badge {
+    background: rgba(190, 150, 78, 0.18);
+    color: color-mix(in srgb, #7a5626 84%, black 16%);
   }
 
   .note-text {

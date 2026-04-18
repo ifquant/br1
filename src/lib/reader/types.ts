@@ -65,8 +65,11 @@ export type ReaderSelectionState = {
   chapterHref: string;
 };
 
+export type ReaderAnnotationKind = 'note' | 'highlight';
+
 export type ReaderNote = {
   id: string;
+  kind: ReaderAnnotationKind;
   cfi: string;
   text: string;
   note: string;
@@ -173,6 +176,7 @@ export type ReaderSidebarCallbacks = {
   onSearchHistory: ((query: string) => void) | null;
   onClearSearchHistory: (() => void) | null;
   onClearSearchCache: (() => void) | null;
+  onAddHighlight: (() => void) | null;
   onAddNote: (() => void) | null;
   onOpenNote: ((cfi: string) => void) | null;
   onEditNote: ((id: string) => void) | null;
