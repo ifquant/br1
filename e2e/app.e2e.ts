@@ -1432,8 +1432,15 @@ describe('br1 desktop app', () => {
 
       const originalRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
       const originalOpenedAt = originalRecord?.lastOpenedAt ?? 0;
-      const readerHref = await readLibraryHrefForPath(importedBook!.filePath);
-      expect(readerHref).toBeTruthy();
+      let readerHref: string | null = null;
+      await browser.waitUntil(async () => {
+        readerHref = await readLibraryHrefForPath(importedBook!.filePath);
+        return !!readerHref;
+      }, {
+        timeout: 15000,
+        timeoutMsg: `expected ${sample.format} sample to expose a library reader href before validating workflow persistence`
+      });
+
       const readerUrl = new URL(readerHref!, 'http://127.0.0.1:1420').toString();
 
       await browser.switchToWindow(libraryHandle);
@@ -1464,6 +1471,38 @@ describe('br1 desktop app', () => {
         );
       });
 
+      const openedDetails = await readReaderDetails();
+      const openedFraction = openedDetails.progressFraction ?? 0;
+      const openedCfi = openedDetails.cfi ?? '';
+      const openedLocationLabel = openedDetails.locationLabel ?? '';
+
+      await nudgeReaderForward();
+
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+
+        return (
+          (details.progressFraction ?? 0) > openedFraction ||
+          (!!details.cfi && details.cfi !== openedCfi) ||
+          (!!details.locationLabel &&
+            details.locationLabel !== 'Opening book' &&
+            details.locationLabel !== openedLocationLabel)
+        );
+      }, {
+        timeout: 15000,
+        timeoutMsg: `expected ${sample.format} sample to advance before validating persisted restore state`
+      }).catch(async (error) => {
+        const details = await readReaderDetails();
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nReader URL: ${readerUrl}\nOpened details: ${JSON.stringify(
+            openedDetails
+          )}\nCurrent reader: ${JSON.stringify(details)}`
+        );
+      });
+
       const goToLibraryButton = await $('[aria-label="Go to library"]');
       await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
       await goToLibraryButton.click();
@@ -1484,14 +1523,27 @@ describe('br1 desktop app', () => {
 
       await browser.waitUntil(async () => {
         const sections = await readLibraryWorkflowSections();
+        const updatedRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+        const refreshedHref = await readLibraryHrefForPath(importedBook!.filePath);
+        const restoreTarget = refreshedHref ? new URL(refreshedHref, 'http://localhost') : null;
+        const hasPersistedRestoreSignal =
+          !!updatedRecord &&
+          (((updatedRecord.progressFraction ?? 0) > 0) || !!updatedRecord.progressLocation);
+        const hasReaderHrefRestoreSignal =
+          !!restoreTarget &&
+          (!!restoreTarget.searchParams.get('location') ||
+            Number(restoreTarget.searchParams.get('fraction') ?? '0') > 0);
+
         return (
           (sections.continueReading.includes(importedBook!.filePath) ||
             sections.recentReading.includes(importedBook!.filePath)) &&
-          !sections.shelf.includes(importedBook!.filePath)
+          !sections.shelf.includes(importedBook!.filePath) &&
+          hasPersistedRestoreSignal &&
+          hasReaderHrefRestoreSignal
         );
       }, {
         timeout: 30000,
-        timeoutMsg: `expected ${sample.format} to move from shelf into continue/recent reading after returning from reader`
+        timeoutMsg: `expected ${sample.format} to persist restore progress and move from shelf into continue/recent reading after returning from reader`
       }).catch(async (error) => {
         const updatedRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
         const sections = await readLibraryWorkflowSections();
