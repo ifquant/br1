@@ -169,6 +169,23 @@ describe('br1 desktop app', () => {
     }, label);
   };
 
+  const clickReaderSidebarTab = async (label: '目录' | '搜索' | '书签' | '高亮' | '笔记') => {
+    await browser.execute((targetLabel) => {
+      const tablist = document.querySelector('[role="tablist"][aria-label="reader sidebar tabs"]');
+      if (!(tablist instanceof HTMLElement)) {
+        throw new Error('expected reader sidebar tabs to exist');
+      }
+
+      const tabs = Array.from(tablist.querySelectorAll('button[role="tab"]'));
+      const target = tabs.find((button) => button.textContent?.trim() === targetLabel);
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error(`expected to find reader sidebar tab: ${targetLabel}`);
+      }
+
+      target.click();
+    }, label);
+  };
+
   const sampleLibraryFormats = [
     {
       fileName: 'sample-book.fb2',
@@ -2975,6 +2992,28 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop notes workspace to restore the full annotation list after clearing the kind filter'
+    });
+
+    await clickReaderSidebarTab('高亮');
+    await browser.waitUntil(async () => {
+      const panel = await $('[aria-label="highlights panel preview"]');
+      if (!(await panel.isDisplayed())) return false;
+      const panelText = await panel.getText();
+      const cards = await $$('.highlight-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        panelText.includes('已保存 1 条高亮') &&
+        cards.length === 1 &&
+        texts[0]?.includes('高亮') &&
+        texts[0]?.includes('plain text file exists') &&
+        !texts[0]?.includes('desktop txt note body')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to isolate the persisted highlight from the mixed notes list'
     });
 
     await clearAllReaderNotes();
