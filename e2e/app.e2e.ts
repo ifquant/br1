@@ -7,6 +7,7 @@ import { join } from 'node:path';
 describe('br1 desktop app', () => {
   const appDataRoot = join(homedir(), 'Library/Application Support', 'com.tauri-app.br1');
   const readerSearchRoot = join(appDataRoot, 'reader-search');
+  const staticSamplesRoot = join(process.cwd(), 'static', 'samples');
 
   const readerSearchCacheComponentKey = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -53,6 +54,106 @@ describe('br1 desktop app', () => {
       progressLocation?: string | null;
       lastOpenedAt?: number | null;
     }>;
+  };
+
+  const saveLibraryRecordsOnDisk = async (
+    records: Array<{
+      id: string;
+      title: string;
+      author: string;
+      format: string;
+      description?: string | null;
+      language?: string | null;
+      publisher?: string | null;
+      progress: string;
+      status: string;
+      filePath?: string;
+      file_path?: string;
+      coverPath?: string | null;
+      sourcePath?: string | null;
+      source_path?: string | null;
+      importedAt: number;
+      progressFraction?: number | null;
+      progressLocation?: string | null;
+      lastOpenedAt?: number | null;
+    }>
+  ) => {
+    const libraryDir = join(appDataRoot, 'library');
+    const libraryFile = join(libraryDir, 'library.json');
+    await mkdir(libraryDir, { recursive: true });
+    await writeFile(libraryFile, JSON.stringify(records, null, 2), 'utf8');
+  };
+
+  const sampleLibraryFormats = [
+    {
+      fileName: 'sample-book.fb2',
+      format: 'FB2',
+      expectedLabel: 'FB2',
+      expectedLayout: 'PAGINATED',
+      title: 'Sample FB2 Book'
+    },
+    {
+      fileName: 'sample-book.mobi',
+      format: 'MOBI',
+      expectedLabel: 'MOBI',
+      expectedLayout: 'PAGINATED',
+      title: 'Sample MOBI Book'
+    },
+    {
+      fileName: 'sample-book.azw3',
+      format: 'AZW3',
+      expectedLabel: 'AZW3',
+      expectedLayout: 'PAGINATED',
+      title: 'Sample AZW3 Book'
+    },
+    {
+      fileName: 'sample-comic.cbz',
+      format: 'CBZ',
+      expectedLabel: 'CBZ',
+      expectedLayout: 'FIXED',
+      title: 'Sample CBZ Book'
+    }
+  ] as const;
+
+  const ensureDesktopSampleLibraryRecords = async () => {
+    const existingRecords = await loadLibraryRecordsOnDisk();
+    const now = Date.now();
+    let nextImportedAt = now;
+    const seededPaths: string[] = [];
+
+    const seededRecords = [...existingRecords];
+
+    for (const sample of sampleLibraryFormats) {
+      const filePath = join(staticSamplesRoot, sample.fileName);
+      seededPaths.push(filePath);
+
+      seededRecords.push({
+        id: `desktop-sample:${sample.format.toLowerCase()}`,
+        title: sample.title,
+        author: 'br1 format regression',
+        format: sample.format,
+        description: null,
+        language: null,
+        publisher: null,
+        progress: '等待首轮阅读',
+        status: '新导入',
+        filePath,
+        coverPath: null,
+        sourcePath: filePath,
+        importedAt: nextImportedAt--,
+        progressFraction: null,
+        progressLocation: null,
+        lastOpenedAt: null
+      });
+    }
+
+    const deduped = seededRecords.filter((record, index, records) => {
+      const filePath = record.filePath ?? record.file_path ?? '';
+      return records.findIndex((candidate) => (candidate.filePath ?? candidate.file_path ?? '') === filePath) === index;
+    });
+
+    await saveLibraryRecordsOnDisk(deduped);
+    return seededPaths;
   };
 
   const nudgeReaderForward = async () =>
@@ -654,6 +755,7 @@ describe('br1 desktop app', () => {
         progressLabel,
         locationLabel: footerMeta[0] ?? null,
         formatLabel: footerMeta[1] ?? null,
+        layoutLabel: footerMeta[2] ?? null,
         stageError: document.querySelector('.stage-error')?.textContent?.trim() ?? null
       };
     });
@@ -1283,6 +1385,47 @@ describe('br1 desktop app', () => {
     expect(Math.abs(wideChrome.footerFrame.width - wideChrome.canvas.width)).toBeLessThanOrEqual(40);
     expect(focusChrome.canvas.left - focusGeometry.sidebar.right).toBeGreaterThanOrEqual(12);
     expect(wideChrome.canvas.left - wideGeometry.sidebar.right).toBeGreaterThanOrEqual(12);
+  });
+
+  it('opens FB2, MOBI, AZW3, and CBZ library-file samples in separate reader windows', async function () {
+    this.timeout(120000);
+    const seededPaths = await ensureDesktopSampleLibraryRecords();
+
+    await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    for (const sample of sampleLibraryFormats) {
+      const filePath = join(staticSamplesRoot, sample.fileName);
+      expect(seededPaths).toContain(filePath);
+
+      const { libraryHandle } = await openReaderFromLibraryPath(filePath);
+
+      try {
+        await browser.waitUntil(async () => {
+          const details = await readReaderDetails();
+          if (details.stageError) {
+            throw new Error(details.stageError);
+          }
+
+          return (
+            !!details.title &&
+            details.formatLabel === sample.expectedLabel &&
+            details.layoutLabel === sample.expectedLayout &&
+            details.locationLabel !== 'Opening book'
+          );
+        }, {
+          timeout: 20000,
+          timeoutMsg: `expected ${sample.format} library-file sample to open in a desktop reader window`
+        });
+
+        const details = await readReaderDetails();
+        expect(details.formatLabel).toBe(sample.expectedLabel);
+        expect(details.layoutLabel).toBe(sample.expectedLayout);
+      } finally {
+        await cleanupReaderAttempt(libraryHandle);
+      }
+    }
   });
 
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
