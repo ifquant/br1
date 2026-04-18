@@ -1275,10 +1275,14 @@ describe('br1 desktop app', () => {
     expect(wideChrome.canvas).toBeTruthy();
     expect(wideChrome.headerFrame).toBeTruthy();
     expect(wideChrome.footerFrame).toBeTruthy();
+    expect(focusGeometry.sidebar).toBeTruthy();
+    expect(wideGeometry.sidebar).toBeTruthy();
     expect(Math.abs(focusChrome.headerFrame.width - focusChrome.canvas.width)).toBeLessThanOrEqual(40);
     expect(Math.abs(focusChrome.footerFrame.width - focusChrome.canvas.width)).toBeLessThanOrEqual(40);
     expect(Math.abs(wideChrome.headerFrame.width - wideChrome.canvas.width)).toBeLessThanOrEqual(40);
     expect(Math.abs(wideChrome.footerFrame.width - wideChrome.canvas.width)).toBeLessThanOrEqual(40);
+    expect(focusChrome.canvas.left - focusGeometry.sidebar.right).toBeGreaterThanOrEqual(12);
+    expect(wideChrome.canvas.left - wideGeometry.sidebar.right).toBeGreaterThanOrEqual(12);
   });
 
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {

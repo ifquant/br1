@@ -411,84 +411,85 @@
     class="sidebar-scroll"
     options={{ scrollbars: { autoHide: 'scroll', theme: 'os-theme-readest' } }}
   >
-    <div class="book-chip">
-      <div class="book-visual" aria-hidden="true">
-        {#if coverUrl}
-          <img class="book-cover-image" src={coverUrl} alt="" loading="lazy" />
-        {:else}
-          <div class="book-spine"></div>
-        {/if}
-      </div>
-      <div class="book-copy">
-        <span class="book-kicker">{preview.formatLabel} · {preview.layoutLabel}</span>
-        <strong>{preview.title}</strong>
-        <span>{preview.author}</span>
-        <span>{preview.chapterLabel}</span>
-        <div class="book-stats">
-          <span>{preview.progressLabel}</span>
-          <span>{preview.locationLabel}</span>
+    <div class="sidebar-content">
+      <div class="book-chip">
+        <div class="book-visual" aria-hidden="true">
+          {#if coverUrl}
+            <img class="book-cover-image" src={coverUrl} alt="" loading="lazy" />
+          {:else}
+            <div class="book-spine"></div>
+          {/if}
         </div>
-        <div class="book-meta-row">
-          <span>{toc.length} 章节</span>
-          <span>{bookmarksState.bookmarks.length} 书签</span>
-          <span>{notesState.notes.length} 笔记</span>
-        </div>
-        <div class="book-actions-row">
-          <button type="button" class="book-action-chip primary" on:click={() => callbacks.onGoToLibrary?.()}>
-            回到书库
-          </button>
-          <div class="book-menu-anchor">
-            <button
-              type="button"
-              class:active={bookMenuOpen}
-              class="book-action-chip menu-trigger"
-              aria-label="更多书籍操作"
-              aria-expanded={bookMenuOpen}
-              on:click={toggleBookMenu}
-            >
-              ⋯
-            </button>
-
-            {#if bookMenuOpen}
-              <div class="book-action-menu" role="menu" aria-label="书籍更多操作">
-                <button type="button" role="menuitem" on:click={() => runBookMenuAction(callbacks.onGoToLibrary)}>
-                  回到书库
-                </button>
-                {#if callbacks.onOpenSourcePath}
-                  <button type="button" role="menuitem" on:click={() => runBookMenuAction(callbacks.onOpenSourcePath)}>
-                    打开原文件
-                  </button>
-                {/if}
-              </div>
-            {/if}
+        <div class="book-copy">
+          <span class="book-kicker">{preview.formatLabel} · {preview.layoutLabel}</span>
+          <strong>{preview.title}</strong>
+          <span>{preview.author}</span>
+          <span>{preview.chapterLabel}</span>
+          <div class="book-stats">
+            <span>{preview.progressLabel}</span>
+            <span>{preview.locationLabel}</span>
           </div>
-        </div>
-        {#if !hasOpenedBook}
-          <p class="book-empty">打开一本书后，这里会显示更完整的书籍信息。</p>
-        {/if}
-      </div>
-    </div>
-
-    {#if activeTab === 'toc'}
-      <nav class="toc" aria-label="table of contents preview">
-        {#if toc.length}
-          {#each toc as item}
-            <button
-              type="button"
-              class:active={item.href === activeHref}
-              data-href={item.href}
-              style={`--toc-level:${item.level};`}
-              on:click={() => callbacks.onNavigate?.(item.href)}
-            >
-              {item.label}
+          <div class="book-meta-row">
+            <span>{toc.length} 章节</span>
+            <span>{bookmarksState.bookmarks.length} 书签</span>
+            <span>{notesState.notes.length} 笔记</span>
+          </div>
+          <div class="book-actions-row">
+            <button type="button" class="book-action-chip primary" on:click={() => callbacks.onGoToLibrary?.()}>
+              回到书库
             </button>
-          {/each}
-        {:else}
-          <p class="empty">打开书后，这里会显示最小章节列表。</p>
-        {/if}
-      </nav>
-    {:else if activeTab === 'search'}
-      <section class="sidebar-panel" aria-label="search panel preview">
+            <div class="book-menu-anchor">
+              <button
+                type="button"
+                class:active={bookMenuOpen}
+                class="book-action-chip menu-trigger"
+                aria-label="更多书籍操作"
+                aria-expanded={bookMenuOpen}
+                on:click={toggleBookMenu}
+              >
+                ⋯
+              </button>
+
+              {#if bookMenuOpen}
+                <div class="book-action-menu" role="menu" aria-label="书籍更多操作">
+                  <button type="button" role="menuitem" on:click={() => runBookMenuAction(callbacks.onGoToLibrary)}>
+                    回到书库
+                  </button>
+                  {#if callbacks.onOpenSourcePath}
+                    <button type="button" role="menuitem" on:click={() => runBookMenuAction(callbacks.onOpenSourcePath)}>
+                      打开原文件
+                    </button>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          </div>
+          {#if !hasOpenedBook}
+            <p class="book-empty">打开一本书后，这里会显示更完整的书籍信息。</p>
+          {/if}
+        </div>
+      </div>
+
+      {#if activeTab === 'toc'}
+        <nav class="toc" aria-label="table of contents preview">
+          {#if toc.length}
+            {#each toc as item}
+              <button
+                type="button"
+                class:active={item.href === activeHref}
+                data-href={item.href}
+                style={`--toc-level:${item.level};`}
+                on:click={() => callbacks.onNavigate?.(item.href)}
+              >
+                {item.label}
+              </button>
+            {/each}
+          {:else}
+            <p class="empty">打开书后，这里会显示最小章节列表。</p>
+          {/if}
+        </nav>
+      {:else if activeTab === 'search'}
+        <section class="sidebar-panel" aria-label="search panel preview">
         <label class="search-field">
           <span class="sr-only">Search book contents</span>
           <input
@@ -618,9 +619,9 @@
             <p class="empty">打开书后，这里会显示真正的正文搜索结果。</p>
           {/if}
         </div>
-      </section>
-    {:else if activeTab === 'bookmarks'}
-      <section class="sidebar-panel" aria-label="bookmarks panel preview">
+        </section>
+      {:else if activeTab === 'bookmarks'}
+        <section class="sidebar-panel" aria-label="bookmarks panel preview">
         <div class="bookmarks-summary">
           <strong>书签</strong>
           <span>
@@ -794,9 +795,9 @@
             <p class="empty">还没有书签，先在顶栏点一下星标保存当前位置。</p>
           {/if}
         </div>
-      </section>
-    {:else}
-      <section class="sidebar-panel" aria-label="notes panel preview">
+        </section>
+      {:else}
+        <section class="sidebar-panel" aria-label="notes panel preview">
         <div class="notes-summary">
           <strong>最近笔记</strong>
           <span>
@@ -922,49 +923,59 @@
             <p class="empty">打开书并选中一段正文后，这里会出现最近的笔记卡片。</p>
           {/if}
         </div>
-      </section>
-    {/if}
+        </section>
+      {/if}
+    </div>
   </OverlayScrollbarsComponent>
 </aside>
 
 <style>
   .reader-sidebar {
+    --sidebar-content-inset: 14px;
     display: grid;
     align-content: start;
-    gap: 10px;
+    gap: 0;
     min-height: 0;
     height: 100%;
-    padding: 10px 10px 8px;
+    overflow: hidden;
+    padding: 0;
     border: 1px solid var(--border-light);
+    border-radius: 18px;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-panel) 96%, white 4%);
   }
 
   .reader-sidebar.window-mode {
-    border-top: 0;
-    border-left: 0;
-    border-bottom: 0;
-    padding-top: 18px;
+    border: 1px solid color-mix(in srgb, var(--border-light) 84%, transparent 16%);
+    border-radius: 24px;
+    margin: 8px 0 12px;
+    box-shadow:
+      0 18px 38px rgba(50, 35, 18, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 97%, white 3%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 96%, white 4%);
   }
 
   .reader-sidebar.overlay-mode {
     position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(320px, 42vw);
+    top: 8px;
+    left: var(--reader-workspace-edge, 18px);
+    bottom: 12px;
+    width: min(336px, 42vw);
     z-index: 20;
-    border-left: 0;
-    box-shadow: 22px 0 40px rgba(32, 23, 10, 0.08);
+    margin: 0;
+    box-shadow:
+      0 26px 54px rgba(32, 23, 10, 0.14),
+      0 6px 18px rgba(32, 23, 10, 0.08);
   }
 
   .sidebar-head {
     display: grid;
     gap: 8px;
+    padding: 16px var(--sidebar-content-inset) 10px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
   }
 
   .sidebar-tools {
@@ -1025,6 +1036,7 @@
   .tabs {
     display: flex;
     gap: 0;
+    margin: 10px var(--sidebar-content-inset) 0;
     padding: 1px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
@@ -1060,7 +1072,12 @@
   .toc {
     display: grid;
     gap: 3px;
-    padding-top: 10px;
+  }
+
+  .sidebar-content {
+    display: grid;
+    gap: 12px;
+    padding: 12px var(--sidebar-content-inset) 18px;
   }
 
   :global(.sidebar-scroll) {
@@ -1085,8 +1102,9 @@
     grid-template-columns: 56px minmax(0, 1fr);
     gap: 10px;
     align-items: start;
-    padding: 10px;
+    padding: 12px;
     border: 1px solid color-mix(in srgb, var(--border-light) 88%, transparent 12%);
+    border-radius: 18px;
     background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
   }
 
@@ -1271,7 +1289,7 @@
 
   .empty {
     margin: 0;
-    padding: 8px 10px 0;
+    padding: 2px 2px 0;
     color: var(--text-muted);
     font-family: var(--font-chrome);
     font-size: 12px;
@@ -1281,7 +1299,6 @@
   .sidebar-panel {
     display: grid;
     gap: 10px;
-    padding-top: 10px;
   }
 
   .search-field input {
