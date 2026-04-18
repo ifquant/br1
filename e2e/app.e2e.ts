@@ -152,6 +152,23 @@ describe('br1 desktop app', () => {
     return parsed.notes ?? [];
   };
 
+  const clickAnnotationKindFilter = async (label: '全部类型' | '高亮' | '笔记') => {
+    await browser.execute((targetLabel) => {
+      const container = document.querySelector('[aria-label="annotation kind filter controls"]');
+      if (!(container instanceof HTMLElement)) {
+        throw new Error('expected annotation kind filter controls to exist');
+      }
+
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const target = buttons.find((button) => button.textContent?.trim() === targetLabel);
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error(`expected to find annotation kind filter button: ${targetLabel}`);
+      }
+
+      target.click();
+    }, label);
+  };
+
   const sampleLibraryFormats = [
     {
       fileName: 'sample-book.fb2',
@@ -2905,24 +2922,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop notes workspace to persist both the highlight and the note after reopen'
     });
 
-    const clickKindFilter = async (label: '全部类型' | '高亮' | '笔记') => {
-      await browser.execute((targetLabel) => {
-        const container = document.querySelector('[aria-label="annotation kind filter controls"]');
-        if (!(container instanceof HTMLElement)) {
-          throw new Error('expected annotation kind filter controls to exist');
-        }
-
-        const buttons = Array.from(container.querySelectorAll('button'));
-        const target = buttons.find((button) => button.textContent?.trim() === targetLabel);
-        if (!(target instanceof HTMLButtonElement)) {
-          throw new Error(`expected to find annotation kind filter button: ${targetLabel}`);
-        }
-
-        target.click();
-      }, label);
-    };
-
-    await clickKindFilter('高亮');
+    await clickAnnotationKindFilter('高亮');
     await browser.waitUntil(async () => {
       const metaText = await $('.notes-meta-row').getText();
       const cards = await $$('.note-card');
@@ -2942,7 +2942,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop notes workspace to filter down to the persisted highlight only'
     });
 
-    await clickKindFilter('笔记');
+    await clickAnnotationKindFilter('笔记');
     await browser.waitUntil(async () => {
       const metaText = await $('.notes-meta-row').getText();
       const cards = await $$('.note-card');
@@ -2962,7 +2962,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop notes workspace to filter down to the persisted note only'
     });
 
-    await clickKindFilter('全部类型');
+    await clickAnnotationKindFilter('全部类型');
     await browser.waitUntil(async () => {
       const metaText = await $('.notes-meta-row').getText();
       const cards = await $$('.note-card');
@@ -3127,6 +3127,56 @@ describe('br1 desktop app', () => {
           texts
         )}\nFirst selection: ${firstSelectionText}\nSecond selection: ${secondSelectionText}`
       );
+    });
+
+    await clickAnnotationKindFilter('高亮');
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+
+      return (
+        metaText.includes('仅看高亮') &&
+        cards.length === 1 &&
+        texts[0]?.includes('高亮') &&
+        texts[0]?.includes(firstSelectionText.slice(0, 20))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop notes workspace to filter down to the persisted highlight only'
+    });
+
+    await clickAnnotationKindFilter('笔记');
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+
+      return (
+        metaText.includes('仅看笔记') &&
+        cards.length === 1 &&
+        texts[0]?.includes('desktop epub note body') &&
+        !texts[0]?.includes('高亮')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop notes workspace to filter down to the persisted note only'
+    });
+
+    await clickAnnotationKindFilter('全部类型');
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      return metaText.includes('全部类型') && cards.length === 2;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop notes workspace to restore the full annotation list after clearing the kind filter'
     });
 
     await clearAllReaderNotes();
