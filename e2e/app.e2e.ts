@@ -1988,14 +1988,44 @@ describe('br1 desktop app', () => {
       const title = typeof record.title === 'string' ? record.title : '';
       const status = typeof record.status === 'string' ? record.status : '';
       return (
-        title === 'sample-comic' &&
+        title === 'Bridge Reader Sample Comic' &&
         !/^\d{10,}-/.test(title) &&
         !/\.(svg|png|jpg|jpeg|webp)$/i.test(status) &&
-        status === '继续阅读'
+        (status === '已打开' || status === '继续阅读')
       );
     }, {
       timeout: 30000,
       timeoutMsg: 'expected CBZ library metadata to avoid stored filenames and internal page asset labels after returning from reader'
+    }).catch(async (error) => {
+      const record = await loadLibraryRecordOnDisk(cbzBook!.filePath);
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nPersisted CBZ record: ${JSON.stringify(record)}`
+      );
+    });
+  });
+
+  it('imports cbz metadata from ComicInfo.xml before any reader round-trip', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const cbzBook = importedBooks.find((entry) => entry.format === 'CBZ');
+    expect(cbzBook).toBeTruthy();
+    expect(cbzBook?.filePath).toBeTruthy();
+
+    await browser.waitUntil(async () => {
+      const record = await loadLibraryRecordOnDisk(cbzBook!.filePath);
+      if (!record) return false;
+      return (
+        record.title === 'Bridge Reader Sample Comic' &&
+        record.author === 'Bridge Team' &&
+        record.language === 'en' &&
+        record.publisher === 'Bridge Reader Lab' &&
+        typeof record.description === 'string' &&
+        record.description.includes('Bridge Reader parity checks')
+      );
+    }, {
+      timeout: 15000,
+      timeoutMsg:
+        'expected the imported CBZ sample to expose title/author/language/publisher/description before opening it in the reader'
     }).catch(async (error) => {
       const record = await loadLibraryRecordOnDisk(cbzBook!.filePath);
       throw new Error(

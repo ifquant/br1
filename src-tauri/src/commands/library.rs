@@ -14,8 +14,10 @@ use quick_xml::events::Event;
 use quick_xml::name::QName;
 use quick_xml::Reader;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use tauri::{Emitter, Manager};
+use zip::ZipArchive;
 
 pub(crate) const ASSOCIATED_BOOK_OPEN_EVENT: &str = "br1:associated-book-open-requested";
 
@@ -112,6 +114,15 @@ fn author_looks_like_placeholder(value: &str) -> bool {
 
 #[derive(Default)]
 struct Fb2Metadata {
+    title: Option<String>,
+    author: Option<String>,
+    language: Option<String>,
+    description: Option<String>,
+    publisher: Option<String>,
+}
+
+#[derive(Default)]
+struct CbzMetadata {
     title: Option<String>,
     author: Option<String>,
     language: Option<String>,
@@ -240,6 +251,82 @@ fn derive_fb2_metadata(source: &Path) -> Fb2Metadata {
     metadata
 }
 
+fn derive_cbz_metadata(source: &Path) -> CbzMetadata {
+    let Ok(file) = fs::File::open(source) else {
+        return CbzMetadata::default();
+    };
+    let Ok(mut archive) = ZipArchive::new(file) else {
+        return CbzMetadata::default();
+    };
+
+    let comic_info_name = (0..archive.len()).find_map(|index| {
+        let Ok(entry) = archive.by_index(index) else {
+            return None;
+        };
+        let name = entry.name().to_string();
+        name.to_ascii_lowercase()
+            .ends_with("comicinfo.xml")
+            .then_some(name)
+    });
+
+    let Some(comic_info_name) = comic_info_name else {
+        return CbzMetadata::default();
+    };
+
+    let Ok(mut comic_info) = archive.by_name(&comic_info_name) else {
+        return CbzMetadata::default();
+    };
+    let mut raw = String::new();
+    if comic_info.read_to_string(&mut raw).is_err() {
+        return CbzMetadata::default();
+    }
+
+    let mut reader = Reader::from_str(&raw);
+    reader.config_mut().trim_text(true);
+    let mut current_field: Option<&'static str> = None;
+    let mut metadata = CbzMetadata::default();
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(event)) => match event.name() {
+                QName(b"Title") => current_field = Some("title"),
+                QName(b"Writer") => current_field = Some("author"),
+                QName(b"LanguageISO") => current_field = Some("language"),
+                QName(b"Summary") => current_field = Some("description"),
+                QName(b"Publisher") => current_field = Some("publisher"),
+                _ => {}
+            },
+            Ok(Event::End(event)) => match event.name() {
+                QName(b"Title")
+                | QName(b"Writer")
+                | QName(b"LanguageISO")
+                | QName(b"Summary")
+                | QName(b"Publisher") => current_field = None,
+                _ => {}
+            },
+            Ok(Event::Text(text)) => {
+                let value = String::from_utf8_lossy(text.as_ref()).trim().to_string();
+                if value.is_empty() {
+                    continue;
+                }
+                match current_field {
+                    Some("title") if metadata.title.is_none() => metadata.title = Some(value),
+                    Some("author") if metadata.author.is_none() => metadata.author = Some(value),
+                    Some("language") if metadata.language.is_none() => metadata.language = Some(value),
+                    Some("description") if metadata.description.is_none() => metadata.description = Some(value),
+                    Some("publisher") if metadata.publisher.is_none() => metadata.publisher = Some(value),
+                    _ => {}
+                }
+            }
+            Ok(Event::Eof) => break,
+            Ok(_) => {}
+            Err(_) => return CbzMetadata::default(),
+        }
+    }
+
+    metadata
+}
+
 #[derive(Default)]
 struct KindleMetadata {
     title: Option<String>,
@@ -350,17 +437,27 @@ fn derive_kindle_metadata(source: &Path) -> KindleMetadata {
 
 fn derive_library_title(record: &LibraryBookRecord, incoming_title: &str) -> String {
     let trimmed = incoming_title.trim();
+    let source_stem = record
+        .source_path
+        .as_ref()
+        .and_then(|source_path| Path::new(source_path).file_stem().and_then(|stem| stem.to_str()))
+        .map(|stem| stem.trim().to_string())
+        .filter(|stem| !stem.is_empty());
+
     if trimmed.is_empty() || title_looks_like_stored_filename(trimmed) {
-        if let Some(source_path) = record.source_path.as_ref() {
-            if let Some(stem) = Path::new(source_path).file_stem().and_then(|stem| stem.to_str()) {
-                let normalized = stem.trim();
-                if !normalized.is_empty() {
-                    return normalized.to_string();
-                }
-            }
+        if let Some(source_stem) = source_stem {
+            return source_stem;
         }
 
         return record.title.clone();
+    }
+
+    if let Some(source_stem) = source_stem.as_ref() {
+        if normalize_status_key(trimmed) == normalize_status_key(source_stem)
+            && normalize_status_key(&record.title) != normalize_status_key(source_stem)
+        {
+            return record.title.clone();
+        }
     }
 
     trimmed.to_string()
@@ -493,6 +590,11 @@ pub(crate) fn import_library_books(
         } else {
             Fb2Metadata::default()
         };
+        let cbz_metadata = if extension == "cbz" {
+            derive_cbz_metadata(source)
+        } else {
+            CbzMetadata::default()
+        };
         let kindle_metadata = if extension == "mobi" || extension == "azw3" {
             derive_kindle_metadata(source)
         } else {
@@ -500,11 +602,18 @@ pub(crate) fn import_library_books(
         };
         let title = if extension == "fb2" {
             fb2_metadata.title.clone().unwrap_or(default_title)
+        } else if extension == "cbz" {
+            cbz_metadata.title.clone().unwrap_or(default_title)
         } else {
             kindle_metadata.title.clone().unwrap_or(default_title)
         };
         let author = if extension == "fb2" {
             fb2_metadata
+                .author
+                .clone()
+                .unwrap_or_else(|| "Unknown author".to_string())
+        } else if extension == "cbz" {
+            cbz_metadata
                 .author
                 .clone()
                 .unwrap_or_else(|| "Unknown author".to_string())
@@ -515,11 +624,15 @@ pub(crate) fn import_library_books(
         };
         let language = if extension == "fb2" {
             fb2_metadata.language.clone()
+        } else if extension == "cbz" {
+            cbz_metadata.language.clone()
         } else {
             kindle_metadata.language.clone()
         };
         let publisher = if extension == "fb2" {
             fb2_metadata.publisher.clone()
+        } else if extension == "cbz" {
+            cbz_metadata.publisher.clone()
         } else if extension == "mobi" || extension == "azw3" {
             kindle_metadata.publisher.clone()
         } else {
@@ -527,6 +640,8 @@ pub(crate) fn import_library_books(
         };
         let description = if extension == "fb2" {
             fb2_metadata.description.clone()
+        } else if extension == "cbz" {
+            cbz_metadata.description.clone()
         } else if extension == "mobi" || extension == "azw3" {
             kindle_metadata.description.clone()
         } else {

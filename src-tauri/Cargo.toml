@@ -32,3 +32,4 @@ sha2 = "0.10"
 tauri-plugin-dialog = "2"
 tauri-plugin-webdriver = { version = "0.2", optional = true }
 quick-xml = "0.37"
+zip = { version = "2", default-features = false, features = ["deflate"] }
