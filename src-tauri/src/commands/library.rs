@@ -1,5 +1,6 @@
 use crate::models::{
-    LibraryBookBinary, LibraryBookRecord, ReadestImportResult, ReadestLibrarySummary,
+    AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord, PendingAssociatedBookOpenRequests,
+    ReadestImportResult, ReadestLibrarySummary,
 };
 use crate::util::{
     book_mime_type, cover_mime_type, ensure_library_root, find_readest_book_file,
@@ -14,6 +15,9 @@ use quick_xml::name::QName;
 use quick_xml::Reader;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tauri::{Emitter, Manager};
+
+pub(crate) const ASSOCIATED_BOOK_OPEN_EVENT: &str = "br1:associated-book-open-requested";
 
 fn title_looks_like_stored_filename(value: &str) -> bool {
     let trimmed = value.trim();
@@ -30,6 +34,71 @@ fn title_looks_like_stored_filename(value: &str) -> bool {
         && [".epub", ".pdf", ".fb2", ".mobi", ".azw3", ".cbz", ".txt"]
             .iter()
             .any(|suffix| lower.ends_with(suffix))
+}
+
+fn is_supported_associated_book_path(path: &Path) -> bool {
+    let Some(extension) = path.extension().and_then(|value| value.to_str()) else {
+        return false;
+    };
+
+    matches!(
+        extension.to_ascii_lowercase().as_str(),
+        "epub" | "pdf" | "fb2" | "mobi" | "azw3" | "cbz" | "txt"
+    )
+}
+
+fn normalize_associated_book_requests(
+    file_paths: Vec<String>,
+    cwd: Option<&Path>,
+) -> Vec<AssociatedBookOpenRequest> {
+    file_paths
+        .into_iter()
+        .filter_map(|file_path| {
+            let path = PathBuf::from(&file_path);
+            let resolved = if path.is_absolute() {
+                path
+            } else if let Some(cwd) = cwd {
+                cwd.join(path)
+            } else {
+                path
+            };
+            if !resolved.is_file() || !is_supported_associated_book_path(&resolved) {
+                return None;
+            }
+
+            let label = resolved
+                .file_name()
+                .and_then(|value| value.to_str())
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or("Associated book")
+                .to_string();
+
+            Some(AssociatedBookOpenRequest {
+                path: resolved.to_string_lossy().to_string(),
+                label,
+            })
+        })
+        .collect()
+}
+
+pub(crate) fn queue_associated_book_open_requests_runtime<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    file_paths: Vec<String>,
+    cwd: Option<PathBuf>,
+) -> Result<usize, String> {
+    let requests = normalize_associated_book_requests(file_paths, cwd.as_deref());
+    if requests.is_empty() {
+        return Ok(0);
+    }
+
+    let pending = app.state::<PendingAssociatedBookOpenRequests>();
+    let mut queue = pending.0.lock().map_err(|_| "Failed to lock associated-book queue".to_string())?;
+    queue.extend(requests);
+    let queued_count = queue.len();
+    drop(queue);
+
+    let _ = app.emit_to("main", ASSOCIATED_BOOK_OPEN_EVENT, ());
+    Ok(queued_count)
 }
 
 fn author_looks_like_placeholder(value: &str) -> bool {
@@ -303,6 +372,24 @@ pub(crate) fn load_library_books(app: tauri::AppHandle) -> Result<Vec<LibraryBoo
         save_library_records(&library_json, &records)?;
     }
     Ok(records)
+}
+
+#[tauri::command]
+pub(crate) fn queue_associated_book_open_requests(
+    app: tauri::AppHandle,
+    file_paths: Vec<String>,
+) -> Result<usize, String> {
+    queue_associated_book_open_requests_runtime(&app, file_paths, None)
+}
+
+#[tauri::command]
+pub(crate) fn consume_associated_book_open_requests(
+    app: tauri::AppHandle,
+) -> Result<Vec<AssociatedBookOpenRequest>, String> {
+    let pending = app.state::<PendingAssociatedBookOpenRequests>();
+    let mut queue = pending.0.lock().map_err(|_| "Failed to lock associated-book queue".to_string())?;
+    let requests = std::mem::take(&mut *queue);
+    Ok(requests)
 }
 
 #[tauri::command]

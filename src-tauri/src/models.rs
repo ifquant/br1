@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,6 +74,16 @@ pub(crate) struct LibraryBookBinary {
     pub(crate) mime_type: String,
     pub(crate) bytes_base64: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AssociatedBookOpenRequest {
+    pub(crate) path: String,
+    pub(crate) label: String,
+}
+
+#[derive(Default)]
+pub(crate) struct PendingAssociatedBookOpenRequests(pub(crate) Mutex<Vec<AssociatedBookOpenRequest>>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

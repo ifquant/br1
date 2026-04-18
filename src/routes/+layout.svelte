@@ -1,7 +1,11 @@
 <script lang="ts">
   import 'overlayscrollbars/styles/overlayscrollbars.css';
+  import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
   import { derived } from 'svelte/store';
+  import { openReaderTarget, toExternalLibraryFileReaderTarget } from '$lib/services';
+  import { invokeTauri, isTauriDesktop } from '$lib/services/platform';
 
   const navItems = [
     { href: '/library', label: 'Library' },
@@ -14,6 +18,66 @@
     ($page) =>
       $page.url.pathname === '/reader' && $page.url.searchParams.get('mode') === 'window'
   );
+
+  const flushAssociatedBookOpenRequests = async () => {
+    const requests = await invokeTauri<Array<{ path: string }>>('consume_associated_book_open_requests');
+    for (const request of requests) {
+      const target = toExternalLibraryFileReaderTarget(request.path);
+      const opened = await openReaderTarget(target);
+      if (!opened) {
+        await goto(target.href);
+      }
+    }
+  };
+
+  onMount(() => {
+    if (!isTauriDesktop()) return;
+
+    let disposed = false;
+    let flushChain = Promise.resolve();
+
+    const queueFlush = () => {
+      flushChain = flushChain
+        .then(async () => {
+          if (disposed) return;
+          await flushAssociatedBookOpenRequests();
+        })
+        .catch((error) => {
+          console.error('Failed to flush associated-book open requests', error);
+        });
+    };
+
+    let unlistenPromise: Promise<(() => void) | void> | null = null;
+
+    (async () => {
+      const [{ getCurrentWindow }, { listen }] = await Promise.all([
+        import('@tauri-apps/api/window'),
+        import('@tauri-apps/api/event')
+      ]);
+      if (disposed) return;
+
+      const currentWindow = getCurrentWindow();
+      if (currentWindow.label !== 'main') {
+        return;
+      }
+
+      queueFlush();
+      unlistenPromise = listen('br1:associated-book-open-requested', () => {
+        queueFlush();
+      });
+    })().catch((error) => {
+      console.error('Failed to install associated-book open listeners', error);
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise?.then((unlisten) => {
+        if (typeof unlisten === 'function') {
+          unlisten();
+        }
+      });
+    };
+  });
 </script>
 
 <svelte:head>

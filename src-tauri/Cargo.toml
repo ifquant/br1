@@ -25,6 +25,7 @@ tauri-build = { version = "2", features = [] }
 base64 = "0.22"
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

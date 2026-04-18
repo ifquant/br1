@@ -111,6 +111,11 @@ type ReaderHrefOptions = {
   location?: string;
 };
 
+const getBookLabelFromPath = (filePath: string) => {
+  const normalized = filePath.split(/[\\/]/).at(-1) ?? filePath;
+  return normalized.trim() || 'Associated book';
+};
+
 export const canPersistLibrary = () => isTauriDesktop();
 
 const requireTauriLibraryRuntime = (action: string) => {
@@ -240,6 +245,23 @@ export const toAssetReaderTarget = (url: string, label: string): LibraryReaderTa
   url,
   href: toAssetReaderHref(url, label)
 });
+
+export const toExternalLibraryFileReaderTarget = (filePath: string): LibraryReaderTarget => {
+  const label = getBookLabelFromPath(filePath);
+  const href = toReaderHref({
+    source: 'library-file',
+    path: filePath,
+    label
+  });
+
+  return {
+    kind: 'library-file',
+    mode: 'resume',
+    label,
+    path: filePath,
+    href
+  };
+};
 
 export const toLibraryReaderTarget = (
   book: PersistedLibraryBook,

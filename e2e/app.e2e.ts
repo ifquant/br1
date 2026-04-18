@@ -159,6 +159,44 @@ describe('br1 desktop app', () => {
     }));
   };
 
+  const queueAssociatedBookOpenRequests = async (filePaths: string[]) => {
+    const result = await browser.executeAsync((paths, done) => {
+      const tauriInternals = (window as typeof window & {
+        __TAURI_INTERNALS__?: {
+          invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).__TAURI_INTERNALS__;
+
+      if (typeof tauriInternals?.invoke !== 'function') {
+        done({
+          ok: false,
+          error: 'expected window.__TAURI_INTERNALS__.invoke to exist in the desktop webview'
+        });
+        return;
+      }
+
+      tauriInternals
+        .invoke('queue_associated_book_open_requests', {
+          filePaths: paths
+        })
+        .then((count) => {
+          done({ ok: true, count });
+        })
+        .catch((error) => {
+          done({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        });
+    }, filePaths);
+
+    if (!result?.ok) {
+      throw new Error(result?.error ?? 'expected queue_associated_book_open_requests to succeed');
+    }
+
+    return result.count as number;
+  };
+
   const nudgeReaderForward = async () =>
     browser.execute(async () => {
       const view = document.querySelector('foliate-view') as
@@ -1282,6 +1320,51 @@ describe('br1 desktop app', () => {
     const readerStage = await $('[aria-label="reader stage"]');
     await readerStage.waitForDisplayed({ timeout: 10000 });
     expect(await readerStage.isDisplayed()).toBe(true);
+  });
+
+  it('opens an associated book request in a separate reader window', async () => {
+    const libraryHandle = await switchToLibraryWindow();
+    const handlesBeforeQueue = await browser.getWindowHandles();
+    const fb2Path = join(staticSamplesRoot, 'sample-book.fb2');
+
+    const queuedCount = await queueAssociatedBookOpenRequests([fb2Path]);
+    expect(queuedCount).toBeGreaterThan(0);
+
+    await browser.waitUntil(async () => {
+      const handles = await browser.getWindowHandles();
+      return handles.length > handlesBeforeQueue.length;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected an associated book open request to create a reader window'
+    });
+
+    const handlesAfterQueue = await browser.getWindowHandles();
+    const readerHandle = handlesAfterQueue.find((handle) => !handlesBeforeQueue.includes(handle));
+    expect(readerHandle).toBeTruthy();
+
+    await browser.switchToWindow(readerHandle!);
+
+    const readerShell = await $('.reader-shell');
+    await readerShell.waitForDisplayed({ timeout: 10000 });
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+      return details.title === 'Bridge Reader Sample FB2' && details.formatLabel === 'FB2';
+    }, {
+      timeout: 20000,
+      timeoutMsg: 'expected the associated FB2 request to open in a reader window with readable metadata'
+    });
+
+    const readerUrl = new URL(await browser.getUrl());
+    expect(readerUrl.searchParams.get('mode')).toBe('window');
+    expect(readerUrl.searchParams.get('source')).toBe('library-file');
+    expect(readerUrl.searchParams.get('path')).toBe(fb2Path);
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
   });
 
   it('loads metadata after opening the first library book', async () => {

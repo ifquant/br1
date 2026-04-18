@@ -24,6 +24,48 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "fileAssociations": [
+      {
+        "ext": ["epub"],
+        "name": "EPUB ebook",
+        "description": "Open EPUB ebooks in br1",
+        "role": "Viewer",
+        "mimeType": "application/epub+zip"
+      },
+      {
+        "ext": ["pdf"],
+        "name": "PDF document",
+        "description": "Open PDF documents in br1",
+        "role": "Viewer",
+        "mimeType": "application/pdf"
+      },
+      {
+        "ext": ["fb2"],
+        "name": "FB2 ebook",
+        "description": "Open FB2 ebooks in br1",
+        "role": "Viewer",
+        "mimeType": "application/x-fictionbook+xml"
+      },
+      {
+        "ext": ["mobi", "azw3"],
+        "name": "Kindle ebook",
+        "description": "Open Kindle ebooks in br1",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["cbz"],
+        "name": "Comic archive",
+        "description": "Open comic archives in br1",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["txt"],
+        "name": "Plain text document",
+        "description": "Open text documents in br1",
+        "role": "Viewer",
+        "mimeType": "text/plain"
+      }
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

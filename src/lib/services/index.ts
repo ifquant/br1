@@ -26,6 +26,7 @@ export {
   selectSystemBookPaths,
   toAssetReaderHref,
   toAssetReaderTarget,
+  toExternalLibraryFileReaderTarget,
   toLibraryCoverUrl,
   toLibraryReaderTarget,
   toReaderAssetHref,
