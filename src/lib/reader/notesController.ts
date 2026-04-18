@@ -41,7 +41,9 @@ export const createReaderNotesController = ({
     lastHydratedStorageKey = storageKey;
 
     if (canPersistNotes()) {
-      void savePersistedNotes(storageKey, notes);
+      void savePersistedNotes(storageKey, notes).catch((error) => {
+        console.warn('Failed to persist reader notes', error);
+      });
       return;
     }
 

@@ -105,6 +105,26 @@ describe('br1 desktop app', () => {
     }>;
   };
 
+  const readerNotesFilePath = (bookKey: string) => {
+    const safeKey = createHash('sha256').update(bookKey).digest('hex');
+    return join(appDataRoot, 'reader-notes', `${safeKey}.json`);
+  };
+
+  const loadReaderNotesOnDisk = async (bookKey: string) => {
+    const notesFile = readerNotesFilePath(bookKey);
+    const raw = await readFile(notesFile, 'utf8');
+    const parsed = JSON.parse(raw) as {
+      notes?: Array<{
+        id?: string;
+        kind?: string;
+        cfi?: string;
+        text?: string;
+        note?: string;
+      }>;
+    };
+    return parsed.notes ?? [];
+  };
+
   const sampleLibraryFormats = [
     {
       fileName: 'sample-book.fb2',
@@ -1011,6 +1031,95 @@ describe('br1 desktop app', () => {
       selection?.addRange(range);
     }, needle);
   };
+
+  const selectVisibleFoliateTextInReader = async (segmentIndex = 0) =>
+    browser.execute((targetSegmentIndex) => {
+      const view = document.querySelector('foliate-view') as
+        | (HTMLElement & {
+            renderer?: {
+              getContents?: () => Array<{ doc: Document; index?: number }>;
+            };
+            shadowRoot?: ShadowRoot | null;
+          })
+        | null;
+      const paginator = view?.shadowRoot?.querySelector('foliate-paginator') as
+        | (HTMLElement & { shadowRoot?: ShadowRoot | null })
+        | null;
+      const paginatorContainer = paginator?.shadowRoot?.querySelector('#container') as HTMLElement | null;
+      const frames = Array.from(paginator?.shadowRoot?.querySelectorAll('iframe') ?? []) as HTMLIFrameElement[];
+
+      const selectFirstSubstantialText = (frameDocument: Document, frameWindow: Window) => {
+        const walker = frameDocument.createTreeWalker(frameDocument.body, NodeFilter.SHOW_TEXT, {
+          acceptNode(node) {
+            return node.textContent && node.textContent.trim().length > 20
+              ? NodeFilter.FILTER_ACCEPT
+              : NodeFilter.FILTER_SKIP;
+          }
+        });
+
+        let node: Node | null = null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+          if (raw.length < 20) continue;
+
+          const selectionLength = Math.min(Math.max(36, Math.floor(raw.length / 2)), 72);
+          const nodeText = node.textContent ?? '';
+          const firstNonWhitespace = nodeText.search(/\S/);
+          const startOffset =
+            firstNonWhitespace < 0
+              ? -1
+              : Math.min(
+                  nodeText.length - 1,
+                  firstNonWhitespace + targetSegmentIndex * Math.max(18, Math.floor(selectionLength / 2))
+                );
+          if (startOffset < 0) continue;
+          const endOffset = Math.min(nodeText.length, startOffset + selectionLength);
+          if (endOffset <= startOffset) continue;
+
+          const selectionRange = frameDocument.createRange();
+          selectionRange.setStart(node, startOffset);
+          selectionRange.setEnd(node, endOffset);
+
+          const selection = frameWindow.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(selectionRange);
+          return selection?.toString().replace(/\s+/g, ' ').trim() ?? raw.slice(0, selectionLength);
+        }
+
+        return '';
+      };
+
+      for (const frame of frames) {
+        const frameDocument = frame.contentDocument;
+        const frameWindow = frame.contentWindow;
+        if (!frameDocument?.body || !frameWindow) continue;
+
+        const frameRect = frame.getBoundingClientRect();
+        const containerRect = paginatorContainer?.getBoundingClientRect() ?? null;
+        const visibleLeft = containerRect ? Math.max(frameRect.left, containerRect.left) : frameRect.left;
+        const visibleRight = containerRect ? Math.min(frameRect.right, containerRect.right) : frameRect.right;
+        const visibleTop = containerRect ? Math.max(frameRect.top, containerRect.top) : frameRect.top;
+        const visibleBottom = containerRect ? Math.min(frameRect.bottom, containerRect.bottom) : frameRect.bottom;
+        const visibleWidth = visibleRight - visibleLeft;
+        const visibleHeight = visibleBottom - visibleTop;
+
+        if (visibleWidth < 24 || visibleHeight < 10) continue;
+
+        const selected = selectFirstSubstantialText(frameDocument, frameWindow);
+        if (selected) return selected;
+      }
+
+      const rendererDocs = view?.renderer?.getContents?.() ?? [];
+      for (const entry of rendererDocs) {
+        const frameDocument = entry.doc;
+        const frameWindow = frameDocument.defaultView;
+        if (!frameDocument?.body || !frameWindow) continue;
+        const selected = selectFirstSubstantialText(frameDocument, frameWindow);
+        if (selected) return selected;
+      }
+
+      throw new Error('expected a visible foliate text node to select');
+    }, segmentIndex);
 
   const readReaderGeometry = () =>
     browser.execute(() => {
@@ -2729,6 +2838,163 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop notes workspace to persist both the highlight and the note after reopen'
+    });
+
+    await clearAllReaderNotes();
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+  });
+
+  it('persists epub highlights and notes separately through the desktop reader store', async function () {
+    this.timeout(120000);
+    const { libraryHandle, href } = await openUsableReaderBook({ requireCfi: true });
+    const target = new URL(href, 'http://localhost');
+    const bookKey = target.searchParams.get('path') || '';
+    const notesStorageKey = `br1.reader.notes:${bookKey}`;
+    expect(bookKey).toBeTruthy();
+
+    await switchReaderToNotesTab();
+    await clearAllReaderNotes();
+
+    const firstSelectionText = await selectVisibleFoliateTextInReader();
+    await browser.waitUntil(async () => {
+      const selectionCard = await $('.selection-card p');
+      return (await selectionCard.getText()).includes(firstSelectionText.slice(0, 20));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB reader to expose the first selected text in the notes workspace'
+    });
+
+    const highlightButton = await $('.secondary-note-action');
+    await highlightButton.click();
+
+    await browser.waitUntil(async () => {
+      const cards = await $$('.note-card');
+      if (!cards.length) return false;
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20)));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB reader to persist a highlight entry in the desktop notes workspace'
+    });
+
+    const secondSelectionText = await selectVisibleFoliateTextInReader(1);
+    await browser.waitUntil(async () => {
+      const selectionCard = await $('.selection-card p');
+      return (await selectionCard.getText()).includes(secondSelectionText.slice(0, 20));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB reader to expose the second selected text in the notes workspace'
+    });
+
+    await browser.execute(() => {
+      window.prompt = () => 'desktop epub note body';
+    });
+
+    const noteButton = await $('.primary-note-action');
+    await noteButton.click();
+
+    await browser.waitUntil(async () => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('1 高亮') &&
+        metaText.includes('1 笔记') &&
+        texts.some((text) => text.includes('desktop epub note body')) &&
+        texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20)))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop notes workspace to show one highlight and one note'
+    }).catch(async (error) => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nMeta: ${metaText}\nCards: ${JSON.stringify(
+          texts
+        )}\nFirst selection: ${firstSelectionText}\nSecond selection: ${secondSelectionText}`
+      );
+    });
+
+    await browser.waitUntil(async () => {
+      try {
+        const persistedNotes = await loadReaderNotesOnDisk(notesStorageKey);
+        return (
+          persistedNotes.length === 2 &&
+          persistedNotes.some(
+            (note) =>
+              note.kind === 'highlight' && (note.text ?? '').includes(firstSelectionText.slice(0, 20))
+          ) &&
+          persistedNotes.some((note) => note.kind === 'note' && note.note === 'desktop epub note body')
+        );
+      } catch {
+        return false;
+      }
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB reader notes store to persist both the highlight and the note before closing the window'
+    }).catch(async (error) => {
+      let persistedNotes: Awaited<ReturnType<typeof loadReaderNotesOnDisk>> = [];
+      try {
+        persistedNotes = await loadReaderNotesOnDisk(notesStorageKey);
+      } catch {
+        persistedNotes = [];
+      }
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nPersisted notes: ${JSON.stringify(
+          persistedNotes
+        )}`
+      );
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await openReaderFromLibraryPath(bookKey, libraryHandle);
+    await switchReaderToNotesTab();
+
+    await browser.waitUntil(async () => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('1 高亮') &&
+        metaText.includes('1 笔记') &&
+        texts.some((text) => text.includes('desktop epub note body')) &&
+        texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20)))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop notes workspace to persist both the highlight and the note after reopen'
+    }).catch(async (error) => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReopen meta: ${metaText}\nReopen cards: ${JSON.stringify(
+          texts
+        )}\nFirst selection: ${firstSelectionText}\nSecond selection: ${secondSelectionText}`
+      );
     });
 
     await clearAllReaderNotes();
