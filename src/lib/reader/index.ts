@@ -17,6 +17,13 @@ export { createReaderSearchController } from './searchController';
 export { createReaderNotesController } from './notesController';
 export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
+export {
+  getDesktopBookDialogExtensions,
+  inferReaderFormatLabelFromName,
+  isPlannedReaderFormatLabel,
+  isSupportedReaderFormatLabel,
+  READER_FILE_INPUT_ACCEPT
+} from './formats';
 export { parseReaderRouteOpenState, toReaderOpenControlRequest } from './route';
 export type { FoliateViewElement, ReaderBookDocument } from './foliate';
 export type { ReaderRouteOpenState, ReaderRouteOpenTarget } from './route';

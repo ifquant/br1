@@ -4,7 +4,7 @@
    * only as a legacy preview shell until the old surface is removed.
    */
   import { createEventDispatcher, tick } from 'svelte';
-  import { createReaderMountBoundary } from '$lib/reader';
+  import { createReaderMountBoundary, READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import { startCurrentWindowDrag } from '$lib/services';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
   import ReaderViewport from './ReaderViewport.svelte';
@@ -114,7 +114,7 @@
         bind:this={importInput}
         class="import-input"
         type="file"
-        accept=".epub,.pdf,.mobi,.azw3,.fb2"
+        accept={READER_FILE_INPUT_ACCEPT}
         on:change={handleImportChange}
       />
       <button type="button" aria-label="Open book" title="Open book" on:click={triggerImportPicker}>⌂</button>

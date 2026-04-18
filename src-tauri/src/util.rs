@@ -442,6 +442,8 @@ pub(crate) fn book_mime_type(path: &Path) -> &'static str {
         "mobi" => "application/x-mobipocket-ebook",
         "azw3" => "application/vnd.amazon.ebook",
         "fb2" => "application/x-fictionbook+xml",
+        "cbz" => "application/vnd.comicbook+zip",
+        "txt" => "text/plain",
         _ => "application/epub+zip",
     }
 }

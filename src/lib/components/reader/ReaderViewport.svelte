@@ -8,7 +8,10 @@
     ensureFoliateViewDefinition,
     flattenToc,
     getReaderViewStyles,
+    inferReaderFormatLabelFromName,
     installReaderBookTransformGuards,
+    isPlannedReaderFormatLabel,
+    isSupportedReaderFormatLabel,
     loadReaderBookDocument,
     pickAuthor,
     pickText,
@@ -95,17 +98,16 @@
   });
 
   const inferReaderFormatLabel = (source: string | File, sourceLabel: string) => {
-    const fromName = (value: string) => {
-      const match = value.toLowerCase().match(/\.([a-z0-9]+)(?:$|[?#])/i);
-      return match?.[1]?.toUpperCase() ?? '';
-    };
-
     if (source instanceof File) {
       if (source.type === 'application/pdf') return 'PDF';
-      return fromName(source.name) || 'BOOK';
+      return inferReaderFormatLabelFromName(source.name) || 'BOOK';
     }
 
-    return fromName(source) || fromName(sourceLabel) || 'BOOK';
+    return (
+      inferReaderFormatLabelFromName(source) ||
+      inferReaderFormatLabelFromName(sourceLabel) ||
+      'BOOK'
+    );
   };
 
   const inferReaderLayoutLabel = (book: ReaderBookDocument | undefined, formatLabel: string) => {
@@ -160,6 +162,10 @@
 
     if (detail.includes('does not expose makeBook()') || detail.includes('makeBook')) {
       return `Failed to prepare ${formatLabel} book data before opening ${sourceLabel}.`;
+    }
+
+    if (detail.includes('support is planned but not implemented yet')) {
+      return `${formatLabel} support is planned for br1 but not implemented yet: ${sourceLabel}.`;
     }
 
     if (detail.toLowerCase().includes('unsupported')) {
@@ -354,6 +360,12 @@
       currentFormatLabel = inferReaderFormatLabel(source, sourceLabel);
       let openTarget: string | File | ReaderBookDocument = source;
       if (source instanceof File) {
+        if (isPlannedReaderFormatLabel(currentFormatLabel)) {
+          throw new Error(`${currentFormatLabel} support is planned but not implemented yet`);
+        }
+        if (!isSupportedReaderFormatLabel(currentFormatLabel)) {
+          throw new Error(`unsupported ${currentFormatLabel} format`);
+        }
         openTarget = await loadReaderBookDocument(source);
       }
 

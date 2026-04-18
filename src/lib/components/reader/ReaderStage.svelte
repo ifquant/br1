@@ -12,6 +12,7 @@
     ReaderSelectionState,
     ReaderTocItem
   } from '$lib/reader';
+  import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
@@ -229,7 +230,7 @@
     bind:this={importInput}
     class="import-input"
     type="file"
-    accept=".epub,.pdf,.mobi,.azw3,.fb2"
+    accept={READER_FILE_INPUT_ACCEPT}
     on:change={handleImportChange}
   />
 

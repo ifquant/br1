@@ -4,6 +4,7 @@
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type { LibraryShelfBook } from '$lib/library/types';
   import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
+  import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import type {
     LibraryReaderTarget,
     PersistedLibraryBook
@@ -763,7 +764,7 @@
       bind:this={importInput}
       class="import-input"
       type="file"
-      accept=".epub,.pdf,.mobi,.azw3,.fb2"
+      accept={READER_FILE_INPUT_ACCEPT}
       on:change={handleImportChange}
     />
 

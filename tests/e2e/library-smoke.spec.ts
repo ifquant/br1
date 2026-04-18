@@ -15,6 +15,10 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Import books from the system/i })).toBeVisible();
+  await expect(page.locator('input.import-input[type="file"]').first()).toHaveAttribute(
+    'accept',
+    '.epub,.pdf,.mobi,.azw3,.fb2,.cbz'
+  );
 
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitemradio', { name: '书名' }).click();

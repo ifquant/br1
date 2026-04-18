@@ -1,3 +1,4 @@
+import { getDesktopBookDialogExtensions } from '$lib/reader';
 import { invokeTauri, isTauriDesktop } from './platform';
 
 export type PersistedLibraryBook = {
@@ -169,7 +170,7 @@ export const selectSystemBookPaths = async (): Promise<string[]> => {
   const { open } = await import('@tauri-apps/plugin-dialog');
   const selected = await open({
     multiple: true,
-    filters: [{ name: 'Books', extensions: ['epub', 'pdf', 'mobi', 'azw3', 'fb2'] }]
+    filters: [{ name: 'Books', extensions: getDesktopBookDialogExtensions() }]
   });
 
   if (!selected) return [];
