@@ -102,6 +102,13 @@ describe('br1 desktop app', () => {
       expectedLabel: 'CBZ',
       expectedLayout: 'FIXED',
       title: 'Sample CBZ Book'
+    },
+    {
+      fileName: 'sample-book.txt',
+      format: 'TXT',
+      expectedLabel: 'TXT',
+      expectedLayout: 'SCROLL',
+      title: 'sample-book'
     }
   ] as const;
 
@@ -198,8 +205,17 @@ describe('br1 desktop app', () => {
     return result.count as number;
   };
 
-  const nudgeReaderForward = async () =>
-    browser.execute(async () => {
+  const nudgeReaderForward = async () => {
+    const details = await readReaderDetails();
+    if (details.formatLabel === 'TXT') {
+      const nextButton = await $('[aria-label="Next page"]');
+      await nextButton.waitForDisplayed({ timeout: 10000 });
+      await nextButton.click();
+      await browser.pause(200);
+      return (await readReaderDetails()).progressFraction;
+    }
+
+    return browser.execute(async () => {
       const view = document.querySelector('foliate-view') as
         | (HTMLElement & {
             next?: () => Promise<void>;
@@ -207,10 +223,24 @@ describe('br1 desktop app', () => {
           })
         | null;
 
-      if (!view?.next) return view?.lastLocation?.fraction ?? null;
-      await view.next();
-      return view.lastLocation?.fraction ?? null;
+      if (view?.next) {
+        await view.next();
+        return view.lastLocation?.fraction ?? null;
+      }
+
+      const plainTextSurface = document.querySelector('.plain-text-surface') as HTMLElement | null;
+      const progressInput = document.querySelector(
+        '[aria-label="reader progress preview"] input[type="range"]'
+      ) as HTMLInputElement | null;
+      if (!plainTextSurface || !progressInput) return null;
+
+      const nextValue = Math.min(100, Number(progressInput.value || '0') + 35);
+      progressInput.value = String(nextValue);
+      progressInput.dispatchEvent(new Event('input', { bubbles: true }));
+      progressInput.dispatchEvent(new Event('change', { bubbles: true }));
+      return nextValue / 100;
     });
+  };
 
   const advanceReaderBeyond = async (
     openedDetails: Awaited<ReturnType<typeof readReaderDetails>>,
@@ -401,16 +431,16 @@ describe('br1 desktop app', () => {
       await browser.switchToWindow(libraryHandle);
     }
     const resolvedLibraryHandle = libraryHandle ?? (await switchToLibraryWindow());
-    const hrefs = await listOpenableBookHrefs();
-    const book = await (async () => {
-      for (const href of hrefs) {
-        const target = new URL(href, 'http://localhost');
-        if ((target.searchParams.get('path') ?? '') === filePath) {
-          return findBookElementByHref(href);
-        }
-      }
-      return null;
-    })();
+    let href: string | null = null;
+    await browser.waitUntil(async () => {
+      href = await readLibraryHrefForPath(filePath);
+      return !!href;
+    }, {
+      timeout: 15000,
+      timeoutMsg: `expected to find a library reader href for path ${filePath}`
+    });
+
+    const book = href ? await findBookElementByHref(href) : null;
     if (!book) {
       throw new Error(`expected to find a library book for path ${filePath}`);
     }
@@ -808,32 +838,48 @@ describe('br1 desktop app', () => {
             };
           })
         | null;
+      const headerTitle = document.querySelector('.reader-head .title-row strong')?.textContent?.trim() ?? null;
 
+      const footer = document.querySelector('[aria-label="reader footer controls preview"]');
+      const footerMeta = Array.from(footer?.querySelectorAll('.footer-meta span') ?? []).map((node) =>
+        node.textContent?.trim() ?? ''
+      );
+      const formatLabel = footerMeta[1] ?? null;
+      const locationLabel = footerMeta[0] ?? null;
+      const progressLabel =
+        footer?.querySelector('.progress-strip span')?.textContent?.trim() ?? null;
+      const derivedProgressFraction =
+        progressLabel && progressLabel.endsWith('%')
+          ? Number(progressLabel.slice(0, -1)) / 100
+          : null;
+      const derivedLineTotal = (() => {
+        if (!locationLabel?.startsWith('Line ')) return null;
+        const match = locationLabel.match(/^Line\s+\d+\s+\/\s+(\d+)$/i);
+        if (!match) return null;
+        return Number(match[1]);
+      })();
       const titleValue = view?.book?.metadata?.title;
       const title =
         typeof titleValue === 'string'
           ? titleValue
           : titleValue && typeof titleValue === 'object' && 'en' in titleValue
             ? String((titleValue as Record<string, unknown>).en ?? '')
-            : null;
-
-      const footer = document.querySelector('[aria-label="reader footer controls preview"]');
-      const footerMeta = Array.from(footer?.querySelectorAll('.footer-meta span') ?? []).map((node) =>
-        node.textContent?.trim() ?? ''
-      );
-      const progressLabel =
-        footer?.querySelector('.progress-strip span')?.textContent?.trim() ?? null;
+            : formatLabel === 'TXT'
+              ? headerTitle
+              : view
+                ? null
+                : headerTitle;
 
       return {
         title,
         cfi: view?.lastLocation?.cfi ?? null,
-        progressFraction: view?.lastLocation?.fraction ?? null,
+        progressFraction: view?.lastLocation?.fraction ?? derivedProgressFraction,
         chapterLabel: view?.lastLocation?.tocItem?.label ?? null,
         chapterHref: view?.lastLocation?.tocItem?.href ?? null,
-        total: view?.lastLocation?.location?.total ?? view?.lastLocation?.total ?? null,
+        total: view?.lastLocation?.location?.total ?? view?.lastLocation?.total ?? derivedLineTotal,
         progressLabel,
-        locationLabel: footerMeta[0] ?? null,
-        formatLabel: footerMeta[1] ?? null,
+        locationLabel,
+        formatLabel,
         layoutLabel: footerMeta[2] ?? null,
         stageError: document.querySelector('.stage-error')?.textContent?.trim() ?? null
       };
@@ -1581,7 +1627,7 @@ describe('br1 desktop app', () => {
     expect(wideChrome.canvas.left - wideGeometry.sidebar.right).toBeGreaterThanOrEqual(12);
   });
 
-  it('opens FB2, MOBI, AZW3, and CBZ library-file samples in separate reader windows', async function () {
+  it('opens FB2, MOBI, AZW3, CBZ, and TXT library-file samples in separate reader windows', async function () {
     this.timeout(120000);
     const importedBooks = await importDesktopSampleLibraryBooks();
 
@@ -1624,7 +1670,7 @@ describe('br1 desktop app', () => {
     }
   });
 
-  it('moves FB2, MOBI, AZW3, and CBZ imports into the library reading workflow after returning from reader', async function () {
+  it('moves FB2, MOBI, AZW3, CBZ, and TXT imports into the library reading workflow after returning from reader', async function () {
     this.timeout(120000);
     const importedBooks = await importDesktopSampleLibraryBooks();
 
@@ -1747,7 +1793,7 @@ describe('br1 desktop app', () => {
     }
   });
 
-  it('reopens FB2, MOBI, AZW3, and CBZ imports with stored restore progress', async function () {
+  it('reopens FB2, MOBI, AZW3, CBZ, and TXT imports with stored restore progress', async function () {
     this.timeout(120000);
     const importedBooks = await importDesktopSampleLibraryBooks();
 
@@ -1964,14 +2010,15 @@ describe('br1 desktop app', () => {
     const expectedByFormat = new Map([
       ['FB2', { title: 'Bridge Reader Sample FB2', status: 'Chapter 1' }],
       ['MOBI', { title: 'libmobi ncx test', status: 'Test chapter 2' }],
-      ['AZW3', { title: 'Around the World in 28 Languages', status: '继续阅读' }]
+      ['AZW3', { title: 'Around the World in 28 Languages', status: '继续阅读' }],
+      ['TXT', { title: 'sample-book', status: 'Plain text' }]
     ]);
 
     const libraryHandle = await switchToLibraryWindow();
     await browser.refresh();
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
-    for (const format of ['FB2', 'MOBI', 'AZW3'] as const) {
+    for (const format of ['FB2', 'MOBI', 'AZW3', 'TXT'] as const) {
       const book = importedBooks.find((entry) => entry.format === format);
       expect(book).toBeTruthy();
       expect(book?.filePath).toBeTruthy();
@@ -2037,14 +2084,15 @@ describe('br1 desktop app', () => {
     const expectedByFormat = new Map([
       ['FB2', { title: 'Bridge Reader Sample FB2', author: 'Bridge Team', language: 'en' }],
       ['MOBI', { title: 'libmobi ncx test' }],
-      ['AZW3', { title: 'Around the World in 28 Languages' }]
+      ['AZW3', { title: 'Around the World in 28 Languages' }],
+      ['TXT', { title: 'sample-book', author: 'Plain text source' }]
     ]);
 
     const libraryHandle = await switchToLibraryWindow();
     await browser.refresh();
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
-    for (const format of ['FB2', 'MOBI', 'AZW3'] as const) {
+    for (const format of ['FB2', 'MOBI', 'AZW3', 'TXT'] as const) {
       const book = importedBooks.find((entry) => entry.format === format);
       expect(book).toBeTruthy();
       expect(book?.filePath).toBeTruthy();
@@ -2093,6 +2141,9 @@ describe('br1 desktop app', () => {
         if (format === 'FB2') {
           return record.author === expected.author && record.language === expected.language;
         }
+        if (format === 'TXT') {
+          return record.author === expected.author;
+        }
         const progress = typeof record.progress === 'string' ? record.progress : '';
         return !!progress && progress !== '上次读到 0%';
       }, {
@@ -2107,7 +2158,7 @@ describe('br1 desktop app', () => {
         );
       });
 
-      if (format === 'MOBI' || format === 'AZW3') {
+      if (format === 'MOBI' || format === 'AZW3' || format === 'TXT') {
         await browser.waitUntil(async () => {
           const progressBadge = await readLibraryProgressBadgeForTitle(expected.title);
           return !!progressBadge && progressBadge !== '0%';

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import {
     FOLIATE_VIEW_TAG,
     READER_ENGINE_HOST_ATTR,
@@ -71,6 +71,10 @@
   let stageResizeObserver: ResizeObserver | null = null;
   let currentFormatLabel = 'BOOK';
   let currentLayoutLabel = 'WAITING';
+  let openEngineMode: 'foliate' | 'plain-text' = 'foliate';
+  let plainTextContent = '';
+  let plainTextTitle = '';
+  let plainTextScroller: HTMLDivElement | null = null;
 
   type ResolvedReaderOpenSource = {
     source: string | File;
@@ -135,6 +139,49 @@
       return `Page ${Math.max(1, current)} / ${Math.max(1, total)}`;
     }
     return `${current} / ${total}`;
+  };
+
+  const isPlainTextFormat = (formatLabel: string) => formatLabel === 'TXT';
+
+  const getPlainTextLines = () => plainTextContent.split(/\r?\n/);
+
+  const getPlainTextScrollFraction = () => {
+    if (!plainTextScroller) return 0;
+    const maxScroll = plainTextScroller.scrollHeight - plainTextScroller.clientHeight;
+    if (maxScroll <= 0) return 0;
+    return Math.max(0, Math.min(1, plainTextScroller.scrollTop / maxScroll));
+  };
+
+  const getPlainTextReaderState = (
+    overrides: Partial<ReaderPreviewState> = {}
+  ): ReaderPreviewState => {
+    const fraction = getPlainTextScrollFraction();
+    const lines = getPlainTextLines();
+    const totalLines = Math.max(lines.length, 1);
+    const currentLine = Math.min(
+      totalLines,
+      Math.max(1, Math.round(fraction * Math.max(totalLines - 1, 0)) + 1)
+    );
+    const progressPercent = formatReaderProgressPercent(fraction);
+
+    return {
+      ...getFallbackReaderState(),
+      title: plainTextTitle || openSourceLabel || 'Plain text book',
+      author: 'Plain text source',
+      chapterLabel: 'Plain text',
+      chapterHref: '',
+      progressLabel: `${progressPercent}%`,
+      progressFraction: fraction,
+      progressLocation: `txt:${fraction.toFixed(6)}`,
+      locationLabel: `Line ${currentLine} / ${totalLines}`,
+      formatLabel: currentFormatLabel,
+      layoutLabel: currentLayoutLabel,
+      ...overrides
+    };
+  };
+
+  const emitPlainTextReaderState = (partial?: Partial<ReaderPreviewState>) => {
+    dispatch('readerstate', getPlainTextReaderState(partial));
   };
 
   const waitForReaderLayoutToSettle = async () => {
@@ -240,6 +287,11 @@
   };
 
   const emitReaderState = (partial?: Partial<ReaderPreviewState>) => {
+    if (openEngineMode === 'plain-text' && openStatus === 'open') {
+      emitPlainTextReaderState(partial);
+      return;
+    }
+
     const book = foliateViewElement?.book;
     const lastLocation = foliateViewElement?.lastLocation;
     if (!book || openStatus !== 'open') {
@@ -290,6 +342,33 @@
     renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
     renderer.setAttribute('max-block-size', isWindowMode ? '1440px' : '1180px');
     renderer.setAttribute('max-column-count', `${maxColumnCount}`);
+  };
+
+  const syncEngineModeVisibility = () => {
+    if (!foliateViewElement) return;
+    foliateViewElement.style.display = openEngineMode === 'plain-text' ? 'none' : '';
+  };
+
+  const loadPlainTextSource = async (source: string | File) => {
+    if (source instanceof File) {
+      return source.text();
+    }
+
+    const response = await fetch(source);
+    if (!response.ok) {
+      throw new Error(`failed to load TXT source (${response.status})`);
+    }
+    return response.text();
+  };
+
+  const applyPlainTextFraction = async (fraction?: number) => {
+    await tick();
+    if (!plainTextScroller || typeof fraction !== 'number' || Number.isNaN(fraction)) {
+      return;
+    }
+    const maxScroll = plainTextScroller.scrollHeight - plainTextScroller.clientHeight;
+    if (maxScroll <= 0) return;
+    plainTextScroller.scrollTop = Math.max(0, Math.min(1, fraction)) * maxScroll;
   };
 
   const bindOpenRendererDocs = () => {
@@ -365,13 +444,32 @@
       const formatSupportStatus = getReaderFormatSupportStatus(currentFormatLabel);
       let openTarget: string | File | ReaderBookDocument = source;
 
+      if (formatSupportStatus === 'unsupported') {
+        throw new Error(`unsupported ${currentFormatLabel} format`);
+      }
+
       if (formatSupportStatus === 'planned') {
         throw new Error(`${currentFormatLabel} support is planned but not implemented yet`);
       }
 
-      if (formatSupportStatus === 'unsupported') {
-        throw new Error(`unsupported ${currentFormatLabel} format`);
+      if (isPlainTextFormat(currentFormatLabel)) {
+        openEngineMode = 'plain-text';
+        plainTextContent = await loadPlainTextSource(source);
+        plainTextTitle = sourceLabel || 'Plain text book';
+        currentLayoutLabel = 'SCROLL';
+        syncEngineModeVisibility();
+        openStatus = 'open';
+        await applyPlainTextFraction(restoreFraction);
+        dispatch('tocchange', []);
+        emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
+        emitPlainTextReaderState();
+        return;
       }
+
+      openEngineMode = 'foliate';
+      plainTextContent = '';
+      plainTextTitle = '';
+      syncEngineModeVisibility();
 
       if (source instanceof File) {
         openTarget = await loadReaderBookDocument(source);
@@ -411,6 +509,23 @@
     restoreFraction?: number,
     restoreLocation?: string
   ) => {
+    if (openEngineMode === 'plain-text') {
+      let targetFraction = restoreFraction;
+      if (
+        typeof targetFraction !== 'number' &&
+        restoreLocation &&
+        restoreLocation.startsWith('txt:')
+      ) {
+        const parsed = Number(restoreLocation.slice(4));
+        if (!Number.isNaN(parsed)) {
+          targetFraction = parsed;
+        }
+      }
+
+      await applyPlainTextFraction(targetFraction);
+      return;
+    }
+
     if (!foliateViewElement) return;
 
     const hasRestoreFraction = typeof restoreFraction === 'number' && restoreFraction > 0;
@@ -463,6 +578,23 @@
     });
 
   const runSearch = async (query: string, config: ReaderSearchConfig) => {
+    if (openEngineMode === 'plain-text') {
+      const normalizedQuery = query.trim();
+      if (!normalizedQuery) {
+        emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
+        return;
+      }
+
+      emitSearchState({
+        query: normalizedQuery,
+        status: 'error',
+        results: [],
+        progress: 0,
+        error: 'Search is not available for TXT books yet.'
+      });
+      return;
+    }
+
     if (!foliateViewElement) return;
 
     lastSearchToken += 1;
@@ -587,6 +719,22 @@
           resolvedSource.restoreFraction,
           resolvedSource.restoreLocation
         );
+      } else if (openEngineMode === 'plain-text') {
+        if (controlRequest.type === 'prev' && plainTextScroller) {
+          plainTextScroller.scrollBy({ top: -plainTextScroller.clientHeight * 0.85, behavior: 'auto' });
+          emitPlainTextReaderState();
+        } else if (controlRequest.type === 'next' && plainTextScroller) {
+          plainTextScroller.scrollBy({ top: plainTextScroller.clientHeight * 0.85, behavior: 'auto' });
+          emitPlainTextReaderState();
+        } else if (controlRequest.type === 'start' && plainTextScroller) {
+          plainTextScroller.scrollTop = 0;
+          emitPlainTextReaderState();
+        } else if (controlRequest.type === 'fraction') {
+          await applyPlainTextFraction(controlRequest.fraction);
+          emitPlainTextReaderState();
+        } else if (controlRequest.type === 'search') {
+          await runSearch(controlRequest.query, controlRequest.config);
+        }
       } else if (controlRequest.type === 'prev') {
         await foliateViewElement.prev();
       } else if (controlRequest.type === 'next') {
@@ -643,6 +791,7 @@
   }
 
   const syncNotesToView = async () => {
+    if (openEngineMode === 'plain-text') return;
     if (!foliateViewElement || openStatus !== 'open') return;
     const nextValues = new Set(notes.map((note) => `${NOTE_PREFIX}${note.cfi}`));
 
@@ -722,6 +871,7 @@
         if (stageResizeObserver && stageElement) {
           stageResizeObserver.observe(stageElement);
         }
+        syncEngineModeVisibility();
         configureFoliatePreview();
 
         adapterStatus = 'ready';
@@ -763,6 +913,18 @@
     >
       {#if isWindowMode}
         <div class="engine-stage window-stage" bind:this={stageElement}>
+          {#if openStatus === 'open' && openEngineMode === 'plain-text'}
+            <div
+              class="plain-text-surface"
+              bind:this={plainTextScroller}
+              on:scroll={() => emitPlainTextReaderState()}
+              aria-label="plain text reading surface"
+            >
+              <article class="plain-text-paper">
+                <pre>{plainTextContent}</pre>
+              </article>
+            </div>
+          {/if}
           {#if openStatus !== 'open'}
             <div class="stage-overlay" aria-hidden="true">
               <div class="overlay-stack">
@@ -794,6 +956,18 @@
           </div>
 
           <div class="engine-stage" bind:this={stageElement}></div>
+          {#if openStatus === 'open' && openEngineMode === 'plain-text'}
+            <div
+              class="plain-text-surface inline-surface"
+              bind:this={plainTextScroller}
+              on:scroll={() => emitPlainTextReaderState()}
+              aria-label="plain text reading surface"
+            >
+              <article class="plain-text-paper">
+                <pre>{plainTextContent}</pre>
+              </article>
+            </div>
+          {/if}
 
           {#if openStatus !== 'open'}
             <div class="paper-copy" aria-hidden="true">
@@ -935,6 +1109,43 @@
     min-width: 0;
     background: transparent;
     box-shadow: none;
+  }
+
+  .plain-text-surface {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128, 98, 56, 0.35) transparent;
+    padding: 36px 22px 56px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
+      #fbf7ef;
+  }
+
+  .plain-text-surface.inline-surface {
+    position: relative;
+    min-height: min(66vh, 860px);
+  }
+
+  .plain-text-paper {
+    width: min(100%, 840px);
+    margin: 0 auto;
+    padding: clamp(18px, 2.4vw, 28px);
+    background: rgba(255, 255, 255, 0.66);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 0 0 1px rgba(84, 62, 34, 0.05);
+  }
+
+  .plain-text-paper pre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", serif;
+    font-size: clamp(17px, 1.5vw, 20px);
+    line-height: 1.9;
+    color: color-mix(in srgb, #2c241c 88%, white 12%);
   }
 
   .window-stage {

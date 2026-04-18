@@ -17,7 +17,7 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Import books from the system/i })).toBeVisible();
   await expect(page.locator('input.import-input[type="file"]').first()).toHaveAttribute(
     'accept',
-    '.epub,.pdf,.mobi,.azw3,.fb2,.cbz'
+    '.epub,.pdf,.mobi,.azw3,.fb2,.cbz,.txt'
   );
 
   await page.getByRole('button', { name: '更多操作' }).click();
@@ -32,17 +32,18 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
 });
 
-test('reader shows an explicit planned-format error for txt assets in web mode', async ({
-  page
-}) => {
+test('reader opens txt assets in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
   );
 
-  await expect(page.getByText(/Failed to open Sample TXT Book/i)).toBeVisible();
-  await expect(
-    page.getByText(/TXT support is planned for br1 but not implemented yet/i)
-  ).toBeVisible();
+  const footer = page.getByLabel('reader footer controls preview');
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(footer).toContainText('TXT');
+  await expect(footer).toContainText('SCROLL');
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+  await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
 
 const sampleReaderCases = [
@@ -69,6 +70,12 @@ const sampleReaderCases = [
     label: 'Sample CBZ Book',
     format: 'CBZ',
     layout: 'FIXED'
+  },
+  {
+    assetPath: '/samples/sample-book.txt',
+    label: 'Sample TXT Book',
+    format: 'TXT',
+    layout: 'SCROLL'
   }
 ] as const;
 

@@ -1,4 +1,68 @@
 Bridge Reader text fixture
 
 This plain text file exists to verify the current P0-1 downgrade contract.
-TXT is in scope for future multi-format support, but it is not implemented yet.
+TXT is now being promoted into the supported multi-format surface for Bridge Reader.
+
+Section 1
+
+Plain text support still needs to prove the same basic workflow as the other secondary formats:
+import into the local library, open in a reader window, advance past the starting position,
+return to the library with stored progress, and reopen from that stored progress.
+
+Section 2
+
+That means this fixture needs to be long enough to create actual scroll depth.
+If the file is too short, progress never moves, restore fractions stay at zero,
+and the desktop workflow regressions cannot tell whether TXT is really behaving like
+a supported format or just rendering a static preview.
+
+Section 3
+
+Bridge Reader keeps the book at the center. For a plain text source that means:
+no fake ebook container, no pretending there is a chapter map, and no pretending there is
+a CFI. The minimal honest product path is a readable text surface with scroll state,
+human-readable location labels, and a restore signal that can survive a close and reopen cycle.
+
+Section 4
+
+This fixture intentionally repeats a few ideas in different words so the scroll container
+has enough height in both the web smoke flow and the desktop library-file regressions.
+The exact prose is not important. The important part is that the file remains deterministic,
+ASCII-only, and long enough to produce a visible before-and-after reader state.
+
+Section 5
+
+When TXT support is treated as a first-class format boundary, the acceptance bar is higher
+than "the file did not crash the reader." It has to participate in the same practical
+workflow that a user actually relies on:
+
+1. import
+2. open
+3. read a little
+4. go back
+5. continue later
+
+Section 6
+
+This is still deliberately simpler than EPUB or PDF.
+There is no annotation model here yet, no rich search product pass, and no typography settings
+specific to plain text. But the reader still needs to preserve the core promise:
+the book opens, the state moves, and the state comes back.
+
+Section 7
+
+The rest of this fixture just adds enough steady reading length to make scrolling real.
+A narrow, verifiable slice is more useful than a broad but fake claim of parity.
+
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.
+More lines for depth.

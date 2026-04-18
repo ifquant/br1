@@ -4,10 +4,11 @@ export const SUPPORTED_READER_FILE_EXTENSIONS = [
   'mobi',
   'azw3',
   'fb2',
-  'cbz'
+  'cbz',
+  'txt'
 ] as const;
 
-export const PLANNED_READER_FILE_EXTENSIONS = ['txt'] as const;
+export const PLANNED_READER_FILE_EXTENSIONS = [] as const;
 
 export const READER_FILE_INPUT_ACCEPT = SUPPORTED_READER_FILE_EXTENSIONS.map(
   (extension) => `.${extension}`
