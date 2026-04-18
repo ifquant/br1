@@ -2,221 +2,145 @@
 
 ## Overview
 
-`br1` 的第一阶段不是做一个“够用的阅读器”，而是把 `Readest` 当成完整产品规格来做高保真对齐。路线会先固化书库与桌面导入基线，再推进 reader 结构、格式支持、阅读恢复、交互工作区、视图设置、服务能力与自动化回归，直到 `br1` 可以被客观地视为 `Readest` 的 `Tauri + Svelte` 对齐实现。
+`br1` 的第一阶段不再按局部页面或旧 `Readest` phase 顺排推进，而改成按 **Feature 总账** 收口。执行顺序以 `.planning/FEATURE-PARITY-AUDIT.md` 为产品真相来源，以本地阅读器核心能力是否真正关闭作为推进条件。
 
-## Phases
+主线分层：
 
-- [ ] **Phase 1: Library Ingestion Baseline** - 锁定书库导入、桌面文件路径和本地藏书基线
-- [ ] **Phase 2: Library Visual and Data Parity** - 对齐书库页视觉、元数据、排序和状态信息
-- [ ] **Phase 3: Library Workflow Completion** - 完成 continue reading、迁移与书库工作流闭环
-- [ ] **Phase 4: Reader Open Pipeline and Format Base** - 稳定 reader 打开链路和主要格式基座
-- [ ] **Phase 5: Reader Layout Parity** - 对齐 reader 主舞台、侧栏、顶栏、底栏与几何行为
-- [ ] **Phase 6: Desktop Window and Restore Parity** - 对齐独立窗口、恢复位置和桌面流转行为
-- [ ] **Phase 7: Reader Workspace Parity** - 对齐目录、全文搜索、笔记、书签等工作区
-- [ ] **Phase 8: View Menu and Reading Interaction Parity** - 对齐视图设置、界面显隐、阅读交互和桌面体验
-- [ ] **Phase 9: Extended Format Parity** - 补齐更多格式和跨格式行为一致性
-- [ ] **Phase 10: Advanced Search and Persistence** - 对齐高级搜索、缓存、历史和长期持久化细节
-- [ ] **Phase 11: Service and Online Feature Parity** - 对齐 `Readest` 的在线/服务型能力
-- [ ] **Phase 12: End-to-End Regression and Ship Readiness** - 用自动化和验证把全量对齐收口
+- **P0 Core Reader**：先把本地阅读器核心能力做到可完整交付
+- **P1 Advanced Reading Experience**：在 P0 收口后再进入高级阅读体验
+- **P2 Services and Ecosystem**：最后进入服务、同步与生态能力
 
-## Phase Details
+## Workstreams
 
-### Phase 1: Library Ingestion Baseline
-**Goal**: 把书库导入、文件读取和桌面路径访问这条基础链路固化下来，作为后续所有对齐工作的输入层。
-**Depends on**: Nothing (first phase)
-**Requirements**: LIB-01, DSK-02
-**Success Criteria** (what must be TRUE):
-  1. 用户可以稳定导入和读取本地图书文件
-  2. 导入后的图书可以被书库和 reader 统一识别
-  3. 桌面文件选择、打开原文件、路径访问不再是临时修补链路
-**Plans**: 3 plans
+### P0 Core Reader
+**Goal**: 关闭本地阅读器核心能力的产品缺口，让 `br1` 可以被客观地视为完整本地阅读器，而不是局部对齐中的半成品。
+**Depends on**: Nothing beyond current brownfield baseline
+**Feature Rows**:
+- Multi-Format Support
+- Scroll/Page View Modes
+- Full-Text Search
+- Annotations and Highlighting
+- Customize Font and Layout
+- File Association and Open With
+- Library Management
 
-Plans:
-- [ ] 01-01: 统一本地图书导入、读取和路径访问服务
-- [ ] 01-02: 固化 library-file 与独立 reader 窗口的桌面打开链路
-- [ ] 01-03: 为导入基线补足基本验证和失败处理
-
-### Phase 2: Library Visual and Data Parity
-**Goal**: 把 `library` 页面的视觉层、元数据呈现、搜索和排序与 `Readest` 客观对齐。
-**Depends on**: Phase 1
-**Requirements**: LIB-02, LIB-03
-**Success Criteria** (what must be TRUE):
-  1. 用户看到的书库页面在布局、封面、卡片信息和工具层上接近 `Readest`
-  2. 搜索、排序、筛选和状态显示遵循 `Readest` 的主要产品语义
-  3. 书库视觉和数据呈现不再依赖样书或占位信息
-**Plans**: 3 plans
+#### P0-1 格式与打开基座
+**Goal**: 把多格式导入、桌面打开、reader target 和恢复语义统一成正式基座。
+**Success Criteria**:
+1. `EPUB/PDF` 达到产品完成状态，而不是只靠局部回归兜底
+2. `FB2/MOBI/AZW3` 具备可验证支持
+3. `CBZ/TXT` 被明确纳入或明确降级，不再处于模糊状态
+4. 文件关联、原文件打开、独立 reader 窗口与恢复语义统一
+**Plans**: 1 plan set
 
 Plans:
-- [ ] 02-01: 对齐书库顶部工具条和搜索行为
-- [ ] 02-02: 对齐书库卡片、封面、元数据与状态展示
-- [ ] 02-03: 对齐书库排序、筛选和滚动行为
+- [ ] P0-1: 收口多格式支持与桌面打开基座
 
-### Phase 3: Library Workflow Completion
-**Goal**: 完成 `continue reading`、最近阅读、Readest 藏书迁移和书库闭环工作流。
-**Depends on**: Phase 2
-**Requirements**: LIB-04, LIB-05
-**Success Criteria** (what must be TRUE):
-  1. 书库中存在与 `Readest` 对齐的 continue reading / 最近阅读分区
-  2. 图书状态、恢复位置和书架组织可以可靠回流到书库
-  3. `Readest` 现有本地藏书信息可以被 `br1` 识别、迁移或兼容
-**Plans**: 3 plans
+#### P0-2 阅读模式与版式系统
+**Goal**: 把阅读模式、版式设置和视图持久化做成正式系统，而不是零散 UI 开关。
+**Success Criteria**:
+1. 用户可以在 `scroll / paginated` 之间切换
+2. 字体、字号、行高、边距、主题等设置真正驱动正文与 chrome
+3. 视图设置可持久化，并在 reopen 后稳定恢复
+4. 版式自动化回归能覆盖正文、header、footer、sidebar 的一致性
+**Plans**: 1 plan set
 
 Plans:
-- [ ] 03-01: 完成 continue reading 和最近阅读的产品化分区
-- [ ] 03-02: 打通阅读状态回流与书库排序
-- [ ] 03-03: 完成 Readest 藏书数据兼容与迁移
+- [ ] P0-2: 收口阅读模式与版式设置系统
 
-### Phase 4: Reader Open Pipeline and Format Base
-**Goal**: 稳定 reader 的主要打开链路，并把 `EPUB/PDF` 和格式依赖基座做到正式可维护。
-**Depends on**: Phase 3
-**Requirements**: RDR-01, FMT-01, FMT-02, FMT-05
-**Success Criteria** (what must be TRUE):
-  1. 用户可以稳定打开 `EPUB` 和 `PDF` 进入 reader
-  2. `foliate-js`、`pdf.js`、wasm/vendor 等依赖采用正式化接入方式
-  3. reader 打开链路不再依赖样书、临时 fallback 或不透明补丁
-**Plans**: 3 plans
+#### P0-3 搜索、批注、书签、进度
+**Goal**: 把搜索、注释、书签与进度从“存在工作区 UI”推进到产品完成。
+**Success Criteria**:
+1. 全文搜索具备完整创建、跳转、缓存、重开恢复链路
+2. highlight 成为正式能力，而不是隐式渲染效果
+3. note / bookmark 具备创建、查看、编辑、删除、定位、持久化、重开恢复
+4. 进度恢复在主要格式之间具备一致语义
+**Plans**: 1 plan set
 
 Plans:
-- [ ] 04-01: 稳定 EPUB 打开链路与正文渲染
-- [ ] 04-02: 稳定 PDF 打开链路与 vendor/wasm 方案
-- [ ] 04-03: 收口格式基座、错误处理与跨格式打开服务
+- [ ] P0-3: 收口搜索、批注、书签与进度系统
 
-### Phase 5: Reader Layout Parity
-**Goal**: 把 reader 的结构、几何、区域关系和主要视觉状态与 `Readest` 对齐。
-**Depends on**: Phase 4
-**Requirements**: RDR-02, VIEW-04
-**Success Criteria** (what must be TRUE):
-  1. 正文、侧栏、顶栏、底栏落在正确的几何区域内
-  2. 不再出现正文掉进侧栏、白屏错位、嵌套渲染等结构性问题
-  3. `Readest` 与 `br1` 在 reader 基本布局上可做逐项对照
-**Plans**: TBD
+#### P0-4 Library 管理
+**Goal**: 把 library 提升成完整本地书库工作面，而不是“能导入和打开书”的入口页。
+**Success Criteria**:
+1. 组织、排序、搜索、状态分区、迁移和原文件行为统一
+2. continue / recent / library 三段工作流完整闭环
+3. library 与 reader 的状态回流以稳定契约存在
+4. library 自动化矩阵能覆盖关键本地工作流
+**Plans**: 1 plan set
 
 Plans:
-- [ ] 05-01: 对齐 reader 主舞台和正文承载结构
-- [ ] 05-02: 对齐顶栏、底栏、侧栏与正文的空间关系
-- [ ] 05-03: 补 reader 布局相关自动化回归
+- [ ] P0-4: 收口本地书库管理与工作流
 
-### Phase 6: Desktop Window and Restore Parity
-**Goal**: 对齐独立 reader 窗口、桌面流转行为与位置恢复精度。
-**Depends on**: Phase 5
-**Requirements**: RDR-03, ANT-04, DSK-01
-**Success Criteria** (what must be TRUE):
-  1. 用户从书库打开图书时能得到与 `Readest` 类似的独立 reader 窗口体验
-  2. 重新打开图书时能恢复到与 `Readest` 同等级的阅读位置
-  3. 主窗口、reader 窗口、返回书库和窗口聚焦行为稳定可靠
-**Plans**: TBD
+### P1 Advanced Reading Experience
+**Goal**: 在 P0 完成后，补足高级阅读体验能力。
+**Depends on**: P0 完成
+**Feature Rows**:
+- Dictionary / Wikipedia Lookup
+- Parallel Read
+- Code Syntax Highlighting
+- Accessibility
+- Visual & Focus Aids
+- Text-to-Speech (TTS) Support
 
-Plans:
-- [ ] 06-01: 完成窗口创建、聚焦、回库和拖动行为对齐
-- [ ] 06-02: 提升位置恢复精度到 locator/CFI/页码级别
-- [ ] 06-03: 用桌面自动化锁定恢复与窗口流转回归
+Status:
 
-### Phase 7: Reader Workspace Parity
-**Goal**: 把目录、全文搜索、笔记、书签等 reader 内部工作区做到与 `Readest` 同等级。
-**Depends on**: Phase 6
-**Requirements**: RDR-04, ANT-01, ANT-02, ANT-03, SRCH-01, SRCH-02
-**Success Criteria** (what must be TRUE):
-  1. 用户可以在 reader 内稳定使用目录、全文搜索、笔记和书签
-  2. 搜索、笔记、书签都具有完整的创建、跳转、编辑、删除和上下文聚焦链路
-  3. 各工作区在信息架构和交互成熟度上接近 `Readest`
-**Plans**: TBD
+- [ ] 边界已冻结，但当前不执行
 
-Plans:
-- [ ] 07-01: 完成全文搜索链路与高亮/跳转闭环
-- [ ] 07-02: 完成笔记工作区的产品化组织
-- [ ] 07-03: 完成书签工作区的产品化组织
+Notes:
 
-### Phase 8: View Menu and Reading Interaction Parity
-**Goal**: 对齐 view menu、阅读视图设置、界面显隐和更细的桌面阅读交互。
-**Depends on**: Phase 7
-**Requirements**: RDR-05, VIEW-01, VIEW-02, VIEW-03
-**Success Criteria** (what must be TRUE):
-  1. 用户可以使用与 `Readest` 对齐的顶栏菜单和阅读设置
-  2. 阅读宽度、界面显隐、背景氛围、侧栏固定等交互达到成熟状态
-  3. 分页、进度、版心和主要阅读手感接近 `Readest`
-**Plans**: TBD
+- 不允许在 P0 未关闭前零散插入这些功能
+- 只允许做避免返工的接口预留和技术预研
 
-Plans:
-- [ ] 08-01: 对齐顶栏动作、view menu 和主要控制项
-- [ ] 08-02: 对齐阅读视图设置与显隐策略
-- [ ] 08-03: 对齐分页、版心、进度和交互手感
+### P2 Services and Ecosystem
+**Goal**: 在 P0 完成后，独立推进服务、同步与生态能力。
+**Depends on**: P0 完成
+**Feature Rows**:
+- OPDS / Calibre Integration
+- Translate with DeepL and Yandex
+- Sync across Platforms
+- Sync with Koreader
 
-### Phase 9: Extended Format Parity
-**Goal**: 把 `Readest` 已覆盖的更多格式纳入 `br1`，并统一跨格式体验。
-**Depends on**: Phase 8
-**Requirements**: FMT-03, FMT-04
-**Success Criteria** (what must be TRUE):
-  1. 更多格式可以被稳定导入和打开
-  2. 各格式在封面、目录、进度、搜索、注释等行为上具有统一语义
-  3. reader 不再只围绕 `EPUB/PDF` 两种格式设计
-**Plans**: TBD
+Status:
 
-Plans:
-- [ ] 09-01: 接入并验证扩展格式支持
-- [ ] 09-02: 对齐跨格式元数据和阅读状态行为
-- [ ] 09-03: 补足扩展格式自动化验证
+- [ ] 边界已冻结，但当前不执行
 
-### Phase 10: Advanced Search and Persistence
-**Goal**: 补齐高级搜索配置、缓存策略、历史恢复和长期持久化细节。
-**Depends on**: Phase 9
-**Requirements**: SRCH-03, SRCH-04
-**Success Criteria** (what must be TRUE):
-  1. 搜索历史、范围、大小写等高级行为达到 `Readest` 同等级
-  2. 搜索缓存具备可靠的单书级和全局级失效/回收策略
-  3. 搜索相关状态在重开书籍和重启应用后仍能稳定恢复
-**Plans**: TBD
+Notes:
 
-Plans:
-- [ ] 10-01: 对齐高级搜索配置与搜索历史体验
-- [ ] 10-02: 完成磁盘缓存、TTL 和自动回收策略
-- [ ] 10-03: 补高级搜索相关验证与回归
+- 不能再混在“Readest 对齐”泛泛表述里
+- 必须按账号、远端状态、同步冲突、外部依赖、失败语义单独规划
 
-### Phase 11: Service and Online Feature Parity
-**Goal**: 对齐 `Readest` 中现有的在线/服务型能力，而不是只停留在本地阅读器底座。
-**Depends on**: Phase 10
-**Requirements**: SVC-01, SVC-02, SVC-03
-**Success Criteria** (what must be TRUE):
-  1. `Readest` 已有服务能力在 `br1` 中具备明确的对齐实现或可验证接入方案
-  2. 服务相关账号、远端状态、同步与错误处理达到可用水平
-  3. 外部能力不会破坏本地阅读器的稳定性和回归验证
-**Plans**: TBD
+## Execution Order
 
-Plans:
-- [ ] 11-01: 盘点并分解 `Readest` 服务能力规格
-- [ ] 11-02: 接入服务能力并补本地/远端状态闭环
-- [ ] 11-03: 为服务能力补验证和故障处理
+1. **先完成 P0**
+   - P0-1 → P0-2 → P0-3 → P0-4
+2. **P0 Exit Gate**
+   - 只有当 `.planning/FEATURE-PARITY-AUDIT.md` 中属于 P0 的 feature rows 都从 `Partial/Not started` 变成 `Completed`，才允许开始 P1
+3. **P1 / P2 暂不执行**
+   - 当前只冻结边界，不开始实现
 
-### Phase 12: End-to-End Regression and Ship Readiness
-**Goal**: 用自动化、验证和复审把全量对齐工作真正收口。
-**Depends on**: Phase 11
-**Requirements**: DSK-03, QUAL-01, QUAL-02, QUAL-03
-**Success Criteria** (what must be TRUE):
-  1. `library -> reader -> restore -> search -> notes -> bookmarks -> close -> reopen` 关键路径都有回归护栏
-  2. 桌面和主要格式路径都能持续自动验证
-  3. 可以用事实说明 `br1` 在第一阶段已达到 `Readest` 全量对齐目标
-**Plans**: TBD
+## Historical Execution Record
 
-Plans:
-- [ ] 12-01: 补齐端到端桌面自动化矩阵
-- [ ] 12-02: 复审所有主路径并修复剩余对齐缺口
-- [ ] 12-03: 形成第一阶段完成判定与交付材料
+以下旧数字 phase 文档保留为 **历史执行记录**，不再作为当前主执行线：
+
+- `.planning/phases/01-library-ingestion-baseline/`
+- `.planning/phases/02-library-visual-and-data-parity/`
+- `.planning/phases/03-library-workflow-completion/`
+- `.planning/phases/04-reader-open-pipeline-and-format-base/`
+
+它们的作用：
+
+- 保留 brownfield 演进证据
+- 保留旧计划和已落地切片的上下文
+- 避免在新主线下丢失已经完成的实现痕迹
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Library Ingestion Baseline | 3/3 | Planned and executed | 2026-04-13 |
-| 2. Library Visual and Data Parity | 3/3 | Planned and executed | 2026-04-13 |
-| 3. Library Workflow Completion | 0/3 | Planned | - |
-| 4. Reader Open Pipeline and Format Base | 0/3 | Not started | - |
-| 5. Reader Layout Parity | 0/3 | Not started | - |
-| 6. Desktop Window and Restore Parity | 0/3 | Not started | - |
-| 7. Reader Workspace Parity | 0/3 | Not started | - |
-| 8. View Menu and Reading Interaction Parity | 0/3 | Not started | - |
-| 9. Extended Format Parity | 0/3 | Not started | - |
-| 10. Advanced Search and Persistence | 0/3 | Not started | - |
-| 11. Service and Online Feature Parity | 0/3 | Not started | - |
-| 12. End-to-End Regression and Ship Readiness | 0/3 | Not started | - |
+| Workstream | Status | Notes |
+|---|---|---|
+| P0-1 格式与打开基座 | Planned | 基于现有 `EPUB/PDF` 基座向完整多格式和桌面打开收口 |
+| P0-2 阅读模式与版式系统 | Planned | 当前已有 width/atmosphere/chrome mode，仍缺 scroll/paginated 和正式 settings 系统 |
+| P0-3 搜索、批注、书签、进度 | Planned | 当前已有 search/notes/bookmarks 骨架，仍缺 highlight 产品化和正式闭环 |
+| P0-4 Library 管理 | Planned | 当前已有本地书库基础，仍缺完整书库工作面收口 |
+| P1 Advanced Reading Experience | Frozen | 不执行，只保留边界 |
+| P2 Services and Ecosystem | Frozen | 不执行，只保留边界 |
