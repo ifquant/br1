@@ -424,6 +424,7 @@ pub(crate) fn cover_mime_type(path: &Path) -> &'static str {
         .to_lowercase()
         .as_str()
     {
+        "svg" => "image/svg+xml",
         "jpg" | "jpeg" => "image/jpeg",
         "webp" => "image/webp",
         _ => "image/png",

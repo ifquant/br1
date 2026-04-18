@@ -130,6 +130,53 @@ struct CbzMetadata {
     publisher: Option<String>,
 }
 
+fn derive_cbz_cover_asset(source: &Path) -> Option<(String, Vec<u8>)> {
+    let file = fs::File::open(source).ok()?;
+    let mut archive = ZipArchive::new(file).ok()?;
+
+    let pick_index = (0..archive.len()).find(|index| {
+        let Ok(entry) = archive.by_index(*index) else {
+            return false;
+        };
+        let name = entry.name().to_ascii_lowercase();
+        if name.ends_with("comicinfo.xml") {
+            return false;
+        }
+        let is_image = name.ends_with(".svg")
+            || name.ends_with(".png")
+            || name.ends_with(".jpg")
+            || name.ends_with(".jpeg")
+            || name.ends_with(".webp");
+        if !is_image {
+            return false;
+        }
+        name.contains("cover") || name.contains("front")
+    }).or_else(|| {
+        (0..archive.len()).find(|index| {
+            let Ok(entry) = archive.by_index(*index) else {
+                return false;
+            };
+            let name = entry.name().to_ascii_lowercase();
+            name.ends_with(".svg")
+                || name.ends_with(".png")
+                || name.ends_with(".jpg")
+                || name.ends_with(".jpeg")
+                || name.ends_with(".webp")
+        })
+    })?;
+
+    let mut entry = archive.by_index(pick_index).ok()?;
+    let entry_name = entry.name().to_string();
+    let entry_name = Path::new(&entry_name)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("cover");
+    let mut bytes = Vec::new();
+    entry.read_to_end(&mut bytes).ok()?;
+    Some((entry_name.to_string(), bytes))
+}
+
 fn derive_fb2_metadata(source: &Path) -> Fb2Metadata {
     let Ok(raw) = fs::read_to_string(source) else {
         return Fb2Metadata::default();
@@ -579,6 +626,16 @@ pub(crate) fn import_library_books(
         let stored_path = books_dir.join(stored_filename);
 
         fs::write(&stored_path, bytes).map_err(|error| error.to_string())?;
+        let cbz_cover_path = if extension == "cbz" {
+            derive_cbz_cover_asset(source).and_then(|(entry_name, cover_bytes)| {
+                let cover_name = format!("{id}-{}", sanitize_filename(&entry_name));
+                let path = books_dir.join(cover_name);
+                fs::write(&path, cover_bytes).ok()?;
+                Some(path.to_string_lossy().to_string())
+            })
+        } else {
+            None
+        };
 
         let default_title = source
             .file_stem()
@@ -663,7 +720,7 @@ pub(crate) fn import_library_books(
             progress: "等待首轮阅读".to_string(),
             status: "新导入".to_string(),
             file_path: stored_path.to_string_lossy().to_string(),
-            cover_path: None,
+            cover_path: cbz_cover_path,
             source_path: Some(file_path.clone()),
             imported_at,
             progress_fraction: None,

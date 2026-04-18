@@ -36,6 +36,11 @@ describe('br1 desktop app', () => {
       author?: string;
       progress?: string;
       status?: string;
+      coverPath?: string | null;
+      cover_path?: string | null;
+      description?: string | null;
+      language?: string | null;
+      publisher?: string | null;
       filePath?: string;
       file_path?: string;
       progressFraction?: number | null;
@@ -46,6 +51,32 @@ describe('br1 desktop app', () => {
     return (
       records.find((record) => (record.filePath ?? record.file_path ?? '') === filePath) ?? null
     );
+  };
+
+  const loadLibraryCoverDataUrl = async (coverPath: string) => {
+    const result = await browser.executeAsync((path, done) => {
+      const tauriInternals = (window as typeof window & {
+        __TAURI_INTERNALS__?: {
+          invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).__TAURI_INTERNALS__;
+
+      if (typeof tauriInternals?.invoke !== 'function') {
+        done('');
+        return;
+      }
+
+      tauriInternals
+        .invoke('load_library_cover_data_urls', {
+          coverPaths: [path]
+        })
+        .then((result) => {
+          done(Array.isArray(result) ? (result[0] ?? '') : '');
+        })
+        .catch(() => done(''));
+    }, coverPath);
+
+    return typeof result === 'string' ? result : '';
   };
 
   const readLibraryProgressBadgeForTitle = async (title: string) =>
@@ -2014,18 +2045,22 @@ describe('br1 desktop app', () => {
     await browser.waitUntil(async () => {
       const record = await loadLibraryRecordOnDisk(cbzBook!.filePath);
       if (!record) return false;
+      const coverPath = record.coverPath ?? record.cover_path ?? null;
+      if (!coverPath) return false;
+      const coverDataUrl = await loadLibraryCoverDataUrl(coverPath);
       return (
         record.title === 'Bridge Reader Sample Comic' &&
         record.author === 'Bridge Team' &&
         record.language === 'en' &&
         record.publisher === 'Bridge Reader Lab' &&
         typeof record.description === 'string' &&
-        record.description.includes('Bridge Reader parity checks')
+        record.description.includes('Bridge Reader parity checks') &&
+        coverDataUrl.startsWith('data:image/svg+xml;base64,')
       );
     }, {
       timeout: 15000,
       timeoutMsg:
-        'expected the imported CBZ sample to expose title/author/language/publisher/description before opening it in the reader'
+        'expected the imported CBZ sample to expose title/author/language/publisher/description and a usable cover before opening it in the reader'
     }).catch(async (error) => {
       const record = await loadLibraryRecordOnDisk(cbzBook!.filePath);
       throw new Error(
