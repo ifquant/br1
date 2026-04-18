@@ -12,6 +12,67 @@ use base64::Engine;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+fn title_looks_like_stored_filename(value: &str) -> bool {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    let has_prefixed_id = trimmed
+        .split_once('-')
+        .map(|(prefix, _)| prefix.chars().all(|character| character.is_ascii_digit()))
+        .unwrap_or(false);
+    let lower = trimmed.to_ascii_lowercase();
+    has_prefixed_id
+        && [".epub", ".pdf", ".fb2", ".mobi", ".azw3", ".cbz", ".txt"]
+            .iter()
+            .any(|suffix| lower.ends_with(suffix))
+}
+
+fn derive_library_title(record: &LibraryBookRecord, incoming_title: &str) -> String {
+    let trimmed = incoming_title.trim();
+    if trimmed.is_empty() || title_looks_like_stored_filename(trimmed) {
+        if let Some(source_path) = record.source_path.as_ref() {
+            if let Some(stem) = Path::new(source_path).file_stem().and_then(|stem| stem.to_str()) {
+                let normalized = stem.trim();
+                if !normalized.is_empty() {
+                    return normalized.to_string();
+                }
+            }
+        }
+
+        return record.title.clone();
+    }
+
+    trimmed.to_string()
+}
+
+fn status_looks_like_internal_asset(value: &str) -> bool {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    lower.ends_with(".svg")
+        || lower.ends_with(".jpg")
+        || lower.ends_with(".jpeg")
+        || lower.ends_with(".png")
+        || lower.ends_with(".webp")
+}
+
+fn derive_library_status(progress_fraction: f64, chapter_label: &str) -> String {
+    if progress_fraction <= 0.0 {
+        return "已打开".to_string();
+    }
+
+    if status_looks_like_internal_asset(chapter_label) {
+        return "继续阅读".to_string();
+    }
+
+    chapter_label.trim().to_string()
+}
+
 #[tauri::command]
 pub(crate) fn load_library_books(app: tauri::AppHandle) -> Result<Vec<LibraryBookRecord>, String> {
     let library_json = library_json_path(&app)?;
@@ -229,18 +290,12 @@ pub(crate) fn update_library_reading_state(
         return Ok(());
     };
 
-    if !title.trim().is_empty() {
-        record.title = title;
-    }
+    record.title = derive_library_title(record, &title);
     if !author.trim().is_empty() {
         record.author = author;
     }
 
-    record.status = if progress_fraction > 0.0 {
-        chapter_label
-    } else {
-        "已打开".to_string()
-    };
+    record.status = derive_library_status(progress_fraction, &chapter_label);
     record.progress = if progress_fraction > 0.0 {
         format!("上次读到 {progress_label}")
     } else {

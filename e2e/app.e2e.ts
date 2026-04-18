@@ -1718,6 +1718,75 @@ describe('br1 desktop app', () => {
     }
   });
 
+  it('keeps cbz library metadata human-readable after reader round-trips', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const cbzBook = importedBooks.find((book) => book.format === 'CBZ');
+    expect(cbzBook).toBeTruthy();
+    expect(cbzBook?.filePath).toBeTruthy();
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    let readerHref: string | null = null;
+    await browser.waitUntil(async () => {
+      readerHref = await readLibraryHrefForPath(cbzBook!.filePath);
+      return !!readerHref;
+    }, {
+      timeout: 15000,
+      timeoutMsg: 'expected the CBZ sample to expose a library reader href before validating metadata normalization'
+    });
+
+    const readerUrl = new URL(readerHref!, 'http://127.0.0.1:1420').toString();
+
+    await browser.switchToWindow(libraryHandle);
+    await browser.url(readerUrl);
+    await $('.reader-stage').waitForDisplayed({ timeout: 10000 });
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+      return details.formatLabel === 'CBZ' && details.locationLabel !== 'Opening book';
+    }, {
+      timeout: 20000,
+      timeoutMsg: 'expected the CBZ sample to open before validating metadata normalization'
+    });
+
+    const openedDetails = await readReaderDetails();
+    await advanceReaderBeyond(openedDetails, 'CBZ sample before validating metadata normalization');
+
+    const goToLibraryButton = await $('[aria-label="Go to library"]');
+    await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+    await goToLibraryButton.click();
+
+    await browser.switchToWindow(libraryHandle);
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    await browser.waitUntil(async () => {
+      const record = await loadLibraryRecordOnDisk(cbzBook!.filePath);
+      if (!record) return false;
+      const title = typeof record.title === 'string' ? record.title : '';
+      const status = typeof record.status === 'string' ? record.status : '';
+      return (
+        title === 'sample-comic' &&
+        !/^\d{10,}-/.test(title) &&
+        !/\.(svg|png|jpg|jpeg|webp)$/i.test(status) &&
+        status === '继续阅读'
+      );
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected CBZ library metadata to avoid stored filenames and internal page asset labels after returning from reader'
+    }).catch(async (error) => {
+      const record = await loadLibraryRecordOnDisk(cbzBook!.filePath);
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nPersisted CBZ record: ${JSON.stringify(record)}`
+      );
+    });
+  });
+
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
     const { expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
