@@ -300,9 +300,22 @@
     const text = selection.toString().trim();
     if (!text) return null;
     const range = selection.getRangeAt(0).cloneRange();
-    const cfi = foliateViewElement.getCFI(index, range);
     const chapterLabel = foliateViewElement.lastLocation?.tocItem?.label || '当前章节';
     const chapterHref = foliateViewElement.lastLocation?.tocItem?.href || '';
+    let cfi = '';
+
+    try {
+      cfi = foliateViewElement.getCFI(index, range);
+    } catch (error) {
+      console.warn('Failed to compute an exact annotation CFI, falling back to the current reader location', error);
+      cfi =
+        (typeof (foliateViewElement.lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
+          ? ((foliateViewElement.lastLocation as { cfi?: string }).cfi ?? '')
+          : '') ||
+        chapterHref ||
+        `fraction:${(foliateViewElement.lastLocation?.fraction ?? 0).toFixed(6)}`;
+    }
+
     return { cfi, text, chapterLabel, chapterHref };
   };
 
@@ -310,7 +323,10 @@
     if (boundSelectionDocs.has(doc)) return;
     boundSelectionDocs.add(doc);
     doc.addEventListener('selectionchange', () => {
-      emitSelectionState(getSelectionState(doc, index));
+      const nextSelection = getSelectionState(doc, index);
+      if (nextSelection) {
+        emitSelectionState(nextSelection);
+      }
     });
   };
 
@@ -875,8 +891,14 @@
         } else {
           const view = wrapFoliateViewElement(createFoliateViewElement());
           view.className = 'foliate-preview';
-          view.addEventListener('load', () => emitReaderState());
-          view.addEventListener('relocate', () => emitReaderState());
+          view.addEventListener('load', () => {
+            bindOpenRendererDocs();
+            emitReaderState();
+          });
+          view.addEventListener('relocate', () => {
+            bindOpenRendererDocs();
+            emitReaderState();
+          });
           view.addEventListener('draw-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{
               draw: (func: typeof Overlayer.highlight, opts?: Record<string, unknown>) => void;
@@ -899,7 +921,10 @@
             const detail = (event as CustomEvent<{ doc: Document; index: number }>).detail;
             if (detail?.doc) bindSelectionTracking(detail.doc, detail.index);
           });
-          view.addEventListener('relocate', () => emitSelectionState(null));
+          view.addEventListener('relocate', () => {
+            bindOpenRendererDocs();
+            emitSelectionState(null);
+          });
           stageElement.append(view);
           foliateViewElement = view;
         }

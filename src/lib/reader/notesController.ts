@@ -148,7 +148,7 @@ export const createReaderNotesController = ({
       createdAt: Date.now()
     };
 
-    const nextNotes = [note, ...current.notes.filter((item) => item.cfi !== note.cfi)];
+    const nextNotes = [note, ...current.notes];
     state.update((value) => ({
       ...value,
       activeCfi: note.cfi,
