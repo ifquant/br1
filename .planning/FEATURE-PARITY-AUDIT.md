@@ -64,7 +64,7 @@ Evidence:
 - Desktop import currently filters `epub`, `pdf`, `mobi`, `azw3`, `fb2`, `cbz` via the shared reader file-format contract【/Users/dev/workspace2/hc_apps/br1/src/lib/services/libraryPersistence.ts:169】【/Users/dev/workspace2/hc_apps/br1/src/lib/reader/formats.ts:1】
 - Reader file input accepts `.epub,.pdf,.mobi,.azw3,.fb2,.cbz` via the same shared contract【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderStage.svelte:232】【/Users/dev/workspace2/hc_apps/br1/src/lib/reader/formats.ts:1】
 - Web smoke now opens sample `FB2`, `MOBI`, `AZW3`, and `CBZ` assets without a reader stage error and asserts the expected `format/layout` footer state【/Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts:51】
-- Focused desktop webdriver coverage now seeds those same sample formats into `library.json` and reopens each one through the real `library-file` window flow【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1324】
+- Focused desktop webdriver coverage now imports those same sample formats through the real `import_library_books` command and reopens each one through the `library-file` window flow【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1324】
 - Reader now exposes a deterministic planned-format error for `.txt` assets instead of falling through to a generic lower-level open failure【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderViewport.svelte:167】【/Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts:35】
 - Focused desktop regressions cover `EPUB` and `PDF` reopen flows【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1194】【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1288】
 

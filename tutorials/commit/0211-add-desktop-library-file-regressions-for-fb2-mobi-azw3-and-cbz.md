@@ -35,23 +35,22 @@ web asset 测试只能说明：
 
 ## 这次具体做了什么
 
-### 1. 给 webdriver 补了最小的 sample-library seed helper
+### 1. 给 webdriver 补了最小的 sample-library import helper
 
 在 `e2e/app.e2e.ts` 里新增了一组 helper：
 
-- `saveLibraryRecordsOnDisk()`
-- `ensureDesktopSampleLibraryRecords()`
+- `importDesktopSampleLibraryBooks()`
 
 它们的职责很单纯：
 
-- 把 `static/samples/` 里的 `FB2 / MOBI / AZW3 / CBZ` 样本写进 `library.json`
+- 把 `static/samples/` 里的 `FB2 / MOBI / AZW3 / CBZ` 样本通过正式的 `import_library_books` 命令导入书库
 - 让 library surface 真实生成对应的 `library-file` reader 链接
 
-这里没有绕开 reader 打开逻辑，只是为了避免把这条回归绑死在桌面导入 UI 上。
+这里没有绕开产品导入逻辑，只是没有去自动化原生文件选择对话框。
 
 也就是说，这次验证的仍然是：
 
-**书库记录 -> library surface -> library-file reader target -> 独立 reader window**
+**import_library_books -> 书库记录 -> library surface -> library-file reader target -> 独立 reader window**
 
 而不是“手工直接 open 一个 File”。
 
@@ -78,7 +77,7 @@ web asset 测试只能说明：
 
 它会：
 
-1. 把样本记录种进 `library.json`
+1. 通过正式导入命令把样本写入书库
 2. 刷新 library surface
 3. 对每种格式逐个：
    - 从 library surface 找到对应书

@@ -56,34 +56,6 @@ describe('br1 desktop app', () => {
     }>;
   };
 
-  const saveLibraryRecordsOnDisk = async (
-    records: Array<{
-      id: string;
-      title: string;
-      author: string;
-      format: string;
-      description?: string | null;
-      language?: string | null;
-      publisher?: string | null;
-      progress: string;
-      status: string;
-      filePath?: string;
-      file_path?: string;
-      coverPath?: string | null;
-      sourcePath?: string | null;
-      source_path?: string | null;
-      importedAt: number;
-      progressFraction?: number | null;
-      progressLocation?: string | null;
-      lastOpenedAt?: number | null;
-    }>
-  ) => {
-    const libraryDir = join(appDataRoot, 'library');
-    const libraryFile = join(libraryDir, 'library.json');
-    await mkdir(libraryDir, { recursive: true });
-    await writeFile(libraryFile, JSON.stringify(records, null, 2), 'utf8');
-  };
-
   const sampleLibraryFormats = [
     {
       fileName: 'sample-book.fb2',
@@ -115,45 +87,59 @@ describe('br1 desktop app', () => {
     }
   ] as const;
 
-  const ensureDesktopSampleLibraryRecords = async () => {
-    const existingRecords = await loadLibraryRecordsOnDisk();
-    const now = Date.now();
-    let nextImportedAt = now;
-    const seededPaths: string[] = [];
+  const importDesktopSampleLibraryBooks = async () => {
+    const sourcePaths = sampleLibraryFormats.map((sample) => join(staticSamplesRoot, sample.fileName));
+    const imported = await browser.executeAsync((filePaths, done) => {
+      const tauriInternals = (window as typeof window & {
+        __TAURI_INTERNALS__?: {
+          invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).__TAURI_INTERNALS__;
 
-    const seededRecords = [...existingRecords];
+      if (typeof tauriInternals?.invoke !== 'function') {
+        done({
+          ok: false,
+          error: 'expected window.__TAURI_INTERNALS__.invoke to exist in the desktop webview'
+        });
+        return;
+      }
 
-    for (const sample of sampleLibraryFormats) {
-      const filePath = join(staticSamplesRoot, sample.fileName);
-      seededPaths.push(filePath);
+      tauriInternals
+        .invoke('import_library_books', {
+          filePaths
+        })
+        .then((result) => {
+          if (!Array.isArray(result)) {
+            done({
+              ok: false,
+              error: `expected import_library_books to return an array, received ${JSON.stringify(result)}`
+            });
+            return;
+          }
 
-      seededRecords.push({
-        id: `desktop-sample:${sample.format.toLowerCase()}`,
-        title: sample.title,
-        author: 'br1 format regression',
-        format: sample.format,
-        description: null,
-        language: null,
-        publisher: null,
-        progress: '等待首轮阅读',
-        status: '新导入',
-        filePath,
-        coverPath: null,
-        sourcePath: filePath,
-        importedAt: nextImportedAt--,
-        progressFraction: null,
-        progressLocation: null,
-        lastOpenedAt: null
-      });
+          done({
+            ok: true,
+            result
+          });
+        })
+        .catch((error) => {
+          done({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        });
+    }, sourcePaths);
+
+    if (!imported?.ok || !Array.isArray(imported.result)) {
+      throw new Error(imported?.error ?? 'expected import_library_books to return a result array');
     }
 
-    const deduped = seededRecords.filter((record, index, records) => {
-      const filePath = record.filePath ?? record.file_path ?? '';
-      return records.findIndex((candidate) => (candidate.filePath ?? candidate.file_path ?? '') === filePath) === index;
-    });
-
-    await saveLibraryRecordsOnDisk(deduped);
-    return seededPaths;
+    return imported.result.map((record) => ({
+      title: record.title,
+      format: record.format,
+      filePath: record.filePath ?? record.file_path ?? '',
+      sourcePath: record.sourcePath ?? record.source_path ?? ''
+    }));
   };
 
   const nudgeReaderForward = async () =>
@@ -1389,17 +1375,19 @@ describe('br1 desktop app', () => {
 
   it('opens FB2, MOBI, AZW3, and CBZ library-file samples in separate reader windows', async function () {
     this.timeout(120000);
-    const seededPaths = await ensureDesktopSampleLibraryRecords();
+    const importedBooks = await importDesktopSampleLibraryBooks();
 
     await switchToLibraryWindow();
     await browser.refresh();
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
     for (const sample of sampleLibraryFormats) {
-      const filePath = join(staticSamplesRoot, sample.fileName);
-      expect(seededPaths).toContain(filePath);
+      const sourcePath = join(staticSamplesRoot, sample.fileName);
+      const importedBook = importedBooks.find((book) => book.sourcePath === sourcePath);
+      expect(importedBook).toBeTruthy();
+      expect(importedBook?.filePath).toBeTruthy();
 
-      const { libraryHandle } = await openReaderFromLibraryPath(filePath);
+      const { libraryHandle } = await openReaderFromLibraryPath(importedBook!.filePath);
 
       try {
         await browser.waitUntil(async () => {
