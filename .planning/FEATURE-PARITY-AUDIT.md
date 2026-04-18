@@ -19,7 +19,7 @@ Status labels:
 
 | Feature | Status | Current Evidence | Main Gap | Suggested Phase |
 |---|---|---|---|---|
-| Multi-Format Support | Partial | `EPUB` and `PDF` have stable open / restore regressions; import pickers and reader entrypoints now also admit `FB2`, `MOBI`, `AZW3`, and `CBZ` through a shared file-format contract【/Users/dev/workspace2/hc_apps/br1/src/lib/services/libraryPersistence.ts:167】【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderStage.svelte:232】【/Users/dev/workspace2/hc_apps/br1/src/lib/reader/formats.ts:1】 | Actual feature parity is still centered on `EPUB/PDF`; there is still no verified end-to-end reading evidence for `FB2/MOBI/AZW3/CBZ`, and `TXT` is only an explicit planned-not-implemented format today | Phase 9 |
+| Multi-Format Support | Partial | `EPUB` and `PDF` have stable open / restore regressions; import pickers and reader entrypoints now also admit `FB2`, `MOBI`, `AZW3`, and `CBZ` through a shared file-format contract, and web smoke now opens sample `FB2/MOBI/AZW3/CBZ` assets end to end【/Users/dev/workspace2/hc_apps/br1/src/lib/services/libraryPersistence.ts:167】【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderStage.svelte:232】【/Users/dev/workspace2/hc_apps/br1/src/lib/reader/formats.ts:1】【/Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts:51】 | Actual feature parity is still centered on `EPUB/PDF`; the new evidence only proves one stable open path per format. `TXT` is still a planned-not-implemented format, and `AZW3` is currently validated via the shared Kindle container path rather than a KF8-specific fixture | Phase 9 |
 | Scroll/Page View Modes | Partial | Reader now has paginated geometry control, width modes, and layout labels such as `PAGINATED` / `FIXED`【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderViewport.svelte:111】【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderViewport.svelte:191】 | There is no user-facing switch between scrolling and paginated reading modes yet | Phase 8 |
 | Full-Text Search | Partial | Reader has whole-book search UI, result navigation, history, disk cache, and automated reopen regression coverage【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte:491】【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderViewport.svelte:435】【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1577】 | Advanced search product surface is still thinner than the target list: no explicit cross-book search, no polished long-term management UX, and no full feature audit against the product list | Phases 7 and 10 |
 | Annotations and Highlighting | Partial | Notes and bookmarks are implemented, persisted, reopened, edited, deleted, and covered by desktop regressions【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte:623】【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte:799】【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1443】【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1510】 | The current product surface is mostly notes + bookmarks. Rich highlight workflows, “instant mode”, and a full annotation product pass are still missing or implicit | Phase 7 |
@@ -55,20 +55,21 @@ Current `br1` should be treated as:
 
 - `EPUB`: implemented
 - `PDF`: implemented
-- `FB2/MOBI/AZW3`: partially wired at import/open boundary, not yet parity-validated
-- `CBZ`: now admitted at the file-contract level, but not yet parity-validated
+- `FB2/MOBI/CBZ`: at least one sample asset now opens end to end in web mode
+- `AZW3`: one `.azw3` asset now opens end to end through the shared Kindle container path, but KF8-specific behavior is still unverified
 - `TXT`: explicitly in scope but not implemented yet, with a dedicated planned-not-implemented reader error
 
 Evidence:
 
 - Desktop import currently filters `epub`, `pdf`, `mobi`, `azw3`, `fb2`, `cbz` via the shared reader file-format contract【/Users/dev/workspace2/hc_apps/br1/src/lib/services/libraryPersistence.ts:169】【/Users/dev/workspace2/hc_apps/br1/src/lib/reader/formats.ts:1】
 - Reader file input accepts `.epub,.pdf,.mobi,.azw3,.fb2,.cbz` via the same shared contract【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderStage.svelte:232】【/Users/dev/workspace2/hc_apps/br1/src/lib/reader/formats.ts:1】
+- Web smoke now opens sample `FB2`, `MOBI`, `AZW3`, and `CBZ` assets without a reader stage error and asserts the expected `format/layout` footer state【/Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts:51】
 - Reader now exposes a deterministic planned-format error for `.txt` assets instead of falling through to a generic lower-level open failure【/Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderViewport.svelte:167】【/Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts:35】
 - Focused desktop regressions cover `EPUB` and `PDF` reopen flows【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1194】【/Users/dev/workspace2/hc_apps/br1/e2e/app.e2e.ts:1288】
 
 Conclusion:
 
-`br1` should not yet claim the full “multi-format support” row from the feature list. It currently has a strong `EPUB/PDF` base and an incomplete extended-format boundary.
+`br1` should not yet claim the full “multi-format support” row from the feature list. It now has a verifiable open path for `FB2/MOBI/AZW3/CBZ`, but full parity still requires richer desktop flows, fixture coverage beyond one sample per format, and a real KF8-grade `AZW3` validation path.
 
 ### 2. Reading Modes and Layout
 

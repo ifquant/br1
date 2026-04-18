@@ -44,3 +44,46 @@ test('reader shows an explicit planned-format error for txt assets in web mode',
     page.getByText(/TXT support is planned for br1 but not implemented yet/i)
   ).toBeVisible();
 });
+
+const sampleReaderCases = [
+  {
+    assetPath: '/samples/sample-book.fb2',
+    label: 'Sample FB2 Book',
+    format: 'FB2',
+    layout: 'PAGINATED'
+  },
+  {
+    assetPath: '/samples/sample-book.mobi',
+    label: 'Sample MOBI Book',
+    format: 'MOBI',
+    layout: 'PAGINATED'
+  },
+  {
+    assetPath: '/samples/sample-book.azw3',
+    label: 'Sample AZW3 Book',
+    format: 'AZW3',
+    layout: 'PAGINATED'
+  },
+  {
+    assetPath: '/samples/sample-comic.cbz',
+    label: 'Sample CBZ Book',
+    format: 'CBZ',
+    layout: 'FIXED'
+  }
+] as const;
+
+for (const sample of sampleReaderCases) {
+  test(`reader opens ${sample.format} sample assets in web mode`, async ({ page }) => {
+    await page.goto(
+      `/reader?source=asset&url=${encodeURIComponent(sample.assetPath)}&label=${encodeURIComponent(sample.label)}`
+    );
+
+    const footer = page.getByLabel('reader footer controls preview');
+
+    await expect(page.locator('.stage-error')).toHaveCount(0);
+    await expect(page.getByText(new RegExp(`Failed to open ${sample.label}`, 'i'))).toHaveCount(0);
+    await expect(footer).toContainText(sample.format);
+    await expect(footer).toContainText(sample.layout);
+    await expect(footer).not.toContainText('Opening book');
+  });
+}

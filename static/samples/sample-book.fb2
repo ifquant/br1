@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <book-title>Bridge Reader Sample FB2</book-title>
+      <author>
+        <first-name>Bridge</first-name>
+        <last-name>Team</last-name>
+      </author>
+      <lang>en</lang>
+    </title-info>
+    <document-info>
+      <author>
+        <nickname>br1</nickname>
+      </author>
+      <program-used>Codex sample fixture</program-used>
+      <date value="2026-04-18">2026-04-18</date>
+      <id>br1-sample-fb2</id>
+      <version>1.0</version>
+    </document-info>
+  </description>
+  <body>
+    <title>
+      <p>Bridge Reader Sample FB2</p>
+    </title>
+    <section id="chapter-1">
+      <title>
+        <p>Chapter 1</p>
+      </title>
+      <p>This FB2 fixture exists so br1 can verify the foliate FB2 path end to end.</p>
+      <p>It should open as a paginated reflowable book instead of falling into a generic reader error.</p>
+    </section>
+  </body>
+</FictionBook>
