@@ -130,6 +130,114 @@ fn derive_fb2_language(source: &Path) -> Option<String> {
     }
 }
 
+#[derive(Default)]
+struct KindleMetadata {
+    title: Option<String>,
+    author: Option<String>,
+    publisher: Option<String>,
+    description: Option<String>,
+    language: Option<String>,
+}
+
+fn decode_kindle_text(value: &[u8]) -> Option<String> {
+    let utf8 = String::from_utf8_lossy(value).trim_matches(char::from(0)).trim().to_string();
+    if !utf8.is_empty() {
+        return Some(utf8);
+    }
+
+    let latin1 = value
+        .iter()
+        .map(|byte| char::from(*byte))
+        .collect::<String>()
+        .trim_matches(char::from(0))
+        .trim()
+        .to_string();
+    (!latin1.is_empty()).then_some(latin1)
+}
+
+fn derive_kindle_metadata(source: &Path) -> KindleMetadata {
+    let bytes = match fs::read(source) {
+        Ok(bytes) => bytes,
+        Err(_) => return KindleMetadata::default(),
+    };
+
+    if bytes.len() < 128 {
+        return KindleMetadata::default();
+    }
+
+    let palm_doc_header_len = u16::from_be_bytes([bytes[76], bytes[77]]) as usize;
+    let mobi_base = palm_doc_header_len + 16;
+    if bytes.len() < mobi_base + 116 {
+        return KindleMetadata::default();
+    }
+
+    let exth_flags = u32::from_be_bytes([
+        bytes[mobi_base + 112],
+        bytes[mobi_base + 113],
+        bytes[mobi_base + 114],
+        bytes[mobi_base + 115],
+    ]);
+    if exth_flags & 0x40 == 0 {
+        return KindleMetadata::default();
+    }
+
+    let search_end = bytes.len().min(mobi_base.saturating_add(65_536));
+    let exth_offset = bytes[mobi_base..search_end]
+        .windows(4)
+        .position(|window| window == b"EXTH")
+        .map(|offset| mobi_base + offset);
+    let Some(exth_offset) = exth_offset else {
+        return KindleMetadata::default();
+    };
+    if bytes.len() < exth_offset + 12 {
+        return KindleMetadata::default();
+    }
+
+    let record_count = u32::from_be_bytes([
+        bytes[exth_offset + 8],
+        bytes[exth_offset + 9],
+        bytes[exth_offset + 10],
+        bytes[exth_offset + 11],
+    ]) as usize;
+    let mut cursor = exth_offset + 12;
+    let mut metadata = KindleMetadata::default();
+
+    for _ in 0..record_count {
+        if bytes.len() < cursor + 8 {
+            break;
+        }
+        let record_type = u32::from_be_bytes([
+            bytes[cursor],
+            bytes[cursor + 1],
+            bytes[cursor + 2],
+            bytes[cursor + 3],
+        ]);
+        let record_len = u32::from_be_bytes([
+            bytes[cursor + 4],
+            bytes[cursor + 5],
+            bytes[cursor + 6],
+            bytes[cursor + 7],
+        ]) as usize;
+        if record_len < 8 || bytes.len() < cursor + record_len {
+            break;
+        }
+
+        let payload = &bytes[cursor + 8..cursor + record_len];
+        let decoded = decode_kindle_text(payload);
+        match record_type {
+            100 if metadata.author.is_none() => metadata.author = decoded,
+            101 if metadata.publisher.is_none() => metadata.publisher = decoded,
+            103 if metadata.description.is_none() => metadata.description = decoded,
+            503 if metadata.title.is_none() => metadata.title = decoded,
+            524 if metadata.language.is_none() => metadata.language = decoded,
+            _ => {}
+        }
+        cursor += record_len;
+    }
+
+    metadata
+}
+
 fn derive_library_title(record: &LibraryBookRecord, incoming_title: &str) -> String {
     let trimmed = incoming_title.trim();
     if trimmed.is_empty() || title_looks_like_stored_filename(trimmed) {
@@ -247,18 +355,36 @@ pub(crate) fn import_library_books(
 
         fs::write(&stored_path, bytes).map_err(|error| error.to_string())?;
 
-        let title = source
+        let default_title = source
             .file_stem()
             .and_then(|stem| stem.to_str())
             .unwrap_or("Imported book")
             .to_string();
+        let kindle_metadata = if extension == "mobi" || extension == "azw3" {
+            derive_kindle_metadata(source)
+        } else {
+            KindleMetadata::default()
+        };
+        let title = kindle_metadata.title.clone().unwrap_or(default_title);
         let author = if extension == "fb2" {
             derive_fb2_author(source).unwrap_or_else(|| "Unknown author".to_string())
+        } else if let Some(author) = kindle_metadata.author.clone() {
+            author
         } else {
             "Unknown author".to_string()
         };
         let language = if extension == "fb2" {
             derive_fb2_language(source)
+        } else {
+            kindle_metadata.language.clone()
+        };
+        let publisher = if extension == "mobi" || extension == "azw3" {
+            kindle_metadata.publisher.clone()
+        } else {
+            None
+        };
+        let description = if extension == "mobi" || extension == "azw3" {
+            kindle_metadata.description.clone()
         } else {
             None
         };
@@ -272,9 +398,9 @@ pub(crate) fn import_library_books(
             } else {
                 extension.to_uppercase()
             },
-            description: None,
+            description,
             language,
-            publisher: None,
+            publisher,
             progress: "等待首轮阅读".to_string(),
             status: "新导入".to_string(),
             file_path: stored_path.to_string_lossy().to_string(),

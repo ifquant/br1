@@ -1970,6 +1970,35 @@ describe('br1 desktop app', () => {
     }
   });
 
+  it('imports azw3 metadata from the kindle container before any reader round-trip', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const azw3Book = importedBooks.find((entry) => entry.format === 'AZW3');
+    expect(azw3Book).toBeTruthy();
+    expect(azw3Book?.filePath).toBeTruthy();
+
+    await browser.waitUntil(async () => {
+      const record = await loadLibraryRecordOnDisk(azw3Book!.filePath);
+      if (!record) return false;
+      return (
+        record.title === 'Around the World in 28 Languages' &&
+        record.author === 'Infogrid Pacific' &&
+        record.language === 'en' &&
+        record.publisher === 'Infogrid Pacific' &&
+        typeof record.description === 'string' &&
+        record.description.includes('multiple languages')
+      );
+    }, {
+      timeout: 15000,
+      timeoutMsg: 'expected the imported AZW3 sample to expose author/language/publisher/description before opening it in the reader'
+    }).catch(async (error) => {
+      const record = await loadLibraryRecordOnDisk(azw3Book!.filePath);
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nPersisted AZW3 record: ${JSON.stringify(record)}`
+      );
+    });
+  });
+
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
     const { expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
