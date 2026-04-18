@@ -994,6 +994,24 @@ describe('br1 desktop app', () => {
     };
   };
 
+  const selectPlainTextInReader = async (needle: string) => {
+    await browser.execute((targetText) => {
+      const pre = document.querySelector('.plain-text-paper pre');
+      if (!pre || !pre.firstChild) throw new Error('expected the plain text reading surface to exist');
+      const textNode = pre.firstChild;
+      const raw = textNode.textContent ?? '';
+      const start = raw.indexOf(targetText);
+      if (start < 0) throw new Error(`expected the TXT fixture to contain "${targetText}"`);
+
+      const range = document.createRange();
+      range.setStart(textNode, start);
+      range.setEnd(textNode, start + targetText.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }, needle);
+  };
+
   const readReaderGeometry = () =>
     browser.execute(() => {
       const stage = document.querySelector('.reader-stage');
@@ -2599,6 +2617,123 @@ describe('br1 desktop app', () => {
     await browser.execute((key) => {
       localStorage.removeItem(key);
     }, notesStorageKey);
+  });
+
+  it('persists txt highlights and notes separately through the desktop reader store', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const txtBook = importedBooks.find((entry) => entry.format === 'TXT');
+    expect(txtBook).toBeTruthy();
+    expect(txtBook?.filePath).toBeTruthy();
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
+    await switchReaderToNotesTab();
+    await clearAllReaderNotes();
+
+    await selectPlainTextInReader('plain text file exists');
+    await browser.waitUntil(async () => {
+      const selectionCard = await $('.selection-card p');
+      return (await selectionCard.getText()).includes('plain text file exists');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT reader to expose the first selected text in the notes workspace'
+    });
+
+    const highlightButton = await $('.secondary-note-action');
+    await highlightButton.click();
+
+    await browser.waitUntil(async () => {
+      const cards = await $$('.note-card');
+      if (!cards.length) return false;
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return texts.some((text) => text.includes('高亮') && text.includes('plain text file exists'));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT reader to persist a highlight entry in the desktop notes workspace'
+    });
+
+    await browser.execute(() => {
+      const surface = document.querySelector('.plain-text-surface');
+      if (!(surface instanceof HTMLElement)) {
+        throw new Error('expected the TXT reader surface to exist');
+      }
+      const maxScroll = surface.scrollHeight - surface.clientHeight;
+      if (maxScroll <= 0) {
+        throw new Error('expected the TXT fixture to produce a scrollable desktop surface');
+      }
+      surface.scrollTop = maxScroll * 0.35;
+      surface.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+
+    await selectPlainTextInReader('The rest of this fixture just adds enough steady reading length');
+    await browser.waitUntil(async () => {
+      const selectionCard = await $('.selection-card p');
+      return (await selectionCard.getText()).includes('The rest of this fixture just adds enough steady reading length');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT reader to expose the second selected text in the notes workspace'
+    });
+
+    await browser.execute(() => {
+      window.prompt = () => 'desktop txt note body';
+    });
+
+    const noteButton = await $('.primary-note-action');
+    await noteButton.click();
+
+    await browser.waitUntil(async () => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('1 高亮') &&
+        metaText.includes('1 笔记') &&
+        texts.some((text) => text.includes('desktop txt note body')) &&
+        texts.some((text) => text.includes('高亮') && text.includes('plain text file exists'))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop notes workspace to show one highlight and one note'
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
+    await switchReaderToNotesTab();
+
+    await browser.waitUntil(async () => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('1 高亮') &&
+        metaText.includes('1 笔记') &&
+        texts.some((text) => text.includes('desktop txt note body')) &&
+        texts.some((text) => text.includes('高亮') && text.includes('plain text file exists'))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop notes workspace to persist both the highlight and the note after reopen'
+    });
+
+    await clearAllReaderNotes();
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
   });
 
   it('restores search history, options, and disk cache after reopening the same book', async () => {
