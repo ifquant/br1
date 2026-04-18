@@ -23,7 +23,7 @@ export type ReaderViewWidthMode = 'focus' | 'standard' | 'wide';
 export type ReaderChromeMode = 'auto' | 'always';
 export type ReaderAtmosphereMode = 'paper' | 'warm' | 'soft';
 
-export type SidebarTab = 'toc' | 'search' | 'bookmarks' | 'notes';
+export type SidebarTab = 'toc' | 'search' | 'bookmarks' | 'highlights' | 'notes';
 
 export type ReaderTocItem = {
   label: string;

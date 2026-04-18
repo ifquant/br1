@@ -83,14 +83,17 @@
   };
   let lastScrolledHref = '';
   let lastScrolledNoteCfi = '';
+  let lastScrolledHighlightCfi = '';
   let lastScrolledBookmarkLocator = '';
   let bookMenuOpen = false;
   let notesFilter: 'all' | 'chapter' = 'all';
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
+  let highlightsFilter: 'all' | 'chapter' = 'all';
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
   let collapsedNoteGroups = new Set<string>();
+  let collapsedHighlightGroups = new Set<string>();
   $: supportsTextAnnotations = supportsTextAnnotationsForFormat(preview.formatLabel);
   $: textAnnotationSupportMessage = getTextAnnotationSupportMessage(preview.formatLabel);
 
@@ -119,6 +122,20 @@
   };
 
   $: void scrollActiveNoteIntoView();
+
+  const scrollActiveHighlightIntoView = async () => {
+    if (activeTab !== 'highlights') return;
+    if (!notesState.activeCfi || notesState.activeCfi === lastScrolledHighlightCfi) return;
+    await tick();
+
+    const target = document.querySelector<HTMLElement>(
+      `.highlight-card[data-note-cfi="${CSS.escape(notesState.activeCfi)}"]`
+    );
+    target?.scrollIntoView({ block: 'nearest' });
+    lastScrolledHighlightCfi = notesState.activeCfi;
+  };
+
+  $: void scrollActiveHighlightIntoView();
 
   const scrollActiveBookmarkIntoView = async () => {
     if (activeTab !== 'bookmarks') return;
@@ -241,6 +258,11 @@
     notesFilter === 'chapter' && activeHref
       ? notesState.notes.filter((note) => note.chapterHref === activeHref)
       : notesState.notes;
+  $: allHighlights = notesState.notes.filter((note) => note.kind === 'highlight');
+  $: highlightsByScope =
+    highlightsFilter === 'chapter' && activeHref
+      ? allHighlights.filter((note) => note.chapterHref === activeHref)
+      : allHighlights;
   $: filteredNotes =
     notesKindFilter === 'highlight'
       ? notesByScope.filter((note) => note.kind === 'highlight')
@@ -266,7 +288,28 @@
     },
     []
   );
+  $: groupedHighlights = highlightsByScope.reduce<
+    Array<{ chapterHref: string; chapterLabel: string; notes: typeof highlightsByScope }>
+  >((groups, note) => {
+    const chapterHref = note.chapterHref || '__unknown__';
+    const chapterLabel = note.chapterLabel || '未命名章节';
+    const existingGroup = groups.find((group) => group.chapterHref === chapterHref);
+    if (existingGroup) {
+      existingGroup.notes.push(note);
+      return groups;
+    }
+
+    groups.push({
+      chapterHref,
+      chapterLabel,
+      notes: [note]
+    });
+    return groups;
+  }, []);
   $: collapsibleGroupKeys = groupedNotes
+    .map((group) => group.chapterHref)
+    .filter((chapterHref) => chapterHref && chapterHref !== '__unknown__');
+  $: collapsibleHighlightGroupKeys = groupedHighlights
     .map((group) => group.chapterHref)
     .filter((chapterHref) => chapterHref && chapterHref !== '__unknown__');
   $: areAllNoteGroupsExpanded =
@@ -282,8 +325,23 @@
       collapsedNoteGroups = new Set(collapsedNoteGroups);
     }
   }
+  $: {
+    const activeHighlight = allHighlights.find((note) => note.cfi === notesState.activeCfi);
+    if (activeHighlight?.chapterHref) {
+      collapsedHighlightGroups.delete(activeHighlight.chapterHref);
+      collapsedHighlightGroups = new Set(collapsedHighlightGroups);
+    }
+  }
+  $: areAllHighlightGroupsExpanded =
+    collapsibleHighlightGroupKeys.length > 0 &&
+    collapsibleHighlightGroupKeys.every((chapterHref) => !collapsedHighlightGroups.has(chapterHref));
+  $: areAllHighlightGroupsCollapsed =
+    collapsibleHighlightGroupKeys.length > 0 &&
+    collapsibleHighlightGroupKeys.every((chapterHref) => collapsedHighlightGroups.has(chapterHref));
 
   const isNoteGroupCollapsed = (chapterHref: string) => collapsedNoteGroups.has(chapterHref);
+
+  const isHighlightGroupCollapsed = (chapterHref: string) => collapsedHighlightGroups.has(chapterHref);
 
   const toggleNoteGroup = (chapterHref: string) => {
     if (!chapterHref || chapterHref === '__unknown__') return;
@@ -301,6 +359,24 @@
 
   const collapseAllNoteGroups = () => {
     collapsedNoteGroups = new Set(collapsibleGroupKeys);
+  };
+
+  const toggleHighlightGroup = (chapterHref: string) => {
+    if (!chapterHref || chapterHref === '__unknown__') return;
+    if (collapsedHighlightGroups.has(chapterHref)) {
+      collapsedHighlightGroups.delete(chapterHref);
+    } else {
+      collapsedHighlightGroups.add(chapterHref);
+    }
+    collapsedHighlightGroups = new Set(collapsedHighlightGroups);
+  };
+
+  const expandAllHighlightGroups = () => {
+    collapsedHighlightGroups = new Set();
+  };
+
+  const collapseAllHighlightGroups = () => {
+    collapsedHighlightGroups = new Set(collapsibleHighlightGroupKeys);
   };
 
   const isBookmarkGroupCollapsed = (chapterHref: string) => collapsedBookmarkGroups.has(chapterHref);
@@ -407,6 +483,16 @@
     <button
       type="button"
       role="tab"
+      class:active={activeTab === 'highlights'}
+      class="tab"
+      aria-selected={activeTab === 'highlights'}
+      on:click={() => setActiveTab('highlights')}
+    >
+      高亮
+    </button>
+    <button
+      type="button"
+      role="tab"
       class:active={activeTab === 'notes'}
       class="tab"
       aria-selected={activeTab === 'notes'}
@@ -443,7 +529,8 @@
           <div class="book-meta-row">
             <span>{toc.length} 章节</span>
             <span>{bookmarksState.bookmarks.length} 书签</span>
-            <span>{notesState.notes.length} 笔记</span>
+            <span>{allHighlights.length} 高亮</span>
+            <span>{notesState.notes.filter((note) => note.kind !== 'highlight').length} 笔记</span>
           </div>
           <div class="book-actions-row">
             <button type="button" class="book-action-chip primary" on:click={() => callbacks.onGoToLibrary?.()}>
@@ -806,6 +893,117 @@
             <p class="empty">还没有书签，先在顶栏点一下星标保存当前位置。</p>
           {/if}
         </div>
+        </section>
+      {:else if activeTab === 'highlights'}
+        <section class="sidebar-panel" aria-label="highlights panel preview">
+          <div class="notes-summary">
+            <strong>高亮</strong>
+            <span>
+              {#if !supportsTextAnnotations}
+                {textAnnotationSupportMessage}
+              {:else if allHighlights.length}
+                已保存 {allHighlights.length} 条高亮，可单独聚焦阅读标记。
+              {:else}
+                选中一段正文后，可以先把它高亮出来。
+              {/if}
+            </span>
+          </div>
+
+          <div class="notes-meta-row">
+            <span>{allHighlights.length} 高亮</span>
+            <span>{highlightsFilter === 'chapter' ? `${highlightsByScope.length} 当前章节` : '全部章节'}</span>
+            <span>{notesState.activeCfi ? '可跳回当前高亮' : '未聚焦高亮'}</span>
+          </div>
+
+          <div class="notes-filter-row" aria-label="highlights filter controls">
+            <div class="notes-filter-chips">
+              <button
+                type="button"
+                class:active={highlightsFilter === 'all'}
+                class="notes-filter-chip"
+                on:click={() => {
+                  highlightsFilter = 'all';
+                }}
+              >
+                全部
+              </button>
+              <button
+                type="button"
+                class:active={highlightsFilter === 'chapter'}
+                class="notes-filter-chip"
+                disabled={!activeHref}
+                on:click={() => {
+                  highlightsFilter = 'chapter';
+                }}
+              >
+                当前章节
+              </button>
+            </div>
+            <div class="notes-group-actions">
+              <button
+                type="button"
+                class="notes-filter-chip"
+                disabled={!groupedHighlights.length || areAllHighlightGroupsExpanded}
+                on:click={expandAllHighlightGroups}
+              >
+                全部展开
+              </button>
+              <button
+                type="button"
+                class="notes-filter-chip"
+                disabled={!groupedHighlights.length || areAllHighlightGroupsCollapsed}
+                on:click={collapseAllHighlightGroups}
+              >
+                全部折叠
+              </button>
+            </div>
+          </div>
+
+          <div class="note-list">
+            {#if groupedHighlights.length}
+              {#each groupedHighlights as group}
+                <section class="note-group" aria-label={`highlights for ${group.chapterLabel}`}>
+                  <button
+                    type="button"
+                    class="note-group-head"
+                    aria-expanded={!isHighlightGroupCollapsed(group.chapterHref)}
+                    on:click={() => toggleHighlightGroup(group.chapterHref)}
+                  >
+                    <strong>{group.chapterLabel}</strong>
+                    <span>{group.notes.length} 条 {!isHighlightGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
+                  </button>
+
+                  {#if !isHighlightGroupCollapsed(group.chapterHref)}
+                    {#each group.notes as note}
+                      <article
+                        class:active-note={note.cfi === notesState.activeCfi}
+                        class="note-card highlight-card"
+                        data-note-cfi={note.cfi}
+                      >
+                        <div class="note-head">
+                          <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
+                            <strong>{note.chapterLabel || '未命名章节'}</strong>
+                            <span class="annotation-kind-badge highlight-badge">高亮</span>
+                            <time>{formatTimestamp(note.createdAt)}</time>
+                          </button>
+                          <div class="note-actions">
+                            <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
+                              删除
+                            </button>
+                          </div>
+                        </div>
+                        <p class="note-text">{note.text}</p>
+                      </article>
+                    {/each}
+                  {/if}
+                </section>
+              {/each}
+            {:else if allHighlights.length && highlightsFilter === 'chapter'}
+              <p class="empty">当前章节还没有高亮，可以切回“全部”查看其他章节标记。</p>
+            {:else}
+              <p class="empty">还没有高亮，先选中一段正文再用“先高亮当前选中内容”。</p>
+            {/if}
+          </div>
         </section>
       {:else}
         <section class="sidebar-panel" aria-label="notes panel preview">
