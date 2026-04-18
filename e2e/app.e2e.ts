@@ -3223,6 +3223,28 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop notes workspace to restore the full annotation list after clearing the kind filter'
     });
 
+    await clickReaderSidebarTab('高亮');
+    await browser.waitUntil(async () => {
+      const panel = await $('[aria-label="highlights panel preview"]');
+      if (!(await panel.isDisplayed())) return false;
+      const panelText = await panel.getText();
+      const cards = await $$('.highlight-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        panelText.includes('已保存 1 条高亮') &&
+        cards.length === 1 &&
+        texts[0]?.includes('高亮') &&
+        texts[0]?.includes(firstSelectionText.slice(0, 20)) &&
+        !texts[0]?.includes('desktop epub note body')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to isolate the persisted highlight from the mixed notes list'
+    });
+
     await clearAllReaderNotes();
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
