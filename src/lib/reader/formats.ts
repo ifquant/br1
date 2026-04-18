@@ -20,6 +20,26 @@ export const inferReaderFormatLabelFromName = (value: string) => {
   return match?.[1]?.toUpperCase() ?? '';
 };
 
+export const getReaderFormatSupportStatus = (label: string) => {
+  const normalized = normalizeReaderFormatToken(label);
+  if (!normalized || normalized === 'book') return 'unknown';
+  if (
+    SUPPORTED_READER_FILE_EXTENSIONS.includes(
+      normalized as (typeof SUPPORTED_READER_FILE_EXTENSIONS)[number]
+    )
+  ) {
+    return 'supported';
+  }
+  if (
+    PLANNED_READER_FILE_EXTENSIONS.includes(
+      normalized as (typeof PLANNED_READER_FILE_EXTENSIONS)[number]
+    )
+  ) {
+    return 'planned';
+  }
+  return 'unsupported';
+};
+
 export const getDesktopBookDialogExtensions = () => [...SUPPORTED_READER_FILE_EXTENSIONS];
 
 export const isSupportedReaderFormatLabel = (label: string) =>

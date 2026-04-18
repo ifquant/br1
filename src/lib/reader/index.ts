@@ -19,6 +19,7 @@ export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export {
   getDesktopBookDialogExtensions,
+  getReaderFormatSupportStatus,
   inferReaderFormatLabelFromName,
   isPlannedReaderFormatLabel,
   isSupportedReaderFormatLabel,

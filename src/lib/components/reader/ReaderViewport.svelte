@@ -7,11 +7,10 @@
     createFoliateViewElement,
     ensureFoliateViewDefinition,
     flattenToc,
+    getReaderFormatSupportStatus,
     getReaderViewStyles,
     inferReaderFormatLabelFromName,
     installReaderBookTransformGuards,
-    isPlannedReaderFormatLabel,
-    isSupportedReaderFormatLabel,
     loadReaderBookDocument,
     pickAuthor,
     pickText,
@@ -349,23 +348,27 @@
     emitSearchState({ query: '', status: 'idle', results: [] });
     emitSelectionState(null);
     syncedNoteValues = new Set();
-    emitReaderState({
-      title: sourceLabel || 'Bridge Reader',
-      author: 'Preparing book',
-      chapterLabel: 'Opening book',
-      locationLabel: 'Opening book'
-    });
+      emitReaderState({
+        title: sourceLabel || 'Bridge Reader',
+        author: 'Preparing book',
+        chapterLabel: 'Opening book',
+        locationLabel: 'Opening book'
+      });
 
     try {
       currentFormatLabel = inferReaderFormatLabel(source, sourceLabel);
+      const formatSupportStatus = getReaderFormatSupportStatus(currentFormatLabel);
       let openTarget: string | File | ReaderBookDocument = source;
+
+      if (formatSupportStatus === 'planned') {
+        throw new Error(`${currentFormatLabel} support is planned but not implemented yet`);
+      }
+
+      if (formatSupportStatus === 'unsupported') {
+        throw new Error(`unsupported ${currentFormatLabel} format`);
+      }
+
       if (source instanceof File) {
-        if (isPlannedReaderFormatLabel(currentFormatLabel)) {
-          throw new Error(`${currentFormatLabel} support is planned but not implemented yet`);
-        }
-        if (!isSupportedReaderFormatLabel(currentFormatLabel)) {
-          throw new Error(`unsupported ${currentFormatLabel} format`);
-        }
         openTarget = await loadReaderBookDocument(source);
       }
 
@@ -779,8 +782,17 @@
 
           {#if openStatus !== 'open'}
             <div class="paper-copy" aria-hidden="true">
-              <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
-              <p>从书库中选择一本真实书籍，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
+              {#if openStatus === 'error'}
+                <p>Failed to open {openFailureSource || 'book'}.</p>
+                {#if openFailureMessage}
+                  <p class="stage-error" aria-live="polite">
+                    <span>{openFailureMessage}</span>
+                  </p>
+                {/if}
+              {:else}
+                <p>先把阅读舞台压到足够安静，再去叠加目录、注释、TTS 和 bridge 等更复杂的能力。</p>
+                <p>从书库中选择一本真实书籍，确认正文区域、翻页和导航已经落在真正的阅读表面里。</p>
+              {/if}
             </div>
           {/if}
         </div>

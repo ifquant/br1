@@ -1,0 +1,4 @@
+Bridge Reader text fixture
+
+This plain text file exists to verify the current P0-1 downgrade contract.
+TXT is in scope for future multi-format support, but it is not implemented yet.

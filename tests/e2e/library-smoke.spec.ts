@@ -31,3 +31,16 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('heading', { name: '你的书库' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
 });
+
+test('reader shows an explicit planned-format error for txt assets in web mode', async ({
+  page
+}) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.getByText(/Failed to open Sample TXT Book/i)).toBeVisible();
+  await expect(
+    page.getByText(/TXT support is planned for br1 but not implemented yet/i)
+  ).toBeVisible();
+});
