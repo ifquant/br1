@@ -61,12 +61,25 @@ fn status_looks_like_internal_asset(value: &str) -> bool {
         || lower.ends_with(".webp")
 }
 
-fn derive_library_status(progress_fraction: f64, chapter_label: &str) -> String {
+fn normalize_status_key(value: &str) -> String {
+    value.chars()
+        .filter(|character| character.is_alphanumeric())
+        .flat_map(|character| character.to_lowercase())
+        .collect()
+}
+
+fn status_looks_like_title(chapter_label: &str, title: &str) -> bool {
+    let chapter_key = normalize_status_key(chapter_label);
+    let title_key = normalize_status_key(title);
+    !chapter_key.is_empty() && chapter_key == title_key
+}
+
+fn derive_library_status(progress_fraction: f64, chapter_label: &str, title: &str) -> String {
     if progress_fraction <= 0.0 {
         return "已打开".to_string();
     }
 
-    if status_looks_like_internal_asset(chapter_label) {
+    if status_looks_like_internal_asset(chapter_label) || status_looks_like_title(chapter_label, title) {
         return "继续阅读".to_string();
     }
 
@@ -290,12 +303,13 @@ pub(crate) fn update_library_reading_state(
         return Ok(());
     };
 
-    record.title = derive_library_title(record, &title);
+    let next_title = derive_library_title(record, &title);
+    record.title = next_title.clone();
     if !author.trim().is_empty() {
         record.author = author;
     }
 
-    record.status = derive_library_status(progress_fraction, &chapter_label);
+    record.status = derive_library_status(progress_fraction, &chapter_label, &next_title);
     record.progress = if progress_fraction > 0.0 {
         format!("上次读到 {progress_label}")
     } else {

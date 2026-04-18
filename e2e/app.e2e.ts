@@ -1787,6 +1787,79 @@ describe('br1 desktop app', () => {
     });
   });
 
+  it('keeps fb2 mobi and azw3 library statuses human-readable after reader round-trips', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const expectedByFormat = new Map([
+      ['FB2', { title: 'Bridge Reader Sample FB2', status: 'Chapter 1' }],
+      ['MOBI', { title: 'libmobi ncx test', status: 'Test chapter 2' }],
+      ['AZW3', { title: 'Around the World in 28 Languages', status: '继续阅读' }]
+    ]);
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    for (const format of ['FB2', 'MOBI', 'AZW3'] as const) {
+      const book = importedBooks.find((entry) => entry.format === format);
+      expect(book).toBeTruthy();
+      expect(book?.filePath).toBeTruthy();
+      const expected = expectedByFormat.get(format)!;
+
+      let readerHref: string | null = null;
+      await browser.waitUntil(async () => {
+        readerHref = await readLibraryHrefForPath(book!.filePath);
+        return !!readerHref;
+      }, {
+        timeout: 15000,
+        timeoutMsg: `expected the ${format} sample to expose a library reader href before validating metadata normalization`
+      });
+
+      const readerUrl = new URL(readerHref!, 'http://127.0.0.1:1420').toString();
+
+      await browser.switchToWindow(libraryHandle);
+      await browser.url(readerUrl);
+      await $('.reader-stage').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+        return details.formatLabel === format && details.locationLabel !== 'Opening book';
+      }, {
+        timeout: 20000,
+        timeoutMsg: `expected the ${format} sample to open before validating metadata normalization`
+      });
+
+      const openedDetails = await readReaderDetails();
+      await advanceReaderBeyond(openedDetails, `${format} sample before validating metadata normalization`);
+
+      const goToLibraryButton = await $('[aria-label="Go to library"]');
+      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+      await goToLibraryButton.click();
+
+      await browser.switchToWindow(libraryHandle);
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const record = await loadLibraryRecordOnDisk(book!.filePath);
+        if (!record) return false;
+        return record.title === expected.title && record.status === expected.status;
+      }, {
+        timeout: 30000,
+        timeoutMsg: `expected ${format} library metadata to use human-readable title and status after returning from reader`
+      }).catch(async (error) => {
+        const record = await loadLibraryRecordOnDisk(book!.filePath);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nFormat: ${format}\nPersisted record: ${JSON.stringify(
+            record
+          )}`
+        );
+      });
+    }
+  });
+
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
     const { expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
