@@ -110,29 +110,54 @@ fn author_looks_like_placeholder(value: &str) -> bool {
         )
 }
 
-fn derive_fb2_author(source: &Path) -> Option<String> {
-    let raw = fs::read_to_string(source).ok()?;
+#[derive(Default)]
+struct Fb2Metadata {
+    title: Option<String>,
+    author: Option<String>,
+    language: Option<String>,
+    description: Option<String>,
+    publisher: Option<String>,
+}
+
+fn derive_fb2_metadata(source: &Path) -> Fb2Metadata {
+    let Ok(raw) = fs::read_to_string(source) else {
+        return Fb2Metadata::default();
+    };
     let mut reader = Reader::from_str(&raw);
     reader.config_mut().trim_text(true);
 
     let mut in_title_info = false;
     let mut in_author = false;
+    let mut in_annotation = false;
+    let mut in_annotation_paragraph = false;
+    let mut in_publish_info = false;
+    let mut in_book_title = false;
+    let mut in_lang = false;
+    let mut in_publisher = false;
     let mut current_field: Option<&'static str> = None;
     let mut first_name = String::new();
     let mut last_name = String::new();
     let mut nickname = String::new();
+    let mut annotation_paragraphs: Vec<String> = Vec::new();
+    let mut metadata = Fb2Metadata::default();
 
     loop {
-        match reader.read_event().ok()? {
-            Event::Start(event) => match event.name() {
+        match reader.read_event() {
+            Ok(Event::Start(event)) => match event.name() {
                 QName(b"title-info") => in_title_info = true,
+                QName(b"publish-info") => in_publish_info = true,
                 QName(b"author") if in_title_info && !in_author => in_author = true,
                 QName(b"first-name") if in_author => current_field = Some("first"),
                 QName(b"last-name") if in_author => current_field = Some("last"),
                 QName(b"nickname") if in_author => current_field = Some("nickname"),
+                QName(b"annotation") if in_title_info => in_annotation = true,
+                QName(b"p") if in_annotation => in_annotation_paragraph = true,
+                QName(b"book-title") if in_title_info => in_book_title = true,
+                QName(b"lang") if in_title_info => in_lang = true,
+                QName(b"publisher") if in_publish_info => in_publisher = true,
                 _ => {}
             },
-            Event::End(event) => match event.name() {
+            Ok(Event::End(event)) => match event.name() {
                 QName(b"author") if in_author => {
                     let full_name = [first_name.trim(), last_name.trim()]
                         .into_iter()
@@ -140,63 +165,79 @@ fn derive_fb2_author(source: &Path) -> Option<String> {
                         .collect::<Vec<_>>()
                         .join(" ");
                     if !full_name.is_empty() {
-                        return Some(full_name);
+                        metadata.author = Some(full_name);
+                    } else {
+                        let fallback = nickname.trim();
+                        if !fallback.is_empty() {
+                            metadata.author = Some(fallback.to_string());
+                        }
                     }
-                    let fallback = nickname.trim();
-                    return (!fallback.is_empty()).then(|| fallback.to_string());
+                    in_author = false;
                 }
                 QName(b"title-info") if in_title_info => in_title_info = false,
+                QName(b"publish-info") if in_publish_info => in_publish_info = false,
                 QName(b"first-name") | QName(b"last-name") | QName(b"nickname") => current_field = None,
+                QName(b"annotation") if in_annotation => in_annotation = false,
+                QName(b"p") if in_annotation_paragraph => in_annotation_paragraph = false,
+                QName(b"book-title") if in_book_title => in_book_title = false,
+                QName(b"lang") if in_lang => in_lang = false,
+                QName(b"publisher") if in_publisher => in_publisher = false,
                 _ => {}
             },
-            Event::Text(text) if in_author => {
+            Ok(Event::Text(text)) => {
                 let value = String::from_utf8_lossy(text.as_ref()).trim().to_string();
                 if value.is_empty() {
                     continue;
                 }
-                match current_field {
-                    Some("first") if first_name.is_empty() => first_name = value,
-                    Some("last") if last_name.is_empty() => last_name = value,
-                    Some("nickname") if nickname.is_empty() => nickname = value,
-                    _ => {}
+
+                if in_author {
+                    match current_field {
+                        Some("first") if first_name.is_empty() => first_name = value,
+                        Some("last") if last_name.is_empty() => last_name = value,
+                        Some("nickname") if nickname.is_empty() => nickname = value,
+                        _ => {}
+                    }
+                    continue;
+                }
+
+                if in_annotation_paragraph {
+                    annotation_paragraphs.push(value);
+                    continue;
+                }
+
+                if in_book_title && metadata.title.is_none() {
+                    metadata.title = Some(value);
+                    continue;
+                }
+
+                if in_lang && metadata.language.is_none() {
+                    metadata.language = Some(value);
+                    continue;
+                }
+
+                if in_publisher && metadata.publisher.is_none() {
+                    metadata.publisher = Some(value);
                 }
             }
-            Event::Eof => return None,
-            _ => {}
+            Ok(Event::Eof) => break,
+            Ok(_) => {}
+            Err(_) => return Fb2Metadata::default(),
         }
     }
-}
 
-fn derive_fb2_language(source: &Path) -> Option<String> {
-    let raw = fs::read_to_string(source).ok()?;
-    let mut reader = Reader::from_str(&raw);
-    reader.config_mut().trim_text(true);
-
-    let mut in_title_info = false;
-    let mut in_lang = false;
-
-    loop {
-        match reader.read_event().ok()? {
-            Event::Start(event) => match event.name() {
-                QName(b"title-info") => in_title_info = true,
-                QName(b"lang") if in_title_info => in_lang = true,
-                _ => {}
-            },
-            Event::End(event) => match event.name() {
-                QName(b"title-info") if in_title_info => in_title_info = false,
-                QName(b"lang") if in_lang => in_lang = false,
-                _ => {}
-            },
-            Event::Text(text) if in_lang => {
-                let value = String::from_utf8_lossy(text.as_ref()).trim().to_string();
-                if !value.is_empty() {
-                    return Some(value);
-                }
-            }
-            Event::Eof => return None,
-            _ => {}
+    if metadata.description.is_none() {
+        let description = annotation_paragraphs
+            .into_iter()
+            .map(|paragraph| paragraph.trim().to_string())
+            .filter(|paragraph| !paragraph.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        if !description.is_empty() {
+            metadata.description = Some(description);
         }
     }
+
+    metadata
 }
 
 #[derive(Default)]
@@ -447,30 +488,46 @@ pub(crate) fn import_library_books(
             .and_then(|stem| stem.to_str())
             .unwrap_or("Imported book")
             .to_string();
+        let fb2_metadata = if extension == "fb2" {
+            derive_fb2_metadata(source)
+        } else {
+            Fb2Metadata::default()
+        };
         let kindle_metadata = if extension == "mobi" || extension == "azw3" {
             derive_kindle_metadata(source)
         } else {
             KindleMetadata::default()
         };
-        let title = kindle_metadata.title.clone().unwrap_or(default_title);
+        let title = if extension == "fb2" {
+            fb2_metadata.title.clone().unwrap_or(default_title)
+        } else {
+            kindle_metadata.title.clone().unwrap_or(default_title)
+        };
         let author = if extension == "fb2" {
-            derive_fb2_author(source).unwrap_or_else(|| "Unknown author".to_string())
+            fb2_metadata
+                .author
+                .clone()
+                .unwrap_or_else(|| "Unknown author".to_string())
         } else if let Some(author) = kindle_metadata.author.clone() {
             author
         } else {
             "Unknown author".to_string()
         };
         let language = if extension == "fb2" {
-            derive_fb2_language(source)
+            fb2_metadata.language.clone()
         } else {
             kindle_metadata.language.clone()
         };
-        let publisher = if extension == "mobi" || extension == "azw3" {
+        let publisher = if extension == "fb2" {
+            fb2_metadata.publisher.clone()
+        } else if extension == "mobi" || extension == "azw3" {
             kindle_metadata.publisher.clone()
         } else {
             None
         };
-        let description = if extension == "mobi" || extension == "azw3" {
+        let description = if extension == "fb2" {
+            fb2_metadata.description.clone()
+        } else if extension == "mobi" || extension == "azw3" {
             kindle_metadata.description.clone()
         } else {
             None

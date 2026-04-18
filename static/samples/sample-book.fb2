@@ -7,8 +7,15 @@
         <first-name>Bridge</first-name>
         <last-name>Team</last-name>
       </author>
+      <annotation>
+        <p>An FB2 fixture for Bridge Reader parity checks.</p>
+        <p>It should import title, author, language, and description before any reader round-trip.</p>
+      </annotation>
       <lang>en</lang>
     </title-info>
+    <publish-info>
+      <publisher>Bridge Reader Lab</publisher>
+    </publish-info>
     <document-info>
       <author>
         <nickname>br1</nickname>

@@ -2217,6 +2217,36 @@ describe('br1 desktop app', () => {
     });
   });
 
+  it('imports fb2 metadata from the xml container before any reader round-trip', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const fb2Book = importedBooks.find((entry) => entry.format === 'FB2');
+    expect(fb2Book).toBeTruthy();
+    expect(fb2Book?.filePath).toBeTruthy();
+
+    await browser.waitUntil(async () => {
+      const record = await loadLibraryRecordOnDisk(fb2Book!.filePath);
+      if (!record) return false;
+      return (
+        record.title === 'Bridge Reader Sample FB2' &&
+        record.author === 'Bridge Team' &&
+        record.language === 'en' &&
+        record.publisher === 'Bridge Reader Lab' &&
+        typeof record.description === 'string' &&
+        record.description.includes('Bridge Reader parity checks')
+      );
+    }, {
+      timeout: 15000,
+      timeoutMsg:
+        'expected the imported FB2 sample to expose title/author/language/publisher/description before opening it in the reader'
+    }).catch(async (error) => {
+      const record = await loadLibraryRecordOnDisk(fb2Book!.filePath);
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nPersisted FB2 record: ${JSON.stringify(record)}`
+      );
+    });
+  });
+
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
     const { expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
