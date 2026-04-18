@@ -141,6 +141,11 @@
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   };
 
+  const formatReaderProgressPercent = (fraction: number) => {
+    if (fraction <= 0) return 0;
+    return Math.max(1, Math.round(fraction * 100));
+  };
+
   const normalizeReaderOpenFailureMessage = (
     error: unknown,
     formatLabel: string,
@@ -242,7 +247,7 @@
       return;
     }
     const fraction = typeof lastLocation?.fraction === 'number' ? lastLocation.fraction : 0;
-    const progressPercent = Math.round(fraction * 100);
+    const progressPercent = formatReaderProgressPercent(fraction);
     const sectionCurrent = lastLocation?.section?.current;
     const sectionTotal = lastLocation?.section?.total;
     const fallbackChapter =

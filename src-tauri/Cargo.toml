@@ -30,3 +30,4 @@ serde_json = "1"
 sha2 = "0.10"
 tauri-plugin-dialog = "2"
 tauri-plugin-webdriver = { version = "0.2", optional = true }
+quick-xml = "0.37"

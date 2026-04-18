@@ -9,6 +9,9 @@ use crate::util::{
     sanitize_filename, save_library_records,
 };
 use base64::Engine;
+use quick_xml::events::Event;
+use quick_xml::name::QName;
+use quick_xml::Reader;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -27,6 +30,72 @@ fn title_looks_like_stored_filename(value: &str) -> bool {
         && [".epub", ".pdf", ".fb2", ".mobi", ".azw3", ".cbz", ".txt"]
             .iter()
             .any(|suffix| lower.ends_with(suffix))
+}
+
+fn author_looks_like_placeholder(value: &str) -> bool {
+    let trimmed = value.trim();
+    trimmed.is_empty()
+        || matches!(
+            trimmed,
+            "Unknown author" | "Reader workspace" | "Preparing book" | "Open failed"
+        )
+}
+
+fn derive_fb2_author(source: &Path) -> Option<String> {
+    let raw = fs::read_to_string(source).ok()?;
+    let mut reader = Reader::from_str(&raw);
+    reader.config_mut().trim_text(true);
+
+    let mut in_title_info = false;
+    let mut in_author = false;
+    let mut current_field: Option<&'static str> = None;
+    let mut first_name = String::new();
+    let mut last_name = String::new();
+    let mut nickname = String::new();
+
+    loop {
+        match reader.read_event().ok()? {
+            Event::Start(event) => match event.name() {
+                QName(b"title-info") => in_title_info = true,
+                QName(b"author") if in_title_info && !in_author => in_author = true,
+                QName(b"first-name") if in_author => current_field = Some("first"),
+                QName(b"last-name") if in_author => current_field = Some("last"),
+                QName(b"nickname") if in_author => current_field = Some("nickname"),
+                _ => {}
+            },
+            Event::End(event) => match event.name() {
+                QName(b"author") if in_author => {
+                    let full_name = [first_name.trim(), last_name.trim()]
+                        .into_iter()
+                        .filter(|value| !value.is_empty())
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    if !full_name.is_empty() {
+                        return Some(full_name);
+                    }
+                    let fallback = nickname.trim();
+                    return (!fallback.is_empty()).then(|| fallback.to_string());
+                }
+                QName(b"title-info") if in_title_info => in_title_info = false,
+                QName(b"first-name") | QName(b"last-name") | QName(b"nickname") => current_field = None,
+                _ => {}
+            },
+            Event::Text(text) if in_author => {
+                let value = String::from_utf8_lossy(text.as_ref()).trim().to_string();
+                if value.is_empty() {
+                    continue;
+                }
+                match current_field {
+                    Some("first") if first_name.is_empty() => first_name = value,
+                    Some("last") if last_name.is_empty() => last_name = value,
+                    Some("nickname") if nickname.is_empty() => nickname = value,
+                    _ => {}
+                }
+            }
+            Event::Eof => return None,
+            _ => {}
+        }
+    }
 }
 
 fn derive_library_title(record: &LibraryBookRecord, incoming_title: &str) -> String {
@@ -151,11 +220,16 @@ pub(crate) fn import_library_books(
             .and_then(|stem| stem.to_str())
             .unwrap_or("Imported book")
             .to_string();
+        let author = if extension == "fb2" {
+            derive_fb2_author(source).unwrap_or_else(|| "Unknown author".to_string())
+        } else {
+            "Unknown author".to_string()
+        };
 
         let record = LibraryBookRecord {
             id,
             title,
-            author: "Unknown author".to_string(),
+            author,
             format: if extension.is_empty() {
                 "BOOK".to_string()
             } else {
@@ -305,8 +379,8 @@ pub(crate) fn update_library_reading_state(
 
     let next_title = derive_library_title(record, &title);
     record.title = next_title.clone();
-    if !author.trim().is_empty() {
-        record.author = author;
+    if !author_looks_like_placeholder(&author) {
+        record.author = author.trim().to_string();
     }
 
     record.status = derive_library_status(progress_fraction, &chapter_label, &next_title);

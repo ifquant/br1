@@ -103,8 +103,29 @@ export const pickText = (value: unknown): string => {
 export const pickAuthor = (value: unknown): string => {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) return pickAuthor(value[0]);
-  if (typeof value === 'object' && value !== null && 'name' in value) {
-    return pickText((value as { name?: unknown }).name);
+  if (typeof value === 'object' && value !== null) {
+    if ('name' in value) {
+      return pickText((value as { name?: unknown }).name);
+    }
+
+    const authorRecord = value as {
+      firstName?: unknown;
+      lastName?: unknown;
+      familyName?: unknown;
+      givenName?: unknown;
+      'first-name'?: unknown;
+      'last-name'?: unknown;
+    };
+    const firstName =
+      pickText(authorRecord.firstName) ||
+      pickText(authorRecord.givenName) ||
+      pickText(authorRecord['first-name']);
+    const lastName =
+      pickText(authorRecord.lastName) ||
+      pickText(authorRecord.familyName) ||
+      pickText(authorRecord['last-name']);
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    if (fullName) return fullName;
   }
   return '';
 };

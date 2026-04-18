@@ -31,6 +31,10 @@ describe('br1 desktop app', () => {
     const libraryFile = join(appDataRoot, 'library', 'library.json');
     const raw = await readFile(libraryFile, 'utf8');
     const records = JSON.parse(raw) as Array<{
+      title?: string;
+      author?: string;
+      progress?: string;
+      status?: string;
       filePath?: string;
       file_path?: string;
       progressFraction?: number | null;
@@ -1849,6 +1853,84 @@ describe('br1 desktop app', () => {
       }, {
         timeout: 30000,
         timeoutMsg: `expected ${format} library metadata to use human-readable title and status after returning from reader`
+      }).catch(async (error) => {
+        const record = await loadLibraryRecordOnDisk(book!.filePath);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nFormat: ${format}\nPersisted record: ${JSON.stringify(
+            record
+          )}`
+        );
+      });
+    }
+  });
+
+  it('keeps fb2 authors and tiny kindle progress labels human-readable after reader round-trips', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+    const expectedByFormat = new Map([
+      ['FB2', { title: 'Bridge Reader Sample FB2', author: 'Bridge Team' }],
+      ['MOBI', { title: 'libmobi ncx test' }],
+      ['AZW3', { title: 'Around the World in 28 Languages' }]
+    ]);
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    for (const format of ['FB2', 'MOBI', 'AZW3'] as const) {
+      const book = importedBooks.find((entry) => entry.format === format);
+      expect(book).toBeTruthy();
+      expect(book?.filePath).toBeTruthy();
+      const expected = expectedByFormat.get(format)!;
+
+      let readerHref: string | null = null;
+      await browser.waitUntil(async () => {
+        readerHref = await readLibraryHrefForPath(book!.filePath);
+        return !!readerHref;
+      }, {
+        timeout: 15000,
+        timeoutMsg: `expected the ${format} sample to expose a library reader href before validating author/progress normalization`
+      });
+
+      const readerUrl = new URL(readerHref!, 'http://127.0.0.1:1420').toString();
+
+      await browser.switchToWindow(libraryHandle);
+      await browser.url(readerUrl);
+      await $('.reader-stage').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+        return details.formatLabel === format && details.locationLabel !== 'Opening book';
+      }, {
+        timeout: 20000,
+        timeoutMsg: `expected the ${format} sample to open before validating author/progress normalization`
+      });
+
+      const openedDetails = await readReaderDetails();
+      await advanceReaderBeyond(openedDetails, `${format} sample before validating author/progress normalization`);
+
+      const goToLibraryButton = await $('[aria-label="Go to library"]');
+      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+      await goToLibraryButton.click();
+
+      await browser.switchToWindow(libraryHandle);
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const record = await loadLibraryRecordOnDisk(book!.filePath);
+        if (!record) return false;
+        if (record.title !== expected.title) return false;
+        if (format === 'FB2') {
+          return record.author === expected.author;
+        }
+        const progress = typeof record.progress === 'string' ? record.progress : '';
+        return !!progress && progress !== '上次读到 0%';
+      }, {
+        timeout: 30000,
+        timeoutMsg: `expected ${format} library metadata to keep human-readable author/progress after returning from reader`
       }).catch(async (error) => {
         const record = await loadLibraryRecordOnDisk(book!.filePath);
         throw new Error(
