@@ -89,7 +89,7 @@
   let bookMenuOpen = false;
   let notesFilter: 'all' | 'chapter' = 'all';
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
-  let highlightsFilter: 'all' | 'chapter' = 'all';
+  let highlightsFilter: 'all' | 'chapter' | 'selected' = 'all';
   let highlightsSort: 'recent' | 'oldest' = 'recent';
   let selectedHighlightIds = new Set<string>();
   let bookmarksFilter: 'all' | 'chapter' = 'all';
@@ -265,7 +265,9 @@
   $: highlightsByScope =
     highlightsFilter === 'chapter' && activeHref
       ? allHighlights.filter((note) => note.chapterHref === activeHref)
-      : allHighlights;
+      : highlightsFilter === 'selected'
+        ? allHighlights.filter((note) => selectedHighlightIds.has(note.id))
+        : allHighlights;
   $: sortedHighlights =
     highlightsSort === 'oldest'
       ? [...highlightsByScope].sort((left, right) => left.createdAt - right.createdAt)
@@ -399,7 +401,11 @@
   const deleteVisibleHighlights = () => {
     if (!highlightsByScope.length) return;
     const confirmLabel =
-      highlightsFilter === 'chapter' ? '删除当前章节中的全部高亮？' : '删除当前视图中的全部高亮？';
+      highlightsFilter === 'chapter'
+        ? '删除当前章节中的全部高亮？'
+        : highlightsFilter === 'selected'
+          ? '删除当前已选高亮视图中的全部高亮？'
+          : '删除当前视图中的全部高亮？';
     if (!window.confirm(confirmLabel)) return;
     callbacks.onDeleteNotes?.(highlightsByScope.map((note) => note.id));
     selectedHighlightIds = new Set();
@@ -978,7 +984,13 @@
 
           <div class="notes-meta-row">
             <span>{allHighlights.length} 高亮</span>
-            <span>{highlightsFilter === 'chapter' ? `${highlightsByScope.length} 当前章节` : '全部章节'}</span>
+            <span>
+              {highlightsFilter === 'chapter'
+                ? `${highlightsByScope.length} 当前章节`
+                : highlightsFilter === 'selected'
+                  ? `${highlightsByScope.length} 已选高亮`
+                  : '全部章节'}
+            </span>
             <span>{highlightsSort === 'recent' ? '最近添加优先' : '最早添加优先'}</span>
             <span>{selectedVisibleHighlights.length ? `已选 ${selectedVisibleHighlights.length} 条` : '未选高亮'}</span>
             <span>{notesState.activeCfi ? '可跳回当前高亮' : '未聚焦高亮'}</span>
@@ -1023,7 +1035,11 @@
               disabled={!highlightsByScope.length}
               on:click={deleteVisibleHighlights}
             >
-              {highlightsFilter === 'chapter' ? '删除当前章节高亮' : '删除当前视图高亮'}
+              {highlightsFilter === 'chapter'
+                ? '删除当前章节高亮'
+                : highlightsFilter === 'selected'
+                  ? '删除当前已选高亮'
+                  : '删除当前视图高亮'}
             </button>
           </div>
 
@@ -1049,6 +1065,17 @@
                 }}
               >
                 当前章节
+              </button>
+              <button
+                type="button"
+                class:active={highlightsFilter === 'selected'}
+                class="notes-filter-chip"
+                disabled={!selectedHighlightIds.size}
+                on:click={() => {
+                  highlightsFilter = 'selected';
+                }}
+              >
+                已选高亮
               </button>
             </div>
             <div class="notes-filter-chips" aria-label="highlights sort controls">
@@ -1146,6 +1173,8 @@
               {/each}
             {:else if allHighlights.length && highlightsFilter === 'chapter'}
               <p class="empty">当前章节还没有高亮，可以切回“全部”查看其他章节标记。</p>
+            {:else if allHighlights.length && highlightsFilter === 'selected'}
+              <p class="empty">还没有选中的高亮，可以先选中几条再切回“已选高亮”查看。</p>
             {:else}
               <p class="empty">还没有高亮，先选中一段正文再用“先高亮当前选中内容”。</p>
             {/if}

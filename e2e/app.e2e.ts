@@ -3602,6 +3602,55 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to select one oldest highlight'
     });
 
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '已选高亮'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the selected-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return (
+        panelText.includes('1 已选高亮') &&
+        cards.length === 1 &&
+        firstText.includes(firstSelectionText.slice(0, 20))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to expose a selected-only view before inverting'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '全部'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the all-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      return panelText.includes('全部章节') && cards.length === 2;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the full view after leaving selected-only mode'
+    });
+
     await invertVisibleHighlightsSelectionInWorkspace();
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {

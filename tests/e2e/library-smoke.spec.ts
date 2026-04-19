@@ -187,6 +187,13 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await highlightSortControls.getByRole('button', { name: '最早添加', exact: true }).click();
   await highlightCards.first().locator('.highlight-selection-toggle').click();
   await expect(highlightsPanel).toContainText('已选 1 条');
+  await page.getByRole('button', { name: '已选高亮' }).click();
+  await expect(highlightsPanel).toContainText('1 已选高亮');
+  await expect(highlightCards).toHaveCount(1);
+  await expect(highlightCards.first()).toContainText('plain text file exists');
+  await page.getByRole('button', { name: '全部', exact: true }).click();
+  await expect(highlightsPanel).toContainText('全部章节');
+  await expect(highlightCards).toHaveCount(2);
   await page.getByRole('button', { name: '反选当前视图高亮' }).click();
   await expect(highlightsPanel).toContainText('已选 1 条');
   await expect(highlightCards.first().locator('.highlight-selection-toggle')).toHaveText('选中');
