@@ -33,6 +33,16 @@ export type ReaderHighlightSelectionSet = {
   createdAt: number;
 };
 
+export type ReaderHighlightSelectionSetExport = {
+  schemaVersion: 1;
+  bookKey: string;
+  bookTitle: string;
+  bookAuthor: string;
+  formatLabel: string;
+  exportedAt: number;
+  selectionSet: ReaderHighlightSelectionSet;
+};
+
 export type ReaderHighlightsWorkspaceState = {
   filter: ReaderHighlightsFilter;
   sort: ReaderHighlightsSort;

@@ -3,6 +3,7 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type {
     ReaderHighlightSelectionSet,
+    ReaderHighlightSelectionSetExport,
     ReaderHighlightSelectionSetSort,
     ReaderHighlightsFilter,
     ReaderHighlightsSort,
@@ -105,6 +106,8 @@
   let savedHighlightSelectionsSort: ReaderHighlightSelectionSetSort = 'recent';
   let selectedHighlightIds = new Set<string>();
   let savedHighlightSelections: ReaderHighlightSelectionSet[] = [];
+  let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
+  let exportHighlightSelectionNotice = '';
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -574,6 +577,21 @@
     ];
   };
 
+  const buildSavedHighlightSelectionExport = (
+    selectionSet: ReaderHighlightSelectionSet
+  ): ReaderHighlightSelectionSetExport => ({
+    schemaVersion: 1,
+    bookKey,
+    bookTitle: preview.title,
+    bookAuthor: preview.author,
+    formatLabel: preview.formatLabel,
+    exportedAt: Date.now(),
+    selectionSet: {
+      ...selectionSet,
+      selectedIds: [...selectionSet.selectedIds]
+    }
+  });
+
   const applySavedHighlightSelection = (selectionSet: ReaderHighlightSelectionSet) => {
     selectedHighlightIds = new Set(selectionSet.selectedIds);
     highlightsFilter = 'selected';
@@ -600,6 +618,31 @@
     if (!selectionSet) return;
     if (!window.confirm(`删除保存的高亮选择集“${selectionSet.name}”？`)) return;
     savedHighlightSelections = savedHighlightSelections.filter((set) => set.id !== selectionId);
+    if (exportedHighlightSelection?.selectionSet.id === selectionId) {
+      exportedHighlightSelection = null;
+      exportHighlightSelectionNotice = '';
+    }
+  };
+
+  const exportSavedHighlightSelection = (selectionSet: ReaderHighlightSelectionSet) => {
+    exportedHighlightSelection = buildSavedHighlightSelectionExport(selectionSet);
+    exportHighlightSelectionNotice = '';
+  };
+
+  const closeExportedHighlightSelection = () => {
+    exportedHighlightSelection = null;
+    exportHighlightSelectionNotice = '';
+  };
+
+  const copyExportedHighlightSelection = async () => {
+    if (!exportedHighlightSelection) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportedHighlightSelection, null, 2));
+      exportHighlightSelectionNotice = '已复制导出内容';
+    } catch (error) {
+      console.warn('Failed to copy saved highlight selection export', error);
+      exportHighlightSelectionNotice = '复制失败，请手动复制导出内容';
+    }
   };
 
   const invertVisibleHighlightsSelection = () => {
@@ -1399,6 +1442,13 @@
                         <button
                           type="button"
                           class="notes-filter-chip"
+                          on:click={() => exportSavedHighlightSelection(selectionSet)}
+                        >
+                          导出
+                        </button>
+                        <button
+                          type="button"
+                          class="notes-filter-chip"
                           on:click={() => renameSavedHighlightSelection(selectionSet.id)}
                         >
                           重命名
@@ -1414,6 +1464,33 @@
                     </article>
                   {/each}
                 </div>
+
+                {#if exportedHighlightSelection}
+                  <section class="saved-highlight-selection-export" aria-label="saved highlight selection export preview">
+                    <div class="saved-highlight-selection-export-head">
+                      <div class="saved-highlight-selection-export-copy">
+                        <strong>导出预览</strong>
+                        <span>{exportedHighlightSelection.selectionSet.name}</span>
+                      </div>
+                      <div class="saved-highlight-selection-export-actions">
+                        <button type="button" class="notes-filter-chip" on:click={copyExportedHighlightSelection}>
+                          复制导出内容
+                        </button>
+                        <button type="button" class="notes-filter-chip" on:click={closeExportedHighlightSelection}>
+                          关闭
+                        </button>
+                      </div>
+                    </div>
+                    {#if exportHighlightSelectionNotice}
+                      <p class="saved-highlight-selection-export-notice">{exportHighlightSelectionNotice}</p>
+                    {/if}
+                    <textarea
+                      class="saved-highlight-selection-export-payload"
+                      readonly
+                      value={JSON.stringify(exportedHighlightSelection, null, 2)}
+                    ></textarea>
+                  </section>
+                {/if}
               </section>
             {/if}
 
@@ -2410,6 +2487,65 @@
     gap: 6px;
     flex-wrap: wrap;
     justify-content: flex-end;
+  }
+
+  .saved-highlight-selection-export {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+  }
+
+  .saved-highlight-selection-export-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .saved-highlight-selection-export-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .saved-highlight-selection-export-copy strong {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .saved-highlight-selection-export-copy span,
+  .saved-highlight-selection-export-notice {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .saved-highlight-selection-export-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .saved-highlight-selection-export-notice {
+    margin: 0;
+  }
+
+  .saved-highlight-selection-export-payload {
+    min-height: 192px;
+    width: 100%;
+    resize: vertical;
+    border: 1px solid color-mix(in srgb, var(--border-light) 80%, transparent 20%);
+    border-radius: 10px;
+    background: color-mix(in srgb, white 92%, var(--surface-reader) 8%);
+    color: var(--text-primary);
+    font-family: 'SFMono-Regular', 'SF Mono', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    padding: 10px 12px;
   }
 
   .primary-note-action {

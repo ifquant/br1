@@ -3578,11 +3578,12 @@ describe('br1 desktop app', () => {
       timeout: 15000,
       timeoutMsg: 'expected an epub-backed library book to expose metadata and a valid CFI'
     });
+    const epubReaderTitle = (await readReaderDetails()).title;
 
     await switchReaderToNotesTab();
     await clearAllReaderNotes();
 
-    const firstSelectionText = await selectVisibleFoliateTextInReader();
+    const firstSelectionText = await selectVisibleFoliateTextInReader(0, [epubReaderTitle, '自序']);
     await browser.waitUntil(async () => {
       const selectionCard = await $('.selection-card p');
       return (await selectionCard.getText()).includes(firstSelectionText.slice(0, 20));
@@ -3607,7 +3608,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB reader to persist a highlight entry in the desktop notes workspace'
     });
 
-    const secondSelectionText = await selectVisibleFoliateTextInReader(1);
+    const secondSelectionText = await selectVisibleFoliateTextInReader(1, [epubReaderTitle, '自序']);
     await browser.waitUntil(async () => {
       const selectionCard = await $('.selection-card p');
       return (await selectionCard.getText()).includes(secondSelectionText.slice(0, 20));
@@ -3637,7 +3638,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop notes workspace to show two highlights before creating a note'
     });
 
-    const thirdSelectionText = await selectVisibleFoliateTextInReader(2);
+    const thirdSelectionText = await selectVisibleFoliateTextInReader(2, [epubReaderTitle, '自序']);
     await browser.waitUntil(async () => {
       const selectionCard = await $('.selection-card p');
       return (await selectionCard.getText()).includes(thirdSelectionText.slice(0, 20));
@@ -4146,6 +4147,62 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the saved selection sets and their oldest-first ordering after reopening the book'
+    });
+    await browser.execute(() => {
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const firstCard = savedPanel.querySelector('.saved-highlight-selection-card');
+      if (!(firstCard instanceof HTMLElement)) {
+        throw new Error('expected the first saved selection card to exist');
+      }
+      const exportButton = Array.from(firstCard.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导出'
+      );
+      if (!(exportButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection export button to exist');
+      }
+      exportButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const exportState = await browser.execute(() => {
+        const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+        const payload = preview?.querySelector('textarea');
+        return {
+          previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          payload: payload instanceof HTMLTextAreaElement ? payload.value : ''
+        };
+      });
+      return (
+        exportState.previewText.includes('Desktop EPUB 重命名高亮') &&
+        exportState.payload.includes('"schemaVersion": 1') &&
+        exportState.payload.includes('"formatLabel": "EPUB"') &&
+        exportState.payload.includes('"name": "Desktop EPUB 重命名高亮"')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to expose a structured export preview for the saved selection set'
+    });
+    await browser.execute(() => {
+      const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+      if (!(preview instanceof HTMLElement)) {
+        throw new Error('expected the saved selection export preview to exist');
+      }
+      const closeButton = Array.from(preview.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '关闭'
+      );
+      if (!(closeButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection export preview close button to exist');
+      }
+      closeButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const previews = await $$('[aria-label="saved highlight selection export preview"]');
+      return previews.length === 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to close the saved selection export preview'
     });
 
     await browser.execute(() => {

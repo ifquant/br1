@@ -233,6 +233,14 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(firstSavedSelectionCard).toContainText('Web TXT 重命名高亮');
   await expect(savedSelectionPanel).toContainText('Web TXT 重命名高亮');
   await expect(savedSelectionPanel).toContainText('Web TXT 第二高亮');
+  await firstSavedSelectionCard.getByRole('button', { name: '导出' }).click();
+  const exportPreview = page.getByLabel('saved highlight selection export preview');
+  await expect(exportPreview).toContainText('Web TXT 重命名高亮');
+  await expect(exportPreview.locator('textarea')).toHaveValue(/"schemaVersion": 1/);
+  await expect(exportPreview.locator('textarea')).toHaveValue(/"bookTitle": "Sample TXT Book"/);
+  await expect(exportPreview.locator('textarea')).toHaveValue(/"name": "Web TXT 重命名高亮"/);
+  await exportPreview.getByRole('button', { name: '关闭' }).click();
+  await expect(exportPreview).toHaveCount(0);
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await page.getByRole('button', { name: '清空选中' }).click();
   await expect(highlightsPanel).toContainText('未选高亮');
