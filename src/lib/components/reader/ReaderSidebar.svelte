@@ -90,6 +90,7 @@
   let notesFilter: 'all' | 'chapter' = 'all';
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
   let highlightsFilter: 'all' | 'chapter' = 'all';
+  let highlightsSort: 'recent' | 'oldest' = 'recent';
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -264,6 +265,10 @@
     highlightsFilter === 'chapter' && activeHref
       ? allHighlights.filter((note) => note.chapterHref === activeHref)
       : allHighlights;
+  $: sortedHighlights =
+    highlightsSort === 'oldest'
+      ? [...highlightsByScope].sort((left, right) => left.createdAt - right.createdAt)
+      : [...highlightsByScope].sort((left, right) => right.createdAt - left.createdAt);
   $: filteredNotes =
     notesKindFilter === 'highlight'
       ? notesByScope.filter((note) => note.kind === 'highlight')
@@ -289,8 +294,8 @@
     },
     []
   );
-  $: groupedHighlights = highlightsByScope.reduce<
-    Array<{ chapterHref: string; chapterLabel: string; notes: typeof highlightsByScope }>
+  $: groupedHighlights = sortedHighlights.reduce<
+    Array<{ chapterHref: string; chapterLabel: string; notes: typeof sortedHighlights }>
   >((groups, note) => {
     const chapterHref = note.chapterHref || '__unknown__';
     const chapterLabel = note.chapterLabel || '未命名章节';
@@ -921,6 +926,7 @@
           <div class="notes-meta-row">
             <span>{allHighlights.length} 高亮</span>
             <span>{highlightsFilter === 'chapter' ? `${highlightsByScope.length} 当前章节` : '全部章节'}</span>
+            <span>{highlightsSort === 'recent' ? '最近添加优先' : '最早添加优先'}</span>
             <span>{notesState.activeCfi ? '可跳回当前高亮' : '未聚焦高亮'}</span>
           </div>
 
@@ -957,6 +963,30 @@
                 }}
               >
                 当前章节
+              </button>
+            </div>
+            <div class="notes-filter-chips" aria-label="highlights sort controls">
+              <button
+                type="button"
+                class:active={highlightsSort === 'recent'}
+                class="notes-filter-chip"
+                disabled={highlightsByScope.length <= 1}
+                on:click={() => {
+                  highlightsSort = 'recent';
+                }}
+              >
+                最近添加
+              </button>
+              <button
+                type="button"
+                class:active={highlightsSort === 'oldest'}
+                class="notes-filter-chip"
+                disabled={highlightsByScope.length <= 1}
+                on:click={() => {
+                  highlightsSort = 'oldest';
+                }}
+              >
+                最早添加
               </button>
             </div>
             <div class="notes-group-actions">

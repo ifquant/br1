@@ -117,10 +117,19 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     'The rest of this fixture just adds enough steady reading length'
   );
 
+  await highlightButton.click();
+  await expect(page.locator('.notes-meta-row')).toContainText('2 高亮');
+  await expect(page.locator('.notes-meta-row')).toContainText('0 笔记');
+
+  await selectText('the book opens, the state moves, and the state comes back');
+  await expect(page.locator('.selection-card p')).toContainText(
+    'the book opens, the state moves, and the state comes back'
+  );
+
   page.once('dialog', (dialog) => dialog.accept('txt note body'));
   await noteButton.click();
   await expect(page.locator('.note-card', { hasText: 'txt note body' })).toContainText('txt note body');
-  await expect(page.locator('.notes-meta-row')).toContainText('1 高亮');
+  await expect(page.locator('.notes-meta-row')).toContainText('2 高亮');
   await expect(page.locator('.notes-meta-row')).toContainText('1 笔记');
 
   const progressBeforeJump = await page
@@ -145,7 +154,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   const kindFilters = page.getByLabel('annotation kind filter controls');
   await kindFilters.getByRole('button', { name: '高亮', exact: true }).click();
   await expect(notesMetaRow).toContainText('仅看高亮');
-  await expect(notesCards).toHaveCount(1);
+  await expect(notesCards).toHaveCount(2);
   await expect(notesCards.first()).toContainText('高亮');
   await expect(page.getByText('当前筛选下还没有高亮')).toHaveCount(0);
 
@@ -157,15 +166,24 @@ test('reader supports txt notes through selection, persistence, and note reopen 
 
   await kindFilters.getByRole('button', { name: '全部类型', exact: true }).click();
   await expect(notesMetaRow).toContainText('全部类型');
-  await expect(notesCards).toHaveCount(2);
+  await expect(notesCards).toHaveCount(3);
 
   await page.getByRole('tab', { name: '高亮' }).click();
   const highlightCards = page.locator('.highlight-card');
-  await expect(page.getByLabel('highlights panel preview')).toContainText('已保存 1 条高亮');
-  await expect(highlightCards).toHaveCount(1);
-  await expect(highlightCards.first()).toContainText('plain text file exists');
+  const highlightsPanel = page.getByLabel('highlights panel preview');
+  await expect(highlightsPanel).toContainText('已保存 2 条高亮');
+  await expect(highlightsPanel).toContainText('最近添加优先');
+  await expect(highlightCards).toHaveCount(2);
+  await expect(highlightCards.first()).toContainText('The rest of this fixture just adds enough steady reading length');
   await expect(highlightCards.first()).toContainText('高亮');
   await expect(highlightCards.first()).not.toContainText('txt note body');
+  const highlightSortControls = page.getByLabel('highlights sort controls');
+  await highlightSortControls.getByRole('button', { name: '最早添加', exact: true }).click();
+  await expect(highlightsPanel).toContainText('最早添加优先');
+  await expect(highlightCards.first()).toContainText('plain text file exists');
+  await highlightSortControls.getByRole('button', { name: '最近添加', exact: true }).click();
+  await expect(highlightsPanel).toContainText('最近添加优先');
+  await expect(highlightCards.first()).toContainText('The rest of this fixture just adds enough steady reading length');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: '删除当前视图高亮' }).click();
   await expect(highlightCards).toHaveCount(0);

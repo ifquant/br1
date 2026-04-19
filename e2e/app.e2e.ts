@@ -2912,6 +2912,35 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT reader to expose the second selected text in the notes workspace'
     });
 
+    await highlightButton.click();
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('2 高亮') &&
+        metaText.includes('0 笔记') &&
+        cards.length === 2 &&
+        texts.some((text) => text.includes('plain text file exists')) &&
+        texts.some((text) => text.includes('The rest of this fixture just adds enough steady reading length'))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop notes workspace to show two persisted highlights before creating a note'
+    });
+
+    await selectPlainTextInReader('the book opens, the state moves, and the state comes back');
+    await browser.waitUntil(async () => {
+      const selectionCard = await $('.selection-card p');
+      return (await selectionCard.getText()).includes('the book opens, the state moves, and the state comes back');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT reader to expose the third selected text in the notes workspace'
+    });
+
     await browser.execute(() => {
       window.prompt = () => 'desktop txt note body';
     });
@@ -2928,14 +2957,16 @@ describe('br1 desktop app', () => {
         texts.push(await card.getText());
       }
       return (
-        metaText.includes('1 高亮') &&
+        metaText.includes('2 高亮') &&
         metaText.includes('1 笔记') &&
+        cards.length === 3 &&
         texts.some((text) => text.includes('desktop txt note body')) &&
-        texts.some((text) => text.includes('高亮') && text.includes('plain text file exists'))
+        texts.some((text) => text.includes('高亮') && text.includes('plain text file exists')) &&
+        texts.some((text) => text.includes('高亮') && text.includes('The rest of this fixture just adds enough steady reading length'))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the TXT desktop notes workspace to show one highlight and one note'
+      timeoutMsg: 'expected the TXT desktop notes workspace to show two highlights and one note'
     });
 
     await browser.closeWindow();
@@ -2952,14 +2983,16 @@ describe('br1 desktop app', () => {
         texts.push(await card.getText());
       }
       return (
-        metaText.includes('1 高亮') &&
+        metaText.includes('2 高亮') &&
         metaText.includes('1 笔记') &&
+        cards.length === 3 &&
         texts.some((text) => text.includes('desktop txt note body')) &&
-        texts.some((text) => text.includes('高亮') && text.includes('plain text file exists'))
+        texts.some((text) => text.includes('高亮') && text.includes('plain text file exists')) &&
+        texts.some((text) => text.includes('高亮') && text.includes('The rest of this fixture just adds enough steady reading length'))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the TXT desktop notes workspace to persist both the highlight and the note after reopen'
+      timeoutMsg: 'expected the TXT desktop notes workspace to persist both highlights and the note after reopen'
     });
 
     await clickAnnotationKindFilter('高亮');
@@ -2973,13 +3006,14 @@ describe('br1 desktop app', () => {
 
       return (
         metaText.includes('仅看高亮') &&
-        cards.length === 1 &&
+        cards.length === 2 &&
         texts[0]?.includes('高亮') &&
-        texts[0]?.includes('plain text file exists')
+        texts.some((text) => text.includes('plain text file exists')) &&
+        texts.some((text) => text.includes('The rest of this fixture just adds enough steady reading length'))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the TXT desktop notes workspace to filter down to the persisted highlight only'
+      timeoutMsg: 'expected the TXT desktop notes workspace to filter down to the persisted highlights only'
     });
 
     await clickAnnotationKindFilter('笔记');
@@ -3006,7 +3040,7 @@ describe('br1 desktop app', () => {
     await browser.waitUntil(async () => {
       const metaText = await $('.notes-meta-row').getText();
       const cards = await $$('.note-card');
-      return metaText.includes('全部类型') && cards.length === 2;
+      return metaText.includes('全部类型') && cards.length === 3;
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop notes workspace to restore the full annotation list after clearing the kind filter'
@@ -3023,15 +3057,66 @@ describe('br1 desktop app', () => {
         texts.push(await card.getText());
       }
       return (
-        panelText.includes('已保存 1 条高亮') &&
-        cards.length === 1 &&
+        panelText.includes('已保存 2 条高亮') &&
+        panelText.includes('最近添加优先') &&
+        cards.length === 2 &&
         texts[0]?.includes('高亮') &&
-        texts[0]?.includes('plain text file exists') &&
-        !texts[0]?.includes('desktop txt note body')
+        texts[0]?.includes('The rest of this fixture just adds enough steady reading length') &&
+        !texts[0]?.includes('desktop txt note body') &&
+        texts.some((text) => text.includes('plain text file exists'))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the TXT desktop highlights workspace to isolate the persisted highlight from the mixed notes list'
+      timeoutMsg: 'expected the TXT desktop highlights workspace to isolate and sort the persisted highlights ahead of the mixed notes list'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights sort controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '最早添加'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the oldest highlights sort button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return panelText.includes('最早添加优先') && firstText.includes('plain text file exists');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to reorder highlights when sorting by oldest first'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights sort controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '最近添加'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the recent highlights sort button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return (
+        panelText.includes('最近添加优先') &&
+        firstText.includes('The rest of this fixture just adds enough steady reading length')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to restore recent-first ordering'
     });
 
     await bulkDeleteVisibleHighlightsInWorkspace();
