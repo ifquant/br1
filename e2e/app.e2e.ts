@@ -222,6 +222,23 @@ describe('br1 desktop app', () => {
     });
   };
 
+  const invertVisibleHighlightsSelectionInWorkspace = async () => {
+    await browser.execute(() => {
+      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      if (!(panel instanceof HTMLElement)) {
+        throw new Error('expected highlights panel preview to exist');
+      }
+
+      const buttons = Array.from(panel.querySelectorAll('button'));
+      const target = buttons.find((button) => button.textContent?.trim() === '反选当前视图高亮');
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected highlights invert-selection button to exist');
+      }
+
+      target.click();
+    });
+  };
+
   const clickHighlightsSortControl = async (label: '最近添加' | '最早添加') => {
     await browser.execute((targetLabel) => {
       const controls = document.querySelector('[aria-label="highlights sort controls"]');
@@ -3185,13 +3202,7 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to switch to oldest-first ordering before selecting a highlight'
     });
-    await browser.execute(() => {
-      const firstToggle = document.querySelector('.highlight-selection-toggle');
-      if (!(firstToggle instanceof HTMLButtonElement)) {
-        throw new Error('expected the first highlight selection toggle to exist');
-      }
-      firstToggle.click();
-    });
+    await toggleFirstHighlightSelection();
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
         const panel = document.querySelector('[aria-label="highlights panel preview"]');
@@ -3207,6 +3218,27 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to select one oldest highlight'
     });
 
+    await invertVisibleHighlightsSelectionInWorkspace();
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstToggleText: toggles[0]?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          secondToggleText: toggles[1]?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('已选 1 条') &&
+        state.firstToggleText.includes('选中') &&
+        state.secondToggleText.includes('已选')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to invert the current selection before deleting'
+    });
+
     await deleteSelectedHighlightsInWorkspace();
     await browser.waitUntil(async () => {
       const panelText = await $('[aria-label="highlights panel preview"]').getText();
@@ -3219,11 +3251,11 @@ describe('br1 desktop app', () => {
         panelText.includes('已保存 1 条高亮') &&
         panelText.includes('未选高亮') &&
         cards.length === 1 &&
-        texts[0]?.includes('The rest of this fixture just adds enough steady reading length')
+        texts[0]?.includes('plain text file exists')
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the TXT desktop highlights workspace to delete only the selected highlight and keep the other one'
+      timeoutMsg: 'expected the TXT desktop highlights workspace to delete only the inverted selection and keep the oldest highlight'
     });
 
     await browser.execute(() => {
@@ -3564,6 +3596,27 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to select one oldest highlight'
     });
 
+    await invertVisibleHighlightsSelectionInWorkspace();
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstToggleText: toggles[0]?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          secondToggleText: toggles[1]?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('已选 1 条') &&
+        state.firstToggleText.includes('选中') &&
+        state.secondToggleText.includes('已选')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to invert the current selection before deleting'
+    });
+
     await deleteSelectedHighlightsInWorkspace();
     await browser.waitUntil(async () => {
       const panelText = await $('[aria-label="highlights panel preview"]').getText();
@@ -3576,11 +3629,11 @@ describe('br1 desktop app', () => {
         panelText.includes('已保存 1 条高亮') &&
         panelText.includes('未选高亮') &&
         cards.length === 1 &&
-        texts[0]?.includes(secondSelectionText.slice(0, 20))
+        texts[0]?.includes(firstSelectionText.slice(0, 20))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the EPUB desktop highlights workspace to delete only the selected highlight and keep the other one'
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to delete only the inverted selection and keep the oldest highlight'
     });
 
     await clickHighlightsSortControl('最近添加');

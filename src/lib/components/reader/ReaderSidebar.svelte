@@ -271,6 +271,8 @@
       ? [...highlightsByScope].sort((left, right) => left.createdAt - right.createdAt)
       : [...highlightsByScope].sort((left, right) => right.createdAt - left.createdAt);
   $: selectedVisibleHighlights = sortedHighlights.filter((note) => selectedHighlightIds.has(note.id));
+  $: areAllVisibleHighlightsSelected =
+    sortedHighlights.length > 0 && selectedVisibleHighlights.length === sortedHighlights.length;
   $: filteredNotes =
     notesKindFilter === 'highlight'
       ? notesByScope.filter((note) => note.kind === 'highlight')
@@ -419,6 +421,18 @@
 
   const clearSelectedHighlights = () => {
     selectedHighlightIds = new Set();
+  };
+
+  const invertVisibleHighlightsSelection = () => {
+    const nextSelection = new Set(selectedHighlightIds);
+    for (const note of sortedHighlights) {
+      if (nextSelection.has(note.id)) {
+        nextSelection.delete(note.id);
+      } else {
+        nextSelection.add(note.id);
+      }
+    }
+    selectedHighlightIds = nextSelection;
   };
 
   const deleteSelectedHighlights = () => {
@@ -974,10 +988,18 @@
             <button
               type="button"
               class="secondary-note-action"
-              disabled={!sortedHighlights.length || selectedVisibleHighlights.length === sortedHighlights.length}
+              disabled={!sortedHighlights.length || areAllVisibleHighlightsSelected}
               on:click={selectAllVisibleHighlights}
             >
               选中当前视图高亮
+            </button>
+            <button
+              type="button"
+              class="secondary-note-action"
+              disabled={!sortedHighlights.length}
+              on:click={invertVisibleHighlightsSelection}
+            >
+              反选当前视图高亮
             </button>
             <button
               type="button"
