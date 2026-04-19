@@ -184,6 +184,15 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await highlightSortControls.getByRole('button', { name: '最近添加', exact: true }).click();
   await expect(highlightsPanel).toContainText('最近添加优先');
   await expect(highlightCards.first()).toContainText('The rest of this fixture just adds enough steady reading length');
+  await highlightSortControls.getByRole('button', { name: '最早添加', exact: true }).click();
+  await highlightCards.first().locator('.highlight-selection-toggle').click();
+  await expect(highlightsPanel).toContainText('已选 1 条');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '删除选中高亮' }).click();
+  await expect(highlightsPanel).toContainText('已保存 1 条高亮');
+  await expect(highlightsPanel).toContainText('未选高亮');
+  await expect(highlightCards).toHaveCount(1);
+  await expect(highlightCards.first()).toContainText('The rest of this fixture just adds enough steady reading length');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: '删除当前视图高亮' }).click();
   await expect(highlightCards).toHaveCount(0);

@@ -91,6 +91,7 @@
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
   let highlightsFilter: 'all' | 'chapter' = 'all';
   let highlightsSort: 'recent' | 'oldest' = 'recent';
+  let selectedHighlightIds = new Set<string>();
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -269,6 +270,7 @@
     highlightsSort === 'oldest'
       ? [...highlightsByScope].sort((left, right) => left.createdAt - right.createdAt)
       : [...highlightsByScope].sort((left, right) => right.createdAt - left.createdAt);
+  $: selectedVisibleHighlights = sortedHighlights.filter((note) => selectedHighlightIds.has(note.id));
   $: filteredNotes =
     notesKindFilter === 'highlight'
       ? notesByScope.filter((note) => note.kind === 'highlight')
@@ -338,6 +340,13 @@
       collapsedHighlightGroups = new Set(collapsedHighlightGroups);
     }
   }
+  $: {
+    const visibleHighlightIds = new Set(allHighlights.map((note) => note.id));
+    const nextSelection = new Set(Array.from(selectedHighlightIds).filter((id) => visibleHighlightIds.has(id)));
+    if (nextSelection.size !== selectedHighlightIds.size) {
+      selectedHighlightIds = nextSelection;
+    }
+  }
   $: areAllHighlightGroupsExpanded =
     collapsibleHighlightGroupKeys.length > 0 &&
     collapsibleHighlightGroupKeys.every((chapterHref) => !collapsedHighlightGroups.has(chapterHref));
@@ -391,6 +400,36 @@
       highlightsFilter === 'chapter' ? '删除当前章节中的全部高亮？' : '删除当前视图中的全部高亮？';
     if (!window.confirm(confirmLabel)) return;
     callbacks.onDeleteNotes?.(highlightsByScope.map((note) => note.id));
+    selectedHighlightIds = new Set();
+  };
+
+  const toggleHighlightSelection = (id: string) => {
+    const nextSelection = new Set(selectedHighlightIds);
+    if (nextSelection.has(id)) {
+      nextSelection.delete(id);
+    } else {
+      nextSelection.add(id);
+    }
+    selectedHighlightIds = nextSelection;
+  };
+
+  const selectAllVisibleHighlights = () => {
+    selectedHighlightIds = new Set(sortedHighlights.map((note) => note.id));
+  };
+
+  const clearSelectedHighlights = () => {
+    selectedHighlightIds = new Set();
+  };
+
+  const deleteSelectedHighlights = () => {
+    if (!selectedVisibleHighlights.length) return;
+    const confirmLabel =
+      selectedVisibleHighlights.length === 1
+        ? '删除选中的这条高亮？'
+        : `删除选中的 ${selectedVisibleHighlights.length} 条高亮？`;
+    if (!window.confirm(confirmLabel)) return;
+    callbacks.onDeleteNotes?.(selectedVisibleHighlights.map((note) => note.id));
+    selectedHighlightIds = new Set();
   };
 
   const isBookmarkGroupCollapsed = (chapterHref: string) => collapsedBookmarkGroups.has(chapterHref);
@@ -927,10 +966,35 @@
             <span>{allHighlights.length} 高亮</span>
             <span>{highlightsFilter === 'chapter' ? `${highlightsByScope.length} 当前章节` : '全部章节'}</span>
             <span>{highlightsSort === 'recent' ? '最近添加优先' : '最早添加优先'}</span>
+            <span>{selectedVisibleHighlights.length ? `已选 ${selectedVisibleHighlights.length} 条` : '未选高亮'}</span>
             <span>{notesState.activeCfi ? '可跳回当前高亮' : '未聚焦高亮'}</span>
           </div>
 
           <div class="notes-actions">
+            <button
+              type="button"
+              class="secondary-note-action"
+              disabled={!sortedHighlights.length || selectedVisibleHighlights.length === sortedHighlights.length}
+              on:click={selectAllVisibleHighlights}
+            >
+              选中当前视图高亮
+            </button>
+            <button
+              type="button"
+              class="secondary-note-action"
+              disabled={!selectedVisibleHighlights.length}
+              on:click={clearSelectedHighlights}
+            >
+              清空选中
+            </button>
+            <button
+              type="button"
+              class="secondary-note-action danger-action"
+              disabled={!selectedVisibleHighlights.length}
+              on:click={deleteSelectedHighlights}
+            >
+              删除选中高亮
+            </button>
             <button
               type="button"
               class="secondary-note-action danger-action"
@@ -1037,6 +1101,16 @@
                             <time>{formatTimestamp(note.createdAt)}</time>
                           </button>
                           <div class="note-actions">
+                            <button
+                              type="button"
+                              class:selected={selectedHighlightIds.has(note.id)}
+                              class="note-action highlight-selection-toggle"
+                              aria-pressed={selectedHighlightIds.has(note.id)}
+                              aria-label={selectedHighlightIds.has(note.id) ? '取消选中高亮' : '选中高亮'}
+                              on:click={() => toggleHighlightSelection(note.id)}
+                            >
+                              {selectedHighlightIds.has(note.id) ? '已选' : '选中'}
+                            </button>
                             <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
                               删除
                             </button>
@@ -2120,6 +2194,12 @@
 
   .note-action:hover {
     color: var(--text-primary);
+  }
+
+  .note-action.highlight-selection-toggle.selected {
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px var(--border-light);
   }
 
   .note-action.danger {

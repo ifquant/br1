@@ -204,6 +204,24 @@ describe('br1 desktop app', () => {
     });
   };
 
+  const deleteSelectedHighlightsInWorkspace = async () => {
+    await browser.execute(() => {
+      window.confirm = () => true;
+      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      if (!(panel instanceof HTMLElement)) {
+        throw new Error('expected highlights panel preview to exist');
+      }
+
+      const buttons = Array.from(panel.querySelectorAll('button'));
+      const target = buttons.find((button) => button.textContent?.trim() === '删除选中高亮');
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected highlights selected-delete button to exist');
+      }
+
+      target.click();
+    });
+  };
+
   const sampleLibraryFormats = [
     {
       fileName: 'sample-book.fb2',
@@ -3117,6 +3135,83 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to restore recent-first ordering'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights sort controls to exist');
+      }
+      const oldest = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '最早添加'
+      );
+      if (!(oldest instanceof HTMLButtonElement)) {
+        throw new Error('expected the oldest highlights sort button to exist');
+      }
+      oldest.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return panelText.includes('最早添加优先') && firstText.includes('plain text file exists');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to switch to oldest-first ordering before selecting a highlight'
+    });
+    await browser.execute(() => {
+      const firstToggle = document.querySelector('.highlight-selection-toggle');
+      if (!(firstToggle instanceof HTMLButtonElement)) {
+        throw new Error('expected the first highlight selection toggle to exist');
+      }
+      firstToggle.click();
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const firstToggle = document.querySelector('.highlight-selection-toggle');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstToggleText: firstToggle?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return state.panelText.includes('已选 1 条') && state.firstToggleText.includes('已选');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to select one oldest highlight'
+    });
+
+    await deleteSelectedHighlightsInWorkspace();
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        panelText.includes('已保存 1 条高亮') &&
+        panelText.includes('未选高亮') &&
+        cards.length === 1 &&
+        texts[0]?.includes('The rest of this fixture just adds enough steady reading length')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to delete only the selected highlight and keep the other one'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights sort controls to exist');
+      }
+      const recent = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '最近添加'
+      );
+      if (!(recent instanceof HTMLButtonElement)) {
+        throw new Error('expected the recent highlights sort button to exist');
+      }
+      recent.click();
     });
 
     await bulkDeleteVisibleHighlightsInWorkspace();
