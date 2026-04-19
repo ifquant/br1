@@ -441,6 +441,28 @@
     selectedHighlightIds = nextSelection;
   };
 
+  const selectHighlightGroup = (notes: typeof sortedHighlights) => {
+    const nextSelection = new Set(selectedHighlightIds);
+    for (const note of notes) {
+      nextSelection.add(note.id);
+    }
+    selectedHighlightIds = nextSelection;
+  };
+
+  const clearHighlightGroupSelection = (notes: typeof sortedHighlights) => {
+    const nextSelection = new Set(selectedHighlightIds);
+    for (const note of notes) {
+      nextSelection.delete(note.id);
+    }
+    selectedHighlightIds = nextSelection;
+  };
+
+  const isHighlightGroupFullySelected = (notes: typeof sortedHighlights) =>
+    notes.length > 0 && notes.every((note) => selectedHighlightIds.has(note.id));
+
+  const isHighlightGroupPartiallySelected = (notes: typeof sortedHighlights) =>
+    notes.some((note) => selectedHighlightIds.has(note.id));
+
   const deleteSelectedHighlights = () => {
     if (!selectedVisibleHighlights.length) return;
     const confirmLabel =
@@ -1137,6 +1159,25 @@
                   </button>
 
                   {#if !isHighlightGroupCollapsed(group.chapterHref)}
+                    <div class="note-group-actions">
+                      <button
+                        type="button"
+                        class="notes-filter-chip"
+                        disabled={isHighlightGroupFullySelected(group.notes)}
+                        on:click={() => selectHighlightGroup(group.notes)}
+                      >
+                        选中本组高亮
+                      </button>
+                      <button
+                        type="button"
+                        class="notes-filter-chip"
+                        disabled={!isHighlightGroupPartiallySelected(group.notes)}
+                        on:click={() => clearHighlightGroupSelection(group.notes)}
+                      >
+                        清空本组选择
+                      </button>
+                    </div>
+
                     {#each group.notes as note}
                       <article
                         class:active-note={note.cfi === notesState.activeCfi}

@@ -181,6 +181,14 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await highlightSortControls.getByRole('button', { name: '最早添加', exact: true }).click();
   await expect(highlightsPanel).toContainText('最早添加优先');
   await expect(highlightCards.first()).toContainText('plain text file exists');
+  await page.getByRole('button', { name: '选中本组高亮' }).click();
+  await expect(highlightsPanel).toContainText('已选 2 条');
+  await page.getByRole('button', { name: '已选高亮' }).click();
+  await expect(highlightsPanel).toContainText('2 已选高亮');
+  await expect(highlightCards).toHaveCount(2);
+  await page.getByRole('button', { name: '全部', exact: true }).click();
+  await page.getByRole('button', { name: '清空本组选择' }).click();
+  await expect(highlightsPanel).toContainText('未选高亮');
   await highlightSortControls.getByRole('button', { name: '最近添加', exact: true }).click();
   await expect(highlightsPanel).toContainText('最近添加优先');
   await expect(highlightCards.first()).toContainText('The rest of this fixture just adds enough steady reading length');

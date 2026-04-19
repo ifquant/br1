@@ -239,6 +239,23 @@ describe('br1 desktop app', () => {
     });
   };
 
+  const clickHighlightGroupAction = async (label: '选中本组高亮' | '清空本组选择') => {
+    await browser.execute((targetLabel) => {
+      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      if (!(panel instanceof HTMLElement)) {
+        throw new Error('expected highlights panel preview to exist');
+      }
+
+      const buttons = Array.from(panel.querySelectorAll('button'));
+      const target = buttons.find((button) => button.textContent?.trim() === targetLabel);
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error(`expected highlight group action button to exist: ${targetLabel}`);
+      }
+
+      target.click();
+    }, label);
+  };
+
   const clickHighlightsSortControl = async (label: '最近添加' | '最早添加') => {
     await browser.execute((targetLabel) => {
       const controls = document.querySelector('[aria-label="highlights sort controls"]');
@@ -3584,6 +3601,59 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to switch to oldest-first ordering before selecting a highlight'
+    });
+
+    await clickHighlightGroupAction('选中本组高亮');
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      return panelText.includes('已选 2 条');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to select every highlight in the current group'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '已选高亮'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the selected-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      return panelText.includes('2 已选高亮') && cards.length === 2;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to show the whole selected group inside the selected-only view'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '全部'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the all-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await clickHighlightGroupAction('清空本组选择');
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      return panelText.includes('未选高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to clear the current group selection before continuing'
     });
 
     await toggleFirstHighlightSelection();
