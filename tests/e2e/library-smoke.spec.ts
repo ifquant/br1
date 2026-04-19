@@ -46,6 +46,111 @@ test('reader opens txt assets in web mode', async ({ page }) => {
   await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
 
+test('reader persists epub layout settings through reload in web mode', async ({ page }) => {
+  const readerUrl =
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.epub&label=Sample%20EPUB%20Book';
+
+  const pickReaderSetting = async (
+    groupLabel: 'reader flow mode' | 'reader font family' | 'reader font scale' | 'reader line height' | 'reader page margins',
+    optionLabel: string
+  ) => {
+    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.evaluate(
+      ({ targetGroupLabel, targetOptionLabel }) => {
+        const groups = Array.from(document.querySelectorAll('[role="group"][aria-label]'));
+        const group = groups.find(
+          (candidate) => candidate.getAttribute('aria-label') === targetGroupLabel
+        );
+        if (!(group instanceof HTMLElement)) {
+          throw new Error(`expected reader settings group to exist: ${targetGroupLabel}`);
+        }
+
+        const option = Array.from(group.querySelectorAll('button[role="menuitemradio"]')).find(
+          (candidate) => candidate.textContent?.trim() === targetOptionLabel
+        );
+        if (!(option instanceof HTMLButtonElement)) {
+          throw new Error(`expected reader settings option to exist: ${targetOptionLabel}`);
+        }
+
+        option.click();
+      },
+      { targetGroupLabel: groupLabel, targetOptionLabel: optionLabel }
+    );
+  };
+
+  const readRendererState = async () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          getAttribute?: (name: string) => string | null;
+          getContents?: () => Array<{ doc?: Document }>;
+        };
+      } | null;
+      const renderer = view?.renderer;
+      const doc = renderer?.getContents?.()?.[0]?.doc;
+      const body = doc?.body;
+      const styles = body ? getComputedStyle(body) : null;
+
+      return {
+        flow: renderer?.getAttribute?.('flow') ?? '',
+        marginLeft: renderer?.getAttribute?.('margin-left') ?? '',
+        fontFamily: styles?.fontFamily ?? '',
+        fontSize: styles?.fontSize ?? '',
+        lineHeightPx: Number.parseFloat(styles?.lineHeight ?? '0')
+      };
+    });
+
+  await page.goto(readerUrl);
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('reader footer controls preview')).toContainText('PAGINATED');
+
+  await pickReaderSetting('reader flow mode', '滚动');
+  await pickReaderSetting('reader font family', '无衬线');
+  await pickReaderSetting('reader font scale', '大');
+  await pickReaderSetting('reader line height', '舒展');
+  await pickReaderSetting('reader page margins', '宽');
+
+  await expect(page.getByLabel('reader footer controls preview')).toContainText('SCROLL');
+  await expect
+    .poll(readRendererState, { message: 'expected renderer settings to update before reload' })
+    .toMatchObject({
+      flow: 'scrolled',
+      marginLeft: '52px',
+      fontSize: '22px'
+    });
+  await expect
+    .poll(async () => (await readRendererState()).lineHeightPx, {
+      message: 'expected renderer line height to expand in relaxed mode'
+    })
+    .toBeGreaterThan(42);
+  await expect
+    .poll(async () => (await readRendererState()).fontFamily, {
+      message: 'expected renderer body font family to switch to sans'
+    })
+    .toContain('IBM Plex Sans');
+
+  await page.reload();
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('reader footer controls preview')).toContainText('SCROLL');
+  await expect
+    .poll(readRendererState, { message: 'expected renderer settings to survive reload' })
+    .toMatchObject({
+      flow: 'scrolled',
+      marginLeft: '52px',
+      fontSize: '22px'
+    });
+  await expect
+    .poll(async () => (await readRendererState()).lineHeightPx, {
+      message: 'expected relaxed line height to survive reload'
+    })
+    .toBeGreaterThan(42);
+  await expect
+    .poll(async () => (await readRendererState()).fontFamily, {
+      message: 'expected sans font family to survive reload'
+    })
+    .toContain('IBM Plex Sans');
+});
+
 test('reader shows explicit text-annotation limits for txt and cbz assets in web mode', async ({ page }) => {
   const cases = [
     {

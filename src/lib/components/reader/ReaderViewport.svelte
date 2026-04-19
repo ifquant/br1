@@ -27,8 +27,8 @@
     ReaderSelectionState,
     ReaderSearchResult,
     ReaderSearchState,
+    ReaderSettings,
     ReaderTocItem,
-    ReaderViewWidthMode
   } from '$lib/reader';
   import {
     clearReaderSearchCache,
@@ -43,7 +43,7 @@
   export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
   export let isWindowMode = false;
   export let notes: ReaderNote[] = [];
-  export let viewWidthMode: ReaderViewWidthMode = 'standard';
+  export let settings: ReaderSettings;
 
   const dispatch = createEventDispatcher<{
     notefocus: string;
@@ -113,7 +113,12 @@
     );
   };
 
-  const inferReaderLayoutLabel = (book: ReaderBookDocument | undefined, formatLabel: string) => {
+  const inferReaderLayoutLabel = (
+    book: ReaderBookDocument | undefined,
+    formatLabel: string,
+    flowMode: ReaderSettings['flowMode']
+  ) => {
+    if (flowMode === 'scrolled') return 'SCROLL';
     if (formatLabel === 'PDF' || book?.rendition?.layout === 'pre-paginated') {
       return 'FIXED';
     }
@@ -236,27 +241,38 @@
     const { width, height } = getViewportStageSize();
     const aspectRatio = width / Math.max(height, 1);
     const isUnfoldedWindow = aspectRatio < 1.3 && aspectRatio > 0.77 && width > 600;
-    if (viewWidthMode === 'focus') {
+    if (settings.viewWidthMode === 'focus') {
       return isUnfoldedWindow ? 520 : 640;
     }
-    if (viewWidthMode === 'wide') {
+    if (settings.viewWidthMode === 'wide') {
       return isUnfoldedWindow ? 660 : 840;
     }
     return isUnfoldedWindow ? 576 : 720;
+  };
+
+  const getReaderPageMargin = () => {
+    if (settings.pageMargins === 'narrow') return isWindowMode ? '18px' : '24px';
+    if (settings.pageMargins === 'wide') return isWindowMode ? '44px' : '52px';
+    return isWindowMode ? '30px' : '34px';
   };
 
   const getResponsiveMaxColumnCount = () => {
     const { width } = getViewportStageSize();
     // Readest-style desktop reader windows keep reflowable books on a
     // single visible page instead of opening into a two-page spread.
+    if (settings.flowMode === 'scrolled') return 1;
     return isWindowMode ? 1 : width >= 1120 ? 2 : 1;
   };
 
   const getResponsiveHorizontalMargin = () => {
-    if (!isWindowMode) return '34px';
-    if (viewWidthMode === 'focus') return '48px';
-    if (viewWidthMode === 'wide') return '18px';
-    return '30px';
+    if (!isWindowMode) return getReaderPageMargin();
+    if (settings.viewWidthMode === 'focus') {
+      return settings.pageMargins === 'wide' ? '56px' : settings.pageMargins === 'narrow' ? '30px' : '48px';
+    }
+    if (settings.viewWidthMode === 'wide') {
+      return settings.pageMargins === 'wide' ? '28px' : settings.pageMargins === 'narrow' ? '12px' : '18px';
+    }
+    return getReaderPageMargin();
   };
 
   const NOTE_PREFIX = 'foliate-note:';
@@ -376,8 +392,8 @@
     const maxInlineSize = getResponsiveMaxInlineSize();
     const maxColumnCount = getResponsiveMaxColumnCount();
 
-    renderer.setStyles?.(getReaderViewStyles());
-    renderer.setAttribute('flow', 'paginated');
+    renderer.setStyles?.(getReaderViewStyles(settings));
+    renderer.setAttribute('flow', settings.flowMode);
     renderer.setAttribute('margin-top', isWindowMode ? '46px' : '36px');
     renderer.setAttribute('margin-right', getResponsiveHorizontalMargin());
     renderer.setAttribute('margin-bottom', isWindowMode ? '44px' : '36px');
@@ -520,7 +536,11 @@
       }
 
       await foliateViewElement.open(openTarget);
-      currentLayoutLabel = inferReaderLayoutLabel(foliateViewElement.book, currentFormatLabel);
+      currentLayoutLabel = inferReaderLayoutLabel(
+        foliateViewElement.book,
+        currentFormatLabel,
+        settings.flowMode
+      );
       installReaderBookTransformGuards(foliateViewElement.book);
       configureFoliatePreview();
       await applyInitialNavigation(restoreFraction, restoreLocation);
@@ -832,11 +852,17 @@
   }
 
   $: {
-    viewWidthMode;
+    settings;
     isWindowMode;
     foliateViewElement;
-    if (foliateViewElement && openStatus === 'open') {
+    if (foliateViewElement && openStatus === 'open' && openEngineMode === 'foliate') {
       configureFoliatePreview();
+      currentLayoutLabel = inferReaderLayoutLabel(
+        foliateViewElement.book,
+        currentFormatLabel,
+        settings.flowMode
+      );
+      emitReaderState({ layoutLabel: currentLayoutLabel });
     }
   }
 
@@ -987,6 +1013,7 @@
             <div
               class="plain-text-surface"
               bind:this={plainTextScroller}
+              style={`--plain-text-font-family:${settings.fontFamily === 'sans' ? '"IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif' : '"Iowan Old Style", "Palatino Linotype", "Songti SC", serif'};--plain-text-font-size:${settings.fontScale === 'sm' ? '18px' : settings.fontScale === 'lg' ? '22px' : '20px'};--plain-text-line-height:${settings.lineHeight === 'tight' ? '1.62' : settings.lineHeight === 'relaxed' ? '1.96' : '1.9'};--plain-text-inline-width:${settings.viewWidthMode === 'focus' ? '680px' : settings.viewWidthMode === 'wide' ? '980px' : '840px'};--plain-text-surface-padding:${settings.pageMargins === 'narrow' ? '24px 14px 40px' : settings.pageMargins === 'wide' ? '48px 34px 72px' : '36px 22px 56px'};`}
               on:scroll={() => emitPlainTextReaderState()}
               aria-label="plain text reading surface"
             >
@@ -1030,6 +1057,7 @@
             <div
               class="plain-text-surface inline-surface"
               bind:this={plainTextScroller}
+              style={`--plain-text-font-family:${settings.fontFamily === 'sans' ? '"IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif' : '"Iowan Old Style", "Palatino Linotype", "Songti SC", serif'};--plain-text-font-size:${settings.fontScale === 'sm' ? '18px' : settings.fontScale === 'lg' ? '22px' : '20px'};--plain-text-line-height:${settings.lineHeight === 'tight' ? '1.62' : settings.lineHeight === 'relaxed' ? '1.96' : '1.9'};--plain-text-inline-width:${settings.viewWidthMode === 'focus' ? '680px' : settings.viewWidthMode === 'wide' ? '980px' : '840px'};--plain-text-surface-padding:${settings.pageMargins === 'narrow' ? '24px 14px 40px' : settings.pageMargins === 'wide' ? '48px 34px 72px' : '36px 22px 56px'};`}
               on:scroll={() => emitPlainTextReaderState()}
               aria-label="plain text reading surface"
             >
@@ -1187,7 +1215,7 @@
     overflow: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 98, 56, 0.35) transparent;
-    padding: 36px 22px 56px;
+    padding: var(--plain-text-surface-padding, 36px 22px 56px);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
       #fbf7ef;
@@ -1200,7 +1228,7 @@
   }
 
   .plain-text-paper {
-    width: min(100%, 840px);
+    width: min(100%, var(--plain-text-inline-width, 840px));
     margin: 0 auto;
     padding: clamp(18px, 2.4vw, 28px);
     background: rgba(255, 255, 255, 0.66);
@@ -1213,9 +1241,15 @@
     margin: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", serif;
-    font-size: clamp(17px, 1.5vw, 20px);
-    line-height: 1.9;
+    font-family: var(
+      --plain-text-font-family,
+      "Iowan Old Style",
+      "Palatino Linotype",
+      "Songti SC",
+      serif
+    );
+    font-size: var(--plain-text-font-size, 20px);
+    line-height: var(--plain-text-line-height, 1.9);
     color: color-mix(in srgb, #2c241c 88%, white 12%);
   }
 

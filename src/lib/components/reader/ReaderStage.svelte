@@ -1,18 +1,21 @@
 <script lang="ts">
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import type {
-    ReaderAtmosphereMode,
-    ReaderChromeMode,
     ReaderControlRequest,
     ReaderNote,
     ReaderPreviewState,
-    ReaderViewWidthMode,
+    ReaderSettings,
     SidebarTab,
     ReaderSearchState,
     ReaderSelectionState,
     ReaderTocItem
   } from '$lib/reader';
-  import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
+  import {
+    createDefaultReaderSettings,
+    loadReaderSettings,
+    READER_FILE_INPUT_ACCEPT,
+    saveReaderSettings
+  } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
@@ -55,13 +58,7 @@
   let hasAttemptedAutoPicker = false;
   let chromeVisible = true;
   let chromeTimer: ReturnType<typeof setTimeout> | null = null;
-  let atmosphereMode: ReaderAtmosphereMode = 'paper';
-  let chromeMode: ReaderChromeMode = 'auto';
-  let viewWidthMode: ReaderViewWidthMode = 'standard';
-
-  const readerAtmosphereModeStorageKey = 'br1.reader.view.atmosphere';
-  const readerChromeModeStorageKey = 'br1.reader.chrome.mode';
-  const readerViewWidthStorageKey = 'br1.reader.view.width';
+  let settings: ReaderSettings = createDefaultReaderSettings();
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -125,24 +122,19 @@
     dispatch('switchsidebartab', tab);
   };
 
-  const setViewWidthMode = (mode: ReaderViewWidthMode) => {
-    viewWidthMode = mode;
+  const updateSettings = (patch: Partial<ReaderSettings>) => {
+    settings = {
+      ...settings,
+      ...patch
+    };
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(readerViewWidthStorageKey, mode);
+    saveReaderSettings(localStorage, settings);
   };
 
-  const setAtmosphereMode = (mode: ReaderAtmosphereMode) => {
-    atmosphereMode = mode;
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(readerAtmosphereModeStorageKey, mode);
-  };
-
-  const setChromeMode = (mode: ReaderChromeMode) => {
-    chromeMode = mode;
+  const setChromeMode = (mode: ReaderSettings['chromeMode']) => {
+    updateSettings({ chromeMode: mode });
     chromeVisible = true;
     clearChromeTimer();
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(readerChromeModeStorageKey, mode);
     if (mode === 'auto') {
       scheduleChromeHide();
     }
@@ -154,7 +146,7 @@
   };
 
   const scheduleChromeHide = () => {
-    if (!isWindowMode || sidebarVisible || chromeMode === 'always') return;
+    if (!isWindowMode || sidebarVisible || settings.chromeMode === 'always') return;
     clearChromeTimer();
     chromeTimer = setTimeout(() => {
       chromeVisible = false;
@@ -187,37 +179,21 @@
     clearChromeTimer();
   }
 
-  $: if (isWindowMode && (sidebarVisible || chromeMode === 'always')) {
+  $: if (isWindowMode && (sidebarVisible || settings.chromeMode === 'always')) {
     chromeVisible = true;
     clearChromeTimer();
   }
 
-  $: if (typeof localStorage !== 'undefined' && chromeMode === 'auto') {
-    const persistedChromeMode = localStorage.getItem(readerChromeModeStorageKey);
-    if (persistedChromeMode === 'always') {
-      chromeMode = persistedChromeMode;
-    }
-  }
-
-  $: if (typeof localStorage !== 'undefined' && atmosphereMode === 'paper') {
-    const persistedAtmosphereMode = localStorage.getItem(readerAtmosphereModeStorageKey);
-    if (persistedAtmosphereMode === 'warm' || persistedAtmosphereMode === 'soft') {
-      atmosphereMode = persistedAtmosphereMode;
-    }
-  }
-
-  $: if (typeof localStorage !== 'undefined' && viewWidthMode === 'standard') {
-    const persistedMode = localStorage.getItem(readerViewWidthStorageKey);
-    if (persistedMode === 'focus' || persistedMode === 'wide') {
-      viewWidthMode = persistedMode;
-    }
-  }
+  onMount(() => {
+    if (typeof localStorage === 'undefined') return;
+    settings = loadReaderSettings(localStorage);
+  });
 </script>
 
 <section
-  class:paper-atmosphere={atmosphereMode === 'paper'}
-  class:warm-atmosphere={atmosphereMode === 'warm'}
-  class:soft-atmosphere={atmosphereMode === 'soft'}
+  class:paper-atmosphere={settings.themePreset === 'paper'}
+  class:warm-atmosphere={settings.themePreset === 'warm'}
+  class:soft-atmosphere={settings.themePreset === 'soft'}
   class:window-mode={isWindowMode}
   class="reader-stage"
   role="main"
@@ -241,24 +217,21 @@
     isVisible={chromeVisible}
     {activeSidebarTab}
     {isCurrentLocationBookmarked}
-    {atmosphereMode}
-    {chromeMode}
-    {viewWidthMode}
+    {settings}
     onGoToLibrary={goToLibrary}
     onToggleBookmark={toggleBookmark}
     onOpenPicker={triggerImportPicker}
     onToggleSidebar={toggleSidebar}
     onTogglePin={isWindowMode ? togglePinned : null}
     onOpenSidebarTab={openSidebarTab}
-    onSetAtmosphereMode={setAtmosphereMode}
+    onUpdateSettings={updateSettings}
     onSetChromeMode={setChromeMode}
-    onSetViewWidthMode={setViewWidthMode}
   />
 
   <article
     class:window-mode={isWindowMode}
-    class:focus-width={viewWidthMode === 'focus'}
-    class:wide-width={viewWidthMode === 'wide'}
+    class:focus-width={settings.viewWidthMode === 'focus'}
+    class:wide-width={settings.viewWidthMode === 'wide'}
     class="canvas"
   >
     <ReaderViewport
@@ -267,7 +240,7 @@
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
       {notes}
-      {viewWidthMode}
+      {settings}
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         dispatch('readerstate', detail);
@@ -294,7 +267,7 @@
     preview={readerPreview}
     {isWindowMode}
     isVisible={chromeVisible}
-    {viewWidthMode}
+    viewWidthMode={settings.viewWidthMode}
     on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
       dispatch('controlrequest', detail);
     }}

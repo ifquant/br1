@@ -4,12 +4,17 @@
    * only as a legacy preview shell until the old surface is removed.
    */
   import { createEventDispatcher, tick } from 'svelte';
-  import { createReaderMountBoundary, READER_FILE_INPUT_ACCEPT } from '$lib/reader';
+  import {
+    createDefaultReaderSettings,
+    createReaderMountBoundary,
+    READER_FILE_INPUT_ACCEPT
+  } from '$lib/reader';
   import { startCurrentWindowDrag } from '$lib/services';
   import type { ReaderControlRequest, ReaderPreviewState, ReaderTocItem } from '$lib/reader';
   import ReaderViewport from './ReaderViewport.svelte';
 
   const mountBoundary = createReaderMountBoundary('idle');
+  const readerSettings = createDefaultReaderSettings();
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
     readerstate: ReaderPreviewState;
@@ -130,6 +135,7 @@
       {controlRequest}
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
+      settings={readerSettings}
       on:readerstate={({ detail }) => {
         readerPreview = detail;
         sliderValue = Math.round(detail.progressFraction * 100);

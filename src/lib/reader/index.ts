@@ -18,6 +18,13 @@ export { createReaderNotesController } from './notesController';
 export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export {
+  createDefaultReaderSettings,
+  loadReaderSettings,
+  normalizeReaderSettings,
+  READER_SETTINGS_STORAGE_KEY,
+  saveReaderSettings
+} from './settings';
+export {
   getDesktopBookDialogExtensions,
   getReaderFormatSupportStatus,
   inferReaderFormatLabelFromName,
@@ -44,6 +51,13 @@ export type {
   ReaderSelectionState,
   ReaderPreviewState,
   ReaderAtmosphereMode,
+  ReaderFlowMode,
+  ReaderFontFamily,
+  ReaderFontScale,
+  ReaderLineHeight,
+  ReaderPageMargins,
+  ReaderSettings,
+  ReaderThemePreset,
   ReaderChromeMode,
   ReaderViewWidthMode,
   ReaderSearchExcerpt,

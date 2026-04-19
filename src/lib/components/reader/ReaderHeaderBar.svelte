@@ -1,10 +1,8 @@
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
   import type {
-    ReaderAtmosphereMode,
-    ReaderChromeMode,
     ReaderPreviewState,
-    ReaderViewWidthMode,
+    ReaderSettings,
     SidebarTab
   } from '$lib/reader';
 
@@ -14,18 +12,15 @@
   export let isVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
   export let isCurrentLocationBookmarked = false;
-  export let atmosphereMode: ReaderAtmosphereMode = 'paper';
-  export let chromeMode: ReaderChromeMode = 'auto';
-  export let viewWidthMode: ReaderViewWidthMode = 'standard';
+  export let settings: ReaderSettings;
   export let onGoToLibrary: (() => void) | null = null;
   export let onToggleBookmark: (() => void) | null = null;
   export let onOpenPicker: (() => void) | null = null;
   export let onToggleSidebar: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
   export let onOpenSidebarTab: ((tab: SidebarTab) => void) | null = null;
-  export let onSetAtmosphereMode: ((mode: ReaderAtmosphereMode) => void) | null = null;
-  export let onSetChromeMode: ((mode: ReaderChromeMode) => void) | null = null;
-  export let onSetViewWidthMode: ((mode: ReaderViewWidthMode) => void) | null = null;
+  export let onUpdateSettings: ((patch: Partial<ReaderSettings>) => void) | null = null;
+  export let onSetChromeMode: ((mode: ReaderSettings['chromeMode']) => void) | null = null;
 
   let menuOpen = false;
 
@@ -61,8 +56,8 @@
 <header class:window-mode={isWindowMode} class:visible={isVisible} class="reader-head">
   <div
     class:window-mode={isWindowMode}
-    class:focus-width={viewWidthMode === 'focus'}
-    class:wide-width={viewWidthMode === 'wide'}
+    class:focus-width={settings.viewWidthMode === 'focus'}
+    class:wide-width={settings.viewWidthMode === 'wide'}
     class="reader-head-frame"
   >
     {#if isWindowMode}
@@ -150,34 +145,176 @@
               <span class="menu-section-label">阅读设置</span>
               <div class="menu-option-stack" role="presentation">
                 <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">阅读模式</span>
+                  <div class="menu-option-group" role="group" aria-label="reader flow mode">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.flowMode === 'paginated'}
+                      class:active-option={settings.flowMode === 'paginated'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ flowMode: 'paginated' }))}
+                    >
+                      分页
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.flowMode === 'scrolled'}
+                      class:active-option={settings.flowMode === 'scrolled'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ flowMode: 'scrolled' }))}
+                    >
+                      滚动
+                    </button>
+                  </div>
+                </div>
+                <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">阅读氛围</span>
                   <div class="menu-option-group" role="group" aria-label="reader atmosphere">
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={atmosphereMode === 'paper'}
-                      class:active-option={atmosphereMode === 'paper'}
-                      on:click={() => runMenuAction(() => onSetAtmosphereMode?.('paper'))}
+                      aria-checked={settings.themePreset === 'paper'}
+                      class:active-option={settings.themePreset === 'paper'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ themePreset: 'paper' }))}
                     >
                       纸白
                     </button>
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={atmosphereMode === 'warm'}
-                      class:active-option={atmosphereMode === 'warm'}
-                      on:click={() => runMenuAction(() => onSetAtmosphereMode?.('warm'))}
+                      aria-checked={settings.themePreset === 'warm'}
+                      class:active-option={settings.themePreset === 'warm'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ themePreset: 'warm' }))}
                     >
                       暖纸
                     </button>
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={atmosphereMode === 'soft'}
-                      class:active-option={atmosphereMode === 'soft'}
-                      on:click={() => runMenuAction(() => onSetAtmosphereMode?.('soft'))}
+                      aria-checked={settings.themePreset === 'soft'}
+                      class:active-option={settings.themePreset === 'soft'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ themePreset: 'soft' }))}
                     >
                       柔和
+                    </button>
+                  </div>
+                </div>
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">字体</span>
+                  <div class="menu-option-group" role="group" aria-label="reader font family">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.fontFamily === 'serif'}
+                      class:active-option={settings.fontFamily === 'serif'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ fontFamily: 'serif' }))}
+                    >
+                      衬线
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.fontFamily === 'sans'}
+                      class:active-option={settings.fontFamily === 'sans'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ fontFamily: 'sans' }))}
+                    >
+                      无衬线
+                    </button>
+                  </div>
+                </div>
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">字号</span>
+                  <div class="menu-option-group" role="group" aria-label="reader font scale">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.fontScale === 'sm'}
+                      class:active-option={settings.fontScale === 'sm'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ fontScale: 'sm' }))}
+                    >
+                      小
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.fontScale === 'md'}
+                      class:active-option={settings.fontScale === 'md'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ fontScale: 'md' }))}
+                    >
+                      中
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.fontScale === 'lg'}
+                      class:active-option={settings.fontScale === 'lg'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ fontScale: 'lg' }))}
+                    >
+                      大
+                    </button>
+                  </div>
+                </div>
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">行距</span>
+                  <div class="menu-option-group" role="group" aria-label="reader line height">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.lineHeight === 'tight'}
+                      class:active-option={settings.lineHeight === 'tight'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ lineHeight: 'tight' }))}
+                    >
+                      紧凑
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.lineHeight === 'standard'}
+                      class:active-option={settings.lineHeight === 'standard'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ lineHeight: 'standard' }))}
+                    >
+                      标准
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.lineHeight === 'relaxed'}
+                      class:active-option={settings.lineHeight === 'relaxed'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ lineHeight: 'relaxed' }))}
+                    >
+                      舒展
+                    </button>
+                  </div>
+                </div>
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">页边距</span>
+                  <div class="menu-option-group" role="group" aria-label="reader page margins">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.pageMargins === 'narrow'}
+                      class:active-option={settings.pageMargins === 'narrow'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ pageMargins: 'narrow' }))}
+                    >
+                      窄
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.pageMargins === 'standard'}
+                      class:active-option={settings.pageMargins === 'standard'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ pageMargins: 'standard' }))}
+                    >
+                      中
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={settings.pageMargins === 'wide'}
+                      class:active-option={settings.pageMargins === 'wide'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ pageMargins: 'wide' }))}
+                    >
+                      宽
                     </button>
                   </div>
                 </div>
@@ -187,8 +324,8 @@
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={chromeMode === 'auto'}
-                      class:active-option={chromeMode === 'auto'}
+                      aria-checked={settings.chromeMode === 'auto'}
+                      class:active-option={settings.chromeMode === 'auto'}
                       on:click={() => runMenuAction(() => onSetChromeMode?.('auto'))}
                     >
                       自动
@@ -196,8 +333,8 @@
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={chromeMode === 'always'}
-                      class:active-option={chromeMode === 'always'}
+                      aria-checked={settings.chromeMode === 'always'}
+                      class:active-option={settings.chromeMode === 'always'}
                       on:click={() => runMenuAction(() => onSetChromeMode?.('always'))}
                     >
                       总是显示
@@ -210,27 +347,27 @@
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={viewWidthMode === 'focus'}
-                      class:active-option={viewWidthMode === 'focus'}
-                      on:click={() => runMenuAction(() => onSetViewWidthMode?.('focus'))}
+                      aria-checked={settings.viewWidthMode === 'focus'}
+                      class:active-option={settings.viewWidthMode === 'focus'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ viewWidthMode: 'focus' }))}
                     >
                       专注
                     </button>
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={viewWidthMode === 'standard'}
-                      class:active-option={viewWidthMode === 'standard'}
-                      on:click={() => runMenuAction(() => onSetViewWidthMode?.('standard'))}
+                      aria-checked={settings.viewWidthMode === 'standard'}
+                      class:active-option={settings.viewWidthMode === 'standard'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ viewWidthMode: 'standard' }))}
                     >
                       标准
                     </button>
                     <button
                       type="button"
                       role="menuitemradio"
-                      aria-checked={viewWidthMode === 'wide'}
-                      class:active-option={viewWidthMode === 'wide'}
-                      on:click={() => runMenuAction(() => onSetViewWidthMode?.('wide'))}
+                      aria-checked={settings.viewWidthMode === 'wide'}
+                      class:active-option={settings.viewWidthMode === 'wide'}
+                      on:click={() => runMenuAction(() => onUpdateSettings?.({ viewWidthMode: 'wide' }))}
                     >
                       宽阔
                     </button>

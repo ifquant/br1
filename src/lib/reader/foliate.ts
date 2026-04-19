@@ -1,3 +1,5 @@
+import type { ReaderSettings } from './types';
+
 export const FOLIATE_VIEW_TAG = 'foliate-view';
 
 export interface FoliateViewElement extends HTMLElement {
@@ -209,15 +211,55 @@ export const wrapFoliateViewElement = (originalView: FoliateViewElement): Foliat
   return originalView;
 };
 
-export const getReaderViewStyles = () => `
+const getReaderTheme = (themePreset: ReaderSettings['themePreset']) => {
+  if (themePreset === 'warm') {
+    return {
+      bg: '#f4ead6',
+      fg: '#34281e',
+      primary: '#9a6b36'
+    };
+  }
+  if (themePreset === 'soft') {
+    return {
+      bg: '#e7efe6',
+      fg: '#283127',
+      primary: '#6b7b52'
+    };
+  }
+  return {
+    bg: '#fbf7ef',
+    fg: '#2b221a',
+    primary: '#8c6a3b'
+  };
+};
+
+const getReaderFontScale = (fontScale: ReaderSettings['fontScale']) => {
+  if (fontScale === 'sm') return '18px';
+  if (fontScale === 'lg') return '22px';
+  return '20px';
+};
+
+const getReaderLineHeight = (lineHeight: ReaderSettings['lineHeight']) => {
+  if (lineHeight === 'tight') return '1.62';
+  if (lineHeight === 'relaxed') return '1.94';
+  return '1.78';
+};
+
+export const getReaderViewStyles = (settings: ReaderSettings) => {
+  const theme = getReaderTheme(settings.themePreset);
+  const textFont = settings.fontFamily === 'sans' ? 'var(--sans-serif)' : 'var(--serif)';
+  const lineHeight = getReaderLineHeight(settings.lineHeight);
+  const fontSize = getReaderFontScale(settings.fontScale);
+
+  return `
   html {
-    --theme-bg-color: #fbf7ef;
-    --theme-fg-color: #2b221a;
-    --theme-primary-color: #8c6a3b;
+    --theme-bg-color: ${theme.bg};
+    --theme-fg-color: ${theme.fg};
+    --theme-primary-color: ${theme.primary};
     --serif: "Source Serif 4", "Noto Serif SC", Georgia, serif;
     --sans-serif: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     --monospace: "IBM Plex Mono", "SFMono-Regular", monospace;
-    --font-size: 20px;
+    --font-size: ${fontSize};
     --min-font-size: 16px;
     --font-weight: 400;
     --default-text-align: start;
@@ -233,7 +275,7 @@ export const getReaderViewStyles = () => `
     color: var(--theme-fg-color);
     font-size: var(--font-size) !important;
     font-weight: var(--font-weight);
-    line-height: 1.78;
+    line-height: ${lineHeight};
     max-height: unset;
     text-align: var(--default-text-align);
     -webkit-text-size-adjust: none;
@@ -243,7 +285,7 @@ export const getReaderViewStyles = () => `
   }
 
   html {
-    font-family: var(--serif);
+    font-family: ${textFont};
   }
 
   body {
@@ -251,7 +293,7 @@ export const getReaderViewStyles = () => `
     padding: unset;
     overflow: unset;
     background: transparent;
-    font-family: var(--serif);
+    font-family: ${textFont};
   }
 
   p,
@@ -259,7 +301,7 @@ export const getReaderViewStyles = () => `
   dd,
   li,
   div:not(:has(*:not(b, a, em, i, strong, u, span))) {
-    line-height: 1.78;
+    line-height: ${lineHeight};
     hyphens: auto;
     -webkit-hyphens: auto;
   }
@@ -303,6 +345,7 @@ export const getReaderViewStyles = () => `
     text-decoration: none;
   }
 `;
+};
 
 export const createFoliateViewElement = () =>
   document.createElement(FOLIATE_VIEW_TAG) as FoliateViewElement;

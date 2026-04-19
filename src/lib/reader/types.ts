@@ -22,6 +22,22 @@ export type ReaderPreviewState = {
 export type ReaderViewWidthMode = 'focus' | 'standard' | 'wide';
 export type ReaderChromeMode = 'auto' | 'always';
 export type ReaderAtmosphereMode = 'paper' | 'warm' | 'soft';
+export type ReaderFlowMode = 'paginated' | 'scrolled';
+export type ReaderFontFamily = 'serif' | 'sans';
+export type ReaderFontScale = 'sm' | 'md' | 'lg';
+export type ReaderLineHeight = 'tight' | 'standard' | 'relaxed';
+export type ReaderPageMargins = 'narrow' | 'standard' | 'wide';
+export type ReaderThemePreset = ReaderAtmosphereMode;
+export type ReaderSettings = {
+  flowMode: ReaderFlowMode;
+  fontFamily: ReaderFontFamily;
+  fontScale: ReaderFontScale;
+  lineHeight: ReaderLineHeight;
+  pageMargins: ReaderPageMargins;
+  themePreset: ReaderThemePreset;
+  viewWidthMode: ReaderViewWidthMode;
+  chromeMode: ReaderChromeMode;
+};
 export type ReaderHighlightsFilter = 'all' | 'chapter' | 'selected';
 export type ReaderHighlightsSort = 'recent' | 'oldest';
 export type ReaderHighlightSelectionSetSort = 'recent' | 'oldest';
