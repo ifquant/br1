@@ -3792,6 +3792,25 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to expose a selected-only view before inverting'
     });
 
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await openReaderFromLibraryPath(bookKey, libraryHandle);
+    await clickReaderSidebarTab('高亮');
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return (
+        panelText.includes('1 已选高亮') &&
+        panelText.includes('最早添加优先') &&
+        cards.length === 1 &&
+        firstText.includes(firstSelectionText.slice(0, 20))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
+    });
+
     await browser.execute(() => {
       const controls = document.querySelector('[aria-label="highlights filter controls"]');
       if (!(controls instanceof HTMLElement)) {
