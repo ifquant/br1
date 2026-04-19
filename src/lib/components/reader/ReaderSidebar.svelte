@@ -708,6 +708,8 @@
     return `${name} (${suffix})`;
   };
 
+  const normalizeImportedHighlightText = (text: string) => text.replace(/\s+/g, ' ').trim();
+
   const importSavedHighlightSelection = () => {
     const rawPayload = window.prompt('粘贴导出的高亮选择集 JSON');
     const payload = rawPayload?.trim();
@@ -744,6 +746,20 @@
         );
         if (matchedHighlight) {
           importedIdSet.add(matchedHighlight.id);
+          continue;
+        }
+
+        const matchedByTextAnchor = allHighlights.find((note) => {
+          const normalizedCurrentText = normalizeImportedHighlightText(note.text);
+          const normalizedExportedText = normalizeImportedHighlightText(exportedHighlight.text);
+          return (
+            normalizedCurrentText === normalizedExportedText &&
+            (note.chapterHref === exportedHighlight.chapterHref ||
+              note.chapterLabel === exportedHighlight.chapterLabel)
+          );
+        });
+        if (matchedByTextAnchor) {
+          importedIdSet.add(matchedByTextAnchor.id);
         }
       }
     }

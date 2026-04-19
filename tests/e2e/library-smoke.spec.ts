@@ -246,7 +246,13 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     selectionSet: {
       ...JSON.parse(exportedPayload).selectionSet,
       selectedIds: ['missing-highlight-id']
+    },
+    highlights: JSON.parse(exportedPayload).highlights.map((highlight: Record<string, unknown>) => ({
+      ...highlight,
+      cfi: 'epubcfi(/6/missing)',
+      chapterHref: '/missing-chapter.xhtml'
     }
+    ))
   });
   await exportPreview.getByRole('button', { name: '关闭' }).click();
   await expect(exportPreview).toHaveCount(0);

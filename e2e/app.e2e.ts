@@ -4197,7 +4197,12 @@ describe('br1 desktop app', () => {
       selectionSet: {
         ...JSON.parse(exportedSelectionPayload).selectionSet,
         selectedIds: ['missing-highlight-id']
-      }
+      },
+      highlights: JSON.parse(exportedSelectionPayload).highlights.map((highlight: Record<string, unknown>) => ({
+        ...highlight,
+        cfi: 'epubcfi(/6/missing)',
+        chapterHref: '/missing-chapter.xhtml'
+      }))
     });
     await browser.execute(() => {
       const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
