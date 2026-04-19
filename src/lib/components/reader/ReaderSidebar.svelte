@@ -690,6 +690,17 @@
     }
   };
 
+  const isReaderHighlightSelectionImportSource = (
+    value: unknown
+  ): value is NonNullable<ReaderHighlightSelectionSet['importSource']> =>
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { bookTitle?: unknown }).bookTitle === 'string' &&
+    typeof (value as { formatLabel?: unknown }).formatLabel === 'string' &&
+    typeof (value as { matchedCount?: unknown }).matchedCount === 'number' &&
+    typeof (value as { totalCount?: unknown }).totalCount === 'number' &&
+    typeof (value as { importedAt?: unknown }).importedAt === 'number';
+
   const isReaderHighlightSelectionSet = (
     value: unknown
   ): value is ReaderHighlightSelectionSetExport => {
@@ -709,6 +720,7 @@
       typeof selectionSet.id === 'string' &&
       typeof selectionSet.name === 'string' &&
       typeof selectionSet.createdAt === 'number' &&
+      (selectionSet.importSource === undefined || isReaderHighlightSelectionImportSource(selectionSet.importSource)) &&
       Array.isArray(selectionSet.selectedIds) &&
       selectionSet.selectedIds.every((id) => typeof id === 'string') &&
       Array.isArray(highlights) &&
@@ -832,7 +844,8 @@
         id: `selection-import-${Date.now()}`,
         name: importedName,
         selectedIds: importedIds,
-        createdAt: parsed.selectionSet.createdAt
+        createdAt: parsed.selectionSet.createdAt,
+        ...(parsed.selectionSet.importSource ? { importSource: parsed.selectionSet.importSource } : {})
       },
       ...savedHighlightSelections
     ];

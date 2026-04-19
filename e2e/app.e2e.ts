@@ -4196,7 +4196,14 @@ describe('br1 desktop app', () => {
       ...JSON.parse(exportedSelectionPayload),
       selectionSet: {
         ...JSON.parse(exportedSelectionPayload).selectionSet,
-        selectedIds: ['missing-highlight-id']
+        selectedIds: ['missing-highlight-id'],
+        importSource: {
+          bookTitle: 'Imported EPUB Source',
+          formatLabel: 'EPUB',
+          matchedCount: 1,
+          totalCount: 2,
+          importedAt: 1710000000000
+        }
       },
       highlights: JSON.parse(exportedSelectionPayload).highlights.map((highlight: Record<string, unknown>) => ({
         ...highlight,
@@ -4355,7 +4362,8 @@ describe('br1 desktop app', () => {
       return (
         state.panelText.includes('已导入选择集：Desktop EPUB 重命名高亮') &&
         state.panelText.includes('Desktop EPUB 重命名高亮') &&
-        state.firstCardText.includes('Desktop EPUB 重命名高亮')
+        state.firstCardText.includes('Desktop EPUB 重命名高亮') &&
+        state.firstCardText.includes('跨书导入 · Imported EPUB Source · 1/2')
       );
     }, {
       timeout: 10000,

@@ -245,7 +245,14 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     ...JSON.parse(exportedPayload),
     selectionSet: {
       ...JSON.parse(exportedPayload).selectionSet,
-      selectedIds: ['missing-highlight-id']
+      selectedIds: ['missing-highlight-id'],
+      importSource: {
+        bookTitle: 'Imported TXT Source',
+        formatLabel: 'TXT',
+        matchedCount: 1,
+        totalCount: 2,
+        importedAt: 1710000000000
+      }
     },
     highlights: JSON.parse(exportedPayload).highlights.map((highlight: Record<string, unknown>) => ({
       ...highlight,
@@ -283,6 +290,9 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await savedSelectionPanel.getByRole('button', { name: '导入' }).click();
   await expect(savedSelectionPanel).toContainText('已导入选择集：Web TXT 重命名高亮');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText(
+    '跨书导入 · Imported TXT Source · 1/2'
+  );
   await firstSavedSelectionCard.getByRole('button', { name: '套用' }).click();
   await expect(highlightsPanel).toContainText('1 已选高亮');
   page.once('dialog', (dialog) => dialog.accept(crossBookPreviewPayload));
