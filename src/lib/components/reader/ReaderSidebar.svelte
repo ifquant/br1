@@ -439,6 +439,7 @@
     savedHighlightSelectionsSort === 'oldest'
       ? [...savedHighlightSelections].sort((left, right) => left.createdAt - right.createdAt)
       : [...savedHighlightSelections].sort((left, right) => right.createdAt - left.createdAt);
+  $: importedSavedHighlightSelections = savedHighlightSelections.filter((selectionSet) => !!selectionSet.importSource);
   $: selectedVisibleHighlights = sortedHighlights.filter((note) => selectedHighlightIds.has(note.id));
   $: savedHighlightSelections = savedHighlightSelections.filter(
     (set, index, allSets) =>
@@ -983,6 +984,47 @@
         : candidate
     );
     savedHighlightSelectionImportNotice = `已刷新跨书选择集：${selectionSet.name}（${resolution.importedIds.length}/${importSource.totalCount}）`;
+  };
+
+  const refreshAllCrossBookImportedSelections = () => {
+    if (!importedSavedHighlightSelections.length) return;
+
+    let refreshedCount = 0;
+    savedHighlightSelections = savedHighlightSelections.map((selectionSet) => {
+      const importSource = selectionSet.importSource;
+      if (!importSource) return selectionSet;
+
+      const resolution = resolveImportedHighlightIds({
+        schemaVersion: 1,
+        bookKey: importSource.bookKey,
+        bookTitle: importSource.bookTitle,
+        bookAuthor: '',
+        formatLabel: importSource.formatLabel,
+        exportedAt: importSource.importedAt,
+        selectionSet: {
+          id: selectionSet.id,
+          name: selectionSet.name,
+          selectedIds: importSource.highlights.map((highlight) => highlight.id),
+          createdAt: selectionSet.createdAt
+        },
+        highlights: importSource.highlights
+      });
+
+      refreshedCount += 1;
+      return {
+        ...selectionSet,
+        selectedIds: resolution.importedIds,
+        importSource: {
+          ...importSource,
+          matchedCount: resolution.importedIds.length,
+          unmatchedCount: importSource.totalCount - resolution.importedIds.length,
+          importedAt: Date.now()
+        }
+      };
+    });
+
+    savedHighlightSelectionImportNotice =
+      refreshedCount === 1 ? '已刷新 1 组跨书选择集' : `已刷新 ${refreshedCount} 组跨书选择集`;
   };
 
   const invertVisibleHighlightsSelection = () => {
@@ -1746,6 +1788,14 @@
                 <div class="saved-highlight-selections-toolbar">
                   <button type="button" class="notes-filter-chip" on:click={importSavedHighlightSelection}>
                     导入
+                  </button>
+                  <button
+                    type="button"
+                    class="notes-filter-chip"
+                    disabled={!importedSavedHighlightSelections.length}
+                    on:click={refreshAllCrossBookImportedSelections}
+                  >
+                    刷新全部跨书映射
                   </button>
                   <div class="saved-highlight-selections-sort" aria-label="saved selection set sort controls">
                     <button

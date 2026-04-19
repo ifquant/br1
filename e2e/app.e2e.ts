@@ -4395,6 +4395,26 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to refresh the imported foreign-book saved selection without requiring a reimport'
     });
+    await browser.execute(() => {
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const refreshAllButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '刷新全部跨书映射'
+      );
+      if (!(refreshAllButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the bulk refresh-cross-book-selections button to exist');
+      }
+      refreshAllButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      return panelText.includes('已刷新 1 组跨书选择集');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to bulk-refresh imported foreign-book saved selections'
+    });
     await browser.execute((payload) => {
       window.prompt = () => payload;
       const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
