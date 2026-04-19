@@ -110,6 +110,15 @@
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
   let exportHighlightSelectionNotice = '';
   let savedHighlightSelectionImportNotice = '';
+  let savedHighlightSelectionImportPreview:
+    | {
+        sourceBookTitle: string;
+        sourceFormatLabel: string;
+        matchedCount: number;
+        totalCount: number;
+        unmatchedTexts: string[];
+      }
+    | null = null;
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -710,34 +719,15 @@
 
   const normalizeImportedHighlightText = (text: string) => text.replace(/\s+/g, ' ').trim();
 
-  const importSavedHighlightSelection = () => {
-    const rawPayload = window.prompt('粘贴导出的高亮选择集 JSON');
-    const payload = rawPayload?.trim();
-    if (!payload) return;
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(payload);
-    } catch (error) {
-      console.warn('Failed to parse saved highlight selection import payload', error);
-      savedHighlightSelectionImportNotice = '导入失败：JSON 解析错误';
-      return;
-    }
-
-    if (!isReaderHighlightSelectionSet(parsed)) {
-      savedHighlightSelectionImportNotice = '导入失败：导出对象结构不正确';
-      return;
-    }
-
-    if (parsed.bookKey !== bookKey) {
-      savedHighlightSelectionImportNotice = '导入失败：当前只支持导入同一本书的选择集';
-      return;
-    }
-
+  const resolveImportedHighlightIds = (payload: ReaderHighlightSelectionSetExport) => {
     const validHighlightIds = new Set(allHighlights.map((note) => note.id));
-    const importedIdSet = new Set(parsed.selectionSet.selectedIds.filter((id) => validHighlightIds.has(id)));
-    if (importedIdSet.size < parsed.selectionSet.selectedIds.length) {
-      for (const exportedHighlight of parsed.highlights) {
+    const importedIdSet = new Set(payload.selectionSet.selectedIds.filter((id) => validHighlightIds.has(id)));
+    const unmatchedTexts: string[] = [];
+
+    if (importedIdSet.size < payload.selectionSet.selectedIds.length) {
+      for (const exportedHighlight of payload.highlights) {
+        if (Array.from(importedIdSet).some((id) => id === exportedHighlight.id)) continue;
+
         const matchedHighlight = allHighlights.find(
           (note) =>
             note.cfi === exportedHighlight.cfi &&
@@ -760,13 +750,56 @@
         });
         if (matchedByTextAnchor) {
           importedIdSet.add(matchedByTextAnchor.id);
+          continue;
         }
+
+        unmatchedTexts.push(exportedHighlight.text);
       }
     }
 
-    const importedIds = Array.from(importedIdSet);
+    return {
+      importedIds: Array.from(importedIdSet),
+      unmatchedTexts
+    };
+  };
+
+  const importSavedHighlightSelection = () => {
+    const rawPayload = window.prompt('粘贴导出的高亮选择集 JSON');
+    const payload = rawPayload?.trim();
+    if (!payload) return;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch (error) {
+      console.warn('Failed to parse saved highlight selection import payload', error);
+      savedHighlightSelectionImportNotice = '导入失败：JSON 解析错误';
+      return;
+    }
+
+    if (!isReaderHighlightSelectionSet(parsed)) {
+      savedHighlightSelectionImportNotice = '导入失败：导出对象结构不正确';
+      savedHighlightSelectionImportPreview = null;
+      return;
+    }
+
+    const resolution = resolveImportedHighlightIds(parsed);
+    if (parsed.bookKey !== bookKey) {
+      savedHighlightSelectionImportPreview = {
+        sourceBookTitle: parsed.bookTitle,
+        sourceFormatLabel: parsed.formatLabel,
+        matchedCount: resolution.importedIds.length,
+        totalCount: parsed.highlights.length,
+        unmatchedTexts: resolution.unmatchedTexts.slice(0, 3)
+      };
+      savedHighlightSelectionImportNotice = `跨书预检：可映射 ${resolution.importedIds.length}/${parsed.highlights.length} 条高亮，当前还不能直接导入`;
+      return;
+    }
+
+    const importedIds = resolution.importedIds;
     if (!importedIds.length) {
       savedHighlightSelectionImportNotice = '导入失败：当前书里找不到这组高亮';
+      savedHighlightSelectionImportPreview = null;
       return;
     }
 
@@ -781,6 +814,7 @@
       ...savedHighlightSelections
     ];
     savedHighlightSelectionImportNotice = `已导入选择集：${importedName}`;
+    savedHighlightSelectionImportPreview = null;
   };
 
   const invertVisibleHighlightsSelection = () => {
@@ -1567,6 +1601,22 @@
               </div>
               {#if savedHighlightSelectionImportNotice}
                 <p class="saved-highlight-selection-import-notice">{savedHighlightSelectionImportNotice}</p>
+              {/if}
+              {#if savedHighlightSelectionImportPreview}
+                <section class="saved-highlight-selection-import-preview" aria-label="saved highlight selection import preview">
+                  <div class="saved-highlight-selection-import-preview-copy">
+                    <strong>跨书兼容预检</strong>
+                    <span>来源：{savedHighlightSelectionImportPreview.sourceBookTitle} · {savedHighlightSelectionImportPreview.sourceFormatLabel}</span>
+                    <span>当前书可映射 {savedHighlightSelectionImportPreview.matchedCount} / {savedHighlightSelectionImportPreview.totalCount} 条高亮</span>
+                  </div>
+                  {#if savedHighlightSelectionImportPreview.unmatchedTexts.length}
+                    <ul class="saved-highlight-selection-import-preview-list">
+                      {#each savedHighlightSelectionImportPreview.unmatchedTexts as unmatchedText}
+                        <li>{unmatchedText}</li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </section>
               {/if}
               <div class="saved-highlight-selections-list">
                 {#if orderedSavedHighlightSelections.length}
@@ -2613,6 +2663,37 @@
     margin: 0;
     color: var(--text-secondary);
     font-size: 12px;
+  }
+
+  .saved-highlight-selection-import-preview {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+  }
+
+  .saved-highlight-selection-import-preview-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  .saved-highlight-selection-import-preview-copy strong {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .saved-highlight-selection-import-preview-copy span,
+  .saved-highlight-selection-import-preview-list {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .saved-highlight-selection-import-preview-list {
+    margin: 0;
+    padding-left: 18px;
+    line-height: 1.5;
   }
 
   .saved-highlight-selection-empty {

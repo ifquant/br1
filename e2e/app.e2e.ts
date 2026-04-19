@@ -4204,6 +4204,19 @@ describe('br1 desktop app', () => {
         chapterHref: '/missing-chapter.xhtml'
       }))
     });
+    const crossBookPreviewPayload = JSON.stringify({
+      ...JSON.parse(exportedSelectionPayload),
+      bookKey: 'other-book-key',
+      bookTitle: 'Other EPUB Book',
+      selectionSet: {
+        ...JSON.parse(exportedSelectionPayload).selectionSet,
+        selectedIds: ['missing-highlight-id']
+      },
+      highlights: JSON.parse(exportedSelectionPayload).highlights.map((highlight: Record<string, unknown>) => ({
+        ...highlight,
+        text: 'missing highlight text anchor'
+      }))
+    });
     await browser.execute(() => {
       const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
       if (!(preview instanceof HTMLElement)) {
@@ -4346,6 +4359,39 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to import the saved selection set back into the current book'
+    });
+    await browser.execute((payload) => {
+      window.prompt = () => payload;
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const importButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导入'
+      );
+      if (!(importButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection import button to exist');
+      }
+      importButton.click();
+    }, crossBookPreviewPayload);
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('跨书预检：可映射 0/1 条高亮') &&
+        state.previewText.includes('来源：Other EPUB Book · EPUB') &&
+        state.previewText.includes('当前书可映射 0 / 1 条高亮') &&
+        state.previewText.includes('missing highlight text anchor')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to show a cross-book compatibility preview instead of importing immediately'
     });
 
     await browser.execute(() => {
