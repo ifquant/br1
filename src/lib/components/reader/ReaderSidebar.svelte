@@ -108,6 +108,7 @@
   let savedHighlightSelections: ReaderHighlightSelectionSet[] = [];
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
   let exportHighlightSelectionNotice = '';
+  let savedHighlightSelectionImportNotice = '';
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -575,6 +576,7 @@
       },
       ...savedHighlightSelections
     ];
+    savedHighlightSelectionImportNotice = '';
   };
 
   const buildSavedHighlightSelectionExport = (
@@ -611,6 +613,7 @@
           }
         : set
     );
+    savedHighlightSelectionImportNotice = '';
   };
 
   const deleteSavedHighlightSelection = (selectionId: string) => {
@@ -643,6 +646,85 @@
       console.warn('Failed to copy saved highlight selection export', error);
       exportHighlightSelectionNotice = '复制失败，请手动复制导出内容';
     }
+  };
+
+  const isReaderHighlightSelectionSet = (
+    value: unknown
+  ): value is ReaderHighlightSelectionSetExport => {
+    if (!value || typeof value !== 'object') return false;
+    const candidate = value as Partial<ReaderHighlightSelectionSetExport>;
+    const selectionSet = candidate.selectionSet as Partial<ReaderHighlightSelectionSet> | undefined;
+
+    return (
+      candidate.schemaVersion === 1 &&
+      typeof candidate.bookKey === 'string' &&
+      typeof candidate.bookTitle === 'string' &&
+      typeof candidate.bookAuthor === 'string' &&
+      typeof candidate.formatLabel === 'string' &&
+      typeof candidate.exportedAt === 'number' &&
+      !!selectionSet &&
+      typeof selectionSet.id === 'string' &&
+      typeof selectionSet.name === 'string' &&
+      typeof selectionSet.createdAt === 'number' &&
+      Array.isArray(selectionSet.selectedIds) &&
+      selectionSet.selectedIds.every((id) => typeof id === 'string')
+    );
+  };
+
+  const createImportedSelectionSetName = (name: string) => {
+    if (!savedHighlightSelections.some((selectionSet) => selectionSet.name === name)) {
+      return name;
+    }
+
+    let suffix = 2;
+    while (savedHighlightSelections.some((selectionSet) => selectionSet.name === `${name} (${suffix})`)) {
+      suffix += 1;
+    }
+    return `${name} (${suffix})`;
+  };
+
+  const importSavedHighlightSelection = () => {
+    const rawPayload = window.prompt('粘贴导出的高亮选择集 JSON');
+    const payload = rawPayload?.trim();
+    if (!payload) return;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch (error) {
+      console.warn('Failed to parse saved highlight selection import payload', error);
+      savedHighlightSelectionImportNotice = '导入失败：JSON 解析错误';
+      return;
+    }
+
+    if (!isReaderHighlightSelectionSet(parsed)) {
+      savedHighlightSelectionImportNotice = '导入失败：导出对象结构不正确';
+      return;
+    }
+
+    if (parsed.bookKey !== bookKey) {
+      savedHighlightSelectionImportNotice = '导入失败：当前只支持导入同一本书的选择集';
+      return;
+    }
+
+    const validHighlightIds = new Set(allHighlights.map((note) => note.id));
+    const importedIds = parsed.selectionSet.selectedIds.filter((id) => validHighlightIds.has(id));
+    if (!importedIds.length) {
+      savedHighlightSelectionImportNotice = '导入失败：当前书里找不到这组高亮';
+      return;
+    }
+
+    const importedName = createImportedSelectionSetName(parsed.selectionSet.name);
+    savedHighlightSelections = [
+      {
+        id: `selection-import-${Date.now()}`,
+        name: importedName,
+        selectedIds: importedIds,
+        createdAt: parsed.selectionSet.createdAt
+      },
+      ...savedHighlightSelections
+    ];
+    savedHighlightSelectionImportNotice = `已导入选择集：${importedName}`;
   };
 
   const invertVisibleHighlightsSelection = () => {
@@ -1397,13 +1479,16 @@
           </div>
 
           <div class="note-list">
-            {#if savedHighlightSelections.length}
-              <section class="saved-highlight-selections" aria-label="saved highlight selections">
-                <div class="saved-highlight-selections-head">
-                  <div class="saved-highlight-selections-summary">
-                    <strong>已保存选择集</strong>
-                    <span>{savedHighlightSelections.length} 组</span>
-                  </div>
+            <section class="saved-highlight-selections" aria-label="saved highlight selections">
+              <div class="saved-highlight-selections-head">
+                <div class="saved-highlight-selections-summary">
+                  <strong>已保存选择集</strong>
+                  <span>{savedHighlightSelections.length} 组</span>
+                </div>
+                <div class="saved-highlight-selections-toolbar">
+                  <button type="button" class="notes-filter-chip" on:click={importSavedHighlightSelection}>
+                    导入
+                  </button>
                   <div class="saved-highlight-selections-sort" aria-label="saved selection set sort controls">
                     <button
                       type="button"
@@ -1423,7 +1508,12 @@
                     </button>
                   </div>
                 </div>
-                <div class="saved-highlight-selections-list">
+              </div>
+              {#if savedHighlightSelectionImportNotice}
+                <p class="saved-highlight-selection-import-notice">{savedHighlightSelectionImportNotice}</p>
+              {/if}
+              <div class="saved-highlight-selections-list">
+                {#if orderedSavedHighlightSelections.length}
                   {#each orderedSavedHighlightSelections as selectionSet}
                     <article class="saved-highlight-selection-card">
                       <div class="saved-highlight-selection-copy">
@@ -1463,36 +1553,38 @@
                       </div>
                     </article>
                   {/each}
-                </div>
-
-                {#if exportedHighlightSelection}
-                  <section class="saved-highlight-selection-export" aria-label="saved highlight selection export preview">
-                    <div class="saved-highlight-selection-export-head">
-                      <div class="saved-highlight-selection-export-copy">
-                        <strong>导出预览</strong>
-                        <span>{exportedHighlightSelection.selectionSet.name}</span>
-                      </div>
-                      <div class="saved-highlight-selection-export-actions">
-                        <button type="button" class="notes-filter-chip" on:click={copyExportedHighlightSelection}>
-                          复制导出内容
-                        </button>
-                        <button type="button" class="notes-filter-chip" on:click={closeExportedHighlightSelection}>
-                          关闭
-                        </button>
-                      </div>
-                    </div>
-                    {#if exportHighlightSelectionNotice}
-                      <p class="saved-highlight-selection-export-notice">{exportHighlightSelectionNotice}</p>
-                    {/if}
-                    <textarea
-                      class="saved-highlight-selection-export-payload"
-                      readonly
-                      value={JSON.stringify(exportedHighlightSelection, null, 2)}
-                    ></textarea>
-                  </section>
+                {:else}
+                  <p class="saved-highlight-selection-empty">还没有保存的高亮选择集，可以先导入一组或从当前选中高亮创建。</p>
                 {/if}
-              </section>
-            {/if}
+              </div>
+
+              {#if exportedHighlightSelection}
+                <section class="saved-highlight-selection-export" aria-label="saved highlight selection export preview">
+                  <div class="saved-highlight-selection-export-head">
+                    <div class="saved-highlight-selection-export-copy">
+                      <strong>导出预览</strong>
+                      <span>{exportedHighlightSelection.selectionSet.name}</span>
+                    </div>
+                    <div class="saved-highlight-selection-export-actions">
+                      <button type="button" class="notes-filter-chip" on:click={copyExportedHighlightSelection}>
+                        复制导出内容
+                      </button>
+                      <button type="button" class="notes-filter-chip" on:click={closeExportedHighlightSelection}>
+                        关闭
+                      </button>
+                    </div>
+                  </div>
+                  {#if exportHighlightSelectionNotice}
+                    <p class="saved-highlight-selection-export-notice">{exportHighlightSelectionNotice}</p>
+                  {/if}
+                  <textarea
+                    class="saved-highlight-selection-export-payload"
+                    readonly
+                    value={JSON.stringify(exportedHighlightSelection, null, 2)}
+                  ></textarea>
+                </section>
+              {/if}
+            </section>
 
             {#if groupedHighlights.length}
               {#each groupedHighlights as group}
@@ -2449,9 +2541,29 @@
     flex-wrap: wrap;
   }
 
+  .saved-highlight-selections-toolbar {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
   .saved-highlight-selections-list {
     display: grid;
     gap: 8px;
+  }
+
+  .saved-highlight-selection-import-notice {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .saved-highlight-selection-empty {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
   }
 
   .saved-highlight-selection-card {

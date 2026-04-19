@@ -4184,6 +4184,13 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to expose a structured export preview for the saved selection set'
     });
+    const exportedSelectionPayload = await browser.execute(() => {
+      const payload = document.querySelector('[aria-label="saved highlight selection export preview"] textarea');
+      if (!(payload instanceof HTMLTextAreaElement)) {
+        throw new Error('expected the saved selection export payload textarea to exist');
+      }
+      return payload.value;
+    });
     await browser.execute(() => {
       const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
       if (!(preview instanceof HTMLElement)) {
@@ -4294,6 +4301,38 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to delete the saved selection set'
+    });
+    await browser.execute((payload) => {
+      window.prompt = () => payload;
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const importButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导入'
+      );
+      if (!(importButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection import button to exist');
+      }
+      importButton.click();
+    }, exportedSelectionPayload);
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const firstCard = panel?.querySelector('.saved-highlight-selection-card');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('已导入选择集：Desktop EPUB 重命名高亮') &&
+        state.panelText.includes('Desktop EPUB 重命名高亮') &&
+        state.firstCardText.includes('Desktop EPUB 重命名高亮')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to import the saved selection set back into the current book'
     });
 
     await browser.execute(() => {

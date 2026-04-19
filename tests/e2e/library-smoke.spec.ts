@@ -239,6 +239,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(exportPreview.locator('textarea')).toHaveValue(/"schemaVersion": 1/);
   await expect(exportPreview.locator('textarea')).toHaveValue(/"bookTitle": "Sample TXT Book"/);
   await expect(exportPreview.locator('textarea')).toHaveValue(/"name": "Web TXT 重命名高亮"/);
+  const exportedPayload = await exportPreview.locator('textarea').inputValue();
   await exportPreview.getByRole('button', { name: '关闭' }).click();
   await expect(exportPreview).toHaveCount(0);
   await page.getByRole('button', { name: '全部', exact: true }).click();
@@ -250,6 +251,12 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await firstSavedSelectionCard.getByRole('button', { name: '删除' }).click();
   await expect(page.getByText('Web TXT 重命名高亮')).toHaveCount(0);
   await expect(savedSelectionPanel).toContainText('Web TXT 第二高亮');
+  page.once('dialog', (dialog) => dialog.accept(exportedPayload));
+  await savedSelectionPanel.getByRole('button', { name: '导入' }).click();
+  await expect(savedSelectionPanel).toContainText('已导入选择集：Web TXT 重命名高亮');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
+  await firstSavedSelectionCard.getByRole('button', { name: '套用' }).click();
+  await expect(highlightsPanel).toContainText('1 已选高亮');
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);
