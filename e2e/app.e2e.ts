@@ -1209,7 +1209,13 @@ describe('br1 desktop app', () => {
             while ((node = walker.nextNode())) {
               const raw = node.textContent?.replace(/\s+/g, ' ').trim() ?? '';
               if (raw.length < 8) continue;
-              if (ignoredSet.has(raw)) continue;
+              if (
+                Array.from(ignoredSet).some(
+                  (ignoredText) => raw.includes(ignoredText) || ignoredText.includes(raw)
+                )
+              ) {
+                continue;
+              }
 
               const selectionLength = Math.min(Math.max(24, Math.floor(raw.length / 2)), 72);
               const nodeText = node.textContent ?? '';
@@ -3995,6 +4001,27 @@ describe('br1 desktop app', () => {
         timeoutMsg: `expected the ${sample.format} desktop highlights workspace to select one oldest highlight`
       });
 
+      await invertVisibleHighlightsSelectionInWorkspace();
+      await browser.waitUntil(async () => {
+        const state = await browser.execute(() => {
+          const panel = document.querySelector('[aria-label="highlights panel preview"]');
+          const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
+          return {
+            panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            firstToggleText: toggles[0]?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            secondToggleText: toggles[1]?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+          };
+        });
+        return (
+          state.panelText.includes('已选 1 条') &&
+          state.firstToggleText.includes('选中') &&
+          state.secondToggleText.includes('已选')
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop highlights workspace to invert the current selection before deleting`
+      });
+
       await deleteSelectedHighlightsInWorkspace();
       await browser.waitUntil(async () => {
         const panelText = await $('[aria-label="highlights panel preview"]').getText();
@@ -4007,11 +4034,11 @@ describe('br1 desktop app', () => {
           panelText.includes('已保存 1 条高亮') &&
           panelText.includes('未选高亮') &&
           cards.length === 1 &&
-          texts[0]?.includes(secondSelectionText.slice(0, 20))
+          texts[0]?.includes(firstSelectionText.slice(0, 20))
         );
       }, {
         timeout: 10000,
-        timeoutMsg: `expected the ${sample.format} desktop highlights workspace to delete only the selected highlight and keep the other one`
+        timeoutMsg: `expected the ${sample.format} desktop highlights workspace to delete only the inverted selection and keep the oldest highlight`
       });
 
       await clickHighlightsSortControl('最近添加');
@@ -4362,6 +4389,27 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 desktop highlights workspace to select one oldest highlight'
     });
 
+    await invertVisibleHighlightsSelectionInWorkspace();
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstToggleText: toggles[0]?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          secondToggleText: toggles[1]?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('已选 1 条') &&
+        state.firstToggleText.includes('选中') &&
+        state.secondToggleText.includes('已选')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to invert the current selection before deleting'
+    });
+
     await deleteSelectedHighlightsInWorkspace();
     await browser.waitUntil(async () => {
       const panelText = await $('[aria-label="highlights panel preview"]').getText();
@@ -4374,11 +4422,11 @@ describe('br1 desktop app', () => {
         panelText.includes('已保存 1 条高亮') &&
         panelText.includes('未选高亮') &&
         cards.length === 1 &&
-        texts[0]?.includes(secondSelectionText.slice(0, 20))
+        texts[0]?.includes(firstSelectionText.slice(0, 20))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the FB2 desktop highlights workspace to delete only the selected highlight and keep the other one'
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to delete only the inverted selection and keep the oldest highlight'
     });
 
     await clickHighlightsSortControl('最近添加');
