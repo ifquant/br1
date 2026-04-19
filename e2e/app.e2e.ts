@@ -3277,6 +3277,24 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to enter the selected-only view before closing the book'
     });
 
+    await browser.execute(() => {
+      window.prompt = () => 'Desktop TXT 重点高亮';
+      const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+        (candidate) => candidate.textContent?.trim() === '保存当前选择集'
+      );
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error('expected the save-current-selection button to exist');
+      }
+      button.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      return panelText.includes('Desktop TXT 重点高亮') && panelText.includes('1 条高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to save the current selection set'
+    });
+
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
     await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
@@ -3300,6 +3318,13 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      return panelText.includes('Desktop TXT 重点高亮') && panelText.includes('1 条高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to restore the saved selection set after reopening the book'
     });
 
     await browser.execute(() => {
@@ -3332,6 +3357,92 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to return to the all-highlights view before running group actions'
+    });
+    await browser.execute(() => {
+      const clearButton = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+        (candidate) => candidate.textContent?.trim() === '清空选中'
+      );
+      if (!(clearButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the clear-selected-highlights button to exist');
+      }
+      clearButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      return panelText.includes('未选高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to clear the live selection before reapplying a saved set'
+    });
+    await browser.execute(() => {
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const applyButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '套用'
+      );
+      if (!(applyButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection apply button to exist');
+      }
+      applyButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return (
+        panelText.includes('1 已选高亮') &&
+        cards.length === 1 &&
+        firstText.includes('plain text file exists')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to reapply a saved selection set'
+    });
+    await browser.execute(() => {
+      window.confirm = () => true;
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const deleteButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '删除'
+      );
+      if (!(deleteButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection delete button to exist');
+      }
+      deleteButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const savedPanels = await $$('[aria-label="saved highlight selections"]');
+      if (!savedPanels.length) return true;
+      const panelText = await savedPanels[0].getText();
+      return !panelText.includes('Desktop TXT 重点高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to delete the saved selection set'
+    });
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '全部'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the all-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      return panelText.includes('已保存 2 条高亮') && cards.length === 2;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to return to the all-highlights view after saved-set management'
     });
 
     await clickHighlightGroupAction('反选本组高亮');

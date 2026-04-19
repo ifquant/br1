@@ -175,14 +175,36 @@ pub(crate) const READER_SEARCH_CACHE_MAX_FILES_PER_BOOK: usize = 48;
 pub(crate) const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
 pub(crate) const READER_BOOKMARKS_SCHEMA_VERSION: u8 = 1;
 pub(crate) const READER_NOTES_SCHEMA_VERSION: u8 = 1;
-pub(crate) const READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION: u8 = 1;
+pub(crate) const READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION: u8 = 2;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderHighlightsSelectionSetRecord {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) selected_ids: Vec<String>,
+    pub(crate) created_at: u64,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReaderHighlightsWorkspaceStateRecord {
+    #[serde(default = "default_reader_highlights_filter")]
     pub(crate) filter: String,
+    #[serde(default = "default_reader_highlights_sort")]
     pub(crate) sort: String,
+    #[serde(default)]
     pub(crate) selected_ids: Vec<String>,
+    #[serde(default)]
+    pub(crate) saved_selections: Vec<ReaderHighlightsSelectionSetRecord>,
+}
+
+fn default_reader_highlights_filter() -> String {
+    "all".to_string()
+}
+
+fn default_reader_highlights_sort() -> String {
+    "recent".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

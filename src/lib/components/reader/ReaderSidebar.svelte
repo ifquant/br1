@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type {
+    ReaderHighlightSelectionSet,
     ReaderHighlightsFilter,
     ReaderHighlightsSort,
     ReaderHighlightsWorkspaceState,
@@ -101,6 +102,7 @@
   let highlightsFilter: ReaderHighlightsFilter = 'all';
   let highlightsSort: ReaderHighlightsSort = 'recent';
   let selectedHighlightIds = new Set<string>();
+  let savedHighlightSelections: ReaderHighlightSelectionSet[] = [];
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -116,6 +118,7 @@
     highlightsFilter = 'all';
     highlightsSort = 'recent';
     selectedHighlightIds = new Set();
+    savedHighlightSelections = [];
   };
 
   const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
@@ -131,6 +134,26 @@
         ? state.selectedIds.filter((id: unknown): id is string => typeof id === 'string')
         : []
     );
+    savedHighlightSelections = Array.isArray(state.savedSelections)
+      ? state.savedSelections
+          .map((set: unknown) => {
+            if (!set || typeof set !== 'object') return null;
+            const candidate = set as Partial<ReaderHighlightSelectionSet>;
+            if (typeof candidate.id !== 'string' || typeof candidate.name !== 'string') return null;
+            return {
+              id: candidate.id,
+              name: candidate.name,
+              selectedIds: Array.isArray(candidate.selectedIds)
+                ? candidate.selectedIds.filter((id: unknown): id is string => typeof id === 'string')
+                : [],
+              createdAt:
+                typeof candidate.createdAt === 'number' && Number.isFinite(candidate.createdAt)
+                  ? candidate.createdAt
+                  : Date.now()
+            } satisfies ReaderHighlightSelectionSet;
+          })
+          .filter((set): set is ReaderHighlightSelectionSet => !!set)
+      : [];
   };
 
   $: if (!highlightsWorkspaceStorageKey) {
@@ -167,7 +190,8 @@
     const state: ReaderHighlightsWorkspaceState = {
       filter: highlightsFilter,
       sort: highlightsSort,
-      selectedIds: Array.from(selectedHighlightIds)
+      selectedIds: Array.from(selectedHighlightIds),
+      savedSelections: savedHighlightSelections
     };
 
     if (canPersistReaderHighlightsWorkspaceState()) {
@@ -352,6 +376,11 @@
       ? [...highlightsByScope].sort((left, right) => left.createdAt - right.createdAt)
       : [...highlightsByScope].sort((left, right) => right.createdAt - left.createdAt);
   $: selectedVisibleHighlights = sortedHighlights.filter((note) => selectedHighlightIds.has(note.id));
+  $: savedHighlightSelections = savedHighlightSelections.filter(
+    (set, index, allSets) =>
+      set.selectedIds.length > 0 &&
+      allSets.findIndex((candidate) => candidate.id === set.id) === index
+  );
   $: areAllVisibleHighlightsSelected =
     sortedHighlights.length > 0 && selectedVisibleHighlights.length === sortedHighlights.length;
   $: filteredNotes =
@@ -429,6 +458,16 @@
       const nextSelection = new Set(Array.from(selectedHighlightIds).filter((id) => visibleHighlightIds.has(id)));
       if (nextSelection.size !== selectedHighlightIds.size) {
         selectedHighlightIds = nextSelection;
+      }
+
+      const nextSavedSelections = savedHighlightSelections
+        .map((set) => ({
+          ...set,
+          selectedIds: set.selectedIds.filter((id) => visibleHighlightIds.has(id))
+        }))
+        .filter((set) => set.selectedIds.length > 0);
+      if (JSON.stringify(nextSavedSelections) !== JSON.stringify(savedHighlightSelections)) {
+        savedHighlightSelections = nextSavedSelections;
       }
     }
   }
@@ -508,6 +547,34 @@
 
   const clearSelectedHighlights = () => {
     selectedHighlightIds = new Set();
+  };
+
+  const saveCurrentHighlightSelection = () => {
+    if (!selectedHighlightIds.size) return;
+    const rawName = window.prompt('为当前高亮选择集命名', `高亮集 ${savedHighlightSelections.length + 1}`);
+    const name = rawName?.trim();
+    if (!name) return;
+    savedHighlightSelections = [
+      {
+        id: `selection-${Date.now()}`,
+        name,
+        selectedIds: Array.from(selectedHighlightIds),
+        createdAt: Date.now()
+      },
+      ...savedHighlightSelections
+    ];
+  };
+
+  const applySavedHighlightSelection = (selectionSet: ReaderHighlightSelectionSet) => {
+    selectedHighlightIds = new Set(selectionSet.selectedIds);
+    highlightsFilter = 'selected';
+  };
+
+  const deleteSavedHighlightSelection = (selectionId: string) => {
+    const selectionSet = savedHighlightSelections.find((set) => set.id === selectionId);
+    if (!selectionSet) return;
+    if (!window.confirm(`删除保存的高亮选择集“${selectionSet.name}”？`)) return;
+    savedHighlightSelections = savedHighlightSelections.filter((set) => set.id !== selectionId);
   };
 
   const invertVisibleHighlightsSelection = () => {
@@ -1131,6 +1198,14 @@
             <button
               type="button"
               class="secondary-note-action"
+              disabled={!selectedHighlightIds.size}
+              on:click={saveCurrentHighlightSelection}
+            >
+              保存当前选择集
+            </button>
+            <button
+              type="button"
+              class="secondary-note-action"
               disabled={!sortedHighlights.length || areAllVisibleHighlightsSelected}
               on:click={selectAllVisibleHighlights}
             >
@@ -1254,6 +1329,42 @@
           </div>
 
           <div class="note-list">
+            {#if savedHighlightSelections.length}
+              <section class="saved-highlight-selections" aria-label="saved highlight selections">
+                <div class="saved-highlight-selections-head">
+                  <strong>已保存选择集</strong>
+                  <span>{savedHighlightSelections.length} 组</span>
+                </div>
+                <div class="saved-highlight-selections-list">
+                  {#each savedHighlightSelections as selectionSet}
+                    <article class="saved-highlight-selection-card">
+                      <div class="saved-highlight-selection-copy">
+                        <strong>{selectionSet.name}</strong>
+                        <span>{selectionSet.selectedIds.length} 条高亮</span>
+                        <time>{formatTimestamp(selectionSet.createdAt)}</time>
+                      </div>
+                      <div class="saved-highlight-selection-actions">
+                        <button
+                          type="button"
+                          class="notes-filter-chip"
+                          on:click={() => applySavedHighlightSelection(selectionSet)}
+                        >
+                          套用
+                        </button>
+                        <button
+                          type="button"
+                          class="notes-filter-chip danger-action"
+                          on:click={() => deleteSavedHighlightSelection(selectionSet.id)}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </article>
+                  {/each}
+                </div>
+              </section>
+            {/if}
+
             {#if groupedHighlights.length}
               {#each groupedHighlights as group}
                 <section class="note-group" aria-label={`highlights for ${group.chapterLabel}`}>
@@ -2176,6 +2287,64 @@
     justify-content: flex-start;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .saved-highlight-selections {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+  }
+
+  .saved-highlight-selections-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .saved-highlight-selections-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .saved-highlight-selection-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+  }
+
+  .saved-highlight-selection-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .saved-highlight-selection-copy strong {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .saved-highlight-selection-copy span,
+  .saved-highlight-selection-copy time {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .saved-highlight-selection-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .primary-note-action {

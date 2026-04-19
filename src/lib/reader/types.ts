@@ -25,10 +25,18 @@ export type ReaderAtmosphereMode = 'paper' | 'warm' | 'soft';
 export type ReaderHighlightsFilter = 'all' | 'chapter' | 'selected';
 export type ReaderHighlightsSort = 'recent' | 'oldest';
 
+export type ReaderHighlightSelectionSet = {
+  id: string;
+  name: string;
+  selectedIds: string[];
+  createdAt: number;
+};
+
 export type ReaderHighlightsWorkspaceState = {
   filter: ReaderHighlightsFilter;
   sort: ReaderHighlightsSort;
   selectedIds: string[];
+  savedSelections: ReaderHighlightSelectionSet[];
 };
 
 export type SidebarTab = 'toc' | 'search' | 'bookmarks' | 'highlights' | 'notes';
