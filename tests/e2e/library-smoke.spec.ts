@@ -311,6 +311,12 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText(
     '跨书导入 · Other TXT Book / Web TXT 重命名高亮 · 1/1'
   );
+  page.once('dialog', (dialog) => dialog.accept(crossBookPreviewPayload));
+  await savedSelectionPanel.getByRole('button', { name: '导入' }).click();
+  await expect(savedSelectionPanel).toContainText('跨书预检：可映射 1/1 条高亮');
+  await importPreview.getByRole('button', { name: '导入已匹配高亮' }).click();
+  await expect(savedSelectionPanel).toContainText('已更新跨书选择集：Web TXT 重命名高亮 (2)（1/1）');
+  await expect(page.getByText('Web TXT 重命名高亮 (2)', { exact: true })).toHaveCount(1);
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);

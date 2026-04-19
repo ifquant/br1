@@ -759,6 +759,13 @@
     return `${name} (${suffix})`;
   };
 
+  const findExistingCrossBookImportedSelection = (sourceBookKey: string, sourceSelectionName: string) =>
+    savedHighlightSelections.find(
+      (selectionSet) =>
+        selectionSet.importSource?.bookKey === sourceBookKey &&
+        selectionSet.importSource?.selectionName === sourceSelectionName
+    );
+
   const normalizeImportedHighlightText = (text: string) => text.replace(/\s+/g, ' ').trim();
 
   const resolveImportedHighlightIds = (payload: ReaderHighlightSelectionSetExport) => {
@@ -865,30 +872,49 @@
   };
 
   const importMatchedHighlightsFromPreview = () => {
-    if (!savedHighlightSelectionImportPreview?.importedIds.length) return;
+    const preview = savedHighlightSelectionImportPreview;
+    if (!preview?.importedIds.length) return;
 
-    const importedName = createImportedSelectionSetName(savedHighlightSelectionImportPreview.selectionName);
-    savedHighlightSelections = [
-      {
-        id: `selection-import-cross-book-${Date.now()}`,
-        name: importedName,
-        selectedIds: [...savedHighlightSelectionImportPreview.importedIds],
-        createdAt: savedHighlightSelectionImportPreview.selectionCreatedAt,
-        importSource: {
-          bookKey: savedHighlightSelectionImportPreview.sourceBookKey,
-          bookTitle: savedHighlightSelectionImportPreview.sourceBookTitle,
-          formatLabel: savedHighlightSelectionImportPreview.sourceFormatLabel,
-          selectionName: savedHighlightSelectionImportPreview.selectionName,
-          matchedCount: savedHighlightSelectionImportPreview.matchedCount,
-          totalCount: savedHighlightSelectionImportPreview.totalCount,
-          unmatchedCount:
-            savedHighlightSelectionImportPreview.totalCount - savedHighlightSelectionImportPreview.matchedCount,
-          importedAt: Date.now()
-        }
-      },
-      ...savedHighlightSelections
-    ];
-    savedHighlightSelectionImportNotice = `已导入跨书选择集：${importedName}（${savedHighlightSelectionImportPreview.matchedCount}/${savedHighlightSelectionImportPreview.totalCount}）`;
+    const existingSelection = findExistingCrossBookImportedSelection(
+      preview.sourceBookKey,
+      preview.selectionName
+    );
+    const importSource = {
+      bookKey: preview.sourceBookKey,
+      bookTitle: preview.sourceBookTitle,
+      formatLabel: preview.sourceFormatLabel,
+      selectionName: preview.selectionName,
+      matchedCount: preview.matchedCount,
+      totalCount: preview.totalCount,
+      unmatchedCount: preview.totalCount - preview.matchedCount,
+      importedAt: Date.now()
+    } satisfies NonNullable<ReaderHighlightSelectionSet['importSource']>;
+
+    if (existingSelection) {
+      savedHighlightSelections = savedHighlightSelections.map((selectionSet) =>
+        selectionSet.id === existingSelection.id
+          ? {
+              ...selectionSet,
+              selectedIds: [...preview.importedIds],
+              importSource
+            }
+          : selectionSet
+      );
+      savedHighlightSelectionImportNotice = `已更新跨书选择集：${existingSelection.name}（${preview.matchedCount}/${preview.totalCount}）`;
+    } else {
+      const importedName = createImportedSelectionSetName(preview.selectionName);
+      savedHighlightSelections = [
+        {
+          id: `selection-import-cross-book-${Date.now()}`,
+          name: importedName,
+          selectedIds: [...preview.importedIds],
+          createdAt: preview.selectionCreatedAt,
+          importSource
+        },
+        ...savedHighlightSelections
+      ];
+      savedHighlightSelectionImportNotice = `已导入跨书选择集：${importedName}（${preview.matchedCount}/${preview.totalCount}）`;
+    }
     savedHighlightSelectionImportPreview = null;
   };
 

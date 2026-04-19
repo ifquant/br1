@@ -4438,6 +4438,70 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to import the matched subset from the foreign-book preview'
     });
+    await browser.execute((payload) => {
+      window.prompt = () => payload;
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const importButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导入'
+      );
+      if (!(importButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection import button to exist');
+      }
+      importButton.click();
+    }, crossBookPreviewPayload);
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('跨书预检：可映射 1/1 条高亮') &&
+        state.previewText.includes('来源：Other EPUB Book · EPUB') &&
+        state.previewText.includes('来源选择集：Desktop EPUB 重命名高亮')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to reopen the same cross-book preview before testing update-in-place behavior'
+    });
+    await browser.execute(() => {
+      const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+      if (!(preview instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selection import preview to exist');
+      }
+      const importButton = Array.from(preview.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导入已匹配高亮'
+      );
+      if (!(importButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the import-matched-highlights button to exist');
+      }
+      importButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const cards = Array.from(panel?.querySelectorAll('.saved-highlight-selection-card strong') ?? []).map(
+          (node) => node.textContent?.trim() ?? ''
+        );
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          cards
+        };
+      });
+      return (
+        state.panelText.includes('已更新跨书选择集：Desktop EPUB 重命名高亮 (2)（1/1）') &&
+        state.cards.filter((name) => name === 'Desktop EPUB 重命名高亮 (2)').length === 1
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to update the existing foreign-book saved set instead of creating another duplicate'
+    });
 
     await browser.execute(() => {
       const controls = document.querySelector('[aria-label="highlights filter controls"]');
