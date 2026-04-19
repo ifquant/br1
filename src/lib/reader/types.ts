@@ -40,6 +40,7 @@ export type ReaderHighlightSelectionSet = {
     totalCount: number;
     unmatchedCount: number;
     importedAt: number;
+    highlights: ReaderHighlightSelectionSetExportHighlight[];
   };
 };
 

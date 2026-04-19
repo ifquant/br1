@@ -254,7 +254,8 @@ test('reader supports txt notes through selection, persistence, and note reopen 
         matchedCount: 1,
         totalCount: 2,
         unmatchedCount: 1,
-        importedAt: 1710000000000
+        importedAt: 1710000000000,
+        highlights: JSON.parse(exportedPayload).highlights
       }
     },
     highlights: JSON.parse(exportedPayload).highlights.map((highlight: Record<string, unknown>) => ({
@@ -296,6 +297,8 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText(
     '跨书导入 · Imported TXT Source / Imported TXT Selection · 1/2'
   );
+  await savedSelectionPanel.locator('.saved-highlight-selection-card').first().getByRole('button', { name: '刷新映射' }).click();
+  await expect(savedSelectionPanel).toContainText('已刷新跨书选择集：Web TXT 重命名高亮（1/2）');
   await firstSavedSelectionCard.getByRole('button', { name: '套用' }).click();
   await expect(highlightsPanel).toContainText('1 已选高亮');
   page.once('dialog', (dialog) => dialog.accept(crossBookPreviewPayload));

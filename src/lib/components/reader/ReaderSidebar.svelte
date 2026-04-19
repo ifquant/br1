@@ -117,11 +117,12 @@
         sourceBookKey: string;
         sourceBookTitle: string;
         sourceFormatLabel: string;
-        matchedCount: number;
-        totalCount: number;
-        importedIds: string[];
-        unmatchedTexts: string[];
-      }
+      matchedCount: number;
+      totalCount: number;
+      importedIds: string[];
+      unmatchedTexts: string[];
+      sourceHighlights: ReaderHighlightSelectionSetExportHighlight[];
+    }
     | null = null;
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
@@ -172,7 +173,19 @@
               typeof (candidate.importSource as { matchedCount?: unknown }).matchedCount === 'number' &&
               typeof (candidate.importSource as { totalCount?: unknown }).totalCount === 'number' &&
               typeof (candidate.importSource as { unmatchedCount?: unknown }).unmatchedCount === 'number' &&
-              typeof (candidate.importSource as { importedAt?: unknown }).importedAt === 'number'
+              typeof (candidate.importSource as { importedAt?: unknown }).importedAt === 'number' &&
+              Array.isArray((candidate.importSource as { highlights?: unknown }).highlights) &&
+              (candidate.importSource as { highlights: unknown[] }).highlights.every(
+                (highlight) =>
+                  !!highlight &&
+                  typeof highlight === 'object' &&
+                  typeof (highlight as { id?: unknown }).id === 'string' &&
+                  typeof (highlight as { cfi?: unknown }).cfi === 'string' &&
+                  typeof (highlight as { text?: unknown }).text === 'string' &&
+                  typeof (highlight as { chapterLabel?: unknown }).chapterLabel === 'string' &&
+                  typeof (highlight as { chapterHref?: unknown }).chapterHref === 'string' &&
+                  typeof (highlight as { createdAt?: unknown }).createdAt === 'number'
+              )
                 ? {
                     bookKey: (candidate.importSource as { bookKey: string }).bookKey,
                     bookTitle: (candidate.importSource as { bookTitle: string }).bookTitle,
@@ -181,7 +194,8 @@
                     matchedCount: (candidate.importSource as { matchedCount: number }).matchedCount,
                     totalCount: (candidate.importSource as { totalCount: number }).totalCount,
                     unmatchedCount: (candidate.importSource as { unmatchedCount: number }).unmatchedCount,
-                    importedAt: (candidate.importSource as { importedAt: number }).importedAt
+                    importedAt: (candidate.importSource as { importedAt: number }).importedAt,
+                    highlights: (candidate.importSource as { highlights: ReaderHighlightSelectionSetExportHighlight[] }).highlights
                   }
                 : null;
             return {
@@ -709,7 +723,19 @@
     typeof (value as { matchedCount?: unknown }).matchedCount === 'number' &&
     typeof (value as { totalCount?: unknown }).totalCount === 'number' &&
     typeof (value as { unmatchedCount?: unknown }).unmatchedCount === 'number' &&
-    typeof (value as { importedAt?: unknown }).importedAt === 'number';
+    typeof (value as { importedAt?: unknown }).importedAt === 'number' &&
+    Array.isArray((value as { highlights?: unknown }).highlights) &&
+    (value as { highlights: unknown[] }).highlights.every(
+      (highlight) =>
+        !!highlight &&
+        typeof highlight === 'object' &&
+        typeof (highlight as { id?: unknown }).id === 'string' &&
+        typeof (highlight as { cfi?: unknown }).cfi === 'string' &&
+        typeof (highlight as { text?: unknown }).text === 'string' &&
+        typeof (highlight as { chapterLabel?: unknown }).chapterLabel === 'string' &&
+        typeof (highlight as { chapterHref?: unknown }).chapterHref === 'string' &&
+        typeof (highlight as { createdAt?: unknown }).createdAt === 'number'
+    );
 
   const isReaderHighlightSelectionSet = (
     value: unknown
@@ -843,7 +869,8 @@
         matchedCount: resolution.importedIds.length,
         totalCount: parsed.highlights.length,
         importedIds: resolution.importedIds,
-        unmatchedTexts: resolution.unmatchedTexts.slice(0, 3)
+        unmatchedTexts: resolution.unmatchedTexts.slice(0, 3),
+        sourceHighlights: parsed.highlights.map((highlight) => ({ ...highlight }))
       };
       savedHighlightSelectionImportNotice = `跨书预检：可映射 ${resolution.importedIds.length}/${parsed.highlights.length} 条高亮，当前还不能直接导入`;
       return;
@@ -887,7 +914,8 @@
       matchedCount: preview.matchedCount,
       totalCount: preview.totalCount,
       unmatchedCount: preview.totalCount - preview.matchedCount,
-      importedAt: Date.now()
+      importedAt: Date.now(),
+      highlights: preview.sourceHighlights.map((highlight) => ({ ...highlight }))
     } satisfies NonNullable<ReaderHighlightSelectionSet['importSource']>;
 
     if (existingSelection) {
@@ -916,6 +944,45 @@
       savedHighlightSelectionImportNotice = `已导入跨书选择集：${importedName}（${preview.matchedCount}/${preview.totalCount}）`;
     }
     savedHighlightSelectionImportPreview = null;
+  };
+
+  const refreshCrossBookImportedSelection = (selectionSet: ReaderHighlightSelectionSet) => {
+    const importSource = selectionSet.importSource;
+    if (!importSource) return;
+
+    const resolution = resolveImportedHighlightIds({
+      schemaVersion: 1,
+      bookKey: importSource.bookKey,
+      bookTitle: importSource.bookTitle,
+      bookAuthor: '',
+      formatLabel: importSource.formatLabel,
+      exportedAt: importSource.importedAt,
+      selectionSet: {
+        id: selectionSet.id,
+        name: selectionSet.name,
+        selectedIds: importSource.highlights.map((highlight) => highlight.id),
+        createdAt: selectionSet.createdAt
+      },
+      highlights: importSource.highlights
+    });
+
+    const nextImportSource = {
+      ...importSource,
+      matchedCount: resolution.importedIds.length,
+      unmatchedCount: importSource.totalCount - resolution.importedIds.length,
+      importedAt: Date.now()
+    } satisfies NonNullable<ReaderHighlightSelectionSet['importSource']>;
+
+    savedHighlightSelections = savedHighlightSelections.map((candidate) =>
+      candidate.id === selectionSet.id
+        ? {
+            ...candidate,
+            selectedIds: resolution.importedIds,
+            importSource: nextImportSource
+          }
+        : candidate
+    );
+    savedHighlightSelectionImportNotice = `已刷新跨书选择集：${selectionSet.name}（${resolution.importedIds.length}/${importSource.totalCount}）`;
   };
 
   const invertVisibleHighlightsSelection = () => {
@@ -1762,6 +1829,15 @@
                         >
                           导出
                         </button>
+                        {#if selectionSet.importSource}
+                          <button
+                            type="button"
+                            class="notes-filter-chip"
+                            on:click={() => refreshCrossBookImportedSelection(selectionSet)}
+                          >
+                            刷新映射
+                          </button>
+                        {/if}
                         <button
                           type="button"
                           class="notes-filter-chip"

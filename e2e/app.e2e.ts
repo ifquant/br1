@@ -4204,11 +4204,12 @@ describe('br1 desktop app', () => {
           bookTitle: 'Imported EPUB Source',
           formatLabel: 'EPUB',
           selectionName: 'Imported EPUB Selection',
-          matchedCount: 1,
-          totalCount: 2,
-          unmatchedCount: 1,
-          importedAt: 1710000000000
-        }
+        matchedCount: 1,
+        totalCount: 2,
+        unmatchedCount: 1,
+        importedAt: 1710000000000,
+        highlights: JSON.parse(exportedSelectionPayload).highlights
+      }
       },
       highlights: JSON.parse(exportedSelectionPayload).highlights.map((highlight: Record<string, unknown>) => ({
         ...highlight,
@@ -4373,6 +4374,26 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to import the saved selection set back into the current book'
+    });
+    await browser.execute(() => {
+      const firstCard = document.querySelector('[aria-label="saved highlight selections"] .saved-highlight-selection-card');
+      if (!(firstCard instanceof HTMLElement)) {
+        throw new Error('expected the first saved highlight selection card to exist');
+      }
+      const refreshButton = Array.from(firstCard.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '刷新映射'
+      );
+      if (!(refreshButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the refresh-cross-book-selection button to exist');
+      }
+      refreshButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      return panelText.includes('已刷新跨书选择集：Desktop EPUB 重命名高亮（1/2）');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to refresh the imported foreign-book saved selection without requiring a reimport'
     });
     await browser.execute((payload) => {
       window.prompt = () => payload;
