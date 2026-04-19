@@ -247,10 +247,13 @@ test('reader supports txt notes through selection, persistence, and note reopen 
       ...JSON.parse(exportedPayload).selectionSet,
       selectedIds: ['missing-highlight-id'],
       importSource: {
+        bookKey: 'imported-txt-book',
         bookTitle: 'Imported TXT Source',
         formatLabel: 'TXT',
+        selectionName: 'Imported TXT Selection',
         matchedCount: 1,
         totalCount: 2,
+        unmatchedCount: 1,
         importedAt: 1710000000000
       }
     },
@@ -291,7 +294,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel).toContainText('已导入选择集：Web TXT 重命名高亮');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText(
-    '跨书导入 · Imported TXT Source · 1/2'
+    '跨书导入 · Imported TXT Source / Imported TXT Selection · 1/2'
   );
   await firstSavedSelectionCard.getByRole('button', { name: '套用' }).click();
   await expect(highlightsPanel).toContainText('1 已选高亮');
@@ -300,11 +303,14 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel).toContainText('跨书预检：可映射 1/1 条高亮');
   const importPreview = page.getByLabel('saved highlight selection import preview');
   await expect(importPreview).toContainText('来源：Other TXT Book · TXT');
+  await expect(importPreview).toContainText('来源选择集：Web TXT 重命名高亮');
   await expect(importPreview).toContainText('当前书可映射 1 / 1 条高亮');
   await importPreview.getByRole('button', { name: '导入已匹配高亮' }).click();
   await expect(savedSelectionPanel).toContainText('已导入跨书选择集：Web TXT 重命名高亮 (2)（1/1）');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮 (2)');
-  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('跨书导入 · Other TXT Book · 1/1');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText(
+    '跨书导入 · Other TXT Book / Web TXT 重命名高亮 · 1/1'
+  );
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);

@@ -114,6 +114,7 @@
     | {
         selectionName: string;
         selectionCreatedAt: number;
+        sourceBookKey: string;
         sourceBookTitle: string;
         sourceFormatLabel: string;
         matchedCount: number;
@@ -164,16 +165,22 @@
             const importSource =
               candidate.importSource &&
               typeof candidate.importSource === 'object' &&
+              typeof (candidate.importSource as { bookKey?: unknown }).bookKey === 'string' &&
               typeof (candidate.importSource as { bookTitle?: unknown }).bookTitle === 'string' &&
               typeof (candidate.importSource as { formatLabel?: unknown }).formatLabel === 'string' &&
+              typeof (candidate.importSource as { selectionName?: unknown }).selectionName === 'string' &&
               typeof (candidate.importSource as { matchedCount?: unknown }).matchedCount === 'number' &&
               typeof (candidate.importSource as { totalCount?: unknown }).totalCount === 'number' &&
+              typeof (candidate.importSource as { unmatchedCount?: unknown }).unmatchedCount === 'number' &&
               typeof (candidate.importSource as { importedAt?: unknown }).importedAt === 'number'
                 ? {
+                    bookKey: (candidate.importSource as { bookKey: string }).bookKey,
                     bookTitle: (candidate.importSource as { bookTitle: string }).bookTitle,
                     formatLabel: (candidate.importSource as { formatLabel: string }).formatLabel,
+                    selectionName: (candidate.importSource as { selectionName: string }).selectionName,
                     matchedCount: (candidate.importSource as { matchedCount: number }).matchedCount,
                     totalCount: (candidate.importSource as { totalCount: number }).totalCount,
+                    unmatchedCount: (candidate.importSource as { unmatchedCount: number }).unmatchedCount,
                     importedAt: (candidate.importSource as { importedAt: number }).importedAt
                   }
                 : null;
@@ -695,10 +702,13 @@
   ): value is NonNullable<ReaderHighlightSelectionSet['importSource']> =>
     !!value &&
     typeof value === 'object' &&
+    typeof (value as { bookKey?: unknown }).bookKey === 'string' &&
     typeof (value as { bookTitle?: unknown }).bookTitle === 'string' &&
     typeof (value as { formatLabel?: unknown }).formatLabel === 'string' &&
+    typeof (value as { selectionName?: unknown }).selectionName === 'string' &&
     typeof (value as { matchedCount?: unknown }).matchedCount === 'number' &&
     typeof (value as { totalCount?: unknown }).totalCount === 'number' &&
+    typeof (value as { unmatchedCount?: unknown }).unmatchedCount === 'number' &&
     typeof (value as { importedAt?: unknown }).importedAt === 'number';
 
   const isReaderHighlightSelectionSet = (
@@ -820,6 +830,7 @@
       savedHighlightSelectionImportPreview = {
         selectionName: parsed.selectionSet.name,
         selectionCreatedAt: parsed.selectionSet.createdAt,
+        sourceBookKey: parsed.bookKey,
         sourceBookTitle: parsed.bookTitle,
         sourceFormatLabel: parsed.formatLabel,
         matchedCount: resolution.importedIds.length,
@@ -864,10 +875,14 @@
         selectedIds: [...savedHighlightSelectionImportPreview.importedIds],
         createdAt: savedHighlightSelectionImportPreview.selectionCreatedAt,
         importSource: {
+          bookKey: savedHighlightSelectionImportPreview.sourceBookKey,
           bookTitle: savedHighlightSelectionImportPreview.sourceBookTitle,
           formatLabel: savedHighlightSelectionImportPreview.sourceFormatLabel,
+          selectionName: savedHighlightSelectionImportPreview.selectionName,
           matchedCount: savedHighlightSelectionImportPreview.matchedCount,
           totalCount: savedHighlightSelectionImportPreview.totalCount,
+          unmatchedCount:
+            savedHighlightSelectionImportPreview.totalCount - savedHighlightSelectionImportPreview.matchedCount,
           importedAt: Date.now()
         }
       },
@@ -1668,6 +1683,7 @@
                     <div class="saved-highlight-selection-import-preview-copy">
                       <strong>跨书兼容预检</strong>
                       <span>来源：{savedHighlightSelectionImportPreview.sourceBookTitle} · {savedHighlightSelectionImportPreview.sourceFormatLabel}</span>
+                      <span>来源选择集：{savedHighlightSelectionImportPreview.selectionName}</span>
                       <span>当前书可映射 {savedHighlightSelectionImportPreview.matchedCount} / {savedHighlightSelectionImportPreview.totalCount} 条高亮</span>
                     </div>
                     {#if savedHighlightSelectionImportPreview.importedIds.length}
@@ -1700,7 +1716,7 @@
                         <span>{selectionSet.selectedIds.length} 条高亮</span>
                         {#if selectionSet.importSource}
                           <span class="saved-highlight-selection-origin">
-                            跨书导入 · {selectionSet.importSource.bookTitle} · {selectionSet.importSource.matchedCount}/{selectionSet.importSource.totalCount}
+                            跨书导入 · {selectionSet.importSource.bookTitle} / {selectionSet.importSource.selectionName} · {selectionSet.importSource.matchedCount}/{selectionSet.importSource.totalCount}
                           </span>
                         {/if}
                         <time>{formatTimestamp(selectionSet.createdAt)}</time>

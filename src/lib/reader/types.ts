@@ -32,10 +32,13 @@ export type ReaderHighlightSelectionSet = {
   selectedIds: string[];
   createdAt: number;
   importSource?: {
+    bookKey: string;
     bookTitle: string;
     formatLabel: string;
+    selectionName: string;
     matchedCount: number;
     totalCount: number;
+    unmatchedCount: number;
     importedAt: number;
   };
 };

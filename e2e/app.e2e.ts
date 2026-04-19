@@ -672,7 +672,14 @@ describe('br1 desktop app', () => {
     description: string
   ): Promise<WebdriverIO.Element> => {
     await switchToLibraryWindow();
-    const hrefs = await listOpenableBookHrefs();
+    let hrefs: string[] = [];
+    await browser.waitUntil(async () => {
+      hrefs = await listOpenableBookHrefs();
+      return hrefs.some((href) => predicate(href));
+    }, {
+      timeout: 15000,
+      timeoutMsg: `expected to find an openable library book for ${description}`
+    });
 
     for (const href of hrefs) {
       if (predicate(href)) {
@@ -3553,19 +3560,14 @@ describe('br1 desktop app', () => {
   it('persists epub highlights and notes separately through the desktop reader store', async function () {
     this.timeout(120000);
     const libraryHandle = await switchToLibraryWindow();
-    const hrefs = await listOpenableBookHrefs();
-    const href = hrefs.find((candidate) => {
-      const target = new URL(candidate, 'http://localhost');
-      const path = target.searchParams.get('path') ?? '';
-      return /\.epub($|\?)/i.test(path) || path.toLowerCase().endsWith('.epub');
-    });
+    const book = await findStableEpubBook();
+    const href = await book.getAttribute('href');
     expect(href).toBeTruthy();
     const target = new URL(href!, 'http://localhost');
     const bookKey = target.searchParams.get('path') || '';
     const notesStorageKey = `br1.reader.notes:${bookKey}`;
     expect(bookKey).toBeTruthy();
     await clearReaderHighlightsWorkspaceStateOnDisk(bookKey);
-    const book = await findBookElementByHref(href!);
     expect(book).toBeTruthy();
     await openReaderFromBook(book!);
     await browser.waitUntil(async () => {
@@ -4198,10 +4200,13 @@ describe('br1 desktop app', () => {
         ...JSON.parse(exportedSelectionPayload).selectionSet,
         selectedIds: ['missing-highlight-id'],
         importSource: {
+          bookKey: 'imported-epub-book',
           bookTitle: 'Imported EPUB Source',
           formatLabel: 'EPUB',
+          selectionName: 'Imported EPUB Selection',
           matchedCount: 1,
           totalCount: 2,
+          unmatchedCount: 1,
           importedAt: 1710000000000
         }
       },
@@ -4363,7 +4368,7 @@ describe('br1 desktop app', () => {
         state.panelText.includes('已导入选择集：Desktop EPUB 重命名高亮') &&
         state.panelText.includes('Desktop EPUB 重命名高亮') &&
         state.firstCardText.includes('Desktop EPUB 重命名高亮') &&
-        state.firstCardText.includes('跨书导入 · Imported EPUB Source · 1/2')
+        state.firstCardText.includes('跨书导入 · Imported EPUB Source / Imported EPUB Selection · 1/2')
       );
     }, {
       timeout: 10000,
@@ -4395,6 +4400,7 @@ describe('br1 desktop app', () => {
       return (
         state.panelText.includes('跨书预检：可映射 1/1 条高亮') &&
         state.previewText.includes('来源：Other EPUB Book · EPUB') &&
+        state.previewText.includes('来源选择集：Desktop EPUB 重命名高亮') &&
         state.previewText.includes('当前书可映射 1 / 1 条高亮')
       );
     }, {
@@ -4426,7 +4432,7 @@ describe('br1 desktop app', () => {
       return (
         state.panelText.includes('已导入跨书选择集：Desktop EPUB 重命名高亮 (2)（1/1）') &&
         state.firstCardText.includes('Desktop EPUB 重命名高亮 (2)') &&
-        state.firstCardText.includes('跨书导入 · Other EPUB Book · 1/1')
+        state.firstCardText.includes('跨书导入 · Other EPUB Book / Desktop EPUB 重命名高亮 · 1/1')
       );
     }, {
       timeout: 10000,
