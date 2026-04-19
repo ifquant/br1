@@ -186,6 +186,24 @@ describe('br1 desktop app', () => {
     }, label);
   };
 
+  const bulkDeleteVisibleHighlightsInWorkspace = async () => {
+    await browser.execute(() => {
+      window.confirm = () => true;
+      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      if (!(panel instanceof HTMLElement)) {
+        throw new Error('expected highlights panel preview to exist');
+      }
+
+      const buttons = Array.from(panel.querySelectorAll('button'));
+      const target = buttons.find((button) => button.textContent?.trim() === '删除当前视图高亮');
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected highlights bulk delete button to exist');
+      }
+
+      target.click();
+    });
+  };
+
   const sampleLibraryFormats = [
     {
       fileName: 'sample-book.fb2',
@@ -3016,19 +3034,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to isolate the persisted highlight from the mixed notes list'
     });
 
-    await browser.execute(() => {
-      window.confirm = () => true;
-      const panel = document.querySelector('[aria-label="highlights panel preview"]');
-      if (!(panel instanceof HTMLElement)) {
-        throw new Error('expected highlights panel preview to exist');
-      }
-      const buttons = Array.from(panel.querySelectorAll('button'));
-      const target = buttons.find((button) => button.textContent?.trim() === '删除当前视图高亮');
-      if (!(target instanceof HTMLButtonElement)) {
-        throw new Error('expected highlights bulk delete button to exist');
-      }
-      target.click();
-    });
+    await bulkDeleteVisibleHighlightsInWorkspace();
     await browser.waitUntil(async () => {
       const panel = await $('[aria-label="highlights panel preview"]');
       const panelText = await panel.getText();
@@ -3287,6 +3293,36 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to isolate the persisted highlight from the mixed notes list'
     });
 
+    await bulkDeleteVisibleHighlightsInWorkspace();
+    await browser.waitUntil(async () => {
+      const panel = await $('[aria-label="highlights panel preview"]');
+      const panelText = await panel.getText();
+      const cards = await $$('.highlight-card');
+      return panelText.includes('还没有高亮') && cards.length === 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to clear the visible highlight after bulk delete'
+    });
+
+    await clickReaderSidebarTab('笔记');
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('0 高亮') &&
+        metaText.includes('1 笔记') &&
+        cards.length === 1 &&
+        texts[0]?.includes('desktop epub note body')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop notes workspace to keep the persisted note after bulk highlight deletion'
+    });
+
     await clearAllReaderNotes();
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
@@ -3542,6 +3578,36 @@ describe('br1 desktop app', () => {
         timeoutMsg: `expected the ${sample.format} desktop highlights workspace to isolate the persisted highlight from the mixed notes list`
       });
 
+      await bulkDeleteVisibleHighlightsInWorkspace();
+      await browser.waitUntil(async () => {
+        const panel = await $('[aria-label="highlights panel preview"]');
+        const panelText = await panel.getText();
+        const cards = await $$('.highlight-card');
+        return panelText.includes('还没有高亮') && cards.length === 0;
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop highlights workspace to clear the visible highlight after bulk delete`
+      });
+
+      await clickReaderSidebarTab('笔记');
+      await browser.waitUntil(async () => {
+        const metaText = await $('.notes-meta-row').getText();
+        const cards = await $$('.note-card');
+        const texts: string[] = [];
+        for (const card of cards) {
+          texts.push(await card.getText());
+        }
+        return (
+          metaText.includes('0 高亮') &&
+          metaText.includes('1 笔记') &&
+          cards.length === 1 &&
+          texts[0]?.includes(persistedNote.note!)
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop notes workspace to keep the persisted note after bulk highlight deletion`
+      });
+
       await clearAllReaderNotes();
       await browser.closeWindow();
       await browser.switchToWindow(libraryHandle);
@@ -3788,6 +3854,36 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the FB2 desktop highlights workspace to isolate the persisted highlight from the mixed notes list'
+    });
+
+    await bulkDeleteVisibleHighlightsInWorkspace();
+    await browser.waitUntil(async () => {
+      const panel = await $('[aria-label="highlights panel preview"]');
+      const panelText = await panel.getText();
+      const cards = await $$('.highlight-card');
+      return panelText.includes('还没有高亮') && cards.length === 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to clear the visible highlight after bulk delete'
+    });
+
+    await clickReaderSidebarTab('笔记');
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('0 高亮') &&
+        metaText.includes('1 笔记') &&
+        cards.length === 1 &&
+        texts[0]?.includes(persistedNote.note!)
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop notes workspace to keep the persisted note after bulk highlight deletion'
     });
 
     await clearAllReaderNotes();
