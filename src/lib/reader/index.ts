@@ -33,6 +33,7 @@ export type {
   ReaderBookmark,
   ReaderBookmarksState,
   ReaderHighlightSelectionSet,
+  ReaderHighlightSelectionSetSort,
   ReaderHighlightsFilter,
   ReaderHighlightsSort,
   ReaderHighlightsWorkspaceState,

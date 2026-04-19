@@ -24,6 +24,7 @@ export type ReaderChromeMode = 'auto' | 'always';
 export type ReaderAtmosphereMode = 'paper' | 'warm' | 'soft';
 export type ReaderHighlightsFilter = 'all' | 'chapter' | 'selected';
 export type ReaderHighlightsSort = 'recent' | 'oldest';
+export type ReaderHighlightSelectionSetSort = 'recent' | 'oldest';
 
 export type ReaderHighlightSelectionSet = {
   id: string;
@@ -35,6 +36,7 @@ export type ReaderHighlightSelectionSet = {
 export type ReaderHighlightsWorkspaceState = {
   filter: ReaderHighlightsFilter;
   sort: ReaderHighlightsSort;
+  savedSelectionsSort: ReaderHighlightSelectionSetSort;
   selectedIds: string[];
   savedSelections: ReaderHighlightSelectionSet[];
 };

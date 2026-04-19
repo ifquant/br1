@@ -3,6 +3,7 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type {
     ReaderHighlightSelectionSet,
+    ReaderHighlightSelectionSetSort,
     ReaderHighlightsFilter,
     ReaderHighlightsSort,
     ReaderHighlightsWorkspaceState,
@@ -101,6 +102,7 @@
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
   let highlightsFilter: ReaderHighlightsFilter = 'all';
   let highlightsSort: ReaderHighlightsSort = 'recent';
+  let savedHighlightSelectionsSort: ReaderHighlightSelectionSetSort = 'recent';
   let selectedHighlightIds = new Set<string>();
   let savedHighlightSelections: ReaderHighlightSelectionSet[] = [];
   let bookmarksFilter: 'all' | 'chapter' = 'all';
@@ -117,6 +119,7 @@
   const applyDefaultHighlightsWorkspaceState = () => {
     highlightsFilter = 'all';
     highlightsSort = 'recent';
+    savedHighlightSelectionsSort = 'recent';
     selectedHighlightIds = new Set();
     savedHighlightSelections = [];
   };
@@ -129,6 +132,7 @@
 
     highlightsFilter = state.filter === 'chapter' || state.filter === 'selected' ? state.filter : 'all';
     highlightsSort = state.sort === 'oldest' ? 'oldest' : 'recent';
+    savedHighlightSelectionsSort = state.savedSelectionsSort === 'oldest' ? 'oldest' : 'recent';
     selectedHighlightIds = new Set(
       Array.isArray(state.selectedIds)
         ? state.selectedIds.filter((id: unknown): id is string => typeof id === 'string')
@@ -190,6 +194,7 @@
     const state: ReaderHighlightsWorkspaceState = {
       filter: highlightsFilter,
       sort: highlightsSort,
+      savedSelectionsSort: savedHighlightSelectionsSort,
       selectedIds: Array.from(selectedHighlightIds),
       savedSelections: savedHighlightSelections
     };
@@ -375,6 +380,10 @@
     highlightsSort === 'oldest'
       ? [...highlightsByScope].sort((left, right) => left.createdAt - right.createdAt)
       : [...highlightsByScope].sort((left, right) => right.createdAt - left.createdAt);
+  $: orderedSavedHighlightSelections =
+    savedHighlightSelectionsSort === 'oldest'
+      ? [...savedHighlightSelections].sort((left, right) => left.createdAt - right.createdAt)
+      : [...savedHighlightSelections].sort((left, right) => right.createdAt - left.createdAt);
   $: selectedVisibleHighlights = sortedHighlights.filter((note) => selectedHighlightIds.has(note.id));
   $: savedHighlightSelections = savedHighlightSelections.filter(
     (set, index, allSets) =>
@@ -1348,11 +1357,31 @@
             {#if savedHighlightSelections.length}
               <section class="saved-highlight-selections" aria-label="saved highlight selections">
                 <div class="saved-highlight-selections-head">
-                  <strong>已保存选择集</strong>
-                  <span>{savedHighlightSelections.length} 组</span>
+                  <div class="saved-highlight-selections-summary">
+                    <strong>已保存选择集</strong>
+                    <span>{savedHighlightSelections.length} 组</span>
+                  </div>
+                  <div class="saved-highlight-selections-sort" aria-label="saved selection set sort controls">
+                    <button
+                      type="button"
+                      class:active={savedHighlightSelectionsSort === 'recent'}
+                      class="notes-filter-chip"
+                      on:click={() => (savedHighlightSelectionsSort = 'recent')}
+                    >
+                      最近保存
+                    </button>
+                    <button
+                      type="button"
+                      class:active={savedHighlightSelectionsSort === 'oldest'}
+                      class="notes-filter-chip"
+                      on:click={() => (savedHighlightSelectionsSort = 'oldest')}
+                    >
+                      最早保存
+                    </button>
+                  </div>
                 </div>
                 <div class="saved-highlight-selections-list">
-                  {#each savedHighlightSelections as selectionSet}
+                  {#each orderedSavedHighlightSelections as selectionSet}
                     <article class="saved-highlight-selection-card">
                       <div class="saved-highlight-selection-copy">
                         <strong>{selectionSet.name}</strong>
@@ -2328,6 +2357,19 @@
     gap: 8px;
     color: var(--text-secondary);
     font-size: 12px;
+    flex-wrap: wrap;
+  }
+
+  .saved-highlight-selections-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .saved-highlight-selections-sort {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .saved-highlight-selections-list {

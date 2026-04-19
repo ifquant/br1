@@ -137,6 +137,11 @@ describe('br1 desktop app', () => {
     return join(appDataRoot, 'reader-notes', `${safeKey}.json`);
   };
 
+  const readerHighlightsWorkspaceFilePath = (bookKey: string) => {
+    const safeKey = createHash('sha256').update(bookKey).digest('hex');
+    return join(appDataRoot, 'reader-highlights-workspace', `${safeKey}.json`);
+  };
+
   const loadReaderNotesOnDisk = async (bookKey: string) => {
     const notesFile = readerNotesFilePath(bookKey);
     const raw = await readFile(notesFile, 'utf8');
@@ -150,6 +155,10 @@ describe('br1 desktop app', () => {
       }>;
     };
     return parsed.notes ?? [];
+  };
+
+  const clearReaderHighlightsWorkspaceStateOnDisk = async (bookKey: string) => {
+    await rm(readerHighlightsWorkspaceFilePath(bookKey), { force: true });
   };
 
   const clickAnnotationKindFilter = async (label: '全部类型' | '高亮' | '笔记') => {
@@ -3227,7 +3236,14 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to switch to oldest-first ordering before selecting a highlight'
     });
-    await toggleFirstHighlightSelection();
+    await browser.execute(() => {
+      const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
+      const secondToggle = toggles[1];
+      if (!(secondToggle instanceof HTMLButtonElement)) {
+        throw new Error('expected the newer highlight selection toggle to exist');
+      }
+      secondToggle.click();
+    });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
         const panel = document.querySelector('[aria-label="highlights panel preview"]');
@@ -3536,11 +3552,32 @@ describe('br1 desktop app', () => {
 
   it('persists epub highlights and notes separately through the desktop reader store', async function () {
     this.timeout(120000);
-    const { libraryHandle, href } = await openUsableReaderBook({ requireCfi: true });
-    const target = new URL(href, 'http://localhost');
+    const libraryHandle = await switchToLibraryWindow();
+    const hrefs = await listOpenableBookHrefs();
+    const href = hrefs.find((candidate) => {
+      const target = new URL(candidate, 'http://localhost');
+      const path = target.searchParams.get('path') ?? '';
+      return /\.epub($|\?)/i.test(path) || path.toLowerCase().endsWith('.epub');
+    });
+    expect(href).toBeTruthy();
+    const target = new URL(href!, 'http://localhost');
     const bookKey = target.searchParams.get('path') || '';
     const notesStorageKey = `br1.reader.notes:${bookKey}`;
     expect(bookKey).toBeTruthy();
+    await clearReaderHighlightsWorkspaceStateOnDisk(bookKey);
+    const book = await findBookElementByHref(href!);
+    expect(book).toBeTruthy();
+    await openReaderFromBook(book!);
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+      return !!details.title && !!details.total && !!details.cfi;
+    }, {
+      timeout: 15000,
+      timeoutMsg: 'expected an epub-backed library book to expose metadata and a valid CFI'
+    });
 
     await switchReaderToNotesTab();
     await clearAllReaderNotes();
@@ -3941,6 +3978,140 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to rename the saved selection set'
     });
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '全部'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the all-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      return (
+        panelText.includes('已保存 2 条高亮') &&
+        panelText.includes('最早添加优先') &&
+        cards.length === 2
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to return to the all-highlights view before seeding a second saved set'
+    });
+    await browser.execute(() => {
+      const clearButton = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+        (candidate) => candidate.textContent?.trim() === '清空选中'
+      );
+      if (!(clearButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the clear-selected-highlights button to exist');
+      }
+      clearButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      return panelText.includes('未选高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to clear the live selection before seeding a second saved set'
+    });
+    await toggleFirstHighlightSelection();
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return state.panelText.includes('已选 1 条');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to select one highlight before saving a second set'
+    });
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '已选高亮'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the selected-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return (
+        panelText.includes('1 已选高亮') &&
+        cards.length === 1 &&
+        firstText.includes(firstSelectionText.slice(0, 20))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to expose the selected highlight in selected-only view before saving a second set'
+    });
+    await browser.execute(() => {
+      window.prompt = () => 'Desktop EPUB 第二高亮';
+      const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+        (candidate) => candidate.textContent?.trim() === '保存当前选择集'
+      );
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error('expected the save-current-selection button to exist');
+      }
+      button.click();
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const firstCard = panel?.querySelector('.saved-highlight-selection-card');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('Desktop EPUB 重命名高亮') &&
+        state.panelText.includes('Desktop EPUB 第二高亮') &&
+        state.firstCardText.includes('Desktop EPUB 第二高亮')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to show the newest saved set first by default'
+    });
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="saved selection set sort controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected the saved selection set sort controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '最早保存'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the oldest-saved selection sort button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const firstCard = panel?.querySelector('.saved-highlight-selection-card');
+        return {
+          firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return state.firstCardText.includes('Desktop EPUB 重命名高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to switch the saved set order to oldest-first'
+    });
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
@@ -3962,10 +4133,19 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const panelText = await $('[aria-label="saved highlight selections"]').getText();
-      return panelText.includes('Desktop EPUB 重命名高亮') && panelText.includes('1 条高亮');
+      const firstCardText = await browser.execute(() => {
+        const firstCard = document.querySelector('[aria-label="saved highlight selections"] .saved-highlight-selection-card');
+        return firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+      });
+      return (
+        panelText.includes('Desktop EPUB 重命名高亮') &&
+        panelText.includes('Desktop EPUB 第二高亮') &&
+        panelText.includes('1 条高亮') &&
+        firstCardText.includes('Desktop EPUB 重命名高亮')
+      );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the saved selection set after reopening the book'
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the saved selection sets and their oldest-first ordering after reopening the book'
     });
 
     await browser.execute(() => {
