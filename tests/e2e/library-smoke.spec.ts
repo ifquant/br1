@@ -213,7 +213,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(highlightCards).toHaveCount(1);
   await expect(highlightCards.first()).toContainText('plain text file exists');
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: '删除当前视图高亮' }).click();
+  await page.getByRole('button', { name: '删除本组高亮' }).click();
   await expect(highlightCards).toHaveCount(0);
   await expect(page.getByLabel('highlights panel preview')).toContainText('还没有高亮');
 

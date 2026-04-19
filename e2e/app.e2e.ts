@@ -239,7 +239,7 @@ describe('br1 desktop app', () => {
     });
   };
 
-  const clickHighlightGroupAction = async (label: '选中本组高亮' | '清空本组选择') => {
+  const clickHighlightGroupAction = async (label: '选中本组高亮' | '清空本组选择' | '删除本组高亮') => {
     await browser.execute((targetLabel) => {
       const panel = document.querySelector('[aria-label="highlights panel preview"]');
       if (!(panel instanceof HTMLElement)) {
@@ -3763,7 +3763,10 @@ describe('br1 desktop app', () => {
 
     await clickHighlightsSortControl('最近添加');
 
-    await bulkDeleteVisibleHighlightsInWorkspace();
+    await browser.execute(() => {
+      window.confirm = () => true;
+    });
+    await clickHighlightGroupAction('删除本组高亮');
     await browser.waitUntil(async () => {
       const panel = await $('[aria-label="highlights panel preview"]');
       const panelText = await panel.getText();
@@ -3771,7 +3774,7 @@ describe('br1 desktop app', () => {
       return panelText.includes('还没有高亮') && cards.length === 0;
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the EPUB desktop highlights workspace to clear the visible highlight after bulk delete'
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to clear the current group after deleting the whole highlight group'
     });
 
     await clickReaderSidebarTab('笔记');

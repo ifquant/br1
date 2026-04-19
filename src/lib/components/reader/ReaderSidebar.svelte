@@ -457,6 +457,22 @@
     selectedHighlightIds = nextSelection;
   };
 
+  const deleteHighlightGroup = (notes: typeof sortedHighlights, chapterLabel: string) => {
+    if (!notes.length) return;
+    const confirmLabel =
+      notes.length === 1
+        ? `删除“${chapterLabel}”里的这条高亮？`
+        : `删除“${chapterLabel}”里的 ${notes.length} 条高亮？`;
+    if (!window.confirm(confirmLabel)) return;
+    callbacks.onDeleteNotes?.(notes.map((note) => note.id));
+
+    const nextSelection = new Set(selectedHighlightIds);
+    for (const note of notes) {
+      nextSelection.delete(note.id);
+    }
+    selectedHighlightIds = nextSelection;
+  };
+
   const isHighlightGroupFullySelected = (notes: typeof sortedHighlights) =>
     notes.length > 0 && notes.every((note) => selectedHighlightIds.has(note.id));
 
@@ -1175,6 +1191,13 @@
                         on:click={() => clearHighlightGroupSelection(group.notes)}
                       >
                         清空本组选择
+                      </button>
+                      <button
+                        type="button"
+                        class="notes-filter-chip danger-action"
+                        on:click={() => deleteHighlightGroup(group.notes, group.chapterLabel)}
+                      >
+                        删除本组高亮
                       </button>
                     </div>
 
