@@ -159,6 +159,10 @@
     notesController.remove(id);
   };
 
+  const deleteNotes = (ids: string[]) => {
+    notesController.removeMany(ids);
+  };
+
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
     searchController.restoreConfig();
@@ -328,6 +332,7 @@
     onOpenNote: openNote,
     onEditNote: editNote,
     onDeleteNote: deleteNote,
+    onDeleteNotes: deleteNotes,
     onSearch: searchController.issueSearch,
     onSearchResult: searchController.issueSearchResult,
     onSearchConfigChange: searchController.updateConfig,

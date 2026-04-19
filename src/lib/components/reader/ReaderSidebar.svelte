@@ -79,7 +79,8 @@
     onAddNote: null,
     onOpenNote: null,
     onEditNote: null,
-    onDeleteNote: null
+    onDeleteNote: null,
+    onDeleteNotes: null
   };
   let lastScrolledHref = '';
   let lastScrolledNoteCfi = '';
@@ -377,6 +378,14 @@
 
   const collapseAllHighlightGroups = () => {
     collapsedHighlightGroups = new Set(collapsibleHighlightGroupKeys);
+  };
+
+  const deleteVisibleHighlights = () => {
+    if (!highlightsByScope.length) return;
+    const confirmLabel =
+      highlightsFilter === 'chapter' ? '删除当前章节中的全部高亮？' : '删除当前视图中的全部高亮？';
+    if (!window.confirm(confirmLabel)) return;
+    callbacks.onDeleteNotes?.(highlightsByScope.map((note) => note.id));
   };
 
   const isBookmarkGroupCollapsed = (chapterHref: string) => collapsedBookmarkGroups.has(chapterHref);
@@ -913,6 +922,17 @@
             <span>{allHighlights.length} 高亮</span>
             <span>{highlightsFilter === 'chapter' ? `${highlightsByScope.length} 当前章节` : '全部章节'}</span>
             <span>{notesState.activeCfi ? '可跳回当前高亮' : '未聚焦高亮'}</span>
+          </div>
+
+          <div class="notes-actions">
+            <button
+              type="button"
+              class="secondary-note-action danger-action"
+              disabled={!highlightsByScope.length}
+              on:click={deleteVisibleHighlights}
+            >
+              {highlightsFilter === 'chapter' ? '删除当前章节高亮' : '删除当前视图高亮'}
+            </button>
           </div>
 
           <div class="notes-filter-row" aria-label="highlights filter controls">

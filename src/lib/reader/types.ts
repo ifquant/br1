@@ -181,4 +181,5 @@ export type ReaderSidebarCallbacks = {
   onOpenNote: ((cfi: string) => void) | null;
   onEditNote: ((id: string) => void) | null;
   onDeleteNote: ((id: string) => void) | null;
+  onDeleteNotes: ((ids: string[]) => void) | null;
 };

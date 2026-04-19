@@ -166,11 +166,19 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(highlightCards.first()).toContainText('plain text file exists');
   await expect(highlightCards.first()).toContainText('高亮');
   await expect(highlightCards.first()).not.toContainText('txt note body');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '删除当前视图高亮' }).click();
+  await expect(highlightCards).toHaveCount(0);
+  await expect(page.getByLabel('highlights panel preview')).toContainText('还没有高亮');
 
+  await page.getByRole('tab', { name: '笔记' }).click();
+  await expect(page.locator('.notes-meta-row')).toContainText('0 高亮');
+  await expect(page.locator('.notes-meta-row')).toContainText('1 笔记');
+  await expect(page.locator('.note-card')).toHaveCount(1);
   await page.reload();
   await page.getByRole('tab', { name: '笔记' }).click();
   await expect(page.locator('.note-card', { hasText: 'txt note body' })).toContainText('txt note body');
-  await expect(page.locator('.note-card', { hasText: '高亮' })).toContainText('plain text file exists');
+  await expect(page.locator('.note-card', { hasText: '高亮' })).toHaveCount(0);
 });
 
 const sampleReaderCases = [

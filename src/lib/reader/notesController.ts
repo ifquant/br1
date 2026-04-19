@@ -200,6 +200,22 @@ export const createReaderNotesController = ({
     return true;
   };
 
+  const removeMany = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) return false;
+    const current = get(state);
+    const nextNotes = current.notes.filter((item) => !targetIds.has(item.id));
+    if (nextNotes.length === current.notes.length) return false;
+
+    state.update((value) => ({
+      ...value,
+      notes: nextNotes,
+      activeCfi: targetIds.has(value.activeCfi) ? '' : value.activeCfi
+    }));
+    persist(nextNotes);
+    return true;
+  };
+
   return {
     state,
     refresh,
@@ -209,6 +225,7 @@ export const createReaderNotesController = ({
     addHighlightFromSelection: () => addFromSelection('highlight'),
     open,
     edit,
-    remove
+    remove,
+    removeMany
   };
 };
