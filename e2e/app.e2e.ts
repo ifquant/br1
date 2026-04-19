@@ -1594,6 +1594,64 @@ describe('br1 desktop app', () => {
     await option.click();
   };
 
+  const selectReaderMenuSetting = async (
+    groupLabel:
+      | 'reader flow mode'
+      | 'reader font family'
+      | 'reader font scale'
+      | 'reader line height'
+      | 'reader page margins',
+    optionLabel: string
+  ) => {
+    const moreActions = await $('[aria-label="More actions"]');
+    await moreActions.waitForDisplayed({ timeout: 10000 });
+    await moreActions.click();
+
+    await browser.execute(
+      ({ targetGroupLabel, targetOptionLabel }) => {
+        const groups = Array.from(document.querySelectorAll('[role="group"][aria-label]'));
+        const group = groups.find(
+          (candidate) => candidate.getAttribute('aria-label') === targetGroupLabel
+        );
+        if (!(group instanceof HTMLElement)) {
+          throw new Error(`expected reader settings group to exist: ${targetGroupLabel}`);
+        }
+
+        const option = Array.from(group.querySelectorAll('button[role="menuitemradio"]')).find(
+          (candidate) => candidate.textContent?.trim() === targetOptionLabel
+        );
+        if (!(option instanceof HTMLButtonElement)) {
+          throw new Error(`expected reader settings option to exist: ${targetOptionLabel}`);
+        }
+
+        option.click();
+      },
+      { targetGroupLabel: groupLabel, targetOptionLabel: optionLabel }
+    );
+  };
+
+  const readDesktopRendererSettings = async () =>
+    browser.execute(() => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          getAttribute?: (name: string) => string | null;
+          getContents?: () => Array<{ doc?: Document }>;
+        };
+      } | null;
+      const renderer = view?.renderer;
+      const doc = renderer?.getContents?.()?.[0]?.doc;
+      const body = doc?.body;
+      const styles = body ? getComputedStyle(body) : null;
+
+      return {
+        flow: renderer?.getAttribute?.('flow') ?? '',
+        marginLeft: renderer?.getAttribute?.('margin-left') ?? '',
+        fontFamily: styles?.fontFamily ?? '',
+        fontSize: styles?.fontSize ?? '',
+        lineHeightPx: Number.parseFloat(styles?.lineHeight ?? '0')
+      };
+    });
+
   const switchReaderToSearchTab = async () => {
     const searchTab = await $('//button[@role="tab" and normalize-space()="搜索"]');
     await searchTab.waitForDisplayed({ timeout: 10000 });
@@ -4150,6 +4208,51 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the saved selection sets and their oldest-first ordering after reopening the book'
     });
+
+    await selectReaderMenuSetting('reader flow mode', '滚动');
+    await selectReaderMenuSetting('reader font family', '无衬线');
+    await selectReaderMenuSetting('reader font scale', '大');
+    await selectReaderMenuSetting('reader line height', '舒展');
+    await selectReaderMenuSetting('reader page margins', '宽');
+    await browser.waitUntil(async () => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const rendererState = await readDesktopRendererSettings();
+      return (
+        footerText.includes('SCROLL') &&
+        rendererState.flow === 'scrolled' &&
+        rendererState.marginLeft === '44px' &&
+        rendererState.fontSize === '22px' &&
+        rendererState.lineHeightPx > 42 &&
+        rendererState.fontFamily.includes('IBM Plex Sans')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop reader to apply the new layout settings before the reopen check'
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await openReaderFromLibraryPath(bookKey, libraryHandle);
+    await clickReaderSidebarTab('高亮');
+    await browser.waitUntil(async () => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const rendererState = await readDesktopRendererSettings();
+      return (
+        footerText.includes('SCROLL') &&
+        rendererState.flow === 'scrolled' &&
+        rendererState.marginLeft === '44px' &&
+        rendererState.fontSize === '22px' &&
+        rendererState.lineHeightPx > 42 &&
+        rendererState.fontFamily.includes('IBM Plex Sans') &&
+        panelText.includes('1 已选高亮') &&
+        panelText.includes('最早添加优先')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop reader to reopen with both the saved layout settings and the highlights workspace state'
+    });
+
     await browser.execute(() => {
       const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
       if (!(savedPanel instanceof HTMLElement)) {
