@@ -3986,6 +3986,39 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 reader to expose the second selected text in the notes workspace'
     });
 
+    await highlightButton.click();
+
+    await browser.waitUntil(async () => {
+      const metaRow = await $('.notes-meta-row');
+      const metaText = await metaRow.getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('2 高亮') &&
+        metaText.includes('0 笔记') &&
+        cards.length === 2 &&
+        texts.some((text) => text.includes(firstSelectionText.slice(0, 20))) &&
+        texts.some((text) => text.includes(secondSelectionText.slice(0, 20)))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop notes workspace to show two highlights before creating a note'
+    });
+
+    const thirdSelectionText = await selectVisibleFoliateTextInReader(2, [fb2ReaderTitle, 'Chapter 1']);
+    await browser.waitUntil(async () => {
+      const selectionText = await browser.execute(() => {
+        return document.querySelector('.selection-card p')?.textContent?.trim() ?? '';
+      });
+      return selectionText.includes(thirdSelectionText.slice(0, 20));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 reader to expose the third selected text in the notes workspace'
+    });
+
     await browser.execute(() => {
       window.prompt = () => 'desktop fb2 note body';
     });
@@ -4002,14 +4035,16 @@ describe('br1 desktop app', () => {
         texts.push(await card.getText());
       }
       return (
-        metaText.includes('1 高亮') &&
+        metaText.includes('2 高亮') &&
         metaText.includes('1 笔记') &&
+        cards.length === 3 &&
         texts.some((text) => text.includes('desktop fb2 note body')) &&
-        texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20)))
+        texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20))) &&
+        texts.some((text) => text.includes('高亮') && text.includes(secondSelectionText.slice(0, 20)))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the FB2 desktop notes workspace to show one highlight and one note'
+      timeoutMsg: 'expected the FB2 desktop notes workspace to show two highlights and one note'
     });
 
     const notesStorageKey = `br1.reader.notes:${currentFilePath}`;
@@ -4017,10 +4052,14 @@ describe('br1 desktop app', () => {
       try {
         const persistedNotes = await loadReaderNotesOnDisk(notesStorageKey);
         return (
-          persistedNotes.length === 2 &&
+          persistedNotes.length === 3 &&
           persistedNotes.some(
             (note) =>
               note.kind === 'highlight' && (note.text ?? '').includes(firstSelectionText.slice(0, 20))
+          ) &&
+          persistedNotes.some(
+            (note) =>
+              note.kind === 'highlight' && (note.text ?? '').includes(secondSelectionText.slice(0, 20))
           ) &&
           persistedNotes.some((note) => note.kind === 'note' && note.note === 'desktop fb2 note body')
         );
@@ -4033,10 +4072,10 @@ describe('br1 desktop app', () => {
     });
 
     const persistedNotes = await loadReaderNotesOnDisk(notesStorageKey);
-    const persistedHighlight = persistedNotes.find((note) => note.kind === 'highlight');
+    const persistedHighlights = persistedNotes.filter((note) => note.kind === 'highlight');
     const persistedNote = persistedNotes.find((note) => note.kind === 'note');
-    if (!persistedHighlight?.text || !persistedNote?.note) {
-      throw new Error('expected persisted FB2 notes to include both a highlight and a note body');
+    if (persistedHighlights.length !== 2 || persistedHighlights.some((note) => !note.text) || !persistedNote?.note) {
+      throw new Error('expected persisted FB2 notes to include two highlights and one note body');
     }
 
     await browser.closeWindow();
@@ -4053,14 +4092,16 @@ describe('br1 desktop app', () => {
         texts.push(await card.getText());
       }
       return (
-        metaText.includes('1 高亮') &&
+        metaText.includes('2 高亮') &&
         metaText.includes('1 笔记') &&
+        cards.length === 3 &&
         texts.some((text) => text.includes(persistedNote.note!)) &&
-        texts.some((text) => text.includes('高亮') && text.includes(persistedHighlight.text!.slice(0, 20)))
+        texts.some((text) => text.includes('高亮') && text.includes(firstSelectionText.slice(0, 20))) &&
+        texts.some((text) => text.includes('高亮') && text.includes(secondSelectionText.slice(0, 20)))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the FB2 desktop notes workspace to persist both the highlight and the note after reopen'
+      timeoutMsg: 'expected the FB2 desktop notes workspace to persist both highlights and the note after reopen'
     }).catch(async (error) => {
       const metaRow = await $('.notes-meta-row');
       const metaText = await metaRow.getText();
@@ -4087,13 +4128,13 @@ describe('br1 desktop app', () => {
 
       return (
         metaText.includes('仅看高亮') &&
-        cards.length === 1 &&
-        texts[0]?.includes('高亮') &&
-        texts[0]?.includes(persistedHighlight.text!.slice(0, 20))
+        cards.length === 2 &&
+        texts.some((text) => text.includes(firstSelectionText.slice(0, 20))) &&
+        texts.some((text) => text.includes(secondSelectionText.slice(0, 20)))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the FB2 desktop notes workspace to filter down to the persisted highlight only'
+      timeoutMsg: 'expected the FB2 desktop notes workspace to filter down to the persisted highlights only'
     });
 
     await clickAnnotationKindFilter('笔记');
@@ -4120,7 +4161,7 @@ describe('br1 desktop app', () => {
     await browser.waitUntil(async () => {
       const metaText = await $('.notes-meta-row').getText();
       const cards = await $$('.note-card');
-      return metaText.includes('全部类型') && cards.length === 2;
+      return metaText.includes('全部类型') && cards.length === 3;
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the FB2 desktop notes workspace to restore the full annotation list after clearing the kind filter'
@@ -4137,16 +4178,64 @@ describe('br1 desktop app', () => {
         texts.push(await card.getText());
       }
       return (
-        panelText.includes('已保存 1 条高亮') &&
-        cards.length === 1 &&
-        texts[0]?.includes('高亮') &&
-        texts[0]?.includes(persistedHighlight.text!.slice(0, 20)) &&
-        !texts[0]?.includes(persistedNote.note!)
+        panelText.includes('已保存 2 条高亮') &&
+        cards.length === 2 &&
+        texts.some((text) => text.includes(firstSelectionText.slice(0, 20))) &&
+        texts.some((text) => text.includes(secondSelectionText.slice(0, 20))) &&
+        texts.every((text) => !text.includes(persistedNote.note!))
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the FB2 desktop highlights workspace to isolate the persisted highlight from the mixed notes list'
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to isolate the persisted highlights from the mixed notes list'
     });
+
+    await clickHighlightsSortControl('最早添加');
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const firstText = cards.length ? await cards[0].getText() : '';
+      return panelText.includes('最早添加优先') && firstText.includes(firstSelectionText.slice(0, 20));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to switch to oldest-first ordering before selecting a highlight'
+    });
+
+    await toggleFirstHighlightSelection();
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const firstToggle = document.querySelector('.highlight-selection-toggle');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstToggleText: firstToggle?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return state.panelText.includes('已选 1 条') && state.firstToggleText.includes('已选');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to select one oldest highlight'
+    });
+
+    await deleteSelectedHighlightsInWorkspace();
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const cards = await $$('.highlight-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        panelText.includes('已保存 1 条高亮') &&
+        panelText.includes('未选高亮') &&
+        cards.length === 1 &&
+        texts[0]?.includes(secondSelectionText.slice(0, 20))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to delete only the selected highlight and keep the other one'
+    });
+
+    await clickHighlightsSortControl('最近添加');
 
     await bulkDeleteVisibleHighlightsInWorkspace();
     await browser.waitUntil(async () => {
