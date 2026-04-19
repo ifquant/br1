@@ -5698,6 +5698,27 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 desktop highlights workspace to save the current selection set'
     });
 
+    await selectReaderMenuSetting('reader flow mode', '滚动');
+    await selectReaderMenuSetting('reader font family', '无衬线');
+    await selectReaderMenuSetting('reader font scale', '大');
+    await selectReaderMenuSetting('reader line height', '舒展');
+    await selectReaderMenuSetting('reader page margins', '宽');
+    await browser.waitUntil(async () => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const rendererState = await readDesktopRendererSettings();
+      return (
+        footerText.includes('SCROLL') &&
+        rendererState.flow === 'scrolled' &&
+        rendererState.marginLeft === '44px' &&
+        rendererState.fontSize === '22px' &&
+        rendererState.lineHeightPx > 42 &&
+        rendererState.fontFamily.includes('IBM Plex Sans')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop reader to apply the new layout settings before the reopen check'
+    });
+
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
     await openReaderFromLibraryPath(currentFilePath, libraryHandle);
@@ -5715,6 +5736,24 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the FB2 desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
+    });
+    await browser.waitUntil(async () => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const rendererState = await readDesktopRendererSettings();
+      return (
+        footerText.includes('SCROLL') &&
+        rendererState.flow === 'scrolled' &&
+        rendererState.marginLeft === '44px' &&
+        rendererState.fontSize === '22px' &&
+        rendererState.lineHeightPx > 42 &&
+        rendererState.fontFamily.includes('IBM Plex Sans') &&
+        panelText.includes('1 已选高亮') &&
+        panelText.includes('最早添加优先')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop reader to reopen with both the saved layout settings and the highlights workspace state'
     });
     await browser.waitUntil(async () => {
       const panelText = await $('[aria-label="saved highlight selections"]').getText();
