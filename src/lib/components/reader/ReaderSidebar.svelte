@@ -457,6 +457,18 @@
     selectedHighlightIds = nextSelection;
   };
 
+  const invertHighlightGroupSelection = (notes: typeof sortedHighlights) => {
+    const nextSelection = new Set(selectedHighlightIds);
+    for (const note of notes) {
+      if (nextSelection.has(note.id)) {
+        nextSelection.delete(note.id);
+      } else {
+        nextSelection.add(note.id);
+      }
+    }
+    selectedHighlightIds = nextSelection;
+  };
+
   const deleteHighlightGroup = (notes: typeof sortedHighlights, chapterLabel: string) => {
     if (!notes.length) return;
     const confirmLabel =
@@ -1191,6 +1203,13 @@
                         on:click={() => clearHighlightGroupSelection(group.notes)}
                       >
                         清空本组选择
+                      </button>
+                      <button
+                        type="button"
+                        class="notes-filter-chip"
+                        on:click={() => invertHighlightGroupSelection(group.notes)}
+                      >
+                        反选本组高亮
                       </button>
                       <button
                         type="button"

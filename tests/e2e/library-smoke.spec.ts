@@ -202,7 +202,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);
-  await page.getByRole('button', { name: '反选当前视图高亮' }).click();
+  await page.getByRole('button', { name: '反选本组高亮' }).click();
   await expect(highlightsPanel).toContainText('已选 1 条');
   await expect(highlightCards.first().locator('.highlight-selection-toggle')).toHaveText('选中');
   await expect(highlightCards.nth(1).locator('.highlight-selection-toggle')).toHaveText('已选');

@@ -239,7 +239,9 @@ describe('br1 desktop app', () => {
     });
   };
 
-  const clickHighlightGroupAction = async (label: '选中本组高亮' | '清空本组选择' | '删除本组高亮') => {
+  const clickHighlightGroupAction = async (
+    label: '选中本组高亮' | '清空本组选择' | '反选本组高亮' | '删除本组高亮'
+  ) => {
     await browser.execute((targetLabel) => {
       const panel = document.querySelector('[aria-label="highlights panel preview"]');
       if (!(panel instanceof HTMLElement)) {
@@ -3241,7 +3243,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to select one oldest highlight'
     });
 
-    await invertVisibleHighlightsSelectionInWorkspace();
+    await clickHighlightGroupAction('反选本组高亮');
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
         const panel = document.querySelector('[aria-label="highlights panel preview"]');
@@ -3739,7 +3741,7 @@ describe('br1 desktop app', () => {
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the EPUB desktop highlights workspace to invert the current selection before deleting'
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to invert the current group selection before deleting'
     });
 
     await deleteSelectedHighlightsInWorkspace();
