@@ -3920,6 +3920,27 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to save the current selection set'
     });
+    await browser.execute(() => {
+      window.prompt = () => 'Desktop EPUB 重命名高亮';
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const renameButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '重命名'
+      );
+      if (!(renameButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection rename button to exist');
+      }
+      renameButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      return panelText.includes('Desktop EPUB 重命名高亮') && !panelText.includes('Desktop EPUB 重点高亮');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to rename the saved selection set'
+    });
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
@@ -3941,7 +3962,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const panelText = await $('[aria-label="saved highlight selections"]').getText();
-      return panelText.includes('Desktop EPUB 重点高亮') && panelText.includes('1 条高亮');
+      return panelText.includes('Desktop EPUB 重命名高亮') && panelText.includes('1 条高亮');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the saved selection set after reopening the book'
@@ -4032,7 +4053,7 @@ describe('br1 desktop app', () => {
       const savedPanels = await $$('[aria-label="saved highlight selections"]');
       if (!savedPanels.length) return true;
       const panelText = await savedPanels[0].getText();
-      return !panelText.includes('Desktop EPUB 重点高亮');
+      return !panelText.includes('Desktop EPUB 重命名高亮');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to delete the saved selection set'

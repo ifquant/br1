@@ -570,6 +570,22 @@
     highlightsFilter = 'selected';
   };
 
+  const renameSavedHighlightSelection = (selectionId: string) => {
+    const selectionSet = savedHighlightSelections.find((set) => set.id === selectionId);
+    if (!selectionSet) return;
+    const rawName = window.prompt('重命名保存的高亮选择集', selectionSet.name);
+    const name = rawName?.trim();
+    if (!name || name === selectionSet.name) return;
+    savedHighlightSelections = savedHighlightSelections.map((set) =>
+      set.id === selectionId
+        ? {
+            ...set,
+            name
+          }
+        : set
+    );
+  };
+
   const deleteSavedHighlightSelection = (selectionId: string) => {
     const selectionSet = savedHighlightSelections.find((set) => set.id === selectionId);
     if (!selectionSet) return;
@@ -1350,6 +1366,13 @@
                           on:click={() => applySavedHighlightSelection(selectionSet)}
                         >
                           套用
+                        </button>
+                        <button
+                          type="button"
+                          class="notes-filter-chip"
+                          on:click={() => renameSavedHighlightSelection(selectionSet.id)}
+                        >
+                          重命名
                         </button>
                         <button
                           type="button"
