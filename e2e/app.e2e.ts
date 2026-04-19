@@ -4417,7 +4417,8 @@ describe('br1 desktop app', () => {
       });
       return (
         state.panelText.includes('已导入跨书选择集：Desktop EPUB 重命名高亮 (2)（1/1）') &&
-        state.firstCardText.includes('Desktop EPUB 重命名高亮 (2)')
+        state.firstCardText.includes('Desktop EPUB 重命名高亮 (2)') &&
+        state.firstCardText.includes('跨书导入 · Other EPUB Book · 1/1')
       );
     }, {
       timeout: 10000,

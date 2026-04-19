@@ -157,10 +157,26 @@
     );
     savedHighlightSelections = Array.isArray(state.savedSelections)
       ? state.savedSelections
-          .map((set: unknown) => {
+          .map((set: unknown): ReaderHighlightSelectionSet | null => {
             if (!set || typeof set !== 'object') return null;
             const candidate = set as Partial<ReaderHighlightSelectionSet>;
             if (typeof candidate.id !== 'string' || typeof candidate.name !== 'string') return null;
+            const importSource =
+              candidate.importSource &&
+              typeof candidate.importSource === 'object' &&
+              typeof (candidate.importSource as { bookTitle?: unknown }).bookTitle === 'string' &&
+              typeof (candidate.importSource as { formatLabel?: unknown }).formatLabel === 'string' &&
+              typeof (candidate.importSource as { matchedCount?: unknown }).matchedCount === 'number' &&
+              typeof (candidate.importSource as { totalCount?: unknown }).totalCount === 'number' &&
+              typeof (candidate.importSource as { importedAt?: unknown }).importedAt === 'number'
+                ? {
+                    bookTitle: (candidate.importSource as { bookTitle: string }).bookTitle,
+                    formatLabel: (candidate.importSource as { formatLabel: string }).formatLabel,
+                    matchedCount: (candidate.importSource as { matchedCount: number }).matchedCount,
+                    totalCount: (candidate.importSource as { totalCount: number }).totalCount,
+                    importedAt: (candidate.importSource as { importedAt: number }).importedAt
+                  }
+                : null;
             return {
               id: candidate.id,
               name: candidate.name,
@@ -170,8 +186,9 @@
               createdAt:
                 typeof candidate.createdAt === 'number' && Number.isFinite(candidate.createdAt)
                   ? candidate.createdAt
-                  : Date.now()
-            } satisfies ReaderHighlightSelectionSet;
+                  : Date.now(),
+              ...(importSource ? { importSource } : {})
+            };
           })
           .filter((set): set is ReaderHighlightSelectionSet => !!set)
       : [];
@@ -832,7 +849,14 @@
         id: `selection-import-cross-book-${Date.now()}`,
         name: importedName,
         selectedIds: [...savedHighlightSelectionImportPreview.importedIds],
-        createdAt: savedHighlightSelectionImportPreview.selectionCreatedAt
+        createdAt: savedHighlightSelectionImportPreview.selectionCreatedAt,
+        importSource: {
+          bookTitle: savedHighlightSelectionImportPreview.sourceBookTitle,
+          formatLabel: savedHighlightSelectionImportPreview.sourceFormatLabel,
+          matchedCount: savedHighlightSelectionImportPreview.matchedCount,
+          totalCount: savedHighlightSelectionImportPreview.totalCount,
+          importedAt: Date.now()
+        }
       },
       ...savedHighlightSelections
     ];
@@ -1661,6 +1685,11 @@
                       <div class="saved-highlight-selection-copy">
                         <strong>{selectionSet.name}</strong>
                         <span>{selectionSet.selectedIds.length} 条高亮</span>
+                        {#if selectionSet.importSource}
+                          <span class="saved-highlight-selection-origin">
+                            跨书导入 · {selectionSet.importSource.bookTitle} · {selectionSet.importSource.matchedCount}/{selectionSet.importSource.totalCount}
+                          </span>
+                        {/if}
                         <time>{formatTimestamp(selectionSet.createdAt)}</time>
                       </div>
                       <div class="saved-highlight-selection-actions">
@@ -2779,6 +2808,10 @@
   .saved-highlight-selection-copy time {
     color: var(--text-secondary);
     font-size: 12px;
+  }
+
+  .saved-highlight-selection-origin {
+    color: var(--text-primary);
   }
 
   .saved-highlight-selection-actions {
