@@ -2,6 +2,9 @@
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type {
+    ReaderHighlightsFilter,
+    ReaderHighlightsSort,
+    ReaderHighlightsWorkspaceState,
     ReaderBookmarksState,
     ReaderPreviewState,
     ReaderSearchConfig,
@@ -12,12 +15,18 @@
     SidebarTab
   } from '$lib/reader';
   import { getTextAnnotationSupportMessage, supportsTextAnnotationsForFormat } from '$lib/reader/formats';
+  import {
+    canPersistReaderHighlightsWorkspaceState,
+    loadReaderHighlightsWorkspaceState,
+    saveReaderHighlightsWorkspaceState
+  } from '$lib/services';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
   export let isWindowMode = false;
   export let isPinned = true;
   export let activeTab: SidebarTab = 'toc';
+  export let bookKey = '';
   export let coverUrl = '';
   export let preview: ReaderPreviewState = {
     title: 'Bridge Reader',
@@ -89,16 +98,86 @@
   let bookMenuOpen = false;
   let notesFilter: 'all' | 'chapter' = 'all';
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
-  let highlightsFilter: 'all' | 'chapter' | 'selected' = 'all';
-  let highlightsSort: 'recent' | 'oldest' = 'recent';
+  let highlightsFilter: ReaderHighlightsFilter = 'all';
+  let highlightsSort: ReaderHighlightsSort = 'recent';
   let selectedHighlightIds = new Set<string>();
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
   let collapsedNoteGroups = new Set<string>();
   let collapsedHighlightGroups = new Set<string>();
+  let highlightsWorkspaceHydratedKey = '';
+  let highlightsWorkspaceLoadToken = 0;
   $: supportsTextAnnotations = supportsTextAnnotationsForFormat(preview.formatLabel);
   $: textAnnotationSupportMessage = getTextAnnotationSupportMessage(preview.formatLabel);
+  $: highlightsWorkspaceStorageKey = bookKey ? `br1.reader.highlights.workspace:${bookKey}` : '';
+
+  const applyDefaultHighlightsWorkspaceState = () => {
+    highlightsFilter = 'all';
+    highlightsSort = 'recent';
+    selectedHighlightIds = new Set();
+  };
+
+  const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
+    if (!state) {
+      applyDefaultHighlightsWorkspaceState();
+      return;
+    }
+
+    highlightsFilter = state.filter === 'chapter' || state.filter === 'selected' ? state.filter : 'all';
+    highlightsSort = state.sort === 'oldest' ? 'oldest' : 'recent';
+    selectedHighlightIds = new Set(
+      Array.isArray(state.selectedIds)
+        ? state.selectedIds.filter((id: unknown): id is string => typeof id === 'string')
+        : []
+    );
+  };
+
+  $: if (!highlightsWorkspaceStorageKey) {
+    highlightsWorkspaceHydratedKey = '';
+  } else if (highlightsWorkspaceHydratedKey !== highlightsWorkspaceStorageKey) {
+    const token = ++highlightsWorkspaceLoadToken;
+    void (async () => {
+      try {
+        if (canPersistReaderHighlightsWorkspaceState()) {
+          const persisted = await loadReaderHighlightsWorkspaceState(bookKey);
+          if (token !== highlightsWorkspaceLoadToken) return;
+          applyPersistedHighlightsWorkspaceState(persisted);
+        } else if (typeof localStorage !== 'undefined') {
+          const raw = localStorage.getItem(highlightsWorkspaceStorageKey);
+          if (token !== highlightsWorkspaceLoadToken) return;
+          applyPersistedHighlightsWorkspaceState(
+            raw ? (JSON.parse(raw) as ReaderHighlightsWorkspaceState) : null
+          );
+        } else {
+          if (token !== highlightsWorkspaceLoadToken) return;
+          applyDefaultHighlightsWorkspaceState();
+        }
+      } catch (error) {
+        console.warn('Failed to restore highlights workspace state', error);
+        if (token !== highlightsWorkspaceLoadToken) return;
+        applyDefaultHighlightsWorkspaceState();
+      }
+
+      highlightsWorkspaceHydratedKey = highlightsWorkspaceStorageKey;
+    })();
+  }
+
+  $: if (highlightsWorkspaceStorageKey && highlightsWorkspaceHydratedKey === highlightsWorkspaceStorageKey) {
+    const state: ReaderHighlightsWorkspaceState = {
+      filter: highlightsFilter,
+      sort: highlightsSort,
+      selectedIds: Array.from(selectedHighlightIds)
+    };
+
+    if (canPersistReaderHighlightsWorkspaceState()) {
+      void saveReaderHighlightsWorkspaceState(bookKey, state).catch((error) => {
+        console.warn('Failed to persist highlights workspace state', error);
+      });
+    } else if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(highlightsWorkspaceStorageKey, JSON.stringify(state));
+    }
+  }
 
   const scrollActiveIntoView = async () => {
     if (activeTab !== 'toc') return;
@@ -345,10 +424,12 @@
     }
   }
   $: {
-    const visibleHighlightIds = new Set(allHighlights.map((note) => note.id));
-    const nextSelection = new Set(Array.from(selectedHighlightIds).filter((id) => visibleHighlightIds.has(id)));
-    if (nextSelection.size !== selectedHighlightIds.size) {
-      selectedHighlightIds = nextSelection;
+    if (allHighlights.length > 0) {
+      const visibleHighlightIds = new Set(allHighlights.map((note) => note.id));
+      const nextSelection = new Set(Array.from(selectedHighlightIds).filter((id) => visibleHighlightIds.has(id)));
+      if (nextSelection.size !== selectedHighlightIds.size) {
+        selectedHighlightIds = nextSelection;
+      }
     }
   }
   $: areAllHighlightGroupsExpanded =

@@ -29,6 +29,7 @@ pub fn run() {
     builder
         .invoke_handler(tauri::generate_handler![
             commands::bookmarks::load_reader_bookmarks,
+            commands::highlights_workspace::load_reader_highlights_workspace_state,
             commands::library::load_library_books,
             commands::library::load_library_book_binary,
             commands::library::load_library_file_fingerprint,
@@ -42,6 +43,7 @@ pub fn run() {
             commands::library::import_readest_library,
             commands::library::queue_associated_book_open_requests,
             commands::bookmarks::save_reader_bookmarks,
+            commands::highlights_workspace::save_reader_highlights_workspace_state,
             commands::notes::save_reader_notes,
             commands::search_cache::save_reader_search_cache,
             commands::library::update_library_reading_state

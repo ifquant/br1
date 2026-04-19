@@ -372,6 +372,7 @@
         {toc}
         {activeHref}
         {isWindowMode}
+        bookKey={readerBookKey}
         coverUrl={currentCoverUrl}
         preview={currentPreview}
         isPinned={$sidebarState.pinned}

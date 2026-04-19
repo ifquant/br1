@@ -5,6 +5,11 @@ export {
   openReaderTarget
 } from './readerWindow';
 export { canPersistReaderBookmarks, loadReaderBookmarks, saveReaderBookmarks } from './readerBookmarks';
+export {
+  canPersistReaderHighlightsWorkspaceState,
+  loadReaderHighlightsWorkspaceState,
+  saveReaderHighlightsWorkspaceState
+} from './readerHighlightsWorkspace';
 export { canPersistReaderNotes, loadReaderNotes, saveReaderNotes } from './readerNotes';
 export {
   clearReaderSearchCache,

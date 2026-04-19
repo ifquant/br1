@@ -22,6 +22,14 @@ export type ReaderPreviewState = {
 export type ReaderViewWidthMode = 'focus' | 'standard' | 'wide';
 export type ReaderChromeMode = 'auto' | 'always';
 export type ReaderAtmosphereMode = 'paper' | 'warm' | 'soft';
+export type ReaderHighlightsFilter = 'all' | 'chapter' | 'selected';
+export type ReaderHighlightsSort = 'recent' | 'oldest';
+
+export type ReaderHighlightsWorkspaceState = {
+  filter: ReaderHighlightsFilter;
+  sort: ReaderHighlightsSort;
+  selectedIds: string[];
+};
 
 export type SidebarTab = 'toc' | 'search' | 'bookmarks' | 'highlights' | 'notes';
 

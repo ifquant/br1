@@ -175,3 +175,19 @@ pub(crate) const READER_SEARCH_CACHE_MAX_FILES_PER_BOOK: usize = 48;
 pub(crate) const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
 pub(crate) const READER_BOOKMARKS_SCHEMA_VERSION: u8 = 1;
 pub(crate) const READER_NOTES_SCHEMA_VERSION: u8 = 1;
+pub(crate) const READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION: u8 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderHighlightsWorkspaceStateRecord {
+    pub(crate) filter: String,
+    pub(crate) sort: String,
+    pub(crate) selected_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderHighlightsWorkspaceEntry {
+    pub(crate) schema_version: u8,
+    pub(crate) state: ReaderHighlightsWorkspaceStateRecord,
+}

@@ -3243,6 +3243,97 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to select one oldest highlight'
     });
 
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '已选高亮'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the selected-only highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const cards = Array.from(document.querySelectorAll('.highlight-card'));
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          cardCount: cards.length,
+          firstText: cards[0]?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('1 已选高亮') &&
+        state.panelText.includes('最早添加优先') &&
+        state.cardCount === 1 &&
+        state.firstText.includes('plain text file exists')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to enter the selected-only view before closing the book'
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
+    await clickReaderSidebarTab('高亮');
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const cards = Array.from(document.querySelectorAll('.highlight-card'));
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          cardCount: cards.length,
+          firstText: cards[0]?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('1 已选高亮') &&
+        state.panelText.includes('最早添加优先') &&
+        state.cardCount === 1 &&
+        state.firstText.includes('plain text file exists')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
+    });
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected highlights filter controls to exist');
+      }
+      const target = Array.from(controls.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '全部'
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error('expected the all-highlights filter button to exist');
+      }
+      target.click();
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const cards = Array.from(document.querySelectorAll('.highlight-card'));
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          cardCount: cards.length
+        };
+      });
+      return (
+        state.panelText.includes('已保存 2 条高亮') &&
+        state.panelText.includes('最早添加优先') &&
+        state.cardCount === 2
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop highlights workspace to return to the all-highlights view before running group actions'
+    });
+
     await clickHighlightGroupAction('反选本组高亮');
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {

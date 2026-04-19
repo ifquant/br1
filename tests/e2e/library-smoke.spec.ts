@@ -199,6 +199,12 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(highlightsPanel).toContainText('1 已选高亮');
   await expect(highlightCards).toHaveCount(1);
   await expect(highlightCards.first()).toContainText('plain text file exists');
+  await page.reload();
+  await page.getByRole('tab', { name: '高亮' }).click();
+  await expect(highlightsPanel).toContainText('1 已选高亮');
+  await expect(highlightsPanel).toContainText('最早添加优先');
+  await expect(highlightCards).toHaveCount(1);
+  await expect(highlightCards.first()).toContainText('plain text file exists');
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);
