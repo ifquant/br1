@@ -112,10 +112,13 @@
   let savedHighlightSelectionImportNotice = '';
   let savedHighlightSelectionImportPreview:
     | {
+        selectionName: string;
+        selectionCreatedAt: number;
         sourceBookTitle: string;
         sourceFormatLabel: string;
         matchedCount: number;
         totalCount: number;
+        importedIds: string[];
         unmatchedTexts: string[];
       }
     | null = null;
@@ -786,10 +789,13 @@
     const resolution = resolveImportedHighlightIds(parsed);
     if (parsed.bookKey !== bookKey) {
       savedHighlightSelectionImportPreview = {
+        selectionName: parsed.selectionSet.name,
+        selectionCreatedAt: parsed.selectionSet.createdAt,
         sourceBookTitle: parsed.bookTitle,
         sourceFormatLabel: parsed.formatLabel,
         matchedCount: resolution.importedIds.length,
         totalCount: parsed.highlights.length,
+        importedIds: resolution.importedIds,
         unmatchedTexts: resolution.unmatchedTexts.slice(0, 3)
       };
       savedHighlightSelectionImportNotice = `跨书预检：可映射 ${resolution.importedIds.length}/${parsed.highlights.length} 条高亮，当前还不能直接导入`;
@@ -814,6 +820,23 @@
       ...savedHighlightSelections
     ];
     savedHighlightSelectionImportNotice = `已导入选择集：${importedName}`;
+    savedHighlightSelectionImportPreview = null;
+  };
+
+  const importMatchedHighlightsFromPreview = () => {
+    if (!savedHighlightSelectionImportPreview?.importedIds.length) return;
+
+    const importedName = createImportedSelectionSetName(savedHighlightSelectionImportPreview.selectionName);
+    savedHighlightSelections = [
+      {
+        id: `selection-import-cross-book-${Date.now()}`,
+        name: importedName,
+        selectedIds: [...savedHighlightSelectionImportPreview.importedIds],
+        createdAt: savedHighlightSelectionImportPreview.selectionCreatedAt
+      },
+      ...savedHighlightSelections
+    ];
+    savedHighlightSelectionImportNotice = `已导入跨书选择集：${importedName}（${savedHighlightSelectionImportPreview.matchedCount}/${savedHighlightSelectionImportPreview.totalCount}）`;
     savedHighlightSelectionImportPreview = null;
   };
 
@@ -1604,10 +1627,23 @@
               {/if}
               {#if savedHighlightSelectionImportPreview}
                 <section class="saved-highlight-selection-import-preview" aria-label="saved highlight selection import preview">
-                  <div class="saved-highlight-selection-import-preview-copy">
-                    <strong>跨书兼容预检</strong>
-                    <span>来源：{savedHighlightSelectionImportPreview.sourceBookTitle} · {savedHighlightSelectionImportPreview.sourceFormatLabel}</span>
-                    <span>当前书可映射 {savedHighlightSelectionImportPreview.matchedCount} / {savedHighlightSelectionImportPreview.totalCount} 条高亮</span>
+                  <div class="saved-highlight-selection-import-preview-head">
+                    <div class="saved-highlight-selection-import-preview-copy">
+                      <strong>跨书兼容预检</strong>
+                      <span>来源：{savedHighlightSelectionImportPreview.sourceBookTitle} · {savedHighlightSelectionImportPreview.sourceFormatLabel}</span>
+                      <span>当前书可映射 {savedHighlightSelectionImportPreview.matchedCount} / {savedHighlightSelectionImportPreview.totalCount} 条高亮</span>
+                    </div>
+                    {#if savedHighlightSelectionImportPreview.importedIds.length}
+                      <div class="saved-highlight-selection-import-preview-actions">
+                        <button
+                          type="button"
+                          class="notes-filter-chip"
+                          on:click={importMatchedHighlightsFromPreview}
+                        >
+                          导入已匹配高亮
+                        </button>
+                      </div>
+                    {/if}
                   </div>
                   {#if savedHighlightSelectionImportPreview.unmatchedTexts.length}
                     <ul class="saved-highlight-selection-import-preview-list">
@@ -2674,9 +2710,23 @@
     background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
   }
 
+  .saved-highlight-selection-import-preview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .saved-highlight-selection-import-preview-copy {
     display: grid;
     gap: 2px;
+  }
+
+  .saved-highlight-selection-import-preview-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .saved-highlight-selection-import-preview-copy strong {

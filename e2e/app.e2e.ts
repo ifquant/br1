@@ -4214,7 +4214,8 @@ describe('br1 desktop app', () => {
       },
       highlights: JSON.parse(exportedSelectionPayload).highlights.map((highlight: Record<string, unknown>) => ({
         ...highlight,
-        text: 'missing highlight text anchor'
+        cfi: 'epubcfi(/6/missing)',
+        chapterHref: '/missing-chapter.xhtml'
       }))
     });
     await browser.execute(() => {
@@ -4384,14 +4385,43 @@ describe('br1 desktop app', () => {
         };
       });
       return (
-        state.panelText.includes('跨书预检：可映射 0/1 条高亮') &&
+        state.panelText.includes('跨书预检：可映射 1/1 条高亮') &&
         state.previewText.includes('来源：Other EPUB Book · EPUB') &&
-        state.previewText.includes('当前书可映射 0 / 1 条高亮') &&
-        state.previewText.includes('missing highlight text anchor')
+        state.previewText.includes('当前书可映射 1 / 1 条高亮')
       );
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to show a cross-book compatibility preview instead of importing immediately'
+    });
+    await browser.execute(() => {
+      const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+      if (!(preview instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selection import preview to exist');
+      }
+      const importButton = Array.from(preview.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导入已匹配高亮'
+      );
+      if (!(importButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the import-matched-highlights button to exist');
+      }
+      importButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const firstCard = panel?.querySelector('.saved-highlight-selection-card');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('已导入跨书选择集：Desktop EPUB 重命名高亮 (2)（1/1）') &&
+        state.firstCardText.includes('Desktop EPUB 重命名高亮 (2)')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to import the matched subset from the foreign-book preview'
     });
 
     await browser.execute(() => {

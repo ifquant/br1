@@ -264,7 +264,8 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     },
     highlights: JSON.parse(exportedPayload).highlights.map((highlight: Record<string, unknown>) => ({
       ...highlight,
-      text: 'missing highlight text anchor'
+      cfi: 'epubcfi(/6/missing)',
+      chapterHref: '/missing-chapter.xhtml'
     }))
   });
   await exportPreview.getByRole('button', { name: '关闭' }).click();
@@ -286,11 +287,13 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(highlightsPanel).toContainText('1 已选高亮');
   page.once('dialog', (dialog) => dialog.accept(crossBookPreviewPayload));
   await savedSelectionPanel.getByRole('button', { name: '导入' }).click();
-  await expect(savedSelectionPanel).toContainText('跨书预检：可映射 0/1 条高亮');
+  await expect(savedSelectionPanel).toContainText('跨书预检：可映射 1/1 条高亮');
   const importPreview = page.getByLabel('saved highlight selection import preview');
   await expect(importPreview).toContainText('来源：Other TXT Book · TXT');
-  await expect(importPreview).toContainText('当前书可映射 0 / 1 条高亮');
-  await expect(importPreview).toContainText('missing highlight text anchor');
+  await expect(importPreview).toContainText('当前书可映射 1 / 1 条高亮');
+  await importPreview.getByRole('button', { name: '导入已匹配高亮' }).click();
+  await expect(savedSelectionPanel).toContainText('已导入跨书选择集：Web TXT 重命名高亮 (2)（1/1）');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮 (2)');
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);
