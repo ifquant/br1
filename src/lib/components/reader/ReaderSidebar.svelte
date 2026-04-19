@@ -110,6 +110,14 @@
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
   let exportHighlightSelectionNotice = '';
   let savedHighlightSelectionImportNotice = '';
+  let savedHighlightSelectionRefreshSummary:
+    | {
+        refreshedCount: number;
+        fullMatches: string[];
+        partialMatches: Array<{ name: string; matchedCount: number; totalCount: number }>;
+        missedMatches: Array<{ name: string; totalCount: number }>;
+      }
+    | null = null;
   let savedHighlightSelectionImportPreview:
     | {
         selectionName: string;
@@ -142,6 +150,12 @@
     selectedHighlightIds = new Set();
     savedHighlightSelections = [];
   };
+
+  const buildRefreshOutcome = (name: string, matchedCount: number, totalCount: number) => ({
+    name,
+    matchedCount,
+    totalCount
+  });
 
   const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
     if (!state) {
@@ -840,6 +854,7 @@
   };
 
   const importSavedHighlightSelection = () => {
+    savedHighlightSelectionRefreshSummary = null;
     const rawPayload = window.prompt('粘贴导出的高亮选择集 JSON');
     const payload = rawPayload?.trim();
     if (!payload) return;
@@ -900,6 +915,7 @@
   };
 
   const importMatchedHighlightsFromPreview = () => {
+    savedHighlightSelectionRefreshSummary = null;
     const preview = savedHighlightSelectionImportPreview;
     if (!preview?.importedIds.length) return;
 
@@ -984,12 +1000,25 @@
         : candidate
     );
     savedHighlightSelectionImportNotice = `已刷新跨书选择集：${selectionSet.name}（${resolution.importedIds.length}/${importSource.totalCount}）`;
+    savedHighlightSelectionRefreshSummary = {
+      refreshedCount: 1,
+      fullMatches: resolution.importedIds.length === importSource.totalCount ? [selectionSet.name] : [],
+      partialMatches:
+        resolution.importedIds.length > 0 && resolution.importedIds.length < importSource.totalCount
+          ? [buildRefreshOutcome(selectionSet.name, resolution.importedIds.length, importSource.totalCount)]
+          : [],
+      missedMatches:
+        resolution.importedIds.length === 0 ? [{ name: selectionSet.name, totalCount: importSource.totalCount }] : []
+    };
   };
 
   const refreshAllCrossBookImportedSelections = () => {
     if (!importedSavedHighlightSelections.length) return;
 
     let refreshedCount = 0;
+    const fullMatches: string[] = [];
+    const partialMatches: Array<{ name: string; matchedCount: number; totalCount: number }> = [];
+    const missedMatches: Array<{ name: string; totalCount: number }> = [];
     savedHighlightSelections = savedHighlightSelections.map((selectionSet) => {
       const importSource = selectionSet.importSource;
       if (!importSource) return selectionSet;
@@ -1011,6 +1040,13 @@
       });
 
       refreshedCount += 1;
+      if (resolution.importedIds.length === importSource.totalCount) {
+        fullMatches.push(selectionSet.name);
+      } else if (resolution.importedIds.length === 0) {
+        missedMatches.push({ name: selectionSet.name, totalCount: importSource.totalCount });
+      } else {
+        partialMatches.push(buildRefreshOutcome(selectionSet.name, resolution.importedIds.length, importSource.totalCount));
+      }
       return {
         ...selectionSet,
         selectedIds: resolution.importedIds,
@@ -1025,6 +1061,12 @@
 
     savedHighlightSelectionImportNotice =
       refreshedCount === 1 ? '已刷新 1 组跨书选择集' : `已刷新 ${refreshedCount} 组跨书选择集`;
+    savedHighlightSelectionRefreshSummary = {
+      refreshedCount,
+      fullMatches,
+      partialMatches,
+      missedMatches
+    };
   };
 
   const invertVisibleHighlightsSelection = () => {
@@ -1819,6 +1861,31 @@
               </div>
               {#if savedHighlightSelectionImportNotice}
                 <p class="saved-highlight-selection-import-notice">{savedHighlightSelectionImportNotice}</p>
+              {/if}
+              {#if savedHighlightSelectionRefreshSummary}
+                <section class="saved-highlight-selection-refresh-summary" aria-label="saved highlight selection refresh summary">
+                  <strong>刷新结果</strong>
+                  <span>共处理 {savedHighlightSelectionRefreshSummary.refreshedCount} 组跨书选择集</span>
+                  {#if savedHighlightSelectionRefreshSummary.fullMatches.length}
+                    <span>完全匹配：{savedHighlightSelectionRefreshSummary.fullMatches.join('、')}</span>
+                  {/if}
+                  {#if savedHighlightSelectionRefreshSummary.partialMatches.length}
+                    <span>
+                      部分匹配：
+                      {savedHighlightSelectionRefreshSummary.partialMatches
+                        .map((item) => `${item.name}（${item.matchedCount}/${item.totalCount}）`)
+                        .join('、')}
+                    </span>
+                  {/if}
+                  {#if savedHighlightSelectionRefreshSummary.missedMatches.length}
+                    <span>
+                      未匹配：
+                      {savedHighlightSelectionRefreshSummary.missedMatches
+                        .map((item) => `${item.name}（0/${item.totalCount}）`)
+                        .join('、')}
+                    </span>
+                  {/if}
+                </section>
               {/if}
               {#if savedHighlightSelectionImportPreview}
                 <section class="saved-highlight-selection-import-preview" aria-label="saved highlight selection import preview">
@@ -2909,6 +2976,23 @@
     margin: 0;
     color: var(--text-secondary);
     font-size: 12px;
+  }
+
+  .saved-highlight-selection-refresh-summary {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .saved-highlight-selection-refresh-summary strong {
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.3;
   }
 
   .saved-highlight-selection-import-preview {

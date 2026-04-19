@@ -301,6 +301,10 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel).toContainText('已刷新跨书选择集：Web TXT 重命名高亮（1/2）');
   await savedSelectionPanel.getByRole('button', { name: '刷新全部跨书映射' }).click();
   await expect(savedSelectionPanel).toContainText('已刷新 1 组跨书选择集');
+  const refreshSummary = page.getByLabel('saved highlight selection refresh summary');
+  await expect(refreshSummary).toContainText('共处理 1 组跨书选择集');
+  await expect(refreshSummary).toContainText('部分匹配：');
+  await expect(refreshSummary).toContainText('Web TXT 重命名高亮（1/2）');
   await firstSavedSelectionCard.getByRole('button', { name: '套用' }).click();
   await expect(highlightsPanel).toContainText('1 已选高亮');
   page.once('dialog', (dialog) => dialog.accept(crossBookPreviewPayload));

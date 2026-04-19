@@ -4415,6 +4415,17 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to bulk-refresh imported foreign-book saved selections'
     });
+    await browser.waitUntil(async () => {
+      const summaryText = await $('[aria-label="saved highlight selection refresh summary"]').getText();
+      return (
+        summaryText.includes('共处理 1 组跨书选择集') &&
+        summaryText.includes('部分匹配：') &&
+        summaryText.includes('Desktop EPUB 重命名高亮（1/2）')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop highlights workspace to surface a structured partial-match summary after bulk refresh'
+    });
     await browser.execute((payload) => {
       window.prompt = () => payload;
       const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
