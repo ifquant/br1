@@ -33,6 +33,15 @@ export type ReaderHighlightSelectionSet = {
   createdAt: number;
 };
 
+export type ReaderHighlightSelectionSetExportHighlight = {
+  id: string;
+  cfi: string;
+  text: string;
+  chapterLabel: string;
+  chapterHref: string;
+  createdAt: number;
+};
+
 export type ReaderHighlightSelectionSetExport = {
   schemaVersion: 1;
   bookKey: string;
@@ -41,6 +50,7 @@ export type ReaderHighlightSelectionSetExport = {
   formatLabel: string;
   exportedAt: number;
   selectionSet: ReaderHighlightSelectionSet;
+  highlights: ReaderHighlightSelectionSetExportHighlight[];
 };
 
 export type ReaderHighlightsWorkspaceState = {

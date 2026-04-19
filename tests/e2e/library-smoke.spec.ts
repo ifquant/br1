@@ -239,7 +239,15 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(exportPreview.locator('textarea')).toHaveValue(/"schemaVersion": 1/);
   await expect(exportPreview.locator('textarea')).toHaveValue(/"bookTitle": "Sample TXT Book"/);
   await expect(exportPreview.locator('textarea')).toHaveValue(/"name": "Web TXT 重命名高亮"/);
+  await expect(exportPreview.locator('textarea')).toHaveValue(/"highlights": \[/);
   const exportedPayload = await exportPreview.locator('textarea').inputValue();
+  const importedPayload = JSON.stringify({
+    ...JSON.parse(exportedPayload),
+    selectionSet: {
+      ...JSON.parse(exportedPayload).selectionSet,
+      selectedIds: ['missing-highlight-id']
+    }
+  });
   await exportPreview.getByRole('button', { name: '关闭' }).click();
   await expect(exportPreview).toHaveCount(0);
   await page.getByRole('button', { name: '全部', exact: true }).click();
@@ -251,7 +259,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await firstSavedSelectionCard.getByRole('button', { name: '删除' }).click();
   await expect(page.getByText('Web TXT 重命名高亮')).toHaveCount(0);
   await expect(savedSelectionPanel).toContainText('Web TXT 第二高亮');
-  page.once('dialog', (dialog) => dialog.accept(exportedPayload));
+  page.once('dialog', (dialog) => dialog.accept(importedPayload));
   await savedSelectionPanel.getByRole('button', { name: '导入' }).click();
   await expect(savedSelectionPanel).toContainText('已导入选择集：Web TXT 重命名高亮');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');

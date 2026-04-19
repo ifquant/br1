@@ -4,6 +4,7 @@
   import type {
     ReaderHighlightSelectionSet,
     ReaderHighlightSelectionSetExport,
+    ReaderHighlightSelectionSetExportHighlight,
     ReaderHighlightSelectionSetSort,
     ReaderHighlightsFilter,
     ReaderHighlightsSort,
@@ -591,7 +592,19 @@
     selectionSet: {
       ...selectionSet,
       selectedIds: [...selectionSet.selectedIds]
-    }
+    },
+    highlights: allHighlights
+      .filter((note) => selectionSet.selectedIds.includes(note.id))
+      .map(
+        (note): ReaderHighlightSelectionSetExportHighlight => ({
+          id: note.id,
+          cfi: note.cfi,
+          text: note.text,
+          chapterLabel: note.chapterLabel,
+          chapterHref: note.chapterHref,
+          createdAt: note.createdAt
+        })
+      )
   });
 
   const applySavedHighlightSelection = (selectionSet: ReaderHighlightSelectionSet) => {
@@ -654,6 +667,7 @@
     if (!value || typeof value !== 'object') return false;
     const candidate = value as Partial<ReaderHighlightSelectionSetExport>;
     const selectionSet = candidate.selectionSet as Partial<ReaderHighlightSelectionSet> | undefined;
+    const highlights = candidate.highlights as Partial<ReaderHighlightSelectionSetExportHighlight>[] | undefined;
 
     return (
       candidate.schemaVersion === 1 &&
@@ -667,7 +681,18 @@
       typeof selectionSet.name === 'string' &&
       typeof selectionSet.createdAt === 'number' &&
       Array.isArray(selectionSet.selectedIds) &&
-      selectionSet.selectedIds.every((id) => typeof id === 'string')
+      selectionSet.selectedIds.every((id) => typeof id === 'string') &&
+      Array.isArray(highlights) &&
+      highlights.every(
+        (highlight) =>
+          !!highlight &&
+          typeof highlight.id === 'string' &&
+          typeof highlight.cfi === 'string' &&
+          typeof highlight.text === 'string' &&
+          typeof highlight.chapterLabel === 'string' &&
+          typeof highlight.chapterHref === 'string' &&
+          typeof highlight.createdAt === 'number'
+      )
     );
   };
 
@@ -708,7 +733,22 @@
     }
 
     const validHighlightIds = new Set(allHighlights.map((note) => note.id));
-    const importedIds = parsed.selectionSet.selectedIds.filter((id) => validHighlightIds.has(id));
+    const importedIdSet = new Set(parsed.selectionSet.selectedIds.filter((id) => validHighlightIds.has(id)));
+    if (importedIdSet.size < parsed.selectionSet.selectedIds.length) {
+      for (const exportedHighlight of parsed.highlights) {
+        const matchedHighlight = allHighlights.find(
+          (note) =>
+            note.cfi === exportedHighlight.cfi &&
+            note.text === exportedHighlight.text &&
+            note.chapterHref === exportedHighlight.chapterHref
+        );
+        if (matchedHighlight) {
+          importedIdSet.add(matchedHighlight.id);
+        }
+      }
+    }
+
+    const importedIds = Array.from(importedIdSet);
     if (!importedIds.length) {
       savedHighlightSelectionImportNotice = '导入失败：当前书里找不到这组高亮';
       return;

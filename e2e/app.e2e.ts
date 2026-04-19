@@ -4178,6 +4178,7 @@ describe('br1 desktop app', () => {
         exportState.previewText.includes('Desktop EPUB 重命名高亮') &&
         exportState.payload.includes('"schemaVersion": 1') &&
         exportState.payload.includes('"formatLabel": "EPUB"') &&
+        exportState.payload.includes('"highlights": [') &&
         exportState.payload.includes('"name": "Desktop EPUB 重命名高亮"')
       );
     }, {
@@ -4190,6 +4191,13 @@ describe('br1 desktop app', () => {
         throw new Error('expected the saved selection export payload textarea to exist');
       }
       return payload.value;
+    });
+    const importedSelectionPayload = JSON.stringify({
+      ...JSON.parse(exportedSelectionPayload),
+      selectionSet: {
+        ...JSON.parse(exportedSelectionPayload).selectionSet,
+        selectedIds: ['missing-highlight-id']
+      }
     });
     await browser.execute(() => {
       const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
@@ -4315,7 +4323,7 @@ describe('br1 desktop app', () => {
         throw new Error('expected the saved selection import button to exist');
       }
       importButton.click();
-    }, exportedSelectionPayload);
+    }, importedSelectionPayload);
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
         const panel = document.querySelector('[aria-label="saved highlight selections"]');

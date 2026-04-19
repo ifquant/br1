@@ -34,6 +34,7 @@ export type {
   ReaderBookmarksState,
   ReaderHighlightSelectionSet,
   ReaderHighlightSelectionSetExport,
+  ReaderHighlightSelectionSetExportHighlight,
   ReaderHighlightSelectionSetSort,
   ReaderHighlightsFilter,
   ReaderHighlightsSort,
