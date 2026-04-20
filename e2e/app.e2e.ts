@@ -347,8 +347,7 @@ describe('br1 desktop app', () => {
     }
   ] as const;
 
-  const importDesktopSampleLibraryBooks = async () => {
-    const sourcePaths = sampleLibraryFormats.map((sample) => join(staticSamplesRoot, sample.fileName));
+  const importDesktopLibraryBooks = async (sourcePaths: string[]) => {
     const imported = await browser.executeAsync((filePaths, done) => {
       const tauriInternals = (window as typeof window & {
         __TAURI_INTERNALS__?: {
@@ -400,6 +399,11 @@ describe('br1 desktop app', () => {
       filePath: record.filePath ?? record.file_path ?? '',
       sourcePath: record.sourcePath ?? record.source_path ?? ''
     }));
+  };
+
+  const importDesktopSampleLibraryBooks = async () => {
+    const sourcePaths = sampleLibraryFormats.map((sample) => join(staticSamplesRoot, sample.fileName));
+    return importDesktopLibraryBooks(sourcePaths);
   };
 
   const queueAssociatedBookOpenRequests = async (filePaths: string[]) => {
@@ -794,6 +798,10 @@ describe('br1 desktop app', () => {
         hasImportButton: Array.from(row.querySelectorAll('button')).some(
           (button) => button.textContent?.trim() === '重新导入'
         ),
+        hasRepairAction: Array.from(row.querySelectorAll('button')).some((button) => {
+          const label = button.textContent?.trim() ?? '';
+          return ['重新导入', '修复副本', '重新关联', '重新同步'].includes(label);
+        }),
         hasSourceButton: Array.from(row.querySelectorAll('button')).some(
           (button) => button.textContent?.trim() === '原文件'
         )
@@ -2436,6 +2444,76 @@ describe('br1 desktop app', () => {
     }
   });
 
+  it('repairs a broken local library record by reimporting the same source file without duplicating it', async function () {
+    this.timeout(120000);
+    const sourcePath = join(staticSamplesRoot, 'sample-book.txt');
+    const [importedBook] = await importDesktopLibraryBooks([sourcePath]);
+    expect(importedBook).toBeTruthy();
+    expect(importedBook?.filePath).toBeTruthy();
+
+    const originalRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+    expect(originalRecord).toBeTruthy();
+
+    try {
+      await updateLibraryRecordOnDiskByTitle(importedBook!.title, (record) => ({
+        ...record,
+        progress: '上次读到 41%',
+        status: '继续阅读',
+        progressFraction: 0.41,
+        progressLocation: 'TXT-restore-41',
+        filePath: join(appDataRoot, 'missing-repair-copy.txt'),
+        sourcePath
+      }));
+
+      const libraryHandle = await switchToLibraryWindow();
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const state = await readLibraryEntryStateForTitle(importedBook!.title);
+        return !!state && state.sectionLabel === '待修复书籍' && state.hasRepairAction && !state.hasReaderHref;
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the broken TXT record to move into the repair queue before reimporting it'
+      }).catch(async (error) => {
+        const state = await readLibraryEntryStateForTitle(importedBook!.title);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nLibrary state: ${JSON.stringify(state)}`
+        );
+      });
+
+      const repairedBooks = await importDesktopLibraryBooks([sourcePath]);
+      expect(repairedBooks).toHaveLength(1);
+
+      await browser.switchToWindow(libraryHandle);
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const state = await readLibraryEntryStateForTitle(importedBook!.title);
+        return !!state && state.sectionLabel !== '待修复书籍' && state.hasReaderHref && !state.hasImportButton;
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected reimporting the same TXT source to repair the broken record and return it to the normal reading workflow'
+      });
+
+      const records = await loadLibraryRecordsOnDisk();
+      const matchingRecords = records.filter((record) => {
+        const recordPath = (record.filePath ?? record.file_path ?? '') as string;
+        return (
+          (record.title ?? '') === importedBook!.title &&
+          /\.txt$/i.test(recordPath)
+        );
+      });
+      expect(matchingRecords).toHaveLength(1);
+      expect(matchingRecords[0]?.progressFraction).toBe(0.41);
+      expect(matchingRecords[0]?.progressLocation).toBe('TXT-restore-41');
+      expect(matchingRecords[0]?.filePath).not.toContain('missing-repair-copy');
+    } finally {
+      await updateLibraryRecordOnDiskByTitle(importedBook!.title, () => originalRecord as Record<string, unknown>);
+    }
+  });
+
   it('reopens FB2, MOBI, AZW3, CBZ, and TXT imports with stored restore progress', async function () {
     this.timeout(120000);
     const importedBooks = await importDesktopSampleLibraryBooks();
@@ -3227,6 +3305,7 @@ describe('br1 desktop app', () => {
     await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
     await switchReaderToNotesTab();
     await clearAllReaderNotes();
+    await clearReaderHighlightsWorkspaceStateOnDisk(txtBook!.filePath);
 
     await selectPlainTextInReader('plain text file exists');
     await browser.waitUntil(async () => {
@@ -3237,7 +3316,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT reader to expose the first selected text in the notes workspace'
     });
 
-    const highlightButton = await $('.secondary-note-action');
+    const highlightButton = await $('//button[contains(@class, "secondary-note-action") and not(contains(@class, "danger-action"))]');
     await highlightButton.click();
 
     await browser.waitUntil(async () => {
@@ -3409,6 +3488,56 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop notes workspace to restore the full annotation list after clearing the kind filter'
     });
 
+    await clickAnnotationKindFilter('笔记');
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+
+      return metaText.includes('仅看笔记') && cards.length === 1 && texts[0]?.includes('desktop txt note body');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop notes workspace to isolate the persisted note again before deleting it through the current-view action'
+    });
+
+    await browser.execute(() => {
+      window.confirm = () => true;
+    });
+    const deleteVisibleNotesButton = await $('//button[contains(@class, "secondary-note-action") and normalize-space()="删除当前视图笔记"]');
+    await deleteVisibleNotesButton.click();
+
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      return metaText.includes('0 笔记') && cards.length === 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop notes workspace to delete the currently filtered note view without touching highlights'
+    });
+
+    await clickAnnotationKindFilter('全部类型');
+    await browser.waitUntil(async () => {
+      const metaText = await $('.notes-meta-row').getText();
+      const cards = await $$('.note-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      return (
+        metaText.includes('2 高亮') &&
+        metaText.includes('0 笔记') &&
+        cards.length === 2 &&
+        texts.every((text) => text.includes('高亮')) &&
+        texts.every((text) => !text.includes('desktop txt note body'))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop notes workspace to keep the two highlights after deleting the filtered note view'
+    });
+
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
       const panel = await $('[aria-label="highlights panel preview"]');
@@ -3431,6 +3560,17 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to isolate and sort the persisted highlights ahead of the mixed notes list'
+    }).catch(async (error) => {
+      const panel = await $('[aria-label="highlights panel preview"]');
+      const panelText = await panel.getText();
+      const cards = await $$('.highlight-card');
+      const texts: string[] = [];
+      for (const card of cards) {
+        texts.push(await card.getText());
+      }
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nHighlights panel: ${panelText}\nHighlight cards: ${JSON.stringify(texts)}`
+      );
     });
 
     await browser.execute(() => {
@@ -3505,23 +3645,27 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to switch to oldest-first ordering before selecting a highlight'
     });
     await browser.execute(() => {
-      const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
-      const secondToggle = toggles[1];
-      if (!(secondToggle instanceof HTMLButtonElement)) {
-        throw new Error('expected the newer highlight selection toggle to exist');
+      const firstToggle = document.querySelector<HTMLButtonElement>('.highlight-selection-toggle');
+      if (!(firstToggle instanceof HTMLButtonElement)) {
+        throw new Error('expected the oldest highlight selection toggle to exist');
       }
-      secondToggle.click();
+      firstToggle.click();
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
         const panel = document.querySelector('[aria-label="highlights panel preview"]');
-        const firstToggle = document.querySelector('.highlight-selection-toggle');
+        const toggleLabels = Array.from(document.querySelectorAll('.highlight-selection-toggle')).map((toggle) =>
+          toggle.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        );
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
-          firstToggleText: firstToggle?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+          toggleLabels
         };
       });
-      return state.panelText.includes('已选 1 条') && state.firstToggleText.includes('已选');
+      return (
+        state.panelText.includes('已选 1 条') &&
+        state.toggleLabels.filter((label) => label.includes('已选')).length === 1
+      );
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to select one oldest highlight'
@@ -3797,20 +3941,14 @@ describe('br1 desktop app', () => {
     await clickReaderSidebarTab('笔记');
     await browser.waitUntil(async () => {
       const metaText = await $('.notes-meta-row').getText();
-      const cards = await $$('.note-card');
-      const texts: string[] = [];
-      for (const card of cards) {
-        texts.push(await card.getText());
-      }
       return (
         metaText.includes('0 高亮') &&
-        metaText.includes('1 笔记') &&
-        cards.length === 1 &&
-        texts[0]?.includes('desktop txt note body')
+        metaText.includes('0 笔记') &&
+        (await $$('.note-card')).length === 0
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the TXT desktop notes workspace to keep the persisted note after bulk highlight deletion'
+      timeoutMsg: 'expected the TXT desktop notes workspace to stay empty after deleting the filtered note and all remaining highlights'
     });
 
     await clearAllReaderNotes();
@@ -3855,7 +3993,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB reader to expose the first selected text in the notes workspace'
     });
 
-    const highlightButton = await $('.secondary-note-action');
+    const highlightButton = await $('//button[contains(@class, "secondary-note-action") and not(contains(@class, "danger-action"))]');
     await highlightButton.click();
 
     await browser.waitUntil(async () => {
@@ -5018,7 +5156,7 @@ describe('br1 desktop app', () => {
         );
       });
 
-      const highlightButton = await $('.secondary-note-action');
+      const highlightButton = await $('//button[contains(@class, "secondary-note-action") and not(contains(@class, "danger-action"))]');
       await highlightButton.click();
 
       await browser.waitUntil(async () => {
@@ -5641,7 +5779,7 @@ describe('br1 desktop app', () => {
       );
     });
 
-    const highlightButton = await $('.secondary-note-action');
+    const highlightButton = await $('//button[contains(@class, "secondary-note-action") and not(contains(@class, "danger-action"))]');
     await highlightButton.click();
 
     await browser.waitUntil(async () => {

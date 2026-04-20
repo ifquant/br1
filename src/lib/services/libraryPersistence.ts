@@ -184,6 +184,19 @@ export const selectSystemBookPaths = async (): Promise<string[]> => {
   return Array.isArray(selected) ? selected : [selected];
 };
 
+export const selectSingleSystemBookPath = async (): Promise<string | null> => {
+  requireTauriLibraryRuntime('selectSingleSystemBookPath');
+
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const selected = await open({
+    multiple: false,
+    filters: [{ name: 'Books', extensions: getDesktopBookDialogExtensions() }]
+  });
+
+  if (!selected || Array.isArray(selected)) return null;
+  return selected;
+};
+
 export const importLibraryBooks = async (filePaths: string[]): Promise<PersistedLibraryBook[]> => {
   return invokeTauri<PersistedLibraryBook[]>('import_library_books', {
     filePaths

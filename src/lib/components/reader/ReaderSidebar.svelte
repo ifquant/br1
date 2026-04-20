@@ -608,6 +608,33 @@
     collapsedNoteGroups = new Set(collapsibleGroupKeys);
   };
 
+  const getAnnotationKindLabel = (notes: ReaderSidebarNotesState['notes']) => {
+    const highlightCount = notes.filter((note) => note.kind === 'highlight').length;
+    if (highlightCount === notes.length) return '高亮';
+    if (highlightCount === 0) return '笔记';
+    return '标注';
+  };
+
+  const deleteVisibleNotes = () => {
+    if (!filteredNotes.length) return;
+    const scopeLabel = notesFilter === 'chapter' ? '当前章节' : '当前视图';
+    const kindLabel =
+      notesKindFilter === 'highlight' ? '高亮' : notesKindFilter === 'note' ? '笔记' : '标注';
+    if (!window.confirm(`删除${scopeLabel}中的全部${kindLabel}？`)) return;
+    callbacks.onDeleteNotes?.(filteredNotes.map((note) => note.id));
+  };
+
+  const deleteNoteGroup = (notes: typeof filteredNotes, chapterLabel: string) => {
+    if (!notes.length) return;
+    const kindLabel = getAnnotationKindLabel(notes);
+    const confirmLabel =
+      notes.length === 1
+        ? `删除“${chapterLabel}”里的这条${kindLabel}？`
+        : `删除“${chapterLabel}”里的 ${notes.length} 条${kindLabel}？`;
+    if (!window.confirm(confirmLabel)) return;
+    callbacks.onDeleteNotes?.(notes.map((note) => note.id));
+  };
+
   const toggleHighlightGroup = (chapterHref: string) => {
     if (!chapterHref || chapterHref === '__unknown__') return;
     if (collapsedHighlightGroups.has(chapterHref)) {
@@ -2339,6 +2366,24 @@
               先选中文本
             {/if}
           </button>
+          <button
+            type="button"
+            class="secondary-note-action danger-action"
+            disabled={!filteredNotes.length}
+            on:click={deleteVisibleNotes}
+          >
+            {notesFilter === 'chapter'
+              ? notesKindFilter === 'highlight'
+                ? '删除当前章节高亮'
+                : notesKindFilter === 'note'
+                  ? '删除当前章节笔记'
+                  : '删除当前章节标注'
+              : notesKindFilter === 'highlight'
+                ? '删除当前视图高亮'
+                : notesKindFilter === 'note'
+                  ? '删除当前视图笔记'
+                  : '删除当前视图标注'}
+          </button>
         </div>
 
         <div class="note-list">
@@ -2350,12 +2395,22 @@
                   class="note-group-head"
                   aria-expanded={!isNoteGroupCollapsed(group.chapterHref)}
                   on:click={() => toggleNoteGroup(group.chapterHref)}
-                >
-                  <strong>{group.chapterLabel}</strong>
-                  <span>{group.notes.length} 条 {!isNoteGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
-                </button>
+                  >
+                    <strong>{group.chapterLabel}</strong>
+                    <span>{group.notes.length} 条 {!isNoteGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
+                  </button>
 
                 {#if !isNoteGroupCollapsed(group.chapterHref)}
+                    <div class="note-group-actions">
+                      <button
+                        type="button"
+                        class="notes-filter-chip danger-action"
+                        on:click={() => deleteNoteGroup(group.notes, group.chapterLabel)}
+                      >
+                        删除本组{getAnnotationKindLabel(group.notes)}
+                      </button>
+                    </div>
+
                   {#each group.notes as note}
                     <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
                       <div class="note-head">

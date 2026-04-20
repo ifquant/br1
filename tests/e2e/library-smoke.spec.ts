@@ -285,7 +285,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await page.goto(readerUrl);
   await page.getByRole('tab', { name: '笔记' }).click();
   const noteButton = page.locator('.primary-note-action');
-  const highlightButton = page.locator('.secondary-note-action');
+  const highlightButton = page.locator('.secondary-note-action').first();
   await expect(noteButton).toBeDisabled();
   await expect(highlightButton).toBeDisabled();
 
@@ -364,6 +364,18 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await kindFilters.getByRole('button', { name: '全部类型', exact: true }).click();
   await expect(notesMetaRow).toContainText('全部类型');
   await expect(notesCards).toHaveCount(3);
+
+  await kindFilters.getByRole('button', { name: '笔记', exact: true }).click();
+  await expect(notesMetaRow).toContainText('仅看笔记');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '删除本组笔记' }).click();
+  await expect(notesCards).toHaveCount(0);
+  await expect(page.getByText('当前筛选下还没有笔记')).toBeVisible();
+
+  await kindFilters.getByRole('button', { name: '全部类型', exact: true }).click();
+  await expect(notesMetaRow).toContainText('2 高亮');
+  await expect(notesMetaRow).toContainText('0 笔记');
+  await expect(notesCards).toHaveCount(2);
 
   await page.getByRole('tab', { name: '高亮' }).click();
   const highlightCards = page.locator('.highlight-card');
@@ -543,11 +555,12 @@ test('reader supports txt notes through selection, persistence, and note reopen 
 
   await page.getByRole('tab', { name: '笔记' }).click();
   await expect(page.locator('.notes-meta-row')).toContainText('0 高亮');
-  await expect(page.locator('.notes-meta-row')).toContainText('1 笔记');
-  await expect(page.locator('.note-card')).toHaveCount(1);
+  await expect(page.locator('.notes-meta-row')).toContainText('0 笔记');
+  await expect(page.locator('.note-card')).toHaveCount(0);
   await page.reload();
   await page.getByRole('tab', { name: '笔记' }).click();
-  await expect(page.locator('.note-card', { hasText: 'txt note body' })).toContainText('txt note body');
+  await expect(page.locator('.notes-meta-row')).toContainText('0 笔记');
+  await expect(page.locator('.note-card', { hasText: 'txt note body' })).toHaveCount(0);
   await expect(page.locator('.note-card', { hasText: '高亮' })).toHaveCount(0);
 });
 

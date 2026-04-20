@@ -619,6 +619,155 @@ fn derive_library_title(record: &LibraryBookRecord, incoming_title: &str) -> Str
     trimmed.to_string()
 }
 
+fn normalized_path_stem_key(path: &Path) -> String {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(normalize_status_key)
+        .unwrap_or_default()
+}
+
+fn record_needs_repair(record: &LibraryBookRecord) -> bool {
+    !Path::new(&record.file_path).is_file()
+        || record
+            .source_path
+            .as_ref()
+            .map(|source_path| !Path::new(source_path).is_file())
+            .unwrap_or(false)
+}
+
+fn titles_match_for_repair(
+    record: &LibraryBookRecord,
+    incoming_title: &str,
+    incoming_source: &Path,
+) -> bool {
+    let incoming_title_key = normalize_status_key(incoming_title);
+    let incoming_stem_key = normalized_path_stem_key(incoming_source);
+    let record_title_key = normalize_status_key(&record.title);
+    let record_source_key = record
+        .source_path
+        .as_ref()
+        .map(|source_path| normalized_path_stem_key(Path::new(source_path)))
+        .unwrap_or_default();
+    let record_library_key = normalized_path_stem_key(Path::new(&record.file_path));
+
+    [incoming_title_key, incoming_stem_key]
+        .into_iter()
+        .filter(|value| !value.is_empty())
+        .any(|incoming_key| {
+            [record_title_key.as_str(), record_source_key.as_str(), record_library_key.as_str()]
+                .into_iter()
+                .any(|record_key| !record_key.is_empty() && record_key == incoming_key)
+        })
+}
+
+fn authors_match_for_repair(record: &LibraryBookRecord, incoming_author: &str) -> bool {
+    if author_looks_like_placeholder(incoming_author) || author_looks_like_placeholder(&record.author) {
+        return true;
+    }
+
+    let incoming_author_key = normalize_status_key(incoming_author);
+    let record_author_key = normalize_status_key(&record.author);
+    incoming_author_key.is_empty() || record_author_key.is_empty() || incoming_author_key == record_author_key
+}
+
+fn find_repairable_library_record_index(
+    records: &[LibraryBookRecord],
+    incoming_source_path: &str,
+    incoming_source: &Path,
+    incoming_title: &str,
+    incoming_author: &str,
+    incoming_format: &str,
+) -> Option<usize> {
+    records.iter().position(|record| {
+        if record.id.starts_with("readest-") {
+            return false;
+        }
+
+        if record.source_path.as_deref() == Some(incoming_source_path) {
+            return true;
+        }
+
+        if !record_needs_repair(record) {
+            return false;
+        }
+
+        if !record.format.trim().eq_ignore_ascii_case(incoming_format) {
+            return false;
+        }
+
+        titles_match_for_repair(record, incoming_title, incoming_source)
+            && authors_match_for_repair(record, incoming_author)
+    })
+}
+
+fn choose_repaired_title(
+    existing_record: &LibraryBookRecord,
+    incoming_title: &str,
+    default_title: &str,
+) -> String {
+    let trimmed_incoming = incoming_title.trim();
+    if !trimmed_incoming.is_empty() && !title_looks_like_stored_filename(trimmed_incoming) {
+        return trimmed_incoming.to_string();
+    }
+
+    let trimmed_existing = existing_record.title.trim();
+    if !trimmed_existing.is_empty() && !title_looks_like_stored_filename(trimmed_existing) {
+        return trimmed_existing.to_string();
+    }
+
+    let trimmed_default = default_title.trim();
+    if !trimmed_default.is_empty() {
+        return trimmed_default.to_string();
+    }
+
+    existing_record.title.clone()
+}
+
+fn choose_repaired_author(existing_record: &LibraryBookRecord, incoming_author: &str) -> String {
+    if !author_looks_like_placeholder(incoming_author) {
+        return incoming_author.trim().to_string();
+    }
+
+    existing_record.author.clone()
+}
+
+fn choose_repaired_optional(
+    existing_value: Option<String>,
+    incoming_value: Option<String>,
+) -> Option<String> {
+    let incoming_value = incoming_value.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    });
+    if incoming_value.is_some() {
+        return incoming_value;
+    }
+
+    existing_value.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+}
+
+fn cleanup_repaired_record_assets(
+    existing_record: &LibraryBookRecord,
+    next_file_path: &Path,
+    next_cover_path: Option<&str>,
+) {
+    let existing_file_path = Path::new(&existing_record.file_path);
+    if existing_file_path != next_file_path && existing_file_path.is_file() {
+        let _ = fs::remove_file(existing_file_path);
+    }
+
+    if let Some(existing_cover_path) = existing_record.cover_path.as_deref() {
+        let should_keep_existing_cover = next_cover_path == Some(existing_cover_path);
+        let existing_cover_path = Path::new(existing_cover_path);
+        if !should_keep_existing_cover && existing_cover_path.is_file() {
+            let _ = fs::remove_file(existing_cover_path);
+        }
+    }
+}
+
 fn status_looks_like_internal_asset(value: &str) -> bool {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -714,6 +863,7 @@ pub(crate) fn import_library_books(
     fs::create_dir_all(&books_dir).map_err(|error| error.to_string())?;
     let library_json = library_root.join("library.json");
     let mut records = load_library_records(&library_json)?;
+    decorate_library_record_file_states(&mut records);
     let mut imported = Vec::new();
 
     for file_path in file_paths {
@@ -723,30 +873,11 @@ pub(crate) fn import_library_books(
             .and_then(|name| name.to_str())
             .ok_or_else(|| "Invalid file path".to_string())?
             .to_string();
-        let bytes = fs::read(&file_path).map_err(|error| error.to_string())?;
-        let imported_at = now_millis()?;
-        let id = imported_at.to_string();
         let extension = source
             .extension()
             .and_then(|ext| ext.to_str())
             .unwrap_or("")
             .to_lowercase();
-        let safe_filename = sanitize_filename(&filename);
-        let stored_filename = format!("{id}-{safe_filename}");
-        let stored_path = books_dir.join(stored_filename);
-
-        fs::write(&stored_path, bytes).map_err(|error| error.to_string())?;
-        let cbz_cover_path = if extension == "cbz" {
-            derive_cbz_cover_asset(source).and_then(|(entry_name, cover_bytes)| {
-                let cover_name = format!("{id}-{}", sanitize_filename(&entry_name));
-                let path = books_dir.join(cover_name);
-                fs::write(&path, cover_bytes).ok()?;
-                Some(path.to_string_lossy().to_string())
-            })
-        } else {
-            None
-        };
-
         let default_title = source
             .file_stem()
             .and_then(|stem| stem.to_str())
@@ -768,11 +899,11 @@ pub(crate) fn import_library_books(
             KindleMetadata::default()
         };
         let title = if extension == "fb2" {
-            fb2_metadata.title.clone().unwrap_or(default_title)
+            fb2_metadata.title.clone().unwrap_or(default_title.clone())
         } else if extension == "cbz" {
-            cbz_metadata.title.clone().unwrap_or(default_title)
+            cbz_metadata.title.clone().unwrap_or(default_title.clone())
         } else {
-            kindle_metadata.title.clone().unwrap_or(default_title)
+            kindle_metadata.title.clone().unwrap_or(default_title.clone())
         };
         let author = if extension == "fb2" {
             fb2_metadata
@@ -814,33 +945,103 @@ pub(crate) fn import_library_books(
         } else {
             None
         };
+        let bytes = fs::read(&file_path).map_err(|error| error.to_string())?;
+        let format = if extension.is_empty() {
+            "BOOK".to_string()
+        } else {
+            extension.to_uppercase()
+        };
+        let repair_index = find_repairable_library_record_index(
+            &records,
+            &file_path,
+            source,
+            &title,
+            &author,
+            &format,
+        );
+        let existing_record = repair_index.map(|index| records[index].clone());
+        let imported_at = existing_record
+            .as_ref()
+            .map(|record| record.imported_at)
+            .unwrap_or(now_millis()?);
+        let id = existing_record
+            .as_ref()
+            .map(|record| record.id.clone())
+            .unwrap_or_else(|| imported_at.to_string());
+        let safe_filename = sanitize_filename(&filename);
+        let stored_filename = format!("{id}-{safe_filename}");
+        let stored_path = books_dir.join(stored_filename);
+
+        fs::write(&stored_path, bytes).map_err(|error| error.to_string())?;
+        let cbz_cover_path = if extension == "cbz" {
+            derive_cbz_cover_asset(source).and_then(|(entry_name, cover_bytes)| {
+                let cover_name = format!("{id}-{}", sanitize_filename(&entry_name));
+                let path = books_dir.join(cover_name);
+                fs::write(&path, cover_bytes).ok()?;
+                Some(path.to_string_lossy().to_string())
+            })
+        } else {
+            existing_record
+                .as_ref()
+                .and_then(|record| record.cover_path.clone())
+                .filter(|cover_path| Path::new(cover_path).is_file())
+        };
 
         let record = LibraryBookRecord {
             id,
-            title,
-            author,
-            format: if extension.is_empty() {
-                "BOOK".to_string()
-            } else {
-                extension.to_uppercase()
-            },
-            description,
-            language,
-            publisher,
-            progress: "等待首轮阅读".to_string(),
-            status: "新导入".to_string(),
+            title: existing_record
+                .as_ref()
+                .map(|record| choose_repaired_title(record, &title, &default_title))
+                .unwrap_or(title),
+            author: existing_record
+                .as_ref()
+                .map(|record| choose_repaired_author(record, &author))
+                .unwrap_or(author),
+            format,
+            description: existing_record
+                .as_ref()
+                .map(|record| choose_repaired_optional(record.description.clone(), description.clone()))
+                .unwrap_or(description),
+            language: existing_record
+                .as_ref()
+                .map(|record| choose_repaired_optional(record.language.clone(), language.clone()))
+                .unwrap_or(language),
+            publisher: existing_record
+                .as_ref()
+                .map(|record| choose_repaired_optional(record.publisher.clone(), publisher.clone()))
+                .unwrap_or(publisher),
+            progress: existing_record
+                .as_ref()
+                .map(|record| record.progress.clone())
+                .unwrap_or_else(|| "等待首轮阅读".to_string()),
+            status: existing_record
+                .as_ref()
+                .map(|record| record.status.clone())
+                .unwrap_or_else(|| "新导入".to_string()),
             file_path: stored_path.to_string_lossy().to_string(),
-            cover_path: cbz_cover_path,
+            cover_path: cbz_cover_path.clone(),
             source_path: Some(file_path.clone()),
             imported_at,
-            progress_fraction: None,
-            progress_location: None,
-            last_opened_at: None,
+            progress_fraction: existing_record.as_ref().and_then(|record| record.progress_fraction),
+            progress_location: existing_record
+                .as_ref()
+                .and_then(|record| record.progress_location.clone()),
+            last_opened_at: existing_record.as_ref().and_then(|record| record.last_opened_at),
             library_file_exists: None,
             source_file_exists: None,
         };
 
-        records.retain(|book| book.source_path.as_deref() != Some(file_path.as_str()));
+        if let Some(existing_record) = existing_record.as_ref() {
+            cleanup_repaired_record_assets(existing_record, &stored_path, cbz_cover_path.as_deref());
+        }
+
+        records.retain(|book| {
+            if let Some(existing_record) = existing_record.as_ref() {
+                book.id != existing_record.id
+            } else {
+                book.source_path.as_deref() != Some(file_path.as_str())
+            }
+        });
         records.insert(0, record.clone());
         imported.push(record);
     }

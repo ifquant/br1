@@ -8,6 +8,7 @@
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
+  export let onRepairBook: ((book: ContinueReadingBook) => void | Promise<void>) | null = null;
   let expandedKey = '';
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
@@ -43,11 +44,29 @@
     void onImportBooks();
   };
 
+  const handleRepairBook = (event: MouseEvent, book: ContinueReadingBook) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!onRepairBook) return;
+    void onRepairBook(book);
+  };
+
   const isMissingOriginalFile = (availabilityLabel: string | undefined) =>
     availabilityLabel?.includes('原文件缺失') ?? false;
 
   const isMissingLibraryCopy = (availabilityLabel: string | undefined) =>
     availabilityLabel?.includes('书库副本缺失') ?? false;
+
+  const getRepairLabel = (
+    originalFileMissing: boolean,
+    libraryCopyMissing: boolean,
+    sourceLabel: string | undefined
+  ) => {
+    if (libraryCopyMissing && sourceLabel?.includes('Readest')) return '重新同步';
+    if (libraryCopyMissing) return '修复副本';
+    if (originalFileMissing) return '重新关联';
+    return '重新导入';
+  };
 </script>
 
 <section class="continue-shelf">
@@ -126,13 +145,19 @@
                 >
                   原文件
                 </button>
-              {:else if (originalFileMissing || libraryCopyMissing) && onImportBooks}
+              {:else if originalFileMissing || libraryCopyMissing}
                 <button
                   type="button"
                   class="secondary-pill warning-pill"
-                  on:click={handleImportBooks}
+                  on:click={(event: MouseEvent) => {
+                    if (onRepairBook) {
+                      handleRepairBook(event, book);
+                    } else {
+                      handleImportBooks(event);
+                    }
+                  }}
                 >
-                  重新导入
+                  {getRepairLabel(originalFileMissing, libraryCopyMissing, book.sourceLabel)}
                 </button>
               {/if}
               <span class:warning={libraryCopyMissing} class="resume-pill">

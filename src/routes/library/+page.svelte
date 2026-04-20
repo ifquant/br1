@@ -4,6 +4,7 @@
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type { LibraryShelfBook } from '$lib/library/types';
   import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
+  import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import type {
     LibraryReaderTarget,
@@ -13,6 +14,7 @@
     canPersistLibrary,
     detectReadestLibrary,
     importBooksFromDesktopPicker,
+    importLibraryBooks,
     importBooksFromReadest,
     LIBRARY_SURFACE_RELOAD_EVENT,
     loadPersistedLibraryBooks,
@@ -146,7 +148,9 @@
   let libraryFilterBy: LibraryFilter = 'all';
   let libraryQuery = '';
   let librarySearchActive = false;
+  let persistedLibraryRecords: PersistedLibraryBook[] = [];
   let searchedLibraryBooks: LibraryShelfBook[] = [];
+  let recoveryQueueBooks: LibraryShelfBook[] = [];
   let continueReadingBooks: LibraryShelfBook[] = [];
   let recentReadingBooks: LibraryShelfBook[] = [];
   let libraryShelfBooks: LibraryShelfBook[] = [];
@@ -155,6 +159,7 @@
   let starterShelfBooks: LibraryShelfBook[] = [];
   let filteredContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredRecentReadingBooks: LibraryShelfBook[] = [];
+  let filteredRecoveryQueueBooks: LibraryShelfBook[] = [];
   let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
   let filteredStarterContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredStarterRecentReadingBooks: LibraryShelfBook[] = [];
@@ -291,6 +296,32 @@
 
   const getLibraryBookKey = (book: LibraryShelfBook) => book.readerHref || `${book.title}::${book.author}`;
 
+  const isBrokenLibraryBook = (book: LibraryShelfBook) =>
+    book.availabilityLabel?.includes('缺失') ?? false;
+
+  const getPersistedLibraryLookupKey = (book: {
+    title: string;
+    author: string;
+    format: string;
+    sourcePath?: string;
+  }) => `${book.format}::${book.title}::${book.author}::${book.sourcePath ?? ''}`;
+
+  const lookupPersistedRecordForBook = (book: LibraryShelfBook) => {
+    const lookupKey = getPersistedLibraryLookupKey(book);
+    return (
+      persistedLibraryRecords.find((record) => {
+        return (
+          getPersistedLibraryLookupKey({
+            title: record.title,
+            author: record.author,
+            format: record.format,
+            sourcePath: record.sourcePath || record.filePath
+          }) === lookupKey
+        );
+      }) ?? null
+    );
+  };
+
   const getBookProgressFraction = (book: LibraryShelfBook) => {
     if (typeof book.progressFraction === 'number') {
       return Math.max(0, Math.min(1, book.progressFraction));
@@ -324,6 +355,9 @@
 
   const getContinueReadingBooks = (books: LibraryShelfBook[]) =>
     books.filter((book) => isBookInProgress(book)).slice(0, 3);
+
+  const getRecoveryQueueBooks = (books: LibraryShelfBook[]) =>
+    books.filter((book) => isBrokenLibraryBook(book)).slice(0, 6);
 
   const getRecentReadingBooks = (
     books: LibraryShelfBook[],
@@ -461,6 +495,7 @@
     records.filter((record) => record.id.startsWith('readest-')).length;
 
   const applyPersistedLibraryRecords = async (records: PersistedLibraryBook[]) => {
+    persistedLibraryRecords = records;
     readestCompatibleCount = countReadestCompatibleRecords(records);
     importedBooks = await Promise.all(sortRecordsForLibraryShelf(records).map(mapLibraryRecord));
   };
@@ -559,6 +594,9 @@
     sortBooksForDisplay(importedBooks, librarySortBy),
     libraryQuery
   );
+  $: recoveryQueueBooks = librarySearchActive
+    ? []
+    : getRecoveryQueueBooks(sortBooksForDisplay(importedBooks, 'recent'));
   $: continueReadingBooks = librarySearchActive ? [] : getContinueReadingBooks(importedBooks);
   $: recentReadingBooks = librarySearchActive
     ? []
@@ -569,10 +607,12 @@
         sortBooksForDisplay(importedBooks, librarySortBy),
         [...continueReadingBooks, ...recentReadingBooks]
       );
+  $: filteredRecoveryQueueBooks = filterBooksByLibraryFilter(recoveryQueueBooks, libraryFilterBy);
   $: filteredContinueReadingBooks = filterBooksByLibraryFilter(continueReadingBooks, libraryFilterBy);
   $: filteredRecentReadingBooks = filterBooksByLibraryFilter(recentReadingBooks, libraryFilterBy);
   $: filteredLibraryShelfBooks = filterBooksByLibraryFilter(libraryShelfBooks, libraryFilterBy);
   $: visibleLibraryBooksCount =
+    filteredRecoveryQueueBooks.length +
     filteredContinueReadingBooks.length +
     filteredRecentReadingBooks.length +
     filteredLibraryShelfBooks.length;
@@ -706,10 +746,7 @@
           setLibraryNotice('info', '没有导入到可用书籍，请确认所选文件仍然存在且格式受支持。');
           return;
         }
-
-        const records = sortRecordsForLibraryShelf(result.records);
-        const mappedRecords = await Promise.all(records.map(mapLibraryRecord));
-        importedBooks = [...mappedRecords, ...importedBooks];
+        await loadLibrary();
         showReadestMigration = false;
         if (result.firstReaderTarget) {
           await handleOpenReaderTarget(result.firstReaderTarget);
@@ -788,6 +825,70 @@
 
   const handleReadestMigrationClick = () => {
     void triggerReadestMigration();
+  };
+
+  const reloadLibraryAfterRepair = async () => {
+    const currentRecords = await loadPersistedLibraryBooks();
+    await applyPersistedLibraryRecords(currentRecords);
+  };
+
+  const handleRepairLibraryBook = async (book: LibraryShelfBook) => {
+    if (!canPersistLibrary()) return;
+
+    const persistedRecord = lookupPersistedRecordForBook(book);
+    if (!persistedRecord) {
+      setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
+      return;
+    }
+
+    const libraryCopyMissing = persistedRecord.libraryFileExists === false;
+    const sourcePathAvailable =
+      !!persistedRecord.sourcePath && persistedRecord.sourceFileExists !== false;
+
+    try {
+      clearLibraryNotice();
+
+      let result: Awaited<ReturnType<typeof importBooksFromDesktopPicker>> | null = null;
+
+      if (libraryCopyMissing && sourcePathAvailable && persistedRecord.sourcePath) {
+        result = {
+          kind: 'imported',
+          records: await importLibraryBooks([persistedRecord.sourcePath]),
+          firstRecord: null,
+          firstReaderTarget: null,
+          firstReaderHref: ''
+        };
+      } else {
+        const selectedPath = await selectSingleSystemBookPath();
+        if (!selectedPath) return;
+        result = {
+          kind: 'imported',
+          records: await importLibraryBooks([selectedPath]),
+          firstRecord: null,
+          firstReaderTarget: null,
+          firstReaderHref: ''
+        };
+      }
+
+      if (!result || result.records.length === 0) {
+        setLibraryNotice('info', `没有修复到“${book.title}”的可用文件，请确认所选文件仍然存在且格式受支持。`);
+        return;
+      }
+
+      await reloadLibraryAfterRepair();
+      setLibraryNotice(
+        'info',
+        libraryCopyMissing && sourcePathAvailable
+          ? `已从原文件重建“${book.title}”的书库副本，原有阅读进度已保留。`
+          : `已尝试重新关联“${book.title}”的新文件路径；如果它仍显示缺失，请确认选择的是同一本书。`
+      );
+    } catch (error) {
+      console.error('Failed to repair the library book', error);
+      setLibraryNotice(
+        'error',
+        `无法修复“${book.title}”，请确认当前运行在桌面环境且所选文件可访问。`
+      );
+    }
   };
 
   const handleLibraryViewModeChange = (nextViewMode: 'grid' | 'list') => {
@@ -880,6 +981,19 @@
           </section>
         {/if}
 
+        {#if filteredRecoveryQueueBooks.length}
+          <ContinueReadingShelf
+            sectionTitle="待修复书籍"
+            sectionDescription="这些书的原文件路径或书库副本已经失效。优先逐本修复，避免后续继续扩散为重复条目。"
+            primaryActionLabel="修复"
+            books={filteredRecoveryQueueBooks}
+            onOpenLink={handleOpenReaderTarget}
+            onOpenSourcePath={handleOpenSourcePath}
+            onImportBooks={triggerImportPicker}
+            onRepairBook={handleRepairLibraryBook}
+          />
+        {/if}
+
         {#if filteredContinueReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="继续阅读"
@@ -889,6 +1003,7 @@
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
             onImportBooks={triggerImportPicker}
+            onRepairBook={handleRepairLibraryBook}
           />
         {/if}
 
@@ -901,6 +1016,7 @@
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
             onImportBooks={triggerImportPicker}
+            onRepairBook={handleRepairLibraryBook}
           />
         {/if}
 
