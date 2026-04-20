@@ -7,6 +7,7 @@
   export let placeholder = '搜索书库、作者、标签';
   export let viewMode: 'grid' | 'list' = 'grid';
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
+  export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let importDisabled = false;
 
   let sortMenuOpen = false;
@@ -17,6 +18,7 @@
     importbooks: void;
     viewmodechange: { viewMode: 'grid' | 'list' };
     sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
+    filterchange: { filterBy: 'all' | 'reading' | 'unstarted' | 'finished' };
   }>();
 
   const actions = [
@@ -40,6 +42,13 @@
     { value: 'format', label: '格式' }
   ] as const;
 
+  const filterOptions = [
+    { value: 'all', label: '全部' },
+    { value: 'reading', label: '在读' },
+    { value: 'unstarted', label: '未开始' },
+    { value: 'finished', label: '已读完' }
+  ] as const;
+
   $: derivedPlaceholder =
     query || totalBooks <= 0 ? placeholder : `在 ${totalBooks} 本书籍中搜索...`;
 
@@ -50,6 +59,11 @@
 
   const handleImportBooks = () => {
     dispatch('importbooks');
+  };
+
+  const handleFilterChange = (nextFilterBy: 'all' | 'reading' | 'unstarted' | 'finished') => {
+    if (nextFilterBy === activeFilter) return;
+    dispatch('filterchange', { filterBy: nextFilterBy });
   };
 
   const handleViewModeChange = (nextViewMode: 'grid' | 'list') => {
@@ -184,6 +198,20 @@
   </div>
 </header>
 
+<div class="filter-row" aria-label="library filters">
+  {#each filterOptions as option}
+    <button
+      type="button"
+      class:active-filter={activeFilter === option.value}
+      class="filter-pill"
+      aria-pressed={activeFilter === option.value}
+      on:click={() => handleFilterChange(option.value)}
+    >
+      {option.label}
+    </button>
+  {/each}
+</div>
+
 <style>
   .library-header {
     display: flex;
@@ -193,6 +221,45 @@
     padding: 0 0 8px;
     font-family: var(--font-chrome);
     border-bottom: 1px solid var(--line-soft);
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    padding: 8px 0 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 82%, transparent);
+    margin-bottom: 2px;
+  }
+
+  .filter-pill {
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 11px;
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    color: var(--text-muted);
+    font: 500 11px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 85%, white 15%),
+      0 1px 0 rgba(255, 255, 255, 0.28);
+    transition:
+      color 140ms ease,
+      background 140ms ease,
+      box-shadow 140ms ease;
+  }
+
+  .filter-pill:hover {
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+  }
+
+  .filter-pill.active-filter {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--accent-warm) 14%, var(--surface-panel) 86%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--accent-warm) 28%, white 72%),
+      0 6px 16px rgba(128, 84, 44, 0.08);
   }
 
   .actions {

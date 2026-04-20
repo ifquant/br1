@@ -1,3 +1,4 @@
+import { getReaderThemePalette } from './settings';
 import type { ReaderSettings } from './types';
 
 export const FOLIATE_VIEW_TAG = 'foliate-view';
@@ -211,28 +212,6 @@ export const wrapFoliateViewElement = (originalView: FoliateViewElement): Foliat
   return originalView;
 };
 
-const getReaderTheme = (themePreset: ReaderSettings['themePreset']) => {
-  if (themePreset === 'warm') {
-    return {
-      bg: '#f4ead6',
-      fg: '#34281e',
-      primary: '#9a6b36'
-    };
-  }
-  if (themePreset === 'soft') {
-    return {
-      bg: '#e7efe6',
-      fg: '#283127',
-      primary: '#6b7b52'
-    };
-  }
-  return {
-    bg: '#fbf7ef',
-    fg: '#2b221a',
-    primary: '#8c6a3b'
-  };
-};
-
 const getReaderFontScale = (fontScale: ReaderSettings['fontScale']) => {
   if (fontScale === 'sm') return '18px';
   if (fontScale === 'lg') return '22px';
@@ -246,15 +225,15 @@ const getReaderLineHeight = (lineHeight: ReaderSettings['lineHeight']) => {
 };
 
 export const getReaderViewStyles = (settings: ReaderSettings) => {
-  const theme = getReaderTheme(settings.themePreset);
+  const theme = getReaderThemePalette(settings.themePreset);
   const textFont = settings.fontFamily === 'sans' ? 'var(--sans-serif)' : 'var(--serif)';
   const lineHeight = getReaderLineHeight(settings.lineHeight);
   const fontSize = getReaderFontScale(settings.fontScale);
 
   return `
   html {
-    --theme-bg-color: ${theme.bg};
-    --theme-fg-color: ${theme.fg};
+    --theme-bg-color: ${theme.surface};
+    --theme-fg-color: ${theme.text};
     --theme-primary-color: ${theme.primary};
     --serif: "Source Serif 4", "Noto Serif SC", Georgia, serif;
     --sans-serif: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;

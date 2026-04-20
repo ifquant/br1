@@ -13,6 +13,7 @@ use base64::Engine;
 use quick_xml::events::Event;
 use quick_xml::name::QName;
 use quick_xml::Reader;
+use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -49,22 +50,116 @@ fn is_supported_associated_book_path(path: &Path) -> bool {
     )
 }
 
+fn strip_wrapping_quotes(value: &str) -> &str {
+    let trimmed = value.trim();
+    if trimmed.len() >= 2 {
+        let bytes = trimmed.as_bytes();
+        let first = bytes[0];
+        let last = bytes[trimmed.len() - 1];
+        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+            return &trimmed[1..trimmed.len() - 1];
+        }
+    }
+
+    trimmed
+}
+
+fn decode_percent_hex(value: u8) -> Option<u8> {
+    match value {
+        b'0'..=b'9' => Some(value - b'0'),
+        b'a'..=b'f' => Some(value - b'a' + 10),
+        b'A'..=b'F' => Some(value - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn decode_percent_encoded_path(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0usize;
+
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            if index + 2 >= bytes.len() {
+                return None;
+            }
+
+            let high = decode_percent_hex(bytes[index + 1])?;
+            let low = decode_percent_hex(bytes[index + 2])?;
+            decoded.push((high << 4) | low);
+            index += 3;
+            continue;
+        }
+
+        decoded.push(bytes[index]);
+        index += 1;
+    }
+
+    String::from_utf8(decoded).ok()
+}
+
+fn parse_file_url_to_path(value: &str) -> Option<PathBuf> {
+    let remainder = value.strip_prefix("file://")?;
+    let path_part = remainder.split(['?', '#']).next()?.trim();
+    if path_part.is_empty() {
+        return None;
+    }
+
+    let without_host = if let Some(local_path) = path_part.strip_prefix("localhost/") {
+        format!("/{local_path}")
+    } else if path_part.eq_ignore_ascii_case("localhost") {
+        return None;
+    } else {
+        path_part.to_string()
+    };
+
+    let decoded = decode_percent_encoded_path(&without_host)?;
+
+    #[cfg(windows)]
+    let decoded = if decoded.starts_with('/') && decoded.as_bytes().get(2) == Some(&b':') {
+        decoded[1..].to_string()
+    } else {
+        decoded
+    };
+
+    Some(PathBuf::from(decoded))
+}
+
+fn normalize_associated_book_path(file_path: &str, cwd: Option<&Path>) -> Option<PathBuf> {
+    let trimmed = strip_wrapping_quotes(file_path);
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let path = parse_file_url_to_path(trimmed).unwrap_or_else(|| PathBuf::from(trimmed));
+    let resolved = if path.is_absolute() {
+        path
+    } else if let Some(cwd) = cwd {
+        cwd.join(path)
+    } else {
+        path
+    };
+    let canonical = fs::canonicalize(&resolved).ok()?;
+
+    if !canonical.is_file() || !is_supported_associated_book_path(&canonical) {
+        return None;
+    }
+
+    Some(canonical)
+}
+
 fn normalize_associated_book_requests(
     file_paths: Vec<String>,
     cwd: Option<&Path>,
 ) -> Vec<AssociatedBookOpenRequest> {
+    let mut seen_paths = HashSet::new();
+
     file_paths
         .into_iter()
         .filter_map(|file_path| {
-            let path = PathBuf::from(&file_path);
-            let resolved = if path.is_absolute() {
-                path
-            } else if let Some(cwd) = cwd {
-                cwd.join(path)
-            } else {
-                path
-            };
-            if !resolved.is_file() || !is_supported_associated_book_path(&resolved) {
+            let resolved = normalize_associated_book_path(&file_path, cwd)?;
+            let normalized_path = resolved.to_string_lossy().to_string();
+            if !seen_paths.insert(normalized_path.clone()) {
                 return None;
             }
 
@@ -76,7 +171,7 @@ fn normalize_associated_book_requests(
                 .to_string();
 
             Some(AssociatedBookOpenRequest {
-                path: resolved.to_string_lossy().to_string(),
+                path: normalized_path,
                 label,
             })
         })

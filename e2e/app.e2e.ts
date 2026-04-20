@@ -1897,13 +1897,19 @@ describe('br1 desktop app', () => {
     expect(await readerStage.isDisplayed()).toBe(true);
   });
 
-  it('opens an associated book request in a separate reader window', async () => {
+  it('normalizes associated book requests before opening a separate reader window', async () => {
     const libraryHandle = await switchToLibraryWindow();
     const handlesBeforeQueue = await browser.getWindowHandles();
     const fb2Path = join(staticSamplesRoot, 'sample-book.fb2');
+    const fb2FileUrl = new URL(`file://${fb2Path}`).toString();
 
-    const queuedCount = await queueAssociatedBookOpenRequests([fb2Path]);
-    expect(queuedCount).toBeGreaterThan(0);
+    const queuedCount = await queueAssociatedBookOpenRequests([
+      fb2Path,
+      `  "${fb2Path}"  `,
+      `file://localhost${fb2Path}`,
+      fb2FileUrl
+    ]);
+    expect(queuedCount).toBe(1);
 
     await browser.waitUntil(async () => {
       const handles = await browser.getWindowHandles();
@@ -1937,6 +1943,9 @@ describe('br1 desktop app', () => {
     expect(readerUrl.searchParams.get('mode')).toBe('window');
     expect(readerUrl.searchParams.get('source')).toBe('library-file');
     expect(readerUrl.searchParams.get('path')).toBe(fb2Path);
+
+    const handlesAfterOpen = await browser.getWindowHandles();
+    expect(handlesAfterOpen.filter((handle) => !handlesBeforeQueue.includes(handle))).toHaveLength(1);
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);

@@ -12,7 +12,7 @@
   } from '$lib/reader';
   import {
     createDefaultReaderSettings,
-    loadReaderSettings,
+    hydrateReaderSettings,
     READER_FILE_INPUT_ACCEPT,
     saveReaderSettings
   } from '$lib/reader';
@@ -184,9 +184,13 @@
     clearChromeTimer();
   }
 
+  $: if (isWindowMode && !sidebarVisible && settings.chromeMode === 'auto' && chromeVisible) {
+    scheduleChromeHide();
+  }
+
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
-    settings = loadReaderSettings(localStorage);
+    settings = hydrateReaderSettings(localStorage);
   });
 </script>
 

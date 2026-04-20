@@ -8,6 +8,7 @@
     ensureFoliateViewDefinition,
     flattenToc,
     getReaderFormatSupportStatus,
+    getReaderThemePalette,
     getReaderViewStyles,
     inferReaderFormatLabelFromName,
     installReaderBookTransformGuards,
@@ -237,6 +238,55 @@
     return { width, height };
   };
 
+  const getReaderChromeInset = (edge: 'top' | 'bottom') => {
+    if (!isWindowMode) return edge === 'top' ? 36 : 36;
+    if (settings.chromeMode === 'always') {
+      return edge === 'top' ? 46 : 44;
+    }
+    return edge === 'top' ? 18 : 20;
+  };
+
+  const getPlainTextSurfacePadding = () => {
+    const topInset = getReaderChromeInset('top');
+    const bottomInset = getReaderChromeInset('bottom');
+
+    if (settings.pageMargins === 'narrow') {
+      return `${topInset + 6}px 14px ${bottomInset + 20}px`;
+    }
+    if (settings.pageMargins === 'wide') {
+      return `${topInset + 24}px 34px ${bottomInset + 28}px`;
+    }
+    return `${topInset + 12}px 22px ${bottomInset + 24}px`;
+  };
+
+  const getReaderViewportVars = () => {
+    const theme = getReaderThemePalette(settings.themePreset);
+    const fontFamily =
+      settings.fontFamily === 'sans'
+        ? '"IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif'
+        : '"Iowan Old Style", "Palatino Linotype", "Songti SC", serif';
+    const fontSize = settings.fontScale === 'sm' ? '18px' : settings.fontScale === 'lg' ? '22px' : '20px';
+    const lineHeight = settings.lineHeight === 'tight' ? '1.62' : settings.lineHeight === 'relaxed' ? '1.96' : '1.9';
+    const inlineWidth = settings.viewWidthMode === 'focus' ? '680px' : settings.viewWidthMode === 'wide' ? '980px' : '840px';
+
+    return [
+      `--reader-surface-bg:${theme.background}`,
+      `--reader-surface-tone:${theme.surface}`,
+      `--reader-paper-bg:${theme.paper}`,
+      `--reader-text-color:${theme.text}`,
+      `--reader-muted-color:${theme.muted}`,
+      `--reader-border-color:${theme.border}`,
+      `--reader-accent-color:${theme.primary}`,
+      `--reader-font-family:${fontFamily}`,
+      `--reader-font-size:${fontSize}`,
+      `--reader-line-height:${lineHeight}`,
+      `--reader-inline-width:${inlineWidth}`,
+      `--reader-surface-padding:${getPlainTextSurfacePadding()}`,
+      `--reader-chrome-top-inset:${getReaderChromeInset('top')}px`,
+      `--reader-chrome-bottom-inset:${getReaderChromeInset('bottom')}px`
+    ].join(';');
+  };
+
   const getResponsiveMaxInlineSize = () => {
     const { width, height } = getViewportStageSize();
     const aspectRatio = width / Math.max(height, 1);
@@ -394,9 +444,9 @@
 
     renderer.setStyles?.(getReaderViewStyles(settings));
     renderer.setAttribute('flow', settings.flowMode);
-    renderer.setAttribute('margin-top', isWindowMode ? '46px' : '36px');
+    renderer.setAttribute('margin-top', `${getReaderChromeInset('top')}px`);
     renderer.setAttribute('margin-right', getResponsiveHorizontalMargin());
-    renderer.setAttribute('margin-bottom', isWindowMode ? '44px' : '36px');
+    renderer.setAttribute('margin-bottom', `${getReaderChromeInset('bottom')}px`);
     renderer.setAttribute('margin-left', getResponsiveHorizontalMargin());
     renderer.setAttribute('gap', '5%');
     renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
@@ -1003,8 +1053,12 @@
       class:window-mode={isWindowMode}
       class="engine-host"
       bind:this={hostElement}
+      data-chrome-mode={settings.chromeMode}
+      data-theme-preset={settings.themePreset}
+      data-view-width-mode={settings.viewWidthMode}
       data-role={READER_ENGINE_HOST_ATTR}
       data-engine-status={READER_ENGINE_STATUS_ATTR}
+      style={getReaderViewportVars()}
       aria-label="reader engine host placeholder"
     >
       {#if isWindowMode}
@@ -1013,7 +1067,6 @@
             <div
               class="plain-text-surface"
               bind:this={plainTextScroller}
-              style={`--plain-text-font-family:${settings.fontFamily === 'sans' ? '"IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif' : '"Iowan Old Style", "Palatino Linotype", "Songti SC", serif'};--plain-text-font-size:${settings.fontScale === 'sm' ? '18px' : settings.fontScale === 'lg' ? '22px' : '20px'};--plain-text-line-height:${settings.lineHeight === 'tight' ? '1.62' : settings.lineHeight === 'relaxed' ? '1.96' : '1.9'};--plain-text-inline-width:${settings.viewWidthMode === 'focus' ? '680px' : settings.viewWidthMode === 'wide' ? '980px' : '840px'};--plain-text-surface-padding:${settings.pageMargins === 'narrow' ? '24px 14px 40px' : settings.pageMargins === 'wide' ? '48px 34px 72px' : '36px 22px 56px'};`}
               on:scroll={() => emitPlainTextReaderState()}
               aria-label="plain text reading surface"
             >
@@ -1057,7 +1110,6 @@
             <div
               class="plain-text-surface inline-surface"
               bind:this={plainTextScroller}
-              style={`--plain-text-font-family:${settings.fontFamily === 'sans' ? '"IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif' : '"Iowan Old Style", "Palatino Linotype", "Songti SC", serif'};--plain-text-font-size:${settings.fontScale === 'sm' ? '18px' : settings.fontScale === 'lg' ? '22px' : '20px'};--plain-text-line-height:${settings.lineHeight === 'tight' ? '1.62' : settings.lineHeight === 'relaxed' ? '1.96' : '1.9'};--plain-text-inline-width:${settings.viewWidthMode === 'focus' ? '680px' : settings.viewWidthMode === 'wide' ? '980px' : '840px'};--plain-text-surface-padding:${settings.pageMargins === 'narrow' ? '24px 14px 40px' : settings.pageMargins === 'wide' ? '48px 34px 72px' : '36px 22px 56px'};`}
               on:scroll={() => emitPlainTextReaderState()}
               aria-label="plain text reading surface"
             >
@@ -1142,10 +1194,10 @@
     min-height: 66vh;
     width: 100%;
     padding: clamp(14px, 2.6vw, 24px) clamp(8px, 1.8vw, 14px);
-    border: 1px solid rgba(64, 47, 24, 0.05);
+    border: 1px solid var(--reader-border-color, rgba(64, 47, 24, 0.05));
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-reader) 97%, white 3%);
+      color-mix(in srgb, var(--reader-surface-bg, var(--surface-reader)) 97%, white 3%);
     outline: none;
   }
 
@@ -1158,7 +1210,7 @@
     border: 0;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-reader) 98%, white 2%);
+      color-mix(in srgb, var(--reader-surface-tone, var(--surface-reader)) 98%, white 2%);
     overflow: hidden;
   }
 
@@ -1172,7 +1224,7 @@
     padding: clamp(14px, 2.2vw, 18px) clamp(14px, 2.6vw, 24px);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
-      #f8f3e9;
+      var(--reader-surface-bg, #f8f3e9);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.44) inset,
       0 16px 28px rgba(36, 25, 12, 0.06);
@@ -1183,7 +1235,7 @@
     justify-content: space-between;
     gap: 12px;
     align-items: center;
-    color: var(--text-muted);
+    color: var(--reader-muted-color, var(--text-muted));
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 10px;
     letter-spacing: 0.08em;
@@ -1215,10 +1267,10 @@
     overflow: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 98, 56, 0.35) transparent;
-    padding: var(--plain-text-surface-padding, 36px 22px 56px);
+    padding: var(--reader-surface-padding, 36px 22px 56px);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
-      #fbf7ef;
+      var(--reader-surface-tone, #fbf7ef);
   }
 
   .plain-text-surface.inline-surface {
@@ -1228,13 +1280,13 @@
   }
 
   .plain-text-paper {
-    width: min(100%, var(--plain-text-inline-width, 840px));
+    width: min(100%, var(--reader-inline-width, 840px));
     margin: 0 auto;
     padding: clamp(18px, 2.4vw, 28px);
-    background: rgba(255, 255, 255, 0.66);
+    background: var(--reader-paper-bg, rgba(255, 255, 255, 0.66));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.72),
-      0 0 0 1px rgba(84, 62, 34, 0.05);
+      0 0 0 1px var(--reader-border-color, rgba(84, 62, 34, 0.05));
   }
 
   .plain-text-paper pre {
@@ -1242,15 +1294,15 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-family: var(
-      --plain-text-font-family,
+      --reader-font-family,
       "Iowan Old Style",
       "Palatino Linotype",
       "Songti SC",
       serif
     );
-    font-size: var(--plain-text-font-size, 20px);
-    line-height: var(--plain-text-line-height, 1.9);
-    color: color-mix(in srgb, #2c241c 88%, white 12%);
+    font-size: var(--reader-font-size, 20px);
+    line-height: var(--reader-line-height, 1.9);
+    color: var(--reader-text-color, color-mix(in srgb, #2c241c 88%, white 12%));
   }
 
   .window-stage {
@@ -1333,12 +1385,12 @@
   .engine-stage :global(foliate-view.foliate-preview::part(filter)) {
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
-      #fbf7ef;
+      var(--reader-surface-tone, #fbf7ef);
   }
 
   .engine-stage :global(foliate-view.foliate-preview::part(head)),
   .engine-stage :global(foliate-view.foliate-preview::part(foot)) {
-    color: rgba(71, 54, 31, 0.55);
+    color: var(--reader-muted-color, rgba(71, 54, 31, 0.55));
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 11px;
     letter-spacing: 0.06em;
@@ -1347,12 +1399,12 @@
 
   .engine-stage :global(foliate-view.foliate-preview::part(head)) {
     padding-bottom: 6px;
-    border-bottom: 1px solid rgba(84, 62, 34, 0.08);
+    border-bottom: 1px solid var(--reader-border-color, rgba(84, 62, 34, 0.08));
   }
 
   .engine-stage :global(foliate-view.foliate-preview::part(foot)) {
     padding-top: 6px;
-    border-top: 1px solid rgba(84, 62, 34, 0.08);
+    border-top: 1px solid var(--reader-border-color, rgba(84, 62, 34, 0.08));
   }
 
   .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview) {
@@ -1364,7 +1416,7 @@
   .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview::part(filter)) {
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0)),
-      #fbf7ef;
+      var(--reader-surface-tone, #fbf7ef);
   }
 
   .viewport-shell.window-mode .engine-stage :global(foliate-view.foliate-preview::part(head)) {

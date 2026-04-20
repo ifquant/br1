@@ -24,7 +24,20 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await page.getByRole('menuitemradio', { name: '书名' }).click();
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
 
+  await page.getByRole('button', { name: '未开始' }).click();
+  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toHaveCount(0);
+
+  await page.getByRole('button', { name: '已读完' }).click();
+  await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toHaveCount(0);
+
+  await page.getByRole('button', { name: '在读' }).click();
+  await expect(page.getByRole('button', { name: '在读' })).toHaveAttribute('aria-pressed', 'true');
   await searchbox.fill('does-not-exist');
+
   await expect(page.getByRole('heading', { name: '继续阅读' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '最近阅读' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '搜索结果' })).toBeVisible();

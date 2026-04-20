@@ -27,6 +27,7 @@
   } from '$lib/services';
 
   const sampleNow = Date.parse('2026-04-14T10:00:00+08:00');
+  type LibraryFilter = 'all' | 'reading' | 'unstarted' | 'finished';
 
   const starterLibraryBooks: LibraryShelfBook[] = [
     {
@@ -142,6 +143,7 @@
   let desktopLibraryMode = false;
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
+  let libraryFilterBy: LibraryFilter = 'all';
   let libraryQuery = '';
   let librarySearchActive = false;
   let searchedLibraryBooks: LibraryShelfBook[] = [];
@@ -389,6 +391,23 @@
     return books.filter((book) => matchesLibraryQuery(book, normalizedQuery));
   };
 
+  const matchesLibraryFilter = (book: LibraryShelfBook, filterBy: LibraryFilter) => {
+    if (filterBy === 'all') return true;
+    if (filterBy === 'reading') return isBookInProgress(book);
+    if (filterBy === 'finished') return isBookFinished(book);
+    return isBookUnstarted(book);
+  };
+
+  const filterBooksByLibraryFilter = (books: LibraryShelfBook[], filterBy: LibraryFilter) =>
+    books.filter((book) => matchesLibraryFilter(book, filterBy));
+
+  const getLibraryFilterLabel = (filterBy: LibraryFilter) => {
+    if (filterBy === 'reading') return '在读';
+    if (filterBy === 'unstarted') return '未开始';
+    if (filterBy === 'finished') return '已读完';
+    return '全部';
+  };
+
   const getLibraryViewport = () => libraryScrollRef?.osInstance()?.elements().viewport ?? null;
 
   const buildLibraryScrollContextKey = () =>
@@ -397,6 +416,7 @@
       desktopLibraryMode ? 'desktop' : 'web',
       libraryViewMode,
       librarySortBy,
+      libraryFilterBy,
       librarySearchActive ? normalizeLibrarySearchText(libraryQuery) : 'browse'
     ].join(':');
 
@@ -533,14 +553,14 @@
         sortBooksForDisplay(importedBooks, librarySortBy),
         [...continueReadingBooks, ...recentReadingBooks]
       );
-  $: filteredContinueReadingBooks = continueReadingBooks;
-  $: filteredRecentReadingBooks = recentReadingBooks;
-  $: filteredLibraryShelfBooks = libraryShelfBooks;
+  $: filteredContinueReadingBooks = filterBooksByLibraryFilter(continueReadingBooks, libraryFilterBy);
+  $: filteredRecentReadingBooks = filterBooksByLibraryFilter(recentReadingBooks, libraryFilterBy);
+  $: filteredLibraryShelfBooks = filterBooksByLibraryFilter(libraryShelfBooks, libraryFilterBy);
   $: visibleLibraryBooksCount =
     filteredContinueReadingBooks.length +
     filteredRecentReadingBooks.length +
     filteredLibraryShelfBooks.length;
-  $: readingWorkflowNotice = !librarySearchActive
+  $: readingWorkflowNotice = !librarySearchActive && libraryFilterBy === 'all'
     ? (() => {
         const hasReadingHistory = importedBooks.some(
           (book) => hasBookBeenOpened(book)
@@ -580,10 +600,16 @@
         sortBooksForDisplay(starterLibraryBooks, librarySortBy),
         [...starterContinueReadingBooks, ...starterRecentReadingBooks]
       );
-  $: filteredStarterContinueReadingBooks = starterContinueReadingBooks;
-  $: filteredStarterRecentReadingBooks = starterRecentReadingBooks;
-  $: filteredStarterShelfBooks = starterShelfBooks;
-  $: starterReadingWorkflowNotice = !librarySearchActive
+  $: filteredStarterContinueReadingBooks = filterBooksByLibraryFilter(
+    starterContinueReadingBooks,
+    libraryFilterBy
+  );
+  $: filteredStarterRecentReadingBooks = filterBooksByLibraryFilter(
+    starterRecentReadingBooks,
+    libraryFilterBy
+  );
+  $: filteredStarterShelfBooks = filterBooksByLibraryFilter(starterShelfBooks, libraryFilterBy);
+  $: starterReadingWorkflowNotice = !librarySearchActive && libraryFilterBy === 'all'
     ? (() => {
         if (filteredStarterContinueReadingBooks.length > 0) return null;
         if (filteredStarterRecentReadingBooks.length > 0) {
@@ -761,6 +787,12 @@
   ) => {
     librarySortBy = event.detail.sortBy;
   };
+
+  const handleLibraryFilterChange = (
+    event: CustomEvent<{ filterBy: 'all' | 'reading' | 'unstarted' | 'finished' }>
+  ) => {
+    libraryFilterBy = event.detail.filterBy;
+  };
 </script>
 
 <section class="library-page">
@@ -778,9 +810,11 @@
       query={libraryQuery}
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
+      activeFilter={libraryFilterBy}
       importDisabled={migrationBusy}
       on:querychange={handleLibraryQueryChange}
       on:importbooks={triggerImportPicker}
+      on:filterchange={handleLibraryFilterChange}
       on:sortchange={handleLibrarySortChange}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />
@@ -890,7 +924,16 @@
           <section class="empty-library" aria-label="empty search results">
             <div class="empty-copy">
               <strong>没有找到匹配的书籍</strong>
-              <span>试试搜索标题、作者、格式或当前阅读状态。</span>
+              <span>
+                试试搜索标题、作者、格式，或者调整当前的“{getLibraryFilterLabel(libraryFilterBy)}”筛选。
+              </span>
+            </div>
+          </section>
+        {:else if visibleLibraryBooksCount === 0}
+          <section class="empty-library" aria-label="empty filtered library">
+            <div class="empty-copy">
+              <strong>{getLibraryFilterLabel(libraryFilterBy)} 当前没有匹配的书</strong>
+              <span>切回“全部”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
             </div>
           </section>
         {/if}
@@ -925,6 +968,7 @@
         <BookshelfPreview
           sectionTitle={librarySearchActive ? '搜索结果' : '你的书库'}
           books={filteredStarterShelfBooks}
+          viewMode={libraryViewMode}
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}

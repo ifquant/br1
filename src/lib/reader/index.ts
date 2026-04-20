@@ -19,11 +19,14 @@ export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export {
   createDefaultReaderSettings,
+  getReaderThemePalette,
+  hydrateReaderSettings,
   loadReaderSettings,
   normalizeReaderSettings,
   READER_SETTINGS_STORAGE_KEY,
   saveReaderSettings
 } from './settings';
+export type { ReaderThemePalette } from './settings';
 export {
   getDesktopBookDialogExtensions,
   getReaderFormatSupportStatus,
