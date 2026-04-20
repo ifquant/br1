@@ -438,7 +438,12 @@
     margin: 0 auto;
     min-height: 44px;
     padding: 4px 20px 2px 16px;
-    background: transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--reader-shell-border, var(--border-light)) 78%, transparent 22%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--reader-shell-panel, var(--surface-panel)) 92%, transparent 8%);
+    box-shadow: 0 8px 24px -20px var(--reader-shell-shadow, rgba(55, 39, 18, 0.1));
+    backdrop-filter: blur(10px);
   }
 
   .reader-head-frame.window-mode.focus-width {
@@ -470,15 +475,15 @@
     border: 0;
     border-radius: 999px;
     background: transparent;
-    color: var(--text-secondary);
+    color: var(--reader-shell-muted, var(--text-secondary));
     font: inherit;
     font-size: 13px;
     line-height: 1;
   }
 
   .leading-tools button:hover {
-    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
-    color: var(--text-primary);
+    background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 88%, white 12%);
+    color: var(--reader-shell-text, var(--text-primary));
   }
 
   .head-meta {
@@ -514,6 +519,7 @@
   .title-row strong {
     font-size: 14px;
     line-height: 1.3;
+    color: var(--reader-shell-text, var(--text-primary));
   }
 
   .window-mode .title-row {
@@ -521,7 +527,7 @@
   }
 
   .title-row small {
-    color: var(--text-muted);
+    color: var(--reader-shell-muted, var(--text-muted));
     font-size: 12px;
   }
 
@@ -531,19 +537,19 @@
     align-items: center;
     justify-content: center;
     min-width: 0;
-    color: var(--text-muted);
+    color: var(--reader-shell-muted, var(--text-muted));
   }
 
   .subtitle-row span {
     min-width: 0;
     font-size: 12px;
-    color: color-mix(in srgb, var(--text-secondary) 90%, white 10%);
+    color: color-mix(in srgb, var(--reader-shell-text, var(--text-secondary)) 82%, white 18%);
   }
 
   .subtitle-row span::before {
     content: "•";
     margin-right: 8px;
-    color: color-mix(in srgb, var(--text-muted) 70%, white 30%);
+    color: color-mix(in srgb, var(--reader-shell-muted, var(--text-muted)) 70%, white 30%);
   }
 
   .controls {
@@ -568,21 +574,21 @@
     border: 0;
     border-radius: 999px;
     background: transparent;
-    color: var(--text-secondary);
+    color: var(--reader-shell-muted, var(--text-secondary));
     font: inherit;
     font-size: 13px;
     line-height: 1;
   }
 
   .controls button:hover {
-    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
-    color: var(--text-primary);
+    background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 88%, white 12%);
+    color: var(--reader-shell-text, var(--text-primary));
   }
 
   .controls button.active {
-    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
-    color: var(--text-primary);
-    box-shadow: inset 0 0 0 1px var(--border-light);
+    background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 92%, white 8%);
+    color: var(--reader-shell-accent, var(--text-primary));
+    box-shadow: inset 0 0 0 1px var(--reader-shell-border, var(--border-light));
   }
 
   .header-menu {
@@ -592,13 +598,14 @@
     display: grid;
     min-width: 156px;
     padding: 6px;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--reader-shell-border, var(--border-light));
     border-radius: 14px;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 242, 231, 0.98));
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 95%, white 5%);
     box-shadow:
-      0 18px 40px rgba(56, 40, 18, 0.12),
-      0 3px 12px rgba(56, 40, 18, 0.08);
+      0 18px 40px var(--reader-shell-shadow, rgba(56, 40, 18, 0.12)),
+      0 3px 12px color-mix(in srgb, var(--reader-shell-shadow, rgba(56, 40, 18, 0.08)) 72%, transparent 28%);
   }
 
   .header-menu button {
@@ -619,7 +626,7 @@
   }
 
   .menu-section-label {
-    color: var(--text-muted);
+    color: var(--reader-shell-muted, var(--text-muted));
     font-family: var(--font-chrome);
     font-size: 11px;
     line-height: 1;
@@ -638,7 +645,7 @@
   }
 
   .menu-subsection-label {
-    color: color-mix(in srgb, var(--text-secondary) 88%, white 12%);
+    color: color-mix(in srgb, var(--reader-shell-text, var(--text-secondary)) 78%, white 22%);
     font-family: var(--font-chrome);
     font-size: 11px;
     line-height: 1.2;
@@ -652,12 +659,12 @@
   .menu-divider {
     height: 1px;
     margin: 2px 6px 4px;
-    background: color-mix(in srgb, var(--border-light) 84%, transparent 16%);
+    background: color-mix(in srgb, var(--reader-shell-border, var(--border-light)) 84%, transparent 16%);
   }
 
   .header-menu button.active-option {
-    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
-    color: var(--text-primary);
-    box-shadow: inset 0 0 0 1px var(--border-light);
+    background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 92%, white 8%);
+    color: var(--reader-shell-accent, var(--text-primary));
+    box-shadow: inset 0 0 0 1px var(--reader-shell-border, var(--border-light));
   }
 </style>

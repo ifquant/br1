@@ -240,7 +240,11 @@
         : '书库';
 
     const availabilityLabel = !hasLibraryFileCopy
-      ? '书库副本缺失，需要重新导入'
+      ? record.sourcePath && !hasOriginalSource
+        ? '书库副本缺失，且原文件路径已失效'
+        : record.sourcePath
+          ? '书库副本缺失，可从原文件重建'
+          : '书库副本缺失，需要手动重新关联'
       : record.sourcePath && !hasOriginalSource
         ? '原文件缺失，可继续使用书库副本'
         : isReadestCompatible
@@ -259,7 +263,11 @@
     const compatibilityLabel = !hasLibraryFileCopy
       ? isReadestCompatible
         ? '兼容记录仍在，但书库副本已经缺失；请重新同步 Readest 或重新导入文件。'
-        : '书库副本已经缺失；请重新导入文件后再继续阅读或从头开始。'
+        : record.sourcePath && !hasOriginalSource
+          ? '这本书无法批量修复；请先逐本复核，再选择替换文件重新关联到原有记录。'
+          : record.sourcePath
+            ? '书库副本已经缺失；可以直接从当前原文件重建，不会额外创建重复条目。'
+            : '缺少可复用的原文件路径；请逐本复核后再选择替换文件重新关联。'
       : record.sourcePath && !hasOriginalSource
         ? '原文件路径已失效；继续阅读仍可用，如需恢复“原文件”入口请重新导入。'
         : isReadestCompatible
@@ -901,7 +909,7 @@
         'info',
         libraryCopyMissing && sourcePathAvailable
           ? `已从原文件重建“${book.title}”的书库副本，原有阅读进度已保留。`
-          : `已尝试重新关联“${book.title}”的新文件路径；如果它仍显示缺失，请确认选择的是同一本书。`
+          : `已将“${book.title}”按原位修复方式重新关联到新文件；如果它仍显示缺失，请确认选择的是同一本书。`
       );
     } catch (error) {
       console.error('Failed to repair the library book', error);

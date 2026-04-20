@@ -67,15 +67,30 @@
   const isMissingLibraryCopy = (availabilityLabel: string | undefined) =>
     availabilityLabel?.includes('书库副本缺失') ?? false;
 
+  const isManualRelinkBook = (book: ContinueReadingBook) =>
+    isMissingLibraryCopy(book.availabilityLabel) &&
+    (book.availabilityLabel?.includes('手动重新关联') ||
+      book.availabilityLabel?.includes('原文件路径已失效') ||
+      book.compatibilityLabel?.includes('无法批量修复') ||
+      book.compatibilityLabel?.includes('逐本复核') ||
+      false);
+
   const getRepairLabel = (
+    book: ContinueReadingBook,
     originalFileMissing: boolean,
-    libraryCopyMissing: boolean,
-    sourceLabel: string | undefined
+    libraryCopyMissing: boolean
   ) => {
-    if (libraryCopyMissing && sourceLabel?.includes('Readest')) return '重新同步';
+    if (libraryCopyMissing && book.sourceLabel?.includes('Readest')) return '重新同步';
+    if (isManualRelinkBook(book)) return '复核并重关联';
     if (libraryCopyMissing) return '修复副本';
-    if (originalFileMissing) return '重新关联';
+    if (originalFileMissing) return '恢复原文件入口';
     return '重新导入';
+  };
+
+  const getRepairPillLabel = (book: ContinueReadingBook, libraryCopyMissing: boolean) => {
+    if (isManualRelinkBook(book)) return '待复核';
+    if (libraryCopyMissing) return '需修复';
+    return primaryActionLabel;
   };
 </script>
 
@@ -102,6 +117,7 @@
       {@const bookKey = book.readerHref || `${book.title}::${book.author}`}
       {@const originalFileMissing = isMissingOriginalFile(book.availabilityLabel)}
       {@const libraryCopyMissing = isMissingLibraryCopy(book.availabilityLabel)}
+      {@const manualRelinkOnly = isManualRelinkBook(book)}
       <article class="row">
         <svelte:element
           this={book.readerHref ? 'a' : 'div'}
@@ -170,18 +186,20 @@
                   type="button"
                   class="secondary-pill warning-pill"
                   on:click={(event: MouseEvent) => {
-                    if (onRepairBook) {
+                    if (manualRelinkOnly) {
+                      toggleDetails(event, bookKey);
+                    } else if (onRepairBook) {
                       handleRepairBook(event, book);
                     } else {
                       handleImportBooks(event);
                     }
                   }}
                 >
-                  {getRepairLabel(originalFileMissing, libraryCopyMissing, book.sourceLabel)}
+                  {getRepairLabel(book, originalFileMissing, libraryCopyMissing)}
                 </button>
               {/if}
               <span class:warning={libraryCopyMissing} class="resume-pill">
-                {libraryCopyMissing ? '需修复' : primaryActionLabel}
+                {getRepairPillLabel(book, libraryCopyMissing)}
               </span>
             </div>
           </div>
@@ -194,6 +212,11 @@
                 <span>
                   {book.compatibilityLabel || '请重新导入这本书，恢复本地书库中的可用文件和原文件入口。'}
                 </span>
+                {#if manualRelinkOnly}
+                  <span class="detail-review-note">
+                    这本书当前只能逐本复核后再选替换文件，后续会沿用原位修复语义而不是新增重复条目。
+                  </span>
+                {/if}
               </div>
             {/if}
             <div class="detail-grid">
@@ -228,6 +251,20 @@
               <div class="detail-description">
                 <span>简介</span>
                 <p>{book.description}</p>
+              </div>
+            {/if}
+            {#if (originalFileMissing || libraryCopyMissing) && onRepairBook}
+              <div class="detail-actions">
+                <button
+                  type="button"
+                  class:warning-pill={manualRelinkOnly}
+                  class="secondary-pill"
+                  on:click={(event: MouseEvent) => handleRepairBook(event, book)}
+                >
+                  {manualRelinkOnly
+                    ? '选择替换文件并重关联'
+                    : getRepairLabel(book, originalFileMissing, libraryCopyMissing)}
+                </button>
               </div>
             {/if}
           </div>
@@ -521,6 +558,10 @@
     line-height: 1.45;
   }
 
+  .detail-review-note {
+    color: color-mix(in srgb, var(--text-secondary) 88%, #7c4619 12%);
+  }
+
   .detail-grid {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -564,6 +605,14 @@
     font-size: 12px;
     line-height: 1.6;
     color: var(--text-secondary);
+  }
+
+  .detail-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid color-mix(in srgb, var(--line-soft) 88%, white 12%);
   }
 
   @media (max-width: 720px) {

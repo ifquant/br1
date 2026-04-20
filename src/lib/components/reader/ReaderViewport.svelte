@@ -1168,7 +1168,7 @@
 
   .label {
     display: block;
-    color: var(--text-muted);
+    color: var(--reader-shell-muted, var(--text-muted));
     font-size: 12px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -1177,7 +1177,7 @@
 
   .viewport-head p {
     margin: 4px 0 0;
-    color: var(--text-secondary);
+    color: var(--reader-shell-text, var(--text-secondary));
     line-height: 1.55;
     font-size: 13px;
   }
@@ -1194,10 +1194,10 @@
     min-height: 66vh;
     width: 100%;
     padding: clamp(14px, 2.6vw, 24px) clamp(8px, 1.8vw, 14px);
-    border: 1px solid var(--reader-border-color, rgba(64, 47, 24, 0.05));
+    border: 1px solid var(--reader-shell-border, var(--reader-border-color, rgba(64, 47, 24, 0.05)));
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--reader-surface-bg, var(--surface-reader)) 97%, white 3%);
+      color-mix(in srgb, var(--reader-surface-bg, var(--reader-shell-panel, var(--surface-reader))) 95%, white 5%);
     outline: none;
   }
 
@@ -1224,10 +1224,10 @@
     padding: clamp(14px, 2.2vw, 18px) clamp(14px, 2.6vw, 24px);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
-      var(--reader-surface-bg, #f8f3e9);
+      color-mix(in srgb, var(--reader-surface-bg, #f8f3e9) 88%, var(--reader-shell-panel, white) 12%);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.44) inset,
-      0 16px 28px rgba(36, 25, 12, 0.06);
+      0 16px 28px color-mix(in srgb, var(--reader-shell-shadow, rgba(36, 25, 12, 0.06)) 58%, transparent 42%);
   }
 
   .paper-header {
@@ -1334,9 +1334,9 @@
     margin: 0;
     padding: 10px 14px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 94%, white 6%);
-    border: 1px solid rgba(64, 47, 24, 0.07);
-    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 92%, white 8%);
+    border: 1px solid color-mix(in srgb, var(--reader-shell-border, rgba(64, 47, 24, 0.07)) 84%, transparent 16%);
+    color: var(--reader-shell-text, var(--text-secondary));
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 11px;
     line-height: 1;
@@ -1348,20 +1348,20 @@
     margin: 0;
     padding: 10px 14px;
     border-radius: 12px;
-    background: color-mix(in srgb, #f7eee0 88%, white 12%);
-    border: 1px solid rgba(140, 70, 42, 0.12);
-    color: color-mix(in srgb, #523721 88%, white 12%);
+    background: color-mix(in srgb, var(--reader-shell-raised, #f7eee0) 84%, white 16%);
+    border: 1px solid color-mix(in srgb, var(--reader-shell-accent, rgba(140, 70, 42, 0.12)) 24%, transparent 76%);
+    color: color-mix(in srgb, var(--reader-shell-text, #523721) 88%, white 12%);
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 12px;
     line-height: 1.5;
     text-align: center;
-    box-shadow: 0 10px 20px rgba(41, 28, 14, 0.06);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--reader-shell-shadow, rgba(41, 28, 14, 0.06)) 56%, transparent 44%);
   }
 
   .stage-error span {
     display: block;
     margin-top: 4px;
-    color: var(--text-secondary);
+    color: var(--reader-shell-muted, var(--text-secondary));
     text-transform: none;
     letter-spacing: 0;
   }

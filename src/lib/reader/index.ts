@@ -19,6 +19,7 @@ export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export {
   createDefaultReaderSettings,
+  getReaderShellPalette,
   getReaderThemePalette,
   hydrateReaderSettings,
   loadReaderSettings,
@@ -26,7 +27,7 @@ export {
   READER_SETTINGS_STORAGE_KEY,
   saveReaderSettings
 } from './settings';
-export type { ReaderThemePalette } from './settings';
+export type { ReaderShellPalette, ReaderThemePalette } from './settings';
 export {
   getDesktopBookDialogExtensions,
   getReaderFormatSupportStatus,

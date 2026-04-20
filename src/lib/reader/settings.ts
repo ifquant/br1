@@ -39,6 +39,17 @@ export type ReaderThemePalette = {
   primary: string;
 };
 
+export type ReaderShellPalette = {
+  shellBackdrop: string;
+  shellPanel: string;
+  shellRaised: string;
+  shellText: string;
+  shellMuted: string;
+  shellBorder: string;
+  shellAccent: string;
+  shellShadow: string;
+};
+
 export const createDefaultReaderSettings = (): ReaderSettings => ({
   flowMode: 'paginated',
   fontFamily: 'serif',
@@ -85,6 +96,47 @@ export const getReaderThemePalette = (
     muted: 'rgba(71, 54, 31, 0.55)',
     border: 'rgba(84, 62, 34, 0.08)',
     primary: '#8c6a3b'
+  };
+};
+
+export const getReaderShellPalette = (
+  themePreset: ReaderSettings['themePreset']
+): ReaderShellPalette => {
+  if (themePreset === 'warm') {
+    return {
+      shellBackdrop: '#eadbc4',
+      shellPanel: 'rgba(248, 239, 223, 0.9)',
+      shellRaised: 'rgba(255, 249, 239, 0.96)',
+      shellText: '#38291b',
+      shellMuted: 'rgba(89, 65, 37, 0.72)',
+      shellBorder: 'rgba(134, 94, 51, 0.18)',
+      shellAccent: '#9a6b36',
+      shellShadow: 'rgba(78, 51, 24, 0.12)'
+    };
+  }
+
+  if (themePreset === 'soft') {
+    return {
+      shellBackdrop: '#d9e4d6',
+      shellPanel: 'rgba(231, 239, 228, 0.9)',
+      shellRaised: 'rgba(244, 248, 242, 0.96)',
+      shellText: '#283127',
+      shellMuted: 'rgba(67, 82, 62, 0.72)',
+      shellBorder: 'rgba(93, 111, 84, 0.18)',
+      shellAccent: '#6b7b52',
+      shellShadow: 'rgba(40, 57, 38, 0.1)'
+    };
+  }
+
+  return {
+    shellBackdrop: '#f1e6d7',
+    shellPanel: 'rgba(251, 245, 235, 0.9)',
+    shellRaised: 'rgba(255, 252, 246, 0.96)',
+    shellText: '#2f241a',
+    shellMuted: 'rgba(78, 59, 35, 0.68)',
+    shellBorder: 'rgba(102, 75, 43, 0.14)',
+    shellAccent: '#8c6a3b',
+    shellShadow: 'rgba(55, 39, 18, 0.1)'
   };
 };
 

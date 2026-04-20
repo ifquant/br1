@@ -64,31 +64,25 @@ test('reader persists epub layout settings through reload in web mode', async ({
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.epub&label=Sample%20EPUB%20Book';
 
   const pickReaderSetting = async (
-    groupLabel: 'reader flow mode' | 'reader font family' | 'reader font scale' | 'reader line height' | 'reader page margins',
+    groupLabel:
+      | 'reader flow mode'
+      | 'reader atmosphere'
+      | 'reader font family'
+      | 'reader font scale'
+      | 'reader line height'
+      | 'reader page margins',
     optionLabel: string
   ) => {
     await page.getByRole('button', { name: 'More actions' }).click();
-    await page.evaluate(
-      ({ targetGroupLabel, targetOptionLabel }) => {
-        const groups = Array.from(document.querySelectorAll('[role="group"][aria-label]'));
-        const group = groups.find(
-          (candidate) => candidate.getAttribute('aria-label') === targetGroupLabel
-        );
-        if (!(group instanceof HTMLElement)) {
-          throw new Error(`expected reader settings group to exist: ${targetGroupLabel}`);
-        }
-
-        const option = Array.from(group.querySelectorAll('button[role="menuitemradio"]')).find(
-          (candidate) => candidate.textContent?.trim() === targetOptionLabel
-        );
-        if (!(option instanceof HTMLButtonElement)) {
-          throw new Error(`expected reader settings option to exist: ${targetOptionLabel}`);
-        }
-
-        option.click();
-      },
-      { targetGroupLabel: groupLabel, targetOptionLabel: optionLabel }
-    );
+    const option = page
+      .locator(`[role="group"][aria-label="${groupLabel}"]`)
+      .getByRole('menuitemradio', { name: optionLabel, exact: true });
+    await option.evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) {
+        throw new Error('expected reader settings option button');
+      }
+      element.click();
+    });
   };
 
   const readRendererState = async () =>
@@ -113,6 +107,23 @@ test('reader persists epub layout settings through reload in web mode', async ({
       };
     });
 
+  const readShellState = async () =>
+    page.evaluate(() => {
+      const stage = document.querySelector('.reader-stage');
+      const headFrame = document.querySelector('.reader-head-frame');
+      const viewportShell = document.querySelector('.viewport-shell');
+      const stageStyles = stage ? getComputedStyle(stage) : null;
+      const headStyles = headFrame ? getComputedStyle(headFrame) : null;
+      const viewportStyles = viewportShell ? getComputedStyle(viewportShell) : null;
+
+      return {
+        shellBackdrop: stageStyles?.getPropertyValue('--reader-shell-backdrop').trim() ?? '',
+        shellAccent: stageStyles?.getPropertyValue('--reader-shell-accent').trim() ?? '',
+        headBorderColor: headStyles?.borderBottomColor ?? '',
+        viewportBorderColor: viewportStyles?.borderColor ?? ''
+      };
+    });
+
   await page.goto(readerUrl);
   await expect(page.locator('.stage-error')).toHaveCount(0);
   await expect(page.getByLabel('reader footer controls preview')).toContainText('PAGINATED');
@@ -122,7 +133,9 @@ test('reader persists epub layout settings through reload in web mode', async ({
   await pickReaderSetting('reader font scale', '大');
   await pickReaderSetting('reader line height', '舒展');
   await pickReaderSetting('reader page margins', '宽');
+  await page.reload();
 
+  await expect(page.locator('.stage-error')).toHaveCount(0);
   await expect(page.getByLabel('reader footer controls preview')).toContainText('SCROLL');
   await expect
     .poll(readRendererState, { message: 'expected renderer settings to update before reload' })
@@ -141,10 +154,17 @@ test('reader persists epub layout settings through reload in web mode', async ({
       message: 'expected renderer body font family to switch to sans'
     })
     .toContain('IBM Plex Sans');
-
-  await page.reload();
-  await expect(page.locator('.stage-error')).toHaveCount(0);
-  await expect(page.getByLabel('reader footer controls preview')).toContainText('SCROLL');
+  await expect
+    .poll(readShellState, { message: 'expected the reader shell contract to expose stage-level palette tokens before reload' })
+    .toMatchObject({
+      shellBackdrop: '#f1e6d7',
+      shellAccent: '#8c6a3b'
+    });
+  await expect
+    .poll(async () => (await readShellState()).headBorderColor, {
+      message: 'expected the reader header shell chrome to pick up the warm atmosphere after reload'
+    })
+    .not.toBe('rgba(0, 0, 0, 0)');
   await expect
     .poll(readRendererState, { message: 'expected renderer settings to survive reload' })
     .toMatchObject({
@@ -162,6 +182,17 @@ test('reader persists epub layout settings through reload in web mode', async ({
       message: 'expected sans font family to survive reload'
     })
     .toContain('IBM Plex Sans');
+  await expect
+    .poll(readShellState, { message: 'expected reader shell palette tokens to survive reload alongside the layout settings' })
+    .toMatchObject({
+      shellBackdrop: '#f1e6d7',
+      shellAccent: '#8c6a3b'
+    });
+  await expect
+    .poll(async () => (await readShellState()).viewportBorderColor, {
+      message: 'expected the viewport shell chrome to retain themed border styling after reload'
+    })
+    .not.toBe('rgba(0, 0, 0, 0)');
 });
 
 test('reader manages structured search history through reload in web mode', async ({ page }) => {
@@ -535,6 +566,18 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await importPreview.getByRole('button', { name: '导入已匹配高亮' }).click();
   await expect(savedSelectionPanel).toContainText('已更新跨书选择集：Web TXT 重命名高亮 (2)（1/1）');
   await expect(page.getByText('Web TXT 重命名高亮 (2)', { exact: true })).toHaveCount(1);
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('完全匹配');
+  await savedSelectionPanel.getByRole('button', { name: '部分匹配 1' }).click();
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('部分匹配');
+  await savedSelectionPanel.getByRole('button', { name: '完全匹配 1' }).click();
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮 (2)');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('完全匹配');
+  await expect(savedSelectionPanel.getByRole('button', { name: '未匹配 0' })).toBeDisabled();
+  await savedSelectionPanel.getByRole('button', { name: '全部已保存' }).click();
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(3);
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);

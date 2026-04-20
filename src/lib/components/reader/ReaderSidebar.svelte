@@ -108,6 +108,7 @@
   let highlightsFilter: ReaderHighlightsFilter = 'all';
   let highlightsSort: ReaderHighlightsSort = 'recent';
   let savedHighlightSelectionsSort: ReaderHighlightSelectionSetSort = 'recent';
+  let savedHighlightSelectionsRefreshFilter: 'all' | 'full' | 'partial' | 'missed' = 'all';
   let selectedHighlightIds = new Set<string>();
   let savedHighlightSelections: ReaderHighlightSelectionSet[] = [];
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
@@ -159,6 +160,21 @@
     matchedCount,
     totalCount
   });
+
+  const getSavedHighlightSelectionRefreshOutcome = (
+    selectionSet: ReaderHighlightSelectionSet
+  ): 'manual' | 'full' | 'partial' | 'missed' => {
+    if (!selectionSet.importSource) return 'manual';
+    if (selectionSet.importSource.matchedCount <= 0) return 'missed';
+    if (selectionSet.importSource.matchedCount >= selectionSet.importSource.totalCount) return 'full';
+    return 'partial';
+  };
+
+  const getSavedHighlightSelectionRefreshLabel = (outcome: 'full' | 'partial' | 'missed') => {
+    if (outcome === 'full') return '完全匹配';
+    if (outcome === 'partial') return '部分匹配';
+    return '未匹配';
+  };
 
   const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
     if (!state) {
@@ -483,6 +499,28 @@
       ? [...savedHighlightSelections].sort((left, right) => left.createdAt - right.createdAt)
       : [...savedHighlightSelections].sort((left, right) => right.createdAt - left.createdAt);
   $: importedSavedHighlightSelections = savedHighlightSelections.filter((selectionSet) => !!selectionSet.importSource);
+  $: savedHighlightSelectionsRefreshCounts = importedSavedHighlightSelections.reduce(
+    (counts, selectionSet) => {
+      const outcome = getSavedHighlightSelectionRefreshOutcome(selectionSet);
+      if (outcome !== 'manual') {
+        counts[outcome] += 1;
+      }
+      return counts;
+    },
+    {
+      full: 0,
+      partial: 0,
+      missed: 0
+    }
+  );
+  $: filteredSavedHighlightSelections =
+    savedHighlightSelectionsRefreshFilter === 'all'
+      ? orderedSavedHighlightSelections
+      : orderedSavedHighlightSelections.filter(
+          (selectionSet) =>
+            selectionSet.importSource &&
+            getSavedHighlightSelectionRefreshOutcome(selectionSet) === savedHighlightSelectionsRefreshFilter
+        );
   $: selectedVisibleHighlights = sortedHighlights.filter((note) => selectedHighlightIds.has(note.id));
   $: savedHighlightSelections = savedHighlightSelections.filter(
     (set, index, allSets) =>
@@ -1997,6 +2035,85 @@
                         .join('、')}
                     </span>
                   {/if}
+                  <div class="saved-highlight-selection-refresh-filters" aria-label="saved highlight selection refresh outcome filters">
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'all'}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'all')}
+                    >
+                      全部已保存
+                    </button>
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'full'}
+                      disabled={!savedHighlightSelectionsRefreshCounts.full}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'full')}
+                    >
+                      完全匹配 {savedHighlightSelectionsRefreshCounts.full}
+                    </button>
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'partial'}
+                      disabled={!savedHighlightSelectionsRefreshCounts.partial}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'partial')}
+                    >
+                      部分匹配 {savedHighlightSelectionsRefreshCounts.partial}
+                    </button>
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'missed'}
+                      disabled={!savedHighlightSelectionsRefreshCounts.missed}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'missed')}
+                    >
+                      未匹配 {savedHighlightSelectionsRefreshCounts.missed}
+                    </button>
+                  </div>
+                </section>
+              {:else if importedSavedHighlightSelections.length}
+                <section class="saved-highlight-selection-refresh-summary" aria-label="saved highlight selection refresh summary">
+                  <strong>跨书映射视图</strong>
+                  <span>按当前映射结果筛选已保存的跨书选择集。</span>
+                  <div class="saved-highlight-selection-refresh-filters" aria-label="saved highlight selection refresh outcome filters">
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'all'}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'all')}
+                    >
+                      全部已保存
+                    </button>
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'full'}
+                      disabled={!savedHighlightSelectionsRefreshCounts.full}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'full')}
+                    >
+                      完全匹配 {savedHighlightSelectionsRefreshCounts.full}
+                    </button>
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'partial'}
+                      disabled={!savedHighlightSelectionsRefreshCounts.partial}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'partial')}
+                    >
+                      部分匹配 {savedHighlightSelectionsRefreshCounts.partial}
+                    </button>
+                    <button
+                      type="button"
+                      class="notes-filter-chip"
+                      class:active={savedHighlightSelectionsRefreshFilter === 'missed'}
+                      disabled={!savedHighlightSelectionsRefreshCounts.missed}
+                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'missed')}
+                    >
+                      未匹配 {savedHighlightSelectionsRefreshCounts.missed}
+                    </button>
+                  </div>
                 </section>
               {/if}
               {#if savedHighlightSelectionImportPreview}
@@ -2030,8 +2147,8 @@
                 </section>
               {/if}
               <div class="saved-highlight-selections-list">
-                {#if orderedSavedHighlightSelections.length}
-                  {#each orderedSavedHighlightSelections as selectionSet}
+                {#if filteredSavedHighlightSelections.length}
+                  {#each filteredSavedHighlightSelections as selectionSet}
                     <article class="saved-highlight-selection-card">
                       <div class="saved-highlight-selection-copy">
                         <strong>{selectionSet.name}</strong>
@@ -2039,6 +2156,19 @@
                         {#if selectionSet.importSource}
                           <span class="saved-highlight-selection-origin">
                             跨书导入 · {selectionSet.importSource.bookTitle} / {selectionSet.importSource.selectionName} · {selectionSet.importSource.matchedCount}/{selectionSet.importSource.totalCount}
+                          </span>
+                          <span
+                            class="saved-highlight-selection-status"
+                            class:saved-highlight-selection-status-full={getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'full'}
+                            class:saved-highlight-selection-status-missed={getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'missed'}
+                          >
+                            {getSavedHighlightSelectionRefreshLabel(
+                              getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'full'
+                                ? 'full'
+                                : getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'missed'
+                                  ? 'missed'
+                                  : 'partial'
+                            )}
                           </span>
                         {/if}
                         <time>{formatTimestamp(selectionSet.createdAt)}</time>
@@ -2084,6 +2214,16 @@
                       </div>
                     </article>
                   {/each}
+                {:else if orderedSavedHighlightSelections.length}
+                  <p class="saved-highlight-selection-empty">
+                    当前筛选下没有
+                    {savedHighlightSelectionsRefreshFilter === 'full'
+                      ? '完全匹配'
+                      : savedHighlightSelectionsRefreshFilter === 'partial'
+                        ? '部分匹配'
+                        : '未匹配'}
+                    的跨书选择集。
+                  </p>
                 {:else}
                   <p class="saved-highlight-selection-empty">还没有保存的高亮选择集，可以先导入一组或从当前选中高亮创建。</p>
                 {/if}
@@ -3202,6 +3342,13 @@
     line-height: 1.3;
   }
 
+  .saved-highlight-selection-refresh-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
   .saved-highlight-selection-import-preview {
     display: grid;
     gap: 8px;
@@ -3284,6 +3431,27 @@
 
   .saved-highlight-selection-origin {
     color: var(--text-primary);
+  }
+
+  .saved-highlight-selection-status {
+    display: inline-flex;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 72%, white 28%);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .saved-highlight-selection-status-full {
+    background: color-mix(in srgb, #d7f6e6 72%, white 28%);
+    color: #17603c;
+  }
+
+  .saved-highlight-selection-status-missed {
+    background: color-mix(in srgb, #fde2e2 78%, white 22%);
+    color: #8f2f2f;
   }
 
   .saved-highlight-selection-actions {

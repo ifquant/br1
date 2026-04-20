@@ -800,7 +800,7 @@ describe('br1 desktop app', () => {
         ),
         hasRepairAction: Array.from(row.querySelectorAll('button')).some((button) => {
           const label = button.textContent?.trim() ?? '';
-          return ['重新导入', '修复副本', '重新关联', '重新同步'].includes(label);
+          return ['重新导入', '修复副本', '重新关联', '重新同步', '复核并重关联'].includes(label);
         }),
         hasSourceButton: Array.from(row.querySelectorAll('button')).some(
           (button) => button.textContent?.trim() === '原文件'
@@ -2600,6 +2600,52 @@ describe('br1 desktop app', () => {
       }, {
         timeout: 10000,
         timeoutMsg: 'expected both broken books to enter the repair queue before running the bulk repair action'
+      }).catch(async (error) => {
+        const txtState = await readLibraryEntryStateForTitle(txtBook!.title);
+        const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nTXT state: ${JSON.stringify(txtState)}\nCBZ state: ${JSON.stringify(cbzState)}`
+        );
+      });
+
+      await browser.waitUntil(async () => {
+        const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
+        return !!cbzState && cbzState.text.includes('待复核') && cbzState.text.includes('复核并重关联');
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the manual-only repair row to surface explicit review-first relink labels before bulk repair runs'
+      });
+
+      await browser.execute((expectedTitle) => {
+        const rows = Array.from(document.querySelectorAll('.continue-shelf .row'));
+        const row = rows.find((candidate) => (candidate.textContent ?? '').includes(expectedTitle));
+        if (!(row instanceof HTMLElement)) {
+          throw new Error(`expected to find a repair-queue row for ${expectedTitle}`);
+        }
+
+        const button = Array.from(row.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === '复核并重关联'
+        );
+        if (!(button instanceof HTMLButtonElement)) {
+          throw new Error(`expected the manual review button for ${expectedTitle}`);
+        }
+
+        button.click();
+      }, cbzBook!.title);
+      await browser.waitUntil(async () => {
+        const state = await browser.execute((expectedTitle) => {
+          const panel = document.querySelector(
+            `.detail-panel[aria-label="Details for ${expectedTitle}"]`
+          );
+          return panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        }, cbzBook!.title);
+        return (
+          state.includes('这本书当前只能逐本复核后再选替换文件') &&
+          state.includes('选择替换文件并重关联')
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the manual-only repair row to open a review panel before exposing the replacement-file action'
       });
 
       await browser.waitUntil(async () => {

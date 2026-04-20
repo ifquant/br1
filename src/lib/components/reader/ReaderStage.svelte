@@ -12,6 +12,7 @@
   } from '$lib/reader';
   import {
     createDefaultReaderSettings,
+    getReaderShellPalette,
     hydrateReaderSettings,
     READER_FILE_INPUT_ACCEPT,
     saveReaderSettings
@@ -188,6 +189,26 @@
     scheduleChromeHide();
   }
 
+  const getStageThemeVars = () => {
+    const shell = getReaderShellPalette(settings.themePreset);
+    return [
+      `--reader-shell-backdrop:${shell.shellBackdrop}`,
+      `--reader-shell-panel:${shell.shellPanel}`,
+      `--reader-shell-raised:${shell.shellRaised}`,
+      `--reader-shell-text:${shell.shellText}`,
+      `--reader-shell-muted:${shell.shellMuted}`,
+      `--reader-shell-border:${shell.shellBorder}`,
+      `--reader-shell-accent:${shell.shellAccent}`,
+      `--reader-shell-shadow:${shell.shellShadow}`,
+      `--surface-panel:${shell.shellPanel}`,
+      `--surface-page:${shell.shellRaised}`,
+      `--text-primary:${shell.shellText}`,
+      `--text-secondary:${shell.shellText}`,
+      `--text-muted:${shell.shellMuted}`,
+      `--border-light:${shell.shellBorder}`
+    ].join(';');
+  };
+
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
     settings = hydrateReaderSettings(localStorage);
@@ -200,6 +221,7 @@
   class:soft-atmosphere={settings.themePreset === 'soft'}
   class:window-mode={isWindowMode}
   class="reader-stage"
+  style={getStageThemeVars()}
   role="main"
   aria-label="reader stage"
   on:mousemove={handleStagePointerMove}
@@ -287,6 +309,7 @@
     gap: 12px;
     min-width: 0;
     width: 100%;
+    color: var(--reader-shell-text, var(--text-primary));
   }
 
   .reader-stage.paper-atmosphere {
@@ -313,6 +336,9 @@
     min-height: calc(100vh - 26px);
     height: calc(100vh - 26px);
     overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--reader-shell-backdrop, var(--surface-reader)) 92%, white 8%);
   }
 
   .import-input {
@@ -324,7 +350,7 @@
     min-height: 0;
     width: 100%;
     padding: 8px 14px 0;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--reader-shell-border, var(--border-light));
     background: var(--reader-stage-fill);
   }
 
