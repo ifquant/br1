@@ -132,6 +132,22 @@ describe('br1 desktop app', () => {
     }>;
   };
 
+  const updateLibraryRecordOnDiskByTitle = async (
+    title: string,
+    updater: (record: Record<string, unknown>) => Record<string, unknown>
+  ) => {
+    const libraryFile = join(appDataRoot, 'library', 'library.json');
+    const raw = await readFile(libraryFile, 'utf8');
+    const records = JSON.parse(raw) as Array<Record<string, unknown>>;
+    const index = records.findIndex((record) => (record.title as string | undefined) === title);
+    if (index < 0) {
+      throw new Error(`expected to find library record for ${title}`);
+    }
+
+    records[index] = updater(records[index]!);
+    await writeFile(libraryFile, `${JSON.stringify(records, null, 2)}\n`, 'utf8');
+  };
+
   const readerNotesFilePath = (bookKey: string) => {
     const safeKey = createHash('sha256').update(bookKey).digest('hex');
     return join(appDataRoot, 'reader-notes', `${safeKey}.json`);
@@ -737,6 +753,52 @@ describe('br1 desktop app', () => {
 
       return match?.getAttribute('href') ?? null;
     }, path);
+
+  const toggleLibraryDetailsForTitle = async (title: string) => {
+    await browser.execute((expectedTitle) => {
+      const rows = Array.from(
+        document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row')
+      );
+      const row = rows.find((candidate) => (candidate.textContent ?? '').includes(expectedTitle));
+      if (!(row instanceof HTMLElement)) {
+        throw new Error(`expected to find a library row for ${expectedTitle}`);
+      }
+
+      const detailButton = Array.from(row.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '详情'
+      );
+      if (!(detailButton instanceof HTMLButtonElement)) {
+        throw new Error(`expected to find a details button for ${expectedTitle}`);
+      }
+
+      detailButton.click();
+    }, title);
+  };
+
+  const readLibraryEntryStateForTitle = async (title: string) =>
+    browser.execute((expectedTitle) => {
+      const rows = Array.from(
+        document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row')
+      );
+      const row = rows.find((candidate) => (candidate.textContent ?? '').includes(expectedTitle));
+      if (!(row instanceof HTMLElement)) {
+        return null;
+      }
+
+      const text = row.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+      const container = row.closest('[aria-label]');
+      return {
+        text,
+        sectionLabel: container?.getAttribute('aria-label') ?? '',
+        hasReaderHref: !!row.querySelector('a[href*="/reader?"]'),
+        hasImportButton: Array.from(row.querySelectorAll('button')).some(
+          (button) => button.textContent?.trim() === '重新导入'
+        ),
+        hasSourceButton: Array.from(row.querySelectorAll('button')).some(
+          (button) => button.textContent?.trim() === '原文件'
+        )
+      };
+    }, title);
 
   const readReadestMigrationSurface = async () =>
     browser.execute(() => {
@@ -2257,6 +2319,120 @@ describe('br1 desktop app', () => {
           )}`
         );
       });
+    }
+  });
+
+  it('surfaces library recovery actions when original files or library copies disappear', async function () {
+    this.timeout(120000);
+    const importedBooks = await importDesktopSampleLibraryBooks();
+
+    const sourcePath = join(staticSamplesRoot, 'sample-book.txt');
+    const importedBook = importedBooks.find((book) => book.sourcePath === sourcePath);
+    expect(importedBook).toBeTruthy();
+    expect(importedBook?.filePath).toBeTruthy();
+
+    const libraryHandle = await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    let readerHref: string | null = null;
+    await browser.waitUntil(async () => {
+      readerHref = await readLibraryHrefForPath(importedBook!.filePath);
+      return !!readerHref;
+    }, {
+      timeout: 15000,
+      timeoutMsg: 'expected the TXT sample to expose a reader href before seeding a recovery regression'
+    });
+
+    const readerUrl = new URL(readerHref!, 'http://127.0.0.1:1420').toString();
+
+    await browser.switchToWindow(libraryHandle);
+    await browser.url(readerUrl);
+    await $('.reader-stage').waitForDisplayed({ timeout: 10000 });
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+
+      return (
+        !!details.title &&
+        details.formatLabel === 'TXT' &&
+        details.layoutLabel === 'SCROLL' &&
+        details.locationLabel !== 'Opening book'
+      );
+    }, {
+      timeout: 20000,
+      timeoutMsg: 'expected the TXT sample to open before returning it into the reading workflow'
+    });
+
+    const goToLibraryButton = await $('[aria-label="Go to library"]');
+    await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+    await goToLibraryButton.click();
+
+    await browser.switchToWindow(libraryHandle);
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+    await browser.waitUntil(async () => {
+      const sections = await readLibraryWorkflowSections();
+      return (
+        sections.continueReading.includes(importedBook!.filePath) ||
+        sections.recentReading.includes(importedBook!.filePath)
+      );
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected the TXT sample to return into the continue/recent workflow before validating library recovery states'
+    });
+
+    const originalRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+    expect(originalRecord).toBeTruthy();
+
+    try {
+      await updateLibraryRecordOnDiskByTitle(importedBook!.title, (record) => ({
+        ...record,
+        sourcePath: join(appDataRoot, 'missing-source.txt')
+      }));
+
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+      await toggleLibraryDetailsForTitle(importedBook!.title);
+      await browser.waitUntil(async () => {
+        const state = await readLibraryEntryStateForTitle(importedBook!.title);
+        return !!state &&
+          (state.sectionLabel === '继续阅读' || state.sectionLabel === '最近阅读') &&
+          state.hasReaderHref &&
+          state.hasImportButton &&
+          !state.hasSourceButton &&
+          state.text.includes('原文件缺失，可继续使用书库副本');
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the library workflow to surface a recoverable missing-source state while keeping the reader entry'
+      });
+
+      await updateLibraryRecordOnDiskByTitle(importedBook!.title, (record) => ({
+        ...record,
+        filePath: join(appDataRoot, 'missing-library-copy.txt'),
+        sourcePath: originalRecord?.sourcePath ?? sourcePath
+      }));
+
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+      await toggleLibraryDetailsForTitle(importedBook!.title);
+      await browser.waitUntil(async () => {
+        const state = await readLibraryEntryStateForTitle(importedBook!.title);
+        return !!state &&
+          (state.sectionLabel === '继续阅读' || state.sectionLabel === '最近阅读') &&
+          !state.hasReaderHref &&
+          state.hasImportButton &&
+          !state.hasSourceButton &&
+          state.text.includes('需修复');
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the library workflow to disable reading and surface recovery when the stored library copy disappears'
+      });
+    } finally {
+      await updateLibraryRecordOnDiskByTitle(importedBook!.title, () => originalRecord as Record<string, unknown>);
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
     }
   });
 
@@ -6047,6 +6223,7 @@ describe('br1 desktop app', () => {
     await clearReaderSearchCacheOnDisk(searchCacheBookKey);
 
     const query = 'reader-history-cache-regression';
+    const emptyQuery = 'reader-history-empty-regression';
     const seededResults = [
       {
         cfi: 'epubcfi(/6/2[regression]!/4/2/6)',
@@ -6080,6 +6257,37 @@ describe('br1 desktop app', () => {
         })
       );
     }, [historyKey, query] as const);
+    await browser.execute(([nextHistoryKey, successfulQuery, zeroQuery]) => {
+      localStorage.setItem(
+        nextHistoryKey,
+        JSON.stringify([
+          {
+            id: JSON.stringify([successfulQuery, 'book', true, false, false]),
+            query: successfulQuery,
+            config: {
+              scope: 'book',
+              matchCase: true,
+              matchWholeWords: false,
+              matchDiacritics: false
+            },
+            resultCount: 1,
+            createdAt: Date.now()
+          },
+          {
+            id: JSON.stringify([zeroQuery, 'section', false, true, false]),
+            query: zeroQuery,
+            config: {
+              scope: 'section',
+              matchCase: false,
+              matchWholeWords: true,
+              matchDiacritics: false
+            },
+            resultCount: 0,
+            createdAt: Date.now() - 60_000
+          }
+        ])
+      );
+    }, [historyKey, query, emptyQuery] as const);
     await seedReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey, seededResults);
 
     const persistedCache = await loadReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey);
@@ -6108,14 +6316,56 @@ describe('br1 desktop app', () => {
       for (const chip of historyChips) {
         labels.push(await chip.getText());
       }
-      return labels.includes(query);
+      return labels.some((label) => label.includes(query)) && labels.some((label) => label.includes(emptyQuery));
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the previous query to appear in the reader search history after reopening the book'
+      timeoutMsg: 'expected the saved result and empty queries to appear in the reader search history after reopening the book'
     });
 
-    const historyChip = await $(`//button[contains(@class, "history-chip") and normalize-space()="${query}"]`);
+    const emptyOnlyFilter = await $('//button[contains(@class, "history-filter-chip") and contains(normalize-space(), "无命中")]');
+    await emptyOnlyFilter.click();
+    await browser.waitUntil(async () => {
+      const historyChips = await $$('.history-chip');
+      if (historyChips.length !== 1) return false;
+      const text = await historyChips[0]!.getText();
+      return text.includes(emptyQuery) && !text.includes(query);
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the empty-only search-history filter to isolate zero-result queries after reopening the book'
+    });
+
+    const emptyHistoryDelete = await $(`//button[@aria-label="删除搜索记录 ${emptyQuery}"]`);
+    await emptyHistoryDelete.click();
+    await browser.waitUntil(async () => {
+      const historyChips = await $$('.history-chip');
+      return historyChips.length === 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected deleting the zero-result history entry to clear the empty-only search-history view'
+    });
+
+    const resultOnlyFilter = await $('//button[contains(@class, "history-filter-chip") and contains(normalize-space(), "有命中")]');
+    await resultOnlyFilter.click();
+    await browser.waitUntil(async () => {
+      const historyChips = await $$('.history-chip');
+      if (historyChips.length !== 1) return false;
+      const text = await historyChips[0]!.getText();
+      return text.includes(query) && text.includes('1 条命中');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the results-only search-history filter to keep the cached regression query visible after deleting the empty entry'
+    });
+
+    const historyChip = await $(`//button[contains(@class, "history-chip") and contains(., "${query}")]`);
     await historyChip.click();
+
+    await browser.waitUntil(async () => {
+      const value = await reopenedSearchInput.getValue();
+      return value === query;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected replaying a saved search-history entry to restore the query field after reopening the book'
+    });
 
     await browser.waitUntil(async () => {
       const results = await $$('.search-result');
@@ -6128,6 +6378,16 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected replaying a saved history query to restore cached search results'
+    }).catch(async (error) => {
+      const currentValue = await reopenedSearchInput.getValue();
+      const results = await $$('.search-result');
+      const texts: string[] = [];
+      for (const result of results) {
+        texts.push(await result.getText());
+      }
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nSearch value: ${currentValue}\nResults: ${JSON.stringify(texts)}`
+      );
     });
 
     await browser.closeWindow();

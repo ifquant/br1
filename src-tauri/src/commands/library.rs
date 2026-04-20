@@ -207,6 +207,20 @@ fn author_looks_like_placeholder(value: &str) -> bool {
         )
 }
 
+fn decorate_library_record_file_state(record: &mut LibraryBookRecord) {
+    record.library_file_exists = Some(Path::new(&record.file_path).is_file());
+    record.source_file_exists = record
+        .source_path
+        .as_ref()
+        .map(|source_path| Path::new(source_path).is_file());
+}
+
+fn decorate_library_record_file_states(records: &mut [LibraryBookRecord]) {
+    for record in records {
+        decorate_library_record_file_state(record);
+    }
+}
+
 #[derive(Default)]
 struct Fb2Metadata {
     title: Option<String>,
@@ -651,6 +665,7 @@ pub(crate) fn load_library_books(app: tauri::AppHandle) -> Result<Vec<LibraryBoo
     if normalize_library_records(&mut records) {
         save_library_records(&library_json, &records)?;
     }
+    decorate_library_record_file_states(&mut records);
     Ok(records)
 }
 
@@ -821,6 +836,8 @@ pub(crate) fn import_library_books(
             progress_fraction: None,
             progress_location: None,
             last_opened_at: None,
+            library_file_exists: None,
+            source_file_exists: None,
         };
 
         records.retain(|book| book.source_path.as_deref() != Some(file_path.as_str()));
@@ -829,6 +846,7 @@ pub(crate) fn import_library_books(
     }
 
     save_library_records(&library_json, &records)?;
+    decorate_library_record_file_states(&mut imported);
 
     Ok(imported)
 }
@@ -911,6 +929,8 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             progress_fraction: readest_progress_fraction(readest_record.progress.as_deref()),
             progress_location: readest_config.location,
             last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
+            library_file_exists: None,
+            source_file_exists: None,
         };
         normalize_pdf_progress_location(&mut record);
 
@@ -924,6 +944,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
     }
 
     save_library_records(&library_json, &records)?;
+    decorate_library_record_file_states(&mut imported);
     Ok(ReadestImportResult {
         imported_count: imported.len(),
         records: imported,

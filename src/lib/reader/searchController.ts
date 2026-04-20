@@ -1,6 +1,7 @@
 import { get, writable } from 'svelte/store';
 import type {
   ReaderSearchConfig,
+  ReaderSearchHistoryEntry,
   ReaderSearchState,
   ReaderSidebarSearchState
 } from './types';
@@ -33,6 +34,89 @@ const defaultSearchState = (): ReaderSidebarSearchState => ({
   activeResultCfi: '',
   recentResultCfi: ''
 });
+
+const normalizeSearchConfig = (value: Partial<ReaderSearchConfig> | null | undefined): ReaderSearchConfig => ({
+  scope: value?.scope === 'section' ? 'section' : 'book',
+  matchCase: !!value?.matchCase,
+  matchWholeWords: !!value?.matchWholeWords,
+  matchDiacritics: !!value?.matchDiacritics
+});
+
+const buildSearchHistoryId = (query: string, config: ReaderSearchConfig) =>
+  JSON.stringify([
+    query.trim(),
+    config.scope,
+    config.matchCase,
+    config.matchWholeWords,
+    config.matchDiacritics
+  ]);
+
+const normalizeSearchHistoryEntry = (value: unknown): ReaderSearchHistoryEntry | null => {
+  if (typeof value === 'string') {
+    const query = value.trim();
+    if (!query) return null;
+    const config = defaultSearchConfig();
+    return {
+      id: buildSearchHistoryId(query, config),
+      query,
+      config,
+      resultCount: 0,
+      createdAt: 0
+    };
+  }
+
+  if (!value || typeof value !== 'object') return null;
+
+  const candidate = value as Partial<ReaderSearchHistoryEntry> & {
+    query?: unknown;
+    config?: unknown;
+    resultCount?: unknown;
+    createdAt?: unknown;
+  };
+  const query = typeof candidate.query === 'string' ? candidate.query.trim() : '';
+  if (!query) return null;
+
+  const config =
+    candidate.config && typeof candidate.config === 'object'
+      ? normalizeSearchConfig(candidate.config as Partial<ReaderSearchConfig>)
+      : defaultSearchConfig();
+  const resultCount =
+    typeof candidate.resultCount === 'number' && Number.isFinite(candidate.resultCount)
+      ? Math.max(0, Math.round(candidate.resultCount))
+      : 0;
+  const createdAt =
+    typeof candidate.createdAt === 'number' && Number.isFinite(candidate.createdAt)
+      ? candidate.createdAt
+      : 0;
+
+  return {
+    id:
+      typeof candidate.id === 'string' && candidate.id.trim()
+        ? candidate.id
+        : buildSearchHistoryId(query, config),
+    query,
+    config,
+    resultCount,
+    createdAt
+  };
+};
+
+const normalizeSearchHistory = (value: unknown): ReaderSearchHistoryEntry[] => {
+  if (!Array.isArray(value)) return [];
+
+  const deduped = new Map<string, ReaderSearchHistoryEntry>();
+  for (const item of value) {
+    const normalized = normalizeSearchHistoryEntry(item);
+    if (!normalized) continue;
+
+    const existing = deduped.get(normalized.id);
+    if (!existing || normalized.createdAt >= existing.createdAt) {
+      deduped.set(normalized.id, normalized);
+    }
+  }
+
+  return Array.from(deduped.values()).sort((left, right) => right.createdAt - left.createdAt);
+};
 
 export const createReaderSearchController = ({
   getStorage,
@@ -71,12 +155,7 @@ export const createReaderSearchController = ({
       const parsed = JSON.parse(raw) as Partial<ReaderSearchConfig>;
       state.update((current) => ({
         ...current,
-        config: {
-          scope: parsed.scope === 'section' ? 'section' : 'book',
-          matchCase: !!parsed.matchCase,
-          matchWholeWords: !!parsed.matchWholeWords,
-          matchDiacritics: !!parsed.matchDiacritics
-        }
+        config: normalizeSearchConfig(parsed)
       }));
     } catch (error) {
       console.warn('Failed to restore reader search config', error);
@@ -94,7 +173,7 @@ export const createReaderSearchController = ({
       const raw = storage.getItem(key);
       state.update((current) => ({
         ...current,
-        history: raw ? (JSON.parse(raw) as string[]) : []
+        history: raw ? normalizeSearchHistory(JSON.parse(raw)) : []
       }));
       lastHistoryKey = key;
     } catch (error) {
@@ -116,7 +195,7 @@ export const createReaderSearchController = ({
     if (!canPersistPrefs || !storage) return;
 
     storage.setItem('br1.reader.search.config', JSON.stringify(current.config));
-    storage.setItem(getHistoryKey(), JSON.stringify(current.history.slice(0, 10)));
+    storage.setItem(getHistoryKey(), JSON.stringify(current.history.slice(0, 12)));
   };
 
   const issueSearch = (query: string) => {
@@ -138,6 +217,21 @@ export const createReaderSearchController = ({
     dispatchSearchResult(cfi);
   };
 
+  const issueSearchHistory = (entry: ReaderSearchHistoryEntry) => {
+    const query = entry.query.trim();
+    if (!query) return;
+
+    state.update((current) => ({
+      ...current,
+      term: query,
+      config: normalizeSearchConfig(entry.config),
+      recentResultCfi: ''
+    }));
+
+    const current = get(state);
+    dispatchSearch(query, current.config);
+  };
+
   const updateConfig = (config: ReaderSearchConfig) => {
     state.update((current) => ({
       ...current,
@@ -157,6 +251,13 @@ export const createReaderSearchController = ({
     }));
   };
 
+  const deleteHistoryEntry = (entryId: string) => {
+    state.update((current) => ({
+      ...current,
+      history: current.history.filter((entry) => entry.id !== entryId)
+    }));
+  };
+
   const clearCurrentBookCache = () => {
     const current = get(state);
     if (!current.cacheKey) return;
@@ -168,8 +269,19 @@ export const createReaderSearchController = ({
   const handleSearchChange = (detail: ReaderSearchState) => {
     state.update((current) => {
       const nextHistory =
-        detail.status === 'done' && detail.query.trim() && detail.results.length > 0
-          ? [detail.query, ...current.history.filter((item) => item !== detail.query)].slice(0, 10)
+        detail.status === 'done' && detail.query.trim()
+          ? [
+              {
+                id: buildSearchHistoryId(detail.query, current.config),
+                query: detail.query.trim(),
+                config: normalizeSearchConfig(current.config),
+                resultCount: detail.results.length,
+                createdAt: Date.now()
+              },
+              ...current.history.filter(
+                (entry) => entry.id !== buildSearchHistoryId(detail.query, current.config)
+              )
+            ].slice(0, 12)
           : current.history;
 
       return {
@@ -224,11 +336,13 @@ export const createReaderSearchController = ({
     issueSearchResult,
     updateConfig,
     clearHistory,
+    deleteHistoryEntry,
     clearCurrentBookCache,
     handleSearchChange,
     setCacheKey,
     setActiveResultCfi,
     clearRecentResultCfi,
+    issueSearchHistory,
     destroy
   };
 };

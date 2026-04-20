@@ -7,6 +7,7 @@
   export let books: ContinueReadingBook[] = [];
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
+  export let onImportBooks: (() => void | Promise<void>) | null = null;
   let expandedKey = '';
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
@@ -34,6 +35,19 @@
     if (!filePath || !onOpenSourcePath) return;
     void onOpenSourcePath(filePath);
   };
+
+  const handleImportBooks = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!onImportBooks) return;
+    void onImportBooks();
+  };
+
+  const isMissingOriginalFile = (availabilityLabel: string | undefined) =>
+    availabilityLabel?.includes('原文件缺失') ?? false;
+
+  const isMissingLibraryCopy = (availabilityLabel: string | undefined) =>
+    availabilityLabel?.includes('书库副本缺失') ?? false;
 </script>
 
 <section class="continue-shelf">
@@ -47,6 +61,8 @@
   <div class="rows" aria-label={sectionTitle}>
     {#each books as book}
       {@const bookKey = book.readerHref || `${book.title}::${book.author}`}
+      {@const originalFileMissing = isMissingOriginalFile(book.availabilityLabel)}
+      {@const libraryCopyMissing = isMissingLibraryCopy(book.availabilityLabel)}
       <article class="row">
         <svelte:element
           this={book.readerHref ? 'a' : 'div'}
@@ -102,7 +118,7 @@
               >
                 详情
               </button>
-              {#if book.sourcePath}
+              {#if book.sourcePath && !originalFileMissing && !libraryCopyMissing}
                 <button
                   type="button"
                   class="secondary-pill"
@@ -110,13 +126,31 @@
                 >
                   原文件
                 </button>
+              {:else if (originalFileMissing || libraryCopyMissing) && onImportBooks}
+                <button
+                  type="button"
+                  class="secondary-pill warning-pill"
+                  on:click={handleImportBooks}
+                >
+                  重新导入
+                </button>
               {/if}
-              <span class="resume-pill">{primaryActionLabel}</span>
+              <span class:warning={libraryCopyMissing} class="resume-pill">
+                {libraryCopyMissing ? '需修复' : primaryActionLabel}
+              </span>
             </div>
           </div>
         </svelte:element>
         {#if expandedKey === bookKey}
           <div class="detail-panel" aria-label={`Details for ${book.title}`}>
+            {#if originalFileMissing || libraryCopyMissing}
+              <div class="detail-warning">
+                <strong>{book.availabilityLabel}</strong>
+                <span>
+                  {book.compatibilityLabel || '请重新导入这本书，恢复本地书库中的可用文件和原文件入口。'}
+                </span>
+              </div>
+            {/if}
             <div class="detail-grid">
               <span>作者</span>
               <strong>{book.author}</strong>
@@ -368,6 +402,12 @@
     color: var(--text-secondary);
   }
 
+  .secondary-pill.warning-pill {
+    background: color-mix(in srgb, #cf7a35 12%, white 88%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #cf7a35 22%, white 78%);
+    color: color-mix(in srgb, #7c4619 88%, black 12%);
+  }
+
   .resume-pill {
     padding: 5px 9px;
     background: color-mix(in srgb, var(--surface-reader) 82%, white 18%);
@@ -375,6 +415,11 @@
       inset 0 0 0 1px var(--border-light),
       0 6px 12px rgba(42, 30, 15, 0.04);
     color: var(--text-primary);
+  }
+
+  .resume-pill.warning {
+    background: color-mix(in srgb, #cf7a35 18%, white 82%);
+    color: color-mix(in srgb, #7c4619 86%, black 14%);
   }
 
   .detail-panel {
@@ -385,6 +430,23 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
       0 10px 24px rgba(42, 30, 15, 0.04);
     padding: 10px 12px;
+  }
+
+  .detail-warning {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: color-mix(in srgb, #cf7a35 10%, white 90%);
+    color: color-mix(in srgb, var(--text-primary) 90%, #7c4619 10%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #cf7a35 18%, white 82%);
+  }
+
+  .detail-warning strong,
+  .detail-warning span {
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .detail-grid {

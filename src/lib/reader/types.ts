@@ -123,6 +123,14 @@ export type ReaderSearchConfig = {
   matchDiacritics: boolean;
 };
 
+export type ReaderSearchHistoryEntry = {
+  id: string;
+  query: string;
+  config: ReaderSearchConfig;
+  resultCount: number;
+  createdAt: number;
+};
+
 export type ReaderSelectionState = {
   cfi: string;
   text: string;
@@ -205,7 +213,7 @@ export type ReaderSidebarSearchState = {
   results: ReaderSearchResult[];
   error: string;
   progress: number;
-  history: string[];
+  history: ReaderSearchHistoryEntry[];
   config: ReaderSearchConfig;
   cacheKey: string;
   notice: { kind: 'success' | 'error'; message: string } | null;
@@ -238,8 +246,9 @@ export type ReaderSidebarCallbacks = {
   onSearch: ((query: string) => void) | null;
   onSearchResult: ((cfi: string) => void) | null;
   onSearchConfigChange: ((config: ReaderSearchConfig) => void) | null;
-  onSearchHistory: ((query: string) => void) | null;
+  onSearchHistory: ((entry: ReaderSearchHistoryEntry) => void) | null;
   onClearSearchHistory: (() => void) | null;
+  onDeleteSearchHistoryEntry: ((entryId: string) => void) | null;
   onClearSearchCache: (() => void) | null;
   onAddHighlight: (() => void) | null;
   onAddNote: (() => void) | null;

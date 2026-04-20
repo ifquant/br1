@@ -18,6 +18,8 @@ export type PersistedLibraryBook = {
   progressFraction?: number | null;
   progressLocation?: string | null;
   lastOpenedAt?: number | null;
+  libraryFileExists?: boolean | null;
+  sourceFileExists?: boolean | null;
 };
 
 export type ReadestLibrarySummary = {

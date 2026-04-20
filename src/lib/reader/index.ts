@@ -51,6 +51,7 @@ export type {
   ReaderHighlightsWorkspaceState,
   ReaderNote,
   ReaderSearchConfig,
+  ReaderSearchHistoryEntry,
   ReaderSelectionState,
   ReaderPreviewState,
   ReaderAtmosphereMode,

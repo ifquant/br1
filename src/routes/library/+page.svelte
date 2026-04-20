@@ -210,6 +210,8 @@
 
   const mapLibraryRecord = async (record: PersistedLibraryBook): Promise<LibraryShelfBook> => {
     const isReadestCompatible = record.id.startsWith('readest-');
+    const hasLibraryFileCopy = record.libraryFileExists !== false;
+    const hasOriginalSource = !record.sourcePath || record.sourceFileExists !== false;
     const progressFraction =
       typeof record.progressFraction === 'number'
         ? Math.max(0, Math.min(1, record.progressFraction))
@@ -230,6 +232,14 @@
         ? '本机导入'
         : '书库';
 
+    const availabilityLabel = !hasLibraryFileCopy
+      ? '书库副本缺失，需要重新导入'
+      : record.sourcePath && !hasOriginalSource
+        ? '原文件缺失，可继续使用书库副本'
+        : isReadestCompatible
+          ? '兼容 Readest 本地藏书'
+          : '本地可读';
+
     const compatibilitySignals = [
       record.coverPath ? '封面' : '',
       record.description ? '简介' : '',
@@ -239,11 +249,17 @@
       record.progressLocation ? '' : progressFraction !== null ? '阅读进度' : ''
     ].filter(Boolean);
 
-    const compatibilityLabel = isReadestCompatible
-      ? compatibilitySignals.length > 0
-        ? `保留 ${compatibilitySignals.join(' / ')}`
-        : '兼容 Readest 本地藏书'
-      : '';
+    const compatibilityLabel = !hasLibraryFileCopy
+      ? isReadestCompatible
+        ? '兼容记录仍在，但书库副本已经缺失；请重新同步 Readest 或重新导入文件。'
+        : '书库副本已经缺失；请重新导入文件后再继续阅读或从头开始。'
+      : record.sourcePath && !hasOriginalSource
+        ? '原文件路径已失效；继续阅读仍可用，如需恢复“原文件”入口请重新导入。'
+        : isReadestCompatible
+          ? compatibilitySignals.length > 0
+            ? `保留 ${compatibilitySignals.join(' / ')}`
+            : '兼容 Readest 本地藏书'
+          : '';
 
     return {
       title: record.title,
@@ -260,12 +276,12 @@
         formatProgressPercentLabel(progressFraction),
       readingStatusLabel,
       sourceLabel,
-      availabilityLabel: isReadestCompatible ? '兼容 Readest 本地藏书' : '本地可读',
+      availabilityLabel,
       compatibilityLabel,
       sourcePath: record.sourcePath || record.filePath,
       coverUrl: await toLibraryCoverUrl(record),
-      readerHref: toReaderAssetHref(record),
-      restartHref: toReaderStartHref(record),
+      readerHref: hasLibraryFileCopy ? toReaderAssetHref(record) : '',
+      restartHref: hasLibraryFileCopy ? toReaderStartHref(record) : '',
       lastOpenedAt: record.lastOpenedAt,
       lastOpenedLabel: formatLastOpenedLabel(record.lastOpenedAt),
       importedAt: record.importedAt,
@@ -872,6 +888,7 @@
             books={filteredContinueReadingBooks}
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
+            onImportBooks={triggerImportPicker}
           />
         {/if}
 
@@ -883,6 +900,7 @@
             books={filteredRecentReadingBooks}
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
+            onImportBooks={triggerImportPicker}
           />
         {/if}
 

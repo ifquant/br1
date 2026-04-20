@@ -12,6 +12,7 @@
     ReaderBookmarksState,
     ReaderPreviewState,
     ReaderSearchConfig,
+    ReaderSearchHistoryEntry,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
     ReaderSidebarSearchState,
@@ -87,6 +88,7 @@
     onSearchConfigChange: null,
     onSearchHistory: null,
     onClearSearchHistory: null,
+    onDeleteSearchHistoryEntry: null,
     onClearSearchCache: null,
     onAddHighlight: null,
     onAddNote: null,
@@ -100,6 +102,7 @@
   let lastScrolledHighlightCfi = '';
   let lastScrolledBookmarkLocator = '';
   let bookMenuOpen = false;
+  let searchHistoryFilter: 'all' | 'results' | 'empty' = 'all';
   let notesFilter: 'all' | 'chapter' = 'all';
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
   let highlightsFilter: ReaderHighlightsFilter = 'all';
@@ -339,6 +342,24 @@
       minute: '2-digit'
     });
 
+  const formatSearchConfigLabel = (config: ReaderSearchConfig) => {
+    const labels = [config.scope === 'section' ? '本章' : '全书'];
+    if (config.matchCase) labels.push('区分大小写');
+    if (config.matchWholeWords) labels.push('整词');
+    if (config.matchDiacritics) labels.push('保留重音');
+    return labels.join(' · ');
+  };
+
+  const formatSearchHistoryAge = (value: number) => {
+    if (!value) return '较早';
+
+    const diff = Date.now() - value;
+    if (diff < 60_000) return '刚刚';
+    if (diff < 3_600_000) return `${Math.max(1, Math.round(diff / 60_000))} 分钟前`;
+    if (diff < 86_400_000) return `${Math.max(1, Math.round(diff / 3_600_000))} 小时前`;
+    return formatTimestamp(value);
+  };
+
   const handleSidebarToggle = () => {
     callbacks.onToggleSidebar?.();
   };
@@ -385,6 +406,14 @@
   };
 
   $: hasOpenedBook = !!preview.progressLocation || preview.title !== 'Bridge Reader';
+  $: successfulSearchHistoryCount = search.history.filter((entry) => entry.resultCount > 0).length;
+  $: emptySearchHistoryCount = search.history.filter((entry) => entry.resultCount === 0).length;
+  $: visibleSearchHistory =
+    searchHistoryFilter === 'results'
+      ? search.history.filter((entry) => entry.resultCount > 0)
+      : searchHistoryFilter === 'empty'
+        ? search.history.filter((entry) => entry.resultCount === 0)
+        : search.history;
   $: isCurrentLocationBookmarked =
     !!bookmarksState.activeLocator &&
     bookmarksState.bookmarks.some((bookmark) => bookmark.locator === bookmarksState.activeLocator);
@@ -1161,6 +1190,10 @@
   const collapseAllBookmarkGroups = () => {
     collapsedBookmarkGroups = new Set(collapsibleBookmarkGroupKeys);
   };
+
+  const runSearchHistory = (entry: ReaderSearchHistoryEntry) => {
+    callbacks.onSearchHistory?.(entry);
+  };
 </script>
 
 <svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
@@ -1419,12 +1452,64 @@
                 {/if}
               </div>
             </div>
+            <div class="search-history-filters" aria-label="search history filters">
+              <button
+                type="button"
+                class:active={searchHistoryFilter === 'all'}
+                class="history-filter-chip"
+                on:click={() => {
+                  searchHistoryFilter = 'all';
+                }}
+              >
+                全部 {search.history.length}
+              </button>
+              <button
+                type="button"
+                class:active={searchHistoryFilter === 'results'}
+                class="history-filter-chip"
+                disabled={successfulSearchHistoryCount === 0}
+                on:click={() => {
+                  searchHistoryFilter = 'results';
+                }}
+              >
+                有命中 {successfulSearchHistoryCount}
+              </button>
+              <button
+                type="button"
+                class:active={searchHistoryFilter === 'empty'}
+                class="history-filter-chip"
+                disabled={emptySearchHistoryCount === 0}
+                on:click={() => {
+                  searchHistoryFilter = 'empty';
+                }}
+              >
+                无命中 {emptySearchHistoryCount}
+              </button>
+            </div>
             <div class="history-list">
-              {#each search.history as item}
-                <button type="button" class="history-chip" on:click={() => callbacks.onSearchHistory?.(item)}>
-                  {item}
-                </button>
-              {/each}
+              {#if visibleSearchHistory.length}
+                {#each visibleSearchHistory as entry}
+                  <div class="history-chip-row">
+                    <button type="button" class="history-chip" on:click={() => runSearchHistory(entry)}>
+                      <strong>{entry.query}</strong>
+                      <span>
+                        {entry.resultCount > 0 ? `${entry.resultCount} 条命中` : '0 条命中'} · {formatSearchConfigLabel(entry.config)}
+                      </span>
+                      <time>{formatSearchHistoryAge(entry.createdAt)}</time>
+                    </button>
+                    <button
+                      type="button"
+                      class="history-delete"
+                      aria-label={`删除搜索记录 ${entry.query}`}
+                      on:click={() => callbacks.onDeleteSearchHistoryEntry?.(entry.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                {/each}
+              {:else}
+                <p class="empty">当前筛选下还没有搜索记录。</p>
+              {/if}
             </div>
           </div>
         {/if}
@@ -2709,14 +2794,15 @@
   }
 
   .option-chip,
-  .history-chip,
-  .history-clear {
+  .history-filter-chip,
+  .history-clear,
+  .history-delete {
     border: 0;
     font: inherit;
   }
 
   .option-chip,
-  .history-chip {
+  .history-filter-chip {
     padding: 6px 10px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
@@ -2729,6 +2815,15 @@
   .option-chip.active {
     background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
     color: var(--text-primary);
+  }
+
+  .history-filter-chip.active {
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
+    color: var(--text-primary);
+  }
+
+  .history-filter-chip:disabled {
+    opacity: 0.55;
   }
 
   .search-history {
@@ -2755,6 +2850,12 @@
     align-items: center;
   }
 
+  .search-history-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
   .history-clear {
     background: transparent;
     color: var(--text-muted);
@@ -2762,9 +2863,60 @@
   }
 
   .history-list {
-    display: flex;
+    display: grid;
     gap: 6px;
-    flex-wrap: wrap;
+  }
+
+  .history-chip-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .history-chip {
+    display: grid;
+    gap: 3px;
+    align-items: start;
+    justify-items: start;
+    min-width: 0;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    color: var(--text-secondary);
+    font: inherit;
+    text-align: left;
+  }
+
+  .history-chip strong {
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .history-chip span,
+  .history-chip time {
+    color: var(--text-muted);
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .history-delete {
+    width: 28px;
+    min-width: 28px;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .history-delete:hover,
+  .history-chip:hover {
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
   }
 
   .search-summary,

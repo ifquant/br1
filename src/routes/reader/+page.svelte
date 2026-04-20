@@ -8,6 +8,7 @@
     ReaderPreviewState,
     ReaderRouteOpenState,
     ReaderSidebarCallbacks,
+    ReaderSearchHistoryEntry,
     ReaderSearchResult,
     ReaderTocItem
   } from '$lib/reader';
@@ -149,6 +150,10 @@
     sidebarController.openTab('notes');
     searchController.clearRecentResultCfi();
     issueHrefControl(cfi);
+  };
+
+  const rerunSearchHistoryEntry = (entry: ReaderSearchHistoryEntry) => {
+    searchController.issueSearchHistory(entry);
   };
 
   const editNote = (id: string) => {
@@ -336,8 +341,9 @@
     onSearch: searchController.issueSearch,
     onSearchResult: searchController.issueSearchResult,
     onSearchConfigChange: searchController.updateConfig,
-    onSearchHistory: searchController.issueSearch,
+    onSearchHistory: rerunSearchHistoryEntry,
     onClearSearchHistory: searchController.clearHistory,
+    onDeleteSearchHistoryEntry: searchController.deleteHistoryEntry,
     onClearSearchCache: searchController.clearCurrentBookCache
   } satisfies ReaderSidebarCallbacks;
 </script>

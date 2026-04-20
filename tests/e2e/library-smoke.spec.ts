@@ -164,6 +164,85 @@ test('reader persists epub layout settings through reload in web mode', async ({
     .toContain('IBM Plex Sans');
 });
 
+test('reader manages structured search history through reload in web mode', async ({ page }) => {
+  const readerUrl =
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.epub&label=Sample%20EPUB%20Book';
+  const historyKey = 'br1.reader.search.history:/samples/sample-book.epub';
+  const hitQuery = 'constitutional order';
+  const missQuery = 'missing phrase for history';
+
+  await page.goto(readerUrl);
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+
+  await page.evaluate(
+    ([nextHistoryKey, successfulQuery, emptyQuery]) => {
+      localStorage.setItem(
+        nextHistoryKey,
+        JSON.stringify([
+          {
+            id: JSON.stringify([successfulQuery, 'book', true, false, false]),
+            query: successfulQuery,
+            config: {
+              scope: 'book',
+              matchCase: true,
+              matchWholeWords: false,
+              matchDiacritics: false
+            },
+            resultCount: 3,
+            createdAt: Date.now()
+          },
+          {
+            id: JSON.stringify([emptyQuery, 'section', false, true, false]),
+            query: emptyQuery,
+            config: {
+              scope: 'section',
+              matchCase: false,
+              matchWholeWords: true,
+              matchDiacritics: false
+            },
+            resultCount: 0,
+            createdAt: Date.now() - 60_000
+          }
+        ])
+      );
+      localStorage.setItem(
+        'br1.reader.search.config',
+        JSON.stringify({
+          scope: 'book',
+          matchCase: true,
+          matchWholeWords: false,
+          matchDiacritics: false
+        })
+      );
+    },
+    [historyKey, hitQuery, missQuery] as const
+  );
+
+  await page.reload();
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await page.getByRole('tab', { name: '搜索' }).click();
+
+  await expect(page.getByRole('button', { name: '全部 2' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '有命中 1' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '无命中 1' })).toBeVisible();
+  await expect(page.locator('.history-chip').filter({ hasText: hitQuery })).toBeVisible();
+  await expect(page.locator('.history-chip').filter({ hasText: missQuery })).toBeVisible();
+
+  await page.getByRole('button', { name: '无命中 1' }).click();
+  await expect(page.locator('.history-chip').filter({ hasText: missQuery })).toBeVisible();
+  await expect(page.locator('.history-chip').filter({ hasText: hitQuery })).toHaveCount(0);
+
+  await page.getByRole('button', { name: `删除搜索记录 ${missQuery}` }).click();
+  await expect(page.locator('.history-chip').filter({ hasText: missQuery })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '无命中 0' })).toBeDisabled();
+
+  await page.getByRole('button', { name: '有命中 1' }).click();
+  const hitHistoryChip = page.locator('.history-chip').filter({ hasText: hitQuery });
+  await expect(hitHistoryChip).toContainText('3 条命中');
+  await hitHistoryChip.click();
+  await expect(page.locator('input[type="search"]')).toHaveValue(hitQuery);
+});
+
 test('reader shows explicit text-annotation limits for txt and cbz assets in web mode', async ({ page }) => {
   const cases = [
     {
