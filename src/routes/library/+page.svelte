@@ -143,6 +143,7 @@
   let showReadestMigration = false;
   let migrationBusy = false;
   let desktopLibraryMode = false;
+  let bulkRepairBusy = false;
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   let libraryFilterBy: LibraryFilter = 'all';
@@ -160,6 +161,7 @@
   let filteredContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredRecentReadingBooks: LibraryShelfBook[] = [];
   let filteredRecoveryQueueBooks: LibraryShelfBook[] = [];
+  let bulkRepairEligibleQueueBooks: LibraryShelfBook[] = [];
   let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
   let filteredStarterContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredStarterRecentReadingBooks: LibraryShelfBook[] = [];
@@ -321,6 +323,21 @@
       }) ?? null
     );
   };
+
+  const isPersistedRecordBroken = (record: PersistedLibraryBook) =>
+    record.libraryFileExists === false ||
+    (!!record.sourcePath && record.sourceFileExists === false);
+
+  const isPersistedRecordBulkRepairEligible = (record: PersistedLibraryBook) =>
+    record.libraryFileExists === false &&
+    !!record.sourcePath &&
+    record.sourceFileExists !== false;
+
+  const isPersistedRecordManualRepairOnly = (record: PersistedLibraryBook) =>
+    isPersistedRecordBroken(record) && !isPersistedRecordBulkRepairEligible(record);
+
+  const getRecoveryQueuePersistedRecords = (records: PersistedLibraryBook[]) =>
+    sortRecordsForLibraryShelf(records).filter(isPersistedRecordBroken).slice(0, 6);
 
   const getBookProgressFraction = (book: LibraryShelfBook) => {
     if (typeof book.progressFraction === 'number') {
@@ -608,6 +625,10 @@
         [...continueReadingBooks, ...recentReadingBooks]
       );
   $: filteredRecoveryQueueBooks = filterBooksByLibraryFilter(recoveryQueueBooks, libraryFilterBy);
+  $: bulkRepairEligibleQueueBooks = filteredRecoveryQueueBooks.filter((book) => {
+    const persistedRecord = lookupPersistedRecordForBook(book);
+    return !!persistedRecord && isPersistedRecordBulkRepairEligible(persistedRecord);
+  });
   $: filteredContinueReadingBooks = filterBooksByLibraryFilter(continueReadingBooks, libraryFilterBy);
   $: filteredRecentReadingBooks = filterBooksByLibraryFilter(recentReadingBooks, libraryFilterBy);
   $: filteredLibraryShelfBooks = filterBooksByLibraryFilter(libraryShelfBooks, libraryFilterBy);
@@ -891,6 +912,71 @@
     }
   };
 
+  const handleBulkRepairLibraryBooks = async () => {
+    if (!canPersistLibrary() || bulkRepairBusy) return;
+
+    const eligibleRecords = bulkRepairEligibleQueueBooks
+      .map((book) => lookupPersistedRecordForBook(book))
+      .filter((record): record is PersistedLibraryBook => !!record && !!record.sourcePath);
+
+    if (eligibleRecords.length === 0) {
+      setLibraryNotice('info', '当前没有可自动批量修复的书库副本；其余条目仍需手动重新关联或重新选择文件。');
+      return;
+    }
+
+    bulkRepairBusy = true;
+    clearLibraryNotice();
+
+    let repairedCount = 0;
+    let failedCount = 0;
+
+    try {
+      for (const record of eligibleRecords) {
+        try {
+          const repairedRecords = await importLibraryBooks([record.sourcePath!]);
+          if (repairedRecords.length > 0) {
+            repairedCount += 1;
+          } else {
+            failedCount += 1;
+          }
+        } catch (error) {
+          failedCount += 1;
+          console.error('Failed to bulk repair the library book', error);
+        }
+      }
+
+      const currentRecords = await loadPersistedLibraryBooks();
+      await applyPersistedLibraryRecords(currentRecords);
+
+      const manualRepairCount = getRecoveryQueuePersistedRecords(currentRecords).filter(
+        isPersistedRecordManualRepairOnly
+      ).length;
+
+      if (repairedCount === 0) {
+        setLibraryNotice(
+          failedCount > 0 ? 'error' : 'info',
+          manualRepairCount > 0
+            ? `没有自动修复成功；当前仍有 ${manualRepairCount} 本需要手动重新关联或重新选择文件。`
+            : '没有自动修复成功，请刷新书库后重试。'
+        );
+        return;
+      }
+
+      const summaryParts = [`已批量重建 ${repairedCount} 本书的书库副本`];
+      if (manualRepairCount > 0) {
+        summaryParts.push(`仍有 ${manualRepairCount} 本需要手动重新关联或重新选择文件`);
+      } else {
+        summaryParts.push('当前待修复队列里没有必须手动处理的条目了');
+      }
+      if (failedCount > 0) {
+        summaryParts.push(`${failedCount} 本未能自动修复`);
+      }
+      setLibraryNotice('info', `${summaryParts.join('，')}。`);
+    } finally {
+      bulkRepairBusy = false;
+    }
+  };
+
   const handleLibraryViewModeChange = (nextViewMode: 'grid' | 'list') => {
     libraryViewMode = nextViewMode;
   };
@@ -986,10 +1072,19 @@
             sectionTitle="待修复书籍"
             sectionDescription="这些书的原文件路径或书库副本已经失效。优先逐本修复，避免后续继续扩散为重复条目。"
             primaryActionLabel="修复"
+            bulkActionLabel={
+              bulkRepairEligibleQueueBooks.length > 0
+                ? bulkRepairBusy
+                  ? '批量修复中…'
+                  : `批量修复副本（${bulkRepairEligibleQueueBooks.length}）`
+                : ''
+            }
+            bulkActionDisabled={bulkRepairBusy}
             books={filteredRecoveryQueueBooks}
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
             onImportBooks={triggerImportPicker}
+            onBulkAction={handleBulkRepairLibraryBooks}
             onRepairBook={handleRepairLibraryBook}
           />
         {/if}

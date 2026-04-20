@@ -9,6 +9,9 @@
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onRepairBook: ((book: ContinueReadingBook) => void | Promise<void>) | null = null;
+  export let bulkActionLabel = '';
+  export let bulkActionDisabled = false;
+  export let onBulkAction: (() => void | Promise<void>) | null = null;
   let expandedKey = '';
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
@@ -51,6 +54,13 @@
     void onRepairBook(book);
   };
 
+  const handleBulkAction = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!onBulkAction || bulkActionDisabled) return;
+    void onBulkAction();
+  };
+
   const isMissingOriginalFile = (availabilityLabel: string | undefined) =>
     availabilityLabel?.includes('原文件缺失') ?? false;
 
@@ -75,6 +85,16 @@
       <h2>{sectionTitle}</h2>
       <p>{sectionDescription}</p>
     </div>
+    {#if onBulkAction && bulkActionLabel}
+      <button
+        type="button"
+        class="header-action"
+        disabled={bulkActionDisabled}
+        on:click={handleBulkAction}
+      >
+        {bulkActionLabel}
+      </button>
+    {/if}
   </header>
 
   <div class="rows" aria-label={sectionTitle}>
@@ -234,6 +254,33 @@
   .heading {
     display: grid;
     gap: 3px;
+  }
+
+  .header-action {
+    border: 1px solid color-mix(in srgb, var(--line-strong) 84%, white 16%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
+    color: var(--text-primary);
+    font: 600 12px/1 var(--font-chrome);
+    padding: 9px 14px;
+    cursor: pointer;
+    transition:
+      transform 140ms ease,
+      box-shadow 140ms ease,
+      opacity 140ms ease;
+    box-shadow: 0 8px 16px rgba(42, 30, 15, 0.08);
+  }
+
+  .header-action:hover:enabled {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(42, 30, 15, 0.12);
+  }
+
+  .header-action:disabled {
+    cursor: wait;
+    opacity: 0.6;
+    transform: none;
+    box-shadow: none;
   }
 
   h2 {

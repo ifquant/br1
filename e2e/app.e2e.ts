@@ -808,6 +808,39 @@ describe('br1 desktop app', () => {
       };
     }, title);
 
+  const clickLibrarySectionHeaderAction = async (sectionLabel: string, expectedLabelPrefix: string) => {
+    await browser.execute(
+      ([targetSectionLabel, targetLabelPrefix]) => {
+        const section = document.querySelector(`[aria-label="${targetSectionLabel}"]`)?.closest('.continue-shelf');
+        if (!(section instanceof HTMLElement)) {
+          throw new Error(`expected to find library section: ${targetSectionLabel}`);
+        }
+
+        const button = Array.from(section.querySelectorAll('button')).find((candidate) =>
+          candidate.textContent?.trim().startsWith(targetLabelPrefix)
+        );
+        if (!(button instanceof HTMLButtonElement)) {
+          throw new Error(`expected to find section header action starting with: ${targetLabelPrefix}`);
+        }
+
+        button.click();
+      },
+      [sectionLabel, expectedLabelPrefix] as const
+    );
+  };
+
+  const readLibrarySectionHeaderActionLabels = async (sectionLabel: string) =>
+    browser.execute((targetSectionLabel) => {
+      const section = document.querySelector(`[aria-label="${targetSectionLabel}"]`)?.closest('.continue-shelf');
+      if (!(section instanceof HTMLElement)) {
+        return [] as string[];
+      }
+
+      return Array.from(section.querySelectorAll('header button')).map(
+        (button) => button.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+      );
+    }, sectionLabel);
+
   const readReadestMigrationSurface = async () =>
     browser.execute(() => {
       const banner = document.querySelector('[aria-label="readest migration"]');
@@ -2511,6 +2544,121 @@ describe('br1 desktop app', () => {
       expect(matchingRecords[0]?.filePath).not.toContain('missing-repair-copy');
     } finally {
       await updateLibraryRecordOnDiskByTitle(importedBook!.title, () => originalRecord as Record<string, unknown>);
+    }
+  });
+
+  it('bulk repairs eligible broken library copies while leaving manual relink items in the repair queue', async function () {
+    this.timeout(120000);
+    const txtSourcePath = join(staticSamplesRoot, 'sample-book.txt');
+    const cbzSourcePath = join(staticSamplesRoot, 'sample-comic.cbz');
+    const [txtBook, cbzBook] = await importDesktopLibraryBooks([txtSourcePath, cbzSourcePath]);
+    expect(txtBook?.filePath).toBeTruthy();
+    expect(cbzBook?.filePath).toBeTruthy();
+
+    const originalTxtRecord = await loadLibraryRecordOnDisk(txtBook!.filePath);
+    const originalCbzRecord = await loadLibraryRecordOnDisk(cbzBook!.filePath);
+    expect(originalTxtRecord).toBeTruthy();
+    expect(originalCbzRecord).toBeTruthy();
+
+    try {
+      await updateLibraryRecordOnDiskByTitle(txtBook!.title, (record) => ({
+        ...record,
+        progress: '上次读到 33%',
+        status: '继续阅读',
+        progressFraction: 0.33,
+        progressLocation: 'TXT-bulk-repair-33',
+        filePath: join(appDataRoot, 'missing-bulk-repair-copy.txt'),
+        sourcePath: txtSourcePath
+      }));
+      await updateLibraryRecordOnDiskByTitle(cbzBook!.title, (record) => ({
+        ...record,
+        progress: '上次读到 57%',
+        status: '继续阅读',
+        progressFraction: 0.57,
+        progressLocation: 'CBZ-manual-repair-57',
+        filePath: join(appDataRoot, 'missing-manual-repair-copy.cbz'),
+        sourcePath: join(appDataRoot, 'missing-original-source.cbz')
+      }));
+
+      await switchToLibraryWindow();
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const txtState = await readLibraryEntryStateForTitle(txtBook!.title);
+        const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
+        return (
+          !!txtState &&
+          !!cbzState &&
+          txtState.sectionLabel === '待修复书籍' &&
+          cbzState.sectionLabel === '待修复书籍' &&
+          txtState.hasRepairAction &&
+          cbzState.hasRepairAction &&
+          !txtState.hasReaderHref &&
+          !cbzState.hasReaderHref
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected both broken books to enter the repair queue before running the bulk repair action'
+      });
+
+      await browser.waitUntil(async () => {
+        const labels = await readLibrarySectionHeaderActionLabels('待修复书籍');
+        return labels.some((label) => label.startsWith('批量修复副本'));
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the repair queue to expose the bulk repair header action once an eligible book is present'
+      }).catch(async (error) => {
+        const labels = await readLibrarySectionHeaderActionLabels('待修复书籍');
+        const txtState = await readLibraryEntryStateForTitle(txtBook!.title);
+        const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nHeader actions: ${JSON.stringify(labels)}\nTXT state: ${JSON.stringify(txtState)}\nCBZ state: ${JSON.stringify(cbzState)}`
+        );
+      });
+
+      await clickLibrarySectionHeaderAction('待修复书籍', '批量修复副本');
+
+      await browser.waitUntil(async () => {
+        const noticeText = await $('.library-notice').getText();
+        const txtState = await readLibraryEntryStateForTitle(txtBook!.title);
+        const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
+        return (
+          noticeText.includes('已批量重建 1 本书的书库副本') &&
+          noticeText.includes('仍有 1 本需要手动重新关联或重新选择文件') &&
+          !!txtState &&
+          !!cbzState &&
+          txtState.sectionLabel !== '待修复书籍' &&
+          txtState.hasReaderHref &&
+          !txtState.hasImportButton &&
+          cbzState.sectionLabel === '待修复书籍' &&
+          cbzState.hasRepairAction &&
+          !cbzState.hasReaderHref
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected bulk repair to restore only the eligible TXT record and keep the manual CBZ repair in the queue'
+      });
+
+      const records = await loadLibraryRecordsOnDisk();
+      const repairedTxtRecords = records.filter((record) => {
+        const recordPath = (record.filePath ?? record.file_path ?? '') as string;
+        return (record.title ?? '') === txtBook!.title && /\.txt$/i.test(recordPath);
+      });
+      expect(repairedTxtRecords).toHaveLength(1);
+      expect(repairedTxtRecords[0]?.progressFraction).toBe(0.33);
+      expect(repairedTxtRecords[0]?.progressLocation).toBe('TXT-bulk-repair-33');
+      expect(repairedTxtRecords[0]?.filePath).not.toContain('missing-bulk-repair-copy');
+
+      const manualCbzRecord = await loadLibraryRecordBySourcePathOnDisk(join(appDataRoot, 'missing-original-source.cbz'));
+      expect(manualCbzRecord?.progressFraction).toBe(0.57);
+      expect(manualCbzRecord?.progressLocation).toBe('CBZ-manual-repair-57');
+      expect(manualCbzRecord?.filePath).toContain('missing-manual-repair-copy');
+    } finally {
+      await updateLibraryRecordOnDiskByTitle(txtBook!.title, () => originalTxtRecord as Record<string, unknown>);
+      await updateLibraryRecordOnDiskByTitle(cbzBook!.title, () => originalCbzRecord as Record<string, unknown>);
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
     }
   });
 
