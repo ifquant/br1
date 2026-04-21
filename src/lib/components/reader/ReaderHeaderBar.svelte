@@ -64,8 +64,8 @@
       <div class="leading-tools">
         <button
           type="button"
-          aria-label={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
-          title={sidebarVisible ? 'Hide contents panel' : 'Show contents panel'}
+          aria-label={sidebarVisible ? '隐藏目录面板' : '显示目录面板'}
+          title={sidebarVisible ? '隐藏目录面板' : '显示目录面板'}
           on:click={() => onToggleSidebar?.()}
         >
           ☰
@@ -89,13 +89,13 @@
       </div>
     </div>
 
-    <div class="controls" aria-label="reader controls preview">
-      <button type="button" aria-label="Go to library" title="Go to library" on:click={() => onGoToLibrary?.()}>⌂</button>
+    <div class="controls" aria-label="阅读控制">
+      <button type="button" aria-label="回到书库" title="回到书库" on:click={() => onGoToLibrary?.()}>⌂</button>
       <button
         type="button"
         class:active={isCurrentLocationBookmarked}
-        aria-label={isCurrentLocationBookmarked ? 'Remove bookmark at current position' : 'Add bookmark at current position'}
-        title={isCurrentLocationBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+        aria-label={isCurrentLocationBookmarked ? '移除当前位置书签' : '添加当前位置书签'}
+        title={isCurrentLocationBookmarked ? '移除书签' : '添加书签'}
         on:click={() => onToggleBookmark?.()}
       >
         {isCurrentLocationBookmarked ? '★' : '☆'}
@@ -103,8 +103,8 @@
       <button
         type="button"
         class:active={activeSidebarTab === 'bookmarks' && sidebarVisible}
-        aria-label="Show bookmarks panel"
-        title="Show bookmarks panel"
+        aria-label="显示书签面板"
+        title="显示书签面板"
         on:click={() => onOpenSidebarTab?.('bookmarks')}
       >
         🔖
@@ -112,8 +112,8 @@
       <button
         type="button"
         class:active={activeSidebarTab === 'search' && sidebarVisible}
-        aria-label="Show search panel"
-        title="Show search panel"
+        aria-label="显示搜索面板"
+        title="显示搜索面板"
         on:click={() => onOpenSidebarTab?.('search')}
       >
         ⌕
@@ -121,8 +121,8 @@
       <button
         type="button"
         class:active={activeSidebarTab === 'notes' && sidebarVisible}
-        aria-label="Show notes panel"
-        title="Show notes panel"
+        aria-label="显示笔记面板"
+        title="显示笔记面板"
         on:click={() => onOpenSidebarTab?.('notes')}
       >
         ✎
@@ -131,22 +131,22 @@
         <button
           type="button"
           class:active={menuOpen}
-          aria-label="More actions"
+          aria-label="更多操作"
           aria-expanded={menuOpen}
-          title="More actions"
+          title="更多操作"
           on:click={toggleMenu}
         >
           ⋯
         </button>
 
         {#if menuOpen}
-          <div class="header-menu" role="menu" aria-label="reader view menu">
+          <div class="header-menu" role="menu" aria-label="阅读视图菜单">
             <div class="menu-section" role="presentation">
               <span class="menu-section-label">阅读设置</span>
               <div class="menu-option-stack" role="presentation">
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">阅读模式</span>
-                  <div class="menu-option-group" role="group" aria-label="reader flow mode">
+                  <div class="menu-option-group" role="group" aria-label="阅读模式">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -169,7 +169,7 @@
                 </div>
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">阅读氛围</span>
-                  <div class="menu-option-group" role="group" aria-label="reader atmosphere">
+                  <div class="menu-option-group" role="group" aria-label="阅读氛围">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -201,7 +201,7 @@
                 </div>
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">字体</span>
-                  <div class="menu-option-group" role="group" aria-label="reader font family">
+                  <div class="menu-option-group" role="group" aria-label="阅读字体">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -224,7 +224,7 @@
                 </div>
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">字号</span>
-                  <div class="menu-option-group" role="group" aria-label="reader font scale">
+                  <div class="menu-option-group" role="group" aria-label="字号">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -256,7 +256,7 @@
                 </div>
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">行距</span>
-                  <div class="menu-option-group" role="group" aria-label="reader line height">
+                  <div class="menu-option-group" role="group" aria-label="行距">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -288,7 +288,7 @@
                 </div>
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">页边距</span>
-                  <div class="menu-option-group" role="group" aria-label="reader page margins">
+                  <div class="menu-option-group" role="group" aria-label="页边距">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -320,7 +320,7 @@
                 </div>
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">界面显隐</span>
-                  <div class="menu-option-group" role="group" aria-label="reader chrome visibility">
+                  <div class="menu-option-group" role="group" aria-label="界面显隐">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -343,7 +343,7 @@
                 </div>
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">阅读宽度</span>
-                  <div class="menu-option-group" role="group" aria-label="reading width">
+                  <div class="menu-option-group" role="group" aria-label="阅读宽度">
                     <button
                       type="button"
                       role="menuitemradio"
@@ -380,7 +380,7 @@
 
             <div class="menu-section" role="presentation">
               <span class="menu-section-label">操作</span>
-              <div class="menu-option-group" role="group" aria-label="reader actions">
+              <div class="menu-option-group" role="group" aria-label="阅读操作">
                 <button
                   type="button"
                   role="menuitem"

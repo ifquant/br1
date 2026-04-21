@@ -782,14 +782,14 @@
           results.push(
             ...result.subitems.map((item) => ({
               cfi: item.cfi,
-              label: result.label || 'Search result',
+              label: result.label || '搜索结果',
               excerpt: item.excerpt
             }))
           );
         } else if ('cfi' in result) {
           results.push({
             cfi: result.cfi,
-            label: 'Search result',
+            label: '搜索结果',
             excerpt: result.excerpt
           });
         }

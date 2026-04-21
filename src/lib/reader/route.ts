@@ -48,7 +48,7 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
 
     const target: ReaderRouteOpenTarget = {
       kind: 'asset',
-      label: label || 'imported book',
+      label: label || '导入书籍',
       url: sourceUrl,
       bookKey: sourceUrl || label || 'default'
     };
@@ -77,7 +77,7 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     const restoreLocation = url.searchParams.get('location') ?? '';
     const target: ReaderRouteOpenTarget = {
       kind: 'library-file',
-      label: label || 'imported book',
+      label: label || '导入书籍',
       path: sourcePath,
       restoreFraction: parseRouteFraction(url.searchParams.get('fraction')),
       restoreLocation: restoreLocation || undefined,
