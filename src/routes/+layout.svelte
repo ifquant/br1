@@ -24,6 +24,7 @@
   ];
 
   const isLibraryRoute = derived(page, ($page) => $page.url.pathname === '/library');
+  const isReaderRoute = derived(page, ($page) => $page.url.pathname === '/reader');
   const isReaderWindowRoute = derived(
     page,
     ($page) =>
@@ -147,7 +148,7 @@
   <meta name="apple-mobile-web-app-title" content="br1" />
 </svelte:head>
 
-<div class:reader-window-root={$isReaderWindowRoute} class="app-root">
+<div class:reader-root={$isReaderRoute} class:reader-window-root={$isReaderWindowRoute} class="app-root">
   {#if associatedBookOpenNotice}
     <div class="associated-book-banner" role="status" aria-live="polite">
       <div class="associated-book-banner-copy">
@@ -160,7 +161,7 @@
     </div>
   {/if}
 
-  {#if !$isLibraryRoute && !$isReaderWindowRoute}
+  {#if !$isLibraryRoute && !$isReaderRoute}
     <header class="app-header">
       <div class="brand">
         <span class="mark">br1</span>
@@ -179,7 +180,7 @@
   {/if}
 
   <div class="app-frame">
-    {#if !$isLibraryRoute && !$isReaderWindowRoute}
+    {#if !$isLibraryRoute && !$isReaderRoute}
       <aside class="side-rail" aria-label="workspace sections">
         <span class="rail-label">Workspace</span>
         {#each navItems as item}
@@ -188,7 +189,12 @@
       </aside>
     {/if}
 
-    <main class:reader-window-main={$isReaderWindowRoute} class:library-main={$isLibraryRoute} class="app-main">
+    <main
+      class:reader-main={$isReaderRoute}
+      class:reader-window-main={$isReaderWindowRoute}
+      class:library-main={$isLibraryRoute}
+      class="app-main"
+    >
       <slot />
     </main>
   </div>
@@ -243,6 +249,10 @@
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-page) 96%, white 4%);
+  }
+
+  .app-root.reader-root {
+    grid-template-rows: 1fr;
   }
 
   .associated-book-banner {
@@ -363,6 +373,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .app-frame:has(.reader-main) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .side-rail {
     display: grid;
     align-content: start;
@@ -400,6 +414,12 @@
   }
 
   .app-main.reader-window-main {
+    padding: 0;
+    width: 100%;
+    background: transparent;
+  }
+
+  .app-main.reader-main {
     padding: 0;
     width: 100%;
     background: transparent;
