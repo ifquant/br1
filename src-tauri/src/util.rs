@@ -367,9 +367,7 @@ pub(crate) fn parse_readest_metadata(
 }
 
 fn stringify_metadata_value(value: Option<serde_json::Value>) -> Option<String> {
-    let Some(value) = value else {
-        return None;
-    };
+    let value = value?;
 
     let rendered = match value {
         serde_json::Value::String(value) => value,
