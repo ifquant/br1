@@ -186,7 +186,7 @@
 <svelte:window on:click={handleWindowClick} on:keydown={handleWindowKeydown} />
 
 <header class="library-header">
-  <div class="search-shell" aria-label="library search">
+  <div class="search-shell" aria-label="书库搜索">
     <span class="search-icon" aria-hidden="true">
       <svg viewBox="0 0 20 20">
         <circle cx="8.25" cy="8.25" r="4.6" fill="none" stroke="currentColor" stroke-width="1.55"></circle>
@@ -198,18 +198,18 @@
       value={query}
       placeholder={derivedPlaceholder}
       spellcheck="false"
-      aria-label="Search books"
+      aria-label="搜索书籍"
       on:input={handleQueryInput}
     />
   </div>
 
-  <div class="actions" aria-label="library actions">
-    <div class="modes" aria-label="library view mode">
+  <div class="actions" aria-label="书库操作">
+    <div class="modes" aria-label="书库视图模式">
       <button
         type="button"
         class:active={viewMode === 'grid'}
         class="mode"
-        aria-label="Grid view"
+        aria-label="网格视图"
         aria-pressed={viewMode === 'grid'}
         on:click={() => handleViewModeChange('grid')}
       >
@@ -219,7 +219,7 @@
         type="button"
         class:active={viewMode === 'list'}
         class="mode"
-        aria-label="List view"
+        aria-label="列表视图"
         aria-pressed={viewMode === 'list'}
         on:click={() => handleViewModeChange('list')}
       >
@@ -241,7 +241,7 @@
           </button>
 
           {#if sortMenuOpen}
-            <div class="sort-menu" role="menu" aria-label="library sort options">
+            <div class="sort-menu" role="menu" aria-label="书库排序选项">
               <span class="sort-menu-label">排序方式</span>
               {#each sortOptions as option}
                 <button
@@ -276,7 +276,7 @@
   </div>
 </header>
 
-<div class="filter-row" aria-label="library filters">
+<div class="filter-row" aria-label="书库筛选">
   {#each filterOptions as option}
     <button
       type="button"
@@ -307,10 +307,10 @@
   {/if}
 
   {#if showAdvancedFilters}
-    <div id="library-advanced-filters" class="advanced-filter-row" aria-label="advanced library filters">
+    <div id="library-advanced-filters" class="advanced-filter-row" aria-label="高级书库筛选">
       {#if formatOptions.length > 0}
         <span class="filter-divider" aria-hidden="true"></span>
-        <div class="format-filters" aria-label="library format filters">
+        <div class="format-filters" aria-label="书库格式筛选">
           <button
             type="button"
             class:active-filter={activeFormatFilter === 'all'}
@@ -338,7 +338,7 @@
 
       {#if collectionOptions.length > 0}
         <span class="filter-divider" aria-hidden="true"></span>
-        <div class="collection-filters" aria-label="library collection filters">
+        <div class="collection-filters" aria-label="书库归类筛选">
           <button
             type="button"
             class:active-filter={activeCollectionFilter === 'all'}
@@ -366,7 +366,7 @@
 
       {#if tagOptions.length > 0}
         <span class="filter-divider" aria-hidden="true"></span>
-        <div class="tag-filters" aria-label="library tag filters">
+        <div class="tag-filters" aria-label="书库标签筛选">
           <button
             type="button"
             class:active-filter={activeTagFilter === 'all'}
@@ -393,20 +393,20 @@
       {/if}
 
       {#if statusSummary}
-        <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
+        <span class="status-summary" aria-label="书库状态摘要">{statusSummary}</span>
       {/if}
       {#if activeFilterDetail}
-        <span class="active-filter-detail" aria-label="library active filter detail">
+        <span class="active-filter-detail" aria-label="书库当前筛选详情">
           {activeFilterDetail}
         </span>
       {/if}
       {#if activeFilterChips.length > 0}
-        <div class="active-filter-chips" aria-label="library active filter chips">
+        <div class="active-filter-chips" aria-label="书库当前筛选条件">
           {#each activeFilterChips as chip}
             <button
               type="button"
               class="active-filter-chip"
-              aria-label={`Remove active library filter ${chip.label}`}
+              aria-label={`移除书库筛选：${chip.label}`}
               on:click={() => handleClearFilterChip(chip.id)}
             >
               <span>{chip.label}</span>
@@ -416,23 +416,23 @@
         </div>
       {/if}
       {#if formatSummary}
-        <span class="metadata-summary format-summary" aria-label="library format summary">{formatSummary}</span>
+        <span class="metadata-summary format-summary" aria-label="书库格式摘要">{formatSummary}</span>
       {/if}
       {#if collectionSummary}
-        <span class="metadata-summary" aria-label="library collection summary">{collectionSummary}</span>
+        <span class="metadata-summary" aria-label="书库归类摘要">{collectionSummary}</span>
       {/if}
       {#if tagSummary}
-        <span class="metadata-summary tag-summary" aria-label="library tag summary">{tagSummary}</span>
+        <span class="metadata-summary tag-summary" aria-label="书库标签摘要">{tagSummary}</span>
       {/if}
       {#if coverSummary}
-        <span class="metadata-summary cover-summary" aria-label="library cover summary">{coverSummary}</span>
+        <span class="metadata-summary cover-summary" aria-label="书库封面摘要">{coverSummary}</span>
       {/if}
       {#if filterSummary}
-        <span class="filter-summary" aria-label="library filter summary">{filterSummary}</span>
+        <span class="filter-summary" aria-label="书库筛选摘要">{filterSummary}</span>
         <button
           type="button"
           class="clear-filters"
-          aria-label="Clear library filters"
+          aria-label="清除书库筛选"
           on:click={handleClearFilters}
         >
           清除筛选

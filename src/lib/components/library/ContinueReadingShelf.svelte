@@ -127,7 +127,7 @@
     {/if}
   </header>
   {#if operationSummary}
-    <div class="operation-summary" aria-label={`${sectionTitle} operation summary`}>
+    <div class="operation-summary" aria-label={`${sectionTitle}操作摘要`}>
       {operationSummary}
     </div>
   {/if}
@@ -144,7 +144,7 @@
           class="row-link"
           href={book.readerHref}
           role={book.readerHref ? 'link' : undefined}
-          aria-label={book.readerHref ? `Continue reading ${book.title}` : undefined}
+          aria-label={book.readerHref ? `继续阅读《${book.title}》` : undefined}
           on:click={(event: MouseEvent) => handleLinkClick(event, book.readerHref)}
         >
           <div class="cover-shell">
@@ -232,7 +232,7 @@
           {/if}
         </svelte:element>
         {#if expandedKey === bookKey}
-          <div class="detail-panel" aria-label={`Details for ${book.title}`}>
+          <div class="detail-panel" aria-label={`《${book.title}》详情`}>
             {#if originalFileMissing || libraryCopyMissing}
               <div class="detail-warning">
                 <strong>{book.availabilityLabel}</strong>
@@ -253,7 +253,7 @@
                   <strong>逐本复核</strong>
                   <span>{book.manualRelinkReview.note}</span>
                 </div>
-                <div class="manual-review-meta" aria-label={`Manual relink review for ${book.title}`}>
+                <div class="manual-review-meta" aria-label={`《${book.title}》重关联复核信息`}>
                   <span>
                     <em>标题</em>
                     <strong>{book.title}</strong>

@@ -217,7 +217,7 @@
           class="book-link"
           href={book.readerHref}
           role={book.readerHref ? 'link' : undefined}
-          aria-label={book.readerHref ? `Open ${book.title} in reader` : undefined}
+          aria-label={book.readerHref ? `在阅读器打开《${book.title}》` : undefined}
           on:click={(event: MouseEvent) => handleLinkClick(event, book.readerHref)}
         >
           <div class="cover-shell">
@@ -290,7 +290,7 @@
           详情
         </button>
         {#if expandedKey === bookKey}
-          <div class="metadata-panel" aria-label={`Library metadata for ${book.title}`}>
+          <div class="metadata-panel" aria-label={`《${book.title}》的书库元数据`}>
             <div class="metadata-grid">
               <span>标题</span>
               <strong>{book.title}</strong>
@@ -301,7 +301,7 @@
                 <button
                   type="button"
                   class="metadata-filter-button"
-                  aria-label={`Filter by format ${book.format.toUpperCase()}`}
+                  aria-label={`筛选 ${book.format.toUpperCase()} 格式`}
                   on:click={(event: MouseEvent) => handleFilterFormat(event, book.format)}
                 >
                   {book.format.toUpperCase()}
@@ -314,7 +314,7 @@
                 <button
                   type="button"
                   class="metadata-filter-button"
-                  aria-label={`Filter by status ${filterableStatusLabel}`}
+                  aria-label={`筛选 ${filterableStatusLabel} 状态`}
                   on:click={(event: MouseEvent) => handleFilterStatus(event, filterableStatus)}
                 >
                   {filterableStatusLabel}
@@ -335,7 +335,7 @@
                 <button
                   type="button"
                   class="metadata-filter-button"
-                  aria-label={`Filter by collection ${book.collection}`}
+                  aria-label={`筛选 ${book.collection} 归类`}
                   on:click={(event: MouseEvent) => handleFilterCollection(event, book.collection)}
                 >
                   {book.collection}
@@ -345,12 +345,12 @@
               {/if}
               <span>标签</span>
               {#if book.tags?.length && onFilterTag}
-                <div class="metadata-filter-list" aria-label={`Tags for ${book.title}`}>
+                <div class="metadata-filter-list" aria-label={`《${book.title}》的标签`}>
                   {#each book.tags as tag}
                     <button
                       type="button"
                       class="metadata-filter-button"
-                      aria-label={`Filter by tag ${tag}`}
+                      aria-label={`筛选 ${tag} 标签`}
                       on:click={(event: MouseEvent) => handleFilterTag(event, tag)}
                     >
                       {tag}
@@ -381,7 +381,7 @@
             {#if metadataEditKey === bookKey && onUpdateBookMetadata}
               <form
                 class="metadata-edit"
-                aria-label={`Edit metadata for ${book.title}`}
+                aria-label={`编辑《${book.title}》的元数据`}
                 on:submit={(event: SubmitEvent) => handleMetadataSubmit(event, book)}
               >
                 <p class="metadata-edit-note">
@@ -389,33 +389,33 @@
                 </p>
                 <label>
                   <span>标题</span>
-                  <input bind:value={metadataEditTitle} required aria-label="Edit book title" />
+                  <input bind:value={metadataEditTitle} required aria-label="编辑书名" />
                 </label>
                 <label>
                   <span>作者</span>
-                  <input bind:value={metadataEditAuthor} required aria-label="Edit book author" />
+                  <input bind:value={metadataEditAuthor} required aria-label="编辑作者" />
                 </label>
                 <label>
                   <span>语言</span>
-                  <input bind:value={metadataEditLanguage} aria-label="Edit book language" />
+                  <input bind:value={metadataEditLanguage} aria-label="编辑语言" />
                 </label>
                 <label>
                   <span>出版者</span>
-                  <input bind:value={metadataEditPublisher} aria-label="Edit book publisher" />
+                  <input bind:value={metadataEditPublisher} aria-label="编辑出版者" />
                 </label>
                 <label>
                   <span>书架归类</span>
-                  <input bind:value={metadataEditCollection} aria-label="Edit book collection" />
+                  <input bind:value={metadataEditCollection} aria-label="编辑书架归类" />
                 </label>
                 <label>
                   <span>标签</span>
-                  <input bind:value={metadataEditTags} aria-label="Edit book tags" />
+                  <input bind:value={metadataEditTags} aria-label="编辑标签" />
                 </label>
                 <label class="wide-field">
                   <span>简介</span>
                   <textarea
                     bind:value={metadataEditDescription}
-                    aria-label="Edit book description"
+                    aria-label="编辑简介"
                     rows="3"
                   ></textarea>
                 </label>
@@ -464,14 +464,14 @@
     {/each}
 
     {#if showImportTile}
-      <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="import books">
+      <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="导入书籍">
         <svelte:element
           this={onImportBooks || importHref ? 'a' : 'div'}
           class:list-link={viewMode === 'list'}
           class="book-link import-link"
           href={importHref}
           role={onImportBooks || importHref ? 'link' : undefined}
-          aria-label={onImportBooks || importHref ? 'Import books from the system' : undefined}
+          aria-label={onImportBooks || importHref ? '从本机导入书籍' : undefined}
           on:click={(event: MouseEvent) => {
             if (onImportBooks) {
               handleImportClick(event);
@@ -491,7 +491,7 @@
                 <strong>导入书籍</strong>
                 <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
                 <div class="meta-pills">
-                  <span class="meta-pill strong">SYSTEM</span>
+                  <span class="meta-pill strong">本机导入</span>
                   <span class="meta-pill">本机文件</span>
                 </div>
               </div>
