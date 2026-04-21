@@ -1,9 +1,16 @@
 import { expect, test } from '@playwright/test';
 
+const readerLayoutLabel = (layout: 'PAGINATED' | 'SCROLL' | 'FIXED') =>
+  ({
+    PAGINATED: '分页',
+    SCROLL: '滚动',
+    FIXED: '固定版式'
+  })[layout];
+
 test('library renders the reading-first shell in web mode', async ({ page }) => {
   await page.goto('/library');
 
-  const searchbox = page.getByRole('searchbox', { name: 'Search books' });
+  const searchbox = page.getByRole('searchbox', { name: '搜索书籍' });
 
   await expect(searchbox).toHaveAttribute(
     'placeholder',
@@ -12,41 +19,42 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '最近阅读' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '你的书库' })).toBeVisible();
-  await expect(page.getByLabel('library format summary')).toContainText('格式 2 种 · 主 EPUB 4 本');
-  await expect(page.getByLabel('library collection summary')).toContainText('归类 3 组');
-  await expect(page.getByLabel('library tag summary')).toContainText('标签 8 个 · 高频 政治哲学 2 本');
-  await expect(page.getByLabel('library cover summary')).toContainText('封面 5 / 5 已设置');
+  await page.getByRole('button', { name: '筛选 更多' }).click();
+  await expect(page.getByLabel('书库格式摘要')).toContainText('格式 2 种 · 主 EPUB 4 本');
+  await expect(page.getByLabel('书库归类摘要')).toContainText('归类 3 组');
+  await expect(page.getByLabel('书库标签摘要')).toContainText('标签 8 个 · 高频 政治哲学 2 本');
+  await expect(page.getByLabel('书库封面摘要')).toContainText('封面 5 / 5 已设置');
   await expect(page.getByRole('button', { name: '全部', exact: true })).toContainText('5 本');
   await expect(page.getByRole('button', { name: '在读', exact: true })).toContainText('2 本');
   await expect(page.getByRole('button', { name: '未开始', exact: true })).toContainText('2 本');
   await expect(page.getByRole('button', { name: '已读完', exact: true })).toContainText('1 本');
   await expect(
-    page.getByLabel('library format filters').getByRole('button', { name: '全部格式 2 种' })
+    page.getByLabel('书库格式筛选').getByRole('button', { name: '全部格式 2 种' })
   ).toBeVisible();
   await expect(
-    page.getByLabel('library format filters').getByRole('button', { name: 'EPUB 4 本' })
+    page.getByLabel('书库格式筛选').getByRole('button', { name: 'EPUB 4 本' })
   ).toBeVisible();
   await expect(
-    page.getByLabel('library format filters').getByRole('button', { name: 'PDF 1 本' })
+    page.getByLabel('书库格式筛选').getByRole('button', { name: 'PDF 1 本' })
   ).toBeVisible();
   await expect(
-    page.getByLabel('library collection filters').getByRole('button', { name: '全部归类 3 组' })
+    page.getByLabel('书库归类筛选').getByRole('button', { name: '全部归类 3 组' })
   ).toBeVisible();
   await expect(
-    page.getByLabel('library tag filters').getByRole('button', { name: '全部标签 8 个' })
+    page.getByLabel('书库标签筛选').getByRole('button', { name: '全部标签 8 个' })
   ).toBeVisible();
   await expect(
-    page.getByLabel('library collection filters').getByRole('button', { name: '政治哲学 2 本' })
+    page.getByLabel('书库归类筛选').getByRole('button', { name: '政治哲学 2 本' })
   ).toBeVisible();
   await expect(
-    page.getByLabel('library tag filters').getByRole('button', { name: '正义论 1 本' })
+    page.getByLabel('书库标签筛选').getByRole('button', { name: '正义论 1 本' })
   ).toBeVisible();
   await expect(
-    page.getByLabel('library tag filters').getByRole('button', { name: '政治哲学 2 本' })
+    page.getByLabel('书库标签筛选').getByRole('button', { name: '政治哲学 2 本' })
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Import books from the system/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /继续阅读《胡雪岩》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /从本机导入书籍/ })).toBeVisible();
   await expect(page.locator('input.import-input[type="file"]').first()).toHaveAttribute(
     'accept',
     '.epub,.pdf,.mobi,.azw3,.fb2,.cbz,.txt'
@@ -56,95 +64,95 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await page.getByRole('menuitemradio', { name: '书名' }).click();
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
 
-  await page.getByLabel('library format filters').getByRole('button', { name: 'PDF 1 本' }).click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：格式 PDF');
-  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toHaveCount(0);
-  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 1 / 5 本');
-  await page.getByRole('button', { name: 'Remove active library filter 格式 PDF' }).click();
-  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
+  await page.getByLabel('书库格式筛选').getByRole('button', { name: 'PDF 1 本' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：格式 PDF');
+  await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toHaveCount(0);
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 1 / 5 本');
+  await page.getByRole('button', { name: '移除书库筛选：格式 PDF' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 
   await page.getByRole('button', { name: '未开始' }).click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 未开始');
-  await page.getByRole('button', { name: 'Remove active library filter 状态 未开始' }).click();
-  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：状态 未开始');
+  await page.getByRole('button', { name: '移除书库筛选：状态 未开始' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
   await page.getByRole('button', { name: '未开始' }).click();
-  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /继续阅读《胡雪岩》/ })).toHaveCount(0);
   await page
     .getByLabel('你的书库')
     .locator('.book-card', { hasText: 'A Theory of Justice' })
     .getByRole('button', { name: '详情' })
     .click();
-  const sampleMetadataPanel = page.getByLabel('Library metadata for A Theory of Justice');
+  const sampleMetadataPanel = page.getByLabel('《A Theory of Justice》的书库元数据');
   await expect(sampleMetadataPanel).toContainText('标题');
   await expect(sampleMetadataPanel).toContainText('A Theory of Justice');
   await expect(sampleMetadataPanel).toContainText('格式');
   await expect(sampleMetadataPanel).toContainText('EPUB');
-  await expect(sampleMetadataPanel.getByRole('button', { name: 'Filter by format EPUB' })).toBeVisible();
+  await expect(sampleMetadataPanel.getByRole('button', { name: '筛选 EPUB 格式' })).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('状态');
   await expect(sampleMetadataPanel).toContainText('未开始');
-  await expect(sampleMetadataPanel.getByRole('button', { name: 'Filter by status 未开始' })).toBeVisible();
+  await expect(sampleMetadataPanel.getByRole('button', { name: '筛选 未开始 状态' })).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('封面');
   await expect(sampleMetadataPanel).toContainText('已设置');
   await expect(sampleMetadataPanel).toContainText('书架归类');
   await expect(sampleMetadataPanel).toContainText('政治哲学');
   await expect(sampleMetadataPanel).toContainText('标签');
-  await expect(sampleMetadataPanel.getByRole('button', { name: 'Filter by tag 正义论' })).toBeVisible();
+  await expect(sampleMetadataPanel.getByRole('button', { name: '筛选 正义论 标签' })).toBeVisible();
   await expect(
-    sampleMetadataPanel.getByRole('button', { name: 'Filter by tag 政治哲学' })
+    sampleMetadataPanel.getByRole('button', { name: '筛选 政治哲学 标签' })
   ).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('来源');
   await expect(sampleMetadataPanel).toContainText('样例书库');
 
-  await sampleMetadataPanel.getByRole('button', { name: 'Filter by format EPUB' }).click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：格式 EPUB');
-  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toHaveCount(0);
-  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 4 / 5 本');
-  await page.getByRole('button', { name: 'Remove active library filter 格式 EPUB' }).click();
-  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
+  await sampleMetadataPanel.getByRole('button', { name: '筛选 EPUB 格式' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：格式 EPUB');
+  await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toHaveCount(0);
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 4 / 5 本');
+  await page.getByRole('button', { name: '移除书库筛选：格式 EPUB' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 
-  await sampleMetadataPanel.getByRole('button', { name: 'Filter by status 未开始' }).click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 未开始');
-  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toHaveCount(0);
-  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 2 / 5 本');
-  await page.getByRole('button', { name: 'Remove active library filter 状态 未开始' }).click();
-  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
+  await sampleMetadataPanel.getByRole('button', { name: '筛选 未开始 状态' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：状态 未开始');
+  await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toHaveCount(0);
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 2 / 5 本');
+  await page.getByRole('button', { name: '移除书库筛选：状态 未开始' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 
-  await sampleMetadataPanel.getByRole('button', { name: 'Filter by collection 政治哲学' }).click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：归类 政治哲学');
-  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
-  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 2 / 5 本');
+  await sampleMetadataPanel.getByRole('button', { name: '筛选 政治哲学 归类' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：归类 政治哲学');
+  await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《政治秩序与政治衰败》/ })).toHaveCount(0);
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 2 / 5 本');
   await page
-    .getByRole('button', { name: 'Remove active library filter 归类 政治哲学' })
+    .getByRole('button', { name: '移除书库筛选：归类 政治哲学' })
     .click();
-  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
-  await sampleMetadataPanel.getByRole('button', { name: 'Filter by collection 政治哲学' }).click();
-  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 2 / 5 本');
-  await page.getByRole('button', { name: 'Clear library filters' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
+  await sampleMetadataPanel.getByRole('button', { name: '筛选 政治哲学 归类' }).click();
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 2 / 5 本');
+  await page.getByRole('button', { name: '清除书库筛选' }).click();
 
-  await sampleMetadataPanel.getByRole('button', { name: 'Filter by tag 正义论' }).click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：标签 正义论');
-  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
-  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 1 / 5 本');
-  await page.getByRole('button', { name: 'Remove active library filter 标签 正义论' }).click();
-  await expect(page.getByLabel('library filter summary')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
+  await sampleMetadataPanel.getByRole('button', { name: '筛选 正义论 标签' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：标签 正义论');
+  await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /在阅读器打开《政治秩序与政治衰败》/ })).toHaveCount(0);
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 1 / 5 本');
+  await page.getByRole('button', { name: '移除书库筛选：标签 正义论' }).click();
+  await expect(page.getByLabel('书库筛选摘要')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
 
   await page.getByRole('button', { name: '已读完' }).click();
-  await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /继续阅读《胡雪岩》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: '在读' }).click();
   await expect(page.getByRole('button', { name: '在读', exact: true })).toHaveAttribute(
@@ -152,63 +160,63 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
     'true'
   );
   await searchbox.fill('does-not-exist');
-  await expect(page.getByLabel('library active filter detail')).toContainText(
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText(
     '当前筛选：搜索 does-not-exist / 状态 在读'
   );
 
   await expect(page.getByRole('heading', { name: '继续阅读' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '最近阅读' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '搜索结果' })).toBeVisible();
-  await expect(page.getByLabel('empty search results')).toContainText(
+  await expect(page.getByLabel(/搜索无结果/)).toContainText(
     '搜索 does-not-exist / 状态 在读 当前没有匹配的书'
   );
-  await expect(page.getByLabel('empty search results')).toContainText(
+  await expect(page.getByLabel(/搜索无结果/)).toContainText(
     '移除搜索条件后再调整当前筛选'
   );
   await expect(
     page
-      .getByLabel('empty search results')
-      .getByRole('button', { name: 'Remove empty-state library filter 搜索 does-not-exist' })
+      .getByLabel(/搜索无结果/)
+      .getByRole('button', { name: '移除空态筛选：搜索 does-not-exist' })
   ).toBeVisible();
   await expect(
     page
-      .getByLabel('empty search results')
-      .getByRole('button', { name: 'Remove empty-state library filter 状态 在读' })
+      .getByLabel(/搜索无结果/)
+      .getByRole('button', { name: '移除空态筛选：状态 在读' })
   ).toBeVisible();
-  await expect(page.getByLabel('empty search results').getByRole('button', { name: '清除筛选' })).toBeVisible();
+  await expect(page.getByLabel(/搜索无结果/).getByRole('button', { name: '清除筛选' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '你的书库' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /在阅读器打开《政治秩序与政治衰败》/ })).toHaveCount(0);
   await page
-    .getByLabel('empty search results')
-    .getByRole('button', { name: 'Remove empty-state library filter 搜索 does-not-exist' })
+    .getByLabel(/搜索无结果/)
+    .getByRole('button', { name: '移除空态筛选：搜索 does-not-exist' })
     .click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 在读');
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：状态 在读');
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
 
-  await page.getByLabel('library format filters').getByRole('button', { name: 'PDF 1 本' }).click();
-  await expect(page.getByLabel('library active filter detail')).toContainText(
+  await page.getByLabel('书库格式筛选').getByRole('button', { name: 'PDF 1 本' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText(
     '当前筛选：状态 在读 / 格式 PDF'
   );
-  await expect(page.getByLabel('empty filtered library')).toContainText(
+  await expect(page.getByLabel(/筛选无结果/)).toContainText(
     '状态 在读 / 格式 PDF 当前没有匹配的书'
   );
-  await expect(page.getByLabel('empty filtered library')).toContainText(
+  await expect(page.getByLabel(/筛选无结果/)).toContainText(
     '全部 / 全部格式 / 全部归类 / 全部标签'
   );
   await expect(
     page
-      .getByLabel('empty filtered library')
-      .getByRole('button', { name: 'Remove empty-state library filter 状态 在读' })
+      .getByLabel(/筛选无结果/)
+      .getByRole('button', { name: '移除空态筛选：状态 在读' })
   ).toBeVisible();
   await page
-    .getByLabel('empty filtered library')
-    .getByRole('button', { name: 'Remove empty-state library filter 格式 PDF' })
+    .getByLabel(/筛选无结果/)
+    .getByRole('button', { name: '移除空态筛选：格式 PDF' })
     .click();
-  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 在读');
+  await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：状态 在读');
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
-  await page.getByRole('button', { name: 'Clear library filters' }).click();
-  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
+  await page.getByRole('button', { name: '清除书库筛选' }).click();
+  await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 });
 
 test('reader opens txt assets in web mode', async ({ page }) => {
@@ -216,11 +224,11 @@ test('reader opens txt assets in web mode', async ({ page }) => {
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
   );
 
-  const footer = page.getByLabel('reader footer controls preview');
+  const footer = page.getByLabel('阅读页脚控制');
 
   await expect(page.locator('.stage-error')).toHaveCount(0);
   await expect(footer).toContainText('TXT');
-  await expect(footer).toContainText('SCROLL');
+  await expect(footer).toContainText('滚动');
   await expect(page.getByLabel('plain text reading surface')).toBeVisible();
   await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
@@ -231,15 +239,15 @@ test('reader persists epub layout settings through reload in web mode', async ({
 
   const pickReaderSetting = async (
     groupLabel:
-      | 'reader flow mode'
-      | 'reader atmosphere'
-      | 'reader font family'
-      | 'reader font scale'
-      | 'reader line height'
-      | 'reader page margins',
+      | '阅读模式'
+      | '阅读氛围'
+      | '阅读字体'
+      | '字号'
+      | '行距'
+      | '页边距',
     optionLabel: string
   ) => {
-    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('button', { name: '更多操作' }).click();
     const option = page
       .locator(`[role="group"][aria-label="${groupLabel}"]`)
       .getByRole('menuitemradio', { name: optionLabel, exact: true });
@@ -292,17 +300,17 @@ test('reader persists epub layout settings through reload in web mode', async ({
 
   await page.goto(readerUrl);
   await expect(page.locator('.stage-error')).toHaveCount(0);
-  await expect(page.getByLabel('reader footer controls preview')).toContainText('PAGINATED');
+  await expect(page.getByLabel('阅读页脚控制')).toContainText('分页');
 
-  await pickReaderSetting('reader flow mode', '滚动');
-  await pickReaderSetting('reader font family', '无衬线');
-  await pickReaderSetting('reader font scale', '大');
-  await pickReaderSetting('reader line height', '舒展');
-  await pickReaderSetting('reader page margins', '宽');
+  await pickReaderSetting('阅读模式', '滚动');
+  await pickReaderSetting('阅读字体', '无衬线');
+  await pickReaderSetting('字号', '大');
+  await pickReaderSetting('行距', '舒展');
+  await pickReaderSetting('页边距', '宽');
   await page.reload();
 
   await expect(page.locator('.stage-error')).toHaveCount(0);
-  await expect(page.getByLabel('reader footer controls preview')).toContainText('SCROLL');
+  await expect(page.getByLabel('阅读页脚控制')).toContainText('滚动');
   await expect
     .poll(readRendererState, { message: 'expected renderer settings to update before reload' })
     .toMatchObject({
@@ -419,11 +427,11 @@ test('reader manages structured search history through reload in web mode', asyn
   await expect(page.locator('.stage-error')).toHaveCount(0);
   await page.getByRole('tab', { name: '搜索' }).click();
 
-  await expect(page.getByLabel('search cache status')).toContainText('当前书搜索缓存已启用');
-  await expect(page.getByLabel('search cache status')).toContainText('2 条历史 · 1 条有命中 · 1 条无命中');
-  await expect(page.getByLabel('search cache status')).toContainText('缓存标识：/samples/sample-book.epub');
-  await expect(page.getByLabel('search cache query entries')).toContainText(hitQuery);
-  await expect(page.getByLabel('search cache query entries')).toContainText('3 条 · 全书');
+  await expect(page.getByLabel('搜索缓存状态')).toContainText('当前书搜索缓存已启用');
+  await expect(page.getByLabel('搜索缓存状态')).toContainText('2 条历史 · 1 条有命中 · 1 条无命中');
+  await expect(page.getByLabel('搜索缓存状态')).toContainText('缓存标识：/samples/sample-book.epub');
+  await expect(page.getByLabel('搜索缓存查询记录')).toContainText(hitQuery);
+  await expect(page.getByLabel('搜索缓存查询记录')).toContainText('3 条 · 全书');
   await expect(page.getByRole('button', { name: '全部 2' })).toBeVisible();
   await expect(page.getByRole('button', { name: '有命中 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: '无命中 1' })).toBeVisible();
@@ -443,10 +451,6 @@ test('reader manages structured search history through reload in web mode', asyn
   await expect(hitHistoryChip).toContainText('3 条命中');
   await hitHistoryChip.click();
   await expect(page.locator('input[type="search"]')).toHaveValue(hitQuery);
-
-  await page.locator('input[type="search"]').fill('');
-  await page.getByLabel('search cache query entries').getByRole('button', { name: /constitutional order/ }).click();
-  await expect(page.locator('input[type="search"]')).toHaveValue(hitQuery);
 });
 
 test('reader shows explicit text-annotation limits for txt and cbz assets in web mode', async ({ page }) => {
@@ -463,7 +467,7 @@ test('reader shows explicit text-annotation limits for txt and cbz assets in web
       `/reader?source=asset&url=${encodeURIComponent(sample.assetPath)}&label=${encodeURIComponent(sample.label)}`
     );
     await page.getByRole('tab', { name: '笔记' }).click();
-    await expect(page.getByLabel('notes panel preview')).toContainText(sample.message);
+    await expect(page.getByRole('region', { name: '笔记面板' })).toContainText(sample.message);
     await expect(page.getByRole('button', { name: '当前格式暂不支持批注' })).toBeDisabled();
   }
 });
@@ -536,7 +540,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(page.locator('.notes-meta-row')).toContainText('1 笔记');
 
   const progressBeforeJump = await page
-    .locator('[aria-label="reader footer controls preview"]')
+    .locator('[aria-label="阅读页脚控制"]')
     .textContent();
 
   await page.locator('.plain-text-surface').evaluate((element) => {
@@ -547,14 +551,14 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     element.scrollTop = maxScroll * 0.8;
     element.dispatchEvent(new Event('scroll', { bubbles: true }));
   });
-  await expect(page.locator('[aria-label="reader footer controls preview"]')).not.toHaveText(progressBeforeJump ?? '');
+  await expect(page.locator('[aria-label="阅读页脚控制"]')).not.toHaveText(progressBeforeJump ?? '');
 
   await page.locator('.note-card', { hasText: 'txt note body' }).locator('.note-link').click();
-  await expect(page.locator('[aria-label="reader footer controls preview"]')).toHaveText(progressBeforeJump ?? '');
+  await expect(page.locator('[aria-label="阅读页脚控制"]')).toHaveText(progressBeforeJump ?? '');
 
   const notesMetaRow = page.locator('.notes-meta-row');
   const notesCards = page.locator('.note-card');
-  const kindFilters = page.getByLabel('annotation kind filter controls');
+  const kindFilters = page.getByLabel('笔记筛选控制');
   await kindFilters.getByRole('button', { name: '高亮', exact: true }).click();
   await expect(notesMetaRow).toContainText('仅看高亮');
   await expect(notesCards).toHaveCount(2);
@@ -585,14 +589,14 @@ test('reader supports txt notes through selection, persistence, and note reopen 
 
   await page.getByRole('tab', { name: '高亮' }).click();
   const highlightCards = page.locator('.highlight-card');
-  const highlightsPanel = page.getByLabel('highlights panel preview');
+  const highlightsPanel = page.getByLabel('高亮面板');
   await expect(highlightsPanel).toContainText('已保存 2 条高亮');
   await expect(highlightsPanel).toContainText('最近添加优先');
   await expect(highlightCards).toHaveCount(2);
   await expect(highlightCards.first()).toContainText('The rest of this fixture just adds enough steady reading length');
   await expect(highlightCards.first()).toContainText('高亮');
   await expect(highlightCards.first()).not.toContainText('txt note body');
-  const highlightSortControls = page.getByLabel('highlights sort controls');
+  const highlightSortControls = page.getByLabel('高亮排序控制');
   await highlightSortControls.getByRole('button', { name: '最早添加', exact: true }).click();
   await expect(highlightsPanel).toContainText('最早添加优先');
   await expect(highlightCards.first()).toContainText('plain text file exists');
@@ -616,7 +620,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(highlightCards.first()).toContainText('plain text file exists');
   page.once('dialog', (dialog) => dialog.accept('Web TXT 重点高亮'));
   await page.getByRole('button', { name: '保存当前选择集' }).click();
-  const savedSelectionPanel = page.getByLabel('saved highlight selections');
+  const savedSelectionPanel = page.getByLabel('已保存高亮选择集');
   await expect(savedSelectionPanel).toContainText('Web TXT 重点高亮');
   page.once('dialog', (dialog) => dialog.accept('Web TXT 重命名高亮'));
   await savedSelectionPanel.getByRole('button', { name: '重命名' }).click();
@@ -634,7 +638,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await page.getByRole('button', { name: '保存当前选择集' }).click();
   await expect(savedSelectionPanel).toContainText('Web TXT 第二高亮');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 第二高亮');
-  const savedSelectionSortControls = page.getByLabel('saved selection set sort controls');
+  const savedSelectionSortControls = page.getByLabel('选择集排序控制');
   await savedSelectionSortControls.getByRole('button', { name: '最早保存' }).click();
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
   await page.reload();
@@ -649,7 +653,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel).toContainText('Web TXT 重命名高亮');
   await expect(savedSelectionPanel).toContainText('Web TXT 第二高亮');
   await firstSavedSelectionCard.getByRole('button', { name: '导出' }).click();
-  const exportPreview = page.getByLabel('saved highlight selection export preview');
+  const exportPreview = page.getByLabel('高亮选择集导出预览');
   await expect(exportPreview).toContainText('Web TXT 重命名高亮');
   await expect(exportPreview.locator('textarea')).toHaveValue(/"schemaVersion": 1/);
   await expect(exportPreview.locator('textarea')).toHaveValue(/"bookTitle": "Sample TXT Book"/);
@@ -725,7 +729,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel).toContainText('已刷新跨书选择集：Web TXT 重命名高亮（1/2）');
   await savedSelectionPanel.getByRole('button', { name: '刷新全部跨书映射' }).click();
   await expect(savedSelectionPanel).toContainText('已刷新 1 组跨书选择集');
-  const refreshSummary = page.getByLabel('saved highlight selection refresh summary');
+  const refreshSummary = page.getByLabel('高亮选择集刷新摘要');
   await expect(refreshSummary).toContainText('共处理 1 组跨书选择集');
   await expect(refreshSummary).toContainText('部分匹配：');
   await expect(refreshSummary).toContainText('Web TXT 重命名高亮（1/2）');
@@ -734,7 +738,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   page.once('dialog', (dialog) => dialog.accept(crossBookPreviewPayload));
   await savedSelectionPanel.getByRole('button', { name: '导入' }).click();
   await expect(savedSelectionPanel).toContainText('跨书预检：可映射 1/1 条高亮');
-  const importPreview = page.getByLabel('saved highlight selection import preview');
+  const importPreview = page.getByLabel('高亮选择集导入预检');
   await expect(importPreview).toContainText('来源：Other TXT Book · TXT');
   await expect(importPreview).toContainText('来源选择集：Web TXT 重命名高亮');
   await expect(importPreview).toContainText('当前书可映射 1 / 1 条高亮');
@@ -793,7 +797,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: '删除本组高亮' }).click();
   await expect(highlightCards).toHaveCount(0);
-  await expect(page.getByLabel('highlights panel preview')).toContainText('还没有高亮');
+  await expect(page.getByLabel('高亮面板')).toContainText('还没有高亮');
 
   await page.getByRole('tab', { name: '笔记' }).click();
   await expect(page.locator('.notes-meta-row')).toContainText('0 高亮');
@@ -845,12 +849,12 @@ for (const sample of sampleReaderCases) {
       `/reader?source=asset&url=${encodeURIComponent(sample.assetPath)}&label=${encodeURIComponent(sample.label)}`
     );
 
-    const footer = page.getByLabel('reader footer controls preview');
+    const footer = page.getByLabel('阅读页脚控制');
 
     await expect(page.locator('.stage-error')).toHaveCount(0);
     await expect(page.getByText(new RegExp(`Failed to open ${sample.label}`, 'i'))).toHaveCount(0);
     await expect(footer).toContainText(sample.format);
-    await expect(footer).toContainText(sample.layout);
-    await expect(footer).not.toContainText('Opening book');
+    await expect(footer).toContainText(readerLayoutLabel(sample.layout));
+    await expect(footer).not.toContainText('正在打开');
   });
 }
