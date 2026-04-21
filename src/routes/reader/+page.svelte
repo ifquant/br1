@@ -47,6 +47,7 @@
   let persistSequence = 0;
   let lastPersistPromise: Promise<void> = Promise.resolve();
   let currentCoverUrl = '';
+  let bridgePanelOpen = false;
   let currentPreview: ReaderPreviewState = {
     title: 'Bridge Reader',
     author: 'Open a book to start reading',
@@ -368,6 +369,8 @@
 
   <div
     class:window-mode={isWindowMode}
+    class:bridge-open={!isWindowMode && bridgePanelOpen}
+    class:bridge-collapsed={!isWindowMode && !bridgePanelOpen}
     class:sidebar-hidden={isWindowMode && !$sidebarState.visible}
     class:sidebar-overlay={isWindowMode && $sidebarState.visible && !$sidebarState.pinned}
     class="workspace"
@@ -443,22 +446,32 @@
     />
 
     {#if !isWindowMode}
-      <aside class="bridge-placeholder" aria-label="bridge panel placeholder">
-        <header class="bridge-head">
-          <span class="label">Bridge</span>
-          <button type="button" aria-label="bridge options">⋯</button>
-        </header>
+      {#if bridgePanelOpen}
+        <aside class="bridge-placeholder" aria-label="bridge panel placeholder">
+          <header class="bridge-head">
+            <span class="label">Bridge</span>
+            <button type="button" aria-label="close bridge panel" on:click={() => (bridgePanelOpen = false)}>
+              ×
+            </button>
+          </header>
 
-        <div class="bridge-card">
-          <strong>解释这段</strong>
-          <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧 contextual surface 摆正，不提前接 AI 行为。</p>
-        </div>
+          <div class="bridge-card">
+            <strong>解释这段</strong>
+            <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧 contextual surface 摆正，不提前接 AI 行为。</p>
+          </div>
 
-        <div class="bridge-card secondary">
-          <strong>为什么重要</strong>
-          <p>后续 bridge 可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
-        </div>
-      </aside>
+          <div class="bridge-card secondary">
+            <strong>为什么重要</strong>
+            <p>后续 bridge 可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
+          </div>
+        </aside>
+      {:else}
+        <aside class="bridge-tab" aria-label="bridge panel collapsed">
+          <button type="button" aria-label="open bridge panel" on:click={() => (bridgePanelOpen = true)}>
+            <span>Bridge</span>
+          </button>
+        </aside>
+      {/if}
     {/if}
   </div>
 </section>
@@ -507,6 +520,14 @@
     gap: 14px;
     min-height: calc(100vh - 32px);
     width: 100%;
+  }
+
+  .workspace.bridge-collapsed {
+    grid-template-columns: 248px minmax(0, 1fr) 48px;
+  }
+
+  .workspace.bridge-open {
+    grid-template-columns: 248px minmax(0, 1fr) 276px;
   }
 
   .workspace.window-mode {
@@ -566,6 +587,35 @@
       color-mix(in srgb, var(--surface-panel) 92%, white 8%);
   }
 
+  .bridge-tab {
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    padding: 8px 4px;
+    border-left: 1px solid rgba(64, 47, 24, 0.1);
+    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
+  }
+
+  .bridge-tab button {
+    width: 32px;
+    min-height: 84px;
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 76%, white 24%);
+    color: var(--text-muted);
+    font: 700 10px/1 var(--font-chrome);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+    box-shadow: 0 8px 18px rgba(42, 30, 15, 0.05);
+  }
+
+  .bridge-tab button:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
+  }
+
   .label {
     color: var(--text-muted);
     font-size: 11px;
@@ -622,6 +672,14 @@
       grid-template-columns: 236px minmax(0, 1fr);
     }
 
+    .workspace.bridge-collapsed {
+      grid-template-columns: 236px minmax(0, 1fr) 44px;
+    }
+
+    .workspace.bridge-open {
+      grid-template-columns: 236px minmax(0, 1fr);
+    }
+
     .workspace.window-mode {
       --reader-workspace-edge: 14px;
       --reader-workspace-gap: 14px;
@@ -630,6 +688,11 @@
 
     .bridge-placeholder {
       grid-column: 1 / -1;
+    }
+
+    .bridge-tab {
+      grid-column: auto;
+      padding-inline: 2px;
     }
   }
 
@@ -646,8 +709,22 @@
       order: 2;
     }
 
-    .bridge-placeholder {
+    .bridge-placeholder,
+    .bridge-tab {
       order: 3;
+    }
+
+    .bridge-tab {
+      justify-items: stretch;
+      padding: 8px 14px 12px;
+      border-left: 0;
+      border-top: 1px solid rgba(64, 47, 24, 0.1);
+    }
+
+    .bridge-tab button {
+      width: 100%;
+      min-height: 38px;
+      writing-mode: horizontal-tb;
     }
 
     .window-chrome {
