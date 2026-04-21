@@ -349,6 +349,7 @@
     display: grid;
     min-height: 0;
     width: 100%;
+    box-sizing: border-box;
     padding: 8px 14px 0;
     border: 1px solid var(--reader-shell-border, var(--border-light));
     background: var(--reader-stage-fill);

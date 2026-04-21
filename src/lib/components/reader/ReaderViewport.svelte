@@ -1200,6 +1200,7 @@
     display: grid;
     min-height: 66vh;
     width: 100%;
+    box-sizing: border-box;
     padding: clamp(14px, 2.6vw, 24px) clamp(8px, 1.8vw, 14px);
     border: 1px solid var(--reader-shell-border, var(--reader-border-color, rgba(64, 47, 24, 0.05)));
     background:
@@ -1226,6 +1227,7 @@
     align-content: start;
     gap: 14px;
     width: min(100%, 790px);
+    box-sizing: border-box;
     min-height: 100%;
     margin: 0 auto;
     padding: clamp(14px, 2.2vw, 18px) clamp(14px, 2.6vw, 24px);
