@@ -52,10 +52,13 @@ pub(crate) struct LibraryRepairCandidatePreview {
     pub(crate) format: String,
     pub(crate) title: String,
     pub(crate) author: String,
+    pub(crate) byte_size: Option<u64>,
+    pub(crate) sha256: Option<String>,
     pub(crate) format_matches: bool,
     pub(crate) title_matches: bool,
     pub(crate) author_matches: bool,
     pub(crate) source_path_matches: bool,
+    pub(crate) source_hash_matches: bool,
     pub(crate) file_exists: bool,
 }
 

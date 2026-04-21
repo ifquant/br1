@@ -13,6 +13,7 @@ use base64::Engine;
 use quick_xml::events::Event;
 use quick_xml::name::QName;
 use quick_xml::Reader;
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
 use std::io::{ErrorKind, Read};
@@ -748,6 +749,22 @@ fn derive_import_metadata_for_source(source: &Path, extension: &str) -> (String,
     (title, author)
 }
 
+fn sha256_file(path: &Path) -> Option<String> {
+    let mut file = fs::File::open(path).ok()?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+
+    loop {
+        let bytes_read = file.read(&mut buffer).ok()?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    Some(format!("{:x}", hasher.finalize()))
+}
+
 fn choose_repaired_title(
     existing_record: &LibraryBookRecord,
     incoming_title: &str,
@@ -1203,18 +1220,28 @@ pub(crate) fn preview_library_repair_candidate(
         .and_then(|path| fs::canonicalize(path).ok())
         .map(|path| path.to_string_lossy().to_string());
     let file_exists = candidate_path.is_file();
+    let byte_size = fs::metadata(candidate_path).ok().map(|metadata| metadata.len());
+    let sha256 = file_exists.then(|| sha256_file(candidate_path)).flatten();
+    let expected_source_sha256 = expected_source_path
+        .as_deref()
+        .and_then(|path| sha256_file(Path::new(path)));
+    let source_hash_matches =
+        sha256.is_some() && expected_source_sha256.is_some() && sha256 == expected_source_sha256;
 
     Ok(LibraryRepairCandidatePreview {
         file_path: file_path.clone(),
         file_name,
         title,
         author,
+        byte_size,
+        sha256,
         format_matches: expected_format.is_empty() || format == expected_format,
         title_matches,
         author_matches,
         source_path_matches: normalized_candidate.is_some()
             && normalized_expected.is_some()
             && normalized_candidate == normalized_expected,
+        source_hash_matches,
         file_exists,
         format,
     })

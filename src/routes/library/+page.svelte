@@ -1063,6 +1063,17 @@
           setLibraryNotice('info', '已取消重关联；请选择与当前记录标题和作者更匹配的替换文件。');
           return;
         }
+        if (
+          candidatePreview.sourcePathMatches &&
+          !candidatePreview.sourceHashMatches &&
+          typeof window !== 'undefined' &&
+          !window.confirm(
+            `所选文件路径与原记录一致，但文件内容指纹不同。仍要用“${candidatePreview.fileName}”重建这条记录吗？`
+          )
+        ) {
+          setLibraryNotice('info', '已取消重关联；请确认替换文件内容与当前记录一致后再继续。');
+          return;
+        }
         result = {
           kind: 'imported',
           records: await importLibraryBooks([selectedPath]),

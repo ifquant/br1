@@ -496,10 +496,13 @@ describe('br1 desktop app', () => {
       format: string;
       title: string;
       author: string;
+      byteSize?: number | null;
+      sha256?: string | null;
       formatMatches: boolean;
       titleMatches: boolean;
       authorMatches: boolean;
       sourcePathMatches: boolean;
+      sourceHashMatches: boolean;
       fileExists: boolean;
     };
   };
@@ -2997,10 +3000,13 @@ describe('br1 desktop app', () => {
       expect(mismatchedPreview.format).toBe('TXT');
       expect(mismatchedPreview.title).toBe('sample-book');
       expect(mismatchedPreview.author).toBe('Unknown author');
+      expect(mismatchedPreview.byteSize ?? 0).toBeGreaterThan(0);
+      expect(mismatchedPreview.sha256).toMatch(/^[a-f0-9]{64}$/);
       expect(mismatchedPreview.formatMatches).toBe(false);
       expect(mismatchedPreview.titleMatches).toBe(false);
       expect(mismatchedPreview.authorMatches).toBe(true);
       expect(mismatchedPreview.sourcePathMatches).toBe(false);
+      expect(mismatchedPreview.sourceHashMatches).toBe(false);
 
       const matchedPreview = await previewDesktopLibraryRepairCandidate(
         cbzSourcePath,
@@ -3012,10 +3018,13 @@ describe('br1 desktop app', () => {
       expect(matchedPreview.fileExists).toBe(true);
       expect(matchedPreview.format).toBe('CBZ');
       expect(matchedPreview.title).toBe(cbzBook!.title);
+      expect(matchedPreview.byteSize ?? 0).toBeGreaterThan(0);
+      expect(matchedPreview.sha256).toMatch(/^[a-f0-9]{64}$/);
       expect(matchedPreview.formatMatches).toBe(true);
       expect(matchedPreview.titleMatches).toBe(true);
       expect(matchedPreview.authorMatches).toBe(true);
       expect(matchedPreview.sourcePathMatches).toBe(true);
+      expect(matchedPreview.sourceHashMatches).toBe(true);
 
       await browser.execute((expectedTitle) => {
         const rows = Array.from(document.querySelectorAll('.continue-shelf .row'));

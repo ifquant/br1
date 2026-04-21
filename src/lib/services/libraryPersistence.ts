@@ -57,10 +57,13 @@ export type LibraryRepairCandidatePreview = {
   format: string;
   title: string;
   author: string;
+  byteSize?: number | null;
+  sha256?: string | null;
   formatMatches: boolean;
   titleMatches: boolean;
   authorMatches: boolean;
   sourcePathMatches: boolean;
+  sourceHashMatches: boolean;
   fileExists: boolean;
 };
 
