@@ -571,10 +571,18 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('部分匹配');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('未命中 1 条，可刷新映射');
+  await page.reload();
+  await page.getByRole('tab', { name: '高亮' }).click();
+  await expect(savedSelectionPanel).toContainText('刷新筛选按书保留');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('部分匹配');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('未命中 1 条，可刷新映射');
   await savedSelectionPanel.getByRole('button', { name: '完全匹配 1' }).click();
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮 (2)');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('完全匹配');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('已全部映射 1/1');
   await expect(savedSelectionPanel.getByRole('button', { name: '未匹配 0' })).toBeDisabled();
   await savedSelectionPanel.getByRole('button', { name: '全部已保存' }).click();
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(3);

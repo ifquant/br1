@@ -84,6 +84,7 @@ export type ReaderHighlightsWorkspaceState = {
   filter: ReaderHighlightsFilter;
   sort: ReaderHighlightsSort;
   savedSelectionsSort: ReaderHighlightSelectionSetSort;
+  savedSelectionsRefreshFilter: 'all' | 'full' | 'partial' | 'missed';
   selectedIds: string[];
   savedSelections: ReaderHighlightSelectionSet[];
 };

@@ -81,7 +81,7 @@
     libraryCopyMissing: boolean
   ) => {
     if (libraryCopyMissing && book.sourceLabel?.includes('Readest')) return '重新同步';
-    if (isManualRelinkBook(book)) return '复核并重关联';
+    if (isManualRelinkBook(book)) return '先复核再重关联';
     if (libraryCopyMissing) return '修复副本';
     if (originalFileMissing) return '恢复原文件入口';
     return '重新导入';
@@ -210,13 +210,44 @@
               <div class="detail-warning">
                 <strong>{book.availabilityLabel}</strong>
                 <span>
-                  {book.compatibilityLabel || '请重新导入这本书，恢复本地书库中的可用文件和原文件入口。'}
+                  {book.compatibilityLabel ||
+                    '请重新导入这本书，恢复本地书库中的可用文件和原文件入口。'}
                 </span>
                 {#if manualRelinkOnly}
                   <span class="detail-review-note">
-                    这本书当前只能逐本复核后再选替换文件，后续会沿用原位修复语义而不是新增重复条目。
+                    这本书需要先核对当前记录，再选择替换文件。后续会沿用原位修复语义，不会新建重复条目。
                   </span>
                 {/if}
+              </div>
+            {/if}
+            {#if manualRelinkOnly && book.manualRelinkReview}
+              <div class="manual-review-panel">
+                <div class="manual-review-head">
+                  <strong>逐本复核</strong>
+                  <span>{book.manualRelinkReview.note}</span>
+                </div>
+                <div class="manual-review-meta" aria-label={`Manual relink review for ${book.title}`}>
+                  <span>
+                    <em>标题</em>
+                    <strong>{book.title}</strong>
+                  </span>
+                  <span>
+                    <em>格式</em>
+                    <strong>{book.format}</strong>
+                  </span>
+                  <span>
+                    <em>来源</em>
+                    <strong>{book.sourceLabel || '未知来源'}</strong>
+                  </span>
+                  <span>
+                    <em>进度</em>
+                    <strong>{book.progressPercentLabel || book.progress}</strong>
+                  </span>
+                </div>
+                <div class="manual-review-conflict">
+                  <strong>{book.manualRelinkReview.conflictLabel}</strong>
+                  <span>{book.manualRelinkReview.conflictDetail}</span>
+                </div>
               </div>
             {/if}
             <div class="detail-grid">
@@ -261,8 +292,8 @@
                   class="secondary-pill"
                   on:click={(event: MouseEvent) => handleRepairBook(event, book)}
                 >
-                  {manualRelinkOnly
-                    ? '选择替换文件并重关联'
+                  {manualRelinkOnly && book.manualRelinkReview
+                    ? book.manualRelinkReview.actionLabel
                     : getRepairLabel(book, originalFileMissing, libraryCopyMissing)}
                 </button>
               </div>
@@ -560,6 +591,73 @@
 
   .detail-review-note {
     color: color-mix(in srgb, var(--text-secondary) 88%, #7c4619 12%);
+  }
+
+  .manual-review-panel {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 11px 12px;
+    border-radius: 14px;
+    background: color-mix(in srgb, #f5ddc2 18%, white 82%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #cf7a35 18%, white 82%);
+  }
+
+  .manual-review-head {
+    display: grid;
+    gap: 4px;
+  }
+
+  .manual-review-head strong {
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--text-primary) 90%, #7c4619 10%);
+  }
+
+  .manual-review-head span,
+  .manual-review-conflict span {
+    font-size: 12px;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--text-secondary) 86%, #7c4619 14%);
+  }
+
+  .manual-review-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px;
+  }
+
+  .manual-review-meta span {
+    display: grid;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(124, 70, 25, 0.08);
+  }
+
+  .manual-review-meta em {
+    font-style: normal;
+    font-size: 10px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  .manual-review-meta strong,
+  .manual-review-conflict strong {
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
+  .manual-review-conflict {
+    display: grid;
+    gap: 4px;
+    padding-top: 2px;
   }
 
   .detail-grid {

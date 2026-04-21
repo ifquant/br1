@@ -24,6 +24,13 @@ export type LibraryShelfBook = {
   importedAtLabel?: string;
 };
 
+export type ManualRelinkReview = {
+  note: string;
+  conflictLabel: string;
+  conflictDetail: string;
+  actionLabel: string;
+};
+
 export type BookshelfPreviewBook = Pick<
   LibraryShelfBook,
   | 'title'
@@ -61,4 +68,6 @@ export type ContinueReadingBook = Pick<
   | 'restartHref'
   | 'lastOpenedLabel'
   | 'importedAtLabel'
->;
+> & {
+  manualRelinkReview?: ManualRelinkReview;
+};

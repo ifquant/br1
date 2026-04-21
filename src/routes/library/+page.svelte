@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
-  import type { LibraryShelfBook } from '$lib/library/types';
+  import type { ContinueReadingBook, LibraryShelfBook, ManualRelinkReview } from '$lib/library/types';
   import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
@@ -158,6 +158,7 @@
   let starterContinueReadingBooks: LibraryShelfBook[] = [];
   let starterRecentReadingBooks: LibraryShelfBook[] = [];
   let starterShelfBooks: LibraryShelfBook[] = [];
+  let recoveryQueueReviewBooks: ContinueReadingBook[] = [];
   let filteredContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredRecentReadingBooks: LibraryShelfBook[] = [];
   let filteredRecoveryQueueBooks: LibraryShelfBook[] = [];
@@ -330,6 +331,69 @@
         );
       }) ?? null
     );
+  };
+
+  const normalizeLibraryMatchText = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, '');
+
+  const getPersistedLibraryMatchKey = (record: {
+    title: string;
+    author: string;
+    format: string;
+  }) =>
+    [record.title, record.author, record.format]
+      .map((value) => normalizeLibraryMatchText(value))
+      .join('::');
+
+  const buildManualRelinkReview = (book: LibraryShelfBook): ManualRelinkReview | undefined => {
+    const persistedRecord = lookupPersistedRecordForBook(book);
+    if (!persistedRecord || !isPersistedRecordManualRepairOnly(persistedRecord)) return undefined;
+
+    const currentMatchKey = getPersistedLibraryMatchKey(persistedRecord);
+    const conflictingMatchCount = persistedLibraryRecords.filter((record) => {
+      if (record.id === persistedRecord.id) return false;
+      if (record.id.startsWith('readest-')) return false;
+      if (!isPersistedRecordBroken(record)) return false;
+      return getPersistedLibraryMatchKey(record) === currentMatchKey;
+    }).length;
+    const conflictingSourceCount = persistedRecord.sourcePath
+      ? persistedLibraryRecords
+          .filter((record) => record.id !== persistedRecord.id)
+          .filter((record) => !record.id.startsWith('readest-'))
+          .filter((record) => record.sourcePath && record.sourcePath === persistedRecord.sourcePath)
+          .length
+      : 0;
+
+    if (conflictingMatchCount > 0) {
+      return {
+        note: '先核对当前条目的标题、格式、来源和进度，再打开文件选择器。选中的文件会原位重关联当前记录，不会新建重复条目。',
+        conflictLabel: `检测到 ${conflictingMatchCount + 1} 条同题名/作者/格式的待修复记录`,
+        conflictDetail:
+          '系统会按现有记录顺序匹配修复目标；如果这里还有别的同类破损记录，先确认你正在处理的是当前这一条，再继续选择替换文件。',
+        actionLabel: '确认后选择替换文件'
+      };
+    }
+
+    if (conflictingSourceCount > 0) {
+      return {
+        note: '先核对当前条目的标题、格式、来源和进度，再打开文件选择器。选中的文件会原位重关联当前记录，不会新建重复条目。',
+        conflictLabel: '检测到相同原文件路径的其他记录',
+        conflictDetail:
+          '如果书库里还有别的条目共享这一原文件路径，选文件前先确认当前条目的标题和格式，避免把重关联落到另一条记录上。',
+        actionLabel: '确认后选择替换文件'
+      };
+    }
+
+    return {
+      note: '先核对当前条目的标题、格式、来源和进度，再打开文件选择器。选中的文件会原位重关联当前记录，不会新建重复条目。',
+      conflictLabel: '当前没有检测到同类冲突',
+      conflictDetail:
+        '这条记录可以直接按原位修复处理；只要你选到的是同一本书，修复后会保留现有进度和阅读状态。',
+      actionLabel: '确认后选择替换文件'
+    };
   };
 
   const isPersistedRecordBroken = (record: PersistedLibraryBook) =>
@@ -633,6 +697,12 @@
         [...continueReadingBooks, ...recentReadingBooks]
       );
   $: filteredRecoveryQueueBooks = filterBooksByLibraryFilter(recoveryQueueBooks, libraryFilterBy);
+  $: recoveryQueueReviewBooks = filteredRecoveryQueueBooks.map(
+    (book): ContinueReadingBook => ({
+      ...book,
+      manualRelinkReview: buildManualRelinkReview(book)
+    })
+  );
   $: bulkRepairEligibleQueueBooks = filteredRecoveryQueueBooks.filter((book) => {
     const persistedRecord = lookupPersistedRecordForBook(book);
     return !!persistedRecord && isPersistedRecordBulkRepairEligible(persistedRecord);
@@ -1088,7 +1158,7 @@
                 : ''
             }
             bulkActionDisabled={bulkRepairBusy}
-            books={filteredRecoveryQueueBooks}
+            books={recoveryQueueReviewBooks}
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
             onImportBooks={triggerImportPicker}

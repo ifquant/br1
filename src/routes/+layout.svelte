@@ -7,6 +7,17 @@
   import { openReaderTarget, toExternalLibraryFileReaderTarget } from '$lib/services';
   import { invokeTauri, isTauriDesktop } from '$lib/services/platform';
 
+  type AssociatedBookOpenInputRejection = {
+    input: string;
+    reason: string;
+  };
+
+  type AssociatedBookOpenRejectionReport = {
+    rejectedInputs: AssociatedBookOpenInputRejection[];
+  };
+
+  const ASSOCIATED_BOOK_OPEN_REJECTION_EVENT = 'br1:associated-book-open-inputs-rejected';
+
   const navItems = [
     { href: '/library', label: 'Library' },
     { href: '/reader', label: 'Reader' }
@@ -18,6 +29,42 @@
     ($page) =>
       $page.url.pathname === '/reader' && $page.url.searchParams.get('mode') === 'window'
   );
+
+  let associatedBookOpenNotice = '';
+  let associatedBookOpenNoticeDetails = '';
+  let associatedBookOpenNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const clearAssociatedBookOpenNotice = () => {
+    associatedBookOpenNotice = '';
+    associatedBookOpenNoticeDetails = '';
+    if (associatedBookOpenNoticeTimer !== null) {
+      clearTimeout(associatedBookOpenNoticeTimer);
+      associatedBookOpenNoticeTimer = null;
+    }
+  };
+
+  const showAssociatedBookOpenNotice = (report: AssociatedBookOpenRejectionReport) => {
+    const rejectedInputs = report.rejectedInputs ?? [];
+    if (rejectedInputs.length === 0) {
+      return;
+    }
+
+    const preview = rejectedInputs
+      .slice(0, 3)
+      .map((entry) => entry.input || entry.reason)
+      .join(', ');
+    const remaining = rejectedInputs.length - 3;
+
+    associatedBookOpenNotice = `Ignored ${rejectedInputs.length} open-with input${rejectedInputs.length === 1 ? '' : 's'}.`;
+    associatedBookOpenNoticeDetails = `${preview}${remaining > 0 ? `, and ${remaining} more` : ''}`;
+
+    if (associatedBookOpenNoticeTimer !== null) {
+      clearTimeout(associatedBookOpenNoticeTimer);
+    }
+    associatedBookOpenNoticeTimer = setTimeout(() => {
+      clearAssociatedBookOpenNotice();
+    }, 10000);
+  };
 
   const flushAssociatedBookOpenRequests = async () => {
     const requests = await invokeTauri<Array<{ path: string }>>('consume_associated_book_open_requests');
@@ -35,6 +82,8 @@
 
     let disposed = false;
     let flushChain = Promise.resolve();
+    let openRequestUnlistenPromise: Promise<(() => void) | void> | null = null;
+    let rejectionUnlistenPromise: Promise<(() => void) | void> | null = null;
 
     const queueFlush = () => {
       flushChain = flushChain
@@ -46,8 +95,6 @@
           console.error('Failed to flush associated-book open requests', error);
         });
     };
-
-    let unlistenPromise: Promise<(() => void) | void> | null = null;
 
     (async () => {
       const [{ getCurrentWindow }, { listen }] = await Promise.all([
@@ -62,7 +109,13 @@
       }
 
       queueFlush();
-      unlistenPromise = listen('br1:associated-book-open-requested', () => {
+      rejectionUnlistenPromise = listen<AssociatedBookOpenRejectionReport>(
+        ASSOCIATED_BOOK_OPEN_REJECTION_EVENT,
+        ({ payload }) => {
+          showAssociatedBookOpenNotice(payload);
+        }
+      );
+      openRequestUnlistenPromise = listen('br1:associated-book-open-requested', () => {
         queueFlush();
       });
     })().catch((error) => {
@@ -71,7 +124,13 @@
 
     return () => {
       disposed = true;
-      void unlistenPromise?.then((unlisten) => {
+      clearAssociatedBookOpenNotice();
+      void openRequestUnlistenPromise?.then((unlisten) => {
+        if (typeof unlisten === 'function') {
+          unlisten();
+        }
+      });
+      void rejectionUnlistenPromise?.then((unlisten) => {
         if (typeof unlisten === 'function') {
           unlisten();
         }
@@ -89,6 +148,18 @@
 </svelte:head>
 
 <div class:reader-window-root={$isReaderWindowRoute} class="app-root">
+  {#if associatedBookOpenNotice}
+    <div class="associated-book-banner" role="status" aria-live="polite">
+      <div class="associated-book-banner-copy">
+        <strong>{associatedBookOpenNotice}</strong>
+        <span>{associatedBookOpenNoticeDetails}</span>
+      </div>
+      <button type="button" class="associated-book-banner-dismiss" on:click={clearAssociatedBookOpenNotice}>
+        Dismiss
+      </button>
+    </div>
+  {/if}
+
   {#if !$isLibraryRoute && !$isReaderWindowRoute}
     <header class="app-header">
       <div class="brand">
@@ -172,6 +243,43 @@
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-page) 96%, white 4%);
+  }
+
+  .associated-book-banner {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--line-soft);
+    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
+    font-family: var(--font-chrome);
+  }
+
+  .associated-book-banner-copy {
+    display: grid;
+    gap: 3px;
+  }
+
+  .associated-book-banner-copy strong {
+    font-size: 14px;
+  }
+
+  .associated-book-banner-copy span {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .associated-book-banner-dismiss {
+    appearance: none;
+    border: 1px solid var(--line-soft);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    padding: 8px 12px;
+    cursor: pointer;
   }
 
   .app-header {

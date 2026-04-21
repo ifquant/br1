@@ -151,6 +151,7 @@
     highlightsFilter = 'all';
     highlightsSort = 'recent';
     savedHighlightSelectionsSort = 'recent';
+    savedHighlightSelectionsRefreshFilter = 'all';
     selectedHighlightIds = new Set();
     savedHighlightSelections = [];
   };
@@ -176,6 +177,17 @@
     return '未匹配';
   };
 
+  const getSavedHighlightSelectionRefreshDetail = (selectionSet: ReaderHighlightSelectionSet) => {
+    const importSource = selectionSet.importSource;
+    if (!importSource) return '';
+
+    if (importSource.unmatchedCount <= 0) {
+      return `已全部映射 ${importSource.matchedCount}/${importSource.totalCount}`;
+    }
+
+    return `未命中 ${importSource.unmatchedCount} 条，可刷新映射`;
+  };
+
   const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
     if (!state) {
       applyDefaultHighlightsWorkspaceState();
@@ -185,6 +197,12 @@
     highlightsFilter = state.filter === 'chapter' || state.filter === 'selected' ? state.filter : 'all';
     highlightsSort = state.sort === 'oldest' ? 'oldest' : 'recent';
     savedHighlightSelectionsSort = state.savedSelectionsSort === 'oldest' ? 'oldest' : 'recent';
+    savedHighlightSelectionsRefreshFilter =
+      state.savedSelectionsRefreshFilter === 'full' ||
+      state.savedSelectionsRefreshFilter === 'partial' ||
+      state.savedSelectionsRefreshFilter === 'missed'
+        ? state.savedSelectionsRefreshFilter
+        : 'all';
     selectedHighlightIds = new Set(
       Array.isArray(state.selectedIds)
         ? state.selectedIds.filter((id: unknown): id is string => typeof id === 'string')
@@ -283,6 +301,7 @@
       filter: highlightsFilter,
       sort: highlightsSort,
       savedSelectionsSort: savedHighlightSelectionsSort,
+      savedSelectionsRefreshFilter: savedHighlightSelectionsRefreshFilter,
       selectedIds: Array.from(selectedHighlightIds),
       savedSelections: savedHighlightSelections
     };
@@ -1976,6 +1995,7 @@
                 <div class="saved-highlight-selections-summary">
                   <strong>已保存选择集</strong>
                   <span>{savedHighlightSelections.length} 组</span>
+                  <span>刷新筛选按书保留</span>
                 </div>
                 <div class="saved-highlight-selections-toolbar">
                   <button type="button" class="notes-filter-chip" on:click={importSavedHighlightSelection}>
@@ -2016,6 +2036,7 @@
                 <section class="saved-highlight-selection-refresh-summary" aria-label="saved highlight selection refresh summary">
                   <strong>刷新结果</strong>
                   <span>共处理 {savedHighlightSelectionRefreshSummary.refreshedCount} 组跨书选择集</span>
+                  <span>刷新结果筛选会按书保留</span>
                   {#if savedHighlightSelectionRefreshSummary.fullMatches.length}
                     <span>完全匹配：{savedHighlightSelectionRefreshSummary.fullMatches.join('、')}</span>
                   {/if}
@@ -2156,6 +2177,9 @@
                         {#if selectionSet.importSource}
                           <span class="saved-highlight-selection-origin">
                             跨书导入 · {selectionSet.importSource.bookTitle} / {selectionSet.importSource.selectionName} · {selectionSet.importSource.matchedCount}/{selectionSet.importSource.totalCount}
+                          </span>
+                          <span class="saved-highlight-selection-detail">
+                            {getSavedHighlightSelectionRefreshDetail(selectionSet)}
                           </span>
                           <span
                             class="saved-highlight-selection-status"
@@ -3427,6 +3451,12 @@
   .saved-highlight-selection-copy time {
     color: var(--text-secondary);
     font-size: 12px;
+  }
+
+  .saved-highlight-selection-detail {
+    color: var(--text-primary);
+    font-size: 11px;
+    line-height: 1.35;
   }
 
   .saved-highlight-selection-origin {
