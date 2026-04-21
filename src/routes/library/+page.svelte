@@ -1594,6 +1594,14 @@
     libraryCollectionFilter = collection;
   };
 
+  const handleFilterByShelfFormat = (format: string) => {
+    libraryQuery = '';
+    libraryFilterBy = 'all';
+    libraryFormatFilter = format.trim().toUpperCase() || 'all';
+    libraryCollectionFilter = 'all';
+    libraryTagFilter = 'all';
+  };
+
   const handleFilterByShelfTag = (tag: string) => {
     libraryQuery = '';
     libraryFilterBy = 'all';
@@ -1793,6 +1801,7 @@
           onOpenSourcePath={handleOpenSourcePath}
           onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
           onRemoveBook={handleRemoveLibraryBook}
+          onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}
         />
@@ -1874,6 +1883,7 @@
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
+          onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}
         />

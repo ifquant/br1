@@ -83,6 +83,7 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(sampleMetadataPanel).toContainText('A Theory of Justice');
   await expect(sampleMetadataPanel).toContainText('格式');
   await expect(sampleMetadataPanel).toContainText('EPUB');
+  await expect(sampleMetadataPanel.getByRole('button', { name: 'Filter by format EPUB' })).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('状态');
   await expect(sampleMetadataPanel).toContainText('未开始');
   await expect(sampleMetadataPanel).toContainText('封面');
@@ -96,6 +97,14 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   ).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('来源');
   await expect(sampleMetadataPanel).toContainText('样例书库');
+
+  await sampleMetadataPanel.getByRole('button', { name: 'Filter by format EPUB' }).click();
+  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：格式 EPUB');
+  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toHaveCount(0);
+  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 4 / 5 本');
+  await page.getByRole('button', { name: 'Remove active library filter 格式 EPUB' }).click();
+  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
 
   await sampleMetadataPanel.getByRole('button', { name: 'Filter by collection 政治哲学' }).click();
   await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：归类 政治哲学');

@@ -24,6 +24,7 @@
       ) => void | Promise<void>)
     | null = null;
   export let onRemoveBook: ((book: BookshelfPreviewBook) => void | Promise<void>) | null = null;
+  export let onFilterFormat: ((format: string) => void | Promise<void>) | null = null;
   export let onFilterCollection: ((collection: string) => void | Promise<void>) | null = null;
   export let onFilterTag: ((tag: string) => void | Promise<void>) | null = null;
   let expandedKey = '';
@@ -116,6 +117,14 @@
     event.preventDefault();
     event.stopPropagation();
     void onOpenSourcePath(filePath);
+  };
+
+  const handleFilterFormat = (event: MouseEvent, format: string | undefined) => {
+    const nextFormat = format?.trim().toUpperCase();
+    if (!nextFormat || !onFilterFormat) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void onFilterFormat(nextFormat);
   };
 
   const handleFilterCollection = (event: MouseEvent, collection: string | undefined) => {
@@ -256,7 +265,18 @@
               <span>作者</span>
               <strong>{book.author}</strong>
               <span>格式</span>
-              <strong>{book.format || '未知'}</strong>
+              {#if book.format && onFilterFormat}
+                <button
+                  type="button"
+                  class="metadata-filter-button"
+                  aria-label={`Filter by format ${book.format.toUpperCase()}`}
+                  on:click={(event: MouseEvent) => handleFilterFormat(event, book.format)}
+                >
+                  {book.format.toUpperCase()}
+                </button>
+              {:else}
+                <strong>{book.format || '未知'}</strong>
+              {/if}
               <span>状态</span>
               <strong>{book.readingStatusLabel || book.status || '未标记'}</strong>
               <span>进度</span>
