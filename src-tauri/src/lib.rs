@@ -174,6 +174,7 @@ fn queue_associated_book_open_requests_with_report<R: tauri::Runtime>(
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(models::PendingAssociatedBookOpenRequests::default())
+        .manage(models::TrustedAssociatedBookOpenPaths::default())
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             queue_associated_book_open_requests_with_report(
                 app,
@@ -205,6 +206,7 @@ pub fn run() {
             commands::library::import_library_books,
             commands::library::import_readest_library,
             commands::library::preview_library_repair_candidate,
+            #[cfg(feature = "webdriver")]
             commands::library::queue_associated_book_open_requests,
             commands::library::remove_library_book,
             commands::library::restore_removed_library_book,

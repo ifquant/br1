@@ -1,13 +1,14 @@
 use crate::models::{
     AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord, LibraryRepairCandidatePreview,
     PendingAssociatedBookOpenRequests, ReadestImportResult, ReadestLibrarySummary,
+    TrustedAssociatedBookOpenPaths,
 };
 use crate::util::{
     book_mime_type, cover_mime_type, ensure_library_root, find_readest_book_file,
     format_readest_progress, library_json_path, load_library_records, load_readest_config,
     load_readest_records, normalize_library_records, normalize_pdf_progress_location, now_millis,
-    parse_readest_metadata, readest_books_root, readest_library_json_path, readest_progress_fraction,
-    sanitize_filename, save_library_records,
+    parse_readest_metadata, readest_books_root, readest_library_json_path,
+    readest_progress_fraction, sanitize_filename, save_library_records,
 };
 use base64::Engine;
 use quick_xml::events::Event;
@@ -49,6 +50,104 @@ fn is_supported_associated_book_path(path: &Path) -> bool {
         extension.to_ascii_lowercase().as_str(),
         "epub" | "pdf" | "fb2" | "mobi" | "azw3" | "cbz" | "txt"
     )
+}
+
+fn is_supported_cover_path(path: &Path) -> bool {
+    let Some(extension) = path.extension().and_then(|value| value.to_str()) else {
+        return false;
+    };
+
+    matches!(
+        extension.to_ascii_lowercase().as_str(),
+        "svg" | "jpg" | "jpeg" | "png" | "webp"
+    )
+}
+
+fn canonical_path_key(path: &Path) -> String {
+    path.to_string_lossy().to_string()
+}
+
+fn canonical_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let library_root = ensure_library_root(app)?;
+    fs::canonicalize(library_root).map_err(|error| error.to_string())
+}
+
+fn canonicalize_existing_file_path(file_path: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(file_path);
+    let canonical = fs::canonicalize(&path).map_err(|error| error.to_string())?;
+    if !canonical.is_file() {
+        return Err("Requested path is not a file".to_string());
+    }
+
+    Ok(canonical)
+}
+
+fn trusted_associated_book_paths_contains(
+    app: &tauri::AppHandle,
+    path: &Path,
+) -> Result<bool, String> {
+    let trusted = app.state::<TrustedAssociatedBookOpenPaths>();
+    let trusted = trusted
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock trusted associated-book paths".to_string())?;
+    Ok(trusted.contains(&canonical_path_key(path)))
+}
+
+fn register_trusted_associated_book_paths<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    requests: &[AssociatedBookOpenRequest],
+) -> Result<(), String> {
+    let trusted = app.state::<TrustedAssociatedBookOpenPaths>();
+    let mut trusted = trusted
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock trusted associated-book paths".to_string())?;
+
+    for request in requests {
+        let canonical = canonicalize_existing_file_path(&request.path)?;
+        if is_supported_associated_book_path(&canonical) {
+            trusted.insert(canonical_path_key(&canonical));
+        }
+    }
+
+    Ok(())
+}
+
+fn resolve_trusted_library_book_path(
+    app: &tauri::AppHandle,
+    file_path: &str,
+) -> Result<PathBuf, String> {
+    let canonical = canonicalize_existing_file_path(file_path)?;
+    if !is_supported_associated_book_path(&canonical) {
+        return Err("Unsupported library book format".to_string());
+    }
+
+    let library_root = canonical_library_root(app)?;
+    if canonical.starts_with(&library_root)
+        || trusted_associated_book_paths_contains(app, &canonical)?
+    {
+        return Ok(canonical);
+    }
+
+    Err("Book file path is not an approved library source".to_string())
+}
+
+fn resolve_library_owned_cover_path(
+    app: &tauri::AppHandle,
+    file_path: &str,
+) -> Result<PathBuf, String> {
+    let canonical = canonicalize_existing_file_path(file_path)?;
+    if !is_supported_cover_path(&canonical) {
+        return Err("Unsupported library cover format".to_string());
+    }
+
+    let library_root = canonical_library_root(app)?;
+    if canonical.starts_with(&library_root) {
+        return Ok(canonical);
+    }
+
+    Err("Cover file path is not a br1 library asset".to_string())
 }
 
 fn strip_wrapping_quotes(value: &str) -> &str {
@@ -189,8 +288,13 @@ pub(crate) fn queue_associated_book_open_requests_runtime<R: tauri::Runtime>(
         return Ok(0);
     }
 
+    register_trusted_associated_book_paths(app, &requests)?;
+
     let pending = app.state::<PendingAssociatedBookOpenRequests>();
-    let mut queue = pending.0.lock().map_err(|_| "Failed to lock associated-book queue".to_string())?;
+    let mut queue = pending
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock associated-book queue".to_string())?;
     queue.extend(requests);
     let queued_count = queue.len();
     drop(queue);
@@ -923,6 +1027,7 @@ pub(crate) fn load_library_books(app: tauri::AppHandle) -> Result<Vec<LibraryBoo
 }
 
 #[tauri::command]
+#[cfg(feature = "webdriver")]
 pub(crate) fn queue_associated_book_open_requests(
     app: tauri::AppHandle,
     file_paths: Vec<String>,
@@ -1497,6 +1602,7 @@ pub(crate) fn update_library_reading_state(
 
 #[tauri::command]
 pub(crate) fn load_library_cover_data_urls(
+    app: tauri::AppHandle,
     cover_paths: Vec<Option<String>>,
 ) -> Result<Vec<Option<String>>, String> {
     cover_paths
@@ -1506,8 +1612,9 @@ pub(crate) fn load_library_cover_data_urls(
                 return Ok(None);
             };
 
+            let path = resolve_library_owned_cover_path(&app, &path)?;
             let bytes = fs::read(&path).map_err(|error| error.to_string())?;
-            let mime = cover_mime_type(Path::new(&path));
+            let mime = cover_mime_type(&path);
             let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
             Ok(Some(format!("data:{mime};base64,{encoded}")))
         })
@@ -1515,8 +1622,11 @@ pub(crate) fn load_library_cover_data_urls(
 }
 
 #[tauri::command]
-pub(crate) fn load_library_book_binary(file_path: String) -> Result<LibraryBookBinary, String> {
-    let path = PathBuf::from(&file_path);
+pub(crate) fn load_library_book_binary(
+    app: tauri::AppHandle,
+    file_path: String,
+) -> Result<LibraryBookBinary, String> {
+    let path = resolve_trusted_library_book_path(&app, &file_path)?;
     let bytes = fs::read(&path).map_err(|error| error.to_string())?;
     let name = path
         .file_name()
@@ -1532,8 +1642,11 @@ pub(crate) fn load_library_book_binary(file_path: String) -> Result<LibraryBookB
 }
 
 #[tauri::command]
-pub(crate) fn load_library_file_fingerprint(file_path: String) -> Result<String, String> {
-    let path = PathBuf::from(&file_path);
+pub(crate) fn load_library_file_fingerprint(
+    app: tauri::AppHandle,
+    file_path: String,
+) -> Result<String, String> {
+    let path = resolve_trusted_library_book_path(&app, &file_path)?;
     let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
     let modified = metadata
         .modified()
