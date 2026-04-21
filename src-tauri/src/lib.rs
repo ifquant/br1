@@ -208,6 +208,7 @@ pub fn run() {
             commands::library::queue_associated_book_open_requests,
             commands::library::remove_library_book,
             commands::library::restore_removed_library_book,
+            commands::library::update_library_book_metadata,
             commands::bookmarks::save_reader_bookmarks,
             commands::highlights_workspace::save_reader_highlights_workspace_state,
             commands::notes::save_reader_notes,

@@ -23,6 +23,7 @@
     previewLibraryRepairCandidate,
     removeLibraryBook,
     restoreRemovedLibraryBook,
+    updateLibraryBookMetadata,
     toAssetReaderHref,
     toAssetReaderTarget,
     toLibraryCoverUrl,
@@ -1035,6 +1036,40 @@
     }
   };
 
+  const handleUpdateLibraryBookMetadata = async (
+    book: LibraryShelfBook,
+    metadata: { title: string; author: string }
+  ) => {
+    if (!canPersistLibrary()) return;
+
+    const persistedRecord = lookupPersistedRecordForBook(book);
+    if (!persistedRecord) {
+      setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
+      return;
+    }
+
+    const nextTitle = metadata.title.trim();
+    const nextAuthor = metadata.author.trim();
+    if (!nextTitle || !nextAuthor) {
+      setLibraryNotice('error', '标题和作者不能为空。');
+      return;
+    }
+
+    try {
+      clearLibraryNotice();
+      const updatedRecords = await updateLibraryBookMetadata({
+        recordId: persistedRecord.id || persistedRecord.filePath,
+        title: nextTitle,
+        author: nextAuthor
+      });
+      await applyPersistedLibraryRecords(updatedRecords);
+      setLibraryNotice('info', `已更新“${nextTitle}”的书库元数据。`);
+    } catch (error) {
+      console.error('Failed to update library book metadata', error);
+      setLibraryNotice('error', '无法更新这本书的元数据，请确认书库记录仍然有效后重试。');
+    }
+  };
+
   const handleRepairLibraryBook = async (book: LibraryShelfBook) => {
     if (!canPersistLibrary()) return;
 
@@ -1368,6 +1403,7 @@
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
           onOpenSourcePath={handleOpenSourcePath}
+          onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
           onRemoveBook={handleRemoveLibraryBook}
         />
       {/if}

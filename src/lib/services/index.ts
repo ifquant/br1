@@ -39,5 +39,6 @@ export {
   toLibraryReaderTarget,
   toReaderAssetHref,
   toReaderStartHref,
+  updateLibraryBookMetadata,
   updateLibraryReadingState
 } from './libraryPersistence';

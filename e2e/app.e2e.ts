@@ -117,7 +117,7 @@ describe('br1 desktop app', () => {
 
   const readLibraryProgressBadgeForTitle = async (title: string) =>
     browser.execute((expectedTitle) => {
-      const rows = Array.from(document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row'));
+      const rows = Array.from(document.querySelectorAll('.continue-shelf .row, .shelf .book-card, .bookshelf .book-card, .bookshelf .book-list-row'));
       for (const row of rows) {
         const text = row.textContent ?? '';
         if (!text.includes(expectedTitle)) continue;
@@ -448,6 +448,44 @@ describe('br1 desktop app', () => {
 
     if (!result?.ok) {
       throw new Error(result?.error ?? 'expected remove_library_book to succeed');
+    }
+  };
+
+  const updateDesktopLibraryBookMetadata = async (recordId: string, title: string, author: string) => {
+    const result = await browser.executeAsync(([id, nextTitle, nextAuthor], done) => {
+      const tauriInternals = (window as typeof window & {
+        __TAURI_INTERNALS__?: {
+          invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).__TAURI_INTERNALS__;
+
+      if (typeof tauriInternals?.invoke !== 'function') {
+        done({
+          ok: false,
+          error: 'expected window.__TAURI_INTERNALS__.invoke to exist in the desktop webview'
+        });
+        return;
+      }
+
+      tauriInternals
+        .invoke('update_library_book_metadata', {
+          recordId: id,
+          title: nextTitle,
+          author: nextAuthor
+        })
+        .then(() => {
+          done({ ok: true });
+        })
+        .catch((error) => {
+          done({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        });
+    }, [recordId, title, author] as const);
+
+    if (!result?.ok) {
+      throw new Error(result?.error ?? 'expected update_library_book_metadata to succeed');
     }
   };
 
@@ -862,7 +900,7 @@ describe('br1 desktop app', () => {
   const toggleLibraryDetailsForTitle = async (title: string) => {
     await browser.execute((expectedTitle) => {
       const rows = Array.from(
-        document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row')
+        document.querySelectorAll('.continue-shelf .row, .shelf .book-card, .bookshelf .book-card, .bookshelf .book-list-row')
       );
       const row = rows.find((candidate) => (candidate.textContent ?? '').includes(expectedTitle));
       if (!(row instanceof HTMLElement)) {
@@ -884,7 +922,7 @@ describe('br1 desktop app', () => {
     await browser.execute(
       ([expectedTitle, targetLabel]) => {
         const rows = Array.from(
-          document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row')
+          document.querySelectorAll('.continue-shelf .row, .shelf .book-card, .bookshelf .book-card, .bookshelf .book-list-row')
         );
         const row = rows.find((candidate) => (candidate.textContent ?? '').includes(expectedTitle));
         if (!(row instanceof HTMLElement)) {
@@ -907,7 +945,7 @@ describe('br1 desktop app', () => {
   const readLibraryEntryStateForTitle = async (title: string) =>
     browser.execute((expectedTitle) => {
       const rows = Array.from(
-        document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row')
+        document.querySelectorAll('.continue-shelf .row, .shelf .book-card, .bookshelf .book-card, .bookshelf .book-list-row')
       );
       const row = rows.find((candidate) => (candidate.textContent ?? '').includes(expectedTitle));
       if (!(row instanceof HTMLElement)) {
@@ -2097,6 +2135,136 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the main library shelf to expose a metadata detail panel'
     });
+  });
+
+  it('edits shelf title and author metadata without changing the library file', async () => {
+    const nextTitle = `Edited Metadata ${Date.now()}`;
+    const nextAuthor = 'Bridge Librarian';
+    let targetPath = '';
+    let displayTitle = '';
+    let originalTitle = '';
+    let originalAuthor = '';
+
+    try {
+      await switchToLibraryWindow();
+      await browser.refresh();
+      const shelf = await $('[aria-label="你的书库"]');
+      await shelf.waitForExist({ timeout: 10000 });
+
+      const target = await browser.execute(() => {
+        const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+        if (!(libraryShelf instanceof HTMLElement)) return null;
+        const link = libraryShelf.querySelector<HTMLAnchorElement>('.book-card a[href*="/reader?"]');
+        if (!link) return null;
+        const href = link.getAttribute('href') ?? '';
+        const url = new URL(href, window.location.origin);
+        const path = url.searchParams.get('path') ?? '';
+        const title = link.querySelector('strong')?.textContent?.trim() ?? '';
+        const author = Array.from(link.querySelectorAll('.meta span, .list-copy span'))
+          .map((node) => node.textContent?.trim() ?? '')
+          .find((value) => value && value !== title) ?? '';
+        return { path, title, author };
+      });
+      expect(target?.path).toBeTruthy();
+      targetPath = target!.path;
+      displayTitle = target!.title;
+      const originalRecord = await loadLibraryRecordOnDisk(targetPath);
+      expect(originalRecord).toBeTruthy();
+      originalTitle = originalRecord!.title ?? target!.title;
+      originalAuthor = originalRecord!.author ?? target!.author;
+
+      await toggleLibraryDetailsForTitle(displayTitle);
+      await browser.waitUntil(async () => {
+        return browser.execute((title) => {
+          const panels = Array.from(document.querySelectorAll('[aria-label^="Library metadata for "]'));
+          return panels.some((panel) => panel.textContent?.includes(title));
+        }, displayTitle);
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected to expand metadata panel for the editable shelf book'
+      });
+
+      const openedEditor = await browser.execute((initialTitle) => {
+        const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+        if (!(libraryShelf instanceof HTMLElement)) return false;
+        const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
+          return candidate.textContent?.includes(initialTitle);
+        });
+        if (!(card instanceof HTMLElement)) return false;
+        const editButton = Array.from(card.querySelectorAll('button')).find(
+          (button) => button.textContent?.trim() === '编辑标题/作者'
+        );
+        if (!(editButton instanceof HTMLButtonElement)) return false;
+        editButton.click();
+        return true;
+      }, displayTitle);
+      expect(openedEditor).toBe(true);
+
+      await browser.waitUntil(async () => {
+        return browser.execute((initialTitle) => {
+          const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+          if (!(libraryShelf instanceof HTMLElement)) return false;
+          const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
+            return candidate.textContent?.includes(initialTitle);
+          });
+          if (!(card instanceof HTMLElement)) return false;
+          return !!card.querySelector('input[aria-label="Edit book title"]');
+        }, displayTitle);
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected shelf metadata editor inputs to appear'
+      });
+
+      const edited = await browser.execute(
+        ([initialTitle, title, author]) => {
+          const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+          if (!(libraryShelf instanceof HTMLElement)) return false;
+          const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
+            return candidate.textContent?.includes(initialTitle);
+          });
+          if (!(card instanceof HTMLElement)) return false;
+          const titleInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book title"]');
+          const authorInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book author"]');
+          if (!titleInput || !authorInput) return false;
+          titleInput.value = title;
+          titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+          authorInput.value = author;
+          authorInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+          const saveButton = Array.from(card.querySelectorAll('button')).find(
+            (button) => button.textContent?.trim() === '保存元数据'
+          );
+          if (!(saveButton instanceof HTMLButtonElement)) return false;
+          saveButton.click();
+          return true;
+        },
+        [displayTitle, nextTitle, nextAuthor] as const
+      );
+      expect(edited).toBe(true);
+
+      await browser.waitUntil(async () => {
+        const record = await loadLibraryRecordOnDisk(targetPath);
+        const noticeText = await browser.execute(() => {
+          return document.querySelector('.library-notice')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        });
+        const shelfText = await $('[aria-label="你的书库"]').getText();
+        return (
+          record?.title === nextTitle &&
+          record?.author === nextAuthor &&
+          (record.filePath ?? record.file_path) === targetPath &&
+          noticeText.includes(`已更新“${nextTitle}”的书库元数据`) &&
+          shelfText.includes(nextTitle) &&
+          shelfText.includes(nextAuthor)
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected editing shelf metadata to persist title and author without changing the stored file path'
+      });
+    } finally {
+      if (targetPath && originalTitle && originalAuthor) {
+        await updateDesktopLibraryBookMetadata(targetPath, originalTitle, originalAuthor);
+      }
+    }
   });
 
   it('removes an imported shelf book without deleting the original source file and can undo the removal', async () => {

@@ -9,8 +9,14 @@
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
+  export let onUpdateBookMetadata:
+    | ((book: BookshelfPreviewBook, metadata: { title: string; author: string }) => void | Promise<void>)
+    | null = null;
   export let onRemoveBook: ((book: BookshelfPreviewBook) => void | Promise<void>) | null = null;
   let expandedKey = '';
+  let metadataEditKey = '';
+  let metadataEditTitle = '';
+  let metadataEditAuthor = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -33,6 +39,35 @@
     event.preventDefault();
     event.stopPropagation();
     expandedKey = expandedKey === key ? '' : key;
+    if (expandedKey !== key) {
+      metadataEditKey = '';
+    }
+  };
+
+  const startMetadataEdit = (event: MouseEvent, book: BookshelfPreviewBook) => {
+    if (!onUpdateBookMetadata) return;
+    event.preventDefault();
+    event.stopPropagation();
+    metadataEditKey = getBookKey(book);
+    metadataEditTitle = book.title;
+    metadataEditAuthor = book.author;
+  };
+
+  const cancelMetadataEdit = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    metadataEditKey = '';
+  };
+
+  const handleMetadataSubmit = (event: SubmitEvent, book: BookshelfPreviewBook) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!onUpdateBookMetadata) return;
+    const title = metadataEditTitle.trim();
+    const author = metadataEditAuthor.trim();
+    if (!title || !author) return;
+    metadataEditKey = '';
+    void onUpdateBookMetadata(book, { title, author });
   };
 
   const handleRemoveBook = (event: MouseEvent, book: BookshelfPreviewBook) => {
@@ -198,8 +233,39 @@
             {#if book.description}
               <p>{book.description}</p>
             {/if}
-            {#if onOpenSourcePath || onRemoveBook}
+            {#if metadataEditKey === bookKey && onUpdateBookMetadata}
+              <form
+                class="metadata-edit"
+                aria-label={`Edit metadata for ${book.title}`}
+                on:submit={(event: SubmitEvent) => handleMetadataSubmit(event, book)}
+              >
+                <label>
+                  <span>标题</span>
+                  <input bind:value={metadataEditTitle} required aria-label="Edit book title" />
+                </label>
+                <label>
+                  <span>作者</span>
+                  <input bind:value={metadataEditAuthor} required aria-label="Edit book author" />
+                </label>
+                <div class="metadata-actions">
+                  <button type="submit" class="metadata-action">保存元数据</button>
+                  <button type="button" class="metadata-action" on:click={cancelMetadataEdit}>
+                    取消
+                  </button>
+                </div>
+              </form>
+            {/if}
+            {#if onOpenSourcePath || onRemoveBook || onUpdateBookMetadata}
               <div class="metadata-actions">
+                {#if onUpdateBookMetadata && metadataEditKey !== bookKey}
+                  <button
+                    type="button"
+                    class="metadata-action"
+                    on:click={(event: MouseEvent) => startMetadataEdit(event, book)}
+                  >
+                    编辑标题/作者
+                  </button>
+                {/if}
                 {#if onOpenSourcePath && book.sourcePath && !book.availabilityLabel?.includes('原文件缺失')}
                   <button
                     type="button"
@@ -434,6 +500,32 @@
     color: var(--text-secondary);
     font-size: 10px;
     line-height: 1.45;
+  }
+
+  .metadata-edit {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .metadata-edit label {
+    display: grid;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: 9px;
+  }
+
+  .metadata-edit input {
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--text-primary);
+    font: 560 11px/1.2 var(--font-chrome);
+    padding: 7px 8px;
   }
 
   .metadata-actions {

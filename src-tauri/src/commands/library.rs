@@ -1176,6 +1176,37 @@ pub(crate) fn remove_library_book(
 }
 
 #[tauri::command]
+pub(crate) fn update_library_book_metadata(
+    app: tauri::AppHandle,
+    record_id: String,
+    title: String,
+    author: String,
+) -> Result<Vec<LibraryBookRecord>, String> {
+    let library_root = ensure_library_root(&app)?;
+    let library_json = library_root.join("library.json");
+    let mut records = load_library_records(&library_json)?;
+    let normalized_title = title.trim();
+    let normalized_author = author.trim();
+    if normalized_title.is_empty() || normalized_author.is_empty() {
+        return Err("Library title and author cannot be empty".to_string());
+    }
+
+    let Some(record) = records
+        .iter_mut()
+        .find(|record| record.id == record_id || record.file_path == record_id)
+    else {
+        decorate_library_record_file_states(&mut records);
+        return Ok(records);
+    };
+
+    record.title = normalized_title.to_string();
+    record.author = normalized_author.to_string();
+    save_library_records(&library_json, &records)?;
+    decorate_library_record_file_states(&mut records);
+    Ok(records)
+}
+
+#[tauri::command]
 pub(crate) fn preview_library_repair_candidate(
     file_path: String,
     expected_format: String,
