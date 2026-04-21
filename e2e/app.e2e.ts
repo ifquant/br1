@@ -880,6 +880,30 @@ describe('br1 desktop app', () => {
     }, title);
   };
 
+  const clickLibraryRowActionForTitle = async (title: string, expectedLabel: string) => {
+    await browser.execute(
+      ([expectedTitle, targetLabel]) => {
+        const rows = Array.from(
+          document.querySelectorAll('.continue-shelf .row, .bookshelf .book-card, .bookshelf .book-list-row')
+        );
+        const row = rows.find((candidate) => (candidate.textContent ?? '').includes(expectedTitle));
+        if (!(row instanceof HTMLElement)) {
+          throw new Error(`expected to find a library row for ${expectedTitle}`);
+        }
+
+        const button = Array.from(row.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === targetLabel
+        );
+        if (!(button instanceof HTMLButtonElement)) {
+          throw new Error(`expected to find row action "${targetLabel}" for ${expectedTitle}`);
+        }
+
+        button.click();
+      },
+      [title, expectedLabel] as const
+    );
+  };
+
   const readLibraryEntryStateForTitle = async (title: string) =>
     browser.execute((expectedTitle) => {
       const rows = Array.from(
@@ -2871,7 +2895,7 @@ describe('br1 desktop app', () => {
         sourcePath
       }));
 
-      const libraryHandle = await switchToLibraryWindow();
+      await switchToLibraryWindow();
       await browser.refresh();
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
@@ -2888,19 +2912,24 @@ describe('br1 desktop app', () => {
         );
       });
 
-      const repairedBooks = await importDesktopLibraryBooks([sourcePath]);
-      expect(repairedBooks).toHaveLength(1);
-
-      await browser.switchToWindow(libraryHandle);
-      await browser.refresh();
+      await clickLibraryRowActionForTitle(importedBook!.title, '修复副本');
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
       await browser.waitUntil(async () => {
         const state = await readLibraryEntryStateForTitle(importedBook!.title);
-        return !!state && state.sectionLabel !== '待修复书籍' && state.hasReaderHref && !state.hasImportButton;
+        const noticeText = await browser.execute(() => {
+          return document.querySelector('.library-notice')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        });
+        return (
+          !!state &&
+          state.sectionLabel !== '待修复书籍' &&
+          state.hasReaderHref &&
+          !state.hasImportButton &&
+          noticeText.includes(`已从原文件重建“${importedBook!.title}”的书库副本`)
+        );
       }, {
         timeout: 10000,
-        timeoutMsg: 'expected reimporting the same TXT source to repair the broken record and return it to the normal reading workflow'
+        timeoutMsg: 'expected the row-level repair action to rebuild the TXT copy and return it to the normal reading workflow'
       });
 
       const records = await loadLibraryRecordsOnDisk();
