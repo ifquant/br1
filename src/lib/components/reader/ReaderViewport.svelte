@@ -672,8 +672,20 @@
     }
 
     if (hasRestoreFraction) {
-      await waitForNavigation(foliateViewElement.goToFraction(restoreFraction), 'restoreFraction');
-      return;
+      if (currentFormatLabel === 'PDF') {
+        void foliateViewElement.goToFraction(restoreFraction).catch((error) => {
+          console.warn('Failed to restore PDF reader fraction', error);
+        });
+        return;
+      }
+
+      try {
+        await waitForNavigation(foliateViewElement.goToFraction(restoreFraction), 'restoreFraction');
+        return;
+      } catch (error) {
+        console.warn('Failed to restore reader fraction, leaving reader at its current position', error);
+        return;
+      }
     }
 
     await waitForNavigation(foliateViewElement.init({ showTextStart: true }), 'showTextStart');

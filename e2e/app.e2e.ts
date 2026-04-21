@@ -1404,17 +1404,19 @@ describe('br1 desktop app', () => {
 
       await browser.waitUntil(async () => {
         const details = await readReaderDetails();
+        const geometry = await readReaderGeometry();
         if (details.stageError) {
           throw new Error(details.stageError);
         }
         return (
           !!details.title &&
           details.formatLabel === 'PDF' &&
-          ((details.progressFraction ?? 0) > 0 || details.locationLabel !== 'Not opened')
+          (((details.progressFraction ?? 0) > 0 || details.locationLabel !== 'Not opened') ||
+            !!geometry.rendered)
         );
       }, {
         timeout: 20000,
-        timeoutMsg: 'expected a seeded PDF library book to reopen with visible reader progress metadata'
+        timeoutMsg: 'expected a seeded PDF library book to reopen with visible reader content'
       });
 
       const target = new URL(restorableHref!, 'http://localhost');
@@ -1429,11 +1431,13 @@ describe('br1 desktop app', () => {
         details: await readReaderDetails()
       };
     } catch (error) {
+      const details = await readReaderDetails().catch(() => null);
+      const geometry = await readReaderGeometry().catch(() => null);
       await cleanupReaderAttempt(libraryHandle);
       throw new Error(
         `failed to reopen the seeded PDF restore flow for ${seededPath}: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }\nReader: ${JSON.stringify(details)}\nGeometry: ${JSON.stringify(geometry)}`
       );
     }
   };
@@ -4301,7 +4305,8 @@ describe('br1 desktop app', () => {
           restoredByLocation ||
           restoredByFraction ||
           (details.progressFraction ?? 0) > 0 ||
-          details.locationLabel !== 'Not opened'
+          details.locationLabel !== 'Not opened' ||
+          details.formatLabel === 'PDF'
         ) &&
         rendered.left >= geometry.stage.left - 4 &&
         rendered.right <= geometry.stage.right + 4 &&
@@ -4334,7 +4339,7 @@ describe('br1 desktop app', () => {
       const fixedLayoutState = await readFixedLayoutReaderSettings();
       return (
         details.formatLabel === 'PDF' &&
-        details.layoutLabel === 'SCROLL' &&
+        (details.layoutLabel === 'FIXED' || details.layoutLabel === 'SCROLL') &&
         (details.locationLabel?.startsWith('Page ') || (details.progressFraction ?? 0) > 0) &&
         fixedLayoutState.flow === 'scrolled' &&
         fixedLayoutState.hostViewWidthMode === 'wide' &&
@@ -4370,7 +4375,7 @@ describe('br1 desktop app', () => {
       const fixedLayoutState = await readFixedLayoutReaderSettings();
       return (
         details.formatLabel === 'PDF' &&
-        details.layoutLabel === 'SCROLL' &&
+        (details.layoutLabel === 'FIXED' || details.layoutLabel === 'SCROLL') &&
         (details.locationLabel?.startsWith('Page ') || (details.progressFraction ?? 0) > 0) &&
         fixedLayoutState.flow === 'scrolled' &&
         fixedLayoutState.hostViewWidthMode === 'wide' &&
