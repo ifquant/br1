@@ -7080,6 +7080,42 @@ describe('br1 desktop app', () => {
       );
     });
 
+    await reopenedSearchInput.clearValue();
+    await browser.waitUntil(async () => {
+      const cacheStatus = await $('[aria-label="search cache status"]');
+      if (!(await cacheStatus.isDisplayed())) return false;
+      const text = await cacheStatus.getText();
+      return text.includes('当前书搜索缓存已启用') && text.includes('清空缓存');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the search cache status panel to return before clearing the current-book cache'
+    });
+
+    const clearCacheButton = await $('//section[@aria-label="search cache status"]//button[normalize-space()="清空缓存"]');
+    await clearCacheButton.click();
+    await browser.waitUntil(async () => {
+      const notices = await $$('.search-notice');
+      for (const notice of notices) {
+        const text = await notice.getText();
+        if (text.includes('已清空当前书的搜索缓存')) return true;
+      }
+      return false;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected clearing the current-book search cache to show a user-facing notice'
+    });
+    await browser.waitUntil(async () => {
+      try {
+        await loadReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey);
+        return false;
+      } catch {
+        return true;
+      }
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected clearing the current-book search cache to remove the seeded disk cache entry'
+    });
+
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
     await browser.execute(([nextHistoryKey]) => {

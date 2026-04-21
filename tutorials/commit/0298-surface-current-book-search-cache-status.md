@@ -12,11 +12,12 @@ This slice adds a small cache visibility surface without changing the search exe
 - The panel states that current-book search cache is enabled and summarizes total history, hit-history, and zero-result-history counts.
 - `清空缓存` moved into that cache status panel, while `清空历史` remains with the history list.
 - Web and desktop regressions now assert the cache status panel after reload/reopen.
+- The desktop regression also clicks `清空缓存` after replaying a cached result and proves both the user-facing notice and the seeded disk cache entry removal.
 
 ## Verification
 
 - `pnpm exec playwright test tests/e2e/library-smoke.spec.ts -g "reader manages structured search history through reload in web mode"` (PASS)
-- `bash scripts/automation/test-tauri-webdriver.sh "pnpm exec wdio run wdio.conf.ts --mochaOpts.grep 'restores search history, options, and disk cache after reopening the same book' --mochaOpts.timeout 240000"` (PASS)
+- `bash scripts/automation/test-tauri-webdriver.sh "pnpm exec wdio run wdio.conf.ts --mochaOpts.grep 'restores search history, options, and disk cache after reopening the same book' --mochaOpts.timeout 240000"` (PASS; includes cache status, cached-result replay, clear-cache notice, and disk-cache removal)
 
 ## Notes for future agents
 
