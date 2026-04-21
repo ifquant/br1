@@ -253,6 +253,8 @@ test('reader manages structured search history through reload in web mode', asyn
   await expect(page.locator('.stage-error')).toHaveCount(0);
   await page.getByRole('tab', { name: '搜索' }).click();
 
+  await expect(page.getByLabel('search cache status')).toContainText('当前书搜索缓存已启用');
+  await expect(page.getByLabel('search cache status')).toContainText('2 条历史 · 1 条有命中 · 1 条无命中');
   await expect(page.getByRole('button', { name: '全部 2' })).toBeVisible();
   await expect(page.getByRole('button', { name: '有命中 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: '无命中 1' })).toBeVisible();

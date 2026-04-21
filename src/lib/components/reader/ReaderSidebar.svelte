@@ -1544,6 +1544,20 @@
           </button>
         </div>
 
+        {#if search.cacheKey && !search.term.trim()}
+          <section class="search-cache-status" aria-label="search cache status">
+            <div>
+              <strong>当前书搜索缓存已启用</strong>
+              <span>
+                {search.history.length} 条历史 · {successfulSearchHistoryCount} 条有命中 · {emptySearchHistoryCount} 条无命中
+              </span>
+            </div>
+            <button type="button" class="history-clear" on:click={() => callbacks.onClearSearchCache?.()}>
+              清空缓存
+            </button>
+          </section>
+        {/if}
+
         {#if search.history.length > 0 && !search.term.trim()}
           <div class="search-history">
             <div class="search-history-head">
@@ -1552,11 +1566,6 @@
                 <button type="button" class="history-clear" on:click={() => callbacks.onClearSearchHistory?.()}>
                   清空历史
                 </button>
-                {#if search.cacheKey}
-                  <button type="button" class="history-clear" on:click={() => callbacks.onClearSearchCache?.()}>
-                    清空缓存
-                  </button>
-                {/if}
               </div>
             </div>
             <div class="search-history-filters" aria-label="search history filters">
@@ -3085,6 +3094,35 @@
   .search-history {
     display: grid;
     gap: 8px;
+  }
+
+  .search-cache-status {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .search-cache-status div {
+    display: grid;
+    gap: 3px;
+  }
+
+  .search-cache-status strong {
+    color: var(--text-primary);
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .search-cache-status span {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.4;
   }
 
   .search-history-head {

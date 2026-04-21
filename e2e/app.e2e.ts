@@ -6988,6 +6988,19 @@ describe('br1 desktop app', () => {
     await reopenedSearchInput.clearValue();
 
     await browser.waitUntil(async () => {
+      const cacheStatus = await $('[aria-label="search cache status"]');
+      if (!(await cacheStatus.isDisplayed())) return false;
+      const text = await cacheStatus.getText();
+      return (
+        text.includes('当前书搜索缓存已启用') &&
+        text.includes('2 条历史 · 1 条有命中 · 1 条无命中')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the reader search tab to show current-book cache visibility after reopening'
+    });
+
+    await browser.waitUntil(async () => {
       const historyChips = await $$('.history-chip');
       const labels = [];
       for (const chip of historyChips) {
