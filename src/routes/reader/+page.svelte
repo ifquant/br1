@@ -691,7 +691,9 @@
   }
 
   @media (max-width: 960px) {
-    .workspace {
+    .workspace,
+    .workspace.bridge-collapsed,
+    .workspace.bridge-open {
       grid-template-columns: 1fr;
     }
 
