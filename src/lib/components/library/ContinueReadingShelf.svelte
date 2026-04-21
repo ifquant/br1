@@ -256,6 +256,10 @@
                   <strong>{book.manualRelinkReview.conflictLabel}</strong>
                   <span>{book.manualRelinkReview.conflictDetail}</span>
                 </div>
+                <div class="manual-review-preflight">
+                  <strong>{book.manualRelinkReview.preflightLabel}</strong>
+                  <span>{book.manualRelinkReview.preflightDetail}</span>
+                </div>
               </div>
             {/if}
             <div class="detail-grid">
@@ -641,7 +645,8 @@
   }
 
   .manual-review-head span,
-  .manual-review-conflict span {
+  .manual-review-conflict span,
+  .manual-review-preflight span {
     font-size: 12px;
     line-height: 1.5;
     color: color-mix(in srgb, var(--text-secondary) 86%, #7c4619 14%);
@@ -672,17 +677,26 @@
   }
 
   .manual-review-meta strong,
-  .manual-review-conflict strong {
+  .manual-review-conflict strong,
+  .manual-review-preflight strong {
     font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.4;
     color: var(--text-primary);
   }
 
-  .manual-review-conflict {
+  .manual-review-conflict,
+  .manual-review-preflight {
     display: grid;
     gap: 4px;
     padding-top: 2px;
+  }
+
+  .manual-review-preflight {
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(124, 70, 25, 0.08);
   }
 
   .detail-grid {

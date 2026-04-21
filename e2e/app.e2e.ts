@@ -3053,6 +3053,8 @@ describe('br1 desktop app', () => {
           state.includes('这本书需要先核对当前记录，再选择替换文件') &&
           state.includes('逐本复核') &&
           state.includes('当前没有检测到同类冲突') &&
+          state.includes('替换文件预检') &&
+          state.includes('格式、标题、作者、原路径和 SHA-256 指纹') &&
           state.includes('确认后选择替换文件')
         );
       }, {

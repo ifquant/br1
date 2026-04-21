@@ -28,6 +28,8 @@ export type ManualRelinkReview = {
   note: string;
   conflictLabel: string;
   conflictDetail: string;
+  preflightLabel: string;
+  preflightDetail: string;
   actionLabel: string;
 };
 

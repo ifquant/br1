@@ -356,6 +356,9 @@
   const buildManualRelinkReview = (book: LibraryShelfBook): ManualRelinkReview | undefined => {
     const persistedRecord = lookupPersistedRecordForBook(book);
     if (!persistedRecord || !isPersistedRecordManualRepairOnly(persistedRecord)) return undefined;
+    const preflightLabel = '替换文件预检';
+    const preflightDetail =
+      '选择文件后会先检查文件是否存在、格式、标题、作者、原路径和 SHA-256 指纹；明显不匹配时会再次确认。';
 
     const currentMatchKey = getPersistedLibraryMatchKey(persistedRecord);
     const conflictingMatchCount = persistedLibraryRecords.filter((record) => {
@@ -378,6 +381,8 @@
         conflictLabel: `检测到 ${conflictingMatchCount + 1} 条同题名/作者/格式的待修复记录`,
         conflictDetail:
           '系统会按现有记录顺序匹配修复目标；如果这里还有别的同类破损记录，先确认你正在处理的是当前这一条，再继续选择替换文件。',
+        preflightLabel,
+        preflightDetail,
         actionLabel: '确认后选择替换文件'
       };
     }
@@ -388,6 +393,8 @@
         conflictLabel: '检测到相同原文件路径的其他记录',
         conflictDetail:
           '如果书库里还有别的条目共享这一原文件路径，选文件前先确认当前条目的标题和格式，避免把重关联落到另一条记录上。',
+        preflightLabel,
+        preflightDetail,
         actionLabel: '确认后选择替换文件'
       };
     }
@@ -397,6 +404,8 @@
       conflictLabel: '当前没有检测到同类冲突',
       conflictDetail:
         '这条记录可以直接按原位修复处理；只要你选到的是同一本书，修复后会保留现有进度和阅读状态。',
+      preflightLabel,
+      preflightDetail,
       actionLabel: '确认后选择替换文件'
     };
   };
