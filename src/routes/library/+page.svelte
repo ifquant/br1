@@ -1659,6 +1659,29 @@
 
 <section class="library-page">
   <div class="library-surface">
+    {#snippet emptyFilterRecovery()}
+      {#if libraryActiveFilterChips.length > 0}
+        <div class="empty-filter-chips" aria-label="empty state filter chips">
+          {#each libraryActiveFilterChips as chip}
+            <button
+              type="button"
+              class="empty-filter-chip"
+              aria-label={`Remove empty-state library filter ${chip.label}`}
+              on:click={() => clearLibraryFilterById(chip.id)}
+            >
+              <span>{chip.label}</span>
+              <small>移除</small>
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <div class="empty-actions">
+        <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
+          清除筛选
+        </button>
+      </div>
+    {/snippet}
+
     <input
       bind:this={importInput}
       class="import-input"
@@ -1856,26 +1879,7 @@
                 试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
               </span>
             </div>
-            {#if libraryActiveFilterChips.length > 0}
-              <div class="empty-filter-chips" aria-label="empty state filter chips">
-                {#each libraryActiveFilterChips as chip}
-                  <button
-                    type="button"
-                    class="empty-filter-chip"
-                    aria-label={`Remove empty-state library filter ${chip.label}`}
-                    on:click={() => clearLibraryFilterById(chip.id)}
-                  >
-                    <span>{chip.label}</span>
-                    <small>移除</small>
-                  </button>
-                {/each}
-              </div>
-            {/if}
-            <div class="empty-actions">
-              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
-                清除筛选
-              </button>
-            </div>
+            {@render emptyFilterRecovery()}
           </section>
         {:else if visibleLibraryBooksCount === 0}
           <section class="empty-library" aria-label="empty filtered library">
@@ -1883,26 +1887,7 @@
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
             </div>
-            {#if libraryActiveFilterChips.length > 0}
-              <div class="empty-filter-chips" aria-label="empty state filter chips">
-                {#each libraryActiveFilterChips as chip}
-                  <button
-                    type="button"
-                    class="empty-filter-chip"
-                    aria-label={`Remove empty-state library filter ${chip.label}`}
-                    on:click={() => clearLibraryFilterById(chip.id)}
-                  >
-                    <span>{chip.label}</span>
-                    <small>移除</small>
-                  </button>
-                {/each}
-              </div>
-            {/if}
-            <div class="empty-actions">
-              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
-                清除筛选
-              </button>
-            </div>
+            {@render emptyFilterRecovery()}
           </section>
         {/if}
       {:else}
@@ -1941,26 +1926,7 @@
                 试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
               </span>
             </div>
-            {#if libraryActiveFilterChips.length > 0}
-              <div class="empty-filter-chips" aria-label="empty state filter chips">
-                {#each libraryActiveFilterChips as chip}
-                  <button
-                    type="button"
-                    class="empty-filter-chip"
-                    aria-label={`Remove empty-state library filter ${chip.label}`}
-                    on:click={() => clearLibraryFilterById(chip.id)}
-                  >
-                    <span>{chip.label}</span>
-                    <small>移除</small>
-                  </button>
-                {/each}
-              </div>
-            {/if}
-            <div class="empty-actions">
-              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
-                清除筛选
-              </button>
-            </div>
+            {@render emptyFilterRecovery()}
           </section>
         {:else if visibleStarterLibraryBooksCount === 0}
           <section class="empty-library" aria-label="empty filtered library">
@@ -1968,26 +1934,7 @@
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
             </div>
-            {#if libraryActiveFilterChips.length > 0}
-              <div class="empty-filter-chips" aria-label="empty state filter chips">
-                {#each libraryActiveFilterChips as chip}
-                  <button
-                    type="button"
-                    class="empty-filter-chip"
-                    aria-label={`Remove empty-state library filter ${chip.label}`}
-                    on:click={() => clearLibraryFilterById(chip.id)}
-                  >
-                    <span>{chip.label}</span>
-                    <small>移除</small>
-                  </button>
-                {/each}
-              </div>
-            {/if}
-            <div class="empty-actions">
-              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
-                清除筛选
-              </button>
-            </div>
+            {@render emptyFilterRecovery()}
           </section>
         {/if}
 
