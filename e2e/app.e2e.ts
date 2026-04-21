@@ -134,6 +134,7 @@ describe('br1 desktop app', () => {
     const libraryFile = join(appDataRoot, 'library', 'library.json');
     const raw = await readFile(libraryFile, 'utf8');
     return JSON.parse(raw) as Array<{
+      id?: string;
       title?: string;
       filePath?: string;
       file_path?: string;
@@ -358,8 +359,15 @@ describe('br1 desktop app', () => {
     }
   ] as const;
 
-  const importDesktopLibraryBooks = async (sourcePaths: string[]) => {
-    const imported = await browser.executeAsync((filePaths, done) => {
+  const invokeDesktopCommand = async <T = unknown>(
+    command: string,
+    args?: Record<string, unknown>
+  ): Promise<{ ok: true; result: T } | { ok: false; error: string }> => {
+    const resultKey = `__BR1_E2E_INVOKE_RESULT_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    await browser.execute(([key, commandName, commandArgs]) => {
+      const targetWindow = window as typeof window & {
+        [key: string]: unknown;
+      };
       const tauriInternals = (window as typeof window & {
         __TAURI_INTERNALS__?: {
           invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -367,41 +375,70 @@ describe('br1 desktop app', () => {
       }).__TAURI_INTERNALS__;
 
       if (typeof tauriInternals?.invoke !== 'function') {
-        done({
+        targetWindow[key] = {
           ok: false,
           error: 'expected window.__TAURI_INTERNALS__.invoke to exist in the desktop webview'
-        });
+        };
         return;
       }
 
-      tauriInternals
-        .invoke('import_library_books', {
-          filePaths
-        })
-        .then((result) => {
-          if (!Array.isArray(result)) {
-            done({
-              ok: false,
-              error: `expected import_library_books to return an array, received ${JSON.stringify(result)}`
-            });
-            return;
-          }
+      targetWindow[key] = { pending: true };
+      void tauriInternals.invoke(commandName, commandArgs).then((result) => {
+        targetWindow[key] = {
+          ok: true,
+          result
+        };
+      }, (error) => {
+        targetWindow[key] = {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error)
+        };
+      });
+    }, [resultKey, command, args ?? {}]);
 
-          done({
-            ok: true,
-            result
-          });
-        })
-        .catch((error) => {
-          done({
-            ok: false,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        });
-    }, sourcePaths);
+    await browser.waitUntil(async () => {
+      const result = await browser.execute((key) => {
+        const targetWindow = window as typeof window & {
+          [key: string]: unknown;
+        };
+        return targetWindow[key] ?? null;
+      }, resultKey);
+      return !!result && !(result as { pending?: boolean }).pending;
+    }, {
+      timeout: 10000,
+      timeoutMsg: `expected Tauri command ${command} to settle`
+    });
 
-    if (!imported?.ok || !Array.isArray(imported.result)) {
-      throw new Error(imported?.error ?? 'expected import_library_books to return a result array');
+    return browser.execute((key) => {
+      const targetWindow = window as typeof window & {
+        [key: string]: unknown;
+      };
+      const result = targetWindow[key] as { ok: true; result: T } | { ok: false; error: string };
+      delete targetWindow[key];
+      return result;
+    }, resultKey);
+  };
+
+  const trustDesktopLibraryImportPaths = async (sourcePaths: string[]) => {
+    const trusted = await invokeDesktopCommand<string[]>('trust_library_import_paths_for_webdriver', {
+      filePaths: sourcePaths
+    });
+
+    if (!trusted.ok || !Array.isArray(trusted.result)) {
+      throw new Error(trusted.ok ? 'expected trust command to return paths' : trusted.error);
+    }
+
+    return trusted.result;
+  };
+
+  const importDesktopLibraryBooks = async (sourcePaths: string[]) => {
+    await trustDesktopLibraryImportPaths(sourcePaths);
+    const imported = await invokeDesktopCommand<unknown[]>('import_library_books', {
+      filePaths: sourcePaths
+    });
+
+    if (!imported.ok || !Array.isArray(imported.result)) {
+      throw new Error(imported.ok ? 'expected import_library_books to return a result array' : imported.error);
     }
 
     return imported.result.map((record) => ({
@@ -507,44 +544,10 @@ describe('br1 desktop app', () => {
 
   const previewDesktopLibraryRepairCandidate = async (
     filePath: string,
-    expectedFormat: string,
-    expectedTitle: string,
-    expectedAuthor: string,
-    expectedSourcePath?: string
+    recordId: string
   ) => {
-    const result = await browser.executeAsync((args, done) => {
-      const tauriInternals = (window as typeof window & {
-        __TAURI_INTERNALS__?: {
-          invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
-        };
-      }).__TAURI_INTERNALS__;
-
-      if (typeof tauriInternals?.invoke !== 'function') {
-        done({
-          ok: false,
-          error: 'expected window.__TAURI_INTERNALS__.invoke to exist in the desktop webview'
-        });
-        return;
-      }
-
-      tauriInternals
-        .invoke('preview_library_repair_candidate', args)
-        .then((preview) => {
-          done({ ok: true, preview });
-        })
-        .catch((error) => {
-          done({
-            ok: false,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        });
-    }, { filePath, expectedFormat, expectedTitle, expectedAuthor, expectedSourcePath });
-
-    if (!result?.ok || !result.preview) {
-      throw new Error(result?.error ?? 'expected preview_library_repair_candidate to succeed');
-    }
-
-    return result.preview as {
+    await trustDesktopLibraryImportPaths([filePath]);
+    const result = await invokeDesktopCommand<{
       filePath: string;
       fileName: string;
       format: string;
@@ -558,7 +561,13 @@ describe('br1 desktop app', () => {
       sourcePathMatches: boolean;
       sourceHashMatches: boolean;
       fileExists: boolean;
-    };
+    }>('preview_library_repair_candidate', { filePath, recordId });
+
+    if (!result.ok || !result.result) {
+      throw new Error(result.ok ? 'expected preview_library_repair_candidate to succeed' : result.error);
+    }
+
+    return result.result;
   };
 
   const queueAssociatedBookOpenRequests = async (filePaths: string[]) => {
@@ -2153,6 +2162,46 @@ describe('br1 desktop app', () => {
     });
   });
 
+  it('rejects renderer-controlled library paths that were not selected by Tauri', async () => {
+    const untrustedBook = join(appDataRoot, `br1-untrusted-renderer-${Date.now()}.txt`);
+    const untrustedCover = join(appDataRoot, `br1-untrusted-cover-${Date.now()}.png`);
+
+    await writeFile(untrustedBook, 'renderer-controlled book path must not be trusted', 'utf8');
+    await writeFile(untrustedCover, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+
+    try {
+      await switchToLibraryWindow();
+      const records = await loadLibraryRecordsOnDisk();
+      const existingRecord = records.find((record) => record.id || record.filePath || record.file_path);
+      expect(existingRecord).toBeTruthy();
+      const recordId = existingRecord!.id ?? existingRecord!.filePath ?? existingRecord!.file_path ?? '';
+
+      const probe = await invokeDesktopCommand<{
+        importError?: string | null;
+        bookBinaryError?: string | null;
+        fingerprintError?: string | null;
+        coverError?: string | null;
+        repairPreviewError?: string | null;
+        restoreError?: string | null;
+      }>('probe_untrusted_library_paths_for_webdriver', {
+        bookPath: untrustedBook,
+        coverPath: untrustedCover,
+        recordId
+      });
+      expect(probe.ok).toBe(true);
+      if (!probe.ok) throw new Error(probe.error);
+      expect(probe.result.importError).toContain('not an approved picker or library source');
+      expect(probe.result.bookBinaryError).toContain('not an approved library source');
+      expect(probe.result.fingerprintError).toContain('not an approved library source');
+      expect(probe.result.coverError).toContain('not a br1 library asset');
+      expect(probe.result.repairPreviewError).toContain('not an approved picker or library source');
+      expect(probe.result.restoreError).toContain('Library record not found for restore');
+    } finally {
+      await rm(untrustedBook, { force: true });
+      await rm(untrustedCover, { force: true });
+    }
+  });
+
   it('edits shelf metadata collection and tags without changing the library file', async () => {
     const nextTitle = `Edited Metadata ${Date.now()}`;
     const nextAuthor = 'Bridge Librarian';
@@ -3286,10 +3335,7 @@ describe('br1 desktop app', () => {
 
       const mismatchedPreview = await previewDesktopLibraryRepairCandidate(
         txtSourcePath,
-        'CBZ',
-        cbzBook!.title,
-        'Unknown author',
-        cbzSourcePath
+        cbzBook!.filePath
       );
       expect(mismatchedPreview.fileExists).toBe(true);
       expect(mismatchedPreview.format).toBe('TXT');
@@ -3305,10 +3351,7 @@ describe('br1 desktop app', () => {
 
       const matchedPreview = await previewDesktopLibraryRepairCandidate(
         cbzSourcePath,
-        'CBZ',
-        cbzBook!.title,
-        'Unknown author',
-        cbzSourcePath
+        cbzBook!.filePath
       );
       expect(matchedPreview.fileExists).toBe(true);
       expect(matchedPreview.format).toBe('CBZ');

@@ -215,6 +215,10 @@ pub fn run() {
             commands::library::preview_library_repair_candidate,
             #[cfg(feature = "webdriver")]
             commands::library::queue_associated_book_open_requests,
+            #[cfg(feature = "webdriver")]
+            commands::library::trust_library_import_paths_for_webdriver,
+            #[cfg(feature = "webdriver")]
+            commands::library::probe_untrusted_library_paths_for_webdriver,
             commands::library::remove_library_book,
             commands::library::restore_removed_library_book,
             commands::library::update_library_book_metadata,

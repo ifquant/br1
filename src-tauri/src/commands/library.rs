@@ -535,6 +535,18 @@ struct CbzMetadata {
     publisher: Option<String>,
 }
 
+#[cfg(feature = "webdriver")]
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LibraryTrustBoundaryProbe {
+    import_error: Option<String>,
+    book_binary_error: Option<String>,
+    fingerprint_error: Option<String>,
+    cover_error: Option<String>,
+    repair_preview_error: Option<String>,
+    restore_error: Option<String>,
+}
+
 fn derive_cbz_cover_asset(source: &Path) -> Option<(String, Vec<u8>)> {
     let file = fs::File::open(source).ok()?;
     let mut archive = ZipArchive::new(file).ok()?;
@@ -1255,6 +1267,58 @@ pub(crate) fn queue_associated_book_open_requests(
     file_paths: Vec<String>,
 ) -> Result<usize, String> {
     queue_associated_book_open_requests_runtime(&app, file_paths, None)
+}
+
+#[tauri::command]
+#[cfg(feature = "webdriver")]
+pub(crate) fn trust_library_import_paths_for_webdriver(
+    app: tauri::AppHandle,
+    file_paths: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let mut trusted_paths = Vec::new();
+    for file_path in file_paths {
+        let trusted_path = normalize_selected_library_book_path(PathBuf::from(file_path))?;
+        register_trusted_library_import_path(&app, &trusted_path)?;
+        trusted_paths.push(trusted_path.to_string_lossy().to_string());
+    }
+    Ok(trusted_paths)
+}
+
+#[tauri::command]
+#[cfg(feature = "webdriver")]
+pub(crate) fn probe_untrusted_library_paths_for_webdriver(
+    app: tauri::AppHandle,
+    book_path: String,
+    cover_path: String,
+    record_id: String,
+) -> Result<LibraryTrustBoundaryProbe, String> {
+    let library_json = library_json_path(&app)?;
+    let records = load_library_records(&library_json)?;
+    let import_error = resolve_trusted_import_source_path(&app, &records, &book_path).err();
+    let book_binary_error = resolve_trusted_library_book_path(&app, &book_path).err();
+    let fingerprint_error = resolve_trusted_library_book_path(&app, &book_path).err();
+    let cover_error = resolve_library_owned_cover_path(&app, &cover_path).err();
+    let repair_preview_error = (|| {
+        find_persisted_library_record(&records, &record_id)
+            .ok_or_else(|| "Library record not found for repair preview".to_string())?;
+        resolve_trusted_import_source_path(&app, &records, &book_path)?;
+        Ok::<(), String>(())
+    })()
+    .err();
+    let restore_error = get_removed_library_record(&app, &book_path)?
+        .or_else(|| find_persisted_library_record(&records, &book_path))
+        .map(|_| ())
+        .ok_or_else(|| "Library record not found for restore".to_string())
+        .err();
+
+    Ok(LibraryTrustBoundaryProbe {
+        import_error,
+        book_binary_error,
+        fingerprint_error,
+        cover_error,
+        repair_preview_error,
+        restore_error,
+    })
 }
 
 #[tauri::command]
