@@ -441,28 +441,28 @@
 
     {#if !isWindowMode}
       {#if bridgePanelOpen}
-        <aside class="bridge-placeholder" aria-label="bridge panel placeholder">
+        <aside class="bridge-placeholder" aria-label="桥梁面板">
           <header class="bridge-head">
-            <span class="label">Bridge</span>
-            <button type="button" aria-label="close bridge panel" on:click={() => (bridgePanelOpen = false)}>
+            <span class="label">桥</span>
+            <button type="button" aria-label="收起桥梁面板" on:click={() => (bridgePanelOpen = false)}>
               ×
             </button>
           </header>
 
           <div class="bridge-card">
             <strong>解释这段</strong>
-            <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧 contextual surface 摆正，不提前接 AI 行为。</p>
+            <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧上下文面板摆正，不提前接入智能行为。</p>
           </div>
 
           <div class="bridge-card secondary">
             <strong>为什么重要</strong>
-            <p>后续 bridge 可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
+            <p>后续桥梁层可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
           </div>
         </aside>
       {:else}
-        <aside class="bridge-tab" aria-label="bridge panel collapsed">
-          <button type="button" aria-label="open bridge panel" on:click={() => (bridgePanelOpen = true)}>
-            <span>Bridge</span>
+        <aside class="bridge-tab" aria-label="桥梁面板已收起">
+          <button type="button" aria-label="打开桥梁面板" on:click={() => (bridgePanelOpen = true)}>
+            <span>桥</span>
           </button>
         </aside>
       {/if}
