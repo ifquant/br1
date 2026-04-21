@@ -21,6 +21,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["foliate-js", "foliate-js/view.js"],
   },
+  build: {
+    // The PDF.js host shim intentionally uses top-level await so foliate's
+    // side-effect import sees globalThis.pdfjsLib before pdf.js continues.
+    target: "esnext",
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
