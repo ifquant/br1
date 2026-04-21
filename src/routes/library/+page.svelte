@@ -189,6 +189,8 @@
   let librarySummaryBooks: LibraryShelfBook[] = [];
   let libraryCollectionOptions: string[] = [];
   let libraryTagOptions: string[] = [];
+  let libraryCollectionOptionCounts: Record<string, number> = {};
+  let libraryTagOptionCounts: Record<string, number> = {};
   let libraryCollectionSummary = '';
   let libraryTagSummary = '';
   let libraryFilterSummary = '';
@@ -609,6 +611,9 @@
       left.localeCompare(right, 'zh-Hans-CN')
     );
 
+  const mapCountsToRecord = (counts: Map<string, number>) =>
+    Object.fromEntries(counts.entries()) as Record<string, number>;
+
   const countByLabel = (labels: string[]) =>
     labels.reduce((counts, label) => {
       const normalized = label.trim();
@@ -622,6 +627,18 @@
       if (right[1] !== left[1]) return right[1] - left[1];
       return left[0].localeCompare(right[0], 'zh-Hans-CN');
     })[0] ?? null;
+
+  const getLibraryCollectionOptionCounts = (books: LibraryShelfBook[]) =>
+    mapCountsToRecord(
+      countByLabel(
+        books
+          .map((book) => normalizeCollectionFilterValue(book.collection))
+          .filter((collection) => collection !== '未归类')
+      )
+    );
+
+  const getLibraryTagOptionCounts = (books: LibraryShelfBook[]) =>
+    mapCountsToRecord(countByLabel(books.flatMap((book) => book.tags ?? [])));
 
   const getLibraryCollectionSummary = (books: LibraryShelfBook[]) => {
     const counts = countByLabel(
@@ -827,6 +844,8 @@
   $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
   $: libraryCollectionOptions = getLibraryCollectionOptions(librarySummaryBooks);
   $: libraryTagOptions = getLibraryTagOptions(librarySummaryBooks);
+  $: libraryCollectionOptionCounts = getLibraryCollectionOptionCounts(librarySummaryBooks);
+  $: libraryTagOptionCounts = getLibraryTagOptionCounts(librarySummaryBooks);
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
   $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
   $: if (
@@ -1479,8 +1498,10 @@
       activeFilter={libraryFilterBy}
       activeCollectionFilter={libraryCollectionFilter}
       collectionOptions={libraryCollectionOptions}
+      collectionOptionCounts={libraryCollectionOptionCounts}
       activeTagFilter={libraryTagFilter}
       tagOptions={libraryTagOptions}
+      tagOptionCounts={libraryTagOptionCounts}
       statusSummary={libraryStatusSummary}
       collectionSummary={libraryCollectionSummary}
       tagSummary={libraryTagSummary}

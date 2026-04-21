@@ -10,8 +10,10 @@
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let activeCollectionFilter = 'all';
   export let collectionOptions: string[] = [];
+  export let collectionOptionCounts: Record<string, number> = {};
   export let activeTagFilter = 'all';
   export let tagOptions: string[] = [];
+  export let tagOptionCounts: Record<string, number> = {};
   export let importDisabled = false;
   export let statusSummary = '';
   export let filterSummary = '';
@@ -255,7 +257,8 @@
           aria-pressed={activeCollectionFilter === collection}
           on:click={() => handleCollectionFilterChange(collection)}
         >
-          {collection}
+          <span>{collection}</span>
+          <small>{collectionOptionCounts[collection] ?? 0} 本</small>
         </button>
       {/each}
     </div>
@@ -280,7 +283,8 @@
           aria-pressed={activeTagFilter === tag}
           on:click={() => handleTagFilterChange(tag)}
         >
-          {tag}
+          <span>{tag}</span>
+          <small>{tagOptionCounts[tag] ?? 0} 本</small>
         </button>
       {/each}
     </div>
@@ -405,6 +409,9 @@
   }
 
   .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     border: 0;
     border-radius: 999px;
     padding: 6px 11px;
@@ -419,6 +426,13 @@
       color 140ms ease,
       background 140ms ease,
       box-shadow 140ms ease;
+  }
+
+  .filter-pill small {
+    color: color-mix(in srgb, currentColor 72%, transparent);
+    font-size: 9px;
+    font-weight: 650;
+    line-height: 1;
   }
 
   .filter-pill:hover {
