@@ -7209,7 +7209,8 @@ describe('br1 desktop app', () => {
       const text = await cacheStatus.getText();
       return (
         text.includes('当前书搜索缓存已启用') &&
-        text.includes('2 条历史 · 1 条有命中 · 1 条无命中')
+        text.includes('2 条历史 · 1 条有命中 · 1 条无命中') &&
+        text.includes('缓存标识：')
       );
     }, {
       timeout: 10000,
@@ -7354,7 +7355,11 @@ describe('br1 desktop app', () => {
       const cacheStatus = await $('[aria-label="search cache status"]');
       if (!(await cacheStatus.isDisplayed())) return false;
       const text = await cacheStatus.getText();
-      return text.includes('当前书搜索缓存已启用') && text.includes('清空缓存');
+      return (
+        text.includes('当前书搜索缓存已启用') &&
+        text.includes('缓存标识：') &&
+        text.includes('清空缓存')
+      );
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the search cache status panel to return before clearing the current-book cache'

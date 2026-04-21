@@ -472,6 +472,10 @@
       : searchHistoryFilter === 'empty'
         ? search.history.filter((entry) => entry.resultCount === 0)
         : search.history;
+  $: searchCacheDisplayKey =
+    search.cacheKey.length > 52
+      ? `${search.cacheKey.slice(0, 24)}…${search.cacheKey.slice(-20)}`
+      : search.cacheKey;
   $: recentSearchResultIndex = search.results.findIndex((item) => item.cfi === search.recentResultCfi);
   $: activeSearchResultIndex = search.results.findIndex((item) => item.cfi === search.activeResultCfi);
   $: currentSearchResultIndex = Math.max(
@@ -1568,6 +1572,7 @@
               <span>
                 {search.history.length} 条历史 · {successfulSearchHistoryCount} 条有命中 · {emptySearchHistoryCount} 条无命中
               </span>
+              <small title={search.cacheKey}>缓存标识：{searchCacheDisplayKey}</small>
             </div>
             <button type="button" class="history-clear" on:click={() => callbacks.onClearSearchCache?.()}>
               清空缓存
@@ -3162,6 +3167,15 @@
     color: var(--text-muted);
     font-size: 11px;
     line-height: 1.4;
+  }
+
+  .search-cache-status small {
+    color: var(--text-muted);
+    display: block;
+    font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
 
   .search-result-nav {
