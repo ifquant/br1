@@ -9,6 +9,7 @@
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let importDisabled = false;
+  export let statusSummary = '';
 
   let sortMenuOpen = false;
   let sortMenuElement: HTMLDivElement | null = null;
@@ -210,6 +211,9 @@
       {option.label}
     </button>
   {/each}
+  {#if statusSummary}
+    <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
+  {/if}
 </div>
 
 <style>
@@ -225,11 +229,25 @@
 
   .filter-row {
     display: flex;
+    align-items: center;
     gap: 8px;
     padding: 8px 0 12px;
     flex-wrap: wrap;
     border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 82%, transparent);
     margin-bottom: 2px;
+  }
+
+  .status-summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 23px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #cf7a35 10%, white 90%);
+    color: color-mix(in srgb, #7c4619 86%, var(--text-secondary) 14%);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #cf7a35 20%, white 80%);
   }
 
   .filter-pill {

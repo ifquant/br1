@@ -729,6 +729,10 @@
     filteredRecoveryQueueBooks.length > 0
       ? `共 ${filteredRecoveryQueueBooks.length} 本待处理；${bulkRepairEligibleQueueBooks.length} 本可批量修复副本，${manualRepairQueueCount} 本需逐本复核重关联。`
       : '这些书的原文件路径或书库副本已经失效。优先逐本修复，避免后续继续扩散为重复条目。';
+  $: libraryStatusSummary =
+    desktopLibraryMode && filteredRecoveryQueueBooks.length > 0
+      ? `待修复 ${filteredRecoveryQueueBooks.length} · 可批量 ${bulkRepairEligibleQueueBooks.length} · 需复核 ${manualRepairQueueCount}`
+      : '';
   $: filteredContinueReadingBooks = filterBooksByLibraryFilter(continueReadingBooks, libraryFilterBy);
   $: filteredRecentReadingBooks = filterBooksByLibraryFilter(recentReadingBooks, libraryFilterBy);
   $: filteredLibraryShelfBooks = filterBooksByLibraryFilter(libraryShelfBooks, libraryFilterBy);
@@ -1223,6 +1227,7 @@
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
       activeFilter={libraryFilterBy}
+      statusSummary={libraryStatusSummary}
       importDisabled={migrationBusy}
       on:querychange={handleLibraryQueryChange}
       on:importbooks={triggerImportPicker}

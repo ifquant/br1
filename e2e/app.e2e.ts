@@ -2987,10 +2987,18 @@ describe('br1 desktop app', () => {
           const section = document.querySelector('[aria-label="待修复书籍"]')?.closest('.continue-shelf');
           return section?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
         });
+        const headerStatusText = await browser.execute(() => {
+          return document
+            .querySelector('[aria-label="library status summary"]')
+            ?.textContent
+            ?.replace(/\s+/g, ' ')
+            .trim() ?? '';
+        });
         return (
           !!cbzState &&
           cbzState.text.includes('待复核') &&
           cbzState.text.includes('先复核再重关联') &&
+          headerStatusText.includes('待修复 2 · 可批量 1 · 需复核 1') &&
           repairSectionText.includes('共 2 本待处理') &&
           repairSectionText.includes('1 本可批量修复副本') &&
           repairSectionText.includes('1 本需逐本复核重关联')
@@ -3116,7 +3124,15 @@ describe('br1 desktop app', () => {
           const section = document.querySelector('[aria-label="待修复书籍"]')?.closest('.continue-shelf');
           return section?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
         });
+        const headerStatusText = await browser.execute(() => {
+          return document
+            .querySelector('[aria-label="library status summary"]')
+            ?.textContent
+            ?.replace(/\s+/g, ' ')
+            .trim() ?? '';
+        });
         return (
+          headerStatusText.includes('待修复 1 · 可批量 0 · 需复核 1') &&
           repairSectionText.includes('共 1 本待处理') &&
           repairSectionText.includes('0 本可批量修复副本') &&
           repairSectionText.includes('1 本需逐本复核重关联')
