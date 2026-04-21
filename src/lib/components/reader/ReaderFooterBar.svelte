@@ -45,7 +45,7 @@
   class:window-mode={isWindowMode}
   class:visible={isVisible}
   class="footer-bar"
-  aria-label="reader footer controls preview"
+  aria-label="阅读页脚控制"
 >
   <div
     class:window-mode={isWindowMode}
@@ -54,11 +54,11 @@
     class="footer-frame"
   >
     <div class="footer-controls">
-      <button type="button" aria-label="Previous page" title="Previous page" on:click={() => issueControl('prev')}>‹</button>
-      <button type="button" aria-label="Go to start" title="Go to start" on:click={() => issueControl('start')}>·</button>
-      <button type="button" aria-label="Next page" title="Next page" on:click={() => issueControl('next')}>›</button>
+      <button type="button" aria-label="上一页" title="上一页" on:click={() => issueControl('prev')}>‹</button>
+      <button type="button" aria-label="回到开头" title="回到开头" on:click={() => issueControl('start')}>·</button>
+      <button type="button" aria-label="下一页" title="下一页" on:click={() => issueControl('next')}>›</button>
     </div>
-    <label class="progress-strip" aria-label="reader progress preview">
+    <label class="progress-strip" aria-label="阅读进度">
       <input
         type="range"
         min="0"
@@ -95,8 +95,8 @@
     color: var(--text-secondary);
     font-family: var(--font-chrome);
     font-size: 10px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    text-transform: none;
   }
 
   .footer-bar.window-mode {
