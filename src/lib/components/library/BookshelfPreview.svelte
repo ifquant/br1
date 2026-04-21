@@ -19,6 +19,7 @@
           language?: string;
           publisher?: string;
           collection?: string;
+          tags?: string[];
         }
       ) => void | Promise<void>)
     | null = null;
@@ -31,6 +32,7 @@
   let metadataEditLanguage = '';
   let metadataEditPublisher = '';
   let metadataEditCollection = '';
+  let metadataEditTags = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -69,6 +71,7 @@
     metadataEditLanguage = book.language ?? '';
     metadataEditPublisher = book.publisher ?? '';
     metadataEditCollection = book.collection ?? '';
+    metadataEditTags = book.tags?.join(', ') ?? '';
   };
 
   const cancelMetadataEdit = (event: MouseEvent) => {
@@ -91,7 +94,11 @@
       description: metadataEditDescription.trim(),
       language: metadataEditLanguage.trim(),
       publisher: metadataEditPublisher.trim(),
-      collection: metadataEditCollection.trim()
+      collection: metadataEditCollection.trim(),
+      tags: metadataEditTags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
     });
   };
 
@@ -242,6 +249,8 @@
               <strong>{book.publisher || '未记录'}</strong>
               <span>书架归类</span>
               <strong>{book.collection || '未归类'}</strong>
+              <span>标签</span>
+              <strong>{book.tags?.length ? book.tags.join(' / ') : '未标记'}</strong>
               <span>来源</span>
               <strong>{book.sourceLabel || '未知来源'}</strong>
               <span>可用性</span>
@@ -288,6 +297,10 @@
                 <label>
                   <span>书架归类</span>
                   <input bind:value={metadataEditCollection} aria-label="Edit book collection" />
+                </label>
+                <label>
+                  <span>标签</span>
+                  <input bind:value={metadataEditTags} aria-label="Edit book tags" />
                 </label>
                 <label class="wide-field">
                   <span>简介</span>

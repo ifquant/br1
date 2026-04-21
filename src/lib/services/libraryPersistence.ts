@@ -10,6 +10,7 @@ export type PersistedLibraryBook = {
   language?: string | null;
   publisher?: string | null;
   collection?: string | null;
+  tags?: string[] | null;
   progress: string;
   status: string;
   filePath: string;
@@ -249,7 +250,8 @@ export const updateLibraryBookMetadata = async ({
   description,
   language,
   publisher,
-  collection
+  collection,
+  tags
 }: {
   recordId: string;
   title: string;
@@ -258,6 +260,7 @@ export const updateLibraryBookMetadata = async ({
   language?: string;
   publisher?: string;
   collection?: string;
+  tags?: string[];
 }): Promise<PersistedLibraryBook[]> => {
   requireTauriLibraryRuntime('updateLibraryBookMetadata');
 
@@ -268,7 +271,8 @@ export const updateLibraryBookMetadata = async ({
     description,
     language,
     publisher,
-    collection
+    collection,
+    tags
   });
 };
 

@@ -46,6 +46,7 @@
       progressPercentLabel: '34%',
       readingStatusLabel: '在读',
       collection: '政治与制度',
+      tags: ['制度', '现代国家'],
       sourceLabel: '样例书库',
       availabilityLabel: '本地可读',
       lastOpenedAt: sampleNow - 45 * 60 * 1000,
@@ -64,6 +65,7 @@
       progressPercentLabel: '12%',
       readingStatusLabel: '在读',
       collection: '政治与制度',
+      tags: ['中国', '经济'],
       sourceLabel: '样例书库',
       availabilityLabel: '本地可读',
       lastOpenedAt: sampleNow - 6 * 60 * 60 * 1000,
@@ -82,6 +84,7 @@
       progressPercentLabel: '100%',
       readingStatusLabel: '已读完',
       collection: '历史人物',
+      tags: ['历史小说'],
       sourceLabel: '样例书库',
       availabilityLabel: '本地可读',
       lastOpenedAt: sampleNow - 24 * 60 * 60 * 1000,
@@ -100,6 +103,7 @@
       progressPercentLabel: '0%',
       readingStatusLabel: '未开始',
       collection: '政治哲学',
+      tags: ['正义论', '政治哲学'],
       sourceLabel: '样例书库',
       availabilityLabel: '本地可读',
       importedAt: sampleNow - 3 * 24 * 60 * 60 * 1000,
@@ -116,6 +120,7 @@
       progressPercentLabel: '0%',
       readingStatusLabel: '未开始',
       collection: '政治哲学',
+      tags: ['法学', '政治哲学'],
       sourceLabel: '样例书库',
       availabilityLabel: '本地可读',
       importedAt: sampleNow - 2 * 24 * 60 * 60 * 1000,
@@ -272,6 +277,7 @@
       record.language ? '语言' : '',
       record.publisher ? '出版者' : '',
       record.collection ? '书架归类' : '',
+      record.tags?.length ? '标签' : '',
       record.progressLocation ? '恢复定位' : '',
       record.progressLocation ? '' : progressFraction !== null ? '阅读进度' : ''
     ].filter(Boolean);
@@ -300,6 +306,7 @@
       language: record.language || '',
       publisher: record.publisher || '',
       collection: record.collection || '',
+      tags: record.tags ?? [],
       progressLocation: record.progressLocation || '',
       status: record.status,
       progress: record.progress,
@@ -539,6 +546,7 @@
       book.language,
       book.publisher,
       book.collection,
+      ...(book.tags ?? []),
       book.sourceLabel,
       book.availabilityLabel,
       book.format
@@ -1108,6 +1116,7 @@
       language?: string;
       publisher?: string;
       collection?: string;
+      tags?: string[];
     }
   ) => {
     if (!canPersistLibrary()) return;
@@ -1134,7 +1143,8 @@
         description: metadata.description ?? '',
         language: metadata.language ?? '',
         publisher: metadata.publisher ?? '',
-        collection: metadata.collection ?? ''
+        collection: metadata.collection ?? '',
+        tags: metadata.tags ?? []
       });
       await applyPersistedLibraryRecords(updatedRecords);
       setLibraryNotice('info', `已更新“${nextTitle}”的书库元数据。`);

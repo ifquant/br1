@@ -14,6 +14,8 @@ pub(crate) struct LibraryBookRecord {
     pub(crate) publisher: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) collection: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) tags: Vec<String>,
     pub(crate) progress: String,
     pub(crate) status: String,
     pub(crate) file_path: String,

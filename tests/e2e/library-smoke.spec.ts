@@ -43,6 +43,8 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(sampleMetadataPanel).toContainText('未开始');
   await expect(sampleMetadataPanel).toContainText('书架归类');
   await expect(sampleMetadataPanel).toContainText('政治哲学');
+  await expect(sampleMetadataPanel).toContainText('标签');
+  await expect(sampleMetadataPanel).toContainText('正义论 / 政治哲学');
   await expect(sampleMetadataPanel).toContainText('来源');
   await expect(sampleMetadataPanel).toContainText('样例书库');
 

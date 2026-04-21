@@ -814,6 +814,18 @@ fn choose_repaired_optional(
     })
 }
 
+fn normalize_library_tags(tags: Option<Vec<String>>) -> Vec<String> {
+    let mut normalized = Vec::new();
+    for tag in tags.unwrap_or_default() {
+        let trimmed = tag.trim();
+        if trimmed.is_empty() || normalized.iter().any(|value: &String| value == trimmed) {
+            continue;
+        }
+        normalized.push(trimmed.to_string());
+    }
+    normalized
+}
+
 fn cleanup_repaired_record_assets(
     existing_record: &LibraryBookRecord,
     next_file_path: &Path,
@@ -1103,6 +1115,10 @@ pub(crate) fn import_library_books(
                 .map(|record| choose_repaired_optional(record.publisher.clone(), publisher.clone()))
                 .unwrap_or(publisher),
             collection: existing_record.as_ref().and_then(|record| record.collection.clone()),
+            tags: existing_record
+                .as_ref()
+                .map(|record| record.tags.clone())
+                .unwrap_or_default(),
             progress: existing_record
                 .as_ref()
                 .map(|record| record.progress.clone())
@@ -1186,6 +1202,7 @@ pub(crate) fn update_library_book_metadata(
     language: Option<String>,
     publisher: Option<String>,
     collection: Option<String>,
+    tags: Option<Vec<String>>,
 ) -> Result<Vec<LibraryBookRecord>, String> {
     let library_root = ensure_library_root(&app)?;
     let library_json = library_root.join("library.json");
@@ -1222,6 +1239,7 @@ pub(crate) fn update_library_book_metadata(
         let trimmed = value.trim().to_string();
         (!trimmed.is_empty()).then_some(trimmed)
     });
+    record.tags = normalize_library_tags(tags);
     save_library_records(&library_json, &records)?;
     decorate_library_record_file_states(&mut records);
     Ok(records)
@@ -1405,6 +1423,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             language: readest_metadata.language,
             publisher: readest_metadata.publisher,
             collection: None,
+            tags: Vec::new(),
             progress,
             status,
             file_path: stored_book_path.to_string_lossy().to_string(),
