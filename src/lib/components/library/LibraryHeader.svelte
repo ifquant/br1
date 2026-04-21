@@ -8,6 +8,12 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
+  export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
+    all: 0,
+    reading: 0,
+    unstarted: 0,
+    finished: 0
+  };
   export let activeFormatFilter = 'all';
   export let formatOptions: string[] = [];
   export let formatOptionCounts: Record<string, number> = {};
@@ -251,10 +257,12 @@
       type="button"
       class:active-filter={activeFilter === option.value}
       class="filter-pill"
+      aria-label={option.label}
       aria-pressed={activeFilter === option.value}
       on:click={() => handleFilterChange(option.value)}
     >
-      {option.label}
+      <span>{option.label}</span>
+      <small aria-hidden="true">{statusOptionCounts[option.value] ?? 0} 本</small>
     </button>
   {/each}
   {#if formatOptions.length > 0}

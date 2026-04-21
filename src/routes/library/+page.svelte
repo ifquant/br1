@@ -192,6 +192,12 @@
   let visibleLibraryBooksCount = 0;
   let visibleStarterLibraryBooksCount = 0;
   let librarySummaryBooks: LibraryShelfBook[] = [];
+  let libraryStatusOptionCounts: Record<LibraryFilter, number> = {
+    all: 0,
+    reading: 0,
+    unstarted: 0,
+    finished: 0
+  };
   let libraryFormatOptions: string[] = [];
   let libraryCollectionOptions: string[] = [];
   let libraryTagOptions: string[] = [];
@@ -604,6 +610,13 @@
   const filterBooksByLibraryFilter = (books: LibraryShelfBook[], filterBy: LibraryFilter) =>
     books.filter((book) => matchesLibraryFilter(book, filterBy));
 
+  const getLibraryStatusOptionCounts = (books: LibraryShelfBook[]) => ({
+    all: books.length,
+    reading: books.filter((book) => matchesLibraryFilter(book, 'reading')).length,
+    unstarted: books.filter((book) => matchesLibraryFilter(book, 'unstarted')).length,
+    finished: books.filter((book) => matchesLibraryFilter(book, 'finished')).length
+  });
+
   const normalizeCollectionFilterValue = (value: string | null | undefined) =>
     value?.trim() || '未归类';
 
@@ -923,6 +936,7 @@
         [...continueReadingBooks, ...recentReadingBooks]
       );
   $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
+  $: libraryStatusOptionCounts = getLibraryStatusOptionCounts(librarySummaryBooks);
   $: libraryFormatOptions = getLibraryFormatOptions(librarySummaryBooks);
   $: libraryCollectionOptions = getLibraryCollectionOptions(librarySummaryBooks);
   $: libraryTagOptions = getLibraryTagOptions(librarySummaryBooks);
@@ -1635,6 +1649,7 @@
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
       activeFilter={libraryFilterBy}
+      statusOptionCounts={libraryStatusOptionCounts}
       activeFormatFilter={libraryFormatFilter}
       formatOptions={libraryFormatOptions}
       formatOptionCounts={libraryFormatOptionCounts}
