@@ -247,7 +247,8 @@
         aria-pressed={activeCollectionFilter === 'all'}
         on:click={() => handleCollectionFilterChange('all')}
       >
-        全部归类
+        <span>全部归类</span>
+        <small>{collectionOptions.length} 组</small>
       </button>
       {#each collectionOptions as collection}
         <button
@@ -273,7 +274,8 @@
         aria-pressed={activeTagFilter === 'all'}
         on:click={() => handleTagFilterChange('all')}
       >
-        全部标签
+        <span>全部标签</span>
+        <small>{tagOptions.length} 个</small>
       </button>
       {#each tagOptions as tag}
         <button

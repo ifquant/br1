@@ -15,6 +15,12 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByLabel('library collection summary')).toContainText('归类 3 组');
   await expect(page.getByLabel('library tag summary')).toContainText('标签 8 个 · 高频 政治哲学 2 本');
   await expect(
+    page.getByLabel('library collection filters').getByRole('button', { name: '全部归类 3 组' })
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('library tag filters').getByRole('button', { name: '全部标签 8 个' })
+  ).toBeVisible();
+  await expect(
     page.getByLabel('library collection filters').getByRole('button', { name: '政治哲学 2 本' })
   ).toBeVisible();
   await expect(
