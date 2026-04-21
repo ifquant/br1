@@ -1266,6 +1266,7 @@ describe('br1 desktop app', () => {
       window.confirm = () => true;
     });
     await switchReaderToNotesTab();
+    await clickAnnotationKindFilter('全部类型');
 
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const deleteButtons = await $$('.note-action.danger');
@@ -5961,7 +5962,8 @@ describe('br1 desktop app', () => {
     }
 
     const refreshedBook = await loadLibraryRecordBySourcePathOnDisk(importedBook.sourcePath);
-    const currentFilePath = (refreshedBook?.filePath ?? refreshedBook?.file_path ?? importedBook.filePath) as string;
+    let currentFilePath = (refreshedBook?.filePath ?? refreshedBook?.file_path ?? importedBook.filePath) as string;
+    await clearReaderHighlightsWorkspaceStateOnDisk(currentFilePath);
 
     const libraryHandle = await switchToLibraryWindow();
     await browser.refresh();
@@ -6123,6 +6125,10 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
+    const reopenedFb2Record = await loadLibraryRecordBySourcePathOnDisk(importedBook.sourcePath);
+    currentFilePath = (reopenedFb2Record?.filePath ?? reopenedFb2Record?.file_path ?? currentFilePath) as string;
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
     await openReaderFromLibraryPath(currentFilePath, libraryHandle);
     await switchReaderToNotesTab();
 
@@ -6370,6 +6376,158 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const firstCard = savedPanel.querySelector('.saved-highlight-selection-card');
+      if (!(firstCard instanceof HTMLElement)) {
+        throw new Error('expected the first saved selection card to exist');
+      }
+      const exportButton = Array.from(firstCard.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导出'
+      );
+      if (!(exportButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection export button to exist');
+      }
+      exportButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const exportState = await browser.execute(() => {
+        const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+        const payload = preview?.querySelector('textarea');
+        return {
+          previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          payload: payload instanceof HTMLTextAreaElement ? payload.value : ''
+        };
+      });
+      return (
+        exportState.previewText.includes('Desktop FB2 重点高亮') &&
+        exportState.payload.includes('"schemaVersion": 1') &&
+        exportState.payload.includes('"formatLabel": "FB2"') &&
+        exportState.payload.includes('"highlights": [')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to expose a structured export preview for the saved selection set'
+    });
+    const fb2ExportedSelectionPayload = await browser.execute(() => {
+      const payload = document.querySelector('[aria-label="saved highlight selection export preview"] textarea');
+      if (!(payload instanceof HTMLTextAreaElement)) {
+        throw new Error('expected the saved selection export payload textarea to exist');
+      }
+      return payload.value;
+    });
+    const fb2ImportedSelectionPayload = JSON.stringify({
+      ...JSON.parse(fb2ExportedSelectionPayload),
+      selectionSet: {
+        ...JSON.parse(fb2ExportedSelectionPayload).selectionSet,
+        selectedIds: ['missing-highlight-id'],
+        importSource: {
+          bookKey: 'imported-fb2-book',
+          bookTitle: 'Imported FB2 Source',
+          formatLabel: 'FB2',
+          selectionName: 'Imported FB2 Selection',
+          matchedCount: 1,
+          totalCount: 2,
+          unmatchedCount: 1,
+          importedAt: 1710000000000,
+          highlights: [
+            ...JSON.parse(fb2ExportedSelectionPayload).highlights,
+            {
+              ...JSON.parse(fb2ExportedSelectionPayload).highlights[0],
+              id: 'missing-imported-fb2-highlight',
+              cfi: 'epubcfi(/6/imported-missing)',
+              text: 'missing desktop fb2 passage for unresolved drilldown',
+              chapterHref: '/missing-imported-chapter.xhtml'
+            }
+          ]
+        }
+      },
+      highlights: JSON.parse(fb2ExportedSelectionPayload).highlights.map((highlight: Record<string, unknown>) => ({
+        ...highlight,
+        cfi: 'epubcfi(/6/missing)',
+        chapterHref: '/missing-chapter.xhtml'
+      }))
+    });
+    await browser.execute(() => {
+      const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+      if (!(preview instanceof HTMLElement)) {
+        throw new Error('expected the saved selection export preview to exist');
+      }
+      const closeButton = Array.from(preview.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '关闭'
+      );
+      if (!(closeButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection export preview close button to exist');
+      }
+      closeButton.click();
+    });
+    await browser.execute((payload) => {
+      window.prompt = () => payload;
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      if (!(savedPanel instanceof HTMLElement)) {
+        throw new Error('expected the saved highlight selections panel to exist');
+      }
+      const importButton = Array.from(savedPanel.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '导入'
+      );
+      if (!(importButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the saved selection import button to exist');
+      }
+      importButton.click();
+    }, fb2ImportedSelectionPayload);
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const firstCard = panel?.querySelector('.saved-highlight-selection-card');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('已导入选择集：Desktop FB2 重点高亮') &&
+        state.firstCardText.includes('跨书导入 · Imported FB2 Source / Imported FB2 Selection · 1/2') &&
+        state.firstCardText.includes('未映射片段') &&
+        state.firstCardText.includes('missing desktop fb2 passage for unresolved drilldown')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop imported saved set to show unresolved highlight text after import'
+    });
+    await browser.execute(() => {
+      window.confirm = () => true;
+      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const firstCard = savedPanel?.querySelector('.saved-highlight-selection-card');
+      if (!(firstCard instanceof HTMLElement)) {
+        throw new Error('expected the imported saved highlight selection card to exist');
+      }
+      const deleteButton = Array.from(firstCard.querySelectorAll('button')).find(
+        (candidate) => candidate.textContent?.trim() === '删除'
+      );
+      if (!(deleteButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the imported saved selection delete button to exist');
+      }
+      deleteButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const cardTexts = await browser.execute(() =>
+        Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+          (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        )
+      );
+      return (
+        cardTexts.some((text) => text.includes('Desktop FB2 重点高亮')) &&
+        cardTexts.every((text) => !text.includes('Imported FB2 Source')) &&
+        cardTexts.every((text) => !text.includes('missing desktop fb2 passage for unresolved drilldown'))
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the FB2 desktop highlights workspace to remove the temporary imported saved selection set'
+    });
+
+    await browser.execute(() => {
       const controls = document.querySelector('[aria-label="highlights filter controls"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
@@ -6451,10 +6609,12 @@ describe('br1 desktop app', () => {
       deleteButton.click();
     });
     await browser.waitUntil(async () => {
-      const savedPanels = await $$('[aria-label="saved highlight selections"]');
-      if (!savedPanels.length) return true;
-      const panelText = await savedPanels[0].getText();
-      return !panelText.includes('Desktop FB2 重点高亮');
+      const cardTexts = await browser.execute(() =>
+        Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+          (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        )
+      );
+      return cardTexts.every((text) => !text.includes('Desktop FB2 重点高亮'));
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the FB2 desktop highlights workspace to delete the saved selection set'
