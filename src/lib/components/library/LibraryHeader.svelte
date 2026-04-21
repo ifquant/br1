@@ -31,6 +31,7 @@
     label: string;
   }> = [];
   export let filterSummary = '';
+  export let formatSummary = '';
   export let collectionSummary = '';
   export let tagSummary = '';
   export let coverSummary = '';
@@ -369,6 +370,9 @@
       {/each}
     </div>
   {/if}
+  {#if formatSummary}
+    <span class="metadata-summary format-summary" aria-label="library format summary">{formatSummary}</span>
+  {/if}
   {#if collectionSummary}
     <span class="metadata-summary" aria-label="library collection summary">{collectionSummary}</span>
   {/if}
@@ -496,6 +500,12 @@
     background: color-mix(in srgb, #cfdcc1 16%, white 84%);
     color: color-mix(in srgb, #49612f 82%, var(--text-secondary) 18%);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #8da36b 20%, white 80%);
+  }
+
+  .metadata-summary.format-summary {
+    background: color-mix(in srgb, #d8c8e5 14%, white 86%);
+    color: color-mix(in srgb, #5e4771 82%, var(--text-secondary) 18%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #a58abc 20%, white 80%);
   }
 
   .metadata-summary.cover-summary {

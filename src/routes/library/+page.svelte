@@ -204,6 +204,7 @@
   let libraryFormatOptionCounts: Record<string, number> = {};
   let libraryCollectionOptionCounts: Record<string, number> = {};
   let libraryTagOptionCounts: Record<string, number> = {};
+  let libraryFormatSummary = '';
   let libraryCollectionSummary = '';
   let libraryTagSummary = '';
   let libraryActiveFilterDetail = '';
@@ -674,6 +675,14 @@
   const getLibraryFormatOptionCounts = (books: LibraryShelfBook[]) =>
     mapCountsToRecord(countByLabel(books.map((book) => normalizeFormatFilterValue(book.format))));
 
+  const getLibraryFormatSummary = (books: LibraryShelfBook[]) => {
+    const counts = countByLabel(books.map((book) => normalizeFormatFilterValue(book.format)));
+    if (counts.size === 0) return '';
+    const topFormat = getTopCountEntry(counts);
+    if (!topFormat) return '';
+    return `格式 ${counts.size} 种 · 主 ${topFormat[0]} ${topFormat[1]} 本`;
+  };
+
   const getLibraryCollectionSummary = (books: LibraryShelfBook[]) => {
     const counts = countByLabel(
       books
@@ -948,6 +957,7 @@
   $: libraryFormatOptionCounts = getLibraryFormatOptionCounts(librarySummaryBooks);
   $: libraryCollectionOptionCounts = getLibraryCollectionOptionCounts(librarySummaryBooks);
   $: libraryTagOptionCounts = getLibraryTagOptionCounts(librarySummaryBooks);
+  $: libraryFormatSummary = getLibraryFormatSummary(librarySummaryBooks);
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
   $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
   $: libraryCoverSummary = getLibraryCoverSummary(librarySummaryBooks);
@@ -1709,6 +1719,7 @@
       statusSummary={libraryStatusSummary}
       activeFilterDetail={libraryActiveFilterDetail}
       activeFilterChips={libraryActiveFilterChips}
+      formatSummary={libraryFormatSummary}
       collectionSummary={libraryCollectionSummary}
       tagSummary={libraryTagSummary}
       coverSummary={libraryCoverSummary}
