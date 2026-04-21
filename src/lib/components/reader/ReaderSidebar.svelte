@@ -1330,15 +1330,15 @@
   class:window-mode={isWindowMode}
   class:overlay-mode={isWindowMode && !isPinned}
   class="reader-sidebar"
-  aria-label="reader navigation preview"
+  aria-label="阅读导航"
 >
   <header class="sidebar-head">
     <div class="sidebar-tools">
       <button
         type="button"
         class="ghost-button"
-        aria-label="toggle sidebar"
-        title="Toggle sidebar"
+        aria-label="切换侧栏"
+        title="切换侧栏"
         on:click={handleSidebarToggle}
       >
         ☰
@@ -1353,8 +1353,8 @@
             type="button"
             class:active={isPinned}
             class="ghost-button pin-button"
-            aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar'}
-            title={isPinned ? 'Unpin sidebar' : 'Pin sidebar'}
+            aria-label={isPinned ? '取消固定侧栏' : '固定侧栏'}
+            title={isPinned ? '取消固定侧栏' : '固定侧栏'}
             on:click={handlePinToggle}
           >
             {isPinned ? '📌' : '⌖'}
@@ -1363,8 +1363,8 @@
         <button
           type="button"
           class="ghost-button"
-          aria-label="Hide sidebar"
-          title="Hide sidebar"
+          aria-label="隐藏侧栏"
+          title="隐藏侧栏"
           on:click={() => callbacks.onClose?.()}
         >
           ×
@@ -1373,7 +1373,7 @@
     </div>
   </header>
 
-  <div class="tabs" role="tablist" aria-label="reader sidebar tabs">
+  <div class="tabs" role="tablist" aria-label="阅读侧栏标签">
     <button
       type="button"
       role="tab"
@@ -1493,7 +1493,7 @@
       </div>
 
       {#if activeTab === 'toc'}
-        <nav class="toc" aria-label="table of contents preview">
+        <nav class="toc" aria-label="目录预览">
           {#if toc.length}
             {#each toc as item}
               <button
@@ -1511,9 +1511,9 @@
           {/if}
         </nav>
       {:else if activeTab === 'search'}
-        <section class="sidebar-panel" aria-label="search panel preview">
+        <section class="sidebar-panel" aria-label="正文搜索面板">
         <label class="search-field">
-          <span class="sr-only">Search book contents</span>
+          <span class="sr-only">搜索正文内容</span>
           <input
             type="search"
             placeholder="搜索正文内容"
@@ -1522,7 +1522,7 @@
           />
         </label>
 
-        <div class="search-options" aria-label="search options">
+        <div class="search-options" aria-label="搜索选项">
           <button
             type="button"
             class:active={search.config.scope === 'book'}
@@ -1566,7 +1566,7 @@
         </div>
 
         {#if search.cacheKey && !search.term.trim()}
-          <section class="search-cache-status" aria-label="search cache status">
+          <section class="search-cache-status" aria-label="搜索缓存状态">
             <div>
               <strong>当前书搜索缓存已启用</strong>
               <span>
@@ -1578,7 +1578,7 @@
               清空缓存
             </button>
             {#if cachedSearchHistoryEntries.length}
-              <ul aria-label="search cache query entries">
+              <ul aria-label="搜索缓存查询记录">
                 {#each cachedSearchHistoryEntries as entry}
                   <li>
                     <button type="button" on:click={() => runSearchHistory(entry)}>
@@ -1602,7 +1602,7 @@
                 </button>
               </div>
             </div>
-            <div class="search-history-filters" aria-label="search history filters">
+            <div class="search-history-filters" aria-label="搜索历史筛选">
               <button
                 type="button"
                 class:active={searchHistoryFilter === 'all'}
@@ -1666,7 +1666,7 @@
 
         <div class="search-summary">
           {#if search.status === 'searching'}
-            <strong>Searching…</strong>
+            <strong>正在搜索</strong>
             <span>
               {#if search.progress > 0}
                 已扫描 {Math.round(search.progress * 100)}%
@@ -1678,13 +1678,13 @@
             <strong>{search.results.length}</strong>
             <span>正文命中结果</span>
           {:else}
-            <strong>Search</strong>
+            <strong>正文搜索</strong>
             <span>输入关键词后会在正文里搜索，而不只是过滤目录。</span>
           {/if}
         </div>
 
         {#if search.results.length}
-          <div class="search-result-nav" aria-label="search result navigation">
+          <div class="search-result-nav" aria-label="搜索结果导航">
             <button
               type="button"
               class="history-filter-chip"
@@ -1711,7 +1711,7 @@
           </div>
         {/if}
 
-        <div class="search-results" aria-label="search results">
+        <div class="search-results" aria-label="搜索结果">
           {#if search.status === 'error'}
             <p class="empty">{search.error || '正文搜索失败。'}</p>
           {:else if search.results.length}
@@ -1725,7 +1725,7 @@
                   callbacks.onSearchResult?.(item.cfi);
                 }}
               >
-                <strong>{item.label || 'Search result'}</strong>
+                <strong>{item.label || '搜索结果'}</strong>
                 <span>
                   {item.excerpt.pre}<mark>{item.excerpt.match}</mark>{item.excerpt.post}
                 </span>
@@ -1739,7 +1739,7 @@
         </div>
         </section>
       {:else if activeTab === 'bookmarks'}
-        <section class="sidebar-panel" aria-label="bookmarks panel preview">
+        <section class="sidebar-panel" aria-label="书签面板">
         <div class="bookmarks-summary">
           <strong>书签</strong>
           <span>
@@ -1768,7 +1768,7 @@
           </button>
         </div>
 
-        <div class="bookmarks-filter-row" aria-label="bookmark filter controls">
+        <div class="bookmarks-filter-row" aria-label="书签筛选控制">
           <div class="bookmarks-filter-chips">
             <button
               type="button"
@@ -1838,7 +1838,7 @@
           {#if sortedBookmarks.length}
             {#if bookmarksSort === 'chapter'}
               {#each groupedBookmarks as group}
-                <section class="bookmark-group" aria-label={`bookmarks for ${group.chapterLabel}`}>
+                <section class="bookmark-group" aria-label={`${group.chapterLabel} 的书签`}>
                   <button
                     type="button"
                     class="bookmark-group-head"

@@ -349,7 +349,7 @@
       class="window-chrome"
       role="banner"
       data-tauri-drag-region
-      aria-label="reader window chrome"
+      aria-label="阅读窗口栏"
     >
       <div
         role="presentation"
@@ -390,7 +390,7 @@
       <button
         type="button"
         class="sidebar-resize-handle"
-        aria-label="Resize sidebar"
+        aria-label="调整侧栏宽度"
         on:mousedown={sidebarController.beginResize}
       ></button>
     {/if}
