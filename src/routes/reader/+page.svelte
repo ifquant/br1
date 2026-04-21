@@ -638,6 +638,18 @@
       grid-template-columns: 1fr;
     }
 
+    .workspace :global(.reader-stage) {
+      order: 1;
+    }
+
+    .workspace :global(.reader-sidebar) {
+      order: 2;
+    }
+
+    .bridge-placeholder {
+      order: 3;
+    }
+
     .window-chrome {
       grid-template-columns: 56px minmax(0, 1fr);
       padding-inline: 10px;
