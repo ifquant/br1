@@ -495,7 +495,14 @@ fn author_looks_like_placeholder(value: &str) -> bool {
     trimmed.is_empty()
         || matches!(
             trimmed,
-            "Unknown author" | "Reader workspace" | "Preparing book" | "Open failed"
+            "Unknown author"
+                | "Reader workspace"
+                | "Preparing book"
+                | "Open failed"
+                | "未知作者"
+                | "阅读工作区"
+                | "正在准备书籍"
+                | "打开失败"
         )
 }
 

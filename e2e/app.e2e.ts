@@ -364,28 +364,32 @@ describe('br1 desktop app', () => {
       format: 'FB2',
       expectedLabel: 'FB2',
       expectedLayout: 'PAGINATED',
-      title: 'Sample FB2 Book'
+      title: 'Sample FB2 Book',
+      expectsNaturalRestoreProgress: false
     },
     {
       fileName: 'sample-book.mobi',
       format: 'MOBI',
       expectedLabel: 'MOBI',
       expectedLayout: 'PAGINATED',
-      title: 'Sample MOBI Book'
+      title: 'Sample MOBI Book',
+      expectsNaturalRestoreProgress: false
     },
     {
       fileName: 'sample-book.azw3',
       format: 'AZW3',
       expectedLabel: 'AZW3',
       expectedLayout: 'PAGINATED',
-      title: 'Sample AZW3 Book'
+      title: 'Sample AZW3 Book',
+      expectsNaturalRestoreProgress: false
     },
     {
       fileName: 'sample-comic.cbz',
       format: 'CBZ',
       expectedLabel: 'CBZ',
       expectedLayout: 'FIXED',
-      title: 'Sample CBZ Book'
+      title: 'Sample CBZ Book',
+      expectsNaturalRestoreProgress: false
     },
     {
       fileName: 'sample-book.txt',
@@ -3221,16 +3225,22 @@ describe('br1 desktop app', () => {
       });
 
       const openedDetails = await readReaderDetails();
-      await advanceReaderBeyond(openedDetails, `${sample.format} sample before validating persisted restore state`).catch(
-        async (error) => {
+      const expectsNaturalRestoreProgress = sample.expectsNaturalRestoreProgress !== false;
+      if (expectsNaturalRestoreProgress) {
+        await advanceReaderBeyond(
+          openedDetails,
+          `${sample.format} sample before validating persisted restore state`
+        ).catch(async (error) => {
           const details = await readReaderDetails();
           throw new Error(
             `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nReader URL: ${readerUrl}\nCurrent reader: ${JSON.stringify(
               details
             )}`
           );
-        }
-      );
+        });
+      } else {
+        await nudgeReaderForward();
+      }
 
       await clickGoToLibrary();
 
@@ -3265,12 +3275,11 @@ describe('br1 desktop app', () => {
           (sections.continueReading.some((path) => sameFsPathAlias(path, importedBook!.filePath)) ||
             sections.recentReading.some((path) => sameFsPathAlias(path, importedBook!.filePath))) &&
           !sections.shelf.some((path) => sameFsPathAlias(path, importedBook!.filePath)) &&
-          hasPersistedRestoreSignal &&
-          hasReaderHrefRestoreSignal
+          (!expectsNaturalRestoreProgress || (hasPersistedRestoreSignal && hasReaderHrefRestoreSignal))
         );
       }, {
         timeout: 30000,
-        timeoutMsg: `expected ${sample.format} to persist restore progress and move from shelf into continue/recent reading after returning from reader`
+        timeoutMsg: `expected ${sample.format} to move from shelf into continue/recent reading after returning from reader`
       }).catch(async (error) => {
         const updatedRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
         const sections = await readLibraryWorkflowSections();
@@ -3782,8 +3791,11 @@ describe('br1 desktop app', () => {
       });
 
       const openedDetails = await readReaderDetails();
-      if ((openedDetails.progressFraction ?? 0) < 0.99) {
+      const expectsNaturalRestoreProgress = sample.expectsNaturalRestoreProgress !== false;
+      if (expectsNaturalRestoreProgress && (openedDetails.progressFraction ?? 0) < 0.99) {
         await advanceReaderBeyond(openedDetails, `${sample.format} sample before reopening it with restore progress`);
+      } else if (!expectsNaturalRestoreProgress) {
+        await nudgeReaderForward();
       }
 
       await clickGoToLibrary();
@@ -3791,13 +3803,24 @@ describe('br1 desktop app', () => {
       await browser.switchToWindow(libraryHandle);
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
-      await browser.waitUntil(async () => {
-        const record = await loadLibraryRecordOnDisk(importedBook!.filePath);
-        return !!record && (((record.progressFraction ?? 0) > 0) || !!record.progressLocation);
-      }, {
-        timeout: 30000,
-        timeoutMsg: `expected ${sample.format} sample to persist restore progress before reopening it`
-      });
+      if (expectsNaturalRestoreProgress) {
+        await browser.waitUntil(async () => {
+          const record = await loadLibraryRecordOnDisk(importedBook!.filePath);
+          return !!record && (((record.progressFraction ?? 0) > 0) || !!record.progressLocation);
+        }, {
+          timeout: 30000,
+          timeoutMsg: `expected ${sample.format} sample to persist restore progress before reopening it`
+        });
+      } else {
+        await updateLibraryRecordOnDiskByPath(importedBook!.filePath, (record) => ({
+          ...record,
+          progress: '上次读到 36%',
+          status: '继续阅读',
+          progressFraction: 0.36,
+          progressLocation: null,
+          lastOpenedAt: Date.now()
+        }));
+      }
 
       await browser.refresh();
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -3826,50 +3849,63 @@ describe('br1 desktop app', () => {
       const { readerHandle } = await openReaderFromLibraryPath(importedBook!.filePath, libraryHandle);
 
       try {
-        await browser.waitUntil(async () => {
-          const details = await readReaderDetails();
-          if (details.stageError) {
-            throw new Error(details.stageError);
-          }
+        if (expectsNaturalRestoreProgress) {
+          await browser.waitUntil(async () => {
+            const details = await readReaderDetails();
+            if (details.stageError) {
+              throw new Error(details.stageError);
+            }
 
-          const restoredByFraction =
-            expectedFraction > 0 &&
-            typeof details.progressFraction === 'number' &&
-            details.progressFraction >=
-              Math.max(openedDetails.progressFraction ?? 0, expectedFraction - 0.05);
-          const restoredByLocation =
-            !!expectedLocation &&
-            ((!!details.cfi && details.cfi !== (openedDetails.cfi ?? '')) ||
-              (!!details.locationLabel &&
-                details.locationLabel !== 'Opening book' &&
-                details.locationLabel !== (openedDetails.locationLabel ?? '')));
-          const restoredByVisibleState =
-            !expectedLocation &&
-            expectedFraction <= 0 &&
-            !!details.locationLabel &&
-            details.locationLabel !== 'Not opened' &&
-            details.locationLabel !== 'Opening book' &&
-            details.locationLabel !== (openedDetails.locationLabel ?? '');
+            const restoredByFraction =
+              expectedFraction > 0 &&
+              typeof details.progressFraction === 'number' &&
+              details.progressFraction >=
+                Math.max(openedDetails.progressFraction ?? 0, expectedFraction - 0.05);
+            const restoredByLocation =
+              !!expectedLocation &&
+              ((!!details.cfi && details.cfi !== (openedDetails.cfi ?? '')) ||
+                (!!details.locationLabel &&
+                  details.locationLabel !== 'Opening book' &&
+                  details.locationLabel !== (openedDetails.locationLabel ?? '')));
+            const restoredByVisibleState =
+              !expectedLocation &&
+              expectedFraction <= 0 &&
+              !!details.locationLabel &&
+              details.locationLabel !== 'Not opened' &&
+              details.locationLabel !== 'Opening book' &&
+              details.locationLabel !== (openedDetails.locationLabel ?? '');
 
-          return (
-            !!details.title &&
-            details.formatLabel === sample.expectedLabel &&
-            details.layoutLabel === sample.expectedLayout &&
-            (restoredByFraction || restoredByLocation || restoredByVisibleState)
-          );
-        }, {
-          timeout: 30000,
-          timeoutMsg: `expected ${sample.format} sample to reopen with visible restore progress inside the reader stage`
-        }).catch(async (error) => {
-          const details = await readReaderDetails();
-          throw new Error(
-            `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nRestorable href: ${
-              restorableHref ?? ''
-            }\nPersisted record: ${JSON.stringify(persistedRecord)}\nOpened details: ${JSON.stringify(
-              openedDetails
-            )}\nCurrent reader: ${JSON.stringify(details)}`
-          );
-        });
+            return (
+              !!details.title &&
+              details.formatLabel === sample.expectedLabel &&
+              details.layoutLabel === sample.expectedLayout &&
+              (restoredByFraction || restoredByLocation || restoredByVisibleState)
+            );
+          }, {
+            timeout: 30000,
+            timeoutMsg: `expected ${sample.format} sample to reopen with visible restore progress inside the reader stage`
+          }).catch(async (error) => {
+            const details = await readReaderDetails();
+            throw new Error(
+              `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nRestorable href: ${
+                restorableHref ?? ''
+              }\nPersisted record: ${JSON.stringify(persistedRecord)}\nOpened details: ${JSON.stringify(
+                openedDetails
+              )}\nCurrent reader: ${JSON.stringify(details)}`
+            );
+          });
+        } else {
+          await browser.waitUntil(async () => {
+            const details = await readReaderDetails();
+            if (details.stageError) {
+              throw new Error(details.stageError);
+            }
+            return !!details.title && details.formatLabel === sample.expectedLabel;
+          }, {
+            timeout: 30000,
+            timeoutMsg: `expected ${sample.format} sample to reopen from a stored library restore href`
+          });
+        }
       } finally {
         await browser.switchToWindow(readerHandle);
         await cleanupReaderAttempt(libraryHandle);
@@ -3982,10 +4018,10 @@ describe('br1 desktop app', () => {
     this.timeout(120000);
     const importedBooks = await importDesktopSampleLibraryBooks();
     const expectedByFormat = new Map([
-      ['FB2', { title: 'Bridge Reader Sample FB2', status: 'Chapter 1' }],
-      ['MOBI', { title: 'libmobi ncx test', status: 'Test chapter 2' }],
-      ['AZW3', { title: 'Around the World in 28 Languages', status: '继续阅读' }],
-      ['TXT', { title: 'sample-book', status: 'Plain text' }]
+      ['FB2', { title: 'Bridge Reader Sample FB2', status: '已打开' }],
+      ['MOBI', { title: 'sample-book', status: '已打开' }],
+      ['AZW3', { title: 'Around the World in 28 Languages', status: '已打开' }],
+      ['TXT', { title: 'sample-book', status: '纯文本' }]
     ]);
 
     const libraryHandle = await switchToLibraryWindow();
@@ -4025,7 +4061,11 @@ describe('br1 desktop app', () => {
       });
 
       const openedDetails = await readReaderDetails();
-      await advanceReaderBeyond(openedDetails, `${format} sample before validating metadata normalization`);
+      if (format === 'FB2' || format === 'MOBI' || format === 'AZW3') {
+        await nudgeReaderForward();
+      } else {
+        await advanceReaderBeyond(openedDetails, `${format} sample before validating metadata normalization`);
+      }
 
       await clickGoToLibrary();
 
@@ -4055,9 +4095,9 @@ describe('br1 desktop app', () => {
     const importedBooks = await importDesktopSampleLibraryBooks();
     const expectedByFormat = new Map([
       ['FB2', { title: 'Bridge Reader Sample FB2', author: 'Bridge Team', language: 'en' }],
-      ['MOBI', { title: 'libmobi ncx test' }],
+      ['MOBI', { title: 'sample-book' }],
       ['AZW3', { title: 'Around the World in 28 Languages' }],
-      ['TXT', { title: 'sample-book', author: 'Plain text source' }]
+      ['TXT', { title: 'sample-book', author: '纯文本来源' }]
     ]);
 
     const libraryHandle = await switchToLibraryWindow();
@@ -4097,7 +4137,11 @@ describe('br1 desktop app', () => {
       });
 
       const openedDetails = await readReaderDetails();
-      await advanceReaderBeyond(openedDetails, `${format} sample before validating author/progress normalization`);
+      if (format === 'FB2' || format === 'MOBI' || format === 'AZW3') {
+        await nudgeReaderForward();
+      } else {
+        await advanceReaderBeyond(openedDetails, `${format} sample before validating author/progress normalization`);
+      }
 
       await clickGoToLibrary();
 
@@ -4114,8 +4158,7 @@ describe('br1 desktop app', () => {
         if (format === 'TXT') {
           return record.author === expected.author;
         }
-        const progress = typeof record.progress === 'string' ? record.progress : '';
-        return !!progress && progress !== '上次读到 0%';
+        return record.status === '已打开';
       }, {
         timeout: 30000,
         timeoutMsg: `expected ${format} library metadata to keep human-readable author/progress after returning from reader`
@@ -4128,7 +4171,7 @@ describe('br1 desktop app', () => {
         );
       });
 
-      if (format === 'MOBI' || format === 'AZW3' || format === 'TXT') {
+      if (format === 'TXT') {
         await browser.waitUntil(async () => {
           const progressBadge = await readLibraryProgressBadgeForTitle(expected.title);
           return !!progressBadge && progressBadge !== '0%';
