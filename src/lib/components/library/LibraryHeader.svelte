@@ -10,6 +10,8 @@
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let activeCollectionFilter = 'all';
   export let collectionOptions: string[] = [];
+  export let activeTagFilter = 'all';
+  export let tagOptions: string[] = [];
   export let importDisabled = false;
   export let statusSummary = '';
 
@@ -23,6 +25,7 @@
     sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
     filterchange: { filterBy: 'all' | 'reading' | 'unstarted' | 'finished' };
     collectionfilterchange: { collection: string };
+    tagfilterchange: { tag: string };
   }>();
 
   const actions = [
@@ -73,6 +76,11 @@
   const handleCollectionFilterChange = (nextCollection: string) => {
     if (nextCollection === activeCollectionFilter) return;
     dispatch('collectionfilterchange', { collection: nextCollection });
+  };
+
+  const handleTagFilterChange = (nextTag: string) => {
+    if (nextTag === activeTagFilter) return;
+    dispatch('tagfilterchange', { tag: nextTag });
   };
 
   const handleViewModeChange = (nextViewMode: 'grid' | 'list') => {
@@ -244,6 +252,31 @@
       {/each}
     </div>
   {/if}
+  {#if tagOptions.length > 0}
+    <span class="filter-divider" aria-hidden="true"></span>
+    <div class="tag-filters" aria-label="library tag filters">
+      <button
+        type="button"
+        class:active-filter={activeTagFilter === 'all'}
+        class="filter-pill tag-pill"
+        aria-pressed={activeTagFilter === 'all'}
+        on:click={() => handleTagFilterChange('all')}
+      >
+        全部标签
+      </button>
+      {#each tagOptions as tag}
+        <button
+          type="button"
+          class:active-filter={activeTagFilter === tag}
+          class="filter-pill tag-pill"
+          aria-pressed={activeTagFilter === tag}
+          on:click={() => handleTagFilterChange(tag)}
+        >
+          {tag}
+        </button>
+      {/each}
+    </div>
+  {/if}
   {#if statusSummary}
     <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
   {/if}
@@ -287,6 +320,10 @@
     display: contents;
   }
 
+  .tag-filters {
+    display: contents;
+  }
+
   .filter-divider {
     width: 1px;
     height: 18px;
@@ -326,6 +363,10 @@
 
   .collection-pill {
     background: color-mix(in srgb, #e7d3ad 16%, var(--surface-panel) 84%);
+  }
+
+  .tag-pill {
+    background: color-mix(in srgb, #cfdcc1 18%, var(--surface-panel) 82%);
   }
 
   .actions {
