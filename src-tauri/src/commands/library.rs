@@ -1973,3 +1973,137 @@ pub(crate) fn load_library_file_fingerprint(
         modified
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_test_dir(name: &str) -> PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("br1-library-{name}-{suffix}"))
+    }
+
+    fn sample_record(id: &str, file_path: &str, source_path: Option<&str>) -> LibraryBookRecord {
+        LibraryBookRecord {
+            id: id.to_string(),
+            title: "Test Book".to_string(),
+            author: "Test Author".to_string(),
+            format: "epub".to_string(),
+            description: None,
+            language: None,
+            publisher: None,
+            collection: None,
+            tags: Vec::new(),
+            progress: "尚未开始".to_string(),
+            status: "待读".to_string(),
+            file_path: file_path.to_string(),
+            cover_path: None,
+            source_path: source_path.map(str::to_string),
+            imported_at: 1,
+            progress_fraction: None,
+            progress_location: None,
+            last_opened_at: None,
+            library_file_exists: None,
+            source_file_exists: None,
+        }
+    }
+
+    #[test]
+    fn supported_book_paths_are_extension_limited_and_case_insensitive() {
+        assert!(is_supported_associated_book_path(Path::new("book.EPUB")));
+        assert!(is_supported_associated_book_path(Path::new("book.pdf")));
+        assert!(is_supported_associated_book_path(Path::new("book.cbz")));
+        assert!(!is_supported_associated_book_path(Path::new("book.png")));
+        assert!(!is_supported_associated_book_path(Path::new("book")));
+    }
+
+    #[test]
+    fn selected_library_book_paths_must_be_existing_supported_files() {
+        let dir = unique_test_dir("normalize-selected");
+        fs::create_dir_all(&dir).expect("create temp test dir");
+        let supported = dir.join("Bridge Reader.EPUB");
+        let unsupported = dir.join("secret.json");
+        fs::write(&supported, b"epub bytes").expect("write supported fixture");
+        fs::write(&unsupported, b"json bytes").expect("write unsupported fixture");
+
+        let normalized =
+            normalize_selected_library_book_path(supported.clone()).expect("supported file works");
+        assert_eq!(
+            normalized,
+            fs::canonicalize(&supported).expect("canonical supported path")
+        );
+        assert!(normalize_selected_library_book_path(unsupported)
+            .expect_err("unsupported extension should be rejected")
+            .contains("not supported"));
+        assert!(normalize_selected_library_book_path(dir.join("missing.epub")).is_err());
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn destination_paths_reject_parent_dir_components_before_restore() {
+        assert!(has_parent_dir_component(Path::new(
+            "/tmp/br1/books/../secret.epub"
+        )));
+        assert!(!has_parent_dir_component(Path::new(
+            "/tmp/br1/books/book.epub"
+        )));
+    }
+
+    #[test]
+    fn persisted_record_lookup_uses_record_identity_not_renderer_source_path() {
+        let records = vec![
+            sample_record(
+                "record-a",
+                "/library/books/record-a/book.epub",
+                Some("/outside/source-a.epub"),
+            ),
+            sample_record(
+                "record-b",
+                "/library/books/record-b/book.epub",
+                Some("/outside/source-b.epub"),
+            ),
+        ];
+
+        assert_eq!(
+            find_persisted_library_record(&records, "record-a")
+                .expect("record id lookup should work")
+                .source_path
+                .as_deref(),
+            Some("/outside/source-a.epub")
+        );
+        assert_eq!(
+            find_persisted_library_record(&records, "/library/books/record-b/book.epub")
+                .expect("stored library path lookup should work")
+                .id,
+            "record-b"
+        );
+        assert!(find_persisted_library_record(&records, "/outside/source-a.epub").is_none());
+    }
+
+    #[test]
+    fn persisted_source_path_allowlist_requires_exact_stored_key() {
+        let records = vec![sample_record(
+            "record-a",
+            "/library/books/record-a/book.epub",
+            Some("/trusted/source.epub"),
+        )];
+
+        assert!(persisted_record_source_path_key_contains(
+            &records,
+            "/trusted/source.epub"
+        ));
+        assert!(!persisted_record_source_path_key_contains(
+            &records,
+            "/trusted/../secret.epub"
+        ));
+        assert!(!persisted_record_source_path_key_contains(
+            &records,
+            "/untrusted/source.epub"
+        ));
+    }
+}
