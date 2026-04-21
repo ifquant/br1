@@ -207,6 +207,14 @@ export const importReadestLibrary = async (): Promise<ReadestImportSummary> => {
   return invokeTauri<ReadestImportSummary>('import_readest_library');
 };
 
+export const removeLibraryBook = async (filePath: string): Promise<PersistedLibraryBook[]> => {
+  requireTauriLibraryRuntime('removeLibraryBook');
+
+  return invokeTauri<PersistedLibraryBook[]>('remove_library_book', {
+    filePath
+  });
+};
+
 export const updateLibraryReadingState = async (
   update: LibraryReadingStateUpdate
 ): Promise<void> => {

@@ -15,7 +15,7 @@ use quick_xml::name::QName;
 use quick_xml::Reader;
 use std::collections::HashSet;
 use std::fs;
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use tauri::{Emitter, Manager};
 use zip::ZipArchive;
@@ -768,6 +768,33 @@ fn cleanup_repaired_record_assets(
     }
 }
 
+fn remove_library_owned_file(file_path: &str, library_root: &Path) -> Result<(), String> {
+    let path = Path::new(file_path);
+    if !path.starts_with(library_root) {
+        return Ok(());
+    }
+
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn remove_empty_library_directory(path: &Path, library_root: &Path) {
+    if !path.starts_with(library_root) || path == library_root {
+        return;
+    }
+
+    match fs::remove_dir(path) {
+        Ok(()) => {}
+        Err(error)
+            if error.kind() == ErrorKind::NotFound
+                || error.kind() == ErrorKind::DirectoryNotEmpty => {}
+        Err(_) => {}
+    }
+}
+
 fn status_looks_like_internal_asset(value: &str) -> bool {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -1050,6 +1077,37 @@ pub(crate) fn import_library_books(
     decorate_library_record_file_states(&mut imported);
 
     Ok(imported)
+}
+
+#[tauri::command]
+pub(crate) fn remove_library_book(
+    app: tauri::AppHandle,
+    file_path: String,
+) -> Result<Vec<LibraryBookRecord>, String> {
+    let library_root = ensure_library_root(&app)?;
+    let library_json = library_root.join("library.json");
+    let mut records = load_library_records(&library_json)?;
+    let Some(remove_index) = records
+        .iter()
+        .position(|record| record.file_path == file_path || record.id == file_path)
+    else {
+        decorate_library_record_file_states(&mut records);
+        return Ok(records);
+    };
+
+    let removed_record = records.remove(remove_index);
+    remove_library_owned_file(&removed_record.file_path, &library_root)?;
+    if let Some(cover_path) = removed_record.cover_path.as_deref() {
+        remove_library_owned_file(cover_path, &library_root)?;
+    }
+
+    if let Some(parent) = Path::new(&removed_record.file_path).parent() {
+        remove_empty_library_directory(parent, &library_root);
+    }
+
+    save_library_records(&library_json, &records)?;
+    decorate_library_record_file_states(&mut records);
+    Ok(records)
 }
 
 #[tauri::command]

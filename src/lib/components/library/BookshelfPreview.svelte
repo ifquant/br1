@@ -8,6 +8,7 @@
   export let importHref = '';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
+  export let onRemoveBook: ((book: BookshelfPreviewBook) => void | Promise<void>) | null = null;
   let expandedKey = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
@@ -31,6 +32,13 @@
     event.preventDefault();
     event.stopPropagation();
     expandedKey = expandedKey === key ? '' : key;
+  };
+
+  const handleRemoveBook = (event: MouseEvent, book: BookshelfPreviewBook) => {
+    if (!onRemoveBook) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void onRemoveBook(book);
   };
 
   const getPrimaryProgress = (book: BookshelfPreviewBook) => {
@@ -181,6 +189,15 @@
             </div>
             {#if book.description}
               <p>{book.description}</p>
+            {/if}
+            {#if onRemoveBook}
+              <button
+                type="button"
+                class="remove-action"
+                on:click={(event: MouseEvent) => handleRemoveBook(event, book)}
+              >
+                从书库移除
+              </button>
             {/if}
           </div>
         {/if}
@@ -396,6 +413,24 @@
     color: var(--text-secondary);
     font-size: 10px;
     line-height: 1.45;
+  }
+
+  .remove-action {
+    justify-self: start;
+    border: 1px solid color-mix(in srgb, #9a3d2f 34%, var(--line-soft) 66%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 88%, #f7d8ce 12%);
+    color: color-mix(in srgb, #8a2d22 76%, var(--text-secondary) 24%);
+    cursor: pointer;
+    font-family: var(--font-chrome);
+    font-size: 9px;
+    line-height: 1;
+    padding: 6px 9px;
+  }
+
+  .remove-action:hover {
+    border-color: color-mix(in srgb, #9a3d2f 56%, var(--line-soft) 44%);
+    color: #7b251b;
   }
 
   .book-link {

@@ -1,5 +1,5 @@
 import { statSync } from 'node:fs';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -51,6 +51,15 @@ describe('br1 desktop app', () => {
     return (
       records.find((record) => (record.filePath ?? record.file_path ?? '') === filePath) ?? null
     );
+  };
+
+  const pathExists = async (filePath: string) => {
+    try {
+      await stat(filePath);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const loadLibraryRecordBySourcePathOnDisk = async (sourcePath: string) => {
@@ -1972,6 +1981,89 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the main library shelf to expose a metadata detail panel'
     });
+  });
+
+  it('removes an imported shelf book without deleting the original source file', async () => {
+    const removableSource = join(appDataRoot, `br1-removable-library-${Date.now()}.txt`);
+    await copyFile(join(staticSamplesRoot, 'sample-book.txt'), removableSource);
+    const [importedBook] = await importDesktopLibraryBooks([removableSource]);
+    expect(importedBook?.filePath).toBeTruthy();
+    expect(importedBook?.sourcePath).toBe(removableSource);
+
+    await switchToLibraryWindow();
+    await browser.refresh();
+    const shelf = await $('[aria-label="你的书库"]');
+    await shelf.waitForExist({ timeout: 10000 });
+
+    const clickedDetails = await browser.execute((title) => {
+      const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+      if (!(libraryShelf instanceof HTMLElement)) return false;
+
+      const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) =>
+        candidate.textContent?.includes(title)
+      );
+      if (!(card instanceof HTMLElement)) return false;
+
+      const detailButton = Array.from(card.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '详情'
+      );
+      if (!(detailButton instanceof HTMLButtonElement)) return false;
+      detailButton.click();
+      return true;
+    }, importedBook!.title);
+    expect(clickedDetails).toBe(true);
+
+    await browser.waitUntil(async () => {
+      const panels = await $$('[aria-label^="Library metadata for "]');
+      for (const panel of panels) {
+        const text = await panel.getText();
+        if (text.includes(importedBook!.title) && text.includes('从书库移除')) return true;
+      }
+      return false;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the removable imported book metadata panel to expose a remove action'
+    });
+
+    const clickedRemove = await browser.execute((title) => {
+      const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+      if (!(libraryShelf instanceof HTMLElement)) return false;
+
+      const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) =>
+        candidate.textContent?.includes(title)
+      );
+      if (!(card instanceof HTMLElement)) return false;
+
+      const removeButton = Array.from(card.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '从书库移除'
+      );
+      if (!(removeButton instanceof HTMLButtonElement)) return false;
+
+      window.confirm = () => true;
+      removeButton.click();
+      return true;
+    }, importedBook!.title);
+    expect(clickedRemove).toBe(true);
+
+    await browser.waitUntil(async () => {
+      const notice = await $('.library-notice');
+      if (!(await notice.isExisting())) return false;
+      return (await notice.getText()).includes('已从书库移除');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected removing a shelf book to show a library notice'
+    });
+
+    await browser.waitUntil(async () => {
+      return (await loadLibraryRecordOnDisk(importedBook!.filePath)) === null;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the removed book record to leave library.json'
+    });
+
+    expect(await pathExists(removableSource)).toBe(true);
+    expect(await pathExists(importedBook!.filePath)).toBe(false);
+    await rm(removableSource, { force: true });
   });
 
   it('can execute JavaScript inside the desktop webview', async () => {

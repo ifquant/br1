@@ -20,6 +20,7 @@
     loadPersistedLibraryBooks,
     openLibraryBookPath,
     openReaderTarget,
+    removeLibraryBook,
     toAssetReaderHref,
     toAssetReaderTarget,
     toLibraryCoverUrl,
@@ -931,6 +932,33 @@
     await applyPersistedLibraryRecords(currentRecords);
   };
 
+  const handleRemoveLibraryBook = async (book: LibraryShelfBook) => {
+    if (!canPersistLibrary()) return;
+
+    const persistedRecord = lookupPersistedRecordForBook(book);
+    if (!persistedRecord) {
+      setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
+      return;
+    }
+
+    const confirmed =
+      typeof window === 'undefined' ||
+      window.confirm(
+        `从书库移除“${book.title}”？这只会删除 br1 的书库副本和记录，不会删除原文件。`
+      );
+    if (!confirmed) return;
+
+    try {
+      clearLibraryNotice();
+      const updatedRecords = await removeLibraryBook(persistedRecord.filePath);
+      await applyPersistedLibraryRecords(updatedRecords);
+      setLibraryNotice('info', `已从书库移除“${book.title}”；原文件不会被删除。`);
+    } catch (error) {
+      console.error('Failed to remove library book', error);
+      setLibraryNotice('error', '无法从书库移除这本书，请确认书库记录仍然有效后重试。');
+    }
+  };
+
   const handleRepairLibraryBook = async (book: LibraryShelfBook) => {
     if (!canPersistLibrary()) return;
 
@@ -1200,6 +1228,7 @@
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
+          onRemoveBook={handleRemoveLibraryBook}
         />
       {/if}
 
