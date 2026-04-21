@@ -1915,7 +1915,7 @@
         </div>
         </section>
       {:else if activeTab === 'highlights'}
-        <section class="sidebar-panel" aria-label="highlights panel preview">
+        <section class="sidebar-panel" aria-label="高亮面板">
           <div class="notes-summary">
             <strong>高亮</strong>
             <span>
@@ -1998,7 +1998,7 @@
             </button>
           </div>
 
-          <div class="notes-filter-row" aria-label="highlights filter controls">
+          <div class="notes-filter-row" aria-label="高亮筛选控制">
             <div class="notes-filter-chips">
               <button
                 type="button"
@@ -2033,7 +2033,7 @@
                 已选高亮
               </button>
             </div>
-            <div class="notes-filter-chips" aria-label="highlights sort controls">
+            <div class="notes-filter-chips" aria-label="高亮排序控制">
               <button
                 type="button"
                 class:active={highlightsSort === 'recent'}
@@ -2078,7 +2078,7 @@
           </div>
 
           <div class="note-list">
-            <section class="saved-highlight-selections" aria-label="saved highlight selections">
+            <section class="saved-highlight-selections" aria-label="已保存高亮选择集">
               <div class="saved-highlight-selections-head">
                 <div class="saved-highlight-selections-summary">
                   <strong>已保存选择集</strong>
@@ -2097,7 +2097,7 @@
                   >
                     刷新全部跨书映射
                   </button>
-                  <div class="saved-highlight-selections-sort" aria-label="saved selection set sort controls">
+                  <div class="saved-highlight-selections-sort" aria-label="选择集排序控制">
                     <button
                       type="button"
                       class:active={savedHighlightSelectionsSort === 'recent'}
@@ -2121,7 +2121,7 @@
                 <p class="saved-highlight-selection-import-notice">{savedHighlightSelectionImportNotice}</p>
               {/if}
               {#if savedHighlightSelectionRefreshSummary}
-                <section class="saved-highlight-selection-refresh-summary" aria-label="saved highlight selection refresh summary">
+                <section class="saved-highlight-selection-refresh-summary" aria-label="高亮选择集刷新摘要">
                   <strong>刷新结果</strong>
                   <span>共处理 {savedHighlightSelectionRefreshSummary.refreshedCount} 组跨书选择集</span>
                   <span>刷新结果筛选会按书保留</span>
@@ -2144,7 +2144,7 @@
                         .join('、')}
                     </span>
                   {/if}
-                  <div class="saved-highlight-selection-refresh-filters" aria-label="saved highlight selection refresh outcome filters">
+                  <div class="saved-highlight-selection-refresh-filters" aria-label="高亮选择集刷新结果筛选">
                     <button
                       type="button"
                       class="notes-filter-chip"
@@ -2183,10 +2183,10 @@
                   </div>
                 </section>
               {:else if importedSavedHighlightSelections.length}
-                <section class="saved-highlight-selection-refresh-summary" aria-label="saved highlight selection refresh summary">
+                <section class="saved-highlight-selection-refresh-summary" aria-label="高亮选择集刷新摘要">
                   <strong>跨书映射视图</strong>
                   <span>按当前映射结果筛选已保存的跨书选择集。</span>
-                  <div class="saved-highlight-selection-refresh-filters" aria-label="saved highlight selection refresh outcome filters">
+                  <div class="saved-highlight-selection-refresh-filters" aria-label="高亮选择集刷新结果筛选">
                     <button
                       type="button"
                       class="notes-filter-chip"
@@ -2226,7 +2226,7 @@
                 </section>
               {/if}
               {#if savedHighlightSelectionImportPreview}
-                <section class="saved-highlight-selection-import-preview" aria-label="saved highlight selection import preview">
+                <section class="saved-highlight-selection-import-preview" aria-label="高亮选择集导入预检">
                   <div class="saved-highlight-selection-import-preview-head">
                     <div class="saved-highlight-selection-import-preview-copy">
                       <strong>跨书兼容预检</strong>
@@ -2273,7 +2273,7 @@
                           {#if unmatchedTexts.length}
                             <div
                               class="saved-highlight-selection-unmatched"
-                              aria-label={`Unmatched highlights for ${selectionSet.name}`}
+                              aria-label={`${selectionSet.name} 未映射高亮`}
                             >
                               <span>未映射片段</span>
                               <ul>
@@ -2356,7 +2356,7 @@
               </div>
 
               {#if exportedHighlightSelection}
-                <section class="saved-highlight-selection-export" aria-label="saved highlight selection export preview">
+                <section class="saved-highlight-selection-export" aria-label="高亮选择集导出预览">
                   <div class="saved-highlight-selection-export-head">
                     <div class="saved-highlight-selection-export-copy">
                       <strong>导出预览</strong>
@@ -2385,7 +2385,7 @@
 
             {#if groupedHighlights.length}
               {#each groupedHighlights as group}
-                <section class="note-group" aria-label={`highlights for ${group.chapterLabel}`}>
+                <section class="note-group" aria-label={`${group.chapterLabel} 的高亮`}>
                   <button
                     type="button"
                     class="note-group-head"
@@ -2474,7 +2474,7 @@
           </div>
         </section>
       {:else}
-        <section class="sidebar-panel" aria-label="notes panel preview">
+        <section class="sidebar-panel" aria-label="笔记面板">
         <div class="notes-summary">
           <strong>最近笔记</strong>
           <span>
@@ -2513,7 +2513,7 @@
           </span>
         </div>
 
-        <div class="notes-filter-row" aria-label="notes filter controls">
+        <div class="notes-filter-row" aria-label="笔记筛选控制">
           <div class="notes-filter-chips">
             <button
               type="button"
@@ -2537,7 +2537,7 @@
               当前章节
             </button>
           </div>
-          <div class="notes-filter-chips" aria-label="annotation kind filter controls">
+          <div class="notes-filter-chips" aria-label="标注类型筛选控制">
             <button
               type="button"
               class:active={notesKindFilter === 'all'}
@@ -2592,12 +2592,12 @@
         </div>
 
         {#if supportsTextAnnotations && notesState.selection}
-          <div class="selection-card" aria-label="current text selection preview">
+          <div class="selection-card" aria-label="当前选中文本预览">
             <strong>{notesState.selection.chapterLabel || '当前选中内容'}</strong>
             <p>{notesState.selection.text}</p>
           </div>
         {:else if !supportsTextAnnotations}
-          <div class="selection-card unsupported-selection" aria-label="text annotation support notice">
+          <div class="selection-card unsupported-selection" aria-label="正文批注支持提示">
             <strong>当前格式暂不支持正文批注</strong>
             <p>{textAnnotationSupportMessage}</p>
           </div>
@@ -2655,7 +2655,7 @@
         <div class="note-list">
           {#if groupedNotes.length}
             {#each groupedNotes as group}
-              <section class="note-group" aria-label={`notes for ${group.chapterLabel}`}>
+              <section class="note-group" aria-label={`${group.chapterLabel} 的笔记`}>
                 <button
                   type="button"
                   class="note-group-head"
