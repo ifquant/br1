@@ -1139,6 +1139,7 @@ describe('br1 desktop app', () => {
       return {
         libraryHandle: seeded.libraryHandle,
         href: restorableHref!,
+        path: seeded.path,
         expectedLocation: target.searchParams.get('location') ?? '',
         expectedFraction: Number(target.searchParams.get('fraction') ?? '0'),
         persistedLocation: seededRecord?.progressLocation ?? '',
@@ -1788,6 +1789,37 @@ describe('br1 desktop app', () => {
         fontFamily: preStyles?.fontFamily ?? '',
         fontSize: preStyles?.fontSize ?? '',
         lineHeightPx: Number.parseFloat(preStyles?.lineHeight ?? '0')
+      };
+    });
+
+  const readFixedLayoutReaderSettings = async () =>
+    browser.execute(() => {
+      const host = document.querySelector('[data-role="reader-engine-host"]') as HTMLElement | null;
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          getAttribute?: (name: string) => string | null;
+        };
+      } | null;
+      const renderer = view?.renderer;
+      const styles = host ? getComputedStyle(host) : null;
+      const stored = (() => {
+        try {
+          return JSON.parse(localStorage.getItem('br1.reader.settings') ?? '{}') as Record<string, unknown>;
+        } catch {
+          return {};
+        }
+      })();
+
+      return {
+        flow: renderer?.getAttribute?.('flow') ?? '',
+        marginLeft: renderer?.getAttribute?.('margin-left') ?? '',
+        maxInlineSize: renderer?.getAttribute?.('max-inline-size') ?? '',
+        hostThemePreset: host?.dataset.themePreset ?? '',
+        hostViewWidthMode: host?.dataset.viewWidthMode ?? '',
+        surfaceTone: styles?.getPropertyValue('--reader-surface-tone').trim() ?? '',
+        inlineWidth: styles?.getPropertyValue('--reader-inline-width').trim() ?? '',
+        chromeTopInset: styles?.getPropertyValue('--reader-chrome-top-inset').trim() ?? '',
+        stored
       };
     });
 
@@ -3236,7 +3268,7 @@ describe('br1 desktop app', () => {
 
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
-    const { expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
+    const { libraryHandle, path, expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
     expect(persistedLocation).toBeTruthy();
     expect(persistedLocation.startsWith('epubcfi(')).toBe(false);
     expect(persistedLocation.startsWith('Page ')).toBe(true);
@@ -3290,6 +3322,79 @@ describe('br1 desktop app', () => {
       geometry = await readReaderGeometry();
       throw new Error(
         `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nGeometry: ${JSON.stringify(geometry)}`
+      );
+    });
+
+    await selectReaderMenuSetting('reader flow mode', '滚动');
+    await selectReaderMenuSetting('reader font family', '无衬线');
+    await selectReaderMenuSetting('reader font scale', '大');
+    await selectReaderMenuSetting('reader line height', '舒展');
+    await selectReaderMenuSetting('reader page margins', '宽');
+    await setReaderViewWidthMode('wide');
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      const fixedLayoutState = await readFixedLayoutReaderSettings();
+      return (
+        details.formatLabel === 'PDF' &&
+        details.layoutLabel === 'SCROLL' &&
+        details.locationLabel?.startsWith('Page ') &&
+        fixedLayoutState.flow === 'scrolled' &&
+        fixedLayoutState.hostViewWidthMode === 'wide' &&
+        fixedLayoutState.inlineWidth === '980px' &&
+        fixedLayoutState.stored.flowMode === 'scrolled' &&
+        fixedLayoutState.stored.fontFamily === 'sans' &&
+        fixedLayoutState.stored.fontScale === 'lg' &&
+        fixedLayoutState.stored.lineHeight === 'relaxed' &&
+        fixedLayoutState.stored.pageMargins === 'wide' &&
+        fixedLayoutState.stored.viewWidthMode === 'wide'
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the PDF reader to accept scroll/layout settings while preserving PDF page-location semantics'
+    }).catch(async (error) => {
+      const details = await readReaderDetails();
+      const fixedLayoutState = await readFixedLayoutReaderSettings();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nFixed layout state: ${JSON.stringify(
+          fixedLayoutState
+        )}`
+      );
+    });
+
+    await browser.closeWindow();
+    await browser.switchToWindow(libraryHandle);
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+    await openReaderFromLibraryPath(path, libraryHandle);
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      const fixedLayoutState = await readFixedLayoutReaderSettings();
+      return (
+        details.formatLabel === 'PDF' &&
+        details.layoutLabel === 'SCROLL' &&
+        details.locationLabel?.startsWith('Page ') &&
+        fixedLayoutState.flow === 'scrolled' &&
+        fixedLayoutState.hostViewWidthMode === 'wide' &&
+        fixedLayoutState.inlineWidth === '980px' &&
+        fixedLayoutState.stored.flowMode === 'scrolled' &&
+        fixedLayoutState.stored.fontFamily === 'sans' &&
+        fixedLayoutState.stored.fontScale === 'lg' &&
+        fixedLayoutState.stored.lineHeight === 'relaxed' &&
+        fixedLayoutState.stored.pageMargins === 'wide' &&
+        fixedLayoutState.stored.viewWidthMode === 'wide'
+      );
+    }, {
+      timeout: 20000,
+      timeoutMsg: 'expected the PDF fixed-layout reader to reopen with persisted settings and visible PDF state'
+    }).catch(async (error) => {
+      const details = await readReaderDetails();
+      const fixedLayoutState = await readFixedLayoutReaderSettings();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nFixed layout state: ${JSON.stringify(
+          fixedLayoutState
+        )}`
       );
     });
   });
