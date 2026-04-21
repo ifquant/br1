@@ -2573,6 +2573,10 @@ describe('br1 desktop app', () => {
     await browser.refresh();
     const shelf = await $('[aria-label="你的书库"]');
     await shelf.waitForExist({ timeout: 10000 });
+    await browser.waitUntil(async () => !!(await readLibraryHrefForPath(importedBook!.filePath)), {
+      timeout: 10000,
+      timeoutMsg: 'expected the removable imported shelf book to render before opening details'
+    });
 
     const clickedDetails = await browser.execute((filePath) => {
       const normalizePathAlias = (value: string) =>
