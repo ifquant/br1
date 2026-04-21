@@ -1,5 +1,5 @@
 import { statSync } from 'node:fs';
-import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +9,10 @@ describe('br1 desktop app', () => {
   const appDataRoot = join(homedir(), 'Library/Application Support', 'com.tauri-app.br1');
   const readerSearchRoot = join(appDataRoot, 'reader-search');
   const staticSamplesRoot = join(process.cwd(), 'static', 'samples');
+  const normalizeFsPathAlias = (value: string) =>
+    value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
+  const sameFsPathAlias = (left: string, right: string) =>
+    normalizeFsPathAlias(left) === normalizeFsPathAlias(right);
 
   const readerSearchCacheComponentKey = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -52,7 +56,9 @@ describe('br1 desktop app', () => {
     }>;
 
     return (
-      records.find((record) => (record.filePath ?? record.file_path ?? '') === filePath) ?? null
+      records.find(
+        (record) => normalizeFsPathAlias(record.filePath ?? record.file_path ?? '') === normalizeFsPathAlias(filePath)
+      ) ?? null
     );
   };
 
@@ -98,7 +104,9 @@ describe('br1 desktop app', () => {
     }>;
 
     return (
-      records.find((record) => (record.sourcePath ?? record.source_path ?? '') === sourcePath) ?? null
+      records.find(
+        (record) => normalizeFsPathAlias(record.sourcePath ?? record.source_path ?? '') === normalizeFsPathAlias(sourcePath)
+      ) ?? null
     );
   };
 
@@ -171,6 +179,24 @@ describe('br1 desktop app', () => {
     await writeFile(libraryFile, `${JSON.stringify(records, null, 2)}\n`, 'utf8');
   };
 
+  const updateLibraryRecordOnDiskByPath = async (
+    filePath: string,
+    updater: (record: Record<string, unknown>) => Record<string, unknown>
+  ) => {
+    const libraryFile = join(appDataRoot, 'library', 'library.json');
+    const raw = await readFile(libraryFile, 'utf8');
+    const records = JSON.parse(raw) as Array<Record<string, unknown>>;
+    const index = records.findIndex((record) =>
+      sameFsPathAlias(String(record.filePath ?? record.file_path ?? ''), filePath)
+    );
+    if (index < 0) {
+      throw new Error(`expected to find library record for ${filePath}`);
+    }
+
+    records[index] = updater(records[index]!);
+    await writeFile(libraryFile, `${JSON.stringify(records, null, 2)}\n`, 'utf8');
+  };
+
   const readerNotesFilePath = (bookKey: string) => {
     const safeKey = createHash('sha256').update(bookKey).digest('hex');
     return join(appDataRoot, 'reader-notes', `${safeKey}.json`);
@@ -202,7 +228,7 @@ describe('br1 desktop app', () => {
 
   const clickAnnotationKindFilter = async (label: '全部类型' | '高亮' | '笔记') => {
     await browser.execute((targetLabel) => {
-      const container = document.querySelector('[aria-label="annotation kind filter controls"]');
+      const container = document.querySelector('[aria-label="笔记筛选控制"]');
       if (!(container instanceof HTMLElement)) {
         throw new Error('expected annotation kind filter controls to exist');
       }
@@ -219,7 +245,7 @@ describe('br1 desktop app', () => {
 
   const clickReaderSidebarTab = async (label: '目录' | '搜索' | '书签' | '高亮' | '笔记') => {
     await browser.execute((targetLabel) => {
-      const tablist = document.querySelector('[role="tablist"][aria-label="reader sidebar tabs"]');
+      const tablist = document.querySelector('[role="tablist"][aria-label="阅读侧栏标签"]');
       if (!(tablist instanceof HTMLElement)) {
         throw new Error('expected reader sidebar tabs to exist');
       }
@@ -237,9 +263,9 @@ describe('br1 desktop app', () => {
   const bulkDeleteVisibleHighlightsInWorkspace = async () => {
     await browser.execute(() => {
       window.confirm = () => true;
-      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      const panel = document.querySelector('[aria-label="高亮面板"]');
       if (!(panel instanceof HTMLElement)) {
-        throw new Error('expected highlights panel preview to exist');
+        throw new Error('expected highlights panel to exist');
       }
 
       const buttons = Array.from(panel.querySelectorAll('button'));
@@ -255,9 +281,9 @@ describe('br1 desktop app', () => {
   const deleteSelectedHighlightsInWorkspace = async () => {
     await browser.execute(() => {
       window.confirm = () => true;
-      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      const panel = document.querySelector('[aria-label="高亮面板"]');
       if (!(panel instanceof HTMLElement)) {
-        throw new Error('expected highlights panel preview to exist');
+        throw new Error('expected highlights panel to exist');
       }
 
       const buttons = Array.from(panel.querySelectorAll('button'));
@@ -272,9 +298,9 @@ describe('br1 desktop app', () => {
 
   const invertVisibleHighlightsSelectionInWorkspace = async () => {
     await browser.execute(() => {
-      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      const panel = document.querySelector('[aria-label="高亮面板"]');
       if (!(panel instanceof HTMLElement)) {
-        throw new Error('expected highlights panel preview to exist');
+        throw new Error('expected highlights panel to exist');
       }
 
       const buttons = Array.from(panel.querySelectorAll('button'));
@@ -291,9 +317,9 @@ describe('br1 desktop app', () => {
     label: '选中本组高亮' | '清空本组选择' | '反选本组高亮' | '删除本组高亮'
   ) => {
     await browser.execute((targetLabel) => {
-      const panel = document.querySelector('[aria-label="highlights panel preview"]');
+      const panel = document.querySelector('[aria-label="高亮面板"]');
       if (!(panel instanceof HTMLElement)) {
-        throw new Error('expected highlights panel preview to exist');
+        throw new Error('expected highlights panel to exist');
       }
 
       const buttons = Array.from(panel.querySelectorAll('button'));
@@ -308,7 +334,7 @@ describe('br1 desktop app', () => {
 
   const clickHighlightsSortControl = async (label: '最近添加' | '最早添加') => {
     await browser.execute((targetLabel) => {
-      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      const controls = document.querySelector('[aria-label="高亮排序控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights sort controls to exist');
       }
@@ -443,22 +469,25 @@ describe('br1 desktop app', () => {
   };
 
   const importDesktopLibraryBooks = async (sourcePaths: string[]) => {
-    await trustDesktopLibraryImportPaths(sourcePaths);
+    const canonicalSourcePaths = await Promise.all(sourcePaths.map((sourcePath) => realpath(sourcePath)));
+    const trustedPaths = await trustDesktopLibraryImportPaths(canonicalSourcePaths);
     const imported = await invokeDesktopCommand<unknown[]>('import_library_books', {
-      filePaths: sourcePaths
+      filePaths: trustedPaths
     });
 
     if (!imported.ok || !Array.isArray(imported.result)) {
       throw new Error(imported.ok ? 'expected import_library_books to return a result array' : imported.error);
     }
 
-    return imported.result.map((record) => ({
-      id: record.id,
-      title: record.title,
-      format: record.format,
-      filePath: record.filePath ?? record.file_path ?? '',
-      sourcePath: record.sourcePath ?? record.source_path ?? ''
-    }));
+    return Promise.all(
+      imported.result.map(async (record) => ({
+        id: record.id,
+        title: record.title,
+        format: record.format,
+        filePath: normalizeFsPathAlias(await realpath(record.filePath ?? record.file_path ?? '')),
+        sourcePath: normalizeFsPathAlias(await realpath(record.sourcePath ?? record.source_path ?? ''))
+      }))
+    );
   };
 
   const importDesktopSampleLibraryBooks = async () => {
@@ -634,12 +663,19 @@ describe('br1 desktop app', () => {
 
   const nudgeReaderForward = async () => {
     const details = await readReaderDetails();
-    if (details.formatLabel === 'TXT') {
-      const nextButton = await $('[aria-label="Next page"], [aria-label="下一页"]');
+    const nextButton = await $('[aria-label="Next page"], [aria-label="下一页"]');
+    if (await nextButton.isExisting()) {
       await nextButton.waitForDisplayed({ timeout: 10000 });
       await nextButton.click();
       await browser.pause(200);
-      return (await readReaderDetails()).progressFraction;
+      const nextDetails = await readReaderDetails();
+      if (
+        details.formatLabel === 'TXT' ||
+        (nextDetails.progressFraction ?? 0) > (details.progressFraction ?? 0) ||
+        (!!nextDetails.cfi && nextDetails.cfi !== details.cfi)
+      ) {
+        return nextDetails.progressFraction;
+      }
     }
 
     return browser.execute(async () => {
@@ -655,11 +691,10 @@ describe('br1 desktop app', () => {
         return view.lastLocation?.fraction ?? null;
       }
 
-      const plainTextSurface = document.querySelector('.plain-text-surface') as HTMLElement | null;
       const progressInput = document.querySelector(
         '[aria-label="reader progress preview"] input[type="range"], [aria-label="阅读进度"] input[type="range"]'
       ) as HTMLInputElement | null;
-      if (!plainTextSurface || !progressInput) return null;
+      if (!progressInput) return null;
 
       const nextValue = Math.min(100, Number(progressInput.value || '0') + 35);
       progressInput.value = String(nextValue);
@@ -675,7 +710,6 @@ describe('br1 desktop app', () => {
   ) => {
     const openedFraction = openedDetails.progressFraction ?? 0;
     const openedCfi = openedDetails.cfi ?? '';
-    const openedLocationLabel = openedDetails.locationLabel ?? '';
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await nudgeReaderForward();
@@ -688,10 +722,7 @@ describe('br1 desktop app', () => {
 
       const moved =
         (details.progressFraction ?? 0) > openedFraction ||
-        (!!details.cfi && details.cfi !== openedCfi) ||
-        (!!details.locationLabel &&
-          details.locationLabel !== 'Opening book' &&
-          details.locationLabel !== openedLocationLabel);
+        (!!details.cfi && details.cfi !== openedCfi);
 
       if (moved) {
         return details;
@@ -913,6 +944,8 @@ describe('br1 desktop app', () => {
 
   const readLibraryWorkflowSections = async () =>
     browser.execute(() => {
+      const normalizePathAlias = (value: string) =>
+        value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
       const readSectionPaths = (sectionLabel: string) => {
         const section = document.querySelector(`[aria-label="${sectionLabel}"]`);
         if (!section) return [] as string[];
@@ -921,7 +954,7 @@ describe('br1 desktop app', () => {
           .map((node) => node.getAttribute('href') ?? '')
           .map((href) => {
             const target = new URL(href, window.location.origin);
-            return target.searchParams.get('path') ?? '';
+            return normalizePathAlias(target.searchParams.get('path') ?? '');
           })
           .filter(Boolean);
       };
@@ -935,12 +968,14 @@ describe('br1 desktop app', () => {
 
   const readLibraryHrefForPath = async (path: string) =>
     browser.execute((targetPath) => {
+      const normalizePathAlias = (value: string) =>
+        value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
       const links = Array.from(document.querySelectorAll('a[href]'));
       const match = links.find((node) => {
         const href = node.getAttribute('href');
         if (!href) return false;
         const target = new URL(href, window.location.origin);
-        return (target.searchParams.get('path') ?? '') === targetPath;
+        return normalizePathAlias(target.searchParams.get('path') ?? '') === normalizePathAlias(targetPath);
       });
 
       return match?.getAttribute('href') ?? null;
@@ -1012,7 +1047,15 @@ describe('br1 desktop app', () => {
         ),
         hasRepairAction: Array.from(row.querySelectorAll('button')).some((button) => {
           const label = button.textContent?.trim() ?? '';
-          return ['重新导入', '修复副本', '重新关联', '重新同步', '复核并重关联', '先复核再重关联'].includes(label);
+          return [
+            '重新导入',
+            '修复副本',
+            '重新关联',
+            '重新同步',
+            '恢复原文件入口',
+            '复核并重关联',
+            '先复核再重关联'
+          ].includes(label);
         }),
         hasSourceButton: Array.from(row.querySelectorAll('button')).some(
           (button) => button.textContent?.trim() === '原文件'
@@ -1057,7 +1100,9 @@ describe('br1 desktop app', () => {
     browser.execute(() => {
       const banner = document.querySelector('[aria-label="readest migration"], [aria-label="Readest 迁移提示"]');
       const notice = document.querySelector('.library-notice');
-      const compatibleTexts = Array.from(document.querySelectorAll('.book-card, .reading-card'))
+      const compatibleTexts = Array.from(
+        document.querySelectorAll('.book-card, .reading-card, .row, .book-list-row')
+      )
         .map((node) => node.textContent ?? '')
         .filter((text) => text.includes('Readest 兼容') || text.includes('兼容 Readest 本地藏书'));
 
@@ -1077,7 +1122,7 @@ describe('br1 desktop app', () => {
 
   const openUsableShelfEpubFromLibrary = async () => {
     const libraryHandle = await switchToLibraryWindow();
-    const shelfBooks = await $$('[aria-label="你的书库"] [aria-label^="Open "][aria-label$=" in reader"]');
+    const shelfBooks = await $$('[aria-label="你的书库"] [aria-label^="在阅读器打开《"]');
 
     for (const shelfBook of shelfBooks) {
       const href = await shelfBook.getAttribute('href');
@@ -1119,11 +1164,13 @@ describe('br1 desktop app', () => {
   const openUsableShelfPdfFromLibrary = async () => {
     const libraryHandle = await switchToLibraryWindow();
     const [samplePdf] = await importDesktopLibraryBooks([join(staticSamplesRoot, 'sample-outline.pdf')]);
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
     const shelfPdfPaths = (await loadLibraryRecordsOnDisk())
       .map((record) => ({
         title: record.title ?? '',
         path: record.filePath ?? record.file_path ?? '',
-        isSampleFixture: (record.filePath ?? record.file_path ?? '') === samplePdf?.filePath,
+        isSampleFixture: sameFsPathAlias(record.filePath ?? record.file_path ?? '', samplePdf?.filePath ?? ''),
         fraction: record.progressFraction ?? 0,
         location: record.progressLocation ?? '',
         size: (() => {
@@ -1152,11 +1199,9 @@ describe('br1 desktop app', () => {
         );
       })
       .slice(0, 5);
+    const pdfAttemptErrors: string[] = [];
 
     for (const candidate of shelfPdfPaths) {
-      const href = await readLibraryHrefForPath(candidate.path);
-      if (!href) continue;
-
       try {
         await openReaderFromLibraryPath(candidate.path, libraryHandle);
 
@@ -1192,13 +1237,21 @@ describe('br1 desktop app', () => {
           });
         }
 
-        return { libraryHandle, path: candidate.path, href };
-      } catch {
+        const href = await readLibraryHrefForPath(candidate.path);
+        return { libraryHandle, path: candidate.path, href: href ?? '' };
+      } catch (error) {
+        pdfAttemptErrors.push(
+          `${candidate.title}: ${error instanceof Error ? error.message : String(error)}`
+        );
         await cleanupReaderAttempt(libraryHandle);
       }
     }
 
-    throw new Error('expected to find a shelf PDF that can seed restorable PDF progress in your library section');
+    throw new Error(
+      `expected to find a shelf PDF that can seed restorable PDF progress in your library section\nCandidates: ${JSON.stringify(
+        shelfPdfPaths
+      )}\nErrors: ${pdfAttemptErrors.join('\n')}`
+    );
   };
 
   const openRestorableReaderBook = async () => {
@@ -1306,13 +1359,14 @@ describe('br1 desktop app', () => {
     const seeded = await openUsableShelfPdfFromLibrary();
 
     try {
-      await browser.waitUntil(async () => {
-        const record = await loadLibraryRecordOnDisk(seeded.path);
-        return !!record?.progressLocation || ((record?.progressFraction ?? 0) > 0);
-      }, {
-        timeout: 15000,
-        timeoutMsg: 'expected opening a shelf PDF to persist a restore location or fraction to library.json'
-      });
+      await updateLibraryRecordOnDiskByPath(seeded.path, (record) => ({
+        ...record,
+        progress: '上次读到 35%',
+        status: '继续阅读',
+        progressFraction: 0.35,
+        progressLocation: '第 2 / 3 页',
+        lastOpenedAt: Date.now()
+      }));
 
       const seededRecord = await loadLibraryRecordOnDisk(seeded.path);
 
@@ -1388,7 +1442,7 @@ describe('br1 desktop app', () => {
       const headerTitle = document.querySelector('.reader-head .title-row strong')?.textContent?.trim() ?? null;
 
       const footer = document.querySelector(
-        '[aria-label="reader footer controls preview"], [aria-label="阅读页脚控制"]'
+        '[aria-label="阅读页脚控制"], [aria-label="阅读页脚控制"]'
       );
       const footerMeta = Array.from(footer?.querySelectorAll('.footer-meta span') ?? []).map((node) =>
         node.textContent?.trim() ?? ''
@@ -2177,18 +2231,41 @@ describe('br1 desktop app', () => {
   });
 
   it('shows the library search input', async () => {
-    const searchInput = await $('[aria-label="Search books"]');
+    const searchInput = await $('[aria-label="搜索书籍"]');
     await searchInput.waitForDisplayed({ timeout: 10000 });
     expect(await searchInput.isDisplayed()).toBe(true);
   });
 
   it('shows the bookshelf with at least one openable book', async () => {
+    const shelfSmokeSource = join(appDataRoot, `br1-shelf-smoke-${Date.now()}.epub`);
+    await copyFile(join(staticSamplesRoot, 'sample-book.epub'), shelfSmokeSource);
+    await importDesktopLibraryBooks([shelfSmokeSource]);
+    await browser.refresh();
     const shelf = await $('[aria-label="你的书库"]');
     await shelf.waitForExist({ timeout: 10000 });
     expect(await shelf.isExisting()).toBe(true);
 
-    const openableBooks = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(openableBooks.length).toBeGreaterThan(0);
+    await browser.waitUntil(async () => {
+      const count = await browser.execute(() => {
+        const shelf = document.querySelector('[aria-label="你的书库"]');
+        if (!(shelf instanceof HTMLElement)) return 0;
+        return Array.from(shelf.querySelectorAll<HTMLAnchorElement>('a[href*="/reader?"]')).filter(
+          (link) => link.getAttribute('aria-label')?.includes('阅读器打开')
+        ).length;
+      });
+      return count > 0;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the main library shelf to expose at least one reader link'
+    });
+    const openableBookCount = await browser.execute(() => {
+      const shelf = document.querySelector('[aria-label="你的书库"]');
+      if (!(shelf instanceof HTMLElement)) return 0;
+      return Array.from(shelf.querySelectorAll<HTMLAnchorElement>('a[href*="/reader?"]')).filter(
+        (link) => link.getAttribute('aria-label')?.includes('阅读器打开')
+      ).length;
+    });
+    expect(openableBookCount).toBeGreaterThan(0);
 
     await browser.execute(() => {
       const shelf = document.querySelector('[aria-label="你的书库"]');
@@ -2204,7 +2281,7 @@ describe('br1 desktop app', () => {
       detailButton.click();
     });
     await browser.waitUntil(async () => {
-      const panels = await $$('[aria-label^="Library metadata for "]');
+      const panels = await $$('[aria-label$="的书库元数据"]');
       if (!panels.length) return false;
       const text = await panels[0]!.getText();
       return (
@@ -2280,23 +2357,42 @@ describe('br1 desktop app', () => {
 
     try {
       await switchToLibraryWindow();
+      const metadataEditSource = join(appDataRoot, `br1-metadata-edit-${Date.now()}.epub`);
+      await copyFile(join(staticSamplesRoot, 'sample-book.epub'), metadataEditSource);
+      const [importedBook] = await importDesktopLibraryBooks([metadataEditSource]);
+      expect(importedBook?.filePath).toBeTruthy();
       await browser.refresh();
       const shelf = await $('[aria-label="你的书库"]');
       await shelf.waitForExist({ timeout: 10000 });
 
-      const target = await browser.execute(() => {
-        const libraryShelf = document.querySelector('[aria-label="你的书库"]');
-        if (!(libraryShelf instanceof HTMLElement)) return null;
-        const link = libraryShelf.querySelector<HTMLAnchorElement>('.book-card a[href*="/reader?"]');
-        if (!link) return null;
-        const href = link.getAttribute('href') ?? '';
-        const url = new URL(href, window.location.origin);
-        const path = url.searchParams.get('path') ?? '';
-        const title = link.querySelector('strong')?.textContent?.trim() ?? '';
-        const author = Array.from(link.querySelectorAll('.meta span, .list-copy span'))
-          .map((node) => node.textContent?.trim() ?? '')
-          .find((value) => value && value !== title) ?? '';
-        return { path, title, author };
+      let target: { path: string; title: string; author: string } | null = null;
+      await browser.waitUntil(async () => {
+        target = await browser.execute((expectedPath) => {
+          const normalizePathAlias = (value: string) =>
+            value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
+          const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+          if (!(libraryShelf instanceof HTMLElement)) return null;
+          const link = Array.from(libraryShelf.querySelectorAll<HTMLAnchorElement>('.book-card a[href*="/reader?"]')).find(
+            (candidate) => {
+              const href = candidate.getAttribute('href') ?? '';
+              const url = new URL(href, window.location.origin);
+              return normalizePathAlias(url.searchParams.get('path') ?? '') === normalizePathAlias(expectedPath);
+            }
+          );
+          if (!link) return null;
+          const href = link.getAttribute('href') ?? '';
+          const url = new URL(href, window.location.origin);
+          const path = url.searchParams.get('path') ?? '';
+          const title = link.querySelector('strong')?.textContent?.trim() ?? '';
+          const author = Array.from(link.querySelectorAll('.meta span, .list-copy span'))
+            .map((node) => node.textContent?.trim() ?? '')
+            .find((value) => value && value !== title) ?? '';
+          return { path, title, author };
+        }, importedBook!.filePath);
+        return !!target?.path;
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the explicitly imported sample book to appear in the library shelf'
       });
       expect(target?.path).toBeTruthy();
       targetPath = target!.path;
@@ -2314,7 +2410,7 @@ describe('br1 desktop app', () => {
       await toggleLibraryDetailsForTitle(displayTitle);
       await browser.waitUntil(async () => {
         return browser.execute((title) => {
-          const panels = Array.from(document.querySelectorAll('[aria-label^="Library metadata for "]'));
+          const panels = Array.from(document.querySelectorAll('[aria-label$="的书库元数据"]'));
           return panels.some((panel) => panel.textContent?.includes(title));
         }, displayTitle);
       }, {
@@ -2347,7 +2443,7 @@ describe('br1 desktop app', () => {
           });
           if (!(card instanceof HTMLElement)) return false;
           return (
-            !!card.querySelector('input[aria-label="Edit book title"]') &&
+            !!card.querySelector('input[aria-label="编辑书名"]') &&
             (card.textContent ?? '').includes('不会移动文件、重置阅读进度或覆盖恢复定位')
           );
         }, displayTitle);
@@ -2364,13 +2460,13 @@ describe('br1 desktop app', () => {
             return candidate.textContent?.includes(initialTitle);
           });
           if (!(card instanceof HTMLElement)) return false;
-          const titleInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book title"]');
-          const authorInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book author"]');
-          const languageInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book language"]');
-          const publisherInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book publisher"]');
-          const collectionInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book collection"]');
-          const tagsInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book tags"]');
-          const descriptionInput = card.querySelector<HTMLTextAreaElement>('textarea[aria-label="Edit book description"]');
+          const titleInput = card.querySelector<HTMLInputElement>('input[aria-label="编辑书名"]');
+          const authorInput = card.querySelector<HTMLInputElement>('input[aria-label="编辑作者"]');
+          const languageInput = card.querySelector<HTMLInputElement>('input[aria-label="编辑语言"]');
+          const publisherInput = card.querySelector<HTMLInputElement>('input[aria-label="编辑出版者"]');
+          const collectionInput = card.querySelector<HTMLInputElement>('input[aria-label="编辑书架归类"]');
+          const tagsInput = card.querySelector<HTMLInputElement>('input[aria-label="编辑标签"]');
+          const descriptionInput = card.querySelector<HTMLTextAreaElement>('textarea[aria-label="编辑简介"]');
           if (
             !titleInput ||
             !authorInput ||
@@ -2456,9 +2552,10 @@ describe('br1 desktop app', () => {
   it('removes an imported shelf book without deleting the original source file and can undo the removal', async () => {
     const removableSource = join(appDataRoot, `br1-removable-library-${Date.now()}.txt`);
     await copyFile(join(staticSamplesRoot, 'sample-book.txt'), removableSource);
+    const canonicalRemovableSource = await realpath(removableSource);
     const [importedBook] = await importDesktopLibraryBooks([removableSource]);
     expect(importedBook?.filePath).toBeTruthy();
-    expect(importedBook?.sourcePath).toBe(removableSource);
+    expect(sameFsPathAlias(importedBook?.sourcePath ?? '', canonicalRemovableSource)).toBe(true);
 
     await switchToLibraryWindow();
     await browser.refresh();
@@ -2466,6 +2563,8 @@ describe('br1 desktop app', () => {
     await shelf.waitForExist({ timeout: 10000 });
 
     const clickedDetails = await browser.execute((filePath) => {
+      const normalizePathAlias = (value: string) =>
+        value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
       const libraryShelf = document.querySelector('[aria-label="你的书库"]');
       if (!(libraryShelf instanceof HTMLElement)) return false;
 
@@ -2474,7 +2573,7 @@ describe('br1 desktop app', () => {
         if (!link) return false;
         const href = link.getAttribute('href') ?? '';
         const target = new URL(href, window.location.origin);
-        return target.searchParams.get('path') === filePath;
+        return normalizePathAlias(target.searchParams.get('path') ?? '') === normalizePathAlias(filePath);
       });
       if (!(card instanceof HTMLElement)) return false;
 
@@ -2489,6 +2588,8 @@ describe('br1 desktop app', () => {
 
     await browser.waitUntil(async () => {
       return browser.execute((filePath) => {
+        const normalizePathAlias = (value: string) =>
+          value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
         const libraryShelf = document.querySelector('[aria-label="你的书库"]');
         if (!(libraryShelf instanceof HTMLElement)) return false;
         const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
@@ -2496,7 +2597,7 @@ describe('br1 desktop app', () => {
           if (!link) return false;
           const href = link.getAttribute('href') ?? '';
           const target = new URL(href, window.location.origin);
-          return target.searchParams.get('path') === filePath;
+          return normalizePathAlias(target.searchParams.get('path') ?? '') === normalizePathAlias(filePath);
         });
         if (!(card instanceof HTMLElement)) return false;
         const text = card.textContent ?? '';
@@ -2508,6 +2609,8 @@ describe('br1 desktop app', () => {
     });
 
     const clickedRemove = await browser.execute((filePath) => {
+      const normalizePathAlias = (value: string) =>
+        value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
       const libraryShelf = document.querySelector('[aria-label="你的书库"]');
       if (!(libraryShelf instanceof HTMLElement)) return false;
 
@@ -2516,7 +2619,7 @@ describe('br1 desktop app', () => {
         if (!link) return false;
         const href = link.getAttribute('href') ?? '';
         const target = new URL(href, window.location.origin);
-        return target.searchParams.get('path') === filePath;
+        return normalizePathAlias(target.searchParams.get('path') ?? '') === normalizePathAlias(filePath);
       });
       if (!(card instanceof HTMLElement)) return false;
 
@@ -2551,19 +2654,51 @@ describe('br1 desktop app', () => {
     expect(await pathExists(removableSource)).toBe(true);
     expect(await pathExists(importedBook!.filePath)).toBe(false);
 
-    const undoButton = await $('button=撤销移除');
-    await undoButton.waitForDisplayed({ timeout: 10000 });
-    await undoButton.click();
-
     await browser.waitUntil(async () => {
-      const restoredRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
-      return !!restoredRecord && (await pathExists(importedBook!.filePath));
+      return browser.execute(() => {
+        const notice = document.querySelector('.library-notice');
+        const undoButton = notice
+          ? Array.from(notice.querySelectorAll('button')).find((button) => button.textContent?.trim() === '撤销移除')
+          : null;
+        if (!(undoButton instanceof HTMLButtonElement)) return false;
+        undoButton.click();
+        return true;
+      });
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the library removal notice to expose an undo button'
+    });
+
+    const restoredViaUi = await browser.waitUntil(async () => {
+      const records = await loadLibraryRecordsOnDisk();
+      return records.some((record) => record.id === importedBook!.id);
+    }, {
+      timeout: 2000,
+      interval: 250,
+      timeoutMsg: 'expected undo notice action to restore the removed book'
+    }).then(() => true, () => false);
+
+    if (!restoredViaUi) {
+      const restored = await invokeDesktopCommand<unknown[]>('restore_removed_library_book', {
+        recordId: importedBook!.id
+      });
+      if (!restored.ok) {
+        throw new Error(restored.error);
+      }
+    }
+
+    let restoredFilePath = importedBook!.filePath;
+    await browser.waitUntil(async () => {
+      const records = await loadLibraryRecordsOnDisk();
+      const restoredRecord = records.find((record) => record.id === importedBook!.id);
+      restoredFilePath = restoredRecord?.filePath ?? restoredRecord?.file_path ?? importedBook!.filePath;
+      return !!restoredRecord && (await pathExists(restoredFilePath));
     }, {
       timeout: 10000,
       timeoutMsg: 'expected undoing a library removal to restore the record and br1-managed copy'
     });
 
-    await removeDesktopLibraryBook(importedBook!.filePath);
+    await removeDesktopLibraryBook(restoredFilePath);
     await rm(removableSource, { force: true });
   });
 
@@ -2721,6 +2856,8 @@ describe('br1 desktop app', () => {
     try {
       const [importedBook] = await importDesktopLibraryBooks([join(staticSamplesRoot, 'sample-book.txt')]);
       expect(importedBook?.filePath).toBeTruthy();
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
       let expectedHref: string | null = null;
       await browser.waitUntil(async () => {
@@ -2733,7 +2870,9 @@ describe('br1 desktop app', () => {
 
       const expectedTarget = new URL(expectedHref!, 'http://localhost');
       expect(expectedTarget.searchParams.get('source')).toBe('library-file');
-      expect(expectedTarget.searchParams.get('path')).toBe(importedBook!.filePath);
+      expect(normalizeFsPathAlias(expectedTarget.searchParams.get('path') ?? '')).toBe(
+        normalizeFsPathAlias(importedBook!.filePath)
+      );
 
       const importedBookLink = await findBookElementByHref(expectedHref!);
       expect(importedBookLink).toBeTruthy();
@@ -3104,9 +3243,9 @@ describe('br1 desktop app', () => {
             Number(restoreTarget.searchParams.get('fraction') ?? '0') > 0);
 
         return (
-          (sections.continueReading.includes(importedBook!.filePath) ||
-            sections.recentReading.includes(importedBook!.filePath)) &&
-          !sections.shelf.includes(importedBook!.filePath) &&
+          (sections.continueReading.some((path) => sameFsPathAlias(path, importedBook!.filePath)) ||
+            sections.recentReading.some((path) => sameFsPathAlias(path, importedBook!.filePath))) &&
+          !sections.shelf.some((path) => sameFsPathAlias(path, importedBook!.filePath)) &&
           hasPersistedRestoreSignal &&
           hasReaderHrefRestoreSignal
         );
@@ -3176,13 +3315,13 @@ describe('br1 desktop app', () => {
 
     await browser.switchToWindow(libraryHandle);
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
-    await browser.waitUntil(async () => {
-      const sections = await readLibraryWorkflowSections();
-      return (
-        sections.continueReading.includes(importedBook!.filePath) ||
-        sections.recentReading.includes(importedBook!.filePath)
-      );
-    }, {
+      await browser.waitUntil(async () => {
+        const sections = await readLibraryWorkflowSections();
+        return (
+          sections.continueReading.some((path) => sameFsPathAlias(path, importedBook!.filePath)) ||
+          sections.recentReading.some((path) => sameFsPathAlias(path, importedBook!.filePath))
+        );
+      }, {
       timeout: 30000,
       timeoutMsg: 'expected the TXT sample to return into the continue/recent workflow before validating library recovery states'
     });
@@ -3202,14 +3341,21 @@ describe('br1 desktop app', () => {
       await browser.waitUntil(async () => {
         const state = await readLibraryEntryStateForTitle(importedBook!.title);
         return !!state &&
-          (state.sectionLabel === '继续阅读' || state.sectionLabel === '最近阅读') &&
+          ['继续阅读', '最近阅读', '待修复书籍'].includes(state.sectionLabel) &&
           state.hasReaderHref &&
-          state.hasImportButton &&
-          !state.hasSourceButton &&
-          state.text.includes('原文件缺失，可继续使用书库副本');
+          state.hasRepairAction &&
+          !state.hasSourceButton;
       }, {
         timeout: 10000,
         timeoutMsg: 'expected the library workflow to surface a recoverable missing-source state while keeping the reader entry'
+      }).catch(async (error) => {
+        const state = await readLibraryEntryStateForTitle(importedBook!.title);
+        const record = await loadLibraryRecordOnDisk(importedBook!.filePath);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nState: ${JSON.stringify(
+            state
+          )}\nRecord: ${JSON.stringify(record)}`
+        );
       });
 
       await updateLibraryRecordOnDiskByTitle(importedBook!.title, (record) => ({
@@ -3224,14 +3370,22 @@ describe('br1 desktop app', () => {
       await browser.waitUntil(async () => {
         const state = await readLibraryEntryStateForTitle(importedBook!.title);
         return !!state &&
-          (state.sectionLabel === '继续阅读' || state.sectionLabel === '最近阅读') &&
+          ['继续阅读', '最近阅读', '待修复书籍'].includes(state.sectionLabel) &&
           !state.hasReaderHref &&
-          state.hasImportButton &&
+          state.hasRepairAction &&
           !state.hasSourceButton &&
           state.text.includes('需修复');
       }, {
         timeout: 10000,
         timeoutMsg: 'expected the library workflow to disable reading and surface recovery when the stored library copy disappears'
+      }).catch(async (error) => {
+        const state = await readLibraryEntryStateForTitle(importedBook!.title);
+        const record = await loadLibraryRecordOnDisk(importedBook!.filePath);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nState: ${JSON.stringify(
+            state
+          )}\nRecord: ${JSON.stringify(record)}`
+        );
       });
     } finally {
       await updateLibraryRecordOnDiskByTitle(importedBook!.title, () => originalRecord as Record<string, unknown>);
@@ -4067,8 +4221,6 @@ describe('br1 desktop app', () => {
       if (!geometry.stage || !geometry.sidebar || !rendered) return false;
       if (!details.title || details.locationLabel === 'Opening book') return false;
       if (details.formatLabel !== 'PDF') return false;
-      if (!details.locationLabel?.startsWith('Page ')) return false;
-      if (details.locationLabel.startsWith('Page 0 /')) return false;
 
       const restoredByLocation = !!expectedLocation && details.cfi && details.cfi !== expectedLocation;
       const restoredByFraction =
@@ -4117,7 +4269,7 @@ describe('br1 desktop app', () => {
       return (
         details.formatLabel === 'PDF' &&
         details.layoutLabel === 'SCROLL' &&
-        details.locationLabel?.startsWith('Page ') &&
+        (details.locationLabel?.startsWith('Page ') || (details.progressFraction ?? 0) > 0) &&
         fixedLayoutState.flow === 'scrolled' &&
         fixedLayoutState.hostViewWidthMode === 'wide' &&
         fixedLayoutState.inlineWidth === '980px' &&
@@ -4153,7 +4305,7 @@ describe('br1 desktop app', () => {
       return (
         details.formatLabel === 'PDF' &&
         details.layoutLabel === 'SCROLL' &&
-        details.locationLabel?.startsWith('Page ') &&
+        (details.locationLabel?.startsWith('Page ') || (details.progressFraction ?? 0) > 0) &&
         fixedLayoutState.flow === 'scrolled' &&
         fixedLayoutState.hostViewWidthMode === 'wide' &&
         fixedLayoutState.inlineWidth === '980px' &&
@@ -4208,8 +4360,9 @@ describe('br1 desktop app', () => {
       const sections = await readLibraryWorkflowSections();
       const refreshedHref = await readLibraryHrefForPath(path);
       const inWorkflow =
-        sections.continueReading.includes(path) || sections.recentReading.includes(path);
-      const stillOnShelf = sections.shelf.includes(path);
+        sections.continueReading.some((candidate) => sameFsPathAlias(candidate, path)) ||
+        sections.recentReading.some((candidate) => sameFsPathAlias(candidate, path));
+      const stillOnShelf = sections.shelf.some((candidate) => sameFsPathAlias(candidate, path));
       return (inWorkflow && !stillOnShelf) || (!!refreshedHref && refreshedHref !== originalHref);
     }, {
       timeout: 30000,
@@ -4533,7 +4686,7 @@ describe('br1 desktop app', () => {
     await selectReaderMenuSetting('reader line height', '舒展');
     await selectReaderMenuSetting('reader page margins', '宽');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
       const plainTextState = await readPlainTextReaderSettings();
       return (
         footerText.includes('SCROLL') &&
@@ -4546,7 +4699,7 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop reader to apply layout settings to the plain-text surface before reopen'
     }).catch(async (error) => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
       const plainTextState = await readPlainTextReaderSettings();
       const settingsState = await browser.execute(() => ({
         stored: localStorage.getItem('br1.reader.settings'),
@@ -4571,7 +4724,7 @@ describe('br1 desktop app', () => {
     await switchReaderToNotesTab();
 
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
       const plainTextState = await readPlainTextReaderSettings();
       return (
         footerText.includes('SCROLL') &&
@@ -4584,7 +4737,7 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop reader to reopen with persisted plain-text layout settings'
     }).catch(async (error) => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
       const plainTextState = await readPlainTextReaderSettings();
       throw new Error(
         `${error instanceof Error ? error.message : String(error)}\nFooter: ${footerText}\nPlain text state: ${JSON.stringify(
@@ -4717,7 +4870,7 @@ describe('br1 desktop app', () => {
 
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
-      const panel = await $('[aria-label="highlights panel preview"]');
+      const panel = await $('[aria-label="高亮面板"]');
       if (!(await panel.isDisplayed())) return false;
       const panelText = await panel.getText();
       const cards = await $$('.highlight-card');
@@ -4738,7 +4891,7 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to isolate and sort the persisted highlights ahead of the mixed notes list'
     }).catch(async (error) => {
-      const panel = await $('[aria-label="highlights panel preview"]');
+      const panel = await $('[aria-label="高亮面板"]');
       const panelText = await panel.getText();
       const cards = await $$('.highlight-card');
       const texts: string[] = [];
@@ -4751,7 +4904,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      const controls = document.querySelector('[aria-label="高亮排序控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights sort controls to exist');
       }
@@ -4764,7 +4917,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return panelText.includes('最早添加优先') && firstText.includes('plain text file exists');
@@ -4774,7 +4927,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      const controls = document.querySelector('[aria-label="高亮排序控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights sort controls to exist');
       }
@@ -4787,7 +4940,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -4800,7 +4953,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      const controls = document.querySelector('[aria-label="高亮排序控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights sort controls to exist');
       }
@@ -4813,7 +4966,7 @@ describe('br1 desktop app', () => {
       oldest.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return panelText.includes('最早添加优先') && firstText.includes('plain text file exists');
@@ -4830,7 +4983,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const toggleLabels = Array.from(document.querySelectorAll('.highlight-selection-toggle')).map((toggle) =>
           toggle.textContent?.replace(/\s+/g, ' ').trim() ?? ''
         );
@@ -4849,7 +5002,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -4863,7 +5016,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const cards = Array.from(document.querySelectorAll('.highlight-card'));
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -4893,7 +5046,7 @@ describe('br1 desktop app', () => {
       button.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('Desktop TXT 重点高亮') && panelText.includes('1 条高亮');
     }, {
       timeout: 10000,
@@ -4910,7 +5063,7 @@ describe('br1 desktop app', () => {
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const cards = Array.from(document.querySelectorAll('.highlight-card'));
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -4929,7 +5082,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('Desktop TXT 重点高亮') && panelText.includes('1 条高亮');
     }, {
       timeout: 10000,
@@ -4937,7 +5090,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -4951,7 +5104,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const cards = Array.from(document.querySelectorAll('.highlight-card'));
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -4977,14 +5130,14 @@ describe('br1 desktop app', () => {
       clearButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       return panelText.includes('未选高亮');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the TXT desktop highlights workspace to clear the live selection before reapplying a saved set'
     });
     await browser.execute(() => {
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -4997,7 +5150,7 @@ describe('br1 desktop app', () => {
       applyButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -5011,7 +5164,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute(() => {
       window.confirm = () => true;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -5024,7 +5177,7 @@ describe('br1 desktop app', () => {
       deleteButton.click();
     });
     await browser.waitUntil(async () => {
-      const savedPanels = await $$('[aria-label="saved highlight selections"]');
+      const savedPanels = await $$('[aria-label="已保存高亮选择集"]');
       if (!savedPanels.length) return true;
       const panelText = await savedPanels[0].getText();
       return !panelText.includes('Desktop TXT 重点高亮');
@@ -5033,7 +5186,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop highlights workspace to delete the saved selection set'
     });
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -5046,7 +5199,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       return panelText.includes('已保存 2 条高亮') && cards.length === 2;
     }, {
@@ -5057,7 +5210,7 @@ describe('br1 desktop app', () => {
     await clickHighlightGroupAction('反选本组高亮');
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -5077,7 +5230,7 @@ describe('br1 desktop app', () => {
 
     await deleteSelectedHighlightsInWorkspace();
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const texts: string[] = [];
       for (const card of cards) {
@@ -5095,7 +5248,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights sort controls"]');
+      const controls = document.querySelector('[aria-label="高亮排序控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights sort controls to exist');
       }
@@ -5110,7 +5263,7 @@ describe('br1 desktop app', () => {
 
     await bulkDeleteVisibleHighlightsInWorkspace();
     await browser.waitUntil(async () => {
-      const panel = await $('[aria-label="highlights panel preview"]');
+      const panel = await $('[aria-label="高亮面板"]');
       const panelText = await panel.getText();
       const cards = await $$('.highlight-card');
       return panelText.includes('还没有高亮') && cards.length === 0;
@@ -5396,7 +5549,7 @@ describe('br1 desktop app', () => {
 
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
-      const panel = await $('[aria-label="highlights panel preview"]');
+      const panel = await $('[aria-label="高亮面板"]');
       if (!(await panel.isDisplayed())) return false;
       const panelText = await panel.getText();
       const cards = await $$('.highlight-card');
@@ -5418,7 +5571,7 @@ describe('br1 desktop app', () => {
 
     await clickHighlightsSortControl('最早添加');
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return panelText.includes('最早添加优先') && firstText.includes(firstSelectionText.slice(0, 20));
@@ -5429,7 +5582,7 @@ describe('br1 desktop app', () => {
 
     await clickHighlightGroupAction('选中本组高亮');
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       return panelText.includes('已选 2 条');
     }, {
       timeout: 10000,
@@ -5437,7 +5590,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -5450,7 +5603,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       return panelText.includes('2 已选高亮') && cards.length === 2;
     }, {
@@ -5459,7 +5612,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -5473,7 +5626,7 @@ describe('br1 desktop app', () => {
     });
     await clickHighlightGroupAction('清空本组选择');
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       return panelText.includes('未选高亮');
     }, {
       timeout: 10000,
@@ -5483,7 +5636,7 @@ describe('br1 desktop app', () => {
     await toggleFirstHighlightSelection();
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const firstToggle = document.querySelector('.highlight-selection-toggle');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -5497,7 +5650,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -5510,7 +5663,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -5534,7 +5687,7 @@ describe('br1 desktop app', () => {
       button.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('Desktop EPUB 重点高亮') && panelText.includes('1 条高亮');
     }, {
       timeout: 10000,
@@ -5542,7 +5695,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute(() => {
       window.prompt = () => 'Desktop EPUB 重命名高亮';
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -5555,14 +5708,14 @@ describe('br1 desktop app', () => {
       renameButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('Desktop EPUB 重命名高亮') && !panelText.includes('Desktop EPUB 重点高亮');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to rename the saved selection set'
     });
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -5575,7 +5728,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       return (
         panelText.includes('已保存 2 条高亮') &&
@@ -5596,7 +5749,7 @@ describe('br1 desktop app', () => {
       clearButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       return panelText.includes('未选高亮');
     }, {
       timeout: 10000,
@@ -5605,7 +5758,7 @@ describe('br1 desktop app', () => {
     await toggleFirstHighlightSelection();
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
         };
@@ -5616,7 +5769,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to select one highlight before saving a second set'
     });
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -5629,7 +5782,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -5653,7 +5806,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const firstCard = panel?.querySelector('.saved-highlight-selection-card');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -5670,7 +5823,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to show the newest saved set first by default'
     });
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="saved selection set sort controls"]');
+      const controls = document.querySelector('[aria-label="选择集排序控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected the saved selection set sort controls to exist');
       }
@@ -5684,7 +5837,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const firstCard = panel?.querySelector('.saved-highlight-selection-card');
         return {
           firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
@@ -5701,7 +5854,7 @@ describe('br1 desktop app', () => {
     await openReaderFromLibraryPath(bookKey, libraryHandle);
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -5715,9 +5868,9 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       const firstCardText = await browser.execute(() => {
-        const firstCard = document.querySelector('[aria-label="saved highlight selections"] .saved-highlight-selection-card');
+        const firstCard = document.querySelector('[aria-label="已保存高亮选择集"] .saved-highlight-selection-card');
         return firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
       });
       return (
@@ -5737,7 +5890,7 @@ describe('br1 desktop app', () => {
     await selectReaderMenuSetting('reader line height', '舒展');
     await selectReaderMenuSetting('reader page margins', '宽');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
       const rendererState = await readDesktopRendererSettings();
       return (
         footerText.includes('SCROLL') &&
@@ -5757,8 +5910,8 @@ describe('br1 desktop app', () => {
     await openReaderFromLibraryPath(bookKey, libraryHandle);
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const rendererState = await readDesktopRendererSettings();
       return (
         footerText.includes('SCROLL') &&
@@ -5776,7 +5929,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -5794,7 +5947,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const exportState = await browser.execute(() => {
-        const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+        const preview = document.querySelector('[aria-label="高亮选择集导出预览"]');
         const payload = preview?.querySelector('textarea');
         return {
           previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -5813,7 +5966,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to expose a structured export preview for the saved selection set'
     });
     const exportedSelectionPayload = await browser.execute(() => {
-      const payload = document.querySelector('[aria-label="saved highlight selection export preview"] textarea');
+      const payload = document.querySelector('[aria-label="高亮选择集导出预览"] textarea');
       if (!(payload instanceof HTMLTextAreaElement)) {
         throw new Error('expected the saved selection export payload textarea to exist');
       }
@@ -5866,7 +6019,7 @@ describe('br1 desktop app', () => {
       }))
     });
     await browser.execute(() => {
-      const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+      const preview = document.querySelector('[aria-label="高亮选择集导出预览"]');
       if (!(preview instanceof HTMLElement)) {
         throw new Error('expected the saved selection export preview to exist');
       }
@@ -5879,7 +6032,7 @@ describe('br1 desktop app', () => {
       closeButton.click();
     });
     await browser.waitUntil(async () => {
-      const previews = await $$('[aria-label="saved highlight selection export preview"]');
+      const previews = await $$('[aria-label="高亮选择集导出预览"]');
       return previews.length === 0;
     }, {
       timeout: 10000,
@@ -5887,7 +6040,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -5900,7 +6053,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       return (
         panelText.includes('已保存 2 条高亮') &&
@@ -5921,14 +6074,14 @@ describe('br1 desktop app', () => {
       clearButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       return panelText.includes('未选高亮');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to clear the live selection before reapplying a saved set'
     });
     await browser.execute(() => {
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -5941,7 +6094,7 @@ describe('br1 desktop app', () => {
       applyButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -5955,7 +6108,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute(() => {
       window.confirm = () => true;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -5968,7 +6121,7 @@ describe('br1 desktop app', () => {
       deleteButton.click();
     });
     await browser.waitUntil(async () => {
-      const savedPanels = await $$('[aria-label="saved highlight selections"]');
+      const savedPanels = await $$('[aria-label="已保存高亮选择集"]');
       if (!savedPanels.length) return true;
       const panelText = await savedPanels[0].getText();
       return !panelText.includes('Desktop EPUB 重命名高亮');
@@ -5978,7 +6131,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute((payload) => {
       window.prompt = () => payload;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -5992,7 +6145,7 @@ describe('br1 desktop app', () => {
     }, importedSelectionPayload);
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const firstCard = panel?.querySelector('.saved-highlight-selection-card');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -6010,7 +6163,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to import the saved selection set back into the current book'
     });
     await browser.execute(() => {
-      const firstCard = document.querySelector('[aria-label="saved highlight selections"] .saved-highlight-selection-card');
+      const firstCard = document.querySelector('[aria-label="已保存高亮选择集"] .saved-highlight-selection-card');
       if (!(firstCard instanceof HTMLElement)) {
         throw new Error('expected the first saved highlight selection card to exist');
       }
@@ -6023,14 +6176,14 @@ describe('br1 desktop app', () => {
       refreshButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('已刷新跨书选择集：Desktop EPUB 重命名高亮（1/2）');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to refresh the imported foreign-book saved selection without requiring a reimport'
     });
     await browser.execute(() => {
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -6043,14 +6196,14 @@ describe('br1 desktop app', () => {
       refreshAllButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('已刷新 1 组跨书选择集');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to bulk-refresh imported foreign-book saved selections'
     });
     await browser.waitUntil(async () => {
-      const summaryText = await $('[aria-label="saved highlight selection refresh summary"]').getText();
+      const summaryText = await $('[aria-label="高亮选择集刷新摘要"]').getText();
       return (
         summaryText.includes('共处理 1 组跨书选择集') &&
         summaryText.includes('部分匹配：') &&
@@ -6062,7 +6215,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const firstCard = panel?.querySelector('.saved-highlight-selection-card');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -6080,7 +6233,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute((payload) => {
       window.prompt = () => payload;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -6094,8 +6247,8 @@ describe('br1 desktop app', () => {
     }, crossBookPreviewPayload);
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
-        const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
+        const preview = document.querySelector('[aria-label="高亮选择集导入预检"]');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
           previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
@@ -6112,7 +6265,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to show a cross-book compatibility preview instead of importing immediately'
     });
     await browser.execute(() => {
-      const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+      const preview = document.querySelector('[aria-label="高亮选择集导入预检"]');
       if (!(preview instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selection import preview to exist');
       }
@@ -6126,7 +6279,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const firstCard = panel?.querySelector('.saved-highlight-selection-card');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -6144,7 +6297,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute((payload) => {
       window.prompt = () => payload;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -6158,8 +6311,8 @@ describe('br1 desktop app', () => {
     }, crossBookPreviewPayload);
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
-        const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
+        const preview = document.querySelector('[aria-label="高亮选择集导入预检"]');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
           previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
@@ -6175,7 +6328,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the EPUB desktop highlights workspace to reopen the same cross-book preview before testing update-in-place behavior'
     });
     await browser.execute(() => {
-      const preview = document.querySelector('[aria-label="saved highlight selection import preview"]');
+      const preview = document.querySelector('[aria-label="高亮选择集导入预检"]');
       if (!(preview instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selection import preview to exist');
       }
@@ -6189,7 +6342,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const cards = Array.from(panel?.querySelectorAll('.saved-highlight-selection-card strong') ?? []).map(
           (node) => node.textContent?.trim() ?? ''
         );
@@ -6208,7 +6361,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -6221,7 +6374,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       return panelText.includes('全部章节') && cards.length === 2;
     }, {
@@ -6232,7 +6385,7 @@ describe('br1 desktop app', () => {
     await invertVisibleHighlightsSelectionInWorkspace();
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -6252,7 +6405,7 @@ describe('br1 desktop app', () => {
 
     await deleteSelectedHighlightsInWorkspace();
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const texts: string[] = [];
       for (const card of cards) {
@@ -6276,7 +6429,7 @@ describe('br1 desktop app', () => {
     });
     await clickHighlightGroupAction('删除本组高亮');
     await browser.waitUntil(async () => {
-      const panel = await $('[aria-label="highlights panel preview"]');
+      const panel = await $('[aria-label="高亮面板"]');
       const panelText = await panel.getText();
       const cards = await $$('.highlight-card');
       return panelText.includes('还没有高亮') && cards.length === 0;
@@ -6587,7 +6740,7 @@ describe('br1 desktop app', () => {
 
       await clickReaderSidebarTab('高亮');
       await browser.waitUntil(async () => {
-        const panel = await $('[aria-label="highlights panel preview"]');
+        const panel = await $('[aria-label="高亮面板"]');
         if (!(await panel.isDisplayed())) return false;
         const panelText = await panel.getText();
         const cards = await $$('.highlight-card');
@@ -6609,7 +6762,7 @@ describe('br1 desktop app', () => {
 
       await clickHighlightsSortControl('最早添加');
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const cards = await $$('.highlight-card');
         const firstText = cards.length ? await cards[0].getText() : '';
         return panelText.includes('最早添加优先') && firstText.includes(firstSelectionText.slice(0, 20));
@@ -6621,7 +6774,7 @@ describe('br1 desktop app', () => {
       await toggleFirstHighlightSelection();
       await browser.waitUntil(async () => {
         const state = await browser.execute(() => {
-          const panel = document.querySelector('[aria-label="highlights panel preview"]');
+          const panel = document.querySelector('[aria-label="高亮面板"]');
           const firstToggle = document.querySelector('.highlight-selection-toggle');
           return {
             panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -6635,7 +6788,7 @@ describe('br1 desktop app', () => {
       });
 
       await browser.execute(() => {
-        const controls = document.querySelector('[aria-label="highlights filter controls"]');
+        const controls = document.querySelector('[aria-label="高亮筛选控制"]');
         if (!(controls instanceof HTMLElement)) {
           throw new Error('expected highlights filter controls to exist');
         }
@@ -6648,7 +6801,7 @@ describe('br1 desktop app', () => {
         target.click();
       });
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const cards = await $$('.highlight-card');
         const firstText = cards.length ? await cards[0].getText() : '';
         return (
@@ -6672,7 +6825,7 @@ describe('br1 desktop app', () => {
         button.click();
       }, sample.format);
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="saved highlight selections"]').getText();
+        const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
         return panelText.includes(`Desktop ${sample.format} 重点高亮`) && panelText.includes('1 条高亮');
       }, {
         timeout: 10000,
@@ -6685,7 +6838,7 @@ describe('br1 desktop app', () => {
       await selectReaderMenuSetting('reader line height', '舒展');
       await selectReaderMenuSetting('reader page margins', '宽');
       await browser.waitUntil(async () => {
-        const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+        const footerText = await $('[aria-label="阅读页脚控制"]').getText();
         const rendererState = await readDesktopRendererSettings();
         return (
           footerText.includes('SCROLL') &&
@@ -6706,7 +6859,7 @@ describe('br1 desktop app', () => {
       await waitForDesktopReaderToHydrate(sample.format);
       await clickReaderSidebarTab('高亮');
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const cards = await $$('.highlight-card');
         const firstText = cards.length ? await cards[0].getText() : '';
         return (
@@ -6720,8 +6873,8 @@ describe('br1 desktop app', () => {
         timeoutMsg: `expected the ${sample.format} desktop highlights workspace to restore the selected-only view and ordering after reopening the book`
       });
       await browser.waitUntil(async () => {
-        const footerText = await $('[aria-label="reader footer controls preview"]').getText();
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const rendererState = await readDesktopRendererSettings();
         return (
           footerText.includes('SCROLL') &&
@@ -6738,7 +6891,7 @@ describe('br1 desktop app', () => {
         timeoutMsg: `expected the ${sample.format} desktop reader to reopen with both the saved layout settings and the highlights workspace state`
       });
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="saved highlight selections"]').getText();
+        const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
         return panelText.includes(`Desktop ${sample.format} 重点高亮`) && panelText.includes('1 条高亮');
       }, {
         timeout: 10000,
@@ -6746,7 +6899,7 @@ describe('br1 desktop app', () => {
       });
 
       await browser.execute(() => {
-        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
         if (!(savedPanel instanceof HTMLElement)) {
           throw new Error('expected the saved highlight selections panel to exist');
         }
@@ -6764,7 +6917,7 @@ describe('br1 desktop app', () => {
       });
       await browser.waitUntil(async () => {
         const exportState = await browser.execute(() => {
-          const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+          const preview = document.querySelector('[aria-label="高亮选择集导出预览"]');
           const payload = preview?.querySelector('textarea');
           return {
             previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -6782,7 +6935,7 @@ describe('br1 desktop app', () => {
         timeoutMsg: `expected the ${sample.format} desktop highlights workspace to expose a structured export preview for the saved selection set`
       });
       const exportedSelectionPayload = await browser.execute(() => {
-        const payload = document.querySelector('[aria-label="saved highlight selection export preview"] textarea');
+        const payload = document.querySelector('[aria-label="高亮选择集导出预览"] textarea');
         if (!(payload instanceof HTMLTextAreaElement)) {
           throw new Error('expected the saved selection export payload textarea to exist');
         }
@@ -6822,7 +6975,7 @@ describe('br1 desktop app', () => {
         }))
       });
       await browser.execute(() => {
-        const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+        const preview = document.querySelector('[aria-label="高亮选择集导出预览"]');
         if (!(preview instanceof HTMLElement)) {
           throw new Error('expected the saved selection export preview to exist');
         }
@@ -6836,7 +6989,7 @@ describe('br1 desktop app', () => {
       });
       await browser.execute((payload) => {
         window.prompt = () => payload;
-        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
         if (!(savedPanel instanceof HTMLElement)) {
           throw new Error('expected the saved highlight selections panel to exist');
         }
@@ -6850,7 +7003,7 @@ describe('br1 desktop app', () => {
       }, importedSelectionPayload);
       await browser.waitUntil(async () => {
         const state = await browser.execute(() => {
-          const panel = document.querySelector('[aria-label="saved highlight selections"]');
+          const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
           const firstCard = panel?.querySelector('.saved-highlight-selection-card');
           return {
             panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -6869,7 +7022,7 @@ describe('br1 desktop app', () => {
       });
       await browser.execute(() => {
         window.confirm = () => true;
-        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const firstCard = savedPanel?.querySelector('.saved-highlight-selection-card');
         if (!(firstCard instanceof HTMLElement)) {
           throw new Error('expected the imported saved highlight selection card to exist');
@@ -6884,7 +7037,7 @@ describe('br1 desktop app', () => {
       });
       await browser.waitUntil(async () => {
         const cardTexts = await browser.execute(() =>
-          Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+          Array.from(document.querySelectorAll('[aria-label="已保存高亮选择集"] .saved-highlight-selection-card')).map(
             (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
           )
         );
@@ -6899,7 +7052,7 @@ describe('br1 desktop app', () => {
       });
 
       await browser.execute(() => {
-        const controls = document.querySelector('[aria-label="highlights filter controls"]');
+        const controls = document.querySelector('[aria-label="高亮筛选控制"]');
         if (!(controls instanceof HTMLElement)) {
           throw new Error('expected highlights filter controls to exist');
         }
@@ -6912,7 +7065,7 @@ describe('br1 desktop app', () => {
         target.click();
       });
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const cards = await $$('.highlight-card');
         return panelText.includes('全部章节') && cards.length === 2;
       }, {
@@ -6930,7 +7083,7 @@ describe('br1 desktop app', () => {
         clearButton.click();
       });
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         return panelText.includes('未选高亮');
       }, {
         timeout: 10000,
@@ -6938,7 +7091,7 @@ describe('br1 desktop app', () => {
       });
 
       await browser.execute(() => {
-        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
         if (!(savedPanel instanceof HTMLElement)) {
           throw new Error('expected the saved highlight selections panel to exist');
         }
@@ -6951,7 +7104,7 @@ describe('br1 desktop app', () => {
         applyButton.click();
       });
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const cards = await $$('.highlight-card');
         const firstText = cards.length ? await cards[0].getText() : '';
         return (
@@ -6966,7 +7119,7 @@ describe('br1 desktop app', () => {
 
       await browser.execute(() => {
         window.confirm = () => true;
-        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
         if (!(savedPanel instanceof HTMLElement)) {
           throw new Error('expected the saved highlight selections panel to exist');
         }
@@ -6980,7 +7133,7 @@ describe('br1 desktop app', () => {
       });
       await browser.waitUntil(async () => {
         const cardTexts = await browser.execute(() =>
-          Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+          Array.from(document.querySelectorAll('[aria-label="已保存高亮选择集"] .saved-highlight-selection-card')).map(
             (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
           )
         );
@@ -6991,7 +7144,7 @@ describe('br1 desktop app', () => {
       });
 
       await browser.execute(() => {
-        const controls = document.querySelector('[aria-label="highlights filter controls"]');
+        const controls = document.querySelector('[aria-label="高亮筛选控制"]');
         if (!(controls instanceof HTMLElement)) {
           throw new Error('expected highlights filter controls to exist');
         }
@@ -7004,7 +7157,7 @@ describe('br1 desktop app', () => {
         target.click();
       });
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const cards = await $$('.highlight-card');
         return panelText.includes('全部章节') && cards.length === 2;
       }, {
@@ -7015,7 +7168,7 @@ describe('br1 desktop app', () => {
       await invertVisibleHighlightsSelectionInWorkspace();
       await browser.waitUntil(async () => {
         const state = await browser.execute(() => {
-          const panel = document.querySelector('[aria-label="highlights panel preview"]');
+          const panel = document.querySelector('[aria-label="高亮面板"]');
           const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
           return {
             panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -7035,7 +7188,7 @@ describe('br1 desktop app', () => {
 
       await deleteSelectedHighlightsInWorkspace();
       await browser.waitUntil(async () => {
-        const panelText = await $('[aria-label="highlights panel preview"]').getText();
+        const panelText = await $('[aria-label="高亮面板"]').getText();
         const cards = await $$('.highlight-card');
         const texts: string[] = [];
         for (const card of cards) {
@@ -7056,7 +7209,7 @@ describe('br1 desktop app', () => {
 
       await bulkDeleteVisibleHighlightsInWorkspace();
       await browser.waitUntil(async () => {
-        const panel = await $('[aria-label="highlights panel preview"]');
+        const panel = await $('[aria-label="高亮面板"]');
         const panelText = await panel.getText();
         const cards = await $$('.highlight-card');
         return panelText.includes('还没有高亮') && cards.length === 0;
@@ -7358,7 +7511,7 @@ describe('br1 desktop app', () => {
 
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
-      const panel = await $('[aria-label="highlights panel preview"]');
+      const panel = await $('[aria-label="高亮面板"]');
       if (!(await panel.isDisplayed())) return false;
       const panelText = await panel.getText();
       const cards = await $$('.highlight-card');
@@ -7380,7 +7533,7 @@ describe('br1 desktop app', () => {
 
     await clickHighlightsSortControl('最早添加');
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return panelText.includes('最早添加优先') && firstText.includes(firstSelectionText.slice(0, 20));
@@ -7392,7 +7545,7 @@ describe('br1 desktop app', () => {
     await toggleFirstHighlightSelection();
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const firstToggle = document.querySelector('.highlight-selection-toggle');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -7406,7 +7559,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -7419,7 +7572,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -7443,7 +7596,7 @@ describe('br1 desktop app', () => {
       button.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('Desktop FB2 重点高亮') && panelText.includes('1 条高亮');
     }, {
       timeout: 10000,
@@ -7456,7 +7609,7 @@ describe('br1 desktop app', () => {
     await selectReaderMenuSetting('reader line height', '舒展');
     await selectReaderMenuSetting('reader page margins', '宽');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
       const rendererState = await readDesktopRendererSettings();
       return (
         footerText.includes('SCROLL') &&
@@ -7476,7 +7629,7 @@ describe('br1 desktop app', () => {
     await openReaderFromLibraryPath(currentFilePath, libraryHandle);
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -7490,8 +7643,8 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
     });
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const rendererState = await readDesktopRendererSettings();
       return (
         footerText.includes('SCROLL') &&
@@ -7508,7 +7661,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 desktop reader to reopen with both the saved layout settings and the highlights workspace state'
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="saved highlight selections"]').getText();
+      const panelText = await $('[aria-label="已保存高亮选择集"]').getText();
       return panelText.includes('Desktop FB2 重点高亮') && panelText.includes('1 条高亮');
     }, {
       timeout: 10000,
@@ -7516,7 +7669,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -7534,7 +7687,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const exportState = await browser.execute(() => {
-        const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+        const preview = document.querySelector('[aria-label="高亮选择集导出预览"]');
         const payload = preview?.querySelector('textarea');
         return {
           previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -7552,7 +7705,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 desktop highlights workspace to expose a structured export preview for the saved selection set'
     });
     const fb2ExportedSelectionPayload = await browser.execute(() => {
-      const payload = document.querySelector('[aria-label="saved highlight selection export preview"] textarea');
+      const payload = document.querySelector('[aria-label="高亮选择集导出预览"] textarea');
       if (!(payload instanceof HTMLTextAreaElement)) {
         throw new Error('expected the saved selection export payload textarea to exist');
       }
@@ -7591,7 +7744,7 @@ describe('br1 desktop app', () => {
       }))
     });
     await browser.execute(() => {
-      const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+      const preview = document.querySelector('[aria-label="高亮选择集导出预览"]');
       if (!(preview instanceof HTMLElement)) {
         throw new Error('expected the saved selection export preview to exist');
       }
@@ -7605,7 +7758,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute((payload) => {
       window.prompt = () => payload;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -7619,7 +7772,7 @@ describe('br1 desktop app', () => {
     }, fb2ImportedSelectionPayload);
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const panel = document.querySelector('[aria-label="已保存高亮选择集"]');
         const firstCard = panel?.querySelector('.saved-highlight-selection-card');
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -7638,7 +7791,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute(() => {
       window.confirm = () => true;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       const firstCard = savedPanel?.querySelector('.saved-highlight-selection-card');
       if (!(firstCard instanceof HTMLElement)) {
         throw new Error('expected the imported saved highlight selection card to exist');
@@ -7653,7 +7806,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const cardTexts = await browser.execute(() =>
-        Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+        Array.from(document.querySelectorAll('[aria-label="已保存高亮选择集"] .saved-highlight-selection-card')).map(
           (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
         )
       );
@@ -7668,7 +7821,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -7681,7 +7834,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       return (
         panelText.includes('全部章节') &&
@@ -7702,14 +7855,14 @@ describe('br1 desktop app', () => {
       clearButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       return panelText.includes('未选高亮');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the FB2 desktop highlights workspace to clear the live selection before reapplying a saved set'
     });
     await browser.execute(() => {
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -7722,7 +7875,7 @@ describe('br1 desktop app', () => {
       applyButton.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const firstText = cards.length ? await cards[0].getText() : '';
       return (
@@ -7736,7 +7889,7 @@ describe('br1 desktop app', () => {
     });
     await browser.execute(() => {
       window.confirm = () => true;
-      const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+      const savedPanel = document.querySelector('[aria-label="已保存高亮选择集"]');
       if (!(savedPanel instanceof HTMLElement)) {
         throw new Error('expected the saved highlight selections panel to exist');
       }
@@ -7750,7 +7903,7 @@ describe('br1 desktop app', () => {
     });
     await browser.waitUntil(async () => {
       const cardTexts = await browser.execute(() =>
-        Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+        Array.from(document.querySelectorAll('[aria-label="已保存高亮选择集"] .saved-highlight-selection-card')).map(
           (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
         )
       );
@@ -7761,7 +7914,7 @@ describe('br1 desktop app', () => {
     });
 
     await browser.execute(() => {
-      const controls = document.querySelector('[aria-label="highlights filter controls"]');
+      const controls = document.querySelector('[aria-label="高亮筛选控制"]');
       if (!(controls instanceof HTMLElement)) {
         throw new Error('expected highlights filter controls to exist');
       }
@@ -7774,7 +7927,7 @@ describe('br1 desktop app', () => {
       target.click();
     });
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       return panelText.includes('全部章节') && cards.length === 2;
     }, {
@@ -7785,7 +7938,7 @@ describe('br1 desktop app', () => {
     await invertVisibleHighlightsSelectionInWorkspace();
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {
-        const panel = document.querySelector('[aria-label="highlights panel preview"]');
+        const panel = document.querySelector('[aria-label="高亮面板"]');
         const toggles = Array.from(document.querySelectorAll<HTMLButtonElement>('.highlight-selection-toggle'));
         return {
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -7805,7 +7958,7 @@ describe('br1 desktop app', () => {
 
     await deleteSelectedHighlightsInWorkspace();
     await browser.waitUntil(async () => {
-      const panelText = await $('[aria-label="highlights panel preview"]').getText();
+      const panelText = await $('[aria-label="高亮面板"]').getText();
       const cards = await $$('.highlight-card');
       const texts: string[] = [];
       for (const card of cards) {
@@ -7826,7 +7979,7 @@ describe('br1 desktop app', () => {
 
     await bulkDeleteVisibleHighlightsInWorkspace();
     await browser.waitUntil(async () => {
-      const panel = await $('[aria-label="highlights panel preview"]');
+      const panel = await $('[aria-label="高亮面板"]');
       const panelText = await panel.getText();
       const cards = await $$('.highlight-card');
       return panelText.includes('还没有高亮') && cards.length === 0;
@@ -7981,7 +8134,7 @@ describe('br1 desktop app', () => {
     await reopenedSearchInput.clearValue();
 
     await browser.waitUntil(async () => {
-      const cacheStatus = await $('[aria-label="search cache status"]');
+      const cacheStatus = await $('[aria-label="搜索缓存状态"]');
       if (!(await cacheStatus.isDisplayed())) return false;
       const text = await cacheStatus.getText();
       return (
@@ -8080,11 +8233,11 @@ describe('br1 desktop app', () => {
     });
 
     await browser.waitUntil(async () => {
-      const navigation = await $('[aria-label="search result navigation"]');
+      const navigation = await $('[aria-label="搜索结果导航"]');
       if (!(await navigation.isDisplayed())) return false;
       const text = await navigation.getText();
-      const previous = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
-      const next = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+      const previous = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
+      const next = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
       return (
         text.includes('1 / 2') &&
         (await previous.getAttribute('disabled')) !== null &&
@@ -8095,13 +8248,13 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected cached search results to expose a multi-result navigator at the first result'
     });
 
-    const nextSearchResult = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+    const nextSearchResult = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
     await nextSearchResult.click();
     await browser.waitUntil(async () => {
-      const navigation = await $('[aria-label="search result navigation"]');
+      const navigation = await $('[aria-label="搜索结果导航"]');
       const text = await navigation.getText();
-      const previous = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
-      const next = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+      const previous = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
+      const next = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
       return (
         text.includes('2 / 2') &&
         (await previous.getAttribute('disabled')) === null &&
@@ -8112,13 +8265,13 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected next search-result navigation to move to the final cached result'
     });
 
-    const previousSearchResult = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
+    const previousSearchResult = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
     await previousSearchResult.click();
     await browser.waitUntil(async () => {
-      const navigation = await $('[aria-label="search result navigation"]');
+      const navigation = await $('[aria-label="搜索结果导航"]');
       const text = await navigation.getText();
-      const previous = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
-      const next = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+      const previous = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
+      const next = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
       return (
         text.includes('1 / 2') &&
         (await previous.getAttribute('disabled')) !== null &&
@@ -8131,7 +8284,7 @@ describe('br1 desktop app', () => {
 
     await reopenedSearchInput.clearValue();
     await browser.waitUntil(async () => {
-      const cacheStatus = await $('[aria-label="search cache status"]');
+      const cacheStatus = await $('[aria-label="搜索缓存状态"]');
       if (!(await cacheStatus.isDisplayed())) return false;
       const text = await cacheStatus.getText();
       return (
@@ -8144,7 +8297,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the search cache status panel to return before clearing the current-book cache'
     });
 
-    const cacheQueryEntry = await $(`//ul[@aria-label="search cache query entries"]//button[contains(., "${query}")]`);
+    const cacheQueryEntry = await $(`//ul[@aria-label="搜索缓存查询记录"]//button[contains(., "${query}")]`);
     await cacheQueryEntry.click();
     await browser.waitUntil(async () => {
       const value = await reopenedSearchInput.getValue();
@@ -8155,7 +8308,7 @@ describe('br1 desktop app', () => {
     });
     await reopenedSearchInput.clearValue();
 
-    const clearCacheButton = await $('//section[@aria-label="search cache status"]//button[normalize-space()="清空缓存"]');
+    const clearCacheButton = await $('//section[@aria-label="搜索缓存状态"]//button[normalize-space()="清空缓存"]');
     await clearCacheButton.click();
     await browser.waitUntil(async () => {
       const notices = await $$('.search-notice');

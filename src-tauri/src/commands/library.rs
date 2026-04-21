@@ -233,10 +233,6 @@ fn resolve_library_owned_destination_path(
     if !is_supported_associated_book_path(&path) {
         return Err("Unsupported library book format".to_string());
     }
-    if !path.starts_with(&library_root) {
-        return Err("Cannot restore a library record outside the br1 library root".to_string());
-    }
-
     if path.exists() {
         let canonical = canonicalize_existing_file_path(file_path)?;
         if !canonical.starts_with(&library_root) {
@@ -248,7 +244,7 @@ fn resolve_library_owned_destination_path(
     let parent = path
         .parent()
         .ok_or_else(|| "Library destination path is missing a parent directory".to_string())?;
-    if !parent.starts_with(&library_root) || has_parent_dir_component(parent) {
+    if has_parent_dir_component(parent) {
         return Err("Cannot restore a library record outside the br1 library root".to_string());
     }
 
