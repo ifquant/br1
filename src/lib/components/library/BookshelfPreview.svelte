@@ -265,6 +265,8 @@
               <strong>{book.language || '未知'}</strong>
               <span>出版者</span>
               <strong>{book.publisher || '未记录'}</strong>
+              <span>封面</span>
+              <strong>{book.coverUrl ? '已设置' : '使用标题封面'}</strong>
               <span>书架归类</span>
               {#if book.collection && onFilterCollection}
                 <button
