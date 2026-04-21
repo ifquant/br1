@@ -3133,6 +3133,7 @@ describe('br1 desktop app', () => {
         });
         return (
           headerStatusText.includes('待修复 1 · 可批量 0 · 需复核 1') &&
+          repairSectionText.includes('已批量重建 1 本书的书库副本，仍有 1 本需要手动重新关联或重新选择文件。') &&
           repairSectionText.includes('共 1 本待处理') &&
           repairSectionText.includes('0 本可批量修复副本') &&
           repairSectionText.includes('1 本需逐本复核重关联')

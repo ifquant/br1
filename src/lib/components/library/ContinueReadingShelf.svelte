@@ -12,6 +12,7 @@
   export let onRemoveBook: ((book: ContinueReadingBook) => void | Promise<void>) | null = null;
   export let bulkActionLabel = '';
   export let bulkActionDisabled = false;
+  export let operationSummary = '';
   export let onBulkAction: (() => void | Promise<void>) | null = null;
   let expandedKey = '';
 
@@ -119,6 +120,11 @@
       </button>
     {/if}
   </header>
+  {#if operationSummary}
+    <div class="operation-summary" aria-label={`${sectionTitle} operation summary`}>
+      {operationSummary}
+    </div>
+  {/if}
 
   <div class="rows" aria-label={sectionTitle}>
     {#each books as book}
@@ -386,6 +392,16 @@
     margin: 0;
     font-size: 12px;
     color: var(--text-muted);
+  }
+
+  .operation-summary {
+    margin: -2px 2px 0;
+    padding: 9px 11px;
+    border-radius: 12px;
+    background: color-mix(in srgb, #dbeed8 58%, white 42%);
+    box-shadow: inset 0 0 0 1px rgba(69, 98, 70, 0.12);
+    color: color-mix(in srgb, #456246 84%, var(--text-secondary) 16%);
+    font: 600 12px/1.45 var(--font-chrome);
   }
 
   .rows {

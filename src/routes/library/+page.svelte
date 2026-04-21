@@ -147,6 +147,7 @@
   let migrationBusy = false;
   let desktopLibraryMode = false;
   let bulkRepairBusy = false;
+  let bulkRepairSummary = '';
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   let libraryFilterBy: LibraryFilter = 'all';
@@ -1133,11 +1134,13 @@
       .filter((record): record is PersistedLibraryBook => !!record && !!record.sourcePath);
 
     if (eligibleRecords.length === 0) {
+      bulkRepairSummary = '当前没有可自动批量修复的书库副本；这些条目需要逐本复核。';
       setLibraryNotice('info', '当前没有可自动批量修复的书库副本；其余条目仍需手动重新关联或重新选择文件。');
       return;
     }
 
     bulkRepairBusy = true;
+    bulkRepairSummary = '';
     clearLibraryNotice();
 
     let repairedCount = 0;
@@ -1172,6 +1175,10 @@
             ? `没有自动修复成功；当前仍有 ${manualRepairCount} 本需要手动重新关联或重新选择文件。`
             : '没有自动修复成功，请刷新书库后重试。'
         );
+        bulkRepairSummary =
+          failedCount > 0
+            ? `批量修复失败：${failedCount} 本未能自动修复，仍需复核当前待修复队列。`
+            : '批量修复没有恢复任何书库副本；请复核当前待修复队列。';
         return;
       }
 
@@ -1184,7 +1191,9 @@
       if (failedCount > 0) {
         summaryParts.push(`${failedCount} 本未能自动修复`);
       }
-      setLibraryNotice('info', `${summaryParts.join('，')}。`);
+      const summary = `${summaryParts.join('，')}。`;
+      bulkRepairSummary = summary;
+      setLibraryNotice('info', summary);
     } finally {
       bulkRepairBusy = false;
     }
@@ -1301,6 +1310,7 @@
                 : ''
             }
             bulkActionDisabled={bulkRepairBusy}
+            operationSummary={bulkRepairSummary}
             books={recoveryQueueReviewBooks}
             onOpenLink={handleOpenReaderTarget}
             onOpenSourcePath={handleOpenSourcePath}
