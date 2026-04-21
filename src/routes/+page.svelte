@@ -8,9 +8,9 @@
 </script>
 
 <section class="redirecting">
-  <div class="eyebrow">br1 / Library</div>
+  <div class="eyebrow">br1 / 书库</div>
   <h1>正在进入书库</h1>
-  <p>对齐 Readest 后，根路由默认直接进入 Library，减少额外的落地页层。</p>
+  <p>对齐 Readest 后，根路由默认直接进入书库，减少额外的落地页层。</p>
   <a href="/library">如果没有自动跳转，点这里进入书库。</a>
 </section>
 

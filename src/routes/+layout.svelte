@@ -19,8 +19,8 @@
   const ASSOCIATED_BOOK_OPEN_REJECTION_EVENT = 'br1:associated-book-open-inputs-rejected';
 
   const navItems = [
-    { href: '/library', label: 'Library' },
-    { href: '/reader', label: 'Reader' }
+    { href: '/library', label: '书库' },
+    { href: '/reader', label: '阅读' }
   ];
 
   const isLibraryRoute = derived(page, ($page) => $page.url.pathname === '/library');
@@ -56,8 +56,8 @@
       .join(', ');
     const remaining = rejectedInputs.length - 3;
 
-    associatedBookOpenNotice = `Ignored ${rejectedInputs.length} open-with input${rejectedInputs.length === 1 ? '' : 's'}.`;
-    associatedBookOpenNoticeDetails = `${preview}${remaining > 0 ? `, and ${remaining} more` : ''}`;
+    associatedBookOpenNotice = `已忽略 ${rejectedInputs.length} 个无法打开的输入。`;
+    associatedBookOpenNoticeDetails = `${preview}${remaining > 0 ? `，另有 ${remaining} 个` : ''}`;
 
     if (associatedBookOpenNoticeTimer !== null) {
       clearTimeout(associatedBookOpenNoticeTimer);
@@ -156,7 +156,7 @@
         <span>{associatedBookOpenNoticeDetails}</span>
       </div>
       <button type="button" class="associated-book-banner-dismiss" on:click={clearAssociatedBookOpenNotice}>
-        Dismiss
+        知道了
       </button>
     </div>
   {/if}
@@ -167,11 +167,11 @@
         <span class="mark">br1</span>
         <div class="copy">
           <strong>Bridge Reader</strong>
-          <small>Readest-inspired shell on Tauri + SvelteKit</small>
+          <small>以 Readest 为基准的本地阅读壳</small>
         </div>
       </div>
 
-      <nav class="top-nav" aria-label="primary">
+      <nav class="top-nav" aria-label="主导航">
         {#each navItems as item}
           <a class:active={$page.url.pathname === item.href} href={item.href}>{item.label}</a>
         {/each}
@@ -181,8 +181,8 @@
 
   <div class="app-frame">
     {#if !$isLibraryRoute && !$isReaderRoute}
-      <aside class="side-rail" aria-label="workspace sections">
-        <span class="rail-label">Workspace</span>
+      <aside class="side-rail" aria-label="工作区导航">
+        <span class="rail-label">工作区</span>
         {#each navItems as item}
           <a class:active={$page.url.pathname === item.href} href={item.href}>{item.label}</a>
         {/each}
