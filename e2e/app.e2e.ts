@@ -7080,6 +7080,22 @@ describe('br1 desktop app', () => {
       );
     });
 
+    await browser.waitUntil(async () => {
+      const navigation = await $('[aria-label="search result navigation"]');
+      if (!(await navigation.isDisplayed())) return false;
+      const text = await navigation.getText();
+      const previous = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
+      const next = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+      return (
+        text.includes('1 / 1') &&
+        (await previous.getAttribute('disabled')) !== null &&
+        (await next.getAttribute('disabled')) !== null
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected cached search results to expose a result navigator with disabled single-result controls'
+    });
+
     await reopenedSearchInput.clearValue();
     await browser.waitUntil(async () => {
       const cacheStatus = await $('[aria-label="search cache status"]');

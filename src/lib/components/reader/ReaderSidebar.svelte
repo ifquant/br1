@@ -472,6 +472,12 @@
       : searchHistoryFilter === 'empty'
         ? search.history.filter((entry) => entry.resultCount === 0)
         : search.history;
+  $: recentSearchResultIndex = search.results.findIndex((item) => item.cfi === search.recentResultCfi);
+  $: activeSearchResultIndex = search.results.findIndex((item) => item.cfi === search.activeResultCfi);
+  $: currentSearchResultIndex = Math.max(
+    0,
+    recentSearchResultIndex >= 0 ? recentSearchResultIndex : activeSearchResultIndex
+  );
   $: isCurrentLocationBookmarked =
     !!bookmarksState.activeLocator &&
     bookmarksState.bookmarks.some((bookmark) => bookmark.locator === bookmarksState.activeLocator);
@@ -1301,6 +1307,17 @@
   const runSearchHistory = (entry: ReaderSearchHistoryEntry) => {
     callbacks.onSearchHistory?.(entry);
   };
+
+  const navigateSearchResult = (direction: -1 | 1) => {
+    if (search.results.length <= 1) return;
+    const nextIndex = Math.min(
+      search.results.length - 1,
+      Math.max(0, currentSearchResultIndex + direction)
+    );
+    const target = search.results[nextIndex];
+    if (!target) return;
+    callbacks.onSearchResult?.(target.cfi);
+  };
 </script>
 
 <svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
@@ -1648,6 +1665,28 @@
             <span>输入关键词后会在正文里搜索，而不只是过滤目录。</span>
           {/if}
         </div>
+
+        {#if search.results.length}
+          <div class="search-result-nav" aria-label="search result navigation">
+            <button
+              type="button"
+              class="history-filter-chip"
+              disabled={search.results.length <= 1 || currentSearchResultIndex === 0}
+              on:click={() => navigateSearchResult(-1)}
+            >
+              上一条
+            </button>
+            <span>{currentSearchResultIndex + 1} / {search.results.length}</span>
+            <button
+              type="button"
+              class="history-filter-chip"
+              disabled={search.results.length <= 1 || currentSearchResultIndex >= search.results.length - 1}
+              on:click={() => navigateSearchResult(1)}
+            >
+              下一条
+            </button>
+          </div>
+        {/if}
 
         {#if search.notice}
           <div class:error={search.notice.kind === 'error'} class="search-notice" role="status">
@@ -3123,6 +3162,24 @@
     color: var(--text-muted);
     font-size: 11px;
     line-height: 1.4;
+  }
+
+  .search-result-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .search-result-nav span {
+    color: var(--text-secondary);
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    line-height: 1;
   }
 
   .search-history-head {
