@@ -12,6 +12,8 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '最近阅读' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '你的书库' })).toBeVisible();
+  await expect(page.getByLabel('library collection summary')).toContainText('归类 3 组');
+  await expect(page.getByLabel('library tag summary')).toContainText('标签 8 个 · 高频 政治哲学 2 本');
   await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Import books from the system/i })).toBeVisible();

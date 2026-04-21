@@ -15,6 +15,8 @@
   export let importDisabled = false;
   export let statusSummary = '';
   export let filterSummary = '';
+  export let collectionSummary = '';
+  export let tagSummary = '';
 
   let sortMenuOpen = false;
   let sortMenuElement: HTMLDivElement | null = null;
@@ -286,6 +288,12 @@
   {#if statusSummary}
     <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
   {/if}
+  {#if collectionSummary}
+    <span class="metadata-summary" aria-label="library collection summary">{collectionSummary}</span>
+  {/if}
+  {#if tagSummary}
+    <span class="metadata-summary tag-summary" aria-label="library tag summary">{tagSummary}</span>
+  {/if}
   {#if filterSummary}
     <span class="filter-summary" aria-label="library filter summary">{filterSummary}</span>
     <button
@@ -344,6 +352,25 @@
     font: 600 10px/1 var(--font-chrome);
     letter-spacing: 0.01em;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .metadata-summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 23px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #e7d3ad 14%, white 86%);
+    color: color-mix(in srgb, #6f4c20 82%, var(--text-secondary) 18%);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #b99661 20%, white 80%);
+  }
+
+  .metadata-summary.tag-summary {
+    background: color-mix(in srgb, #cfdcc1 16%, white 84%);
+    color: color-mix(in srgb, #49612f 82%, var(--text-secondary) 18%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #8da36b 20%, white 80%);
   }
 
   .clear-filters {

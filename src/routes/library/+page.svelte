@@ -186,8 +186,11 @@
   let filteredStarterShelfBooks: LibraryShelfBook[] = [];
   let visibleLibraryBooksCount = 0;
   let visibleStarterLibraryBooksCount = 0;
+  let librarySummaryBooks: LibraryShelfBook[] = [];
   let libraryCollectionOptions: string[] = [];
   let libraryTagOptions: string[] = [];
+  let libraryCollectionSummary = '';
+  let libraryTagSummary = '';
   let libraryFilterSummary = '';
   let readingWorkflowNotice:
     | {
@@ -606,6 +609,40 @@
       left.localeCompare(right, 'zh-Hans-CN')
     );
 
+  const countByLabel = (labels: string[]) =>
+    labels.reduce((counts, label) => {
+      const normalized = label.trim();
+      if (!normalized) return counts;
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>());
+
+  const getTopCountEntry = (counts: Map<string, number>) =>
+    Array.from(counts.entries()).sort((left, right) => {
+      if (right[1] !== left[1]) return right[1] - left[1];
+      return left[0].localeCompare(right[0], 'zh-Hans-CN');
+    })[0] ?? null;
+
+  const getLibraryCollectionSummary = (books: LibraryShelfBook[]) => {
+    const counts = countByLabel(
+      books
+        .map((book) => normalizeCollectionFilterValue(book.collection))
+        .filter((collection) => collection !== '未归类')
+    );
+    if (counts.size === 0) return '';
+    const topCollection = getTopCountEntry(counts);
+    if (!topCollection) return '';
+    return `归类 ${counts.size} 组 · 最大 ${topCollection[0]} ${topCollection[1]} 本`;
+  };
+
+  const getLibraryTagSummary = (books: LibraryShelfBook[]) => {
+    const counts = countByLabel(books.flatMap((book) => book.tags ?? []));
+    if (counts.size === 0) return '';
+    const topTag = getTopCountEntry(counts);
+    if (!topTag) return '';
+    return `标签 ${counts.size} 个 · 高频 ${topTag[0]} ${topTag[1]} 本`;
+  };
+
   const filterBooksByCollection = (books: LibraryShelfBook[], collection: string) => {
     if (collection === 'all') return books;
     return books.filter((book) => normalizeCollectionFilterValue(book.collection) === collection);
@@ -787,8 +824,11 @@
         sortBooksForDisplay(importedBooks, librarySortBy),
         [...continueReadingBooks, ...recentReadingBooks]
       );
-  $: libraryCollectionOptions = getLibraryCollectionOptions(importedBooks.length ? importedBooks : starterLibraryBooks);
-  $: libraryTagOptions = getLibraryTagOptions(importedBooks.length ? importedBooks : starterLibraryBooks);
+  $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
+  $: libraryCollectionOptions = getLibraryCollectionOptions(librarySummaryBooks);
+  $: libraryTagOptions = getLibraryTagOptions(librarySummaryBooks);
+  $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
+  $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
   $: if (
     libraryCollectionFilter !== 'all' &&
     !libraryCollectionOptions.includes(libraryCollectionFilter)
@@ -1442,6 +1482,8 @@
       activeTagFilter={libraryTagFilter}
       tagOptions={libraryTagOptions}
       statusSummary={libraryStatusSummary}
+      collectionSummary={libraryCollectionSummary}
+      tagSummary={libraryTagSummary}
       filterSummary={libraryFilterSummary}
       importDisabled={migrationBusy}
       on:querychange={handleLibraryQueryChange}
