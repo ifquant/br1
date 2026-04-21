@@ -1683,9 +1683,15 @@ describe('br1 desktop app', () => {
     });
 
   const setReaderViewWidthMode = async (mode: 'focus' | 'standard' | 'wide') => {
-    const moreActions = await $('[aria-label="More actions"]');
+    const moreActions = await $('.reader-head-frame [aria-label="More actions"]');
     await moreActions.waitForDisplayed({ timeout: 10000 });
-    await moreActions.click();
+    await browser.execute(() => {
+      const button = document.querySelector('.reader-head-frame [aria-label="More actions"]');
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error('expected reader header more-actions button to exist');
+      }
+      button.click();
+    });
 
     const labels = {
       focus: '专注',
@@ -1707,13 +1713,24 @@ describe('br1 desktop app', () => {
       | 'reader page margins',
     optionLabel: string
   ) => {
-    const moreActions = await $('[aria-label="More actions"]');
+    const moreActions = await $('.reader-head-frame [aria-label="More actions"]');
     await moreActions.waitForDisplayed({ timeout: 10000 });
-    await moreActions.click();
+    await browser.execute(() => {
+      const button = document.querySelector('.reader-head-frame [aria-label="More actions"]');
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error('expected reader header more-actions button to exist');
+      }
+      button.click();
+    });
+
+    const menuGroup = await $(`.reader-head-frame .header-menu [role="group"][aria-label="${groupLabel}"]`);
+    await menuGroup.waitForDisplayed({ timeout: 10000 });
 
     await browser.execute(
       ({ targetGroupLabel, targetOptionLabel }) => {
-        const groups = Array.from(document.querySelectorAll('[role="group"][aria-label]'));
+        const groups = Array.from(
+          document.querySelectorAll('.reader-head-frame .header-menu [role="group"][aria-label]')
+        );
         const group = groups.find(
           (candidate) => candidate.getAttribute('aria-label') === targetGroupLabel
         );
@@ -1753,6 +1770,24 @@ describe('br1 desktop app', () => {
         fontFamily: styles?.fontFamily ?? '',
         fontSize: styles?.fontSize ?? '',
         lineHeightPx: Number.parseFloat(styles?.lineHeight ?? '0')
+      };
+    });
+
+  const readPlainTextReaderSettings = async () =>
+    browser.execute(() => {
+      const surface = document.querySelector('.plain-text-surface');
+      const paper = document.querySelector('.plain-text-paper');
+      const pre = document.querySelector('.plain-text-paper pre');
+      const surfaceStyles = surface ? getComputedStyle(surface) : null;
+      const paperStyles = paper ? getComputedStyle(paper) : null;
+      const preStyles = pre ? getComputedStyle(pre) : null;
+
+      return {
+        surfacePadding: surfaceStyles?.padding ?? '',
+        paperWidth: paperStyles?.width ?? '',
+        fontFamily: preStyles?.fontFamily ?? '',
+        fontSize: preStyles?.fontSize ?? '',
+        lineHeightPx: Number.parseFloat(preStyles?.lineHeight ?? '0')
       };
     });
 
@@ -3494,15 +3529,17 @@ describe('br1 desktop app', () => {
     const txtBook = importedBooks.find((entry) => entry.format === 'TXT');
     expect(txtBook).toBeTruthy();
     expect(txtBook?.filePath).toBeTruthy();
+    const refreshedTxtBook = await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath);
+    let currentFilePath = (refreshedTxtBook?.filePath ?? refreshedTxtBook?.file_path ?? txtBook!.filePath) as string;
 
     const libraryHandle = await switchToLibraryWindow();
     await browser.refresh();
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
-    await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
+    await openReaderFromLibraryPath(currentFilePath, libraryHandle);
     await switchReaderToNotesTab();
     await clearAllReaderNotes();
-    await clearReaderHighlightsWorkspaceStateOnDisk(txtBook!.filePath);
+    await clearReaderHighlightsWorkspaceStateOnDisk(currentFilePath);
 
     await selectPlainTextInReader('plain text file exists');
     await browser.waitUntil(async () => {
@@ -3608,10 +3645,71 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop notes workspace to show two highlights and one note'
     });
 
+    await selectReaderMenuSetting('reader flow mode', '滚动');
+    await selectReaderMenuSetting('reader font family', '无衬线');
+    await selectReaderMenuSetting('reader font scale', '大');
+    await selectReaderMenuSetting('reader line height', '舒展');
+    await selectReaderMenuSetting('reader page margins', '宽');
+    await browser.waitUntil(async () => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const plainTextState = await readPlainTextReaderSettings();
+      return (
+        footerText.includes('SCROLL') &&
+        plainTextState.surfacePadding.includes('34px') &&
+        plainTextState.fontSize === '22px' &&
+        plainTextState.lineHeightPx > 42 &&
+        plainTextState.fontFamily.includes('IBM Plex Sans')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop reader to apply layout settings to the plain-text surface before reopen'
+    }).catch(async (error) => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const plainTextState = await readPlainTextReaderSettings();
+      const settingsState = await browser.execute(() => ({
+        stored: localStorage.getItem('br1.reader.settings'),
+        checked: Array.from(
+          document.querySelectorAll('.reader-head-frame .header-menu [role="menuitemradio"][aria-checked="true"]')
+        ).map((node) => node.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+      }));
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nFooter: ${footerText}\nPlain text state: ${JSON.stringify(
+          plainTextState
+        )}\nSettings state: ${JSON.stringify(settingsState)}`
+      );
+    });
+
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
+    const reopenedTxtRecord = await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath);
+    currentFilePath = (reopenedTxtRecord?.filePath ?? reopenedTxtRecord?.file_path ?? currentFilePath) as string;
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+    await openReaderFromLibraryPath(currentFilePath, libraryHandle);
     await switchReaderToNotesTab();
+
+    await browser.waitUntil(async () => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const plainTextState = await readPlainTextReaderSettings();
+      return (
+        footerText.includes('SCROLL') &&
+        plainTextState.surfacePadding.includes('34px') &&
+        plainTextState.fontSize === '22px' &&
+        plainTextState.lineHeightPx > 42 &&
+        plainTextState.fontFamily.includes('IBM Plex Sans')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop reader to reopen with persisted plain-text layout settings'
+    }).catch(async (error) => {
+      const footerText = await $('[aria-label="reader footer controls preview"]').getText();
+      const plainTextState = await readPlainTextReaderSettings();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nFooter: ${footerText}\nPlain text state: ${JSON.stringify(
+          plainTextState
+        )}`
+      );
+    });
 
     await browser.waitUntil(async () => {
       const metaRow = await $('.notes-meta-row');
@@ -3922,7 +4020,11 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    await openReaderFromLibraryPath(txtBook!.filePath, libraryHandle);
+    const restoredTxtRecord = await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath);
+    currentFilePath = (restoredTxtRecord?.filePath ?? restoredTxtRecord?.file_path ?? currentFilePath) as string;
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+    await openReaderFromLibraryPath(currentFilePath, libraryHandle);
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
       const state = await browser.execute(() => {

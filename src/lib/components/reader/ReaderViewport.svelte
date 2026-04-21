@@ -76,6 +76,7 @@
   let plainTextContent = '';
   let plainTextTitle = '';
   let plainTextScroller: HTMLDivElement | null = null;
+  let readerViewportVars = '';
 
   type ResolvedReaderOpenSource = {
     source: string | File;
@@ -286,6 +287,12 @@
       `--reader-chrome-bottom-inset:${getReaderChromeInset('bottom')}px`
     ].join(';');
   };
+
+  $: {
+    settings;
+    isWindowMode;
+    readerViewportVars = getReaderViewportVars();
+  }
 
   const getResponsiveMaxInlineSize = () => {
     const { width, height } = getViewportStageSize();
@@ -1058,7 +1065,7 @@
       data-view-width-mode={settings.viewWidthMode}
       data-role={READER_ENGINE_HOST_ATTR}
       data-engine-status={READER_ENGINE_STATUS_ATTR}
-      style={getReaderViewportVars()}
+      style={readerViewportVars}
       aria-label="reader engine host placeholder"
     >
       {#if isWindowMode}
