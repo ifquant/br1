@@ -55,12 +55,14 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
+  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 2 / 5 本');
   await page.getByRole('button', { name: '全部归类' }).click();
 
   await page.getByLabel('library tag filters').getByRole('button', { name: '正义论' }).click();
   await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
+  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 1 / 5 本');
   await page.getByRole('button', { name: '全部标签' }).click();
 
   await page.getByRole('button', { name: '已读完' }).click();

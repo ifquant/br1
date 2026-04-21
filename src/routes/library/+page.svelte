@@ -185,8 +185,10 @@
   let filteredStarterRecentReadingBooks: LibraryShelfBook[] = [];
   let filteredStarterShelfBooks: LibraryShelfBook[] = [];
   let visibleLibraryBooksCount = 0;
+  let visibleStarterLibraryBooksCount = 0;
   let libraryCollectionOptions: string[] = [];
   let libraryTagOptions: string[] = [];
+  let libraryFilterSummary = '';
   let readingWorkflowNotice:
     | {
         title: string;
@@ -628,6 +630,12 @@
     return '全部';
   };
 
+  const isLibraryViewFiltered = () =>
+    librarySearchActive ||
+    libraryFilterBy !== 'all' ||
+    libraryCollectionFilter !== 'all' ||
+    libraryTagFilter !== 'all';
+
   const getLibraryViewport = () => libraryScrollRef?.osInstance()?.elements().viewport ?? null;
 
   const buildLibraryScrollContextKey = () =>
@@ -899,6 +907,15 @@
     libraryCollectionFilter,
     libraryTagFilter
   );
+  $: visibleStarterLibraryBooksCount =
+    filteredStarterContinueReadingBooks.length +
+    filteredStarterRecentReadingBooks.length +
+    filteredStarterShelfBooks.length;
+  $: libraryFilterSummary = isLibraryViewFiltered()
+    ? `筛选命中 ${
+        desktopLibraryMode ? visibleLibraryBooksCount : visibleStarterLibraryBooksCount
+      } / ${importedBooks.length || starterLibraryBooks.length} 本`
+    : '';
   $: starterReadingWorkflowNotice = !librarySearchActive && libraryFilterBy === 'all' && libraryCollectionFilter === 'all' && libraryTagFilter === 'all'
     ? (() => {
         if (filteredStarterContinueReadingBooks.length > 0) return null;
@@ -1404,6 +1421,7 @@
       activeTagFilter={libraryTagFilter}
       tagOptions={libraryTagOptions}
       statusSummary={libraryStatusSummary}
+      filterSummary={libraryFilterSummary}
       importDisabled={migrationBusy}
       on:querychange={handleLibraryQueryChange}
       on:importbooks={triggerImportPicker}

@@ -14,6 +14,7 @@
   export let tagOptions: string[] = [];
   export let importDisabled = false;
   export let statusSummary = '';
+  export let filterSummary = '';
 
   let sortMenuOpen = false;
   let sortMenuElement: HTMLDivElement | null = null;
@@ -280,6 +281,9 @@
   {#if statusSummary}
     <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
   {/if}
+  {#if filterSummary}
+    <span class="filter-summary" aria-label="library filter summary">{filterSummary}</span>
+  {/if}
 </div>
 
 <style>
@@ -314,6 +318,19 @@
     font: 600 10px/1 var(--font-chrome);
     letter-spacing: 0.01em;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #cf7a35 20%, white 80%);
+  }
+
+  .filter-summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 23px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+    color: var(--text-secondary);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
   }
 
   .collection-filters {
