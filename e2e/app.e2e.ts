@@ -3111,6 +3111,21 @@ describe('br1 desktop app', () => {
         timeoutMsg: 'expected bulk repair to restore only the eligible TXT record and keep the manual CBZ repair in the queue'
       });
 
+      await browser.waitUntil(async () => {
+        const repairSectionText = await browser.execute(() => {
+          const section = document.querySelector('[aria-label="待修复书籍"]')?.closest('.continue-shelf');
+          return section?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        });
+        return (
+          repairSectionText.includes('共 1 本待处理') &&
+          repairSectionText.includes('0 本可批量修复副本') &&
+          repairSectionText.includes('1 本需逐本复核重关联')
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected the repair queue summary to update after bulk repair completes'
+      });
+
       const records = await loadLibraryRecordsOnDisk();
       const repairedTxtRecords = records.filter((record) => {
         const recordPath = (record.filePath ?? record.file_path ?? '') as string;
