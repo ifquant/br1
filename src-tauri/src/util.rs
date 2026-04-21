@@ -514,6 +514,23 @@ mod tests {
     }
 
     #[test]
+    fn renderer_controlled_storage_keys_do_not_create_path_components() {
+        let attacker_key = "../../Library/Application Support/com.apple.secret/book.epub?x=/tmp";
+        let search_key = reader_search_cache_component_key(attacker_key);
+        let storage_key = reader_storage_component_key(attacker_key);
+        let legacy_key = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(attacker_key);
+
+        for key in [search_key, storage_key, legacy_key] {
+            assert!(!key.contains('/'));
+            assert!(!key.contains('\\'));
+            assert!(!key.contains(".."));
+            assert!(Path::new(&key)
+                .components()
+                .all(|component| matches!(component, Component::Normal(_))));
+        }
+    }
+
+    #[test]
     fn readest_book_dirs_reject_path_traversal_hashes() {
         let root = unique_test_dir("readest-dir-traversal");
         fs::create_dir_all(&root).expect("create root");
