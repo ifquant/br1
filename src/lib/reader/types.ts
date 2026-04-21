@@ -19,6 +19,47 @@ export type ReaderPreviewState = {
   progressLocation: string;
 };
 
+export const READER_EMPTY_TITLE = 'Bridge Reader';
+export const READER_OPENING_LOCATION_LABEL = 'Opening book';
+export const READER_NOT_OPENED_LOCATION_LABEL = 'Not opened';
+export const READER_UNKNOWN_FORMAT_LABEL = 'BOOK';
+export const READER_WAITING_LAYOUT_LABEL = 'WAITING';
+
+export const createEmptyReaderPreviewState = (
+  overrides: Partial<ReaderPreviewState> = {}
+): ReaderPreviewState => ({
+  title: READER_EMPTY_TITLE,
+  author: '从书库选择一本书开始阅读',
+  chapterLabel: '等待打开书籍',
+  chapterHref: '',
+  progressLabel: '0%',
+  locationLabel: READER_NOT_OPENED_LOCATION_LABEL,
+  formatLabel: READER_UNKNOWN_FORMAT_LABEL,
+  layoutLabel: READER_WAITING_LAYOUT_LABEL,
+  progressFraction: 0,
+  progressLocation: '',
+  ...overrides
+});
+
+export const getReaderFormatDisplayLabel = (formatLabel: string) => {
+  if (formatLabel === READER_UNKNOWN_FORMAT_LABEL) return '书籍';
+  return formatLabel;
+};
+
+export const getReaderLayoutDisplayLabel = (layoutLabel: string) => {
+  if (layoutLabel === READER_WAITING_LAYOUT_LABEL) return '待打开';
+  if (layoutLabel === 'PAGINATED') return '分页';
+  if (layoutLabel === 'SCROLL') return '滚动';
+  if (layoutLabel === 'FIXED') return '固定版式';
+  return layoutLabel;
+};
+
+export const getReaderLocationDisplayLabel = (locationLabel: string) => {
+  if (locationLabel === READER_NOT_OPENED_LOCATION_LABEL) return '未打开';
+  if (locationLabel === READER_OPENING_LOCATION_LABEL) return '正在打开';
+  return locationLabel;
+};
+
 export type ReaderViewWidthMode = 'focus' | 'standard' | 'wide';
 export type ReaderChromeMode = 'auto' | 'always';
 export type ReaderAtmosphereMode = 'paper' | 'warm' | 'soft';

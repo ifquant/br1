@@ -11,6 +11,7 @@
     ReaderTocItem
   } from '$lib/reader';
   import {
+    createEmptyReaderPreviewState,
     createDefaultReaderSettings,
     getReaderShellPalette,
     hydrateReaderSettings,
@@ -43,18 +44,7 @@
   export let isCurrentLocationBookmarked = false;
   export let notes: ReaderNote[] = [];
 
-  let readerPreview: ReaderPreviewState = {
-    title: 'Bridge Reader',
-    author: 'Open a book to start reading',
-    chapterLabel: 'Waiting for book',
-    chapterHref: '',
-    progressLabel: '0%',
-    locationLabel: 'Not opened',
-    formatLabel: 'BOOK',
-    layoutLabel: 'WAITING',
-    progressFraction: 0,
-    progressLocation: ''
-  };
+  let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
   let hasAttemptedAutoPicker = false;
   let chromeVisible = true;
@@ -261,7 +251,7 @@
     class="canvas"
   >
     <ReaderViewport
-      title="Reading Surface"
+      title="阅读表面"
       {controlRequest}
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}

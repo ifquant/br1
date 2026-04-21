@@ -1,5 +1,10 @@
 import { get, writable } from 'svelte/store';
-import type { ReaderBookmark, ReaderBookmarksState, ReaderPreviewState } from './types';
+import {
+  READER_OPENING_LOCATION_LABEL,
+  type ReaderBookmark,
+  type ReaderBookmarksState,
+  type ReaderPreviewState
+} from './types';
 
 type ReaderBookmarksControllerOptions = {
   getStorage: () => Storage | undefined;
@@ -24,7 +29,7 @@ const buildBookmarkLocator = (preview: ReaderPreviewState): string => {
   if (normalizedChapterHref && normalizedLocationLabel) {
     return `href:${normalizedChapterHref}::${normalizedLocationLabel}`;
   }
-  if (normalizedLocationLabel && normalizedLocationLabel !== 'Opening book') {
+  if (normalizedLocationLabel && normalizedLocationLabel !== READER_OPENING_LOCATION_LABEL) {
     return `location:${normalizedLocationLabel}`;
   }
   if (normalizedChapterHref) {

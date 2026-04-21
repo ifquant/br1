@@ -13,11 +13,14 @@
     ReaderTocItem
   } from '$lib/reader';
   import {
+    createEmptyReaderPreviewState,
     createReaderBookmarksController,
     createReaderNotesController,
     createReaderSearchController,
     createReaderSidebarController,
     parseReaderRouteOpenState,
+    READER_NOT_OPENED_LOCATION_LABEL,
+    READER_OPENING_LOCATION_LABEL,
     toReaderOpenControlRequest
   } from '$lib/reader';
   import { supportsTextAnnotationsForFormat } from '$lib/reader/formats';
@@ -48,18 +51,7 @@
   let lastPersistPromise: Promise<void> = Promise.resolve();
   let currentCoverUrl = '';
   let bridgePanelOpen = false;
-  let currentPreview: ReaderPreviewState = {
-    title: 'Bridge Reader',
-    author: 'Open a book to start reading',
-    chapterLabel: 'Waiting for book',
-    chapterHref: '',
-    progressLabel: '0%',
-    locationLabel: 'Not opened',
-    formatLabel: 'BOOK',
-    layoutLabel: 'WAITING',
-    progressFraction: 0,
-    progressLocation: ''
-  };
+  let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
 
   $: routeOpenState = parseReaderRouteOpenState($page.url) satisfies ReaderRouteOpenState;
   $: isWindowMode = routeOpenState.isWindowMode;
@@ -218,7 +210,9 @@
 
     const normalizedProgressLocation =
       preview.formatLabel === 'PDF'
-        ? preview.locationLabel && preview.locationLabel !== 'Opening book' && preview.locationLabel !== 'Not opened'
+        ? preview.locationLabel &&
+          preview.locationLabel !== READER_OPENING_LOCATION_LABEL &&
+          preview.locationLabel !== READER_NOT_OPENED_LOCATION_LABEL
           ? preview.locationLabel
           : ''
         : preview.progressLocation;

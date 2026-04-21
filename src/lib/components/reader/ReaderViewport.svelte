@@ -4,6 +4,12 @@
     FOLIATE_VIEW_TAG,
     READER_ENGINE_HOST_ATTR,
     READER_ENGINE_STATUS_ATTR,
+    READER_EMPTY_TITLE,
+    READER_NOT_OPENED_LOCATION_LABEL,
+    READER_OPENING_LOCATION_LABEL,
+    READER_UNKNOWN_FORMAT_LABEL,
+    READER_WAITING_LAYOUT_LABEL,
+    createEmptyReaderPreviewState,
     createFoliateViewElement,
     ensureFoliateViewDefinition,
     flattenToc,
@@ -39,7 +45,7 @@
     saveReaderSearchCache
   } from '$lib/services';
 
-  export let title = 'Reading Surface';
+  export let title = '阅读表面';
   export let controlRequest: ReaderControlRequest | null = null;
   export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
   export let isWindowMode = false;
@@ -59,7 +65,7 @@
   let stageElement: HTMLDivElement | null = null;
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   let openStatus: 'idle' | 'loading' | 'open' | 'error' = 'idle';
-  let openSourceLabel = 'book';
+  let openSourceLabel = '';
   let openFailureSource = '';
   let openFailureMessage = '';
   let searchCacheBookKey = '';
@@ -70,8 +76,8 @@
   let boundSelectionDocs = new WeakSet<Document>();
   let syncedNoteValues = new Set<string>();
   let stageResizeObserver: ResizeObserver | null = null;
-  let currentFormatLabel = 'BOOK';
-  let currentLayoutLabel = 'WAITING';
+  let currentFormatLabel = READER_UNKNOWN_FORMAT_LABEL;
+  let currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
   let openEngineMode: 'foliate' | 'plain-text' = 'foliate';
   let plainTextContent = '';
   let plainTextTitle = '';
@@ -88,30 +94,25 @@
 
   const getFallbackReaderState = (
     overrides: Partial<ReaderPreviewState> = {}
-  ): ReaderPreviewState => ({
-    title: openSourceLabel || 'Bridge Reader',
-    author: 'Reader workspace',
-    chapterLabel: 'Waiting for book',
-    chapterHref: '',
-    progressLabel: '0%',
-    progressFraction: 0,
-    progressLocation: '',
-    locationLabel: 'Not opened',
-    formatLabel: currentFormatLabel,
-    layoutLabel: currentLayoutLabel,
-    ...overrides
-  });
+  ): ReaderPreviewState =>
+    createEmptyReaderPreviewState({
+      ...(openSourceLabel ? { title: openSourceLabel } : {}),
+      author: '阅读工作区',
+      formatLabel: currentFormatLabel,
+      layoutLabel: currentLayoutLabel,
+      ...overrides
+    });
 
   const inferReaderFormatLabel = (source: string | File, sourceLabel: string) => {
     if (source instanceof File) {
       if (source.type === 'application/pdf') return 'PDF';
-      return inferReaderFormatLabelFromName(source.name) || 'BOOK';
+      return inferReaderFormatLabelFromName(source.name) || READER_UNKNOWN_FORMAT_LABEL;
     }
 
     return (
       inferReaderFormatLabelFromName(source) ||
       inferReaderFormatLabelFromName(sourceLabel) ||
-      'BOOK'
+      READER_UNKNOWN_FORMAT_LABEL
     );
   };
 
@@ -141,7 +142,7 @@
   ) => {
     const current = lastLocation?.location?.current;
     const total = lastLocation?.location?.total;
-    if (typeof current !== 'number' || typeof total !== 'number') return 'Opening book';
+    if (typeof current !== 'number' || typeof total !== 'number') return READER_OPENING_LOCATION_LABEL;
     if (formatLabel === 'PDF') {
       return `Page ${Math.max(1, current)} / ${Math.max(1, total)}`;
     }
@@ -211,7 +212,7 @@
       detail.includes('requires the Tauri desktop runtime') ||
       detail.includes('library-file reader sources require the Tauri desktop runtime')
     ) {
-      return 'This book source can only be opened in the Tauri desktop app.';
+      return '这本书只能在 Tauri 桌面应用中打开。';
     }
 
     if (detail.includes('PDF vendor assets are unavailable')) {
@@ -219,18 +220,18 @@
     }
 
     if (detail.includes('does not expose makeBook()') || detail.includes('makeBook')) {
-      return `Failed to prepare ${formatLabel} book data before opening ${sourceLabel}.`;
+      return `打开 ${sourceLabel} 前，未能准备 ${formatLabel} 书籍数据。`;
     }
 
     if (detail.includes('support is planned but not implemented yet')) {
-      return `${formatLabel} support is planned for br1 but not implemented yet: ${sourceLabel}.`;
+      return `${formatLabel} 支持已列入 br1 计划，但当前还没有实现：${sourceLabel}。`;
     }
 
     if (detail.toLowerCase().includes('unsupported')) {
-      return `Unsupported ${formatLabel} source: ${sourceLabel}.`;
+      return `暂不支持 ${formatLabel} 来源：${sourceLabel}。`;
     }
 
-    return detail || `Unable to open ${sourceLabel}.`;
+    return detail || `无法打开 ${sourceLabel}。`;
   };
 
   const getViewportStageSize = () => {
@@ -421,13 +422,13 @@
     const sectionTotal = lastLocation?.section?.total;
     const fallbackChapter =
       typeof sectionCurrent === 'number' && typeof sectionTotal === 'number'
-        ? `Section ${sectionCurrent + 1} / ${sectionTotal}`
-        : 'Waiting for location';
+        ? `第 ${sectionCurrent + 1} / ${sectionTotal} 节`
+        : '等待定位';
 
     dispatch('readerstate', {
       ...getFallbackReaderState(),
-      title: pickText(book?.metadata?.title) || openSourceLabel || 'Bridge Reader',
-      author: pickAuthor(book?.metadata?.creator) || 'Unknown author',
+      title: pickText(book?.metadata?.title) || openSourceLabel || READER_EMPTY_TITLE,
+      author: pickAuthor(book?.metadata?.creator) || '未知作者',
       chapterLabel: lastLocation?.tocItem?.label || fallbackChapter,
       chapterHref: lastLocation?.tocItem?.href || '',
       progressLabel: `${progressPercent}%`,
@@ -542,7 +543,7 @@
     openSourceLabel = sourceLabel;
     openFailureSource = '';
     openFailureMessage = '';
-    currentLayoutLabel = 'WAITING';
+    currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
     searchCache = new Map();
     searchCacheBookKey = cacheBookKey;
     dispatch('searchcachekeychange', cacheBookKey);
@@ -550,10 +551,10 @@
     emitSelectionState(null);
     syncedNoteValues = new Set();
       emitReaderState({
-        title: sourceLabel || 'Bridge Reader',
-        author: 'Preparing book',
-        chapterLabel: 'Opening book',
-        locationLabel: 'Opening book'
+        title: sourceLabel || READER_EMPTY_TITLE,
+        author: '正在准备书籍',
+        chapterLabel: '正在打开书籍',
+        locationLabel: READER_OPENING_LOCATION_LABEL
       });
 
     try {
@@ -572,7 +573,7 @@
       if (isPlainTextFormat(currentFormatLabel)) {
         openEngineMode = 'plain-text';
         plainTextContent = await loadPlainTextSource(source);
-        plainTextTitle = sourceLabel || 'Plain text book';
+        plainTextTitle = sourceLabel || '纯文本书籍';
         currentLayoutLabel = 'SCROLL';
         syncEngineModeVisibility();
         openStatus = 'open';
@@ -615,13 +616,13 @@
       openFailureMessage = normalizeReaderOpenFailureMessage(
         error,
         currentFormatLabel,
-        sourceLabel || 'book'
+        sourceLabel || '书籍'
       );
       emitReaderState({
-        title: sourceLabel || 'Bridge Reader',
-        author: 'Open failed',
-        chapterLabel: 'Unable to open book',
-        locationLabel: 'Open failed'
+        title: sourceLabel || READER_EMPTY_TITLE,
+        author: '打开失败',
+        chapterLabel: '无法打开书籍',
+        locationLabel: '打开失败'
       });
     }
   };
@@ -893,10 +894,10 @@
         openSourceLabel || controlRequest.type
       );
       emitReaderState({
-        title: openSourceLabel || 'Bridge Reader',
-        author: 'Open failed',
-        chapterLabel: 'Unable to open book',
-        locationLabel: 'Open failed'
+        title: openSourceLabel || READER_EMPTY_TITLE,
+        author: '打开失败',
+        chapterLabel: '无法打开书籍',
+        locationLabel: '打开失败'
       });
     }
   };
@@ -1087,11 +1088,11 @@
               <div class="overlay-stack">
                 <p class="stage-status" aria-live="polite">
                   {#if openStatus === 'loading'}
-                    Opening {openSourceLabel}…
+                    正在打开 {openSourceLabel || '书籍'}…
                   {:else if openStatus === 'error'}
-                    Failed to open {openFailureSource || 'book'}.
+                    无法打开 {openFailureSource || '书籍'}。
                   {:else}
-                    Open a book from the library to start reading.
+                    从书库选择一本书开始阅读。
                   {/if}
                 </p>
                 {#if openStatus === 'error'}
@@ -1108,8 +1109,8 @@
       {:else}
         <div class="engine-paper">
           <div class="paper-header">
-            <span>{openStatus === 'open' ? openSourceLabel : 'Reading surface'}</span>
-            <small>{openStatus === 'open' ? 'book opened' : 'waiting for book'}</small>
+            <span>{openStatus === 'open' ? openSourceLabel : '阅读表面'}</span>
+            <small>{openStatus === 'open' ? '书籍已打开' : '等待打开书籍'}</small>
           </div>
 
           <div class="engine-stage" bind:this={stageElement}></div>
@@ -1129,7 +1130,7 @@
           {#if openStatus !== 'open'}
             <div class="paper-copy" aria-hidden="true">
               {#if openStatus === 'error'}
-                <p>Failed to open {openFailureSource || 'book'}.</p>
+                <p>无法打开 {openFailureSource || '书籍'}。</p>
                 {#if openFailureMessage}
                   <p class="stage-error" aria-live="polite">
                     <span>{openFailureMessage}</span>

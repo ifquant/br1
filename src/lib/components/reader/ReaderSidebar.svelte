@@ -19,6 +19,13 @@
     ReaderTocItem,
     SidebarTab
   } from '$lib/reader';
+  import {
+    READER_EMPTY_TITLE,
+    createEmptyReaderPreviewState,
+    getReaderFormatDisplayLabel,
+    getReaderLayoutDisplayLabel,
+    getReaderLocationDisplayLabel
+  } from '$lib/reader';
   import { getTextAnnotationSupportMessage, supportsTextAnnotationsForFormat } from '$lib/reader/formats';
   import {
     canPersistReaderHighlightsWorkspaceState,
@@ -33,18 +40,7 @@
   export let activeTab: SidebarTab = 'toc';
   export let bookKey = '';
   export let coverUrl = '';
-  export let preview: ReaderPreviewState = {
-    title: 'Bridge Reader',
-    author: 'Open a book to start reading',
-    chapterLabel: 'Waiting for book',
-    chapterHref: '',
-    progressLabel: '0%',
-    locationLabel: 'Not opened',
-    formatLabel: 'BOOK',
-    layoutLabel: 'WAITING',
-    progressFraction: 0,
-    progressLocation: ''
-  };
+  export let preview: ReaderPreviewState = createEmptyReaderPreviewState();
   export let search: ReaderSidebarSearchState = {
     term: '',
     status: 'idle',
@@ -463,7 +459,10 @@
     }
   };
 
-  $: hasOpenedBook = !!preview.progressLocation || preview.title !== 'Bridge Reader';
+  $: hasOpenedBook = !!preview.progressLocation || preview.title !== READER_EMPTY_TITLE;
+  $: previewFormatDisplayLabel = getReaderFormatDisplayLabel(preview.formatLabel);
+  $: previewLayoutDisplayLabel = getReaderLayoutDisplayLabel(preview.layoutLabel);
+  $: previewLocationDisplayLabel = getReaderLocationDisplayLabel(preview.locationLabel);
   $: successfulSearchHistoryCount = search.history.filter((entry) => entry.resultCount > 0).length;
   $: emptySearchHistoryCount = search.history.filter((entry) => entry.resultCount === 0).length;
   $: visibleSearchHistory =
@@ -1345,7 +1344,7 @@
         ☰
       </button>
       <div class="sidebar-labels">
-        <span class="eyebrow">Contents</span>
+        <span class="eyebrow">导航</span>
         <strong>目录</strong>
       </div>
       <div class="sidebar-actions">
@@ -1443,13 +1442,13 @@
           {/if}
         </div>
         <div class="book-copy">
-          <span class="book-kicker">{preview.formatLabel} · {preview.layoutLabel}</span>
+          <span class="book-kicker">{previewFormatDisplayLabel} · {previewLayoutDisplayLabel}</span>
           <strong>{preview.title}</strong>
           <span>{preview.author}</span>
           <span>{preview.chapterLabel}</span>
           <div class="book-stats">
             <span>{preview.progressLabel}</span>
-            <span>{preview.locationLabel}</span>
+            <span>{previewLocationDisplayLabel}</span>
           </div>
           <div class="book-meta-row">
             <span>{toc.length} 章节</span>

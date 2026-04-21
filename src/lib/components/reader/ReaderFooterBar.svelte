@@ -1,6 +1,13 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { ReaderControlRequest, ReaderPreviewState, ReaderViewWidthMode } from '$lib/reader';
+  import {
+    getReaderFormatDisplayLabel,
+    getReaderLayoutDisplayLabel,
+    getReaderLocationDisplayLabel,
+    type ReaderControlRequest,
+    type ReaderPreviewState,
+    type ReaderViewWidthMode
+  } from '$lib/reader';
 
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
@@ -15,6 +22,9 @@
   let sliderValue = 0;
 
   $: sliderValue = Math.round(preview.progressFraction * 100);
+  $: locationDisplayLabel = getReaderLocationDisplayLabel(preview.locationLabel);
+  $: formatDisplayLabel = getReaderFormatDisplayLabel(preview.formatLabel);
+  $: layoutDisplayLabel = getReaderLayoutDisplayLabel(preview.layoutLabel);
 
   const issueControl = (type: 'prev' | 'next' | 'start') => {
     controlNonce += 1;
@@ -62,9 +72,9 @@
       <span>{preview.progressLabel}</span>
     </label>
     <div class="footer-meta">
-      <span>{preview.locationLabel}</span>
-      <span>{preview.formatLabel}</span>
-      <span>{preview.layoutLabel}</span>
+      <span>{locationDisplayLabel}</span>
+      <span>{formatDisplayLabel}</span>
+      <span>{layoutDisplayLabel}</span>
     </div>
   </div>
 </footer>
