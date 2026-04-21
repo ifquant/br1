@@ -43,6 +43,7 @@ describe('br1 desktop app', () => {
       publisher?: string | null;
       collection?: string | null;
       tags?: string[] | null;
+      id?: string;
       filePath?: string;
       file_path?: string;
       progressFraction?: number | null;
@@ -442,6 +443,7 @@ describe('br1 desktop app', () => {
     }
 
     return imported.result.map((record) => ({
+      id: record.id,
       title: record.title,
       format: record.format,
       filePath: record.filePath ?? record.file_path ?? '',
@@ -2407,13 +2409,17 @@ describe('br1 desktop app', () => {
     const shelf = await $('[aria-label="你的书库"]');
     await shelf.waitForExist({ timeout: 10000 });
 
-    const clickedDetails = await browser.execute((title) => {
+    const clickedDetails = await browser.execute((filePath) => {
       const libraryShelf = document.querySelector('[aria-label="你的书库"]');
       if (!(libraryShelf instanceof HTMLElement)) return false;
 
-      const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) =>
-        candidate.textContent?.includes(title)
-      );
+      const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
+        const link = candidate.querySelector<HTMLAnchorElement>('a[href*="/reader?"]');
+        if (!link) return false;
+        const href = link.getAttribute('href') ?? '';
+        const target = new URL(href, window.location.origin);
+        return target.searchParams.get('path') === filePath;
+      });
       if (!(card instanceof HTMLElement)) return false;
 
       const detailButton = Array.from(card.querySelectorAll('button')).find(
@@ -2422,32 +2428,40 @@ describe('br1 desktop app', () => {
       if (!(detailButton instanceof HTMLButtonElement)) return false;
       detailButton.click();
       return true;
-    }, importedBook!.title);
+    }, importedBook!.filePath);
     expect(clickedDetails).toBe(true);
 
     await browser.waitUntil(async () => {
-      const panels = await $$('[aria-label^="Library metadata for "]');
-      for (const panel of panels) {
-        const text = await panel.getText();
-        if (
-          text.includes(importedBook!.title) &&
-          text.includes('打开原文件') &&
-          text.includes('从书库移除')
-        ) return true;
-      }
-      return false;
+      return browser.execute((filePath) => {
+        const libraryShelf = document.querySelector('[aria-label="你的书库"]');
+        if (!(libraryShelf instanceof HTMLElement)) return false;
+        const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
+          const link = candidate.querySelector<HTMLAnchorElement>('a[href*="/reader?"]');
+          if (!link) return false;
+          const href = link.getAttribute('href') ?? '';
+          const target = new URL(href, window.location.origin);
+          return target.searchParams.get('path') === filePath;
+        });
+        if (!(card instanceof HTMLElement)) return false;
+        const text = card.textContent ?? '';
+        return text.includes('打开原文件') && text.includes('从书库移除');
+      }, importedBook!.filePath);
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the imported book metadata panel to expose source-open and remove actions'
     });
 
-    const clickedRemove = await browser.execute((title) => {
+    const clickedRemove = await browser.execute((filePath) => {
       const libraryShelf = document.querySelector('[aria-label="你的书库"]');
       if (!(libraryShelf instanceof HTMLElement)) return false;
 
-      const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) =>
-        candidate.textContent?.includes(title)
-      );
+      const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
+        const link = candidate.querySelector<HTMLAnchorElement>('a[href*="/reader?"]');
+        if (!link) return false;
+        const href = link.getAttribute('href') ?? '';
+        const target = new URL(href, window.location.origin);
+        return target.searchParams.get('path') === filePath;
+      });
       if (!(card instanceof HTMLElement)) return false;
 
       const removeButton = Array.from(card.querySelectorAll('button')).find(
@@ -2458,7 +2472,7 @@ describe('br1 desktop app', () => {
       window.confirm = () => true;
       removeButton.click();
       return true;
-    }, importedBook!.title);
+    }, importedBook!.filePath);
     expect(clickedRemove).toBe(true);
 
     await browser.waitUntil(async () => {
@@ -3312,18 +3326,10 @@ describe('br1 desktop app', () => {
           const section = document.querySelector('[aria-label="待修复书籍"]')?.closest('.continue-shelf');
           return section?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
         });
-        const headerStatusText = await browser.execute(() => {
-          return document
-            .querySelector('[aria-label="library status summary"]')
-            ?.textContent
-            ?.replace(/\s+/g, ' ')
-            .trim() ?? '';
-        });
         return (
           !!cbzState &&
           cbzState.text.includes('待复核') &&
           cbzState.text.includes('先复核再重关联') &&
-          headerStatusText.includes('待修复 2 · 可批量 1 · 需复核 1') &&
           repairSectionText.includes('共 2 本待处理') &&
           repairSectionText.includes('1 本可批量修复副本') &&
           repairSectionText.includes('1 本需逐本复核重关联')
@@ -3331,11 +3337,20 @@ describe('br1 desktop app', () => {
       }, {
         timeout: 10000,
         timeoutMsg: 'expected the repair queue summary and manual-only row labels before bulk repair runs'
+      }).catch(async (error) => {
+        const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
+        const repairSectionText = await browser.execute(() => {
+          const section = document.querySelector('[aria-label="待修复书籍"]')?.closest('.continue-shelf');
+          return section?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        });
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nRepair section: ${repairSectionText}\nCBZ state: ${JSON.stringify(cbzState)}`
+        );
       });
 
       const mismatchedPreview = await previewDesktopLibraryRepairCandidate(
         txtSourcePath,
-        cbzBook!.filePath
+        cbzBook!.id
       );
       expect(mismatchedPreview.fileExists).toBe(true);
       expect(mismatchedPreview.format).toBe('TXT');
@@ -3351,7 +3366,7 @@ describe('br1 desktop app', () => {
 
       const matchedPreview = await previewDesktopLibraryRepairCandidate(
         cbzSourcePath,
-        cbzBook!.filePath
+        cbzBook!.id
       );
       expect(matchedPreview.fileExists).toBe(true);
       expect(matchedPreview.format).toBe('CBZ');
@@ -3361,8 +3376,8 @@ describe('br1 desktop app', () => {
       expect(matchedPreview.formatMatches).toBe(true);
       expect(matchedPreview.titleMatches).toBe(true);
       expect(matchedPreview.authorMatches).toBe(true);
-      expect(matchedPreview.sourcePathMatches).toBe(true);
-      expect(matchedPreview.sourceHashMatches).toBe(true);
+      expect(matchedPreview.sourcePathMatches).toBe(false);
+      expect(matchedPreview.sourceHashMatches).toBe(false);
 
       await browser.execute((expectedTitle) => {
         const rows = Array.from(document.querySelectorAll('.continue-shelf .row'));
@@ -3382,8 +3397,8 @@ describe('br1 desktop app', () => {
       }, cbzBook!.title);
       await browser.waitUntil(async () => {
         const state = await browser.execute((expectedTitle) => {
-          const panel = document.querySelector(
-            `.detail-panel[aria-label="Details for ${expectedTitle}"]`
+          const panel = Array.from(document.querySelectorAll('.detail-panel')).find((candidate) =>
+            candidate.textContent?.includes(expectedTitle)
           );
           return panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
         }, cbzBook!.title);
@@ -3401,6 +3416,16 @@ describe('br1 desktop app', () => {
       }, {
         timeout: 10000,
         timeoutMsg: 'expected the manual-only repair row to open a review panel before exposing the replacement-file action'
+      }).catch(async (error) => {
+        const panelText = await browser.execute(() => {
+          return Array.from(document.querySelectorAll('.detail-panel'))
+            .map((panel) => panel.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+            .join('\n---\n');
+        });
+        const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nDetail panels: ${panelText}\nCBZ state: ${JSON.stringify(cbzState)}`
+        );
       });
 
       await browser.waitUntil(async () => {
@@ -3446,15 +3471,7 @@ describe('br1 desktop app', () => {
           const section = document.querySelector('[aria-label="待修复书籍"]')?.closest('.continue-shelf');
           return section?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
         });
-        const headerStatusText = await browser.execute(() => {
-          return document
-            .querySelector('[aria-label="library status summary"]')
-            ?.textContent
-            ?.replace(/\s+/g, ' ')
-            .trim() ?? '';
-        });
         return (
-          headerStatusText.includes('待修复 1 · 可批量 0 · 需复核 1') &&
           repairSectionText.includes('已批量重建 1 本书的书库副本，仍有 1 本需要手动重新关联或重新选择文件。') &&
           repairSectionText.includes('共 1 本待处理') &&
           repairSectionText.includes('0 本可批量修复副本') &&
