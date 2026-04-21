@@ -472,6 +472,7 @@
       : searchHistoryFilter === 'empty'
         ? search.history.filter((entry) => entry.resultCount === 0)
         : search.history;
+  $: cachedSearchHistoryEntries = search.history.filter((entry) => entry.resultCount > 0);
   $: searchCacheDisplayKey =
     search.cacheKey.length > 52
       ? `${search.cacheKey.slice(0, 24)}…${search.cacheKey.slice(-20)}`
@@ -1577,6 +1578,18 @@
             <button type="button" class="history-clear" on:click={() => callbacks.onClearSearchCache?.()}>
               清空缓存
             </button>
+            {#if cachedSearchHistoryEntries.length}
+              <ul aria-label="search cache query entries">
+                {#each cachedSearchHistoryEntries as entry}
+                  <li>
+                    <button type="button" on:click={() => runSearchHistory(entry)}>
+                      <strong>{entry.query}</strong>
+                      <span>{entry.resultCount} 条 · {entry.config.scope === 'section' ? '当前章节' : '全书'}</span>
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
           </section>
         {/if}
 
@@ -3141,10 +3154,8 @@
   }
 
   .search-cache-status {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
     gap: 10px;
-    align-items: center;
     padding: 10px 12px;
     border-radius: 14px;
     background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
@@ -3176,6 +3187,47 @@
     font-size: 11px;
     line-height: 1.4;
     overflow-wrap: anywhere;
+  }
+
+  .search-cache-status > .history-clear {
+    justify-self: start;
+  }
+
+  .search-cache-status ul {
+    display: grid;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .search-cache-status li button {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.56);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    padding: 7px 9px;
+    text-align: left;
+    width: 100%;
+  }
+
+  .search-cache-status li strong {
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.3;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-cache-status li span {
+    flex: none;
   }
 
   .search-result-nav {

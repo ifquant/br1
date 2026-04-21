@@ -256,6 +256,8 @@ test('reader manages structured search history through reload in web mode', asyn
   await expect(page.getByLabel('search cache status')).toContainText('当前书搜索缓存已启用');
   await expect(page.getByLabel('search cache status')).toContainText('2 条历史 · 1 条有命中 · 1 条无命中');
   await expect(page.getByLabel('search cache status')).toContainText('缓存标识：/samples/sample-book.epub');
+  await expect(page.getByLabel('search cache query entries')).toContainText(hitQuery);
+  await expect(page.getByLabel('search cache query entries')).toContainText('3 条 · 全书');
   await expect(page.getByRole('button', { name: '全部 2' })).toBeVisible();
   await expect(page.getByRole('button', { name: '有命中 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: '无命中 1' })).toBeVisible();
@@ -274,6 +276,10 @@ test('reader manages structured search history through reload in web mode', asyn
   const hitHistoryChip = page.locator('.history-chip').filter({ hasText: hitQuery });
   await expect(hitHistoryChip).toContainText('3 条命中');
   await hitHistoryChip.click();
+  await expect(page.locator('input[type="search"]')).toHaveValue(hitQuery);
+
+  await page.locator('input[type="search"]').fill('');
+  await page.getByLabel('search cache query entries').getByRole('button', { name: /constitutional order/ }).click();
   await expect(page.locator('input[type="search"]')).toHaveValue(hitQuery);
 });
 

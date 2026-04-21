@@ -7210,7 +7210,9 @@ describe('br1 desktop app', () => {
       return (
         text.includes('当前书搜索缓存已启用') &&
         text.includes('2 条历史 · 1 条有命中 · 1 条无命中') &&
-        text.includes('缓存标识：')
+        text.includes('缓存标识：') &&
+        text.includes(query) &&
+        text.includes('2 条 · 全书')
       );
     }, {
       timeout: 10000,
@@ -7364,6 +7366,17 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected the search cache status panel to return before clearing the current-book cache'
     });
+
+    const cacheQueryEntry = await $(`//ul[@aria-label="search cache query entries"]//button[contains(., "${query}")]`);
+    await cacheQueryEntry.click();
+    await browser.waitUntil(async () => {
+      const value = await reopenedSearchInput.getValue();
+      return value === query;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected clicking a cache query entry to replay the cached search'
+    });
+    await reopenedSearchInput.clearValue();
 
     const clearCacheButton = await $('//section[@aria-label="search cache status"]//button[normalize-space()="清空缓存"]');
     await clearCacheButton.click();
