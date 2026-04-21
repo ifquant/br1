@@ -41,6 +41,8 @@
   let metadataEditTags = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
+  $: itemCountLabel = `${totalItems} 本`;
+  $: viewModeLabel = viewMode === 'grid' ? '网格视图' : '列表视图';
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
     if (!href || !onOpenLink) return;
@@ -197,8 +199,8 @@
     <div class="heading">
       <h2>{sectionTitle}</h2>
       <div class="shelf-meta">
-        <span>{totalItems} items</span>
-        <span>{viewMode}</span>
+        <span>{itemCountLabel}</span>
+        <span>{viewModeLabel}</span>
       </div>
     </div>
   </header>
@@ -552,11 +554,14 @@
     align-items: center;
     flex-wrap: wrap;
     color: var(--text-muted);
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1.2;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.02em;
     font-family: var(--font-chrome);
+  }
+
+  .shelf-meta span {
+    white-space: nowrap;
   }
 
   .shelf-meta span + span {
