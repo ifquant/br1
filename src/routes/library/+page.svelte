@@ -360,6 +360,11 @@
     const preflightLabel = '替换文件预检';
     const preflightDetail =
       '选择文件后会先检查文件是否存在、格式、标题、作者、原路径和 SHA-256 指纹；明显不匹配时会再次确认。';
+    const repairContractLabel = '修复契约';
+    const repairContractDetail =
+      persistedRecord.progressLocation || typeof persistedRecord.progressFraction === 'number'
+        ? '选中的文件会原位重关联到当前记录，保留阅读状态、百分比进度和恢复定位；不会新建重复书目。'
+        : '选中的文件会原位重关联到当前记录，保留阅读状态；不会新建重复书目。';
 
     const currentMatchKey = getPersistedLibraryMatchKey(persistedRecord);
     const conflictingMatchCount = persistedLibraryRecords.filter((record) => {
@@ -379,6 +384,8 @@
     if (conflictingMatchCount > 0) {
       return {
         note: '先核对当前条目的标题、格式、来源和进度，再打开文件选择器。选中的文件会原位重关联当前记录，不会新建重复条目。',
+        repairContractLabel,
+        repairContractDetail,
         conflictLabel: `检测到 ${conflictingMatchCount + 1} 条同题名/作者/格式的待修复记录`,
         conflictDetail:
           '系统会按现有记录顺序匹配修复目标；如果这里还有别的同类破损记录，先确认你正在处理的是当前这一条，再继续选择替换文件。',
@@ -391,6 +398,8 @@
     if (conflictingSourceCount > 0) {
       return {
         note: '先核对当前条目的标题、格式、来源和进度，再打开文件选择器。选中的文件会原位重关联当前记录，不会新建重复条目。',
+        repairContractLabel,
+        repairContractDetail,
         conflictLabel: '检测到相同原文件路径的其他记录',
         conflictDetail:
           '如果书库里还有别的条目共享这一原文件路径，选文件前先确认当前条目的标题和格式，避免把重关联落到另一条记录上。',
@@ -402,6 +411,8 @@
 
     return {
       note: '先核对当前条目的标题、格式、来源和进度，再打开文件选择器。选中的文件会原位重关联当前记录，不会新建重复条目。',
+      repairContractLabel,
+      repairContractDetail,
       conflictLabel: '当前没有检测到同类冲突',
       conflictDetail:
         '这条记录可以直接按原位修复处理；只要你选到的是同一本书，修复后会保留现有进度和阅读状态。',

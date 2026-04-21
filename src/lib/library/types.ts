@@ -26,6 +26,8 @@ export type LibraryShelfBook = {
 
 export type ManualRelinkReview = {
   note: string;
+  repairContractLabel: string;
+  repairContractDetail: string;
   conflictLabel: string;
   conflictDetail: string;
   preflightLabel: string;

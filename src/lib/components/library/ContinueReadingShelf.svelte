@@ -258,6 +258,10 @@
                     <strong>{book.progressPercentLabel || book.progress}</strong>
                   </span>
                 </div>
+                <div class="manual-review-contract">
+                  <strong>{book.manualRelinkReview.repairContractLabel}</strong>
+                  <span>{book.manualRelinkReview.repairContractDetail}</span>
+                </div>
                 <div class="manual-review-conflict">
                   <strong>{book.manualRelinkReview.conflictLabel}</strong>
                   <span>{book.manualRelinkReview.conflictDetail}</span>
@@ -661,6 +665,7 @@
   }
 
   .manual-review-head span,
+  .manual-review-contract span,
   .manual-review-conflict span,
   .manual-review-preflight span {
     font-size: 12px;
@@ -693,6 +698,7 @@
   }
 
   .manual-review-meta strong,
+  .manual-review-contract strong,
   .manual-review-conflict strong,
   .manual-review-preflight strong {
     font-family: var(--font-chrome);
@@ -701,6 +707,7 @@
     color: var(--text-primary);
   }
 
+  .manual-review-contract,
   .manual-review-conflict,
   .manual-review-preflight {
     display: grid;
