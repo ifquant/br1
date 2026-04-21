@@ -9,6 +9,7 @@
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onRepairBook: ((book: ContinueReadingBook) => void | Promise<void>) | null = null;
+  export let onRemoveBook: ((book: ContinueReadingBook) => void | Promise<void>) | null = null;
   export let bulkActionLabel = '';
   export let bulkActionDisabled = false;
   export let onBulkAction: (() => void | Promise<void>) | null = null;
@@ -52,6 +53,13 @@
     event.stopPropagation();
     if (!onRepairBook) return;
     void onRepairBook(book);
+  };
+
+  const handleRemoveBook = (event: MouseEvent, book: ContinueReadingBook) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!onRemoveBook) return;
+    void onRemoveBook(book);
   };
 
   const handleBulkAction = (event: MouseEvent) => {
@@ -284,18 +292,29 @@
                 <p>{book.description}</p>
               </div>
             {/if}
-            {#if (originalFileMissing || libraryCopyMissing) && onRepairBook}
+            {#if ((originalFileMissing || libraryCopyMissing) && onRepairBook) || onRemoveBook}
               <div class="detail-actions">
-                <button
-                  type="button"
-                  class:warning-pill={manualRelinkOnly}
-                  class="secondary-pill"
-                  on:click={(event: MouseEvent) => handleRepairBook(event, book)}
-                >
-                  {manualRelinkOnly && book.manualRelinkReview
-                    ? book.manualRelinkReview.actionLabel
-                    : getRepairLabel(book, originalFileMissing, libraryCopyMissing)}
-                </button>
+                {#if (originalFileMissing || libraryCopyMissing) && onRepairBook}
+                  <button
+                    type="button"
+                    class:warning-pill={manualRelinkOnly}
+                    class="secondary-pill"
+                    on:click={(event: MouseEvent) => handleRepairBook(event, book)}
+                  >
+                    {manualRelinkOnly && book.manualRelinkReview
+                      ? book.manualRelinkReview.actionLabel
+                      : getRepairLabel(book, originalFileMissing, libraryCopyMissing)}
+                  </button>
+                {/if}
+                {#if onRemoveBook}
+                  <button
+                    type="button"
+                    class="secondary-pill danger-pill"
+                    on:click={(event: MouseEvent) => handleRemoveBook(event, book)}
+                  >
+                    从书库移除
+                  </button>
+                {/if}
               </div>
             {/if}
           </div>
@@ -546,6 +565,12 @@
     background: color-mix(in srgb, #cf7a35 12%, white 88%);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #cf7a35 22%, white 78%);
     color: color-mix(in srgb, #7c4619 88%, black 12%);
+  }
+
+  .secondary-pill.danger-pill {
+    background: color-mix(in srgb, #9a3d2f 10%, white 90%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #9a3d2f 22%, white 78%);
+    color: color-mix(in srgb, #7b251b 88%, black 12%);
   }
 
   .resume-pill {

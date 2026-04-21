@@ -1192,6 +1192,7 @@
             onImportBooks={triggerImportPicker}
             onBulkAction={handleBulkRepairLibraryBooks}
             onRepairBook={handleRepairLibraryBook}
+            onRemoveBook={handleRemoveLibraryBook}
           />
         {/if}
 
@@ -1205,6 +1206,7 @@
             onOpenSourcePath={handleOpenSourcePath}
             onImportBooks={triggerImportPicker}
             onRepairBook={handleRepairLibraryBook}
+            onRemoveBook={handleRemoveLibraryBook}
           />
         {/if}
 
@@ -1218,6 +1220,7 @@
             onOpenSourcePath={handleOpenSourcePath}
             onImportBooks={triggerImportPicker}
             onRepairBook={handleRepairLibraryBook}
+            onRemoveBook={handleRemoveLibraryBook}
           />
         {/if}
 

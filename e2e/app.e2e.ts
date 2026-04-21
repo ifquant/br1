@@ -2066,6 +2066,79 @@ describe('br1 desktop app', () => {
     await rm(removableSource, { force: true });
   });
 
+  it('removes a continue-reading book from its workflow detail panel', async () => {
+    const removableSource = join(appDataRoot, `br1-continue-removable-${Date.now()}.txt`);
+    await copyFile(join(staticSamplesRoot, 'sample-book.txt'), removableSource);
+    const [importedBook] = await importDesktopLibraryBooks([removableSource]);
+    expect(importedBook?.filePath).toBeTruthy();
+
+    await updateLibraryRecordOnDiskByTitle(importedBook!.title, (record) => ({
+      ...record,
+      progress: '上次读到 44%',
+      status: '继续阅读',
+      progressFraction: 0.44,
+      progressLocation: 'TXT-continue-remove-44',
+      lastOpenedAt: Date.now()
+    }));
+
+    await switchToLibraryWindow();
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    await browser.waitUntil(async () => {
+      const state = await readLibraryEntryStateForTitle(importedBook!.title);
+      return !!state && state.sectionLabel === '继续阅读' && state.hasReaderHref;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the temporary TXT book to appear in the continue-reading workflow'
+    });
+
+    await toggleLibraryDetailsForTitle(importedBook!.title);
+    await browser.waitUntil(async () => {
+      const state = await readLibraryEntryStateForTitle(importedBook!.title);
+      return !!state && state.text.includes('从书库移除') && state.text.includes('TXT-continue-remove-44');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected continue-reading details to expose a remove action and restore locator'
+    });
+
+    const clickedRemove = await browser.execute((title) => {
+      const rows = Array.from(document.querySelectorAll('.continue-shelf .row'));
+      const row = rows.find((candidate) => (candidate.textContent ?? '').includes(title));
+      if (!(row instanceof HTMLElement)) return false;
+
+      const removeButton = Array.from(row.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '从书库移除'
+      );
+      if (!(removeButton instanceof HTMLButtonElement)) return false;
+
+      window.confirm = () => true;
+      removeButton.click();
+      return true;
+    }, importedBook!.title);
+    expect(clickedRemove).toBe(true);
+
+    await browser.waitUntil(async () => {
+      const notice = await $('.library-notice');
+      if (!(await notice.isExisting())) return false;
+      return (await notice.getText()).includes('已从书库移除');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected removing a continue-reading book to show a library notice'
+    });
+
+    await browser.waitUntil(async () => {
+      return (await loadLibraryRecordOnDisk(importedBook!.filePath)) === null;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the removed continue-reading record to leave library.json'
+    });
+
+    expect(await pathExists(removableSource)).toBe(true);
+    expect(await pathExists(importedBook!.filePath)).toBe(false);
+    await rm(removableSource, { force: true });
+  });
+
   it('can execute JavaScript inside the desktop webview', async () => {
     const readyState = await browser.execute(() => document.readyState);
     expect(readyState).toBe('complete');
