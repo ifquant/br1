@@ -2213,7 +2213,7 @@ describe('br1 desktop app', () => {
         });
         if (!(card instanceof HTMLElement)) return false;
         const editButton = Array.from(card.querySelectorAll('button')).find(
-          (button) => button.textContent?.trim() === '编辑标题/作者'
+          (button) => button.textContent?.trim() === '编辑元数据'
         );
         if (!(editButton instanceof HTMLButtonElement)) return false;
         editButton.click();
@@ -2229,7 +2229,10 @@ describe('br1 desktop app', () => {
             return candidate.textContent?.includes(initialTitle);
           });
           if (!(card instanceof HTMLElement)) return false;
-          return !!card.querySelector('input[aria-label="Edit book title"]');
+          return (
+            !!card.querySelector('input[aria-label="Edit book title"]') &&
+            (card.textContent ?? '').includes('不会移动文件、重置阅读进度或覆盖恢复定位')
+          );
         }, displayTitle);
       }, {
         timeout: 10000,

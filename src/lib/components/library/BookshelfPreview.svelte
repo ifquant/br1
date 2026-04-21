@@ -260,6 +260,9 @@
                 aria-label={`Edit metadata for ${book.title}`}
                 on:submit={(event: SubmitEvent) => handleMetadataSubmit(event, book)}
               >
+                <p class="metadata-edit-note">
+                  只更新书库元数据；不会移动文件、重置阅读进度或覆盖恢复定位。
+                </p>
                 <label>
                   <span>标题</span>
                   <input bind:value={metadataEditTitle} required aria-label="Edit book title" />
@@ -300,7 +303,7 @@
                     class="metadata-action"
                     on:click={(event: MouseEvent) => startMetadataEdit(event, book)}
                   >
-                    编辑标题/作者
+                    编辑元数据
                   </button>
                 {/if}
                 {#if onOpenSourcePath && book.sourcePath && !book.availabilityLabel?.includes('原文件缺失')}
@@ -546,6 +549,13 @@
     border-radius: 10px;
     background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .metadata-edit-note {
+    margin: 0;
+    color: color-mix(in srgb, var(--text-secondary) 88%, #6f4a21 12%);
+    font-size: 10px;
+    line-height: 1.45;
   }
 
   .metadata-edit label {
