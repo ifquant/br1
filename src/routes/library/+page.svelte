@@ -1399,6 +1399,20 @@
     libraryTagFilter = event.detail.tag;
   };
 
+  const handleFilterByShelfCollection = (collection: string) => {
+    libraryQuery = '';
+    libraryFilterBy = 'all';
+    libraryTagFilter = 'all';
+    libraryCollectionFilter = collection;
+  };
+
+  const handleFilterByShelfTag = (tag: string) => {
+    libraryQuery = '';
+    libraryFilterBy = 'all';
+    libraryCollectionFilter = 'all';
+    libraryTagFilter = tag;
+  };
+
   const handleClearLibraryFilters = () => {
     libraryQuery = '';
     libraryFilterBy = 'all';
@@ -1554,6 +1568,8 @@
           onOpenSourcePath={handleOpenSourcePath}
           onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
           onRemoveBook={handleRemoveLibraryBook}
+          onFilterCollection={handleFilterByShelfCollection}
+          onFilterTag={handleFilterByShelfTag}
         />
       {/if}
 
@@ -1633,6 +1649,8 @@
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
+          onFilterCollection={handleFilterByShelfCollection}
+          onFilterTag={handleFilterByShelfTag}
         />
       {/if}
     </OverlayScrollbarsComponent>

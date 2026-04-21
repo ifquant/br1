@@ -44,21 +44,21 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(sampleMetadataPanel).toContainText('书架归类');
   await expect(sampleMetadataPanel).toContainText('政治哲学');
   await expect(sampleMetadataPanel).toContainText('标签');
-  await expect(sampleMetadataPanel).toContainText('正义论 / 政治哲学');
+  await expect(sampleMetadataPanel.getByRole('button', { name: 'Filter by tag 正义论' })).toBeVisible();
+  await expect(
+    sampleMetadataPanel.getByRole('button', { name: 'Filter by tag 政治哲学' })
+  ).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('来源');
   await expect(sampleMetadataPanel).toContainText('样例书库');
 
-  await page
-    .getByLabel('library collection filters')
-    .getByRole('button', { name: '政治哲学' })
-    .click();
+  await sampleMetadataPanel.getByRole('button', { name: 'Filter by collection 政治哲学' }).click();
   await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
   await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 2 / 5 本');
-  await page.getByRole('button', { name: '全部归类' }).click();
+  await page.getByRole('button', { name: 'Clear library filters' }).click();
 
-  await page.getByLabel('library tag filters').getByRole('button', { name: '正义论' }).click();
+  await sampleMetadataPanel.getByRole('button', { name: 'Filter by tag 正义论' }).click();
   await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);

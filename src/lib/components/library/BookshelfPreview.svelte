@@ -24,6 +24,8 @@
       ) => void | Promise<void>)
     | null = null;
   export let onRemoveBook: ((book: BookshelfPreviewBook) => void | Promise<void>) | null = null;
+  export let onFilterCollection: ((collection: string) => void | Promise<void>) | null = null;
+  export let onFilterTag: ((tag: string) => void | Promise<void>) | null = null;
   let expandedKey = '';
   let metadataEditKey = '';
   let metadataEditTitle = '';
@@ -114,6 +116,22 @@
     event.preventDefault();
     event.stopPropagation();
     void onOpenSourcePath(filePath);
+  };
+
+  const handleFilterCollection = (event: MouseEvent, collection: string | undefined) => {
+    const nextCollection = collection?.trim();
+    if (!nextCollection || !onFilterCollection) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void onFilterCollection(nextCollection);
+  };
+
+  const handleFilterTag = (event: MouseEvent, tag: string | undefined) => {
+    const nextTag = tag?.trim();
+    if (!nextTag || !onFilterTag) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void onFilterTag(nextTag);
   };
 
   const getPrimaryProgress = (book: BookshelfPreviewBook) => {
@@ -248,9 +266,35 @@
               <span>出版者</span>
               <strong>{book.publisher || '未记录'}</strong>
               <span>书架归类</span>
-              <strong>{book.collection || '未归类'}</strong>
+              {#if book.collection && onFilterCollection}
+                <button
+                  type="button"
+                  class="metadata-filter-button"
+                  aria-label={`Filter by collection ${book.collection}`}
+                  on:click={(event: MouseEvent) => handleFilterCollection(event, book.collection)}
+                >
+                  {book.collection}
+                </button>
+              {:else}
+                <strong>{book.collection || '未归类'}</strong>
+              {/if}
               <span>标签</span>
-              <strong>{book.tags?.length ? book.tags.join(' / ') : '未标记'}</strong>
+              {#if book.tags?.length && onFilterTag}
+                <div class="metadata-filter-list" aria-label={`Tags for ${book.title}`}>
+                  {#each book.tags as tag}
+                    <button
+                      type="button"
+                      class="metadata-filter-button"
+                      aria-label={`Filter by tag ${tag}`}
+                      on:click={(event: MouseEvent) => handleFilterTag(event, tag)}
+                    >
+                      {tag}
+                    </button>
+                  {/each}
+                </div>
+              {:else}
+                <strong>{book.tags?.length ? book.tags.join(' / ') : '未标记'}</strong>
+              {/if}
               <span>来源</span>
               <strong>{book.sourceLabel || '未知来源'}</strong>
               <span>可用性</span>
@@ -556,6 +600,34 @@
     line-height: 1.35;
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+
+  .metadata-filter-list {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .metadata-filter-button {
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 78%, white 22%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 82%, #e8d2aa 18%);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: var(--font-chrome);
+    font-size: 10px;
+    font-weight: 560;
+    line-height: 1;
+    padding: 4px 7px;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .metadata-filter-button:hover {
+    border-color: color-mix(in srgb, #8c6a3b 42%, var(--line-soft) 58%);
+    background: color-mix(in srgb, var(--surface-reader) 74%, #e8d2aa 26%);
   }
 
   .metadata-panel p {
