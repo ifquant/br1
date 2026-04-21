@@ -1668,12 +1668,12 @@
   <div class="library-surface">
     {#snippet emptyFilterRecovery()}
       {#if libraryActiveFilterChips.length > 0}
-        <div class="empty-filter-chips" aria-label="empty state filter chips">
+        <div class="empty-filter-chips" aria-label="空态筛选条件">
           {#each libraryActiveFilterChips as chip}
             <button
               type="button"
               class="empty-filter-chip"
-              aria-label={`Remove empty-state library filter ${chip.label}`}
+              aria-label={`移除空态筛选：${chip.label}`}
               on:click={() => clearLibraryFilterById(chip.id)}
             >
               <span>{chip.label}</span>
@@ -1753,7 +1753,7 @@
     {/if}
 
     {#if showReadestMigration}
-      <section class="migration-banner" aria-label="readest migration">
+      <section class="migration-banner" aria-label="Readest 迁移提示">
         <div class="migration-copy">
           <strong>发现 Readest 书库</strong>
           <span>
@@ -1780,7 +1780,7 @@
     >
       {#if importedBooks.length}
         {#if readingWorkflowNotice}
-          <section class="reading-workflow-note" aria-label="reading workflow note">
+          <section class="reading-workflow-note" aria-label="阅读流程提示">
             <strong>{readingWorkflowNotice.title}</strong>
             <span>{readingWorkflowNotice.message}</span>
           </section>
@@ -1857,7 +1857,7 @@
 
       {#if desktopLibraryMode}
         {#if !importedBooks.length}
-          <section class="empty-library" aria-label="empty library">
+          <section class="empty-library" aria-label="空书库">
             <div class="empty-copy">
               <strong>你的书库还是空的</strong>
               <span>
@@ -1880,7 +1880,7 @@
             </div>
           </section>
         {:else if libraryQuery && visibleLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="empty search results">
+          <section class="empty-library" aria-label="搜索无结果">
             <div class="empty-copy">
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>
@@ -1890,7 +1890,7 @@
             {@render emptyFilterRecovery()}
           </section>
         {:else if visibleLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="empty filtered library">
+          <section class="empty-library" aria-label="筛选无结果">
             <div class="empty-copy">
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
@@ -1900,7 +1900,7 @@
         {/if}
       {:else}
         {#if starterReadingWorkflowNotice}
-          <section class="reading-workflow-note" aria-label="sample reading workflow note">
+          <section class="reading-workflow-note" aria-label="样例阅读流程提示">
             <strong>{starterReadingWorkflowNotice.title}</strong>
             <span>{starterReadingWorkflowNotice.message}</span>
           </section>
@@ -1927,7 +1927,7 @@
         {/if}
 
         {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="empty search results">
+          <section class="empty-library" aria-label="样例搜索无结果">
             <div class="empty-copy">
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>
@@ -1937,7 +1937,7 @@
             {@render emptyFilterRecovery()}
           </section>
         {:else if visibleStarterLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="empty filtered library">
+          <section class="empty-library" aria-label="样例筛选无结果">
             <div class="empty-copy">
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
