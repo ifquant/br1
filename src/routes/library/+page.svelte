@@ -1854,12 +1854,22 @@
                 试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
               </span>
             </div>
+            <div class="empty-actions">
+              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
+                清除筛选
+              </button>
+            </div>
           </section>
         {:else if visibleLibraryBooksCount === 0}
           <section class="empty-library" aria-label="empty filtered library">
             <div class="empty-copy">
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
+            </div>
+            <div class="empty-actions">
+              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
+                清除筛选
+              </button>
             </div>
           </section>
         {/if}
@@ -1899,12 +1909,22 @@
                 试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
               </span>
             </div>
+            <div class="empty-actions">
+              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
+                清除筛选
+              </button>
+            </div>
           </section>
         {:else if visibleStarterLibraryBooksCount === 0}
           <section class="empty-library" aria-label="empty filtered library">
             <div class="empty-copy">
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
+            </div>
+            <div class="empty-actions">
+              <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
+                清除筛选
+              </button>
             </div>
           </section>
         {/if}
