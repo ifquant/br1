@@ -1034,6 +1034,8 @@
         const candidatePreview = await previewLibraryRepairCandidate({
           filePath: selectedPath,
           expectedFormat: persistedRecord.format,
+          expectedTitle: persistedRecord.title,
+          expectedAuthor: persistedRecord.author,
           expectedSourcePath: persistedRecord.sourcePath
         });
         if (!candidatePreview.fileExists) {
@@ -1048,6 +1050,17 @@
           )
         ) {
           setLibraryNotice('info', '已取消重关联；请选择与当前记录格式一致的替换文件。');
+          return;
+        }
+        if (
+          candidatePreview.formatMatches &&
+          (!candidatePreview.titleMatches || !candidatePreview.authorMatches) &&
+          typeof window !== 'undefined' &&
+          !window.confirm(
+            `所选文件识别为“${candidatePreview.title} / ${candidatePreview.author}”，当前记录是“${persistedRecord.title} / ${persistedRecord.author}”。仍要重关联吗？`
+          )
+        ) {
+          setLibraryNotice('info', '已取消重关联；请选择与当前记录标题和作者更匹配的替换文件。');
           return;
         }
         result = {

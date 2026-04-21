@@ -50,7 +50,11 @@ pub(crate) struct LibraryRepairCandidatePreview {
     pub(crate) file_path: String,
     pub(crate) file_name: String,
     pub(crate) format: String,
+    pub(crate) title: String,
+    pub(crate) author: String,
     pub(crate) format_matches: bool,
+    pub(crate) title_matches: bool,
+    pub(crate) author_matches: bool,
     pub(crate) source_path_matches: bool,
     pub(crate) file_exists: bool,
 }

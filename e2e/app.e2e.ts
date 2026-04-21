@@ -454,6 +454,8 @@ describe('br1 desktop app', () => {
   const previewDesktopLibraryRepairCandidate = async (
     filePath: string,
     expectedFormat: string,
+    expectedTitle: string,
+    expectedAuthor: string,
     expectedSourcePath?: string
   ) => {
     const result = await browser.executeAsync((args, done) => {
@@ -482,7 +484,7 @@ describe('br1 desktop app', () => {
             error: error instanceof Error ? error.message : String(error)
           });
         });
-    }, { filePath, expectedFormat, expectedSourcePath });
+    }, { filePath, expectedFormat, expectedTitle, expectedAuthor, expectedSourcePath });
 
     if (!result?.ok || !result.preview) {
       throw new Error(result?.error ?? 'expected preview_library_repair_candidate to succeed');
@@ -492,7 +494,11 @@ describe('br1 desktop app', () => {
       filePath: string;
       fileName: string;
       format: string;
+      title: string;
+      author: string;
       formatMatches: boolean;
+      titleMatches: boolean;
+      authorMatches: boolean;
       sourcePathMatches: boolean;
       fileExists: boolean;
     };
@@ -2983,21 +2989,32 @@ describe('br1 desktop app', () => {
       const mismatchedPreview = await previewDesktopLibraryRepairCandidate(
         txtSourcePath,
         'CBZ',
+        cbzBook!.title,
+        'Unknown author',
         cbzSourcePath
       );
       expect(mismatchedPreview.fileExists).toBe(true);
       expect(mismatchedPreview.format).toBe('TXT');
+      expect(mismatchedPreview.title).toBe('sample-book');
+      expect(mismatchedPreview.author).toBe('Unknown author');
       expect(mismatchedPreview.formatMatches).toBe(false);
+      expect(mismatchedPreview.titleMatches).toBe(false);
+      expect(mismatchedPreview.authorMatches).toBe(true);
       expect(mismatchedPreview.sourcePathMatches).toBe(false);
 
       const matchedPreview = await previewDesktopLibraryRepairCandidate(
         cbzSourcePath,
         'CBZ',
+        cbzBook!.title,
+        'Unknown author',
         cbzSourcePath
       );
       expect(matchedPreview.fileExists).toBe(true);
       expect(matchedPreview.format).toBe('CBZ');
+      expect(matchedPreview.title).toBe(cbzBook!.title);
       expect(matchedPreview.formatMatches).toBe(true);
+      expect(matchedPreview.titleMatches).toBe(true);
+      expect(matchedPreview.authorMatches).toBe(true);
       expect(matchedPreview.sourcePathMatches).toBe(true);
 
       await browser.execute((expectedTitle) => {

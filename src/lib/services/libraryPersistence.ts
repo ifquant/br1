@@ -55,7 +55,11 @@ export type LibraryRepairCandidatePreview = {
   filePath: string;
   fileName: string;
   format: string;
+  title: string;
+  author: string;
   formatMatches: boolean;
+  titleMatches: boolean;
+  authorMatches: boolean;
   sourcePathMatches: boolean;
   fileExists: boolean;
 };
@@ -237,10 +241,14 @@ export const restoreRemovedLibraryBook = async (
 export const previewLibraryRepairCandidate = async ({
   filePath,
   expectedFormat,
+  expectedTitle,
+  expectedAuthor,
   expectedSourcePath
 }: {
   filePath: string;
   expectedFormat: string;
+  expectedTitle: string;
+  expectedAuthor: string;
   expectedSourcePath?: string | null;
 }): Promise<LibraryRepairCandidatePreview> => {
   requireTauriLibraryRuntime('previewLibraryRepairCandidate');
@@ -248,6 +256,8 @@ export const previewLibraryRepairCandidate = async ({
   return invokeTauri<LibraryRepairCandidatePreview>('preview_library_repair_candidate', {
     filePath,
     expectedFormat,
+    expectedTitle,
+    expectedAuthor,
     expectedSourcePath
   });
 };

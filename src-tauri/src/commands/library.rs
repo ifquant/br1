@@ -700,6 +700,54 @@ fn find_repairable_library_record_index(
     })
 }
 
+fn derive_import_metadata_for_source(source: &Path, extension: &str) -> (String, String) {
+    let default_title = source
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("Imported book")
+        .to_string();
+    let fb2_metadata = if extension == "fb2" {
+        derive_fb2_metadata(source)
+    } else {
+        Fb2Metadata::default()
+    };
+    let cbz_metadata = if extension == "cbz" {
+        derive_cbz_metadata(source)
+    } else {
+        CbzMetadata::default()
+    };
+    let kindle_metadata = if extension == "mobi" || extension == "azw3" {
+        derive_kindle_metadata(source)
+    } else {
+        KindleMetadata::default()
+    };
+
+    let title = if extension == "fb2" {
+        fb2_metadata.title.clone().unwrap_or(default_title.clone())
+    } else if extension == "cbz" {
+        cbz_metadata.title.clone().unwrap_or(default_title.clone())
+    } else {
+        kindle_metadata.title.clone().unwrap_or(default_title.clone())
+    };
+    let author = if extension == "fb2" {
+        fb2_metadata
+            .author
+            .clone()
+            .unwrap_or_else(|| "Unknown author".to_string())
+    } else if extension == "cbz" {
+        cbz_metadata
+            .author
+            .clone()
+            .unwrap_or_else(|| "Unknown author".to_string())
+    } else if let Some(author) = kindle_metadata.author.clone() {
+        author
+    } else {
+        "Unknown author".to_string()
+    };
+
+    (title, author)
+}
+
 fn choose_repaired_title(
     existing_record: &LibraryBookRecord,
     incoming_title: &str,
@@ -1114,6 +1162,8 @@ pub(crate) fn remove_library_book(
 pub(crate) fn preview_library_repair_candidate(
     file_path: String,
     expected_format: String,
+    expected_title: String,
+    expected_author: String,
     expected_source_path: Option<String>,
 ) -> Result<LibraryRepairCandidatePreview, String> {
     let candidate_path = Path::new(&file_path);
@@ -1129,7 +1179,22 @@ pub(crate) fn preview_library_repair_candidate(
         .filter(|value| !value.trim().is_empty())
         .map(|value| value.to_ascii_uppercase())
         .unwrap_or_else(|| "BOOK".to_string());
+    let extension = candidate_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let (title, author) = derive_import_metadata_for_source(candidate_path, &extension);
     let expected_format = expected_format.trim().to_ascii_uppercase();
+    let title_matches =
+        normalize_status_key(&title).is_empty()
+            || normalize_status_key(&expected_title).is_empty()
+            || normalize_status_key(&title) == normalize_status_key(&expected_title)
+            || normalized_path_stem_key(candidate_path) == normalize_status_key(&expected_title);
+    let author_matches =
+        author_looks_like_placeholder(&author)
+            || author_looks_like_placeholder(&expected_author)
+            || normalize_status_key(&author) == normalize_status_key(&expected_author);
     let normalized_candidate = fs::canonicalize(candidate_path)
         .ok()
         .map(|path| path.to_string_lossy().to_string());
@@ -1142,7 +1207,11 @@ pub(crate) fn preview_library_repair_candidate(
     Ok(LibraryRepairCandidatePreview {
         file_path: file_path.clone(),
         file_name,
+        title,
+        author,
         format_matches: expected_format.is_empty() || format == expected_format,
+        title_matches,
+        author_matches,
         source_path_matches: normalized_candidate.is_some()
             && normalized_expected.is_some()
             && normalized_candidate == normalized_expected,
