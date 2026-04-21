@@ -18,6 +18,7 @@
           description?: string;
           language?: string;
           publisher?: string;
+          collection?: string;
         }
       ) => void | Promise<void>)
     | null = null;
@@ -29,6 +30,7 @@
   let metadataEditDescription = '';
   let metadataEditLanguage = '';
   let metadataEditPublisher = '';
+  let metadataEditCollection = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -66,6 +68,7 @@
     metadataEditDescription = book.description ?? '';
     metadataEditLanguage = book.language ?? '';
     metadataEditPublisher = book.publisher ?? '';
+    metadataEditCollection = book.collection ?? '';
   };
 
   const cancelMetadataEdit = (event: MouseEvent) => {
@@ -87,7 +90,8 @@
       author,
       description: metadataEditDescription.trim(),
       language: metadataEditLanguage.trim(),
-      publisher: metadataEditPublisher.trim()
+      publisher: metadataEditPublisher.trim(),
+      collection: metadataEditCollection.trim()
     });
   };
 
@@ -236,6 +240,8 @@
               <strong>{book.language || '未知'}</strong>
               <span>出版者</span>
               <strong>{book.publisher || '未记录'}</strong>
+              <span>书架归类</span>
+              <strong>{book.collection || '未归类'}</strong>
               <span>来源</span>
               <strong>{book.sourceLabel || '未知来源'}</strong>
               <span>可用性</span>
@@ -278,6 +284,10 @@
                 <label>
                   <span>出版者</span>
                   <input bind:value={metadataEditPublisher} aria-label="Edit book publisher" />
+                </label>
+                <label>
+                  <span>书架归类</span>
+                  <input bind:value={metadataEditCollection} aria-label="Edit book collection" />
                 </label>
                 <label class="wide-field">
                   <span>简介</span>

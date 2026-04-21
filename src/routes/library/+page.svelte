@@ -264,6 +264,7 @@
       record.description ? '简介' : '',
       record.language ? '语言' : '',
       record.publisher ? '出版者' : '',
+      record.collection ? '书架归类' : '',
       record.progressLocation ? '恢复定位' : '',
       record.progressLocation ? '' : progressFraction !== null ? '阅读进度' : ''
     ].filter(Boolean);
@@ -291,6 +292,7 @@
       description: record.description || '',
       language: record.language || '',
       publisher: record.publisher || '',
+      collection: record.collection || '',
       progressLocation: record.progressLocation || '',
       status: record.status,
       progress: record.progress,
@@ -1044,6 +1046,7 @@
       description?: string;
       language?: string;
       publisher?: string;
+      collection?: string;
     }
   ) => {
     if (!canPersistLibrary()) return;
@@ -1069,7 +1072,8 @@
         author: nextAuthor,
         description: metadata.description ?? '',
         language: metadata.language ?? '',
-        publisher: metadata.publisher ?? ''
+        publisher: metadata.publisher ?? '',
+        collection: metadata.collection ?? ''
       });
       await applyPersistedLibraryRecords(updatedRecords);
       setLibraryNotice('info', `已更新“${nextTitle}”的书库元数据。`);

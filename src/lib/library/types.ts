@@ -7,6 +7,7 @@ export type LibraryShelfBook = {
   description?: string;
   language?: string;
   publisher?: string;
+  collection?: string;
   progressLocation?: string;
   progressFraction?: number | null;
   progressPercentLabel?: string;
@@ -45,6 +46,7 @@ export type BookshelfPreviewBook = Pick<
   | 'description'
   | 'language'
   | 'publisher'
+  | 'collection'
   | 'progressLocation'
   | 'progressPercentLabel'
   | 'readingStatusLabel'
@@ -66,6 +68,7 @@ export type ContinueReadingBook = Pick<
   | 'description'
   | 'language'
   | 'publisher'
+  | 'collection'
   | 'progressLocation'
   | 'status'
   | 'progress'

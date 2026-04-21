@@ -41,6 +41,7 @@ describe('br1 desktop app', () => {
       description?: string | null;
       language?: string | null;
       publisher?: string | null;
+      collection?: string | null;
       filePath?: string;
       file_path?: string;
       progressFraction?: number | null;
@@ -483,7 +484,8 @@ describe('br1 desktop app', () => {
           author: nextMetadata.author,
           description: nextMetadata.description ?? '',
           language: nextMetadata.language ?? '',
-          publisher: nextMetadata.publisher ?? ''
+          publisher: nextMetadata.publisher ?? '',
+          collection: nextMetadata.collection ?? ''
         })
         .then(() => {
           done({ ok: true });
@@ -2149,11 +2151,12 @@ describe('br1 desktop app', () => {
     });
   });
 
-  it('edits shelf title and author metadata without changing the library file', async () => {
+  it('edits shelf metadata and collection without changing the library file', async () => {
     const nextTitle = `Edited Metadata ${Date.now()}`;
     const nextAuthor = 'Bridge Librarian';
     const nextLanguage = 'zh-Hans';
     const nextPublisher = 'Bridge Metadata Desk';
+    const nextCollection = 'Readest Parity Shelf';
     const nextDescription = 'Edited in the br1 shelf metadata panel.';
     let targetPath = '';
     let displayTitle = '';
@@ -2162,6 +2165,7 @@ describe('br1 desktop app', () => {
     let originalDescription: string | null = null;
     let originalLanguage: string | null = null;
     let originalPublisher: string | null = null;
+    let originalCollection: string | null = null;
 
     try {
       await switchToLibraryWindow();
@@ -2193,6 +2197,7 @@ describe('br1 desktop app', () => {
       originalDescription = originalRecord!.description ?? null;
       originalLanguage = originalRecord!.language ?? null;
       originalPublisher = originalRecord!.publisher ?? null;
+      originalCollection = originalRecord!.collection ?? null;
 
       await toggleLibraryDetailsForTitle(displayTitle);
       await browser.waitUntil(async () => {
@@ -2240,7 +2245,7 @@ describe('br1 desktop app', () => {
       });
 
       const edited = await browser.execute(
-        ([initialTitle, title, author, language, publisher, description]) => {
+        ([initialTitle, title, author, language, publisher, collection, description]) => {
           const libraryShelf = document.querySelector('[aria-label="你的书库"]');
           if (!(libraryShelf instanceof HTMLElement)) return false;
           const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
@@ -2251,8 +2256,16 @@ describe('br1 desktop app', () => {
           const authorInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book author"]');
           const languageInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book language"]');
           const publisherInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book publisher"]');
+          const collectionInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book collection"]');
           const descriptionInput = card.querySelector<HTMLTextAreaElement>('textarea[aria-label="Edit book description"]');
-          if (!titleInput || !authorInput || !languageInput || !publisherInput || !descriptionInput) return false;
+          if (
+            !titleInput ||
+            !authorInput ||
+            !languageInput ||
+            !publisherInput ||
+            !collectionInput ||
+            !descriptionInput
+          ) return false;
           titleInput.value = title;
           titleInput.dispatchEvent(new Event('input', { bubbles: true }));
           authorInput.value = author;
@@ -2261,6 +2274,8 @@ describe('br1 desktop app', () => {
           languageInput.dispatchEvent(new Event('input', { bubbles: true }));
           publisherInput.value = publisher;
           publisherInput.dispatchEvent(new Event('input', { bubbles: true }));
+          collectionInput.value = collection;
+          collectionInput.dispatchEvent(new Event('input', { bubbles: true }));
           descriptionInput.value = description;
           descriptionInput.dispatchEvent(new Event('input', { bubbles: true }));
 
@@ -2271,7 +2286,15 @@ describe('br1 desktop app', () => {
           saveButton.click();
           return true;
         },
-        [displayTitle, nextTitle, nextAuthor, nextLanguage, nextPublisher, nextDescription] as const
+        [
+          displayTitle,
+          nextTitle,
+          nextAuthor,
+          nextLanguage,
+          nextPublisher,
+          nextCollection,
+          nextDescription
+        ] as const
       );
       expect(edited).toBe(true);
 
@@ -2286,6 +2309,7 @@ describe('br1 desktop app', () => {
           record?.author === nextAuthor &&
           record?.language === nextLanguage &&
           record?.publisher === nextPublisher &&
+          record?.collection === nextCollection &&
           record?.description === nextDescription &&
           (record.filePath ?? record.file_path) === targetPath &&
           noticeText.includes(`已更新“${nextTitle}”的书库元数据`) &&
@@ -2303,7 +2327,8 @@ describe('br1 desktop app', () => {
           author: originalAuthor,
           description: originalDescription,
           language: originalLanguage,
-          publisher: originalPublisher
+          publisher: originalPublisher,
+          collection: originalCollection
         });
       }
     }

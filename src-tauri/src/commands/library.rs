@@ -1102,6 +1102,7 @@ pub(crate) fn import_library_books(
                 .as_ref()
                 .map(|record| choose_repaired_optional(record.publisher.clone(), publisher.clone()))
                 .unwrap_or(publisher),
+            collection: existing_record.as_ref().and_then(|record| record.collection.clone()),
             progress: existing_record
                 .as_ref()
                 .map(|record| record.progress.clone())
@@ -1184,6 +1185,7 @@ pub(crate) fn update_library_book_metadata(
     description: Option<String>,
     language: Option<String>,
     publisher: Option<String>,
+    collection: Option<String>,
 ) -> Result<Vec<LibraryBookRecord>, String> {
     let library_root = ensure_library_root(&app)?;
     let library_json = library_root.join("library.json");
@@ -1213,6 +1215,10 @@ pub(crate) fn update_library_book_metadata(
         (!trimmed.is_empty()).then_some(trimmed)
     });
     record.publisher = publisher.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
+    record.collection = collection.and_then(|value| {
         let trimmed = value.trim().to_string();
         (!trimmed.is_empty()).then_some(trimmed)
     });
@@ -1398,6 +1404,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             description: readest_metadata.description,
             language: readest_metadata.language,
             publisher: readest_metadata.publisher,
+            collection: None,
             progress,
             status,
             file_path: stored_book_path.to_string_lossy().to_string(),
