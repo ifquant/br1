@@ -164,11 +164,22 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByLabel('empty search results')).toContainText(
     '移除搜索条件后再调整当前筛选'
   );
+  await expect(
+    page
+      .getByLabel('empty search results')
+      .getByRole('button', { name: 'Remove empty-state library filter 搜索 does-not-exist' })
+  ).toBeVisible();
+  await expect(
+    page
+      .getByLabel('empty search results')
+      .getByRole('button', { name: 'Remove empty-state library filter 状态 在读' })
+  ).toBeVisible();
   await expect(page.getByLabel('empty search results').getByRole('button', { name: '清除筛选' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '你的书库' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
   await page
-    .getByRole('button', { name: 'Remove active library filter 搜索 does-not-exist' })
+    .getByLabel('empty search results')
+    .getByRole('button', { name: 'Remove empty-state library filter 搜索 does-not-exist' })
     .click();
   await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 在读');
   await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
@@ -183,10 +194,20 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByLabel('empty filtered library')).toContainText(
     '全部 / 全部格式 / 全部归类 / 全部标签'
   );
-  await page.getByLabel('empty filtered library').getByRole('button', { name: '清除筛选' }).click();
-  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
+  await expect(
+    page
+      .getByLabel('empty filtered library')
+      .getByRole('button', { name: 'Remove empty-state library filter 状态 在读' })
+  ).toBeVisible();
+  await page
+    .getByLabel('empty filtered library')
+    .getByRole('button', { name: 'Remove empty-state library filter 格式 PDF' })
+    .click();
+  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 在读');
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear library filters' }).click();
+  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
 });
 
 test('reader opens txt assets in web mode', async ({ page }) => {

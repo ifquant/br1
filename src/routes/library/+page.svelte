@@ -1632,26 +1632,28 @@
     libraryTagFilter = 'all';
   };
 
-  const handleClearLibraryFilterChip = (
-    event: CustomEvent<{ id: 'query' | 'status' | 'format' | 'collection' | 'tag' }>
-  ) => {
-    if (event.detail.id === 'query') {
+  const clearLibraryFilterById = (id: ActiveLibraryFilterChip['id']) => {
+    if (id === 'query') {
       libraryQuery = '';
       return;
     }
-    if (event.detail.id === 'status') {
+    if (id === 'status') {
       libraryFilterBy = 'all';
       return;
     }
-    if (event.detail.id === 'format') {
+    if (id === 'format') {
       libraryFormatFilter = 'all';
       return;
     }
-    if (event.detail.id === 'collection') {
+    if (id === 'collection') {
       libraryCollectionFilter = 'all';
       return;
     }
     libraryTagFilter = 'all';
+  };
+
+  const handleClearLibraryFilterChip = (event: CustomEvent<{ id: ActiveLibraryFilterChip['id'] }>) => {
+    clearLibraryFilterById(event.detail.id);
   };
 </script>
 
@@ -1854,6 +1856,21 @@
                 试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
               </span>
             </div>
+            {#if libraryActiveFilterChips.length > 0}
+              <div class="empty-filter-chips" aria-label="empty state filter chips">
+                {#each libraryActiveFilterChips as chip}
+                  <button
+                    type="button"
+                    class="empty-filter-chip"
+                    aria-label={`Remove empty-state library filter ${chip.label}`}
+                    on:click={() => clearLibraryFilterById(chip.id)}
+                  >
+                    <span>{chip.label}</span>
+                    <small>移除</small>
+                  </button>
+                {/each}
+              </div>
+            {/if}
             <div class="empty-actions">
               <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
                 清除筛选
@@ -1866,6 +1883,21 @@
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
             </div>
+            {#if libraryActiveFilterChips.length > 0}
+              <div class="empty-filter-chips" aria-label="empty state filter chips">
+                {#each libraryActiveFilterChips as chip}
+                  <button
+                    type="button"
+                    class="empty-filter-chip"
+                    aria-label={`Remove empty-state library filter ${chip.label}`}
+                    on:click={() => clearLibraryFilterById(chip.id)}
+                  >
+                    <span>{chip.label}</span>
+                    <small>移除</small>
+                  </button>
+                {/each}
+              </div>
+            {/if}
             <div class="empty-actions">
               <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
                 清除筛选
@@ -1909,6 +1941,21 @@
                 试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
               </span>
             </div>
+            {#if libraryActiveFilterChips.length > 0}
+              <div class="empty-filter-chips" aria-label="empty state filter chips">
+                {#each libraryActiveFilterChips as chip}
+                  <button
+                    type="button"
+                    class="empty-filter-chip"
+                    aria-label={`Remove empty-state library filter ${chip.label}`}
+                    on:click={() => clearLibraryFilterById(chip.id)}
+                  >
+                    <span>{chip.label}</span>
+                    <small>移除</small>
+                  </button>
+                {/each}
+              </div>
+            {/if}
             <div class="empty-actions">
               <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
                 清除筛选
@@ -1921,6 +1968,21 @@
               <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
               <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
             </div>
+            {#if libraryActiveFilterChips.length > 0}
+              <div class="empty-filter-chips" aria-label="empty state filter chips">
+                {#each libraryActiveFilterChips as chip}
+                  <button
+                    type="button"
+                    class="empty-filter-chip"
+                    aria-label={`Remove empty-state library filter ${chip.label}`}
+                    on:click={() => clearLibraryFilterById(chip.id)}
+                  >
+                    <span>{chip.label}</span>
+                    <small>移除</small>
+                  </button>
+                {/each}
+              </div>
+            {/if}
             <div class="empty-actions">
               <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
                 清除筛选
@@ -2149,6 +2211,33 @@
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+  }
+
+  .empty-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .empty-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid color-mix(in srgb, var(--accent-warm) 24%, white 76%);
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
+    color: color-mix(in srgb, #73481f 86%, var(--text-secondary) 14%);
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1;
+  }
+
+  .empty-filter-chip small {
+    color: color-mix(in srgb, currentColor 68%, transparent);
+    font-size: 9px;
+    font-weight: 700;
   }
 
   .empty-action.secondary {
