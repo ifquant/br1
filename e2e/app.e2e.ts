@@ -1943,6 +1943,35 @@ describe('br1 desktop app', () => {
 
     const openableBooks = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
     expect(openableBooks.length).toBeGreaterThan(0);
+
+    await browser.execute(() => {
+      const shelf = document.querySelector('[aria-label="你的书库"]');
+      if (!(shelf instanceof HTMLElement)) {
+        throw new Error('expected library shelf to exist');
+      }
+      const detailButton = Array.from(shelf.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '详情'
+      );
+      if (!(detailButton instanceof HTMLButtonElement)) {
+        throw new Error('expected a shelf metadata details button to exist');
+      }
+      detailButton.click();
+    });
+    await browser.waitUntil(async () => {
+      const panels = await $$('[aria-label^="Library metadata for "]');
+      if (!panels.length) return false;
+      const text = await panels[0]!.getText();
+      return (
+        text.includes('标题') &&
+        text.includes('作者') &&
+        text.includes('格式') &&
+        text.includes('进度') &&
+        text.includes('来源')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the main library shelf to expose a metadata detail panel'
+    });
   });
 
   it('can execute JavaScript inside the desktop webview', async () => {

@@ -38,12 +38,20 @@ export type BookshelfPreviewBook = Pick<
   | 'status'
   | 'progress'
   | 'format'
+  | 'description'
+  | 'language'
+  | 'publisher'
+  | 'progressLocation'
   | 'progressPercentLabel'
   | 'readingStatusLabel'
   | 'sourceLabel'
+  | 'availabilityLabel'
   | 'compatibilityLabel'
+  | 'sourcePath'
   | 'coverUrl'
   | 'readerHref'
+  | 'lastOpenedLabel'
+  | 'importedAtLabel'
 >;
 
 export type ContinueReadingBook = Pick<

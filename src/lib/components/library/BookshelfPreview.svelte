@@ -8,6 +8,7 @@
   export let importHref = '';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
+  let expandedKey = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -21,6 +22,15 @@
     if (!onImportBooks) return;
     event.preventDefault();
     void onImportBooks();
+  };
+
+  const getBookKey = (book: BookshelfPreviewBook) =>
+    book.readerHref || `${book.format}::${book.title}::${book.author}`;
+
+  const toggleDetails = (event: MouseEvent, key: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    expandedKey = expandedKey === key ? '' : key;
   };
 
   const getPrimaryProgress = (book: BookshelfPreviewBook) => {
@@ -57,6 +67,7 @@
 
   <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={sectionTitle}>
     {#each books as book}
+      {@const bookKey = getBookKey(book)}
       <article class:list-card={viewMode === 'list'} class="book-card">
         <svelte:element
           this={book.readerHref ? 'a' : 'div'}
@@ -128,6 +139,51 @@
             </div>
           {/if}
         </svelte:element>
+        <button
+          type="button"
+          class="detail-action"
+          aria-expanded={expandedKey === bookKey}
+          on:click={(event: MouseEvent) => toggleDetails(event, bookKey)}
+        >
+          详情
+        </button>
+        {#if expandedKey === bookKey}
+          <div class="metadata-panel" aria-label={`Library metadata for ${book.title}`}>
+            <div class="metadata-grid">
+              <span>标题</span>
+              <strong>{book.title}</strong>
+              <span>作者</span>
+              <strong>{book.author}</strong>
+              <span>格式</span>
+              <strong>{book.format || '未知'}</strong>
+              <span>状态</span>
+              <strong>{book.readingStatusLabel || book.status || '未标记'}</strong>
+              <span>进度</span>
+              <strong>{book.progressPercentLabel || book.progress || '未记录'}</strong>
+              <span>语言</span>
+              <strong>{book.language || '未知'}</strong>
+              <span>出版者</span>
+              <strong>{book.publisher || '未记录'}</strong>
+              <span>来源</span>
+              <strong>{book.sourceLabel || '未知来源'}</strong>
+              <span>可用性</span>
+              <strong>{book.availabilityLabel || '本地可读'}</strong>
+              <span>兼容信息</span>
+              <strong>{book.compatibilityLabel || '标准本地书籍'}</strong>
+              <span>恢复定位</span>
+              <strong>{book.progressLocation || '未记录'}</strong>
+              <span>原文件</span>
+              <strong>{book.sourcePath || '未记录'}</strong>
+              <span>导入时间</span>
+              <strong>{book.importedAtLabel || '未记录'}</strong>
+              <span>最近阅读</span>
+              <strong>{book.lastOpenedLabel || '未阅读'}</strong>
+            </div>
+            {#if book.description}
+              <p>{book.description}</p>
+            {/if}
+          </div>
+        {/if}
       </article>
     {/each}
 
@@ -276,6 +332,70 @@
     max-width: 176px;
     font-family: var(--font-chrome);
     transition: transform 120ms ease;
+  }
+
+  .detail-action {
+    justify-self: start;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: var(--font-chrome);
+    font-size: 9px;
+    line-height: 1;
+    padding: 5px 8px;
+  }
+
+  .detail-action:hover,
+  .detail-action[aria-expanded="true"] {
+    color: var(--text-primary);
+    border-color: color-mix(in srgb, #8c6a3b 34%, var(--line-soft) 66%);
+  }
+
+  .metadata-panel {
+    display: grid;
+    gap: 8px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    border-radius: 12px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+    color: var(--text-secondary);
+    padding: 9px;
+  }
+
+  .list-card .metadata-panel {
+    grid-column: 1 / -1;
+  }
+
+  .metadata-grid {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 5px 8px;
+    align-items: baseline;
+  }
+
+  .metadata-grid span {
+    color: var(--text-muted);
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .metadata-grid strong {
+    color: var(--text-primary);
+    font-size: 10px;
+    font-weight: 560;
+    line-height: 1.35;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .metadata-panel p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 10px;
+    line-height: 1.45;
   }
 
   .book-link {

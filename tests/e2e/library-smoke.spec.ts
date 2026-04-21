@@ -29,6 +29,20 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toHaveCount(0);
+  await page
+    .getByLabel('你的书库')
+    .locator('.book-card', { hasText: 'A Theory of Justice' })
+    .getByRole('button', { name: '详情' })
+    .click();
+  const sampleMetadataPanel = page.getByLabel('Library metadata for A Theory of Justice');
+  await expect(sampleMetadataPanel).toContainText('标题');
+  await expect(sampleMetadataPanel).toContainText('A Theory of Justice');
+  await expect(sampleMetadataPanel).toContainText('格式');
+  await expect(sampleMetadataPanel).toContainText('EPUB');
+  await expect(sampleMetadataPanel).toContainText('状态');
+  await expect(sampleMetadataPanel).toContainText('未开始');
+  await expect(sampleMetadataPanel).toContainText('来源');
+  await expect(sampleMetadataPanel).toContainText('样例书库');
 
   await page.getByRole('button', { name: '已读完' }).click();
   await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();
