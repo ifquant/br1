@@ -42,9 +42,15 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(sampleMetadataPanel).toContainText('状态');
   await expect(sampleMetadataPanel).toContainText('未开始');
   await expect(sampleMetadataPanel).toContainText('书架归类');
-  await expect(sampleMetadataPanel).toContainText('未归类');
+  await expect(sampleMetadataPanel).toContainText('政治哲学');
   await expect(sampleMetadataPanel).toContainText('来源');
   await expect(sampleMetadataPanel).toContainText('样例书库');
+
+  await page.getByRole('button', { name: '政治哲学' }).click();
+  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
+  await page.getByRole('button', { name: '全部归类' }).click();
 
   await page.getByRole('button', { name: '已读完' }).click();
   await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();

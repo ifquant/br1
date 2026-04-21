@@ -8,6 +8,8 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
+  export let activeCollectionFilter = 'all';
+  export let collectionOptions: string[] = [];
   export let importDisabled = false;
   export let statusSummary = '';
 
@@ -20,6 +22,7 @@
     viewmodechange: { viewMode: 'grid' | 'list' };
     sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
     filterchange: { filterBy: 'all' | 'reading' | 'unstarted' | 'finished' };
+    collectionfilterchange: { collection: string };
   }>();
 
   const actions = [
@@ -65,6 +68,11 @@
   const handleFilterChange = (nextFilterBy: 'all' | 'reading' | 'unstarted' | 'finished') => {
     if (nextFilterBy === activeFilter) return;
     dispatch('filterchange', { filterBy: nextFilterBy });
+  };
+
+  const handleCollectionFilterChange = (nextCollection: string) => {
+    if (nextCollection === activeCollectionFilter) return;
+    dispatch('collectionfilterchange', { collection: nextCollection });
   };
 
   const handleViewModeChange = (nextViewMode: 'grid' | 'list') => {
@@ -211,6 +219,31 @@
       {option.label}
     </button>
   {/each}
+  {#if collectionOptions.length > 0}
+    <span class="filter-divider" aria-hidden="true"></span>
+    <div class="collection-filters" aria-label="library collection filters">
+      <button
+        type="button"
+        class:active-filter={activeCollectionFilter === 'all'}
+        class="filter-pill collection-pill"
+        aria-pressed={activeCollectionFilter === 'all'}
+        on:click={() => handleCollectionFilterChange('all')}
+      >
+        全部归类
+      </button>
+      {#each collectionOptions as collection}
+        <button
+          type="button"
+          class:active-filter={activeCollectionFilter === collection}
+          class="filter-pill collection-pill"
+          aria-pressed={activeCollectionFilter === collection}
+          on:click={() => handleCollectionFilterChange(collection)}
+        >
+          {collection}
+        </button>
+      {/each}
+    </div>
+  {/if}
   {#if statusSummary}
     <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
   {/if}
@@ -250,6 +283,17 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #cf7a35 20%, white 80%);
   }
 
+  .collection-filters {
+    display: contents;
+  }
+
+  .filter-divider {
+    width: 1px;
+    height: 18px;
+    margin-inline: 2px;
+    background: color-mix(in srgb, var(--line-soft) 86%, transparent);
+  }
+
   .filter-pill {
     border: 0;
     border-radius: 999px;
@@ -278,6 +322,10 @@
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, var(--accent-warm) 28%, white 72%),
       0 6px 16px rgba(128, 84, 44, 0.08);
+  }
+
+  .collection-pill {
+    background: color-mix(in srgb, #e7d3ad 16%, var(--surface-panel) 84%);
   }
 
   .actions {
