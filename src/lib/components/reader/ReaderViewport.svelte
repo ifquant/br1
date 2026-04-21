@@ -144,7 +144,7 @@
     const total = lastLocation?.location?.total;
     if (typeof current !== 'number' || typeof total !== 'number') return READER_OPENING_LOCATION_LABEL;
     if (formatLabel === 'PDF') {
-      return `Page ${Math.max(1, current)} / ${Math.max(1, total)}`;
+      return `第 ${Math.max(1, current)} / ${Math.max(1, total)} 页`;
     }
     return `${current} / ${total}`;
   };
@@ -174,14 +174,14 @@
 
     return {
       ...getFallbackReaderState(),
-      title: plainTextTitle || openSourceLabel || 'Plain text book',
-      author: 'Plain text source',
-      chapterLabel: 'Plain text',
+      title: plainTextTitle || openSourceLabel || '纯文本书籍',
+      author: '纯文本来源',
+      chapterLabel: '纯文本',
       chapterHref: '',
       progressLabel: `${progressPercent}%`,
       progressFraction: fraction,
       progressLocation: `txt:${fraction.toFixed(6)}`,
-      locationLabel: `Line ${currentLine} / ${totalLines}`,
+      locationLabel: `第 ${currentLine} / ${totalLines} 行`,
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
       ...overrides
@@ -358,7 +358,7 @@
     return {
       cfi: `txt:${fraction.toFixed(6)}`,
       text,
-      chapterLabel: 'Plain text',
+      chapterLabel: '纯文本',
       chapterHref: ''
     };
   };
@@ -712,7 +712,7 @@
         status: 'error',
         results: [],
         progress: 0,
-        error: 'Search is not available for TXT books yet.'
+        error: 'TXT 书籍暂不支持全文搜索。'
       });
       return;
     }
