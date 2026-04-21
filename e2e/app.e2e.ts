@@ -2983,10 +2983,21 @@ describe('br1 desktop app', () => {
 
       await browser.waitUntil(async () => {
         const cbzState = await readLibraryEntryStateForTitle(cbzBook!.title);
-        return !!cbzState && cbzState.text.includes('待复核') && cbzState.text.includes('先复核再重关联');
+        const repairSectionText = await browser.execute(() => {
+          const section = document.querySelector('[aria-label="待修复书籍"]')?.closest('.continue-shelf');
+          return section?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        });
+        return (
+          !!cbzState &&
+          cbzState.text.includes('待复核') &&
+          cbzState.text.includes('先复核再重关联') &&
+          repairSectionText.includes('共 2 本待处理') &&
+          repairSectionText.includes('1 本可批量修复副本') &&
+          repairSectionText.includes('1 本需逐本复核重关联')
+        );
       }, {
         timeout: 10000,
-        timeoutMsg: 'expected the manual-only repair row to surface explicit review-first relink labels before bulk repair runs'
+        timeoutMsg: 'expected the repair queue summary and manual-only row labels before bulk repair runs'
       });
 
       const mismatchedPreview = await previewDesktopLibraryRepairCandidate(

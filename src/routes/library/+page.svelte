@@ -721,6 +721,14 @@
     const persistedRecord = lookupPersistedRecordForBook(book);
     return !!persistedRecord && isPersistedRecordBulkRepairEligible(persistedRecord);
   });
+  $: manualRepairQueueCount = Math.max(
+    0,
+    filteredRecoveryQueueBooks.length - bulkRepairEligibleQueueBooks.length
+  );
+  $: recoveryQueueSummaryText =
+    filteredRecoveryQueueBooks.length > 0
+      ? `共 ${filteredRecoveryQueueBooks.length} 本待处理；${bulkRepairEligibleQueueBooks.length} 本可批量修复副本，${manualRepairQueueCount} 本需逐本复核重关联。`
+      : '这些书的原文件路径或书库副本已经失效。优先逐本修复，避免后续继续扩散为重复条目。';
   $: filteredContinueReadingBooks = filterBooksByLibraryFilter(continueReadingBooks, libraryFilterBy);
   $: filteredRecentReadingBooks = filterBooksByLibraryFilter(recentReadingBooks, libraryFilterBy);
   $: filteredLibraryShelfBooks = filterBooksByLibraryFilter(libraryShelfBooks, libraryFilterBy);
@@ -1278,7 +1286,7 @@
         {#if filteredRecoveryQueueBooks.length}
           <ContinueReadingShelf
             sectionTitle="待修复书籍"
-            sectionDescription="这些书的原文件路径或书库副本已经失效。优先逐本修复，避免后续继续扩散为重复条目。"
+            sectionDescription={recoveryQueueSummaryText}
             primaryActionLabel="修复"
             bulkActionLabel={
               bulkRepairEligibleQueueBooks.length > 0
