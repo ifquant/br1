@@ -2017,12 +2017,16 @@ describe('br1 desktop app', () => {
       const panels = await $$('[aria-label^="Library metadata for "]');
       for (const panel of panels) {
         const text = await panel.getText();
-        if (text.includes(importedBook!.title) && text.includes('从书库移除')) return true;
+        if (
+          text.includes(importedBook!.title) &&
+          text.includes('打开原文件') &&
+          text.includes('从书库移除')
+        ) return true;
       }
       return false;
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected the removable imported book metadata panel to expose a remove action'
+      timeoutMsg: 'expected the imported book metadata panel to expose source-open and remove actions'
     });
 
     const clickedRemove = await browser.execute((title) => {

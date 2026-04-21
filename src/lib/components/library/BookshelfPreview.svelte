@@ -8,6 +8,7 @@
   export let importHref = '';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
+  export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onRemoveBook: ((book: BookshelfPreviewBook) => void | Promise<void>) | null = null;
   let expandedKey = '';
 
@@ -39,6 +40,13 @@
     event.preventDefault();
     event.stopPropagation();
     void onRemoveBook(book);
+  };
+
+  const handleOpenSourcePath = (event: MouseEvent, filePath: string | undefined) => {
+    if (!filePath || !onOpenSourcePath) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void onOpenSourcePath(filePath);
   };
 
   const getPrimaryProgress = (book: BookshelfPreviewBook) => {
@@ -190,14 +198,27 @@
             {#if book.description}
               <p>{book.description}</p>
             {/if}
-            {#if onRemoveBook}
-              <button
-                type="button"
-                class="remove-action"
-                on:click={(event: MouseEvent) => handleRemoveBook(event, book)}
-              >
-                从书库移除
-              </button>
+            {#if onOpenSourcePath || onRemoveBook}
+              <div class="metadata-actions">
+                {#if onOpenSourcePath && book.sourcePath && !book.availabilityLabel?.includes('原文件缺失')}
+                  <button
+                    type="button"
+                    class="metadata-action"
+                    on:click={(event: MouseEvent) => handleOpenSourcePath(event, book.sourcePath)}
+                  >
+                    打开原文件
+                  </button>
+                {/if}
+                {#if onRemoveBook}
+                  <button
+                    type="button"
+                    class="metadata-action remove-action"
+                    on:click={(event: MouseEvent) => handleRemoveBook(event, book)}
+                  >
+                    从书库移除
+                  </button>
+                {/if}
+              </div>
             {/if}
           </div>
         {/if}
@@ -415,17 +436,33 @@
     line-height: 1.45;
   }
 
-  .remove-action {
+  .metadata-actions {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .metadata-action {
     justify-self: start;
-    border: 1px solid color-mix(in srgb, #9a3d2f 34%, var(--line-soft) 66%);
+    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-panel) 88%, #f7d8ce 12%);
-    color: color-mix(in srgb, #8a2d22 76%, var(--text-secondary) 24%);
+    color: var(--text-secondary);
     cursor: pointer;
     font-family: var(--font-chrome);
     font-size: 9px;
     line-height: 1;
     padding: 6px 9px;
+  }
+
+  .metadata-action:hover {
+    border-color: color-mix(in srgb, #8c6a3b 38%, var(--line-soft) 62%);
+    color: var(--text-primary);
+  }
+
+  .remove-action {
+    border-color: color-mix(in srgb, #9a3d2f 34%, var(--line-soft) 66%);
+    color: color-mix(in srgb, #8a2d22 76%, var(--text-secondary) 24%);
   }
 
   .remove-action:hover {

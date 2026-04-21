@@ -1231,6 +1231,7 @@
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
+          onOpenSourcePath={handleOpenSourcePath}
           onRemoveBook={handleRemoveLibraryBook}
         />
       {/if}
