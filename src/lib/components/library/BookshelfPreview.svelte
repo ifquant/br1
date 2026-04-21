@@ -10,13 +10,25 @@
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onUpdateBookMetadata:
-    | ((book: BookshelfPreviewBook, metadata: { title: string; author: string }) => void | Promise<void>)
+    | ((
+        book: BookshelfPreviewBook,
+        metadata: {
+          title: string;
+          author: string;
+          description?: string;
+          language?: string;
+          publisher?: string;
+        }
+      ) => void | Promise<void>)
     | null = null;
   export let onRemoveBook: ((book: BookshelfPreviewBook) => void | Promise<void>) | null = null;
   let expandedKey = '';
   let metadataEditKey = '';
   let metadataEditTitle = '';
   let metadataEditAuthor = '';
+  let metadataEditDescription = '';
+  let metadataEditLanguage = '';
+  let metadataEditPublisher = '';
 
   $: totalItems = books.length + (showImportTile ? 1 : 0);
 
@@ -51,6 +63,9 @@
     metadataEditKey = getBookKey(book);
     metadataEditTitle = book.title;
     metadataEditAuthor = book.author;
+    metadataEditDescription = book.description ?? '';
+    metadataEditLanguage = book.language ?? '';
+    metadataEditPublisher = book.publisher ?? '';
   };
 
   const cancelMetadataEdit = (event: MouseEvent) => {
@@ -67,7 +82,13 @@
     const author = metadataEditAuthor.trim();
     if (!title || !author) return;
     metadataEditKey = '';
-    void onUpdateBookMetadata(book, { title, author });
+    void onUpdateBookMetadata(book, {
+      title,
+      author,
+      description: metadataEditDescription.trim(),
+      language: metadataEditLanguage.trim(),
+      publisher: metadataEditPublisher.trim()
+    });
   };
 
   const handleRemoveBook = (event: MouseEvent, book: BookshelfPreviewBook) => {
@@ -246,6 +267,22 @@
                 <label>
                   <span>作者</span>
                   <input bind:value={metadataEditAuthor} required aria-label="Edit book author" />
+                </label>
+                <label>
+                  <span>语言</span>
+                  <input bind:value={metadataEditLanguage} aria-label="Edit book language" />
+                </label>
+                <label>
+                  <span>出版者</span>
+                  <input bind:value={metadataEditPublisher} aria-label="Edit book publisher" />
+                </label>
+                <label class="wide-field">
+                  <span>简介</span>
+                  <textarea
+                    bind:value={metadataEditDescription}
+                    aria-label="Edit book description"
+                    rows="3"
+                  ></textarea>
                 </label>
                 <div class="metadata-actions">
                   <button type="submit" class="metadata-action">保存元数据</button>
@@ -518,7 +555,8 @@
     font-size: 9px;
   }
 
-  .metadata-edit input {
+  .metadata-edit input,
+  .metadata-edit textarea {
     min-width: 0;
     border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
     border-radius: 8px;
@@ -526,6 +564,15 @@
     color: var(--text-primary);
     font: 560 11px/1.2 var(--font-chrome);
     padding: 7px 8px;
+  }
+
+  .metadata-edit textarea {
+    resize: vertical;
+    line-height: 1.45;
+  }
+
+  .metadata-edit .wide-field {
+    grid-column: 1 / -1;
   }
 
   .metadata-actions {

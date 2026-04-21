@@ -244,18 +244,27 @@ export const restoreRemovedLibraryBook = async (
 export const updateLibraryBookMetadata = async ({
   recordId,
   title,
-  author
+  author,
+  description,
+  language,
+  publisher
 }: {
   recordId: string;
   title: string;
   author: string;
+  description?: string;
+  language?: string;
+  publisher?: string;
 }): Promise<PersistedLibraryBook[]> => {
   requireTauriLibraryRuntime('updateLibraryBookMetadata');
 
   return invokeTauri<PersistedLibraryBook[]>('update_library_book_metadata', {
     recordId,
     title,
-    author
+    author,
+    description,
+    language,
+    publisher
   });
 };
 

@@ -1038,7 +1038,13 @@
 
   const handleUpdateLibraryBookMetadata = async (
     book: LibraryShelfBook,
-    metadata: { title: string; author: string }
+    metadata: {
+      title: string;
+      author: string;
+      description?: string;
+      language?: string;
+      publisher?: string;
+    }
   ) => {
     if (!canPersistLibrary()) return;
 
@@ -1060,7 +1066,10 @@
       const updatedRecords = await updateLibraryBookMetadata({
         recordId: persistedRecord.id || persistedRecord.filePath,
         title: nextTitle,
-        author: nextAuthor
+        author: nextAuthor,
+        description: metadata.description ?? '',
+        language: metadata.language ?? '',
+        publisher: metadata.publisher ?? ''
       });
       await applyPersistedLibraryRecords(updatedRecords);
       setLibraryNotice('info', `已更新“${nextTitle}”的书库元数据。`);

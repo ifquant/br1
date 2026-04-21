@@ -451,8 +451,17 @@ describe('br1 desktop app', () => {
     }
   };
 
-  const updateDesktopLibraryBookMetadata = async (recordId: string, title: string, author: string) => {
-    const result = await browser.executeAsync(([id, nextTitle, nextAuthor], done) => {
+  const updateDesktopLibraryBookMetadata = async (
+    recordId: string,
+    metadata: {
+      title: string;
+      author: string;
+      description?: string | null;
+      language?: string | null;
+      publisher?: string | null;
+    }
+  ) => {
+    const result = await browser.executeAsync(([id, nextMetadata], done) => {
       const tauriInternals = (window as typeof window & {
         __TAURI_INTERNALS__?: {
           invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -470,8 +479,11 @@ describe('br1 desktop app', () => {
       tauriInternals
         .invoke('update_library_book_metadata', {
           recordId: id,
-          title: nextTitle,
-          author: nextAuthor
+          title: nextMetadata.title,
+          author: nextMetadata.author,
+          description: nextMetadata.description ?? '',
+          language: nextMetadata.language ?? '',
+          publisher: nextMetadata.publisher ?? ''
         })
         .then(() => {
           done({ ok: true });
@@ -482,7 +494,7 @@ describe('br1 desktop app', () => {
             error: error instanceof Error ? error.message : String(error)
           });
         });
-    }, [recordId, title, author] as const);
+    }, [recordId, metadata] as const);
 
     if (!result?.ok) {
       throw new Error(result?.error ?? 'expected update_library_book_metadata to succeed');
@@ -2140,10 +2152,16 @@ describe('br1 desktop app', () => {
   it('edits shelf title and author metadata without changing the library file', async () => {
     const nextTitle = `Edited Metadata ${Date.now()}`;
     const nextAuthor = 'Bridge Librarian';
+    const nextLanguage = 'zh-Hans';
+    const nextPublisher = 'Bridge Metadata Desk';
+    const nextDescription = 'Edited in the br1 shelf metadata panel.';
     let targetPath = '';
     let displayTitle = '';
     let originalTitle = '';
     let originalAuthor = '';
+    let originalDescription: string | null = null;
+    let originalLanguage: string | null = null;
+    let originalPublisher: string | null = null;
 
     try {
       await switchToLibraryWindow();
@@ -2172,6 +2190,9 @@ describe('br1 desktop app', () => {
       expect(originalRecord).toBeTruthy();
       originalTitle = originalRecord!.title ?? target!.title;
       originalAuthor = originalRecord!.author ?? target!.author;
+      originalDescription = originalRecord!.description ?? null;
+      originalLanguage = originalRecord!.language ?? null;
+      originalPublisher = originalRecord!.publisher ?? null;
 
       await toggleLibraryDetailsForTitle(displayTitle);
       await browser.waitUntil(async () => {
@@ -2216,7 +2237,7 @@ describe('br1 desktop app', () => {
       });
 
       const edited = await browser.execute(
-        ([initialTitle, title, author]) => {
+        ([initialTitle, title, author, language, publisher, description]) => {
           const libraryShelf = document.querySelector('[aria-label="你的书库"]');
           if (!(libraryShelf instanceof HTMLElement)) return false;
           const card = Array.from(libraryShelf.querySelectorAll('.book-card')).find((candidate) => {
@@ -2225,11 +2246,20 @@ describe('br1 desktop app', () => {
           if (!(card instanceof HTMLElement)) return false;
           const titleInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book title"]');
           const authorInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book author"]');
-          if (!titleInput || !authorInput) return false;
+          const languageInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book language"]');
+          const publisherInput = card.querySelector<HTMLInputElement>('input[aria-label="Edit book publisher"]');
+          const descriptionInput = card.querySelector<HTMLTextAreaElement>('textarea[aria-label="Edit book description"]');
+          if (!titleInput || !authorInput || !languageInput || !publisherInput || !descriptionInput) return false;
           titleInput.value = title;
           titleInput.dispatchEvent(new Event('input', { bubbles: true }));
           authorInput.value = author;
           authorInput.dispatchEvent(new Event('input', { bubbles: true }));
+          languageInput.value = language;
+          languageInput.dispatchEvent(new Event('input', { bubbles: true }));
+          publisherInput.value = publisher;
+          publisherInput.dispatchEvent(new Event('input', { bubbles: true }));
+          descriptionInput.value = description;
+          descriptionInput.dispatchEvent(new Event('input', { bubbles: true }));
 
           const saveButton = Array.from(card.querySelectorAll('button')).find(
             (button) => button.textContent?.trim() === '保存元数据'
@@ -2238,7 +2268,7 @@ describe('br1 desktop app', () => {
           saveButton.click();
           return true;
         },
-        [displayTitle, nextTitle, nextAuthor] as const
+        [displayTitle, nextTitle, nextAuthor, nextLanguage, nextPublisher, nextDescription] as const
       );
       expect(edited).toBe(true);
 
@@ -2251,6 +2281,9 @@ describe('br1 desktop app', () => {
         return (
           record?.title === nextTitle &&
           record?.author === nextAuthor &&
+          record?.language === nextLanguage &&
+          record?.publisher === nextPublisher &&
+          record?.description === nextDescription &&
           (record.filePath ?? record.file_path) === targetPath &&
           noticeText.includes(`已更新“${nextTitle}”的书库元数据`) &&
           shelfText.includes(nextTitle) &&
@@ -2262,7 +2295,13 @@ describe('br1 desktop app', () => {
       });
     } finally {
       if (targetPath && originalTitle && originalAuthor) {
-        await updateDesktopLibraryBookMetadata(targetPath, originalTitle, originalAuthor);
+        await updateDesktopLibraryBookMetadata(targetPath, {
+          title: originalTitle,
+          author: originalAuthor,
+          description: originalDescription,
+          language: originalLanguage,
+          publisher: originalPublisher
+        });
       }
     }
   });

@@ -1181,6 +1181,9 @@ pub(crate) fn update_library_book_metadata(
     record_id: String,
     title: String,
     author: String,
+    description: Option<String>,
+    language: Option<String>,
+    publisher: Option<String>,
 ) -> Result<Vec<LibraryBookRecord>, String> {
     let library_root = ensure_library_root(&app)?;
     let library_json = library_root.join("library.json");
@@ -1201,6 +1204,18 @@ pub(crate) fn update_library_book_metadata(
 
     record.title = normalized_title.to_string();
     record.author = normalized_author.to_string();
+    record.description = description.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
+    record.language = language.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
+    record.publisher = publisher.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
     save_library_records(&library_json, &records)?;
     decorate_library_record_file_states(&mut records);
     Ok(records)
