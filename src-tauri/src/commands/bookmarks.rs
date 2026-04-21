@@ -1,6 +1,4 @@
-use crate::models::{
-    ReaderBookmarkRecord, ReaderBookmarksEntry, READER_BOOKMARKS_SCHEMA_VERSION,
-};
+use crate::models::{ReaderBookmarkRecord, ReaderBookmarksEntry, READER_BOOKMARKS_SCHEMA_VERSION};
 use crate::util::{legacy_reader_bookmarks_file, reader_bookmarks_file};
 use std::fs;
 

@@ -1,6 +1,6 @@
 use crate::models::{
-    LibraryBookRecord, ReadestBookConfig, ReadestBookMetadata, ReadestBookMetadataSummary,
-    ReadestBookRecord, ReaderSearchCacheEntry, ReaderSearchCacheFileInfo,
+    LibraryBookRecord, ReaderSearchCacheEntry, ReaderSearchCacheFileInfo, ReadestBookConfig,
+    ReadestBookMetadata, ReadestBookMetadataSummary, ReadestBookRecord,
     READER_SEARCH_CACHE_MAX_FILES_PER_BOOK, READER_SEARCH_CACHE_MAX_FILES_TOTAL,
 };
 use base64::Engine;
@@ -11,7 +11,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
 pub(crate) fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     let library_root = app_data_dir.join("library");
     fs::create_dir_all(&library_root).map_err(|error| error.to_string())?;
     Ok(library_root)
@@ -22,7 +25,10 @@ pub(crate) fn readest_library_json_path(app: &tauri::AppHandle) -> Result<PathBu
 }
 
 pub(crate) fn readest_books_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     let support_root = app_data_dir
         .parent()
         .ok_or_else(|| "Unable to locate application support root".to_string())?;
@@ -152,7 +158,9 @@ pub(crate) fn prune_reader_search_cache_root(app: &tauri::AppHandle) -> Result<(
     }
 
     files.sort_by_key(|info| info.modified_ms);
-    let overflow = files.len().saturating_sub(READER_SEARCH_CACHE_MAX_FILES_TOTAL);
+    let overflow = files
+        .len()
+        .saturating_sub(READER_SEARCH_CACHE_MAX_FILES_TOTAL);
     for info in files.into_iter().take(overflow) {
         let _ = fs::remove_file(info.path);
     }
@@ -185,7 +193,9 @@ pub(crate) fn prune_reader_search_cache_book(
     }
 
     files.sort_by_key(|info| info.modified_ms);
-    let overflow = files.len().saturating_sub(READER_SEARCH_CACHE_MAX_FILES_PER_BOOK);
+    let overflow = files
+        .len()
+        .saturating_sub(READER_SEARCH_CACHE_MAX_FILES_PER_BOOK);
     for info in files.into_iter().take(overflow) {
         let _ = fs::remove_file(info.path);
     }
@@ -193,7 +203,9 @@ pub(crate) fn prune_reader_search_cache_book(
     Ok(())
 }
 
-fn collect_reader_search_cache_files(root: &Path) -> Result<Vec<ReaderSearchCacheFileInfo>, String> {
+fn collect_reader_search_cache_files(
+    root: &Path,
+) -> Result<Vec<ReaderSearchCacheFileInfo>, String> {
     let mut files = Vec::new();
     if !root.exists() {
         return Ok(files);
@@ -256,9 +268,8 @@ pub(crate) fn normalize_pdf_progress_location(record: &mut LibraryBookRecord) ->
     let normalized = if let Some((current, total)) = parse_page_location(progress_location) {
         Some(format!("Page {} / {}", current.max(1), total.max(1)))
     } else if progress_location.starts_with("epubcfi(") {
-        parse_section_status(&record.status).map(|(current, total)| {
-            format!("Page {} / {}", current.max(1), total.max(1))
-        })
+        parse_section_status(&record.status)
+            .map(|(current, total)| format!("Page {} / {}", current.max(1), total.max(1)))
     } else {
         None
     };
@@ -383,7 +394,10 @@ fn stringify_metadata_value(value: Option<serde_json::Value>) -> Option<String> 
     }
 }
 
-pub(crate) fn save_library_records(path: &Path, records: &[LibraryBookRecord]) -> Result<(), String> {
+pub(crate) fn save_library_records(
+    path: &Path,
+    records: &[LibraryBookRecord],
+) -> Result<(), String> {
     let json = serde_json::to_string_pretty(records).map_err(|error| error.to_string())?;
     fs::write(path, json).map_err(|error| error.to_string())
 }

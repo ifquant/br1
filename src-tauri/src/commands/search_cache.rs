@@ -35,8 +35,8 @@ pub(crate) fn load_reader_search_cache(
         return Ok(Some(entry.results));
     }
 
-    let legacy_results =
-        serde_json::from_str::<Vec<ReaderSearchCacheResult>>(&raw).map_err(|error| error.to_string())?;
+    let legacy_results = serde_json::from_str::<Vec<ReaderSearchCacheResult>>(&raw)
+        .map_err(|error| error.to_string())?;
     let entry = ReaderSearchCacheEntry {
         schema_version: READER_SEARCH_CACHE_SCHEMA_VERSION,
         saved_at: now,
@@ -76,7 +76,10 @@ pub(crate) fn save_reader_search_cache(
 }
 
 #[tauri::command]
-pub(crate) fn clear_reader_search_cache(app: tauri::AppHandle, book_key: String) -> Result<(), String> {
+pub(crate) fn clear_reader_search_cache(
+    app: tauri::AppHandle,
+    book_key: String,
+) -> Result<(), String> {
     let root = reader_search_cache_root(&app)?;
     let book_dir = root.join(reader_search_cache_component_key(&book_key));
     if book_dir.exists() {
