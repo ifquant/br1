@@ -463,6 +463,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    width: auto;
+    min-width: max-content;
     min-height: 23px;
     border: 1px solid color-mix(in srgb, var(--accent-warm) 22%, white 78%);
     border-radius: 999px;
@@ -470,6 +472,16 @@
     color: color-mix(in srgb, #73481f 84%, var(--text-secondary) 16%);
     font: 650 10px/1 var(--font-chrome);
     padding: 0 9px 0 10px;
+    white-space: nowrap;
+  }
+
+  .active-filter-chip span {
+    width: auto;
+    height: auto;
+    justify-content: flex-start;
+    line-height: inherit;
+    transform: none;
+    white-space: nowrap;
   }
 
   .active-filter-chip small {
@@ -552,6 +564,11 @@
   .filter-pill {
     display: inline-flex;
     align-items: center;
+    width: auto;
+    min-width: max-content;
+    height: auto;
+    min-height: 26px;
+    flex: 0 0 auto;
     gap: 5px;
     border: 0;
     border-radius: 999px;
@@ -567,6 +584,16 @@
       color 140ms ease,
       background 140ms ease,
       box-shadow 140ms ease;
+    white-space: nowrap;
+  }
+
+  .filter-pill span {
+    width: auto;
+    height: auto;
+    justify-content: flex-start;
+    line-height: inherit;
+    transform: none;
+    white-space: nowrap;
   }
 
   .filter-pill small {
