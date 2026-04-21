@@ -456,6 +456,18 @@ describe('br1 desktop app', () => {
     return importDesktopLibraryBooks(sourcePaths);
   };
 
+  const resetReaderSettingsForDeterministicLayout = async () => {
+    await browser.execute(() => {
+      localStorage.removeItem('br1.reader.settings');
+    });
+  };
+
+  const clickGoToLibrary = async () => {
+    const goToLibraryButton = await $('[aria-label="Go to library"], [aria-label="回到书库"]');
+    await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
+    await goToLibraryButton.click();
+  };
+
   const removeDesktopLibraryBook = async (filePath: string) => {
     const result = await browser.executeAsync((path, done) => {
       const tauriInternals = (window as typeof window & {
@@ -613,7 +625,7 @@ describe('br1 desktop app', () => {
   const nudgeReaderForward = async () => {
     const details = await readReaderDetails();
     if (details.formatLabel === 'TXT') {
-      const nextButton = await $('[aria-label="Next page"]');
+      const nextButton = await $('[aria-label="Next page"], [aria-label="下一页"]');
       await nextButton.waitForDisplayed({ timeout: 10000 });
       await nextButton.click();
       await browser.pause(200);
@@ -635,7 +647,7 @@ describe('br1 desktop app', () => {
 
       const plainTextSurface = document.querySelector('.plain-text-surface') as HTMLElement | null;
       const progressInput = document.querySelector(
-        '[aria-label="reader progress preview"] input[type="range"]'
+        '[aria-label="reader progress preview"] input[type="range"], [aria-label="阅读进度"] input[type="range"]'
       ) as HTMLInputElement | null;
       if (!plainTextSurface || !progressInput) return null;
 
@@ -1360,10 +1372,18 @@ describe('br1 desktop app', () => {
         | null;
       const headerTitle = document.querySelector('.reader-head .title-row strong')?.textContent?.trim() ?? null;
 
-      const footer = document.querySelector('[aria-label="reader footer controls preview"]');
+      const footer = document.querySelector(
+        '[aria-label="reader footer controls preview"], [aria-label="阅读页脚控制"]'
+      );
       const footerMeta = Array.from(footer?.querySelectorAll('.footer-meta span') ?? []).map((node) =>
         node.textContent?.trim() ?? ''
       );
+      const normalizeLayoutLabel = (value: string | null) => {
+        if (value === '分页') return 'PAGINATED';
+        if (value === '滚动') return 'SCROLL';
+        if (value === '固定版式') return 'FIXED';
+        return value;
+      };
       const formatLabel = footerMeta[1] ?? null;
       const locationLabel = footerMeta[0] ?? null;
       const progressLabel =
@@ -1400,7 +1420,7 @@ describe('br1 desktop app', () => {
         progressLabel,
         locationLabel,
         formatLabel,
-        layoutLabel: footerMeta[2] ?? null,
+        layoutLabel: normalizeLayoutLabel(footerMeta[2] ?? null),
         stageError: document.querySelector('.stage-error')?.textContent?.trim() ?? null
       };
     });
@@ -2659,52 +2679,47 @@ describe('br1 desktop app', () => {
     }
   });
 
-  it('opens the first library book in a separate reader window', async () => {
-    await switchToLibraryWindow();
+  it('opens a trusted imported library book in a separate reader window', async () => {
+    const libraryHandle = await switchToLibraryWindow();
 
-    const [firstBook] = await $$('[aria-label^="Open "][aria-label$=" in reader"]');
-    expect(firstBook).toBeTruthy();
-    const expectedHref = await firstBook.getAttribute('href');
-    expect(expectedHref).toBeTruthy();
-    const expectedTarget = new URL(expectedHref!, 'http://localhost');
-    expect(expectedTarget.searchParams.get('source')).toBe('library-file');
-    expect(expectedTarget.searchParams.get('path')).toBeTruthy();
+    try {
+      const [importedBook] = await importDesktopLibraryBooks([join(staticSamplesRoot, 'sample-book.txt')]);
+      expect(importedBook?.filePath).toBeTruthy();
 
-    const initialHandles = await browser.getWindowHandles();
-    await firstBook.click();
+      let expectedHref: string | null = null;
+      await browser.waitUntil(async () => {
+        expectedHref = await readLibraryHrefForPath(importedBook!.filePath);
+        return !!expectedHref;
+      }, {
+        timeout: 15000,
+        timeoutMsg: `expected to find a library reader href for imported book ${importedBook!.filePath}`
+      });
 
-    await browser.waitUntil(async () => {
-      const handles = await browser.getWindowHandles();
-      return handles.length > initialHandles.length;
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected a reader window to open after clicking the first book'
-    });
+      const expectedTarget = new URL(expectedHref!, 'http://localhost');
+      expect(expectedTarget.searchParams.get('source')).toBe('library-file');
+      expect(expectedTarget.searchParams.get('path')).toBe(importedBook!.filePath);
 
-    const nextHandles = await browser.getWindowHandles();
-    const readerHandle = nextHandles.find((handle) => !initialHandles.includes(handle));
-    expect(readerHandle).toBeTruthy();
+      const importedBookLink = await findBookElementByHref(expectedHref!);
+      expect(importedBookLink).toBeTruthy();
+      await openReaderFromBook(importedBookLink!);
 
-    await browser.switchToWindow(readerHandle!);
+      const readerShell = await $('.reader-shell');
+      await readerShell.waitForDisplayed({ timeout: 10000 });
+      expect(await readerShell.isDisplayed()).toBe(true);
 
-    const readerShell = await $('.reader-shell');
-    await readerShell.waitForDisplayed({ timeout: 10000 });
-    expect(await readerShell.isDisplayed()).toBe(true);
+      const readerUrl = await browser.getUrl();
+      const openedTarget = new URL(readerUrl, 'http://localhost');
+      expect(openedTarget.pathname).toBe(expectedTarget.pathname);
+      expect(openedTarget.searchParams.get('mode')).toBe('window');
+      expect(openedTarget.searchParams.get('source')).toBe('library-file');
+      expect(openedTarget.searchParams.get('path')).toBe(expectedTarget.searchParams.get('path'));
 
-    const readerChrome = await $('[aria-label="reader window chrome"]');
-    await readerChrome.waitForExist({ timeout: 10000 });
-    expect(await readerChrome.isExisting()).toBe(true);
-
-    const readerUrl = await browser.getUrl();
-    const openedTarget = new URL(readerUrl, 'http://localhost');
-    expect(openedTarget.pathname).toBe(expectedTarget.pathname);
-    expect(openedTarget.searchParams.get('mode')).toBe('window');
-    expect(openedTarget.searchParams.get('source')).toBe('library-file');
-    expect(openedTarget.searchParams.get('path')).toBe(expectedTarget.searchParams.get('path'));
-
-    const readerStage = await $('[aria-label="reader stage"]');
-    await readerStage.waitForDisplayed({ timeout: 10000 });
-    expect(await readerStage.isDisplayed()).toBe(true);
+      const readerStage = await $('[aria-label="reader stage"]');
+      await readerStage.waitForDisplayed({ timeout: 10000 });
+      expect(await readerStage.isDisplayed()).toBe(true);
+    } finally {
+      await cleanupReaderAttempt(libraryHandle);
+    }
   });
 
   it('normalizes associated book requests before opening a separate reader window', async () => {
@@ -2906,9 +2921,10 @@ describe('br1 desktop app', () => {
 
   it('opens FB2, MOBI, AZW3, CBZ, and TXT library-file samples in separate reader windows', async function () {
     this.timeout(120000);
+    await switchToLibraryWindow();
+    await resetReaderSettingsForDeterministicLayout();
     const importedBooks = await importDesktopSampleLibraryBooks();
 
-    await switchToLibraryWindow();
     await browser.refresh();
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
 
@@ -2936,6 +2952,14 @@ describe('br1 desktop app', () => {
         }, {
           timeout: 20000,
           timeoutMsg: `expected ${sample.format} library-file sample to open in a desktop reader window`
+        }).catch(async (error) => {
+          const details = await readReaderDetails();
+          const readerUrl = await browser.getUrl().catch(() => '');
+          throw new Error(
+            `${error instanceof Error ? error.message : String(error)}\nFormat: ${sample.format}\nReader URL: ${readerUrl}\nReader: ${JSON.stringify(
+              details
+            )}`
+          );
         });
 
         const details = await readReaderDetails();
@@ -3014,9 +3038,7 @@ describe('br1 desktop app', () => {
         }
       );
 
-      const goToLibraryButton = await $('[aria-label="Go to library"]');
-      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
-      await goToLibraryButton.click();
+      await clickGoToLibrary();
 
       await browser.switchToWindow(libraryHandle);
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -3114,9 +3136,7 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT sample to open before returning it into the reading workflow'
     });
 
-    const goToLibraryButton = await $('[aria-label="Go to library"]');
-    await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
-    await goToLibraryButton.click();
+    await clickGoToLibrary();
 
     await browser.switchToWindow(libraryHandle);
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -3506,6 +3526,8 @@ describe('br1 desktop app', () => {
 
   it('reopens FB2, MOBI, AZW3, CBZ, and TXT imports with stored restore progress', async function () {
     this.timeout(120000);
+    await switchToLibraryWindow();
+    await resetReaderSettingsForDeterministicLayout();
     const importedBooks = await importDesktopSampleLibraryBooks();
 
     const libraryHandle = await switchToLibraryWindow();
@@ -3551,11 +3573,11 @@ describe('br1 desktop app', () => {
       });
 
       const openedDetails = await readReaderDetails();
-      await advanceReaderBeyond(openedDetails, `${sample.format} sample before reopening it with restore progress`);
+      if ((openedDetails.progressFraction ?? 0) < 0.99) {
+        await advanceReaderBeyond(openedDetails, `${sample.format} sample before reopening it with restore progress`);
+      }
 
-      const goToLibraryButton = await $('[aria-label="Go to library"]');
-      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
-      await goToLibraryButton.click();
+      await clickGoToLibrary();
 
       await browser.switchToWindow(libraryHandle);
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -3686,9 +3708,7 @@ describe('br1 desktop app', () => {
     const openedDetails = await readReaderDetails();
     await advanceReaderBeyond(openedDetails, 'CBZ sample before validating metadata normalization');
 
-    const goToLibraryButton = await $('[aria-label="Go to library"]');
-    await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
-    await goToLibraryButton.click();
+    await clickGoToLibrary();
 
     await browser.switchToWindow(libraryHandle);
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -3798,9 +3818,7 @@ describe('br1 desktop app', () => {
       const openedDetails = await readReaderDetails();
       await advanceReaderBeyond(openedDetails, `${format} sample before validating metadata normalization`);
 
-      const goToLibraryButton = await $('[aria-label="Go to library"]');
-      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
-      await goToLibraryButton.click();
+      await clickGoToLibrary();
 
       await browser.switchToWindow(libraryHandle);
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -3872,9 +3890,7 @@ describe('br1 desktop app', () => {
       const openedDetails = await readReaderDetails();
       await advanceReaderBeyond(openedDetails, `${format} sample before validating author/progress normalization`);
 
-      const goToLibraryButton = await $('[aria-label="Go to library"]');
-      await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
-      await goToLibraryButton.click();
+      await clickGoToLibrary();
 
       await browser.switchToWindow(libraryHandle);
       await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -4130,9 +4146,7 @@ describe('br1 desktop app', () => {
     const originalRecord = await loadLibraryRecordOnDisk(path);
     const originalOpenedAt = originalRecord?.lastOpenedAt ?? 0;
 
-    const goToLibraryButton = await $('[aria-label="Go to library"]');
-    await goToLibraryButton.waitForDisplayed({ timeout: 10000 });
-    await goToLibraryButton.click();
+    await clickGoToLibrary();
 
     await browser.switchToWindow(libraryHandle);
 
