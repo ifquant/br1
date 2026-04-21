@@ -188,6 +188,29 @@
     return `未命中 ${importSource.unmatchedCount} 条，可刷新映射`;
   };
 
+  const getSavedHighlightSelectionUnmatchedTexts = (selectionSet: ReaderHighlightSelectionSet) => {
+    const importSource = selectionSet.importSource;
+    if (!importSource || importSource.unmatchedCount <= 0) return [];
+
+    const resolution = resolveImportedHighlightIds({
+      schemaVersion: 1,
+      bookKey: importSource.bookKey,
+      bookTitle: importSource.bookTitle,
+      bookAuthor: '',
+      formatLabel: importSource.formatLabel,
+      exportedAt: importSource.importedAt,
+      selectionSet: {
+        id: selectionSet.id,
+        name: selectionSet.name,
+        selectedIds: importSource.highlights.map((highlight) => highlight.id),
+        createdAt: selectionSet.createdAt
+      },
+      highlights: importSource.highlights
+    });
+
+    return resolution.unmatchedTexts.slice(0, 3);
+  };
+
   const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
     if (!state) {
       applyDefaultHighlightsWorkspaceState();
@@ -2181,6 +2204,20 @@
                           <span class="saved-highlight-selection-detail">
                             {getSavedHighlightSelectionRefreshDetail(selectionSet)}
                           </span>
+                          {@const unmatchedTexts = getSavedHighlightSelectionUnmatchedTexts(selectionSet)}
+                          {#if unmatchedTexts.length}
+                            <div
+                              class="saved-highlight-selection-unmatched"
+                              aria-label={`Unmatched highlights for ${selectionSet.name}`}
+                            >
+                              <span>未映射片段</span>
+                              <ul>
+                                {#each unmatchedTexts as unmatchedText}
+                                  <li>{unmatchedText}</li>
+                                {/each}
+                              </ul>
+                            </div>
+                          {/if}
                           <span
                             class="saved-highlight-selection-status"
                             class:saved-highlight-selection-status-full={getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'full'}
@@ -3455,6 +3492,34 @@
 
   .saved-highlight-selection-detail {
     color: var(--text-primary);
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .saved-highlight-selection-unmatched {
+    display: grid;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-panel) 64%, #f7d6bd 36%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-light) 70%, #bc6c31 30%);
+  }
+
+  .saved-highlight-selection-unmatched span {
+    color: var(--text-primary);
+    font: 600 11px/1.3 var(--font-chrome);
+  }
+
+  .saved-highlight-selection-unmatched ul {
+    display: grid;
+    gap: 3px;
+    margin: 0;
+    padding-left: 16px;
+  }
+
+  .saved-highlight-selection-unmatched li {
+    color: var(--text-secondary);
     font-size: 11px;
     line-height: 1.35;
   }

@@ -495,7 +495,16 @@ test('reader supports txt notes through selection, persistence, and note reopen 
         totalCount: 2,
         unmatchedCount: 1,
         importedAt: 1710000000000,
-        highlights: JSON.parse(exportedPayload).highlights
+        highlights: [
+          ...JSON.parse(exportedPayload).highlights,
+          {
+            ...JSON.parse(exportedPayload).highlights[0],
+            id: 'missing-imported-highlight',
+            cfi: 'epubcfi(/6/imported-missing)',
+            text: 'missing imported passage for unresolved drilldown',
+            chapterHref: '/missing-imported-chapter.xhtml'
+          }
+        ]
       }
     },
     highlights: JSON.parse(exportedPayload).highlights.map((highlight: Record<string, unknown>) => ({
@@ -572,12 +581,19 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('部分匹配');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('未命中 1 条，可刷新映射');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('未映射片段');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText(
+    'missing imported passage for unresolved drilldown'
+  );
   await page.reload();
   await page.getByRole('tab', { name: '高亮' }).click();
   await expect(savedSelectionPanel).toContainText('刷新筛选按书保留');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('部分匹配');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('未命中 1 条，可刷新映射');
+  await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText(
+    'missing imported passage for unresolved drilldown'
+  );
   await savedSelectionPanel.getByRole('button', { name: '完全匹配 1' }).click();
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮 (2)');
