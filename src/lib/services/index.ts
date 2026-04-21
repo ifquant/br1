@@ -28,6 +28,7 @@ export {
   loadLibraryBookFile,
   loadPersistedLibraryBooks,
   openLibraryBookPath,
+  previewLibraryRepairCandidate,
   removeLibraryBook,
   restoreRemovedLibraryBook,
   selectSystemBookPaths,

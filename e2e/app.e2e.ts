@@ -451,6 +451,53 @@ describe('br1 desktop app', () => {
     }
   };
 
+  const previewDesktopLibraryRepairCandidate = async (
+    filePath: string,
+    expectedFormat: string,
+    expectedSourcePath?: string
+  ) => {
+    const result = await browser.executeAsync((args, done) => {
+      const tauriInternals = (window as typeof window & {
+        __TAURI_INTERNALS__?: {
+          invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).__TAURI_INTERNALS__;
+
+      if (typeof tauriInternals?.invoke !== 'function') {
+        done({
+          ok: false,
+          error: 'expected window.__TAURI_INTERNALS__.invoke to exist in the desktop webview'
+        });
+        return;
+      }
+
+      tauriInternals
+        .invoke('preview_library_repair_candidate', args)
+        .then((preview) => {
+          done({ ok: true, preview });
+        })
+        .catch((error) => {
+          done({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        });
+    }, { filePath, expectedFormat, expectedSourcePath });
+
+    if (!result?.ok || !result.preview) {
+      throw new Error(result?.error ?? 'expected preview_library_repair_candidate to succeed');
+    }
+
+    return result.preview as {
+      filePath: string;
+      fileName: string;
+      format: string;
+      formatMatches: boolean;
+      sourcePathMatches: boolean;
+      fileExists: boolean;
+    };
+  };
+
   const queueAssociatedBookOpenRequests = async (filePaths: string[]) => {
     const result = await browser.executeAsync((paths, done) => {
       const tauriInternals = (window as typeof window & {
@@ -2932,6 +2979,26 @@ describe('br1 desktop app', () => {
         timeout: 10000,
         timeoutMsg: 'expected the manual-only repair row to surface explicit review-first relink labels before bulk repair runs'
       });
+
+      const mismatchedPreview = await previewDesktopLibraryRepairCandidate(
+        txtSourcePath,
+        'CBZ',
+        cbzSourcePath
+      );
+      expect(mismatchedPreview.fileExists).toBe(true);
+      expect(mismatchedPreview.format).toBe('TXT');
+      expect(mismatchedPreview.formatMatches).toBe(false);
+      expect(mismatchedPreview.sourcePathMatches).toBe(false);
+
+      const matchedPreview = await previewDesktopLibraryRepairCandidate(
+        cbzSourcePath,
+        'CBZ',
+        cbzSourcePath
+      );
+      expect(matchedPreview.fileExists).toBe(true);
+      expect(matchedPreview.format).toBe('CBZ');
+      expect(matchedPreview.formatMatches).toBe(true);
+      expect(matchedPreview.sourcePathMatches).toBe(true);
 
       await browser.execute((expectedTitle) => {
         const rows = Array.from(document.querySelectorAll('.continue-shelf .row'));

@@ -1,6 +1,6 @@
 use crate::models::{
-    AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord, PendingAssociatedBookOpenRequests,
-    ReadestImportResult, ReadestLibrarySummary,
+    AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord, LibraryRepairCandidatePreview,
+    PendingAssociatedBookOpenRequests, ReadestImportResult, ReadestLibrarySummary,
 };
 use crate::util::{
     book_mime_type, cover_mime_type, ensure_library_root, find_readest_book_file,
@@ -1108,6 +1108,47 @@ pub(crate) fn remove_library_book(
     save_library_records(&library_json, &records)?;
     decorate_library_record_file_states(&mut records);
     Ok(records)
+}
+
+#[tauri::command]
+pub(crate) fn preview_library_repair_candidate(
+    file_path: String,
+    expected_format: String,
+    expected_source_path: Option<String>,
+) -> Result<LibraryRepairCandidatePreview, String> {
+    let candidate_path = Path::new(&file_path);
+    let file_name = candidate_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("Selected file")
+        .to_string();
+    let format = candidate_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_ascii_uppercase())
+        .unwrap_or_else(|| "BOOK".to_string());
+    let expected_format = expected_format.trim().to_ascii_uppercase();
+    let normalized_candidate = fs::canonicalize(candidate_path)
+        .ok()
+        .map(|path| path.to_string_lossy().to_string());
+    let normalized_expected = expected_source_path
+        .as_deref()
+        .and_then(|path| fs::canonicalize(path).ok())
+        .map(|path| path.to_string_lossy().to_string());
+    let file_exists = candidate_path.is_file();
+
+    Ok(LibraryRepairCandidatePreview {
+        file_path: file_path.clone(),
+        file_name,
+        format_matches: expected_format.is_empty() || format == expected_format,
+        source_path_matches: normalized_candidate.is_some()
+            && normalized_expected.is_some()
+            && normalized_candidate == normalized_expected,
+        file_exists,
+        format,
+    })
 }
 
 #[tauri::command]

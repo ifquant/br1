@@ -204,6 +204,7 @@ pub fn run() {
             commands::library::detect_readest_library,
             commands::library::import_library_books,
             commands::library::import_readest_library,
+            commands::library::preview_library_repair_candidate,
             commands::library::queue_associated_book_open_requests,
             commands::library::remove_library_book,
             commands::library::restore_removed_library_book,

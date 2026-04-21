@@ -20,6 +20,7 @@
     loadPersistedLibraryBooks,
     openLibraryBookPath,
     openReaderTarget,
+    previewLibraryRepairCandidate,
     removeLibraryBook,
     restoreRemovedLibraryBook,
     toAssetReaderHref,
@@ -1030,6 +1031,25 @@
       } else {
         const selectedPath = await selectSingleSystemBookPath();
         if (!selectedPath) return;
+        const candidatePreview = await previewLibraryRepairCandidate({
+          filePath: selectedPath,
+          expectedFormat: persistedRecord.format,
+          expectedSourcePath: persistedRecord.sourcePath
+        });
+        if (!candidatePreview.fileExists) {
+          setLibraryNotice('error', '所选文件当前不可读，请确认文件仍然存在后再重试。');
+          return;
+        }
+        if (
+          !candidatePreview.formatMatches &&
+          typeof window !== 'undefined' &&
+          !window.confirm(
+            `所选文件格式是 ${candidatePreview.format}，当前记录格式是 ${persistedRecord.format}。仍要用“${candidatePreview.fileName}”重关联这条记录吗？`
+          )
+        ) {
+          setLibraryNotice('info', '已取消重关联；请选择与当前记录格式一致的替换文件。');
+          return;
+        }
         result = {
           kind: 'imported',
           records: await importLibraryBooks([selectedPath]),

@@ -44,6 +44,17 @@ pub(crate) struct ReadestImportResult {
     pub(crate) skipped_missing_files: usize,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LibraryRepairCandidatePreview {
+    pub(crate) file_path: String,
+    pub(crate) file_name: String,
+    pub(crate) format: String,
+    pub(crate) format_matches: bool,
+    pub(crate) source_path_matches: bool,
+    pub(crate) file_exists: bool,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReadestBookRecord {

@@ -51,6 +51,15 @@ export type LibraryReadingStateUpdate = {
   progressLocation?: string;
 };
 
+export type LibraryRepairCandidatePreview = {
+  filePath: string;
+  fileName: string;
+  format: string;
+  formatMatches: boolean;
+  sourcePathMatches: boolean;
+  fileExists: boolean;
+};
+
 export type LibraryImportActionResult =
   | {
       kind: 'cancelled';
@@ -222,6 +231,24 @@ export const restoreRemovedLibraryBook = async (
 
   return invokeTauri<PersistedLibraryBook[]>('restore_removed_library_book', {
     record
+  });
+};
+
+export const previewLibraryRepairCandidate = async ({
+  filePath,
+  expectedFormat,
+  expectedSourcePath
+}: {
+  filePath: string;
+  expectedFormat: string;
+  expectedSourcePath?: string | null;
+}): Promise<LibraryRepairCandidatePreview> => {
+  requireTauriLibraryRuntime('previewLibraryRepairCandidate');
+
+  return invokeTauri<LibraryRepairCandidatePreview>('preview_library_repair_candidate', {
+    filePath,
+    expectedFormat,
+    expectedSourcePath
   });
 };
 
