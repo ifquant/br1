@@ -21,6 +21,7 @@
     openLibraryBookPath,
     openReaderTarget,
     removeLibraryBook,
+    restoreRemovedLibraryBook,
     toAssetReaderHref,
     toAssetReaderTarget,
     toLibraryCoverUrl,
@@ -180,6 +181,8 @@
     | {
         kind: 'error' | 'info';
         message: string;
+        actionLabel?: string;
+        action?: () => void | Promise<void>;
       }
     | null = null;
   let starterReadingWorkflowNotice:
@@ -788,8 +791,22 @@
     libraryNotice = null;
   };
 
-  const setLibraryNotice = (kind: 'error' | 'info', message: string) => {
-    libraryNotice = { kind, message };
+  const setLibraryNotice = (
+    kind: 'error' | 'info',
+    message: string,
+    action?: { label: string; run: () => void | Promise<void> }
+  ) => {
+    libraryNotice = {
+      kind,
+      message,
+      actionLabel: action?.label,
+      action: action?.run
+    };
+  };
+
+  const runLibraryNoticeAction = () => {
+    if (!libraryNotice?.action) return;
+    void libraryNotice.action();
   };
 
   const describeReadestMigrationResult = (result: Awaited<ReturnType<typeof importBooksFromReadest>>) => {
@@ -932,6 +949,18 @@
     await applyPersistedLibraryRecords(currentRecords);
   };
 
+  const restoreRemovedLibraryRecord = async (record: PersistedLibraryBook) => {
+    try {
+      clearLibraryNotice();
+      const restoredRecords = await restoreRemovedLibraryBook(record);
+      await applyPersistedLibraryRecords(restoredRecords);
+      setLibraryNotice('info', `已恢复“${record.title}”到书库，并保留原有阅读状态。`);
+    } catch (error) {
+      console.error('Failed to restore removed library book', error);
+      setLibraryNotice('error', `无法恢复“${record.title}”；请确认原文件仍然存在后重新导入。`);
+    }
+  };
+
   const handleRemoveLibraryBook = async (book: LibraryShelfBook) => {
     if (!canPersistLibrary()) return;
 
@@ -952,7 +981,20 @@
       clearLibraryNotice();
       const updatedRecords = await removeLibraryBook(persistedRecord.filePath);
       await applyPersistedLibraryRecords(updatedRecords);
-      setLibraryNotice('info', `已从书库移除“${book.title}”；原文件不会被删除。`);
+      const canRestoreFromSource =
+        !!persistedRecord.sourcePath && persistedRecord.sourceFileExists !== false;
+      setLibraryNotice(
+        'info',
+        canRestoreFromSource
+          ? `已从书库移除“${book.title}”；原文件不会被删除，可从原文件撤销恢复。`
+          : `已从书库移除“${book.title}”；原文件不会被删除。`,
+        canRestoreFromSource
+          ? {
+              label: '撤销移除',
+              run: () => restoreRemovedLibraryRecord(persistedRecord)
+            }
+          : undefined
+      );
     } catch (error) {
       console.error('Failed to remove library book', error);
       setLibraryNotice('error', '无法从书库移除这本书，请确认书库记录仍然有效后重试。');
@@ -1135,7 +1177,14 @@
         aria-live="polite"
       >
         <span>{libraryNotice.message}</span>
-        <button type="button" class="notice-dismiss" on:click={clearLibraryNotice}>知道了</button>
+        <div class="notice-actions">
+          {#if libraryNotice.actionLabel}
+            <button type="button" class="notice-dismiss primary" on:click={runLibraryNoticeAction}>
+              {libraryNotice.actionLabel}
+            </button>
+          {/if}
+          <button type="button" class="notice-dismiss" on:click={clearLibraryNotice}>知道了</button>
+        </div>
       </section>
     {/if}
 
@@ -1387,6 +1436,14 @@
     color: var(--text-primary);
   }
 
+  .notice-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
   .notice-dismiss {
     border: 0;
     border-radius: 999px;
@@ -1400,6 +1457,11 @@
     box-shadow:
       inset 0 0 0 1px var(--border-light),
       0 6px 14px rgba(42, 30, 15, 0.06);
+  }
+
+  .notice-dismiss.primary {
+    background: color-mix(in srgb, #dbeed8 78%, white 22%);
+    color: color-mix(in srgb, #456246 84%, black 16%);
   }
 
   .migration-copy {

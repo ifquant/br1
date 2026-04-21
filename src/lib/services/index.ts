@@ -29,6 +29,7 @@ export {
   loadPersistedLibraryBooks,
   openLibraryBookPath,
   removeLibraryBook,
+  restoreRemovedLibraryBook,
   selectSystemBookPaths,
   toAssetReaderHref,
   toAssetReaderTarget,

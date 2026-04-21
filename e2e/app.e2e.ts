@@ -415,6 +415,42 @@ describe('br1 desktop app', () => {
     return importDesktopLibraryBooks(sourcePaths);
   };
 
+  const removeDesktopLibraryBook = async (filePath: string) => {
+    const result = await browser.executeAsync((path, done) => {
+      const tauriInternals = (window as typeof window & {
+        __TAURI_INTERNALS__?: {
+          invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).__TAURI_INTERNALS__;
+
+      if (typeof tauriInternals?.invoke !== 'function') {
+        done({
+          ok: false,
+          error: 'expected window.__TAURI_INTERNALS__.invoke to exist in the desktop webview'
+        });
+        return;
+      }
+
+      tauriInternals
+        .invoke('remove_library_book', {
+          filePath: path
+        })
+        .then(() => {
+          done({ ok: true });
+        })
+        .catch((error) => {
+          done({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        });
+    }, filePath);
+
+    if (!result?.ok) {
+      throw new Error(result?.error ?? 'expected remove_library_book to succeed');
+    }
+  };
+
   const queueAssociatedBookOpenRequests = async (filePaths: string[]) => {
     const result = await browser.executeAsync((paths, done) => {
       const tauriInternals = (window as typeof window & {
@@ -1983,7 +2019,7 @@ describe('br1 desktop app', () => {
     });
   });
 
-  it('removes an imported shelf book without deleting the original source file', async () => {
+  it('removes an imported shelf book without deleting the original source file and can undo the removal', async () => {
     const removableSource = join(appDataRoot, `br1-removable-library-${Date.now()}.txt`);
     await copyFile(join(staticSamplesRoot, 'sample-book.txt'), removableSource);
     const [importedBook] = await importDesktopLibraryBooks([removableSource]);
@@ -2052,10 +2088,11 @@ describe('br1 desktop app', () => {
     await browser.waitUntil(async () => {
       const notice = await $('.library-notice');
       if (!(await notice.isExisting())) return false;
-      return (await notice.getText()).includes('已从书库移除');
+      const text = await notice.getText();
+      return text.includes('已从书库移除') && text.includes('撤销移除');
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected removing a shelf book to show a library notice'
+      timeoutMsg: 'expected removing a shelf book to show an undoable library notice'
     });
 
     await browser.waitUntil(async () => {
@@ -2067,6 +2104,20 @@ describe('br1 desktop app', () => {
 
     expect(await pathExists(removableSource)).toBe(true);
     expect(await pathExists(importedBook!.filePath)).toBe(false);
+
+    const undoButton = await $('button=撤销移除');
+    await undoButton.waitForDisplayed({ timeout: 10000 });
+    await undoButton.click();
+
+    await browser.waitUntil(async () => {
+      const restoredRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+      return !!restoredRecord && (await pathExists(importedBook!.filePath));
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected undoing a library removal to restore the record and br1-managed copy'
+    });
+
+    await removeDesktopLibraryBook(importedBook!.filePath);
     await rm(removableSource, { force: true });
   });
 

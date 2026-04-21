@@ -215,6 +215,16 @@ export const removeLibraryBook = async (filePath: string): Promise<PersistedLibr
   });
 };
 
+export const restoreRemovedLibraryBook = async (
+  record: PersistedLibraryBook
+): Promise<PersistedLibraryBook[]> => {
+  requireTauriLibraryRuntime('restoreRemovedLibraryBook');
+
+  return invokeTauri<PersistedLibraryBook[]>('restore_removed_library_book', {
+    record
+  });
+};
+
 export const updateLibraryReadingState = async (
   update: LibraryReadingStateUpdate
 ): Promise<void> => {

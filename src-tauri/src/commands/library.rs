@@ -1111,6 +1111,42 @@ pub(crate) fn remove_library_book(
 }
 
 #[tauri::command]
+pub(crate) fn restore_removed_library_book(
+    app: tauri::AppHandle,
+    mut record: LibraryBookRecord,
+) -> Result<Vec<LibraryBookRecord>, String> {
+    let library_root = ensure_library_root(&app)?;
+    let library_json = library_root.join("library.json");
+    let stored_path = Path::new(&record.file_path);
+    if !stored_path.starts_with(&library_root) {
+        return Err("Cannot restore a library record outside the br1 library root".to_string());
+    }
+
+    let source_path = record
+        .source_path
+        .as_deref()
+        .ok_or_else(|| "Cannot restore a removed book without an original source path".to_string())?;
+    let source_path = Path::new(source_path);
+    if !source_path.is_file() {
+        return Err("Cannot restore a removed book because the original source file is missing".to_string());
+    }
+
+    if let Some(parent) = stored_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    fs::copy(source_path, stored_path).map_err(|error| error.to_string())?;
+
+    let mut records = load_library_records(&library_json)?;
+    records.retain(|existing| existing.id != record.id && existing.file_path != record.file_path);
+    record.library_file_exists = None;
+    record.source_file_exists = None;
+    records.insert(0, record);
+    save_library_records(&library_json, &records)?;
+    decorate_library_record_file_states(&mut records);
+    Ok(records)
+}
+
+#[tauri::command]
 pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImportResult, String> {
     let readest_library_json = readest_library_json_path(&app)?;
     let readest_books_root = readest_books_root(&app)?;
