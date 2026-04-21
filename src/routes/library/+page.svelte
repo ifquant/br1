@@ -1586,6 +1586,15 @@
     libraryTagFilter = event.detail.tag;
   };
 
+  const handleFilterByShelfStatus = (status: LibraryFilter) => {
+    if (status === 'all') return;
+    libraryQuery = '';
+    libraryFilterBy = status;
+    libraryFormatFilter = 'all';
+    libraryCollectionFilter = 'all';
+    libraryTagFilter = 'all';
+  };
+
   const handleFilterByShelfCollection = (collection: string) => {
     libraryQuery = '';
     libraryFilterBy = 'all';
@@ -1801,6 +1810,7 @@
           onOpenSourcePath={handleOpenSourcePath}
           onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
           onRemoveBook={handleRemoveLibraryBook}
+          onFilterStatus={handleFilterByShelfStatus}
           onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}
@@ -1883,6 +1893,7 @@
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
+          onFilterStatus={handleFilterByShelfStatus}
           onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}

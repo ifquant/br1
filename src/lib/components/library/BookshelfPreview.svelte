@@ -24,6 +24,9 @@
       ) => void | Promise<void>)
     | null = null;
   export let onRemoveBook: ((book: BookshelfPreviewBook) => void | Promise<void>) | null = null;
+  export let onFilterStatus:
+    | ((status: 'reading' | 'unstarted' | 'finished') => void | Promise<void>)
+    | null = null;
   export let onFilterFormat: ((format: string) => void | Promise<void>) | null = null;
   export let onFilterCollection: ((collection: string) => void | Promise<void>) | null = null;
   export let onFilterTag: ((tag: string) => void | Promise<void>) | null = null;
@@ -127,6 +130,31 @@
     void onFilterFormat(nextFormat);
   };
 
+  const getFilterableStatus = (book: BookshelfPreviewBook) => {
+    const label = book.readingStatusLabel || book.status || '';
+    if (label === '在读') return 'reading';
+    if (label === '未开始') return 'unstarted';
+    if (label === '已读完') return 'finished';
+    return '';
+  };
+
+  const handleFilterStatus = (
+    event: MouseEvent,
+    status: 'reading' | 'unstarted' | 'finished' | ''
+  ) => {
+    if (!status || !onFilterStatus) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void onFilterStatus(status);
+  };
+
+  const getFilterStatusLabel = (status: 'reading' | 'unstarted' | 'finished' | '') => {
+    if (status === 'reading') return '在读';
+    if (status === 'unstarted') return '未开始';
+    if (status === 'finished') return '已读完';
+    return '';
+  };
+
   const handleFilterCollection = (event: MouseEvent, collection: string | undefined) => {
     const nextCollection = collection?.trim();
     if (!nextCollection || !onFilterCollection) return;
@@ -178,6 +206,8 @@
   <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={sectionTitle}>
     {#each books as book}
       {@const bookKey = getBookKey(book)}
+      {@const filterableStatus = getFilterableStatus(book)}
+      {@const filterableStatusLabel = getFilterStatusLabel(filterableStatus)}
       <article class:list-card={viewMode === 'list'} class="book-card">
         <svelte:element
           this={book.readerHref ? 'a' : 'div'}
@@ -278,7 +308,18 @@
                 <strong>{book.format || '未知'}</strong>
               {/if}
               <span>状态</span>
-              <strong>{book.readingStatusLabel || book.status || '未标记'}</strong>
+              {#if filterableStatus && onFilterStatus}
+                <button
+                  type="button"
+                  class="metadata-filter-button"
+                  aria-label={`Filter by status ${filterableStatusLabel}`}
+                  on:click={(event: MouseEvent) => handleFilterStatus(event, filterableStatus)}
+                >
+                  {filterableStatusLabel}
+                </button>
+              {:else}
+                <strong>{book.readingStatusLabel || book.status || '未标记'}</strong>
+              {/if}
               <span>进度</span>
               <strong>{book.progressPercentLabel || book.progress || '未记录'}</strong>
               <span>语言</span>

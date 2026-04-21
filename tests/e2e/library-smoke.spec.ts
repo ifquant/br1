@@ -86,6 +86,7 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(sampleMetadataPanel.getByRole('button', { name: 'Filter by format EPUB' })).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('状态');
   await expect(sampleMetadataPanel).toContainText('未开始');
+  await expect(sampleMetadataPanel.getByRole('button', { name: 'Filter by status 未开始' })).toBeVisible();
   await expect(sampleMetadataPanel).toContainText('封面');
   await expect(sampleMetadataPanel).toContainText('已设置');
   await expect(sampleMetadataPanel).toContainText('书架归类');
@@ -104,6 +105,15 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toHaveCount(0);
   await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 4 / 5 本');
   await page.getByRole('button', { name: 'Remove active library filter 格式 EPUB' }).click();
+  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
+
+  await sampleMetadataPanel.getByRole('button', { name: 'Filter by status 未开始' }).click();
+  await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 未开始');
+  await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toHaveCount(0);
+  await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 2 / 5 本');
+  await page.getByRole('button', { name: 'Remove active library filter 状态 未开始' }).click();
   await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
 
   await sampleMetadataPanel.getByRole('button', { name: 'Filter by collection 政治哲学' }).click();
