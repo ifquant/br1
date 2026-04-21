@@ -63,7 +63,9 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Open 政治秩序与政治衰败 in reader/i })).toHaveCount(0);
   await expect(page.getByLabel('library filter summary')).toContainText('筛选命中 1 / 5 本');
-  await page.getByRole('button', { name: '全部标签' }).click();
+  await page.getByRole('button', { name: 'Clear library filters' }).click();
+  await expect(page.getByLabel('library filter summary')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
 
   await page.getByRole('button', { name: '已读完' }).click();
   await expect(page.getByRole('link', { name: /Continue reading 胡雪岩/i })).toBeVisible();

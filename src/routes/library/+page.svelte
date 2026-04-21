@@ -1398,6 +1398,13 @@
   const handleLibraryTagFilterChange = (event: CustomEvent<{ tag: string }>) => {
     libraryTagFilter = event.detail.tag;
   };
+
+  const handleClearLibraryFilters = () => {
+    libraryQuery = '';
+    libraryFilterBy = 'all';
+    libraryCollectionFilter = 'all';
+    libraryTagFilter = 'all';
+  };
 </script>
 
 <section class="library-page">
@@ -1428,6 +1435,7 @@
       on:filterchange={handleLibraryFilterChange}
       on:collectionfilterchange={handleLibraryCollectionFilterChange}
       on:tagfilterchange={handleLibraryTagFilterChange}
+      on:clearfilters={handleClearLibraryFilters}
       on:sortchange={handleLibrarySortChange}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />

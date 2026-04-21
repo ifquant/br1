@@ -27,6 +27,7 @@
     filterchange: { filterBy: 'all' | 'reading' | 'unstarted' | 'finished' };
     collectionfilterchange: { collection: string };
     tagfilterchange: { tag: string };
+    clearfilters: void;
   }>();
 
   const actions = [
@@ -82,6 +83,10 @@
   const handleTagFilterChange = (nextTag: string) => {
     if (nextTag === activeTagFilter) return;
     dispatch('tagfilterchange', { tag: nextTag });
+  };
+
+  const handleClearFilters = () => {
+    dispatch('clearfilters');
   };
 
   const handleViewModeChange = (nextViewMode: 'grid' | 'list') => {
@@ -283,6 +288,14 @@
   {/if}
   {#if filterSummary}
     <span class="filter-summary" aria-label="library filter summary">{filterSummary}</span>
+    <button
+      type="button"
+      class="clear-filters"
+      aria-label="Clear library filters"
+      on:click={handleClearFilters}
+    >
+      清除筛选
+    </button>
   {/if}
 </div>
 
@@ -331,6 +344,22 @@
     font: 600 10px/1 var(--font-chrome);
     letter-spacing: 0.01em;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .clear-filters {
+    width: auto;
+    height: 23px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .clear-filters:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-panel) 68%, white 32%);
   }
 
   .collection-filters {
