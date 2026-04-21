@@ -1658,6 +1658,7 @@ pub(crate) fn remove_library_book(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn update_library_book_metadata(
     app: tauri::AppHandle,
     record_id: String,
@@ -1944,6 +1945,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn update_library_reading_state(
     app: tauri::AppHandle,
     file_path: String,
