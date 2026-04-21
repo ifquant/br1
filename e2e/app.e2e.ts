@@ -1055,7 +1055,7 @@ describe('br1 desktop app', () => {
 
   const readReadestMigrationSurface = async () =>
     browser.execute(() => {
-      const banner = document.querySelector('[aria-label="readest migration"]');
+      const banner = document.querySelector('[aria-label="readest migration"], [aria-label="Readest 迁移提示"]');
       const notice = document.querySelector('.library-notice');
       const compatibleTexts = Array.from(document.querySelectorAll('.book-card, .reading-card'))
         .map((node) => node.textContent ?? '')
@@ -4228,11 +4228,11 @@ describe('br1 desktop app', () => {
   it('reports Readest migration outcomes through the library banner and notice flow', async () => {
     const libraryHandle = await switchToLibraryWindow();
 
-    const migrationBanner = await $('[aria-label="readest migration"]');
+    const migrationBanner = await $('[aria-label="readest migration"], [aria-label="Readest 迁移提示"]');
     await migrationBanner.waitForDisplayed({ timeout: 15000 });
 
     const handlesBeforeClick = await browser.getWindowHandles();
-    const migrationButton = await $('[aria-label="readest migration"] .migration-button');
+    const migrationButton = await $('[aria-label="readest migration"] .migration-button, [aria-label="Readest 迁移提示"] .migration-button');
     await migrationButton.waitForDisplayed({ timeout: 10000 });
     await migrationButton.click();
 

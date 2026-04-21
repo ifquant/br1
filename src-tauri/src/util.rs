@@ -6,7 +6,7 @@ use crate::models::{
 use base64::Engine;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
@@ -320,8 +320,15 @@ pub(crate) fn load_readest_config(
     readest_books_root: &Path,
     hash: &str,
 ) -> Result<ReadestBookConfig, String> {
-    let config_path = readest_books_root.join(hash).join("config.json");
+    let Some(book_dir) = resolve_readest_book_dir(readest_books_root, hash)? else {
+        return Ok(ReadestBookConfig::default());
+    };
+    let config_path = book_dir.join("config.json");
     if !config_path.exists() {
+        return Ok(ReadestBookConfig::default());
+    }
+    let config_path = fs::canonicalize(config_path).map_err(|error| error.to_string())?;
+    if !config_path.is_file() || !config_path.starts_with(&book_dir) {
         return Ok(ReadestBookConfig::default());
     }
 
@@ -419,20 +426,50 @@ pub(crate) fn sanitize_filename(filename: &str) -> String {
         .collect()
 }
 
+fn is_single_safe_path_component(value: &str) -> bool {
+    let mut components = Path::new(value).components();
+    matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none()
+}
+
+pub(crate) fn resolve_readest_book_dir(
+    readest_books_root: &Path,
+    hash: &str,
+) -> Result<Option<PathBuf>, String> {
+    if !is_single_safe_path_component(hash) || !readest_books_root.exists() {
+        return Ok(None);
+    }
+
+    let readest_books_root =
+        fs::canonicalize(readest_books_root).map_err(|error| error.to_string())?;
+    let book_dir = readest_books_root.join(hash);
+    if !book_dir.exists() {
+        return Ok(None);
+    }
+
+    let book_dir = fs::canonicalize(book_dir).map_err(|error| error.to_string())?;
+    if !book_dir.is_dir() || !book_dir.starts_with(&readest_books_root) {
+        return Ok(None);
+    }
+
+    Ok(Some(book_dir))
+}
+
 pub(crate) fn find_readest_book_file(
     readest_books_root: &Path,
     readest_record: &ReadestBookRecord,
 ) -> Result<Option<PathBuf>, String> {
-    let book_dir = readest_books_root.join(&readest_record.hash);
-    if !book_dir.exists() {
+    let Some(book_dir) = resolve_readest_book_dir(readest_books_root, &readest_record.hash)? else {
         return Ok(None);
-    }
+    };
 
     let format = readest_record.format.to_lowercase();
     let mut candidates = Vec::new();
     for entry in fs::read_dir(&book_dir).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
-        let path = entry.path();
+        let path = fs::canonicalize(entry.path()).map_err(|error| error.to_string())?;
+        if !path.starts_with(&book_dir) {
+            continue;
+        }
         if !path.is_file() {
             continue;
         }
@@ -448,6 +485,79 @@ pub(crate) fn find_readest_book_file(
     }
 
     Ok(candidates.into_iter().next())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_test_dir(name: &str) -> PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("br1-util-{name}-{suffix}"))
+    }
+
+    fn readest_record(hash: &str, format: &str) -> ReadestBookRecord {
+        ReadestBookRecord {
+            hash: hash.to_string(),
+            title: "Readest title".to_string(),
+            author: "Readest author".to_string(),
+            format: format.to_string(),
+            metadata: None,
+            downloaded_at: None,
+            created_at: None,
+            progress: None,
+        }
+    }
+
+    #[test]
+    fn readest_book_dirs_reject_path_traversal_hashes() {
+        let root = unique_test_dir("readest-dir-traversal");
+        fs::create_dir_all(&root).expect("create root");
+        let outside = root
+            .parent()
+            .expect("temp root should have parent")
+            .join("outside-readest-book");
+        fs::create_dir_all(&outside).expect("create outside");
+
+        assert!(resolve_readest_book_dir(&root, "../outside-readest-book")
+            .expect("resolve should not fail")
+            .is_none());
+        assert!(resolve_readest_book_dir(&root, "nested/book")
+            .expect("resolve should not fail")
+            .is_none());
+
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn readest_book_file_rejects_symlink_escape() {
+        let root = unique_test_dir("readest-symlink");
+        let book_dir = root.join("safehash");
+        fs::create_dir_all(&book_dir).expect("create book dir");
+        let outside = unique_test_dir("readest-outside");
+        fs::create_dir_all(&outside).expect("create outside");
+        let outside_book = outside.join("escaped.epub");
+        fs::write(&outside_book, b"outside").expect("write outside book");
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside_book, book_dir.join("escaped.epub"))
+            .expect("create symlink");
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&outside_book, book_dir.join("escaped.epub"))
+            .expect("create symlink");
+
+        let resolved = find_readest_book_file(&root, &readest_record("safehash", "epub"))
+            .expect("readest lookup should not fail");
+        assert!(resolved.is_none());
+
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+    }
 }
 
 pub(crate) fn format_readest_progress(progress: Option<&[u64]>) -> String {

@@ -1864,13 +1864,20 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
         let stored_book_path = destination_dir.join(sanitize_filename(source_filename));
         fs::copy(&source_file, &stored_book_path).map_err(|error| error.to_string())?;
 
-        let readest_cover = readest_books_root
-            .join(&readest_record.hash)
-            .join("cover.png");
+        let readest_book_dir = source_file
+            .parent()
+            .ok_or_else(|| "Invalid Readest book directory".to_string())?;
+        let readest_cover = readest_book_dir.join("cover.png");
         let cover_path = if readest_cover.exists() {
-            let copied_cover = destination_dir.join("cover.png");
-            fs::copy(&readest_cover, &copied_cover).map_err(|error| error.to_string())?;
-            Some(copied_cover.to_string_lossy().to_string())
+            let readest_cover =
+                fs::canonicalize(&readest_cover).map_err(|error| error.to_string())?;
+            if !readest_cover.is_file() || !readest_cover.starts_with(readest_book_dir) {
+                None
+            } else {
+                let copied_cover = destination_dir.join("cover.png");
+                fs::copy(&readest_cover, &copied_cover).map_err(|error| error.to_string())?;
+                Some(copied_cover.to_string_lossy().to_string())
+            }
         } else {
             None
         };
