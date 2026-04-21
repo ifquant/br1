@@ -35,7 +35,7 @@
   const sampleNow = Date.parse('2026-04-14T10:00:00+08:00');
   type LibraryFilter = 'all' | 'reading' | 'unstarted' | 'finished';
   type ActiveLibraryFilterChip = {
-    id: 'query' | 'status' | 'collection' | 'tag';
+    id: 'query' | 'status' | 'format' | 'collection' | 'tag';
     label: string;
   };
 
@@ -166,6 +166,7 @@
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   let libraryFilterBy: LibraryFilter = 'all';
+  let libraryFormatFilter = 'all';
   let libraryCollectionFilter = 'all';
   let libraryTagFilter = 'all';
   let libraryQuery = '';
@@ -191,8 +192,10 @@
   let visibleLibraryBooksCount = 0;
   let visibleStarterLibraryBooksCount = 0;
   let librarySummaryBooks: LibraryShelfBook[] = [];
+  let libraryFormatOptions: string[] = [];
   let libraryCollectionOptions: string[] = [];
   let libraryTagOptions: string[] = [];
+  let libraryFormatOptionCounts: Record<string, number> = {};
   let libraryCollectionOptionCounts: Record<string, number> = {};
   let libraryTagOptionCounts: Record<string, number> = {};
   let libraryCollectionSummary = '';
@@ -618,6 +621,14 @@
       left.localeCompare(right, 'zh-Hans-CN')
     );
 
+  const normalizeFormatFilterValue = (value: string | null | undefined) =>
+    value?.trim().toUpperCase() || 'UNKNOWN';
+
+  const getLibraryFormatOptions = (books: LibraryShelfBook[]) =>
+    Array.from(new Set(books.map((book) => normalizeFormatFilterValue(book.format)))).sort(
+      (left, right) => left.localeCompare(right, 'en')
+    );
+
   const mapCountsToRecord = (counts: Map<string, number>) =>
     Object.fromEntries(counts.entries()) as Record<string, number>;
 
@@ -646,6 +657,9 @@
 
   const getLibraryTagOptionCounts = (books: LibraryShelfBook[]) =>
     mapCountsToRecord(countByLabel(books.flatMap((book) => book.tags ?? [])));
+
+  const getLibraryFormatOptionCounts = (books: LibraryShelfBook[]) =>
+    mapCountsToRecord(countByLabel(books.map((book) => normalizeFormatFilterValue(book.format))));
 
   const getLibraryCollectionSummary = (books: LibraryShelfBook[]) => {
     const counts = countByLabel(
@@ -680,6 +694,11 @@
     return books.filter((book) => normalizeCollectionFilterValue(book.collection) === collection);
   };
 
+  const filterBooksByFormat = (books: LibraryShelfBook[], format: string) => {
+    if (format === 'all') return books;
+    return books.filter((book) => normalizeFormatFilterValue(book.format) === format);
+  };
+
   const filterBooksByTag = (books: LibraryShelfBook[], tag: string) => {
     if (tag === 'all') return books;
     return books.filter((book) => book.tags?.includes(tag));
@@ -688,9 +707,14 @@
   const filterBooksForLibraryView = (
     books: LibraryShelfBook[],
     filterBy: LibraryFilter,
+    format: string,
     collection: string,
     tag: string
-  ) => filterBooksByTag(filterBooksByCollection(filterBooksByLibraryFilter(books, filterBy), collection), tag);
+  ) =>
+    filterBooksByTag(
+      filterBooksByCollection(filterBooksByFormat(filterBooksByLibraryFilter(books, filterBy), format), collection),
+      tag
+    );
 
   const getLibraryFilterLabel = (filterBy: LibraryFilter) => {
     if (filterBy === 'reading') return '在读';
@@ -703,12 +727,14 @@
     searchActive: boolean,
     query: string,
     filterBy: LibraryFilter,
+    formatFilter: string,
     collectionFilter: string,
     tagFilter: string
   ) => {
     const activeParts = [
       searchActive ? `搜索 ${normalizeLibrarySearchText(query)}` : '',
       filterBy !== 'all' ? `状态 ${getLibraryFilterLabel(filterBy)}` : '',
+      formatFilter !== 'all' ? `格式 ${formatFilter}` : '',
       collectionFilter !== 'all' ? `归类 ${collectionFilter}` : '',
       tagFilter !== 'all' ? `标签 ${tagFilter}` : ''
     ].filter(Boolean);
@@ -719,6 +745,7 @@
     searchActive: boolean,
     query: string,
     filterBy: LibraryFilter,
+    formatFilter: string,
     collectionFilter: string,
     tagFilter: string
   ): ActiveLibraryFilterChip[] =>
@@ -729,6 +756,7 @@
       filterBy !== 'all'
         ? { id: 'status' as const, label: `状态 ${getLibraryFilterLabel(filterBy)}` }
         : null,
+      formatFilter !== 'all' ? { id: 'format' as const, label: `格式 ${formatFilter}` } : null,
       collectionFilter !== 'all'
         ? { id: 'collection' as const, label: `归类 ${collectionFilter}` }
         : null,
@@ -738,6 +766,7 @@
   const isLibraryViewFiltered = () =>
     librarySearchActive ||
     libraryFilterBy !== 'all' ||
+    libraryFormatFilter !== 'all' ||
     libraryCollectionFilter !== 'all' ||
     libraryTagFilter !== 'all';
 
@@ -750,6 +779,7 @@
       libraryViewMode,
       librarySortBy,
       libraryFilterBy,
+      libraryFormatFilter,
       libraryCollectionFilter,
       libraryTagFilter,
       librarySearchActive ? normalizeLibrarySearchText(libraryQuery) : 'browse'
@@ -893,8 +923,10 @@
         [...continueReadingBooks, ...recentReadingBooks]
       );
   $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
+  $: libraryFormatOptions = getLibraryFormatOptions(librarySummaryBooks);
   $: libraryCollectionOptions = getLibraryCollectionOptions(librarySummaryBooks);
   $: libraryTagOptions = getLibraryTagOptions(librarySummaryBooks);
+  $: libraryFormatOptionCounts = getLibraryFormatOptionCounts(librarySummaryBooks);
   $: libraryCollectionOptionCounts = getLibraryCollectionOptionCounts(librarySummaryBooks);
   $: libraryTagOptionCounts = getLibraryTagOptionCounts(librarySummaryBooks);
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
@@ -904,6 +936,7 @@
     librarySearchActive,
     libraryQuery,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
@@ -911,9 +944,13 @@
     librarySearchActive,
     libraryQuery,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
+  $: if (libraryFormatFilter !== 'all' && !libraryFormatOptions.includes(libraryFormatFilter)) {
+    libraryFormatFilter = 'all';
+  }
   $: if (
     libraryCollectionFilter !== 'all' &&
     !libraryCollectionOptions.includes(libraryCollectionFilter)
@@ -926,6 +963,7 @@
   $: filteredRecoveryQueueBooks = filterBooksForLibraryView(
     recoveryQueueBooks,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
@@ -954,18 +992,21 @@
   $: filteredContinueReadingBooks = filterBooksForLibraryView(
     continueReadingBooks,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
   $: filteredRecentReadingBooks = filterBooksForLibraryView(
     recentReadingBooks,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
   $: filteredLibraryShelfBooks = filterBooksForLibraryView(
     libraryShelfBooks,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
@@ -1017,18 +1058,21 @@
   $: filteredStarterContinueReadingBooks = filterBooksForLibraryView(
     starterContinueReadingBooks,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
   $: filteredStarterRecentReadingBooks = filterBooksForLibraryView(
     starterRecentReadingBooks,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
   $: filteredStarterShelfBooks = filterBooksForLibraryView(
     starterShelfBooks,
     libraryFilterBy,
+    libraryFormatFilter,
     libraryCollectionFilter,
     libraryTagFilter
   );
@@ -1520,6 +1564,10 @@
     libraryCollectionFilter = event.detail.collection;
   };
 
+  const handleLibraryFormatFilterChange = (event: CustomEvent<{ format: string }>) => {
+    libraryFormatFilter = event.detail.format;
+  };
+
   const handleLibraryTagFilterChange = (event: CustomEvent<{ tag: string }>) => {
     libraryTagFilter = event.detail.tag;
   };
@@ -1527,6 +1575,7 @@
   const handleFilterByShelfCollection = (collection: string) => {
     libraryQuery = '';
     libraryFilterBy = 'all';
+    libraryFormatFilter = 'all';
     libraryTagFilter = 'all';
     libraryCollectionFilter = collection;
   };
@@ -1534,6 +1583,7 @@
   const handleFilterByShelfTag = (tag: string) => {
     libraryQuery = '';
     libraryFilterBy = 'all';
+    libraryFormatFilter = 'all';
     libraryCollectionFilter = 'all';
     libraryTagFilter = tag;
   };
@@ -1541,12 +1591,13 @@
   const handleClearLibraryFilters = () => {
     libraryQuery = '';
     libraryFilterBy = 'all';
+    libraryFormatFilter = 'all';
     libraryCollectionFilter = 'all';
     libraryTagFilter = 'all';
   };
 
   const handleClearLibraryFilterChip = (
-    event: CustomEvent<{ id: 'query' | 'status' | 'collection' | 'tag' }>
+    event: CustomEvent<{ id: 'query' | 'status' | 'format' | 'collection' | 'tag' }>
   ) => {
     if (event.detail.id === 'query') {
       libraryQuery = '';
@@ -1554,6 +1605,10 @@
     }
     if (event.detail.id === 'status') {
       libraryFilterBy = 'all';
+      return;
+    }
+    if (event.detail.id === 'format') {
+      libraryFormatFilter = 'all';
       return;
     }
     if (event.detail.id === 'collection') {
@@ -1580,6 +1635,9 @@
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
       activeFilter={libraryFilterBy}
+      activeFormatFilter={libraryFormatFilter}
+      formatOptions={libraryFormatOptions}
+      formatOptionCounts={libraryFormatOptionCounts}
       activeCollectionFilter={libraryCollectionFilter}
       collectionOptions={libraryCollectionOptions}
       collectionOptionCounts={libraryCollectionOptionCounts}
@@ -1597,6 +1655,7 @@
       on:querychange={handleLibraryQueryChange}
       on:importbooks={triggerImportPicker}
       on:filterchange={handleLibraryFilterChange}
+      on:formatfilterchange={handleLibraryFormatFilterChange}
       on:collectionfilterchange={handleLibraryCollectionFilterChange}
       on:tagfilterchange={handleLibraryTagFilterChange}
       on:clearfilterchip={handleClearLibraryFilterChip}

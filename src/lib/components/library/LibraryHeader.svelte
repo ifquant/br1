@@ -8,6 +8,9 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
+  export let activeFormatFilter = 'all';
+  export let formatOptions: string[] = [];
+  export let formatOptionCounts: Record<string, number> = {};
   export let activeCollectionFilter = 'all';
   export let collectionOptions: string[] = [];
   export let collectionOptionCounts: Record<string, number> = {};
@@ -18,7 +21,7 @@
   export let statusSummary = '';
   export let activeFilterDetail = '';
   export let activeFilterChips: Array<{
-    id: 'query' | 'status' | 'collection' | 'tag';
+    id: 'query' | 'status' | 'format' | 'collection' | 'tag';
     label: string;
   }> = [];
   export let filterSummary = '';
@@ -35,9 +38,10 @@
     viewmodechange: { viewMode: 'grid' | 'list' };
     sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
     filterchange: { filterBy: 'all' | 'reading' | 'unstarted' | 'finished' };
+    formatfilterchange: { format: string };
     collectionfilterchange: { collection: string };
     tagfilterchange: { tag: string };
-    clearfilterchip: { id: 'query' | 'status' | 'collection' | 'tag' };
+    clearfilterchip: { id: 'query' | 'status' | 'format' | 'collection' | 'tag' };
     clearfilters: void;
   }>();
 
@@ -86,6 +90,11 @@
     dispatch('filterchange', { filterBy: nextFilterBy });
   };
 
+  const handleFormatFilterChange = (nextFormat: string) => {
+    if (nextFormat === activeFormatFilter) return;
+    dispatch('formatfilterchange', { format: nextFormat });
+  };
+
   const handleCollectionFilterChange = (nextCollection: string) => {
     if (nextCollection === activeCollectionFilter) return;
     dispatch('collectionfilterchange', { collection: nextCollection });
@@ -100,7 +109,7 @@
     dispatch('clearfilters');
   };
 
-  const handleClearFilterChip = (id: 'query' | 'status' | 'collection' | 'tag') => {
+  const handleClearFilterChip = (id: 'query' | 'status' | 'format' | 'collection' | 'tag') => {
     dispatch('clearfilterchip', { id });
   };
 
@@ -248,6 +257,33 @@
       {option.label}
     </button>
   {/each}
+  {#if formatOptions.length > 0}
+    <span class="filter-divider" aria-hidden="true"></span>
+    <div class="format-filters" aria-label="library format filters">
+      <button
+        type="button"
+        class:active-filter={activeFormatFilter === 'all'}
+        class="filter-pill format-pill"
+        aria-pressed={activeFormatFilter === 'all'}
+        on:click={() => handleFormatFilterChange('all')}
+      >
+        <span>全部格式</span>
+        <small>{formatOptions.length} 种</small>
+      </button>
+      {#each formatOptions as format}
+        <button
+          type="button"
+          class:active-filter={activeFormatFilter === format}
+          class="filter-pill format-pill"
+          aria-pressed={activeFormatFilter === format}
+          on:click={() => handleFormatFilterChange(format)}
+        >
+          <span>{format}</span>
+          <small>{formatOptionCounts[format] ?? 0} 本</small>
+        </button>
+      {/each}
+    </div>
+  {/if}
   {#if collectionOptions.length > 0}
     <span class="filter-divider" aria-hidden="true"></span>
     <div class="collection-filters" aria-label="library collection filters">
@@ -477,6 +513,10 @@
   }
 
   .collection-filters {
+    display: contents;
+  }
+
+  .format-filters {
     display: contents;
   }
 
