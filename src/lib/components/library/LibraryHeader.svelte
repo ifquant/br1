@@ -795,5 +795,34 @@
     .search-shell {
       min-width: 0;
     }
+
+    .filter-row {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      gap: 7px;
+      padding: 8px 0 10px;
+      margin-inline: -14px;
+      padding-inline: 14px;
+      scroll-padding-inline: 14px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .filter-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-divider {
+      display: none;
+    }
+
+    .metadata-summary,
+    .status-summary,
+    .active-filter-detail,
+    .filter-summary,
+    .clear-filters {
+      flex: 0 0 auto;
+    }
   }
 </style>
