@@ -101,6 +101,12 @@
     if (libraryCopyMissing) return '需修复';
     return primaryActionLabel;
   };
+
+  const getProgressPercentValue = (book: ContinueReadingBook) => {
+    const parsedPercent = Number(book.progressPercentLabel?.replace('%', ''));
+    if (!Number.isFinite(parsedPercent)) return 0;
+    return Math.max(0, Math.min(100, Math.round(parsedPercent)));
+  };
 </script>
 
 <section class="continue-shelf">
@@ -217,6 +223,13 @@
               </span>
             </div>
           </div>
+          {#if book.progressPercentLabel}
+            <div
+              class="reading-rail"
+              style={`--reading-progress: ${getProgressPercentValue(book)}%`}
+              aria-hidden="true"
+            ></div>
+          {/if}
         </svelte:element>
         {#if expandedKey === bookKey}
           <div class="detail-panel" aria-label={`Details for ${book.title}`}>
@@ -342,6 +355,7 @@
   .continue-shelf {
     display: grid;
     gap: 10px;
+    padding: 1px 0 2px;
   }
 
   .shelf-head {
@@ -410,7 +424,16 @@
 
   .rows {
     display: grid;
-    gap: 10px;
+    gap: 8px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 80%, white 20%);
+    border-radius: 18px;
+    padding: 8px;
+    background:
+      radial-gradient(circle at 24px 0, rgba(255, 255, 255, 0.42), transparent 180px),
+      color-mix(in srgb, var(--surface-reader) 78%, var(--surface-panel) 22%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 18px 42px rgba(42, 30, 15, 0.045);
   }
 
   .row {
@@ -420,19 +443,36 @@
   .row-link {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 12px;
+    gap: 10px 12px;
     align-items: center;
     min-width: 0;
-    padding: 10px 12px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 86%, white 14%);
+    padding: 11px 12px 10px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 78%, white 22%);
+    border-radius: 14px;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 82%, white 18%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.34),
-      0 10px 24px rgba(42, 30, 15, 0.05);
+      inset 0 1px 0 rgba(255, 255, 255, 0.42),
+      0 10px 22px rgba(42, 30, 15, 0.04);
     text-decoration: none;
     color: inherit;
+    transition:
+      border-color 140ms ease,
+      background 140ms ease,
+      box-shadow 140ms ease,
+      transform 140ms ease;
+  }
+
+  .row-link:hover {
+    border-color: color-mix(in srgb, var(--accent-warm) 24%, var(--line-soft) 76%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.48),
+      0 14px 28px rgba(42, 30, 15, 0.065);
+    transform: translateY(-1px);
   }
 
   .cover-shell {
@@ -611,6 +651,28 @@
     color: color-mix(in srgb, #7c4619 86%, black 14%);
   }
 
+  .reading-rail {
+    grid-column: 2 / -1;
+    position: relative;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--line-soft) 68%, white 32%);
+  }
+
+  .reading-rail::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--reading-progress);
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent-warm) 82%, #8f6c3d 18%),
+      color-mix(in srgb, var(--accent-warm) 52%, white 48%)
+    );
+  }
+
   .detail-panel {
     margin-top: 8px;
     border: 1px solid color-mix(in srgb, var(--line-soft) 88%, white 12%);
@@ -784,6 +846,10 @@
       grid-column: 2;
       justify-items: start;
       min-width: 0;
+    }
+
+    .reading-rail {
+      grid-column: 1 / -1;
     }
 
     .actions {
