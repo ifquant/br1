@@ -5346,6 +5346,7 @@ describe('br1 desktop app', () => {
 
       const refreshedBook = await loadLibraryRecordBySourcePathOnDisk(importedBook.sourcePath);
       const currentFilePath = (refreshedBook?.filePath ?? refreshedBook?.file_path ?? importedBook.filePath) as string;
+      await clearReaderHighlightsWorkspaceStateOnDisk(currentFilePath);
 
       await openReaderFromLibraryPath(currentFilePath, libraryHandle);
       await waitForDesktopReaderToHydrate(sample.format);
@@ -5761,6 +5762,159 @@ describe('br1 desktop app', () => {
       });
 
       await browser.execute(() => {
+        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        if (!(savedPanel instanceof HTMLElement)) {
+          throw new Error('expected the saved highlight selections panel to exist');
+        }
+        const firstCard = savedPanel.querySelector('.saved-highlight-selection-card');
+        if (!(firstCard instanceof HTMLElement)) {
+          throw new Error('expected the first saved selection card to exist');
+        }
+        const exportButton = Array.from(firstCard.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === '导出'
+        );
+        if (!(exportButton instanceof HTMLButtonElement)) {
+          throw new Error('expected the saved selection export button to exist');
+        }
+        exportButton.click();
+      });
+      await browser.waitUntil(async () => {
+        const exportState = await browser.execute(() => {
+          const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+          const payload = preview?.querySelector('textarea');
+          return {
+            previewText: preview?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            payload: payload instanceof HTMLTextAreaElement ? payload.value : ''
+          };
+        });
+        return (
+          exportState.previewText.includes(`Desktop ${sample.format} 重点高亮`) &&
+          exportState.payload.includes('"schemaVersion": 1') &&
+          exportState.payload.includes(`"formatLabel": "${sample.format}"`) &&
+          exportState.payload.includes('"highlights": [')
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop highlights workspace to expose a structured export preview for the saved selection set`
+      });
+      const exportedSelectionPayload = await browser.execute(() => {
+        const payload = document.querySelector('[aria-label="saved highlight selection export preview"] textarea');
+        if (!(payload instanceof HTMLTextAreaElement)) {
+          throw new Error('expected the saved selection export payload textarea to exist');
+        }
+        return payload.value;
+      });
+      const exportedSelection = JSON.parse(exportedSelectionPayload);
+      const importedSelectionPayload = JSON.stringify({
+        ...exportedSelection,
+        selectionSet: {
+          ...exportedSelection.selectionSet,
+          selectedIds: ['missing-kindle-family-highlight-id'],
+          importSource: {
+            bookKey: `imported-${sample.format.toLowerCase()}-book`,
+            bookTitle: `Imported ${sample.format} Source`,
+            formatLabel: sample.format,
+            selectionName: `Imported ${sample.format} Selection`,
+            matchedCount: 1,
+            totalCount: 2,
+            unmatchedCount: 1,
+            importedAt: 1710000000000,
+            highlights: [
+              ...exportedSelection.highlights,
+              {
+                ...exportedSelection.highlights[0],
+                id: `missing-imported-${sample.format.toLowerCase()}-highlight`,
+                cfi: 'epubcfi(/6/imported-missing)',
+                text: `missing desktop ${sample.format.toLowerCase()} passage for unresolved drilldown`,
+                chapterHref: '/missing-imported-chapter.xhtml'
+              }
+            ]
+          }
+        },
+        highlights: exportedSelection.highlights.map((highlight: Record<string, unknown>) => ({
+          ...highlight,
+          cfi: 'epubcfi(/6/missing)',
+          chapterHref: '/missing-chapter.xhtml'
+        }))
+      });
+      await browser.execute(() => {
+        const preview = document.querySelector('[aria-label="saved highlight selection export preview"]');
+        if (!(preview instanceof HTMLElement)) {
+          throw new Error('expected the saved selection export preview to exist');
+        }
+        const closeButton = Array.from(preview.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === '关闭'
+        );
+        if (!(closeButton instanceof HTMLButtonElement)) {
+          throw new Error('expected the saved selection export preview close button to exist');
+        }
+        closeButton.click();
+      });
+      await browser.execute((payload) => {
+        window.prompt = () => payload;
+        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        if (!(savedPanel instanceof HTMLElement)) {
+          throw new Error('expected the saved highlight selections panel to exist');
+        }
+        const importButton = Array.from(savedPanel.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === '导入'
+        );
+        if (!(importButton instanceof HTMLButtonElement)) {
+          throw new Error('expected the saved selection import button to exist');
+        }
+        importButton.click();
+      }, importedSelectionPayload);
+      await browser.waitUntil(async () => {
+        const state = await browser.execute(() => {
+          const panel = document.querySelector('[aria-label="saved highlight selections"]');
+          const firstCard = panel?.querySelector('.saved-highlight-selection-card');
+          return {
+            panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+          };
+        });
+        return (
+          state.panelText.includes(`已导入选择集：Desktop ${sample.format} 重点高亮`) &&
+          state.firstCardText.includes(`跨书导入 · Imported ${sample.format} Source / Imported ${sample.format} Selection · 1/2`) &&
+          state.firstCardText.includes('未映射片段') &&
+          state.firstCardText.includes(`missing desktop ${sample.format.toLowerCase()} passage for unresolved drilldown`)
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop imported saved set to show unresolved highlight text after import`
+      });
+      await browser.execute(() => {
+        window.confirm = () => true;
+        const savedPanel = document.querySelector('[aria-label="saved highlight selections"]');
+        const firstCard = savedPanel?.querySelector('.saved-highlight-selection-card');
+        if (!(firstCard instanceof HTMLElement)) {
+          throw new Error('expected the imported saved highlight selection card to exist');
+        }
+        const deleteButton = Array.from(firstCard.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === '删除'
+        );
+        if (!(deleteButton instanceof HTMLButtonElement)) {
+          throw new Error('expected the imported saved selection delete button to exist');
+        }
+        deleteButton.click();
+      });
+      await browser.waitUntil(async () => {
+        const cardTexts = await browser.execute(() =>
+          Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+            (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+          )
+        );
+        return (
+          cardTexts.some((text) => text.includes(`Desktop ${sample.format} 重点高亮`)) &&
+          cardTexts.every((text) => !text.includes(`Imported ${sample.format} Source`)) &&
+          cardTexts.every((text) => !text.includes(`missing desktop ${sample.format.toLowerCase()} passage for unresolved drilldown`))
+        );
+      }, {
+        timeout: 10000,
+        timeoutMsg: `expected the ${sample.format} desktop highlights workspace to remove the temporary imported saved selection set`
+      });
+
+      await browser.execute(() => {
         const controls = document.querySelector('[aria-label="highlights filter controls"]');
         if (!(controls instanceof HTMLElement)) {
           throw new Error('expected highlights filter controls to exist');
@@ -5841,10 +5995,12 @@ describe('br1 desktop app', () => {
         deleteButton.click();
       });
       await browser.waitUntil(async () => {
-        const savedPanels = await $$('[aria-label="saved highlight selections"]');
-        if (!savedPanels.length) return true;
-        const panelText = await savedPanels[0].getText();
-        return !panelText.includes(`Desktop ${sample.format} 重点高亮`);
+        const cardTexts = await browser.execute(() =>
+          Array.from(document.querySelectorAll('[aria-label="saved highlight selections"] .saved-highlight-selection-card')).map(
+            (card) => card.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+          )
+        );
+        return cardTexts.every((text) => !text.includes(`Desktop ${sample.format} 重点高亮`));
       }, {
         timeout: 10000,
         timeoutMsg: `expected the ${sample.format} desktop highlights workspace to delete the saved selection set`
