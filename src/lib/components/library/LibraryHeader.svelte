@@ -37,6 +37,7 @@
   export let coverSummary = '';
 
   let sortMenuOpen = false;
+  let advancedFiltersOpen = false;
   let sortMenuElement: HTMLDivElement | null = null;
 
   const dispatch = createEventDispatcher<{
@@ -82,6 +83,25 @@
 
   $: derivedPlaceholder =
     query || totalBooks <= 0 ? placeholder : `在 ${totalBooks} 本书籍中搜索...`;
+  $: advancedFiltersAvailable =
+    formatOptions.length > 0 ||
+    collectionOptions.length > 0 ||
+    tagOptions.length > 0 ||
+    !!statusSummary ||
+    !!activeFilterDetail ||
+    activeFilterChips.length > 0 ||
+    !!formatSummary ||
+    !!collectionSummary ||
+    !!tagSummary ||
+    !!coverSummary ||
+    !!filterSummary;
+  $: advancedFiltersActive =
+    activeFormatFilter !== 'all' ||
+    activeCollectionFilter !== 'all' ||
+    activeTagFilter !== 'all' ||
+    activeFilterChips.some((chip) => chip.id !== 'query' && chip.id !== 'status') ||
+    !!filterSummary;
+  $: showAdvancedFilters = advancedFiltersOpen || advancedFiltersActive;
 
   const handleQueryInput = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -136,6 +156,10 @@
 
   const handleToggleSortMenu = () => {
     sortMenuOpen = !sortMenuOpen;
+  };
+
+  const handleToggleAdvancedFilters = () => {
+    advancedFiltersOpen = !advancedFiltersOpen;
   };
 
   const handleWindowClick = (event: MouseEvent) => {
@@ -266,132 +290,155 @@
       <small aria-hidden="true">{statusOptionCounts[option.value] ?? 0} 本</small>
     </button>
   {/each}
-  {#if formatOptions.length > 0}
-    <span class="filter-divider" aria-hidden="true"></span>
-    <div class="format-filters" aria-label="library format filters">
-      <button
-        type="button"
-        class:active-filter={activeFormatFilter === 'all'}
-        class="filter-pill format-pill"
-        aria-pressed={activeFormatFilter === 'all'}
-        on:click={() => handleFormatFilterChange('all')}
-      >
-        <span>全部格式</span>
-        <small>{formatOptions.length} 种</small>
-      </button>
-      {#each formatOptions as format}
-        <button
-          type="button"
-          class:active-filter={activeFormatFilter === format}
-          class="filter-pill format-pill"
-          aria-pressed={activeFormatFilter === format}
-          on:click={() => handleFormatFilterChange(format)}
-        >
-          <span>{format}</span>
-          <small>{formatOptionCounts[format] ?? 0} 本</small>
-        </button>
-      {/each}
-    </div>
-  {/if}
-  {#if collectionOptions.length > 0}
-    <span class="filter-divider" aria-hidden="true"></span>
-    <div class="collection-filters" aria-label="library collection filters">
-      <button
-        type="button"
-        class:active-filter={activeCollectionFilter === 'all'}
-        class="filter-pill collection-pill"
-        aria-pressed={activeCollectionFilter === 'all'}
-        on:click={() => handleCollectionFilterChange('all')}
-      >
-        <span>全部归类</span>
-        <small>{collectionOptions.length} 组</small>
-      </button>
-      {#each collectionOptions as collection}
-        <button
-          type="button"
-          class:active-filter={activeCollectionFilter === collection}
-          class="filter-pill collection-pill"
-          aria-pressed={activeCollectionFilter === collection}
-          on:click={() => handleCollectionFilterChange(collection)}
-        >
-          <span>{collection}</span>
-          <small>{collectionOptionCounts[collection] ?? 0} 本</small>
-        </button>
-      {/each}
-    </div>
-  {/if}
-  {#if tagOptions.length > 0}
-    <span class="filter-divider" aria-hidden="true"></span>
-    <div class="tag-filters" aria-label="library tag filters">
-      <button
-        type="button"
-        class:active-filter={activeTagFilter === 'all'}
-        class="filter-pill tag-pill"
-        aria-pressed={activeTagFilter === 'all'}
-        on:click={() => handleTagFilterChange('all')}
-      >
-        <span>全部标签</span>
-        <small>{tagOptions.length} 个</small>
-      </button>
-      {#each tagOptions as tag}
-        <button
-          type="button"
-          class:active-filter={activeTagFilter === tag}
-          class="filter-pill tag-pill"
-          aria-pressed={activeTagFilter === tag}
-          on:click={() => handleTagFilterChange(tag)}
-        >
-          <span>{tag}</span>
-          <small>{tagOptionCounts[tag] ?? 0} 本</small>
-        </button>
-      {/each}
-    </div>
-  {/if}
-  {#if statusSummary}
-    <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
-  {/if}
-  {#if activeFilterDetail}
-    <span class="active-filter-detail" aria-label="library active filter detail">
-      {activeFilterDetail}
-    </span>
-  {/if}
-  {#if activeFilterChips.length > 0}
-    <div class="active-filter-chips" aria-label="library active filter chips">
-      {#each activeFilterChips as chip}
-        <button
-          type="button"
-          class="active-filter-chip"
-          aria-label={`Remove active library filter ${chip.label}`}
-          on:click={() => handleClearFilterChip(chip.id)}
-        >
-          <span>{chip.label}</span>
-          <small>移除</small>
-        </button>
-      {/each}
-    </div>
-  {/if}
-  {#if formatSummary}
-    <span class="metadata-summary format-summary" aria-label="library format summary">{formatSummary}</span>
-  {/if}
-  {#if collectionSummary}
-    <span class="metadata-summary" aria-label="library collection summary">{collectionSummary}</span>
-  {/if}
-  {#if tagSummary}
-    <span class="metadata-summary tag-summary" aria-label="library tag summary">{tagSummary}</span>
-  {/if}
-  {#if coverSummary}
-    <span class="metadata-summary cover-summary" aria-label="library cover summary">{coverSummary}</span>
-  {/if}
-  {#if filterSummary}
-    <span class="filter-summary" aria-label="library filter summary">{filterSummary}</span>
+
+  {#if advancedFiltersAvailable}
     <button
       type="button"
-      class="clear-filters"
-      aria-label="Clear library filters"
-      on:click={handleClearFilters}
+      class:active-filter={advancedFiltersActive}
+      class:open={showAdvancedFilters}
+      class="filter-pill advanced-toggle"
+      aria-expanded={showAdvancedFilters}
+      aria-controls="library-advanced-filters"
+      on:click={handleToggleAdvancedFilters}
     >
-      清除筛选
+      <span>筛选</span>
+      <small>{advancedFiltersActive ? '已应用' : showAdvancedFilters ? '收起' : '更多'}</small>
     </button>
+  {/if}
+
+  {#if showAdvancedFilters}
+    <div id="library-advanced-filters" class="advanced-filter-row" aria-label="advanced library filters">
+      {#if formatOptions.length > 0}
+        <span class="filter-divider" aria-hidden="true"></span>
+        <div class="format-filters" aria-label="library format filters">
+          <button
+            type="button"
+            class:active-filter={activeFormatFilter === 'all'}
+            class="filter-pill format-pill"
+            aria-pressed={activeFormatFilter === 'all'}
+            on:click={() => handleFormatFilterChange('all')}
+          >
+            <span>全部格式</span>
+            <small>{formatOptions.length} 种</small>
+          </button>
+          {#each formatOptions as format}
+            <button
+              type="button"
+              class:active-filter={activeFormatFilter === format}
+              class="filter-pill format-pill"
+              aria-pressed={activeFormatFilter === format}
+              on:click={() => handleFormatFilterChange(format)}
+            >
+              <span>{format}</span>
+              <small>{formatOptionCounts[format] ?? 0} 本</small>
+            </button>
+          {/each}
+        </div>
+      {/if}
+
+      {#if collectionOptions.length > 0}
+        <span class="filter-divider" aria-hidden="true"></span>
+        <div class="collection-filters" aria-label="library collection filters">
+          <button
+            type="button"
+            class:active-filter={activeCollectionFilter === 'all'}
+            class="filter-pill collection-pill"
+            aria-pressed={activeCollectionFilter === 'all'}
+            on:click={() => handleCollectionFilterChange('all')}
+          >
+            <span>全部归类</span>
+            <small>{collectionOptions.length} 组</small>
+          </button>
+          {#each collectionOptions as collection}
+            <button
+              type="button"
+              class:active-filter={activeCollectionFilter === collection}
+              class="filter-pill collection-pill"
+              aria-pressed={activeCollectionFilter === collection}
+              on:click={() => handleCollectionFilterChange(collection)}
+            >
+              <span>{collection}</span>
+              <small>{collectionOptionCounts[collection] ?? 0} 本</small>
+            </button>
+          {/each}
+        </div>
+      {/if}
+
+      {#if tagOptions.length > 0}
+        <span class="filter-divider" aria-hidden="true"></span>
+        <div class="tag-filters" aria-label="library tag filters">
+          <button
+            type="button"
+            class:active-filter={activeTagFilter === 'all'}
+            class="filter-pill tag-pill"
+            aria-pressed={activeTagFilter === 'all'}
+            on:click={() => handleTagFilterChange('all')}
+          >
+            <span>全部标签</span>
+            <small>{tagOptions.length} 个</small>
+          </button>
+          {#each tagOptions as tag}
+            <button
+              type="button"
+              class:active-filter={activeTagFilter === tag}
+              class="filter-pill tag-pill"
+              aria-pressed={activeTagFilter === tag}
+              on:click={() => handleTagFilterChange(tag)}
+            >
+              <span>{tag}</span>
+              <small>{tagOptionCounts[tag] ?? 0} 本</small>
+            </button>
+          {/each}
+        </div>
+      {/if}
+
+      {#if statusSummary}
+        <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
+      {/if}
+      {#if activeFilterDetail}
+        <span class="active-filter-detail" aria-label="library active filter detail">
+          {activeFilterDetail}
+        </span>
+      {/if}
+      {#if activeFilterChips.length > 0}
+        <div class="active-filter-chips" aria-label="library active filter chips">
+          {#each activeFilterChips as chip}
+            <button
+              type="button"
+              class="active-filter-chip"
+              aria-label={`Remove active library filter ${chip.label}`}
+              on:click={() => handleClearFilterChip(chip.id)}
+            >
+              <span>{chip.label}</span>
+              <small>移除</small>
+            </button>
+          {/each}
+        </div>
+      {/if}
+      {#if formatSummary}
+        <span class="metadata-summary format-summary" aria-label="library format summary">{formatSummary}</span>
+      {/if}
+      {#if collectionSummary}
+        <span class="metadata-summary" aria-label="library collection summary">{collectionSummary}</span>
+      {/if}
+      {#if tagSummary}
+        <span class="metadata-summary tag-summary" aria-label="library tag summary">{tagSummary}</span>
+      {/if}
+      {#if coverSummary}
+        <span class="metadata-summary cover-summary" aria-label="library cover summary">{coverSummary}</span>
+      {/if}
+      {#if filterSummary}
+        <span class="filter-summary" aria-label="library filter summary">{filterSummary}</span>
+        <button
+          type="button"
+          class="clear-filters"
+          aria-label="Clear library filters"
+          on:click={handleClearFilters}
+        >
+          清除筛选
+        </button>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -414,6 +461,15 @@
     flex-wrap: wrap;
     border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 82%, transparent);
     margin-bottom: 2px;
+  }
+
+  .advanced-filter-row {
+    display: flex;
+    align-items: center;
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
   }
 
   .status-summary {
@@ -616,6 +672,14 @@
       0 6px 16px rgba(128, 84, 44, 0.08);
   }
 
+  .advanced-toggle {
+    background: color-mix(in srgb, var(--surface-reader) 58%, var(--surface-panel) 42%);
+  }
+
+  .advanced-toggle.open {
+    color: var(--text-primary);
+  }
+
   .collection-pill {
     background: color-mix(in srgb, #e7d3ad 16%, var(--surface-panel) 84%);
   }
@@ -807,6 +871,12 @@
       scroll-padding-inline: 14px;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .advanced-filter-row {
+      flex: 0 0 auto;
+      flex-wrap: nowrap;
+      gap: 7px;
     }
 
     .filter-row::-webkit-scrollbar {
