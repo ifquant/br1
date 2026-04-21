@@ -220,16 +220,16 @@ export const createReaderSearchController = ({
   const issueSearchHistory = (entry: ReaderSearchHistoryEntry) => {
     const query = entry.query.trim();
     if (!query) return;
+    const config = normalizeSearchConfig(entry.config);
 
     state.update((current) => ({
       ...current,
       term: query,
-      config: normalizeSearchConfig(entry.config),
+      config,
       recentResultCfi: ''
     }));
 
-    const current = get(state);
-    dispatchSearch(query, current.config);
+    dispatchSearch(query, config);
   };
 
   const updateConfig = (config: ReaderSearchConfig) => {

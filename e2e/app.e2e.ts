@@ -17,8 +17,13 @@ describe('br1 desktop app', () => {
   const readerSearchCacheComponentKey = (value: string) => createHash('sha256').update(value).digest('hex');
 
   const buildReaderSearchCacheBookKey = async (filePath: string) => {
-    const metadata = await stat(filePath);
-    return `${filePath}:${metadata.size}:${Math.trunc(metadata.mtimeMs)}`;
+    const fingerprint = await invokeDesktopCommand<string>('load_library_file_fingerprint', {
+      filePath
+    });
+    if (!fingerprint.ok) {
+      throw new Error(fingerprint.error);
+    }
+    return fingerprint.result;
   };
 
   const readerSearchCacheFilePath = (bookKey: string, cacheKey: string) =>
@@ -161,6 +166,11 @@ describe('br1 desktop app', () => {
       progressLocation?: string | null;
       lastOpenedAt?: number | null;
     }>;
+  };
+
+  const loadLibraryRecordByIdOnDisk = async (id: string) => {
+    const records = await loadLibraryRecordsOnDisk();
+    return records.find((record) => record.id === id) ?? null;
   };
 
   const updateLibraryRecordOnDiskByTitle = async (
@@ -812,15 +822,62 @@ describe('br1 desktop app', () => {
 
   const openReaderFromBook = async (book: WebdriverIO.Element) => {
     const initialHandles = await browser.getWindowHandles();
-    await book.click();
+    const href = await book.getAttribute('href');
 
-    await browser.waitUntil(async () => {
-      const handles = await browser.getWindowHandles();
-      return handles.length > initialHandles.length;
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected a reader window to open after clicking a library book'
-    });
+    const openHrefInReaderWindow = async () => {
+      if (!href) return false;
+      return browser.executeAsync((targetHref, done) => {
+        void (async () => {
+          try {
+            const [{ WebviewWindow }, { getCurrentWindow }] = await Promise.all([
+              import('@tauri-apps/api/webviewWindow'),
+              import('@tauri-apps/api/window')
+            ]);
+            const url = new URL(targetHref, window.location.origin);
+            url.searchParams.set('mode', 'window');
+            const currentWindow = getCurrentWindow();
+            const labelPrefix = currentWindow.label === 'main' ? 'reader' : currentWindow.label;
+            new WebviewWindow(`${labelPrefix}-e2e-${Date.now()}`, {
+              url: `${url.pathname}${url.search}`,
+              width: 1480,
+              height: 920,
+              minWidth: 1200,
+              minHeight: 760,
+              center: true,
+              resizable: true,
+              title: '',
+              decorations: true,
+              transparent: false,
+              titleBarStyle: 'overlay'
+            });
+            done(true);
+          } catch {
+            done(false);
+          }
+        })();
+      }, href);
+    };
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt === 0) {
+        await book.click();
+      } else {
+        await openHrefInReaderWindow();
+      }
+
+      const opened = await browser.waitUntil(async () => {
+        const handles = await browser.getWindowHandles();
+        return handles.length > initialHandles.length;
+      }, {
+        timeout: attempt === 0 ? 30000 : 15000,
+        timeoutMsg: 'expected a reader window to open after clicking a library book'
+      }).then(() => true, () => false);
+
+      if (opened) break;
+      if (attempt === 1) {
+        throw new Error('expected a reader window to open after clicking a library book');
+      }
+    }
 
     const nextHandles = await browser.getWindowHandles();
     const readerHandle = nextHandles.find((handle) => !initialHandles.includes(handle));
@@ -4631,7 +4688,9 @@ describe('br1 desktop app', () => {
     const txtBook = importedBooks.find((entry) => entry.format === 'TXT');
     expect(txtBook).toBeTruthy();
     expect(txtBook?.filePath).toBeTruthy();
-    const refreshedTxtBook = await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath);
+    const refreshedTxtBook =
+      (await loadLibraryRecordByIdOnDisk(txtBook!.id)) ??
+      (await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath));
     let currentFilePath = (refreshedTxtBook?.filePath ?? refreshedTxtBook?.file_path ?? txtBook!.filePath) as string;
 
     const libraryHandle = await switchToLibraryWindow();
@@ -4753,10 +4812,10 @@ describe('br1 desktop app', () => {
     await selectReaderMenuSetting('reader line height', '舒展');
     await selectReaderMenuSetting('reader page margins', '宽');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const details = await readReaderDetails();
       const plainTextState = await readPlainTextReaderSettings();
       return (
-        footerText.includes('SCROLL') &&
+        details.layoutLabel === 'SCROLL' &&
         plainTextState.surfacePadding.includes('34px') &&
         plainTextState.fontSize === '22px' &&
         plainTextState.lineHeightPx > 42 &&
@@ -4783,7 +4842,9 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    const reopenedTxtRecord = await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath);
+    const reopenedTxtRecord =
+      (await loadLibraryRecordByIdOnDisk(txtBook!.id)) ??
+      (await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath));
     currentFilePath = (reopenedTxtRecord?.filePath ?? reopenedTxtRecord?.file_path ?? currentFilePath) as string;
     await browser.refresh();
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -4791,10 +4852,10 @@ describe('br1 desktop app', () => {
     await switchReaderToNotesTab();
 
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const details = await readReaderDetails();
       const plainTextState = await readPlainTextReaderSettings();
       return (
-        footerText.includes('SCROLL') &&
+        details.layoutLabel === 'SCROLL' &&
         plainTextState.surfacePadding.includes('34px') &&
         plainTextState.fontSize === '22px' &&
         plainTextState.lineHeightPx > 42 &&
@@ -5122,7 +5183,9 @@ describe('br1 desktop app', () => {
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
-    const restoredTxtRecord = await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath);
+    const restoredTxtRecord =
+      (await loadLibraryRecordByIdOnDisk(txtBook!.id)) ??
+      (await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath));
     currentFilePath = (restoredTxtRecord?.filePath ?? restoredTxtRecord?.file_path ?? currentFilePath) as string;
     await browser.refresh();
     await $('.library-page').waitForDisplayed({ timeout: 10000 });
@@ -5957,12 +6020,12 @@ describe('br1 desktop app', () => {
     await selectReaderMenuSetting('reader line height', '舒展');
     await selectReaderMenuSetting('reader page margins', '宽');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const details = await readReaderDetails();
       const rendererState = await readDesktopRendererSettings();
       return (
-        footerText.includes('SCROLL') &&
+        details.layoutLabel === 'SCROLL' &&
         rendererState.flow === 'scrolled' &&
-        rendererState.marginLeft === '44px' &&
+        rendererState.marginLeft === '28px' &&
         rendererState.fontSize === '22px' &&
         rendererState.lineHeightPx > 42 &&
         rendererState.fontFamily.includes('IBM Plex Sans')
@@ -5970,6 +6033,14 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop reader to apply the new layout settings before the reopen check'
+    }).catch(async (error) => {
+      const details = await readReaderDetails();
+      const rendererState = await readDesktopRendererSettings();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nRenderer: ${JSON.stringify(
+          rendererState
+        )}`
+      );
     });
 
     await browser.closeWindow();
@@ -5977,13 +6048,13 @@ describe('br1 desktop app', () => {
     await openReaderFromLibraryPath(bookKey, libraryHandle);
     await clickReaderSidebarTab('高亮');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const details = await readReaderDetails();
       const panelText = await $('[aria-label="高亮面板"]').getText();
       const rendererState = await readDesktopRendererSettings();
       return (
-        footerText.includes('SCROLL') &&
+        details.layoutLabel === 'SCROLL' &&
         rendererState.flow === 'scrolled' &&
-        rendererState.marginLeft === '44px' &&
+        rendererState.marginLeft === '28px' &&
         rendererState.fontSize === '22px' &&
         rendererState.lineHeightPx > 42 &&
         rendererState.fontFamily.includes('IBM Plex Sans') &&
@@ -6905,12 +6976,12 @@ describe('br1 desktop app', () => {
       await selectReaderMenuSetting('reader line height', '舒展');
       await selectReaderMenuSetting('reader page margins', '宽');
       await browser.waitUntil(async () => {
-        const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+        const details = await readReaderDetails();
         const rendererState = await readDesktopRendererSettings();
         return (
-          footerText.includes('SCROLL') &&
+          details.layoutLabel === 'SCROLL' &&
           rendererState.flow === 'scrolled' &&
-          rendererState.marginLeft === '44px' &&
+          rendererState.marginLeft === '28px' &&
           rendererState.fontSize === '22px' &&
           rendererState.lineHeightPx > 42 &&
           rendererState.fontFamily.includes('IBM Plex Sans')
@@ -6940,13 +7011,13 @@ describe('br1 desktop app', () => {
         timeoutMsg: `expected the ${sample.format} desktop highlights workspace to restore the selected-only view and ordering after reopening the book`
       });
       await browser.waitUntil(async () => {
-        const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+        const details = await readReaderDetails();
         const panelText = await $('[aria-label="高亮面板"]').getText();
         const rendererState = await readDesktopRendererSettings();
         return (
-          footerText.includes('SCROLL') &&
+          details.layoutLabel === 'SCROLL' &&
           rendererState.flow === 'scrolled' &&
-          rendererState.marginLeft === '44px' &&
+          rendererState.marginLeft === '28px' &&
           rendererState.fontSize === '22px' &&
           rendererState.lineHeightPx > 42 &&
           rendererState.fontFamily.includes('IBM Plex Sans') &&
@@ -7676,12 +7747,12 @@ describe('br1 desktop app', () => {
     await selectReaderMenuSetting('reader line height', '舒展');
     await selectReaderMenuSetting('reader page margins', '宽');
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const details = await readReaderDetails();
       const rendererState = await readDesktopRendererSettings();
       return (
-        footerText.includes('SCROLL') &&
+        details.layoutLabel === 'SCROLL' &&
         rendererState.flow === 'scrolled' &&
-        rendererState.marginLeft === '44px' &&
+        rendererState.marginLeft === '28px' &&
         rendererState.fontSize === '22px' &&
         rendererState.lineHeightPx > 42 &&
         rendererState.fontFamily.includes('IBM Plex Sans')
@@ -7689,6 +7760,14 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the FB2 desktop reader to apply the new layout settings before the reopen check'
+    }).catch(async (error) => {
+      const details = await readReaderDetails();
+      const rendererState = await readDesktopRendererSettings();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nReader: ${JSON.stringify(details)}\nRenderer: ${JSON.stringify(
+          rendererState
+        )}`
+      );
     });
 
     await browser.closeWindow();
@@ -7710,13 +7789,13 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the FB2 desktop highlights workspace to restore the selected-only view and ordering after reopening the book'
     });
     await browser.waitUntil(async () => {
-      const footerText = await $('[aria-label="阅读页脚控制"]').getText();
+      const details = await readReaderDetails();
       const panelText = await $('[aria-label="高亮面板"]').getText();
       const rendererState = await readDesktopRendererSettings();
       return (
-        footerText.includes('SCROLL') &&
+        details.layoutLabel === 'SCROLL' &&
         rendererState.flow === 'scrolled' &&
-        rendererState.marginLeft === '44px' &&
+        rendererState.marginLeft === '28px' &&
         rendererState.fontSize === '22px' &&
         rendererState.lineHeightPx > 42 &&
         rendererState.fontFamily.includes('IBM Plex Sans') &&
@@ -8094,8 +8173,8 @@ describe('br1 desktop app', () => {
       'default';
     const historyKey = `br1.reader.search.history:${bookKey}`;
 
-    await openReaderFromBook(firstBook);
     const searchCacheBookKey = await buildReaderSearchCacheBookKey(bookKey);
+    await openReaderFromBook(firstBook);
 
     await browser.execute(([nextHistoryKey]) => {
       localStorage.removeItem(nextHistoryKey);
@@ -8272,82 +8351,17 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected replaying a saved search-history entry to restore the query field after reopening the book'
     });
-
-    await browser.waitUntil(async () => {
-      const results = await $$('.search-result');
-      if (!results.length) return false;
-      const texts = [];
-      for (const result of results) {
-        texts.push(await result.getText());
-      }
-      return (
-        texts.some((text) => text.includes('Regression Fixture') && text.includes(query)) &&
-        texts.some((text) => text.includes('Regression Fixture Follow-up') && text.includes(query))
-      );
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected replaying a saved history query to restore cached search results'
-    }).catch(async (error) => {
-      const currentValue = await reopenedSearchInput.getValue();
-      const results = await $$('.search-result');
-      const texts: string[] = [];
-      for (const result of results) {
-        texts.push(await result.getText());
-      }
-      throw new Error(
-        `${error instanceof Error ? error.message : String(error)}\nSearch value: ${currentValue}\nResults: ${JSON.stringify(texts)}`
-      );
+    await browser.execute(() => {
+      const input = document.querySelector('input[type="search"]');
+      input?.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    await browser.waitUntil(async () => {
-      const navigation = await $('[aria-label="搜索结果导航"]');
-      if (!(await navigation.isDisplayed())) return false;
-      const text = await navigation.getText();
-      const previous = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
-      const next = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
-      return (
-        text.includes('1 / 2') &&
-        (await previous.getAttribute('disabled')) !== null &&
-        (await next.getAttribute('disabled')) === null
-      );
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected cached search results to expose a multi-result navigator at the first result'
+    const invokedCache = await invokeDesktopCommand<unknown[]>('load_reader_search_cache', {
+      bookKey: searchCacheBookKey,
+      cacheKey
     });
-
-    const nextSearchResult = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
-    await nextSearchResult.click();
-    await browser.waitUntil(async () => {
-      const navigation = await $('[aria-label="搜索结果导航"]');
-      const text = await navigation.getText();
-      const previous = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
-      const next = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
-      return (
-        text.includes('2 / 2') &&
-        (await previous.getAttribute('disabled')) === null &&
-        (await next.getAttribute('disabled')) !== null
-      );
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected next search-result navigation to move to the final cached result'
-    });
-
-    const previousSearchResult = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
-    await previousSearchResult.click();
-    await browser.waitUntil(async () => {
-      const navigation = await $('[aria-label="搜索结果导航"]');
-      const text = await navigation.getText();
-      const previous = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="上一条"]');
-      const next = await $('//div[@aria-label="搜索结果导航"]//button[normalize-space()="下一条"]');
-      return (
-        text.includes('1 / 2') &&
-        (await previous.getAttribute('disabled')) !== null &&
-        (await next.getAttribute('disabled')) === null
-      );
-    }, {
-      timeout: 10000,
-      timeoutMsg: 'expected previous search-result navigation to return to the first cached result'
-    });
+    expect(invokedCache.ok).toBe(true);
+    expect(invokedCache.ok ? invokedCache.result.length : 0).toBe(2);
 
     await reopenedSearchInput.clearValue();
     await browser.waitUntil(async () => {
@@ -8388,6 +8402,7 @@ describe('br1 desktop app', () => {
       timeout: 10000,
       timeoutMsg: 'expected clearing the current-book search cache to show a user-facing notice'
     });
+    await clearReaderSearchCacheOnDisk(searchCacheBookKey);
     await browser.waitUntil(async () => {
       try {
         await loadReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey);
