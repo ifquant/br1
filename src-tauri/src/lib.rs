@@ -7,7 +7,8 @@ mod models;
 mod util;
 
 const ASSOCIATED_BOOK_OPEN_REJECTION_EVENT: &str = "br1:associated-book-open-inputs-rejected";
-const SUPPORTED_ASSOCIATED_BOOK_EXTENSIONS: &[&str] = &["epub", "pdf", "mobi", "azw3", "fb2", "cbz", "txt"];
+const SUPPORTED_ASSOCIATED_BOOK_EXTENSIONS: &[&str] =
+    &["epub", "pdf", "mobi", "azw3", "fb2", "cbz", "txt"];
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -142,7 +143,9 @@ fn collect_associated_book_open_rejections(
             path
         };
 
-        if !is_supported_associated_book_path(&resolved) && seen_inputs.insert(normalized_input.to_string()) {
+        if !is_supported_associated_book_path(&resolved)
+            && seen_inputs.insert(normalized_input.to_string())
+        {
             rejected_inputs.push(AssociatedBookOpenInputRejection {
                 input: file_path.clone(),
                 reason: "unsupported format".to_string(),
@@ -175,6 +178,8 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .manage(models::PendingAssociatedBookOpenRequests::default())
         .manage(models::TrustedAssociatedBookOpenPaths::default())
+        .manage(models::TrustedLibraryImportPaths::default())
+        .manage(models::RemovedLibraryBookRecords::default())
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             queue_associated_book_open_requests_with_report(
                 app,
@@ -203,6 +208,8 @@ pub fn run() {
             commands::notes::load_reader_notes,
             commands::search_cache::clear_reader_search_cache,
             commands::library::detect_readest_library,
+            commands::library::select_library_book_paths,
+            commands::library::select_single_library_book_path,
             commands::library::import_library_books,
             commands::library::import_readest_library,
             commands::library::preview_library_repair_candidate,

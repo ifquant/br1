@@ -1,4 +1,3 @@
-import { getDesktopBookDialogExtensions } from '$lib/reader';
 import { invokeTauri, isTauriDesktop } from './platform';
 
 export type PersistedLibraryBook = {
@@ -192,27 +191,13 @@ export const detectReadestLibrary = async (): Promise<ReadestLibrarySummary> => 
 export const selectSystemBookPaths = async (): Promise<string[]> => {
   requireTauriLibraryRuntime('selectSystemBookPaths');
 
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const selected = await open({
-    multiple: true,
-    filters: [{ name: 'Books', extensions: getDesktopBookDialogExtensions() }]
-  });
-
-  if (!selected) return [];
-  return Array.isArray(selected) ? selected : [selected];
+  return invokeTauri<string[]>('select_library_book_paths');
 };
 
 export const selectSingleSystemBookPath = async (): Promise<string | null> => {
   requireTauriLibraryRuntime('selectSingleSystemBookPath');
 
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const selected = await open({
-    multiple: false,
-    filters: [{ name: 'Books', extensions: getDesktopBookDialogExtensions() }]
-  });
-
-  if (!selected || Array.isArray(selected)) return null;
-  return selected;
+  return invokeTauri<string | null>('select_single_library_book_path');
 };
 
 export const importLibraryBooks = async (filePaths: string[]): Promise<PersistedLibraryBook[]> => {
@@ -234,12 +219,12 @@ export const removeLibraryBook = async (filePath: string): Promise<PersistedLibr
 };
 
 export const restoreRemovedLibraryBook = async (
-  record: PersistedLibraryBook
+  recordId: string
 ): Promise<PersistedLibraryBook[]> => {
   requireTauriLibraryRuntime('restoreRemovedLibraryBook');
 
   return invokeTauri<PersistedLibraryBook[]>('restore_removed_library_book', {
-    record
+    recordId
   });
 };
 
@@ -278,25 +263,16 @@ export const updateLibraryBookMetadata = async ({
 
 export const previewLibraryRepairCandidate = async ({
   filePath,
-  expectedFormat,
-  expectedTitle,
-  expectedAuthor,
-  expectedSourcePath
+  recordId
 }: {
   filePath: string;
-  expectedFormat: string;
-  expectedTitle: string;
-  expectedAuthor: string;
-  expectedSourcePath?: string | null;
+  recordId: string;
 }): Promise<LibraryRepairCandidatePreview> => {
   requireTauriLibraryRuntime('previewLibraryRepairCandidate');
 
   return invokeTauri<LibraryRepairCandidatePreview>('preview_library_repair_candidate', {
     filePath,
-    expectedFormat,
-    expectedTitle,
-    expectedAuthor,
-    expectedSourcePath
+    recordId
   });
 };
 

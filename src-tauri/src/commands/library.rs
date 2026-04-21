@@ -1,7 +1,7 @@
 use crate::models::{
     AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord, LibraryRepairCandidatePreview,
     PendingAssociatedBookOpenRequests, ReadestImportResult, ReadestLibrarySummary,
-    TrustedAssociatedBookOpenPaths,
+    RemovedLibraryBookRecords, TrustedAssociatedBookOpenPaths, TrustedLibraryImportPaths,
 };
 use crate::util::{
     book_mime_type, cover_mime_type, ensure_library_root, find_readest_book_file,
@@ -18,11 +18,14 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
 use std::io::{ErrorKind, Read};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::DialogExt;
 use zip::ZipArchive;
 
 pub(crate) const ASSOCIATED_BOOK_OPEN_EVENT: &str = "br1:associated-book-open-requested";
+const SUPPORTED_BOOK_DIALOG_EXTENSIONS: &[&str] =
+    &["epub", "pdf", "fb2", "mobi", "azw3", "cbz", "txt"];
 
 fn title_looks_like_stored_filename(value: &str) -> bool {
     let trimmed = value.trim();
@@ -46,10 +49,7 @@ fn is_supported_associated_book_path(path: &Path) -> bool {
         return false;
     };
 
-    matches!(
-        extension.to_ascii_lowercase().as_str(),
-        "epub" | "pdf" | "fb2" | "mobi" | "azw3" | "cbz" | "txt"
-    )
+    SUPPORTED_BOOK_DIALOG_EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
 }
 
 fn is_supported_cover_path(path: &Path) -> bool {
@@ -86,12 +86,66 @@ fn trusted_associated_book_paths_contains(
     app: &tauri::AppHandle,
     path: &Path,
 ) -> Result<bool, String> {
+    trusted_associated_book_path_key_contains(app, &canonical_path_key(path))
+}
+
+fn trusted_associated_book_path_key_contains(
+    app: &tauri::AppHandle,
+    path_key: &str,
+) -> Result<bool, String> {
     let trusted = app.state::<TrustedAssociatedBookOpenPaths>();
     let trusted = trusted
         .0
         .lock()
         .map_err(|_| "Failed to lock trusted associated-book paths".to_string())?;
-    Ok(trusted.contains(&canonical_path_key(path)))
+    Ok(trusted.contains(path_key))
+}
+
+fn trusted_library_import_path_key_contains(
+    app: &tauri::AppHandle,
+    path_key: &str,
+) -> Result<bool, String> {
+    let trusted = app.state::<TrustedLibraryImportPaths>();
+    let trusted = trusted
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock trusted library import paths".to_string())?;
+    Ok(trusted.contains(path_key))
+}
+
+fn register_trusted_library_import_path(app: &tauri::AppHandle, path: &Path) -> Result<(), String> {
+    let trusted = app.state::<TrustedLibraryImportPaths>();
+    let mut trusted = trusted
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock trusted library import paths".to_string())?;
+    trusted.insert(canonical_path_key(path));
+    Ok(())
+}
+
+fn register_trusted_library_import_paths(
+    app: &tauri::AppHandle,
+    paths: &[PathBuf],
+) -> Result<(), String> {
+    for path in paths {
+        register_trusted_library_import_path(app, path)?;
+    }
+    Ok(())
+}
+
+fn resolve_dialog_file_path(file_path: tauri_plugin_dialog::FilePath) -> Result<PathBuf, String> {
+    file_path.into_path().map_err(|error| error.to_string())
+}
+
+fn normalize_selected_library_book_path(file_path: PathBuf) -> Result<PathBuf, String> {
+    let canonical = fs::canonicalize(&file_path).map_err(|error| error.to_string())?;
+    if !canonical.is_file() {
+        return Err("Selected path is not a file".to_string());
+    }
+    if !is_supported_associated_book_path(&canonical) {
+        return Err("Selected file format is not supported by br1".to_string());
+    }
+    Ok(canonical)
 }
 
 fn register_trusted_associated_book_paths<R: tauri::Runtime>(
@@ -148,6 +202,143 @@ fn resolve_library_owned_cover_path(
     }
 
     Err("Cover file path is not a br1 library asset".to_string())
+}
+
+fn has_parent_dir_component(path: &Path) -> bool {
+    path.components()
+        .any(|component| matches!(component, Component::ParentDir))
+}
+
+fn canonical_existing_ancestor(path: &Path) -> Result<PathBuf, String> {
+    let mut current = path;
+    loop {
+        if current.exists() {
+            return fs::canonicalize(current).map_err(|error| error.to_string());
+        }
+        current = current
+            .parent()
+            .ok_or_else(|| "No existing ancestor for library path".to_string())?;
+    }
+}
+
+fn resolve_library_owned_destination_path(
+    app: &tauri::AppHandle,
+    file_path: &str,
+) -> Result<PathBuf, String> {
+    let library_root = canonical_library_root(app)?;
+    let path = PathBuf::from(file_path);
+    if !path.is_absolute() || has_parent_dir_component(&path) {
+        return Err("Library destination path must be absolute and normalized".to_string());
+    }
+    if !is_supported_associated_book_path(&path) {
+        return Err("Unsupported library book format".to_string());
+    }
+    if !path.starts_with(&library_root) {
+        return Err("Cannot restore a library record outside the br1 library root".to_string());
+    }
+
+    if path.exists() {
+        let canonical = canonicalize_existing_file_path(file_path)?;
+        if !canonical.starts_with(&library_root) {
+            return Err("Cannot restore a library record outside the br1 library root".to_string());
+        }
+        return Ok(canonical);
+    }
+
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Library destination path is missing a parent directory".to_string())?;
+    if !parent.starts_with(&library_root) || has_parent_dir_component(parent) {
+        return Err("Cannot restore a library record outside the br1 library root".to_string());
+    }
+
+    let ancestor = canonical_existing_ancestor(parent)?;
+    if !ancestor.starts_with(&library_root) {
+        return Err("Cannot restore a library record outside the br1 library root".to_string());
+    }
+
+    Ok(path)
+}
+
+fn find_persisted_library_record(
+    records: &[LibraryBookRecord],
+    record_id: &str,
+) -> Option<LibraryBookRecord> {
+    records
+        .iter()
+        .find(|record| record.id == record_id || record.file_path == record_id)
+        .cloned()
+}
+
+fn remember_removed_library_record(
+    app: &tauri::AppHandle,
+    record: LibraryBookRecord,
+) -> Result<(), String> {
+    let removed = app.state::<RemovedLibraryBookRecords>();
+    let mut removed = removed
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock removed library records".to_string())?;
+    removed.insert(record.id.clone(), record.clone());
+    removed.insert(record.file_path.clone(), record);
+    Ok(())
+}
+
+fn get_removed_library_record(
+    app: &tauri::AppHandle,
+    record_id: &str,
+) -> Result<Option<LibraryBookRecord>, String> {
+    let removed = app.state::<RemovedLibraryBookRecords>();
+    let removed = removed
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock removed library records".to_string())?;
+    Ok(removed.get(record_id).cloned())
+}
+
+fn forget_removed_library_record(
+    app: &tauri::AppHandle,
+    record: &LibraryBookRecord,
+) -> Result<(), String> {
+    let removed = app.state::<RemovedLibraryBookRecords>();
+    let mut removed = removed
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock removed library records".to_string())?;
+    removed.remove(&record.id);
+    removed.remove(&record.file_path);
+    Ok(())
+}
+
+fn persisted_record_source_path_key_contains(
+    records: &[LibraryBookRecord],
+    path_key: &str,
+) -> bool {
+    records
+        .iter()
+        .filter_map(|record| record.source_path.as_deref())
+        .any(|source_path| source_path == path_key)
+}
+
+fn resolve_trusted_import_source_path(
+    app: &tauri::AppHandle,
+    records: &[LibraryBookRecord],
+    file_path: &str,
+) -> Result<PathBuf, String> {
+    let path_key = canonical_path_key(Path::new(file_path));
+    let is_trusted = trusted_library_import_path_key_contains(app, &path_key)?
+        || trusted_associated_book_path_key_contains(app, &path_key)?
+        || persisted_record_source_path_key_contains(records, &path_key);
+    if !is_trusted {
+        return Err("Book import path is not an approved picker or library source".to_string());
+    }
+
+    let canonical = canonicalize_existing_file_path(file_path)?;
+    if is_supported_associated_book_path(&canonical) {
+        return Ok(canonical);
+    }
+
+    Err("Unsupported library book format".to_string())
 }
 
 fn strip_wrapping_quotes(value: &str) -> &str {
@@ -348,36 +539,38 @@ fn derive_cbz_cover_asset(source: &Path) -> Option<(String, Vec<u8>)> {
     let file = fs::File::open(source).ok()?;
     let mut archive = ZipArchive::new(file).ok()?;
 
-    let pick_index = (0..archive.len()).find(|index| {
-        let Ok(entry) = archive.by_index(*index) else {
-            return false;
-        };
-        let name = entry.name().to_ascii_lowercase();
-        if name.ends_with("comicinfo.xml") {
-            return false;
-        }
-        let is_image = name.ends_with(".svg")
-            || name.ends_with(".png")
-            || name.ends_with(".jpg")
-            || name.ends_with(".jpeg")
-            || name.ends_with(".webp");
-        if !is_image {
-            return false;
-        }
-        name.contains("cover") || name.contains("front")
-    }).or_else(|| {
-        (0..archive.len()).find(|index| {
+    let pick_index = (0..archive.len())
+        .find(|index| {
             let Ok(entry) = archive.by_index(*index) else {
                 return false;
             };
             let name = entry.name().to_ascii_lowercase();
-            name.ends_with(".svg")
+            if name.ends_with("comicinfo.xml") {
+                return false;
+            }
+            let is_image = name.ends_with(".svg")
                 || name.ends_with(".png")
                 || name.ends_with(".jpg")
                 || name.ends_with(".jpeg")
-                || name.ends_with(".webp")
+                || name.ends_with(".webp");
+            if !is_image {
+                return false;
+            }
+            name.contains("cover") || name.contains("front")
         })
-    })?;
+        .or_else(|| {
+            (0..archive.len()).find(|index| {
+                let Ok(entry) = archive.by_index(*index) else {
+                    return false;
+                };
+                let name = entry.name().to_ascii_lowercase();
+                name.ends_with(".svg")
+                    || name.ends_with(".png")
+                    || name.ends_with(".jpg")
+                    || name.ends_with(".jpeg")
+                    || name.ends_with(".webp")
+            })
+        })?;
 
     let mut entry = archive.by_index(pick_index).ok()?;
     let entry_name = entry.name().to_string();
@@ -448,7 +641,9 @@ fn derive_fb2_metadata(source: &Path) -> Fb2Metadata {
                 }
                 QName(b"title-info") if in_title_info => in_title_info = false,
                 QName(b"publish-info") if in_publish_info => in_publish_info = false,
-                QName(b"first-name") | QName(b"last-name") | QName(b"nickname") => current_field = None,
+                QName(b"first-name") | QName(b"last-name") | QName(b"nickname") => {
+                    current_field = None
+                }
                 QName(b"annotation") if in_annotation => in_annotation = false,
                 QName(b"p") if in_annotation_paragraph => in_annotation_paragraph = false,
                 QName(b"book-title") if in_book_title => in_book_title = false,
@@ -573,9 +768,15 @@ fn derive_cbz_metadata(source: &Path) -> CbzMetadata {
                 match current_field {
                     Some("title") if metadata.title.is_none() => metadata.title = Some(value),
                     Some("author") if metadata.author.is_none() => metadata.author = Some(value),
-                    Some("language") if metadata.language.is_none() => metadata.language = Some(value),
-                    Some("description") if metadata.description.is_none() => metadata.description = Some(value),
-                    Some("publisher") if metadata.publisher.is_none() => metadata.publisher = Some(value),
+                    Some("language") if metadata.language.is_none() => {
+                        metadata.language = Some(value)
+                    }
+                    Some("description") if metadata.description.is_none() => {
+                        metadata.description = Some(value)
+                    }
+                    Some("publisher") if metadata.publisher.is_none() => {
+                        metadata.publisher = Some(value)
+                    }
                     _ => {}
                 }
             }
@@ -598,7 +799,10 @@ struct KindleMetadata {
 }
 
 fn decode_kindle_text(value: &[u8]) -> Option<String> {
-    let utf8 = String::from_utf8_lossy(value).trim_matches(char::from(0)).trim().to_string();
+    let utf8 = String::from_utf8_lossy(value)
+        .trim_matches(char::from(0))
+        .trim()
+        .to_string();
     if !utf8.is_empty() {
         return Some(utf8);
     }
@@ -701,7 +905,11 @@ fn derive_library_title(record: &LibraryBookRecord, incoming_title: &str) -> Str
     let source_stem = record
         .source_path
         .as_ref()
-        .and_then(|source_path| Path::new(source_path).file_stem().and_then(|stem| stem.to_str()))
+        .and_then(|source_path| {
+            Path::new(source_path)
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+        })
         .map(|stem| stem.trim().to_string())
         .filter(|stem| !stem.is_empty());
 
@@ -759,20 +967,28 @@ fn titles_match_for_repair(
         .into_iter()
         .filter(|value| !value.is_empty())
         .any(|incoming_key| {
-            [record_title_key.as_str(), record_source_key.as_str(), record_library_key.as_str()]
-                .into_iter()
-                .any(|record_key| !record_key.is_empty() && record_key == incoming_key)
+            [
+                record_title_key.as_str(),
+                record_source_key.as_str(),
+                record_library_key.as_str(),
+            ]
+            .into_iter()
+            .any(|record_key| !record_key.is_empty() && record_key == incoming_key)
         })
 }
 
 fn authors_match_for_repair(record: &LibraryBookRecord, incoming_author: &str) -> bool {
-    if author_looks_like_placeholder(incoming_author) || author_looks_like_placeholder(&record.author) {
+    if author_looks_like_placeholder(incoming_author)
+        || author_looks_like_placeholder(&record.author)
+    {
         return true;
     }
 
     let incoming_author_key = normalize_status_key(incoming_author);
     let record_author_key = normalize_status_key(&record.author);
-    incoming_author_key.is_empty() || record_author_key.is_empty() || incoming_author_key == record_author_key
+    incoming_author_key.is_empty()
+        || record_author_key.is_empty()
+        || incoming_author_key == record_author_key
 }
 
 fn find_repairable_library_record_index(
@@ -832,7 +1048,10 @@ fn derive_import_metadata_for_source(source: &Path, extension: &str) -> (String,
     } else if extension == "cbz" {
         cbz_metadata.title.clone().unwrap_or(default_title.clone())
     } else {
-        kindle_metadata.title.clone().unwrap_or(default_title.clone())
+        kindle_metadata
+            .title
+            .clone()
+            .unwrap_or(default_title.clone())
     };
     let author = if extension == "fb2" {
         fb2_metadata
@@ -991,7 +1210,8 @@ fn status_looks_like_internal_asset(value: &str) -> bool {
 }
 
 fn normalize_status_key(value: &str) -> String {
-    value.chars()
+    value
+        .chars()
         .filter(|character| character.is_alphanumeric())
         .flat_map(|character| character.to_lowercase())
         .collect()
@@ -1008,7 +1228,9 @@ fn derive_library_status(progress_fraction: f64, chapter_label: &str, title: &st
         return "已打开".to_string();
     }
 
-    if status_looks_like_internal_asset(chapter_label) || status_looks_like_title(chapter_label, title) {
+    if status_looks_like_internal_asset(chapter_label)
+        || status_looks_like_title(chapter_label, title)
+    {
         return "继续阅读".to_string();
     }
 
@@ -1040,13 +1262,18 @@ pub(crate) fn consume_associated_book_open_requests(
     app: tauri::AppHandle,
 ) -> Result<Vec<AssociatedBookOpenRequest>, String> {
     let pending = app.state::<PendingAssociatedBookOpenRequests>();
-    let mut queue = pending.0.lock().map_err(|_| "Failed to lock associated-book queue".to_string())?;
+    let mut queue = pending
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock associated-book queue".to_string())?;
     let requests = std::mem::take(&mut *queue);
     Ok(requests)
 }
 
 #[tauri::command]
-pub(crate) fn detect_readest_library(app: tauri::AppHandle) -> Result<ReadestLibrarySummary, String> {
+pub(crate) fn detect_readest_library(
+    app: tauri::AppHandle,
+) -> Result<ReadestLibrarySummary, String> {
     let readest_library = readest_library_json_path(&app)?;
     if !readest_library.exists() {
         return Ok(ReadestLibrarySummary {
@@ -1063,6 +1290,63 @@ pub(crate) fn detect_readest_library(app: tauri::AppHandle) -> Result<ReadestLib
 }
 
 #[tauri::command]
+pub(crate) async fn select_library_book_paths(
+    app: tauri::AppHandle,
+) -> Result<Vec<String>, String> {
+    let picker_app = app.clone();
+    let selected = tauri::async_runtime::spawn_blocking(move || {
+        picker_app
+            .dialog()
+            .file()
+            .add_filter("Books", SUPPORTED_BOOK_DIALOG_EXTENSIONS)
+            .blocking_pick_files()
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+
+    let Some(selected) = selected else {
+        return Ok(Vec::new());
+    };
+
+    let paths = selected
+        .into_iter()
+        .map(resolve_dialog_file_path)
+        .map(|result| result.and_then(normalize_selected_library_book_path))
+        .collect::<Result<Vec<_>, _>>()?;
+    register_trusted_library_import_paths(&app, &paths)?;
+
+    Ok(paths
+        .into_iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect())
+}
+
+#[tauri::command]
+pub(crate) async fn select_single_library_book_path(
+    app: tauri::AppHandle,
+) -> Result<Option<String>, String> {
+    let picker_app = app.clone();
+    let selected = tauri::async_runtime::spawn_blocking(move || {
+        picker_app
+            .dialog()
+            .file()
+            .add_filter("Books", SUPPORTED_BOOK_DIALOG_EXTENSIONS)
+            .blocking_pick_file()
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+
+    let path = normalize_selected_library_book_path(resolve_dialog_file_path(selected)?)?;
+    register_trusted_library_import_path(&app, &path)?;
+
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
 pub(crate) fn import_library_books(
     app: tauri::AppHandle,
     file_paths: Vec<String>,
@@ -1076,7 +1360,8 @@ pub(crate) fn import_library_books(
     let mut imported = Vec::new();
 
     for file_path in file_paths {
-        let source = Path::new(&file_path);
+        let source = resolve_trusted_import_source_path(&app, &records, &file_path)?;
+        let file_path = source.to_string_lossy().to_string();
         let filename = source
             .file_name()
             .and_then(|name| name.to_str())
@@ -1093,17 +1378,17 @@ pub(crate) fn import_library_books(
             .unwrap_or("Imported book")
             .to_string();
         let fb2_metadata = if extension == "fb2" {
-            derive_fb2_metadata(source)
+            derive_fb2_metadata(&source)
         } else {
             Fb2Metadata::default()
         };
         let cbz_metadata = if extension == "cbz" {
-            derive_cbz_metadata(source)
+            derive_cbz_metadata(&source)
         } else {
             CbzMetadata::default()
         };
         let kindle_metadata = if extension == "mobi" || extension == "azw3" {
-            derive_kindle_metadata(source)
+            derive_kindle_metadata(&source)
         } else {
             KindleMetadata::default()
         };
@@ -1112,7 +1397,10 @@ pub(crate) fn import_library_books(
         } else if extension == "cbz" {
             cbz_metadata.title.clone().unwrap_or(default_title.clone())
         } else {
-            kindle_metadata.title.clone().unwrap_or(default_title.clone())
+            kindle_metadata
+                .title
+                .clone()
+                .unwrap_or(default_title.clone())
         };
         let author = if extension == "fb2" {
             fb2_metadata
@@ -1154,19 +1442,14 @@ pub(crate) fn import_library_books(
         } else {
             None
         };
-        let bytes = fs::read(&file_path).map_err(|error| error.to_string())?;
+        let bytes = fs::read(&source).map_err(|error| error.to_string())?;
         let format = if extension.is_empty() {
             "BOOK".to_string()
         } else {
             extension.to_uppercase()
         };
         let repair_index = find_repairable_library_record_index(
-            &records,
-            &file_path,
-            source,
-            &title,
-            &author,
-            &format,
+            &records, &file_path, &source, &title, &author, &format,
         );
         let existing_record = repair_index.map(|index| records[index].clone());
         let imported_at = existing_record
@@ -1183,7 +1466,7 @@ pub(crate) fn import_library_books(
 
         fs::write(&stored_path, bytes).map_err(|error| error.to_string())?;
         let cbz_cover_path = if extension == "cbz" {
-            derive_cbz_cover_asset(source).and_then(|(entry_name, cover_bytes)| {
+            derive_cbz_cover_asset(&source).and_then(|(entry_name, cover_bytes)| {
                 let cover_name = format!("{id}-{}", sanitize_filename(&entry_name));
                 let path = books_dir.join(cover_name);
                 fs::write(&path, cover_bytes).ok()?;
@@ -1209,7 +1492,9 @@ pub(crate) fn import_library_books(
             format,
             description: existing_record
                 .as_ref()
-                .map(|record| choose_repaired_optional(record.description.clone(), description.clone()))
+                .map(|record| {
+                    choose_repaired_optional(record.description.clone(), description.clone())
+                })
                 .unwrap_or(description),
             language: existing_record
                 .as_ref()
@@ -1219,7 +1504,9 @@ pub(crate) fn import_library_books(
                 .as_ref()
                 .map(|record| choose_repaired_optional(record.publisher.clone(), publisher.clone()))
                 .unwrap_or(publisher),
-            collection: existing_record.as_ref().and_then(|record| record.collection.clone()),
+            collection: existing_record
+                .as_ref()
+                .and_then(|record| record.collection.clone()),
             tags: existing_record
                 .as_ref()
                 .map(|record| record.tags.clone())
@@ -1236,17 +1523,25 @@ pub(crate) fn import_library_books(
             cover_path: cbz_cover_path.clone(),
             source_path: Some(file_path.clone()),
             imported_at,
-            progress_fraction: existing_record.as_ref().and_then(|record| record.progress_fraction),
+            progress_fraction: existing_record
+                .as_ref()
+                .and_then(|record| record.progress_fraction),
             progress_location: existing_record
                 .as_ref()
                 .and_then(|record| record.progress_location.clone()),
-            last_opened_at: existing_record.as_ref().and_then(|record| record.last_opened_at),
+            last_opened_at: existing_record
+                .as_ref()
+                .and_then(|record| record.last_opened_at),
             library_file_exists: None,
             source_file_exists: None,
         };
 
         if let Some(existing_record) = existing_record.as_ref() {
-            cleanup_repaired_record_assets(existing_record, &stored_path, cbz_cover_path.as_deref());
+            cleanup_repaired_record_assets(
+                existing_record,
+                &stored_path,
+                cbz_cover_path.as_deref(),
+            );
         }
 
         records.retain(|book| {
@@ -1292,6 +1587,7 @@ pub(crate) fn remove_library_book(
         remove_empty_library_directory(parent, &library_root);
     }
 
+    remember_removed_library_record(&app, removed_record)?;
     save_library_records(&library_json, &records)?;
     decorate_library_record_file_states(&mut records);
     Ok(records)
@@ -1352,13 +1648,16 @@ pub(crate) fn update_library_book_metadata(
 
 #[tauri::command]
 pub(crate) fn preview_library_repair_candidate(
+    app: tauri::AppHandle,
     file_path: String,
-    expected_format: String,
-    expected_title: String,
-    expected_author: String,
-    expected_source_path: Option<String>,
+    record_id: String,
 ) -> Result<LibraryRepairCandidatePreview, String> {
-    let candidate_path = Path::new(&file_path);
+    let library_json = library_json_path(&app)?;
+    let records = load_library_records(&library_json)?;
+    let expected_record = find_persisted_library_record(&records, &record_id)
+        .ok_or_else(|| "Library record not found for repair preview".to_string())?;
+    let candidate_path = resolve_trusted_import_source_path(&app, &records, &file_path)?;
+    let file_path = candidate_path.to_string_lossy().to_string();
     let file_name = candidate_path
         .file_name()
         .and_then(|value| value.to_str())
@@ -1376,30 +1675,34 @@ pub(crate) fn preview_library_repair_candidate(
         .and_then(|value| value.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
-    let (title, author) = derive_import_metadata_for_source(candidate_path, &extension);
-    let expected_format = expected_format.trim().to_ascii_uppercase();
-    let title_matches =
-        normalize_status_key(&title).is_empty()
-            || normalize_status_key(&expected_title).is_empty()
-            || normalize_status_key(&title) == normalize_status_key(&expected_title)
-            || normalized_path_stem_key(candidate_path) == normalize_status_key(&expected_title);
-    let author_matches =
-        author_looks_like_placeholder(&author)
-            || author_looks_like_placeholder(&expected_author)
-            || normalize_status_key(&author) == normalize_status_key(&expected_author);
-    let normalized_candidate = fs::canonicalize(candidate_path)
+    let (title, author) = derive_import_metadata_for_source(&candidate_path, &extension);
+    let expected_format = expected_record.format.trim().to_ascii_uppercase();
+    let title_matches = normalize_status_key(&title).is_empty()
+        || normalize_status_key(&expected_record.title).is_empty()
+        || normalize_status_key(&title) == normalize_status_key(&expected_record.title)
+        || normalized_path_stem_key(&candidate_path)
+            == normalize_status_key(&expected_record.title);
+    let author_matches = author_looks_like_placeholder(&author)
+        || author_looks_like_placeholder(&expected_record.author)
+        || normalize_status_key(&author) == normalize_status_key(&expected_record.author);
+    let normalized_candidate = fs::canonicalize(&candidate_path)
         .ok()
         .map(|path| path.to_string_lossy().to_string());
-    let normalized_expected = expected_source_path
+    let normalized_expected = expected_record
+        .source_path
         .as_deref()
-        .and_then(|path| fs::canonicalize(path).ok())
+        .and_then(|path| canonicalize_existing_file_path(path).ok())
         .map(|path| path.to_string_lossy().to_string());
     let file_exists = candidate_path.is_file();
-    let byte_size = fs::metadata(candidate_path).ok().map(|metadata| metadata.len());
-    let sha256 = file_exists.then(|| sha256_file(candidate_path)).flatten();
-    let expected_source_sha256 = expected_source_path
+    let byte_size = fs::metadata(&candidate_path)
+        .ok()
+        .map(|metadata| metadata.len());
+    let sha256 = file_exists.then(|| sha256_file(&candidate_path)).flatten();
+    let expected_source_sha256 = expected_record
+        .source_path
         .as_deref()
-        .and_then(|path| sha256_file(Path::new(path)));
+        .and_then(|path| canonicalize_existing_file_path(path).ok())
+        .and_then(|path| sha256_file(&path));
     let source_hash_matches =
         sha256.is_some() && expected_source_sha256.is_some() && sha256 == expected_source_sha256;
 
@@ -1425,35 +1728,38 @@ pub(crate) fn preview_library_repair_candidate(
 #[tauri::command]
 pub(crate) fn restore_removed_library_book(
     app: tauri::AppHandle,
-    mut record: LibraryBookRecord,
+    record_id: String,
 ) -> Result<Vec<LibraryBookRecord>, String> {
     let library_root = ensure_library_root(&app)?;
     let library_json = library_root.join("library.json");
-    let stored_path = Path::new(&record.file_path);
-    if !stored_path.starts_with(&library_root) {
-        return Err("Cannot restore a library record outside the br1 library root".to_string());
-    }
+    let mut records = load_library_records(&library_json)?;
+    let mut record = get_removed_library_record(&app, &record_id)?
+        .or_else(|| find_persisted_library_record(&records, &record_id))
+        .ok_or_else(|| "Library record not found for restore".to_string())?;
+    let original_record = record.clone();
+    let stored_path = resolve_library_owned_destination_path(&app, &record.file_path)?;
 
-    let source_path = record
-        .source_path
-        .as_deref()
-        .ok_or_else(|| "Cannot restore a removed book without an original source path".to_string())?;
-    let source_path = Path::new(source_path);
-    if !source_path.is_file() {
-        return Err("Cannot restore a removed book because the original source file is missing".to_string());
+    let source_path = record.source_path.as_deref().ok_or_else(|| {
+        "Cannot restore a removed book without an original source path".to_string()
+    })?;
+    let source_path = canonicalize_existing_file_path(source_path)?;
+    if !is_supported_associated_book_path(&source_path) {
+        return Err("Cannot restore an unsupported book format".to_string());
     }
 
     if let Some(parent) = stored_path.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    fs::copy(source_path, stored_path).map_err(|error| error.to_string())?;
+    fs::copy(&source_path, &stored_path).map_err(|error| error.to_string())?;
 
-    let mut records = load_library_records(&library_json)?;
     records.retain(|existing| existing.id != record.id && existing.file_path != record.file_path);
+    record.file_path = stored_path.to_string_lossy().to_string();
+    record.source_path = Some(source_path.to_string_lossy().to_string());
     record.library_file_exists = None;
     record.source_file_exists = None;
     records.insert(0, record);
     save_library_records(&library_json, &records)?;
+    forget_removed_library_record(&app, &original_record)?;
     decorate_library_record_file_states(&mut records);
     Ok(records)
 }
@@ -1474,7 +1780,8 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
     let mut skipped_missing_files = 0usize;
 
     for readest_record in readest_records {
-        let Some(source_file) = find_readest_book_file(&readest_books_root, &readest_record)? else {
+        let Some(source_file) = find_readest_book_file(&readest_books_root, &readest_record)?
+        else {
             skipped_missing_files += 1;
             continue;
         };
@@ -1493,7 +1800,9 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
         let stored_book_path = destination_dir.join(sanitize_filename(source_filename));
         fs::copy(&source_file, &stored_book_path).map_err(|error| error.to_string())?;
 
-        let readest_cover = readest_books_root.join(&readest_record.hash).join("cover.png");
+        let readest_cover = readest_books_root
+            .join(&readest_record.hash)
+            .join("cover.png");
         let cover_path = if readest_cover.exists() {
             let copied_cover = destination_dir.join("cover.png");
             fs::copy(&readest_cover, &copied_cover).map_err(|error| error.to_string())?;
@@ -1577,7 +1886,10 @@ pub(crate) fn update_library_reading_state(
     let library_json = library_json_path(&app)?;
     let mut records = load_library_records(&library_json)?;
 
-    let Some(record) = records.iter_mut().find(|record| record.file_path == file_path) else {
+    let Some(record) = records
+        .iter_mut()
+        .find(|record| record.file_path == file_path)
+    else {
         return Ok(());
     };
 

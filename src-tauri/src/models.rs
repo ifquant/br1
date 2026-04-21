@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -116,6 +116,12 @@ pub(crate) struct PendingAssociatedBookOpenRequests(
 
 #[derive(Default)]
 pub(crate) struct TrustedAssociatedBookOpenPaths(pub(crate) Mutex<HashSet<String>>);
+
+#[derive(Default)]
+pub(crate) struct TrustedLibraryImportPaths(pub(crate) Mutex<HashSet<String>>);
+
+#[derive(Default)]
+pub(crate) struct RemovedLibraryBookRecords(pub(crate) Mutex<HashMap<String, LibraryBookRecord>>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

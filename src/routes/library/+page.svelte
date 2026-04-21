@@ -1298,7 +1298,7 @@
   const restoreRemovedLibraryRecord = async (record: PersistedLibraryBook) => {
     try {
       clearLibraryNotice();
-      const restoredRecords = await restoreRemovedLibraryBook(record);
+      const restoredRecords = await restoreRemovedLibraryBook(record.id || record.filePath);
       await applyPersistedLibraryRecords(restoredRecords);
       setLibraryNotice('info', `已恢复“${record.title}”到书库，并保留原有阅读状态。`);
     } catch (error) {
@@ -1425,10 +1425,7 @@
         if (!selectedPath) return;
         const candidatePreview = await previewLibraryRepairCandidate({
           filePath: selectedPath,
-          expectedFormat: persistedRecord.format,
-          expectedTitle: persistedRecord.title,
-          expectedAuthor: persistedRecord.author,
-          expectedSourcePath: persistedRecord.sourcePath
+          recordId: persistedRecord.id || persistedRecord.filePath
         });
         if (!candidatePreview.fileExists) {
           setLibraryNotice('error', '所选文件当前不可读，请确认文件仍然存在后再重试。');
