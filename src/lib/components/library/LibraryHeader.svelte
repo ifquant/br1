@@ -17,6 +17,10 @@
   export let importDisabled = false;
   export let statusSummary = '';
   export let activeFilterDetail = '';
+  export let activeFilterChips: Array<{
+    id: 'query' | 'status' | 'collection' | 'tag';
+    label: string;
+  }> = [];
   export let filterSummary = '';
   export let collectionSummary = '';
   export let tagSummary = '';
@@ -32,6 +36,7 @@
     filterchange: { filterBy: 'all' | 'reading' | 'unstarted' | 'finished' };
     collectionfilterchange: { collection: string };
     tagfilterchange: { tag: string };
+    clearfilterchip: { id: 'query' | 'status' | 'collection' | 'tag' };
     clearfilters: void;
   }>();
 
@@ -92,6 +97,10 @@
 
   const handleClearFilters = () => {
     dispatch('clearfilters');
+  };
+
+  const handleClearFilterChip = (id: 'query' | 'status' | 'collection' | 'tag') => {
+    dispatch('clearfilterchip', { id });
   };
 
   const handleViewModeChange = (nextViewMode: 'grid' | 'list') => {
@@ -300,6 +309,21 @@
       {activeFilterDetail}
     </span>
   {/if}
+  {#if activeFilterChips.length > 0}
+    <div class="active-filter-chips" aria-label="library active filter chips">
+      {#each activeFilterChips as chip}
+        <button
+          type="button"
+          class="active-filter-chip"
+          aria-label={`Remove active library filter ${chip.label}`}
+          on:click={() => handleClearFilterChip(chip.id)}
+        >
+          <span>{chip.label}</span>
+          <small>移除</small>
+        </button>
+      {/each}
+    </div>
+  {/if}
   {#if collectionSummary}
     <span class="metadata-summary" aria-label="library collection summary">{collectionSummary}</span>
   {/if}
@@ -377,6 +401,34 @@
     font: 650 10px/1 var(--font-chrome);
     letter-spacing: 0.01em;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-warm) 22%, white 78%);
+  }
+
+  .active-filter-chips {
+    display: contents;
+  }
+
+  .active-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 23px;
+    border: 1px solid color-mix(in srgb, var(--accent-warm) 22%, white 78%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 72%, white 28%);
+    color: color-mix(in srgb, #73481f 84%, var(--text-secondary) 16%);
+    font: 650 10px/1 var(--font-chrome);
+    padding: 0 9px 0 10px;
+  }
+
+  .active-filter-chip small {
+    color: color-mix(in srgb, currentColor 68%, transparent);
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .active-filter-chip:hover {
+    background: color-mix(in srgb, var(--surface-panel) 62%, white 38%);
+    color: var(--text-primary);
   }
 
   .metadata-summary {

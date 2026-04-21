@@ -34,6 +34,10 @@
 
   const sampleNow = Date.parse('2026-04-14T10:00:00+08:00');
   type LibraryFilter = 'all' | 'reading' | 'unstarted' | 'finished';
+  type ActiveLibraryFilterChip = {
+    id: 'query' | 'status' | 'collection' | 'tag';
+    label: string;
+  };
 
   const starterLibraryBooks: LibraryShelfBook[] = [
     {
@@ -194,6 +198,7 @@
   let libraryCollectionSummary = '';
   let libraryTagSummary = '';
   let libraryActiveFilterDetail = '';
+  let libraryActiveFilterChips: ActiveLibraryFilterChip[] = [];
   let libraryFilterSummary = '';
   let readingWorkflowNotice:
     | {
@@ -701,6 +706,26 @@
     return activeParts.length > 0 ? `当前筛选：${activeParts.join(' / ')}` : '';
   };
 
+  const getLibraryActiveFilterChips = (
+    searchActive: boolean,
+    query: string,
+    filterBy: LibraryFilter,
+    collectionFilter: string,
+    tagFilter: string
+  ): ActiveLibraryFilterChip[] =>
+    [
+      searchActive
+        ? { id: 'query' as const, label: `搜索 ${normalizeLibrarySearchText(query)}` }
+        : null,
+      filterBy !== 'all'
+        ? { id: 'status' as const, label: `状态 ${getLibraryFilterLabel(filterBy)}` }
+        : null,
+      collectionFilter !== 'all'
+        ? { id: 'collection' as const, label: `归类 ${collectionFilter}` }
+        : null,
+      tagFilter !== 'all' ? { id: 'tag' as const, label: `标签 ${tagFilter}` } : null
+    ].filter((chip): chip is ActiveLibraryFilterChip => chip !== null);
+
   const isLibraryViewFiltered = () =>
     librarySearchActive ||
     libraryFilterBy !== 'all' ||
@@ -866,6 +891,13 @@
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
   $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
   $: libraryActiveFilterDetail = getLibraryActiveFilterDetail(
+    librarySearchActive,
+    libraryQuery,
+    libraryFilterBy,
+    libraryCollectionFilter,
+    libraryTagFilter
+  );
+  $: libraryActiveFilterChips = getLibraryActiveFilterChips(
     librarySearchActive,
     libraryQuery,
     libraryFilterBy,
@@ -1502,6 +1534,24 @@
     libraryCollectionFilter = 'all';
     libraryTagFilter = 'all';
   };
+
+  const handleClearLibraryFilterChip = (
+    event: CustomEvent<{ id: 'query' | 'status' | 'collection' | 'tag' }>
+  ) => {
+    if (event.detail.id === 'query') {
+      libraryQuery = '';
+      return;
+    }
+    if (event.detail.id === 'status') {
+      libraryFilterBy = 'all';
+      return;
+    }
+    if (event.detail.id === 'collection') {
+      libraryCollectionFilter = 'all';
+      return;
+    }
+    libraryTagFilter = 'all';
+  };
 </script>
 
 <section class="library-page">
@@ -1528,6 +1578,7 @@
       tagOptionCounts={libraryTagOptionCounts}
       statusSummary={libraryStatusSummary}
       activeFilterDetail={libraryActiveFilterDetail}
+      activeFilterChips={libraryActiveFilterChips}
       collectionSummary={libraryCollectionSummary}
       tagSummary={libraryTagSummary}
       filterSummary={libraryFilterSummary}
@@ -1537,6 +1588,7 @@
       on:filterchange={handleLibraryFilterChange}
       on:collectionfilterchange={handleLibraryCollectionFilterChange}
       on:tagfilterchange={handleLibraryTagFilterChange}
+      on:clearfilterchip={handleClearLibraryFilterChip}
       on:clearfilters={handleClearLibraryFilters}
       on:sortchange={handleLibrarySortChange}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}

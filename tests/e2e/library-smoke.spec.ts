@@ -43,6 +43,10 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
 
   await page.getByRole('button', { name: '未开始' }).click();
   await expect(page.getByLabel('library active filter detail')).toContainText('当前筛选：状态 未开始');
+  await page.getByRole('button', { name: 'Remove active library filter 状态 未开始' }).click();
+  await expect(page.getByLabel('library active filter detail')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toBeVisible();
+  await page.getByRole('button', { name: '未开始' }).click();
   await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open 论法的精神 in reader/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue reading 政治秩序与政治衰败/i })).toHaveCount(0);
@@ -92,7 +96,10 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /Open A Theory of Justice in reader/i })).toHaveCount(0);
 
   await page.getByRole('button', { name: '在读' }).click();
-  await expect(page.getByRole('button', { name: '在读' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '在读', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await searchbox.fill('does-not-exist');
 
   await expect(page.getByRole('heading', { name: '继续阅读' })).toHaveCount(0);
