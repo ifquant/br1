@@ -16,6 +16,7 @@
   export let tagOptionCounts: Record<string, number> = {};
   export let importDisabled = false;
   export let statusSummary = '';
+  export let activeFilterDetail = '';
   export let filterSummary = '';
   export let collectionSummary = '';
   export let tagSummary = '';
@@ -294,6 +295,11 @@
   {#if statusSummary}
     <span class="status-summary" aria-label="library status summary">{statusSummary}</span>
   {/if}
+  {#if activeFilterDetail}
+    <span class="active-filter-detail" aria-label="library active filter detail">
+      {activeFilterDetail}
+    </span>
+  {/if}
   {#if collectionSummary}
     <span class="metadata-summary" aria-label="library collection summary">{collectionSummary}</span>
   {/if}
@@ -358,6 +364,19 @@
     font: 600 10px/1 var(--font-chrome);
     letter-spacing: 0.01em;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .active-filter-detail {
+    display: inline-flex;
+    align-items: center;
+    min-height: 23px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-warm) 10%, white 90%);
+    color: color-mix(in srgb, #73481f 84%, var(--text-secondary) 16%);
+    font: 650 10px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-warm) 22%, white 78%);
   }
 
   .metadata-summary {

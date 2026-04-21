@@ -193,6 +193,7 @@
   let libraryTagOptionCounts: Record<string, number> = {};
   let libraryCollectionSummary = '';
   let libraryTagSummary = '';
+  let libraryActiveFilterDetail = '';
   let libraryFilterSummary = '';
   let readingWorkflowNotice:
     | {
@@ -684,6 +685,22 @@
     return '全部';
   };
 
+  const getLibraryActiveFilterDetail = (
+    searchActive: boolean,
+    query: string,
+    filterBy: LibraryFilter,
+    collectionFilter: string,
+    tagFilter: string
+  ) => {
+    const activeParts = [
+      searchActive ? `搜索 ${normalizeLibrarySearchText(query)}` : '',
+      filterBy !== 'all' ? `状态 ${getLibraryFilterLabel(filterBy)}` : '',
+      collectionFilter !== 'all' ? `归类 ${collectionFilter}` : '',
+      tagFilter !== 'all' ? `标签 ${tagFilter}` : ''
+    ].filter(Boolean);
+    return activeParts.length > 0 ? `当前筛选：${activeParts.join(' / ')}` : '';
+  };
+
   const isLibraryViewFiltered = () =>
     librarySearchActive ||
     libraryFilterBy !== 'all' ||
@@ -848,6 +865,13 @@
   $: libraryTagOptionCounts = getLibraryTagOptionCounts(librarySummaryBooks);
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
   $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
+  $: libraryActiveFilterDetail = getLibraryActiveFilterDetail(
+    librarySearchActive,
+    libraryQuery,
+    libraryFilterBy,
+    libraryCollectionFilter,
+    libraryTagFilter
+  );
   $: if (
     libraryCollectionFilter !== 'all' &&
     !libraryCollectionOptions.includes(libraryCollectionFilter)
@@ -1503,6 +1527,7 @@
       tagOptions={libraryTagOptions}
       tagOptionCounts={libraryTagOptionCounts}
       statusSummary={libraryStatusSummary}
+      activeFilterDetail={libraryActiveFilterDetail}
       collectionSummary={libraryCollectionSummary}
       tagSummary={libraryTagSummary}
       filterSummary={libraryFilterSummary}
