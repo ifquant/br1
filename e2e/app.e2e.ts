@@ -4844,12 +4844,21 @@ describe('br1 desktop app', () => {
           bookTitle: 'Imported EPUB Source',
           formatLabel: 'EPUB',
           selectionName: 'Imported EPUB Selection',
-        matchedCount: 1,
-        totalCount: 2,
-        unmatchedCount: 1,
-        importedAt: 1710000000000,
-        highlights: JSON.parse(exportedSelectionPayload).highlights
-      }
+          matchedCount: 1,
+          totalCount: 2,
+          unmatchedCount: 1,
+          importedAt: 1710000000000,
+          highlights: [
+            ...JSON.parse(exportedSelectionPayload).highlights,
+            {
+              ...JSON.parse(exportedSelectionPayload).highlights[0],
+              id: 'missing-imported-epub-highlight',
+              cfi: 'epubcfi(/6/imported-missing)',
+              text: 'missing desktop epub passage for unresolved drilldown',
+              chapterHref: '/missing-imported-chapter.xhtml'
+            }
+          ]
+        }
       },
       highlights: JSON.parse(exportedSelectionPayload).highlights.map((highlight: Record<string, unknown>) => ({
         ...highlight,
@@ -5065,6 +5074,24 @@ describe('br1 desktop app', () => {
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the EPUB desktop highlights workspace to surface a structured partial-match summary after bulk refresh'
+    });
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => {
+        const panel = document.querySelector('[aria-label="saved highlight selections"]');
+        const firstCard = panel?.querySelector('.saved-highlight-selection-card');
+        return {
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          firstCardText: firstCard?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        };
+      });
+      return (
+        state.panelText.includes('未命中 1 条，可刷新映射') &&
+        state.firstCardText.includes('未映射片段') &&
+        state.firstCardText.includes('missing desktop epub passage for unresolved drilldown')
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the EPUB desktop imported saved set to show unresolved highlight text after refresh'
     });
     await browser.execute((payload) => {
       window.prompt = () => payload;
