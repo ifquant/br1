@@ -14,6 +14,7 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('heading', { name: '你的书库' })).toBeVisible();
   await expect(page.getByLabel('library collection summary')).toContainText('归类 3 组');
   await expect(page.getByLabel('library tag summary')).toContainText('标签 8 个 · 高频 政治哲学 2 本');
+  await expect(page.getByLabel('library cover summary')).toContainText('封面 5 / 5 已设置');
   await expect(
     page.getByLabel('library collection filters').getByRole('button', { name: '全部归类 3 组' })
   ).toBeVisible();

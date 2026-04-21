@@ -200,6 +200,7 @@
   let libraryActiveFilterDetail = '';
   let libraryActiveFilterChips: ActiveLibraryFilterChip[] = [];
   let libraryFilterSummary = '';
+  let libraryCoverSummary = '';
   let readingWorkflowNotice:
     | {
         title: string;
@@ -666,6 +667,14 @@
     return `标签 ${counts.size} 个 · 高频 ${topTag[0]} ${topTag[1]} 本`;
   };
 
+  const getLibraryCoverSummary = (books: LibraryShelfBook[]) => {
+    if (books.length === 0) return '';
+    const coveredCount = books.filter((book) => !!book.coverUrl).length;
+    const missingCount = books.length - coveredCount;
+    if (missingCount === 0) return `封面 ${coveredCount} / ${books.length} 已设置`;
+    return `封面 ${coveredCount} / ${books.length} 已设置 · ${missingCount} 本使用标题封面`;
+  };
+
   const filterBooksByCollection = (books: LibraryShelfBook[], collection: string) => {
     if (collection === 'all') return books;
     return books.filter((book) => normalizeCollectionFilterValue(book.collection) === collection);
@@ -890,6 +899,7 @@
   $: libraryTagOptionCounts = getLibraryTagOptionCounts(librarySummaryBooks);
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
   $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
+  $: libraryCoverSummary = getLibraryCoverSummary(librarySummaryBooks);
   $: libraryActiveFilterDetail = getLibraryActiveFilterDetail(
     librarySearchActive,
     libraryQuery,
@@ -1581,6 +1591,7 @@
       activeFilterChips={libraryActiveFilterChips}
       collectionSummary={libraryCollectionSummary}
       tagSummary={libraryTagSummary}
+      coverSummary={libraryCoverSummary}
       filterSummary={libraryFilterSummary}
       importDisabled={migrationBusy}
       on:querychange={handleLibraryQueryChange}

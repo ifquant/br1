@@ -24,6 +24,7 @@
   export let filterSummary = '';
   export let collectionSummary = '';
   export let tagSummary = '';
+  export let coverSummary = '';
 
   let sortMenuOpen = false;
   let sortMenuElement: HTMLDivElement | null = null;
@@ -330,6 +331,9 @@
   {#if tagSummary}
     <span class="metadata-summary tag-summary" aria-label="library tag summary">{tagSummary}</span>
   {/if}
+  {#if coverSummary}
+    <span class="metadata-summary cover-summary" aria-label="library cover summary">{coverSummary}</span>
+  {/if}
   {#if filterSummary}
     <span class="filter-summary" aria-label="library filter summary">{filterSummary}</span>
     <button
@@ -448,6 +452,12 @@
     background: color-mix(in srgb, #cfdcc1 16%, white 84%);
     color: color-mix(in srgb, #49612f 82%, var(--text-secondary) 18%);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #8da36b 20%, white 80%);
+  }
+
+  .metadata-summary.cover-summary {
+    background: color-mix(in srgb, #c9d8e8 16%, white 84%);
+    color: color-mix(in srgb, #365a78 82%, var(--text-secondary) 18%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #7f9db8 20%, white 80%);
   }
 
   .clear-filters {
