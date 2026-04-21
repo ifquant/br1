@@ -7117,6 +7117,15 @@ describe('br1 desktop app', () => {
           match: query,
           post: ' after reopening the same desktop book.'
         }
+      },
+      {
+        cfi: 'epubcfi(/6/4[regression]!/4/2/8)',
+        label: 'Regression Fixture Follow-up',
+        excerpt: {
+          pre: 'Second cached result keeps ',
+          match: query,
+          post: ' navigation state honest after reopen.'
+        }
       }
     ];
 
@@ -7154,7 +7163,7 @@ describe('br1 desktop app', () => {
               matchWholeWords: false,
               matchDiacritics: false
             },
-            resultCount: 1,
+            resultCount: 2,
             createdAt: Date.now()
           },
           {
@@ -7175,7 +7184,7 @@ describe('br1 desktop app', () => {
     await seedReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey, seededResults);
 
     const persistedCache = await loadReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey);
-    expect(persistedCache.results).toHaveLength(1);
+    expect(persistedCache.results).toHaveLength(2);
 
     await browser.closeWindow();
     await browser.switchToWindow(libraryHandle);
@@ -7247,7 +7256,7 @@ describe('br1 desktop app', () => {
       const historyChips = await $$('.history-chip');
       if (historyChips.length !== 1) return false;
       const text = await historyChips[0]!.getText();
-      return text.includes(query) && text.includes('1 条命中');
+      return text.includes(query) && text.includes('2 条命中');
     }, {
       timeout: 10000,
       timeoutMsg: 'expected the results-only search-history filter to keep the cached regression query visible after deleting the empty entry'
@@ -7271,7 +7280,10 @@ describe('br1 desktop app', () => {
       for (const result of results) {
         texts.push(await result.getText());
       }
-      return texts.some((text) => text.includes('Regression Fixture') && text.includes(query));
+      return (
+        texts.some((text) => text.includes('Regression Fixture') && text.includes(query)) &&
+        texts.some((text) => text.includes('Regression Fixture Follow-up') && text.includes(query))
+      );
     }, {
       timeout: 10000,
       timeoutMsg: 'expected replaying a saved history query to restore cached search results'
@@ -7294,13 +7306,47 @@ describe('br1 desktop app', () => {
       const previous = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
       const next = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
       return (
-        text.includes('1 / 1') &&
+        text.includes('1 / 2') &&
         (await previous.getAttribute('disabled')) !== null &&
+        (await next.getAttribute('disabled')) === null
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected cached search results to expose a multi-result navigator at the first result'
+    });
+
+    const nextSearchResult = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+    await nextSearchResult.click();
+    await browser.waitUntil(async () => {
+      const navigation = await $('[aria-label="search result navigation"]');
+      const text = await navigation.getText();
+      const previous = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
+      const next = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+      return (
+        text.includes('2 / 2') &&
+        (await previous.getAttribute('disabled')) === null &&
         (await next.getAttribute('disabled')) !== null
       );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected cached search results to expose a result navigator with disabled single-result controls'
+      timeoutMsg: 'expected next search-result navigation to move to the final cached result'
+    });
+
+    const previousSearchResult = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
+    await previousSearchResult.click();
+    await browser.waitUntil(async () => {
+      const navigation = await $('[aria-label="search result navigation"]');
+      const text = await navigation.getText();
+      const previous = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="上一条"]');
+      const next = await $('//div[@aria-label="search result navigation"]//button[normalize-space()="下一条"]');
+      return (
+        text.includes('1 / 2') &&
+        (await previous.getAttribute('disabled')) !== null &&
+        (await next.getAttribute('disabled')) === null
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected previous search-result navigation to return to the first cached result'
     });
 
     await reopenedSearchInput.clearValue();
