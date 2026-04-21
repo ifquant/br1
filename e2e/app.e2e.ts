@@ -65,6 +65,16 @@ describe('br1 desktop app', () => {
     }
   };
 
+  const normalizeReaderLocationLabel = (value: string | null) => {
+    if (value === '未打开') return 'Not opened';
+    if (value === '正在打开') return 'Opening book';
+    const pdfMatch = value?.match(/^第\s+(\d+)\s*\/\s*(\d+)\s*页$/);
+    if (pdfMatch) {
+      return `Page ${pdfMatch[1]} / ${pdfMatch[2]}`;
+    }
+    return value;
+  };
+
   const loadLibraryRecordBySourcePathOnDisk = async (sourcePath: string) => {
     const libraryFile = join(appDataRoot, 'library', 'library.json');
     const raw = await readFile(libraryFile, 'utf8');
@@ -1108,10 +1118,12 @@ describe('br1 desktop app', () => {
 
   const openUsableShelfPdfFromLibrary = async () => {
     const libraryHandle = await switchToLibraryWindow();
+    const [samplePdf] = await importDesktopLibraryBooks([join(staticSamplesRoot, 'sample-outline.pdf')]);
     const shelfPdfPaths = (await loadLibraryRecordsOnDisk())
       .map((record) => ({
         title: record.title ?? '',
         path: record.filePath ?? record.file_path ?? '',
+        isSampleFixture: (record.filePath ?? record.file_path ?? '') === samplePdf?.filePath,
         fraction: record.progressFraction ?? 0,
         location: record.progressLocation ?? '',
         size: (() => {
@@ -1124,6 +1136,8 @@ describe('br1 desktop app', () => {
       }))
       .filter((record) => record.path.toLowerCase().endsWith('.pdf'))
       .sort((left, right) => {
+        const leftFixtureBonus = left.isSampleFixture ? -1 : 0;
+        const rightFixtureBonus = right.isSampleFixture ? -1 : 0;
         const leftPenalty = /reader sample/i.test(left.title) ? 1 : 0;
         const rightPenalty = /reader sample/i.test(right.title) ? 1 : 0;
         const leftStartedPenalty =
@@ -1131,6 +1145,7 @@ describe('br1 desktop app', () => {
         const rightStartedPenalty =
           right.location || (Number.isFinite(right.fraction) && right.fraction > 0) ? 1 : 0;
         return (
+          leftFixtureBonus - rightFixtureBonus ||
           leftPenalty - rightPenalty ||
           leftStartedPenalty - rightStartedPenalty ||
           left.size - right.size
@@ -1384,8 +1399,17 @@ describe('br1 desktop app', () => {
         if (value === '固定版式') return 'FIXED';
         return value;
       };
+      const normalizeLocationLabel = (value: string | null) => {
+        if (value === '未打开') return 'Not opened';
+        if (value === '正在打开') return 'Opening book';
+        const pdfMatch = value?.match(/^第\s+(\d+)\s*\/\s*(\d+)\s*页$/);
+        if (pdfMatch) {
+          return `Page ${pdfMatch[1]} / ${pdfMatch[2]}`;
+        }
+        return value;
+      };
       const formatLabel = footerMeta[1] ?? null;
-      const locationLabel = footerMeta[0] ?? null;
+      const locationLabel = normalizeLocationLabel(footerMeta[0] ?? null);
       const progressLabel =
         footer?.querySelector('.progress-strip span')?.textContent?.trim() ?? null;
       const derivedProgressFraction =
@@ -1894,10 +1918,12 @@ describe('br1 desktop app', () => {
     });
 
   const setReaderViewWidthMode = async (mode: 'focus' | 'standard' | 'wide') => {
-    const moreActions = await $('.reader-head-frame [aria-label="More actions"]');
+    const moreActions = await $('.reader-head-frame [aria-label="More actions"], .reader-head-frame [aria-label="更多操作"]');
     await moreActions.waitForDisplayed({ timeout: 10000 });
     await browser.execute(() => {
-      const button = document.querySelector('.reader-head-frame [aria-label="More actions"]');
+      const button = document.querySelector(
+        '.reader-head-frame [aria-label="More actions"], .reader-head-frame [aria-label="更多操作"]'
+      );
       if (!(button instanceof HTMLButtonElement)) {
         throw new Error('expected reader header more-actions button to exist');
       }
@@ -1924,17 +1950,27 @@ describe('br1 desktop app', () => {
       | 'reader page margins',
     optionLabel: string
   ) => {
-    const moreActions = await $('.reader-head-frame [aria-label="More actions"]');
+    const moreActions = await $('.reader-head-frame [aria-label="More actions"], .reader-head-frame [aria-label="更多操作"]');
     await moreActions.waitForDisplayed({ timeout: 10000 });
     await browser.execute(() => {
-      const button = document.querySelector('.reader-head-frame [aria-label="More actions"]');
+      const button = document.querySelector(
+        '.reader-head-frame [aria-label="More actions"], .reader-head-frame [aria-label="更多操作"]'
+      );
       if (!(button instanceof HTMLButtonElement)) {
         throw new Error('expected reader header more-actions button to exist');
       }
       button.click();
     });
 
-    const menuGroup = await $(`.reader-head-frame .header-menu [role="group"][aria-label="${groupLabel}"]`);
+    const localizedGroupLabels: Record<typeof groupLabel, string> = {
+      'reader flow mode': '阅读模式',
+      'reader font family': '阅读字体',
+      'reader font scale': '字号',
+      'reader line height': '行距',
+      'reader page margins': '页边距'
+    };
+    const effectiveGroupLabel = localizedGroupLabels[groupLabel] ?? groupLabel;
+    const menuGroup = await $(`.reader-head-frame .header-menu [role="group"][aria-label="${effectiveGroupLabel}"]`);
     await menuGroup.waitForDisplayed({ timeout: 10000 });
 
     await browser.execute(
@@ -1958,7 +1994,7 @@ describe('br1 desktop app', () => {
 
         option.click();
       },
-      { targetGroupLabel: groupLabel, targetOptionLabel: optionLabel }
+      { targetGroupLabel: effectiveGroupLabel, targetOptionLabel: optionLabel }
     );
   };
 
@@ -4011,10 +4047,11 @@ describe('br1 desktop app', () => {
   it('reopens a library-file pdf with restored progress inside the reader stage', async function () {
     this.timeout(120000);
     const { libraryHandle, path, expectedLocation, expectedFraction, persistedLocation } = await openRestorablePdfBook();
-    expect(persistedLocation).toBeTruthy();
-    expect(persistedLocation.startsWith('epubcfi(')).toBe(false);
-    expect(persistedLocation.startsWith('Page ')).toBe(true);
-    expect(persistedLocation.startsWith('Page 0 /')).toBe(false);
+    const normalizedPersistedLocation = normalizeReaderLocationLabel(persistedLocation) ?? '';
+    expect(normalizedPersistedLocation).toBeTruthy();
+    expect(normalizedPersistedLocation.startsWith('epubcfi(')).toBe(false);
+    expect(normalizedPersistedLocation.startsWith('Page ')).toBe(true);
+    expect(normalizedPersistedLocation.startsWith('Page 0 /')).toBe(false);
 
     let geometry = await readReaderGeometry();
 
