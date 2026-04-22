@@ -52,7 +52,7 @@
     getLibrarySiblingExplanation
   } from '$lib/library/navigation';
   import {
-    LibraryPageSurface
+    LibraryPageHost
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
@@ -1456,17 +1456,12 @@
 </script>
 
 <section class="library-page">
-  <input
-    bind:this={importInput}
-    class="import-input"
-    type="file"
-    accept={READER_FILE_INPUT_ACCEPT}
-    on:change={handleImportChange}
-  />
-
-  <LibraryPageSurface
+  <LibraryPageHost
     model={activeLibraryPageSurfaceModel}
+    bind:fileInput={importInput}
     bind:scrollRef={libraryScrollRef}
+    fileAccept={READER_FILE_INPUT_ACCEPT}
+    onImportChange={handleImportChange}
     onDispatchBrowseAction={dispatchLibraryBrowseAction}
     onRunNoticeAction={runLibraryNoticeAction}
     onClearNotice={clearLibraryNotice}
@@ -1516,9 +1511,5 @@
   .library-page {
     min-height: 100%;
     display: grid;
-  }
-
-  .import-input {
-    display: none;
   }
 </style>
