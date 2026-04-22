@@ -40,6 +40,10 @@
     id: 'query' | 'status' | 'format' | 'collection' | 'tag';
     label: string;
   };
+  type LibraryGroupSegment = {
+    groupBy: 'author' | 'collection' | 'format';
+    label: string;
+  };
   type ActiveLibraryGroupOverview = {
     eyebrow: string;
     title: string;
@@ -188,6 +192,7 @@
   let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   let libraryGroupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
   let libraryGroupScope = '';
+  let libraryBrowseTrail: LibraryGroupSegment[] = [];
   let libraryFilterBy: LibraryFilter = 'all';
   let libraryFormatFilter = 'all';
   let libraryCollectionFilter = 'all';
@@ -1015,23 +1020,58 @@
     return 'none';
   };
 
+  const parseLibraryBrowseTrailParam = (value: string | null): LibraryGroupSegment[] => {
+    if (!value) return [];
+    try {
+      const parsed = JSON.parse(value);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.flatMap((entry) => {
+        if (!entry || typeof entry !== 'object') return [];
+        const groupBy = 'groupBy' in entry ? entry.groupBy : '';
+        const label = 'label' in entry ? entry.label : '';
+        if (
+          (groupBy === 'author' || groupBy === 'collection' || groupBy === 'format') &&
+          typeof label === 'string' &&
+          label.trim()
+        ) {
+          return [{ groupBy, label: label.trim() }];
+        }
+        return [];
+      });
+    } catch {
+      return [];
+    }
+  };
+
+  const serializeLibraryBrowseTrailParam = (trail: LibraryGroupSegment[]) =>
+    trail.length > 0 ? JSON.stringify(trail) : '';
+
   const syncLibraryBrowseLocation = async (options: {
     groupBy?: 'none' | 'author' | 'collection' | 'format';
     groupScope?: string;
+    trail?: LibraryGroupSegment[];
   }) => {
     const nextGroupBy = options.groupBy ?? libraryGroupBy;
     const nextGroupScope = options.groupScope ?? libraryGroupScope;
+    const nextTrail = options.trail ?? libraryBrowseTrail;
     const nextUrl = new URL($page.url);
 
     if (nextGroupBy === 'none') {
       nextUrl.searchParams.delete('groupBy');
       nextUrl.searchParams.delete('group');
+      nextUrl.searchParams.delete('trail');
     } else {
       nextUrl.searchParams.set('groupBy', nextGroupBy);
       if (nextGroupScope) {
         nextUrl.searchParams.set('group', nextGroupScope);
       } else {
         nextUrl.searchParams.delete('group');
+      }
+      const serializedTrail = serializeLibraryBrowseTrailParam(nextTrail);
+      if (serializedTrail) {
+        nextUrl.searchParams.set('trail', serializedTrail);
+      } else {
+        nextUrl.searchParams.delete('trail');
       }
     }
 
@@ -1109,6 +1149,9 @@
       librarySortBy,
       libraryGroupBy,
       libraryGroupScope || 'all-groups',
+      libraryBrowseTrail
+        .map((segment) => `${segment.groupBy}:${segment.label}`)
+        .join('>') || 'root',
       libraryFilterBy,
       libraryFormatFilter,
       libraryCollectionFilter,
@@ -1267,6 +1310,7 @@
   $: libraryCoverSummary = getLibraryCoverSummary(librarySummaryBooks);
   $: libraryGroupBy = normalizeLibraryGroupByParam($page.url.searchParams.get('groupBy'));
   $: libraryGroupScope = $page.url.searchParams.get('group')?.trim() ?? '';
+  $: libraryBrowseTrail = parseLibraryBrowseTrailParam($page.url.searchParams.get('trail'));
   $: libraryActiveFilterDetail = getLibraryActiveFilterDetail(
     librarySearchActive,
     libraryQuery,
@@ -1296,7 +1340,10 @@
     libraryTagFilter = 'all';
   }
   $: if (libraryGroupBy === 'none' && libraryGroupScope) {
-    void syncLibraryBrowseLocation({ groupBy: 'none', groupScope: '' });
+    void syncLibraryBrowseLocation({ groupBy: 'none', groupScope: '', trail: [] });
+  }
+  $: if (!libraryGroupScope && libraryBrowseTrail.length > 0) {
+    void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
   }
   $: if (
     libraryGroupBy !== 'none' &&
@@ -1304,7 +1351,7 @@
     !libraryShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope) &&
     !starterShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope)
   ) {
-    void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '' });
+    void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
   }
   $: filteredRecoveryQueueBooks = filterBooksForLibraryView(
     recoveryQueueBooks,
@@ -1916,22 +1963,68 @@
     librarySortBy = event.detail.sortBy;
   };
 
+  const getLibraryNextBrowseTrail = (
+    nextGroupBy: 'author' | 'collection' | 'format',
+    nextLabel: string
+  ) => {
+    if (!libraryGroupScope || libraryGroupBy === 'none') return [];
+    if (libraryGroupBy === nextGroupBy && libraryGroupScope === nextLabel) {
+      return libraryBrowseTrail;
+    }
+    return [
+      ...libraryBrowseTrail,
+      {
+        groupBy: libraryGroupBy,
+        label: libraryGroupScope
+      }
+    ];
+  };
+
   const handleEnterLibraryGroup = async (
     label: string,
     nextGroupBy: 'author' | 'collection' | 'format'
   ) => {
-    await syncLibraryBrowseLocation({ groupBy: nextGroupBy, groupScope: label });
+    await syncLibraryBrowseLocation({
+      groupBy: nextGroupBy,
+      groupScope: label,
+      trail: getLibraryNextBrowseTrail(nextGroupBy, label)
+    });
   };
 
   const handleExitLibraryGroup = async () => {
-    await syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '' });
+    const previousSegment = libraryBrowseTrail.at(-1);
+    if (!previousSegment) {
+      await syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
+      return;
+    }
+    await syncLibraryBrowseLocation({
+      groupBy: previousSegment.groupBy,
+      groupScope: previousSegment.label,
+      trail: libraryBrowseTrail.slice(0, -1)
+    });
   };
 
   const handleLibraryGroupPivot = async (
     nextGroupBy: 'author' | 'collection' | 'format',
     label: string
   ) => {
-    await syncLibraryBrowseLocation({ groupBy: nextGroupBy, groupScope: label });
+    await syncLibraryBrowseLocation({
+      groupBy: nextGroupBy,
+      groupScope: label,
+      trail: getLibraryNextBrowseTrail(nextGroupBy, label)
+    });
+  };
+
+  const handleJumpLibraryGroupTrail = async (
+    event: CustomEvent<{ index: number }>
+  ) => {
+    const targetSegment = libraryBrowseTrail[event.detail.index];
+    if (!targetSegment) return;
+    await syncLibraryBrowseLocation({
+      groupBy: targetSegment.groupBy,
+      groupScope: targetSegment.label,
+      trail: libraryBrowseTrail.slice(0, event.detail.index)
+    });
   };
 
   const handleLibraryFilterChange = (
@@ -2058,6 +2151,7 @@
       sortBy={librarySortBy}
       groupBy={libraryGroupBy}
       activeGroupLabel={libraryGroupScope}
+      activeGroupTrail={libraryBrowseTrail}
       activeGroupDescription={getLibraryGroupScopeDescription(
         libraryGroupBy,
         libraryGroupScope,
@@ -2092,9 +2186,10 @@
       on:clearfilterchip={handleClearLibraryFilterChip}
       on:clearfilters={handleClearLibraryFilters}
       on:exitgroup={handleExitLibraryGroup}
+      on:jumptrail={handleJumpLibraryGroupTrail}
       on:sortchange={handleLibrarySortChange}
       on:groupbychange={(event) =>
-        syncLibraryBrowseLocation({ groupBy: event.detail.groupBy, groupScope: '' })}
+        syncLibraryBrowseLocation({ groupBy: event.detail.groupBy, groupScope: '', trail: [] })}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />
 

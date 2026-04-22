@@ -9,6 +9,10 @@
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
   export let activeGroupLabel = '';
+  export let activeGroupTrail: Array<{
+    groupBy: 'author' | 'collection' | 'format';
+    label: string;
+  }> = [];
   export let activeGroupDescription = '';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
@@ -56,6 +60,7 @@
     clearfilterchip: { id: 'query' | 'status' | 'format' | 'collection' | 'tag' };
     clearfilters: void;
     exitgroup: void;
+    jumptrail: { index: number };
   }>();
 
   const actions = [
@@ -150,6 +155,10 @@
 
   const handleExitGroup = () => {
     dispatch('exitgroup');
+  };
+
+  const handleJumpTrail = (index: number) => {
+    dispatch('jumptrail', { index });
   };
 
   const handleClearFilterChip = (id: 'query' | 'status' | 'format' | 'collection' | 'tag') => {
@@ -318,13 +327,28 @@
 {#if activeGroupLabel}
   <div class="group-context" aria-label="当前书库分组路径">
     <button type="button" class="group-context-back" on:click={handleExitGroup}>
-      返回整库
+      {activeGroupTrail.length > 0 ? '返回上一级' : '返回整库'}
     </button>
     <div class="group-context-copy">
-      <span class="group-context-type">
-        {groupBy === 'author' ? '作者' : groupBy === 'collection' ? '归类' : groupBy === 'format' ? '格式' : '分组'}
-      </span>
-      <strong>{activeGroupLabel}</strong>
+      <div class="group-context-trail">
+        {#each activeGroupTrail as segment, index}
+          <button
+            type="button"
+            class="group-context-segment"
+            on:click={() => handleJumpTrail(index)}
+          >
+            <span>{segment.groupBy === 'author' ? '作者' : segment.groupBy === 'collection' ? '归类' : '格式'}</span>
+            <strong>{segment.label}</strong>
+          </button>
+          <span class="group-context-divider" aria-hidden="true">/</span>
+        {/each}
+        <span class="group-context-current">
+          <span class="group-context-type">
+            {groupBy === 'author' ? '作者' : groupBy === 'collection' ? '归类' : groupBy === 'format' ? '格式' : '分组'}
+          </span>
+          <strong>{activeGroupLabel}</strong>
+        </span>
+      </div>
       {#if activeGroupDescription}
         <small>{activeGroupDescription}</small>
       {/if}
@@ -548,6 +572,39 @@
     display: grid;
     gap: 2px;
     min-width: 0;
+  }
+
+  .group-context-trail {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .group-context-segment,
+  .group-context-current {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    min-width: 0;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+  }
+
+  .group-context-segment:hover {
+    border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
+    background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
+  }
+
+  .group-context-divider {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1;
   }
 
   .group-context-type {
