@@ -43,8 +43,9 @@
   let metadataEditCollection = '';
   let metadataEditTags = '';
 
+  $: topLevelGroupedBrowse = groupBy !== 'none' && !activeGroupLabel;
   $: totalItems = books.length + (showImportTile ? 1 : 0);
-  $: itemCountLabel = `${totalItems} 本`;
+  $: itemCountLabel = topLevelGroupedBrowse ? `${groupedBooks.length} 组` : `${totalItems} 本`;
   $: viewModeLabel = viewMode === 'grid' ? '网格视图' : '列表视图';
   $: groupedBooks = groupBooks(books, groupBy);
 
@@ -271,29 +272,149 @@
   </header>
 
   <div class="shelf-body" aria-label={sectionTitle}>
-    {#each groupedBooks as group}
-      <section class:ungrouped={groupBy === 'none'} class="group-section" aria-label={groupBy === 'none' ? sectionTitle : `${group.label} 分组`}>
-        {#if groupBy !== 'none'}
-          <header class="group-head">
-            <div class="group-copy">
-              <strong>{group.label}</strong>
-              <span>{group.description}</span>
-            </div>
-            {#if !activeGroupLabel && onEnterGroup}
-              <button
-                type="button"
-                class="group-enter-action"
-                aria-label={`只查看 ${group.label} 分组`}
-                on:click={(event: MouseEvent) => handleEnterGroup(event, group.label)}
-              >
-                进入
-              </button>
-            {/if}
-          </header>
-        {/if}
+    {#if topLevelGroupedBrowse}
+      <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={sectionTitle}>
+        {#each groupedBooks as group}
+          <article class:list-card={viewMode === 'list'} class="group-card">
+            <button
+              type="button"
+              class:list-link={viewMode === 'list'}
+              class="group-card-link"
+              aria-label={`进入 ${group.label} 分组`}
+              on:click={(event: MouseEvent) => handleEnterGroup(event, group.label)}
+            >
+              <div class="group-cover-shell" aria-hidden="true">
+                <div class:group-cover-strip={viewMode === 'list'} class="group-cover-grid">
+                  {#each group.books.slice(0, viewMode === 'list' ? 6 : 4) as book}
+                    <div class="group-cover-cell">
+                      {#if book.coverUrl}
+                        <img class="group-cover-image" src={book.coverUrl} alt="" loading="lazy" />
+                      {:else}
+                        <div class="group-cover-fallback">
+                          <span>{book.title.slice(0, 8)}</span>
+                        </div>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+                <div class="group-cover-badge">{group.books.length} 本</div>
+              </div>
+              {#if viewMode === 'list'}
+                <div class="meta list-meta group-list-meta">
+                  <div class="list-copy">
+                    <strong>{group.label}</strong>
+                    <span>{group.description}</span>
+                    <div class="meta-pills">
+                      <span class="meta-pill strong">
+                        {groupBy === 'author'
+                          ? '作者书架'
+                          : groupBy === 'collection'
+                            ? '归类书架'
+                            : '格式书架'}
+                      </span>
+                      {#if group.books[0]?.format}
+                        <span class="meta-pill">{group.books[0].format}</span>
+                      {/if}
+                    </div>
+                  </div>
+                  <div class="list-trailing">
+                    <div class="trailing-copy">
+                      <small>进入分组</small>
+                      <em>继续浏览这一组中的全部书。</em>
+                    </div>
+                    <div class="inline-actions" aria-hidden="true">
+                      <span class="action-dot">↗</span>
+                    </div>
+                  </div>
+                </div>
+              {:else}
+                <div class="meta group-meta">
+                  <strong>{group.label}</strong>
+                  <span>{group.description}</span>
+                  <p>
+                    {groupBy === 'author'
+                      ? '集中浏览同一作者的书。'
+                      : groupBy === 'collection'
+                        ? '沿着当前归类继续浏览。'
+                        : '按阅读格式进入这一组。'}
+                  </p>
+                  <div class="status-row">
+                    <small>前往该组</small>
+                    <em>继续浏览</em>
+                  </div>
+                </div>
+              {/if}
+            </button>
+          </article>
+        {/each}
 
-        <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={groupBy === 'none' ? sectionTitle : group.label}>
-    {#each group.books as book}
+        {#if showImportTile}
+          <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="导入书籍">
+            <svelte:element
+              this={onImportBooks || importHref ? 'a' : 'div'}
+              class:list-link={viewMode === 'list'}
+              class="book-link import-link"
+              href={importHref}
+              role={onImportBooks || importHref ? 'link' : undefined}
+              aria-label={onImportBooks || importHref ? '从本机导入书籍' : undefined}
+              on:click={(event: MouseEvent) => {
+                if (onImportBooks) {
+                  handleImportClick(event);
+                } else {
+                  handleLinkClick(event, importHref);
+                }
+              }}
+            >
+              <div class="cover-shell">
+                <div class="cover import-cover" aria-hidden="true">
+                  <div class="import-plus">＋</div>
+                </div>
+              </div>
+              {#if viewMode === 'list'}
+                <div class="meta list-meta import-meta import-meta-list">
+                  <div class="list-copy">
+                    <strong>导入书籍</strong>
+                    <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
+                    <div class="meta-pills">
+                      <span class="meta-pill strong">本机导入</span>
+                      <span class="meta-pill">本机文件</span>
+                    </div>
+                  </div>
+                  <div class="list-trailing">
+                    <div class="trailing-copy">
+                      <small>立即导入</small>
+                      <em>把本机已有书籍并入当前书库。</em>
+                    </div>
+                    <div class="inline-actions" aria-hidden="true">
+                      <span class="action-dot">＋</span>
+                    </div>
+                  </div>
+                </div>
+              {:else}
+                <div class="meta import-meta">
+                  <strong>导入书籍</strong>
+                  <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
+                  <p>把本机已有书籍并入当前书库。</p>
+                </div>
+              {/if}
+            </svelte:element>
+          </article>
+        {/if}
+      </div>
+    {:else}
+      {#each groupedBooks as group}
+        <section class:ungrouped={groupBy === 'none'} class="group-section" aria-label={groupBy === 'none' ? sectionTitle : `${group.label} 分组`}>
+          {#if groupBy !== 'none'}
+            <header class="group-head">
+              <div class="group-copy">
+                <strong>{group.label}</strong>
+                <span>{group.description}</span>
+              </div>
+            </header>
+          {/if}
+
+          <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={groupBy === 'none' ? sectionTitle : group.label}>
+      {#each group.books as book}
       {@const bookKey = getBookKey(book)}
       {@const filterableStatus = getFilterableStatus(book)}
       {@const filterableStatusLabel = getFilterStatusLabel(filterableStatus)}
@@ -548,62 +669,63 @@
           </div>
         {/if}
       </article>
-    {/each}
-        </div>
-      </section>
-    {/each}
-
-    {#if showImportTile}
-      <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="导入书籍">
-        <svelte:element
-          this={onImportBooks || importHref ? 'a' : 'div'}
-          class:list-link={viewMode === 'list'}
-          class="book-link import-link"
-          href={importHref}
-          role={onImportBooks || importHref ? 'link' : undefined}
-          aria-label={onImportBooks || importHref ? '从本机导入书籍' : undefined}
-          on:click={(event: MouseEvent) => {
-            if (onImportBooks) {
-              handleImportClick(event);
-            } else {
-              handleLinkClick(event, importHref);
-            }
-          }}
-        >
-          <div class="cover-shell">
-            <div class="cover import-cover" aria-hidden="true">
-              <div class="import-plus">＋</div>
-            </div>
+      {/each}
           </div>
-          {#if viewMode === 'list'}
-            <div class="meta list-meta import-meta import-meta-list">
-              <div class="list-copy">
+        </section>
+      {/each}
+
+      {#if showImportTile}
+        <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="导入书籍">
+          <svelte:element
+            this={onImportBooks || importHref ? 'a' : 'div'}
+            class:list-link={viewMode === 'list'}
+            class="book-link import-link"
+            href={importHref}
+            role={onImportBooks || importHref ? 'link' : undefined}
+            aria-label={onImportBooks || importHref ? '从本机导入书籍' : undefined}
+            on:click={(event: MouseEvent) => {
+              if (onImportBooks) {
+                handleImportClick(event);
+              } else {
+                handleLinkClick(event, importHref);
+              }
+            }}
+          >
+            <div class="cover-shell">
+              <div class="cover import-cover" aria-hidden="true">
+                <div class="import-plus">＋</div>
+              </div>
+            </div>
+            {#if viewMode === 'list'}
+              <div class="meta list-meta import-meta import-meta-list">
+                <div class="list-copy">
+                  <strong>导入书籍</strong>
+                  <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
+                  <div class="meta-pills">
+                    <span class="meta-pill strong">本机导入</span>
+                    <span class="meta-pill">本机文件</span>
+                  </div>
+                </div>
+                <div class="list-trailing">
+                  <div class="trailing-copy">
+                    <small>立即导入</small>
+                    <em>把本机已有书籍并入当前书库。</em>
+                  </div>
+                  <div class="inline-actions" aria-hidden="true">
+                    <span class="action-dot">＋</span>
+                  </div>
+                </div>
+              </div>
+            {:else}
+              <div class="meta import-meta">
                 <strong>导入书籍</strong>
                 <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
-                <div class="meta-pills">
-                  <span class="meta-pill strong">本机导入</span>
-                  <span class="meta-pill">本机文件</span>
-                </div>
+                <p>把本机已有书籍并入当前书库。</p>
               </div>
-              <div class="list-trailing">
-                <div class="trailing-copy">
-                  <small>立即导入</small>
-                  <em>把本机已有书籍并入当前书库。</em>
-                </div>
-                <div class="inline-actions" aria-hidden="true">
-                  <span class="action-dot">＋</span>
-                </div>
-              </div>
-            </div>
-          {:else}
-            <div class="meta import-meta">
-              <strong>导入书籍</strong>
-              <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
-              <p>把本机已有书籍并入当前书库。</p>
-            </div>
-          {/if}
-        </svelte:element>
-      </article>
+            {/if}
+          </svelte:element>
+        </article>
+      {/if}
     {/if}
   </div>
 </section>
@@ -676,24 +798,6 @@
     gap: 18px;
   }
 
-  .group-enter-action {
-    width: auto;
-    height: auto;
-    min-height: 24px;
-    padding: 5px 10px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
-    color: var(--text-secondary);
-    font: 600 10px/1 var(--font-chrome);
-    letter-spacing: 0.01em;
-  }
-
-  .group-enter-action:hover {
-    color: var(--text-primary);
-    background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
-  }
-
   .group-section {
     display: grid;
     gap: 10px;
@@ -701,6 +805,100 @@
 
   .group-section.ungrouped {
     gap: 0;
+  }
+
+  .group-card {
+    display: grid;
+    gap: 7px;
+    width: 100%;
+    max-width: 196px;
+    font-family: var(--font-chrome);
+  }
+
+  .group-card-link {
+    display: grid;
+    gap: 9px;
+    width: 100%;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .group-cover-shell {
+    position: relative;
+    aspect-ratio: 28 / 41;
+    border-radius: 12px;
+    padding: 10px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 84%, white 16%),
+      0 10px 28px rgba(35, 28, 18, 0.08);
+  }
+
+  .group-cover-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+  }
+
+  .group-cover-grid.group-cover-strip {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .group-cover-cell {
+    min-width: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--surface-reader) 84%, white 16%);
+    box-shadow: 0 6px 18px rgba(33, 24, 15, 0.12);
+  }
+
+  .group-cover-strip .group-cover-cell {
+    flex: 0 0 62px;
+  }
+
+  .group-cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .group-cover-fallback {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 86%, #ead7b6 14%);
+    color: color-mix(in srgb, var(--text-primary) 90%, #6f4d26 10%);
+    font: 600 9px/1.3 var(--font-reading);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .group-cover-badge {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    background: rgba(34, 28, 20, 0.72);
+    color: rgba(255, 249, 240, 0.94);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
   }
 
   .group-head {
@@ -751,6 +949,11 @@
     border-bottom: 0;
   }
 
+  .list .group-card:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
   .book-card {
     display: grid;
     gap: 7px;
@@ -758,6 +961,28 @@
     max-width: 176px;
     font-family: var(--font-chrome);
     transition: transform 120ms ease;
+  }
+
+  .list .group-card {
+    max-width: none;
+    padding: 6px 0 14px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .list .group-card-link {
+    grid-template-columns: minmax(0, 176px) minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+  }
+
+  .list .group-cover-shell {
+    aspect-ratio: auto;
+    height: var(--card-row-height);
+  }
+
+  .group-meta strong,
+  .group-list-meta strong {
+    color: var(--text-primary);
   }
 
   .detail-action {
