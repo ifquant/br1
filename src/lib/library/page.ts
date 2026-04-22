@@ -6,6 +6,45 @@ import type {
 
 export type LibraryFilter = 'all' | 'reading' | 'unstarted' | 'finished';
 
+export type LibraryFilterState = {
+  summaryBooks: LibraryShelfBook[];
+  statusOptionCounts: Record<LibraryFilter, number>;
+  formatOptions: string[];
+  collectionOptions: string[];
+  tagOptions: string[];
+  formatOptionCounts: Record<string, number>;
+  collectionOptionCounts: Record<string, number>;
+  tagOptionCounts: Record<string, number>;
+  formatSummary: string;
+  collectionSummary: string;
+  tagSummary: string;
+  coverSummary: string;
+};
+
+export type LibraryActiveFilterState = {
+  activeFilterDetail: string;
+  activeFilterChips: LibraryActiveFilterChip[];
+};
+
+export type LibraryBrowseDerivations = {
+  searchActive: boolean;
+  groupedBrowseMode: boolean;
+  continueReadingBooks: LibraryShelfBook[];
+  recentReadingBooks: LibraryShelfBook[];
+  shelfBooks: LibraryShelfBook[];
+  filteredContinueReadingBooks: LibraryShelfBook[];
+  filteredRecentReadingBooks: LibraryShelfBook[];
+  filteredBrowseBooks: LibraryShelfBook[];
+  filteredShelfBooks: LibraryShelfBook[];
+  visibleBooksCount: number;
+  workflowNotice: { title: string; message: string } | null;
+};
+
+export type DesktopLibraryBrowseDerivations = LibraryBrowseDerivations & {
+  recoveryQueueBooks: LibraryShelfBook[];
+  filteredRecoveryQueueBooks: LibraryShelfBook[];
+};
+
 export const getLibraryBookKey = (book: LibraryShelfBook) =>
   book.readerHref || `${book.title}::${book.author}`;
 
@@ -444,4 +483,264 @@ export const getStarterReadingWorkflowNotice = ({
     };
   }
   return null;
+};
+
+export const buildLibraryFilterState = ({
+  summaryBooks,
+}: {
+  summaryBooks: LibraryShelfBook[];
+}): LibraryFilterState => ({
+  summaryBooks,
+  statusOptionCounts: getLibraryStatusOptionCounts(summaryBooks),
+  formatOptions: getLibraryFormatOptions(summaryBooks),
+  collectionOptions: getLibraryCollectionOptions(summaryBooks),
+  tagOptions: getLibraryTagOptions(summaryBooks),
+  formatOptionCounts: getLibraryFormatOptionCounts(summaryBooks),
+  collectionOptionCounts: getLibraryCollectionOptionCounts(summaryBooks),
+  tagOptionCounts: getLibraryTagOptionCounts(summaryBooks),
+  formatSummary: getLibraryFormatSummary(summaryBooks),
+  collectionSummary: getLibraryCollectionSummary(summaryBooks),
+  tagSummary: getLibraryTagSummary(summaryBooks),
+  coverSummary: getLibraryCoverSummary(summaryBooks)
+});
+
+export const buildLibraryActiveFilterState = ({
+  searchActive,
+  query,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter
+}: {
+  searchActive: boolean;
+  query: string;
+  filterBy: LibraryFilter;
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+}): LibraryActiveFilterState => ({
+  activeFilterDetail: getLibraryActiveFilterDetail(
+    searchActive,
+    query,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter
+  ),
+  activeFilterChips: getLibraryActiveFilterChips(
+    searchActive,
+    query,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter
+  )
+});
+
+export const buildDesktopLibraryBrowseDerivations = ({
+  books,
+  query,
+  sortBy,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter,
+  groupBy,
+  groupScope
+}: {
+  books: LibraryShelfBook[];
+  query: string;
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  filterBy: LibraryFilter;
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+  groupBy: 'none' | 'author' | 'collection' | 'format';
+  groupScope: string;
+}): DesktopLibraryBrowseDerivations => {
+  const searchActive = normalizeLibrarySearchText(query).length > 0;
+  const sortedByRecent = sortBooksForDisplay(books, 'recent');
+  const sortedByCurrent = sortBooksForDisplay(books, sortBy);
+  const recoveryQueueBooks = searchActive ? [] : getRecoveryQueueBooks(sortedByRecent);
+  const continueReadingBooks = searchActive ? [] : getContinueReadingBooks(books);
+  const recentReadingBooks = searchActive
+    ? []
+    : getRecentReadingBooks(sortedByRecent, continueReadingBooks);
+  const shelfBooks = searchActive
+    ? getFilteredBooks(sortedByCurrent, query)
+    : getLibraryShelfBooks(sortedByCurrent, [...continueReadingBooks, ...recentReadingBooks]);
+  const filteredRecoveryQueueBooks = filterBooksForLibraryView(
+    recoveryQueueBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    'none',
+    ''
+  );
+  const filteredContinueReadingBooks = filterBooksForLibraryView(
+    continueReadingBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    'none',
+    ''
+  );
+  const filteredRecentReadingBooks = filterBooksForLibraryView(
+    recentReadingBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    'none',
+    ''
+  );
+  const filteredBrowseBooks = filterBooksForLibraryView(
+    shelfBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    'none',
+    ''
+  );
+  const filteredShelfBooks = filterBooksForLibraryView(
+    shelfBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    groupBy,
+    groupScope
+  );
+  const groupedBrowseMode = groupBy !== 'none';
+  const visibleBooksCount = groupedBrowseMode
+    ? filteredShelfBooks.length
+    : filteredRecoveryQueueBooks.length +
+      filteredContinueReadingBooks.length +
+      filteredRecentReadingBooks.length +
+      filteredShelfBooks.length;
+
+  return {
+    searchActive,
+    groupedBrowseMode,
+    recoveryQueueBooks,
+    filteredRecoveryQueueBooks,
+    continueReadingBooks,
+    recentReadingBooks,
+    shelfBooks,
+    filteredContinueReadingBooks,
+    filteredRecentReadingBooks,
+    filteredBrowseBooks,
+    filteredShelfBooks,
+    visibleBooksCount,
+    workflowNotice: getReadingWorkflowNotice({
+      groupedBrowseMode,
+      searchActive,
+      filterBy,
+      collectionFilter,
+      tagFilter,
+      importedBooks: books,
+      filteredContinueReadingBooks,
+      filteredRecentReadingBooks
+    })
+  };
+};
+
+export const buildStarterLibraryBrowseDerivations = ({
+  books,
+  query,
+  sortBy,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter,
+  groupBy,
+  groupScope
+}: {
+  books: LibraryShelfBook[];
+  query: string;
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  filterBy: LibraryFilter;
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+  groupBy: 'none' | 'author' | 'collection' | 'format';
+  groupScope: string;
+}): LibraryBrowseDerivations => {
+  const searchActive = normalizeLibrarySearchText(query).length > 0;
+  const sortedByRecent = sortBooksForDisplay(books, 'recent');
+  const sortedByCurrent = sortBooksForDisplay(books, sortBy);
+  const continueReadingBooks = searchActive ? [] : getContinueReadingBooks(books);
+  const recentReadingBooks = searchActive
+    ? []
+    : getRecentReadingBooks(sortedByRecent, continueReadingBooks);
+  const shelfBooks = searchActive
+    ? getFilteredBooks(sortedByCurrent, query)
+    : getLibraryShelfBooks(sortedByCurrent, [...continueReadingBooks, ...recentReadingBooks]);
+  const filteredContinueReadingBooks = filterBooksForLibraryView(
+    continueReadingBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    'none',
+    ''
+  );
+  const filteredRecentReadingBooks = filterBooksForLibraryView(
+    recentReadingBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    'none',
+    ''
+  );
+  const filteredBrowseBooks = filterBooksForLibraryView(
+    shelfBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    'none',
+    ''
+  );
+  const filteredShelfBooks = filterBooksForLibraryView(
+    shelfBooks,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    groupBy,
+    groupScope
+  );
+  const groupedBrowseMode = groupBy !== 'none';
+  const visibleBooksCount = groupedBrowseMode
+    ? filteredShelfBooks.length
+    : filteredContinueReadingBooks.length +
+      filteredRecentReadingBooks.length +
+      filteredShelfBooks.length;
+
+  return {
+    searchActive,
+    groupedBrowseMode,
+    continueReadingBooks,
+    recentReadingBooks,
+    shelfBooks,
+    filteredContinueReadingBooks,
+    filteredRecentReadingBooks,
+    filteredBrowseBooks,
+    filteredShelfBooks,
+    visibleBooksCount,
+    workflowNotice: getStarterReadingWorkflowNotice({
+      groupedBrowseMode,
+      searchActive,
+      filterBy,
+      collectionFilter,
+      tagFilter,
+      filteredStarterContinueReadingBooks: filteredContinueReadingBooks,
+      filteredStarterRecentReadingBooks: filteredRecentReadingBooks
+    })
+  };
 };

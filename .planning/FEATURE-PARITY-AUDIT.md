@@ -212,6 +212,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - those desktop/starter body models are now also built in a shared `library/body.ts` helper instead of being assembled inline in `+page.svelte`, so body-level recovery copy, empty-state recovery, and workflow shelf composition are no longer expanding the route file itself
 - the library page chrome now also travels through a shared chrome model and builder, so header summaries, filter state, notice rendering, and Readest migration banner state are no longer passed from the route as one giant prop matrix into `LibraryPageChrome` and `LibraryHeader`
 - the remaining search/sort/filter/workflow pure derivations now also live in a shared `library/page.ts` helper instead of being defined inline in `+page.svelte`, so the route is no longer the only place that knows how to derive continue/recent shelves, filter chips/detail, option counts, summaries, and workflow notices from the current library state
+- those page-level derivations now also have shared desktop/starter builders plus a shared inventory-vs-active-filter split, so `+page.svelte` no longer assembles the desktop and starter browse lists one reactive line at a time and no longer mixes filter-option inventories with active-filter labels in the same local reactive block
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 
