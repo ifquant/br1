@@ -32,10 +32,11 @@
   import {
     BookshelfPreview,
     ContinueReadingShelf,
+    LibraryBrowseOverview,
+    LibraryBrowseTrailLandings,
     LibraryBrowseNavigator,
     LibraryHeader
   } from '$lib/components';
-  import LibraryBrowseGuardHint from '$lib/components/library/LibraryBrowseGuardHint.svelte';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import type {
@@ -1913,6 +1914,27 @@
       )
     );
 
+  const getLibraryLandingGroupBy = (landing: { index: number }) =>
+    (libraryBrowseTrail[landing.index]?.groupBy ??
+      (libraryGroupBy === 'none' ? 'author' : libraryGroupBy)) as LibraryGroupBy;
+
+  const getLibraryTrailActionExplanations = (landing: { index: number }) =>
+    collectLibraryBrowseExplanations([getLibraryJumpTrailExplanation(landing.index)]);
+
+  const getLibraryBlockedTrailGroupExplanations = (
+    landing: { index: number; scopedBooks: LibraryShelfBook[] },
+    groupBy: LibraryGroupBy
+  ) =>
+    collectLibraryBrowseExplanations(
+      landing.scopedBooks.map((book) =>
+        getLibraryEnterFromTrailExplanation(
+          landing.index,
+          getLibraryGroupLabel(book, groupBy),
+          groupBy
+        )
+      )
+    );
+
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
     const result = getNextLibraryBrowseState(
       getCurrentLibraryBrowseState(),
@@ -2340,247 +2362,60 @@
             onSelectPivot={handleLibraryGroupPivot}
           />
         {/if}
-        {#if desktopTrailLandings.length > 0}
-          <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
-            {#each desktopTrailLandings as landing}
-              {@const desktopTrailActionExplanations = collectLibraryBrowseExplanations([
-                getLibraryJumpTrailExplanation(landing.index)
-              ])}
-              {@const desktopTrailSiblingExplanations = getLibraryTrailSiblingExplanations(
-                landing.index,
-                landing.siblingGroups
-              )}
-              <div class="group-browse-trail-card">
-                <div class="group-browse-trail-copy">
-                  <span class="group-browse-eyebrow">{landing.eyebrow}</span>
-                  <strong>{landing.title}</strong>
-                  <p>{landing.summary}</p>
-                  <LibraryBrowseGuardHint
-                    explanations={desktopTrailActionExplanations}
-                    heading="这一层的返回入口暂不可用"
-                  />
-                  <div class="group-browse-trail-actions">
-                    <button
-                      type="button"
-                      class="group-browse-trail-action"
-                      disabled={!getLibraryJumpTrailAvailability(landing.index)}
-                      title={!getLibraryJumpTrailAvailability(landing.index)
-                        ? getLibraryJumpTrailReasonLabel(landing.index)
-                        : ''}
-                      on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
-                    >
-                      回到这一层
-                    </button>
-                  </div>
-                </div>
-                <div class="group-browse-trail-metrics">
-                  {#each landing.metrics as metric}
-                    <div class="group-browse-trail-metric">
-                      <span>{metric.label}</span>
-                      <strong>{metric.value}</strong>
-                    </div>
-                  {/each}
-                </div>
-                {#if landing.siblingGroups.length > 0}
-                  <div class="group-browse-sibling-graph">
-                    <span class="group-browse-sibling-title">同层其它分组</span>
-                    <LibraryBrowseGuardHint
-                      explanations={desktopTrailSiblingExplanations}
-                      heading="这一层的同层切换里有暂不可用的入口"
-                    />
-                    <div class="group-browse-sibling-list">
-                      {#each landing.siblingGroups as sibling}
-                        <button
-                          type="button"
-                          class="group-browse-sibling"
-                          disabled={!getLibrarySiblingAvailability(
-                            sibling.label,
-                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                            libraryBrowseTrail.slice(0, landing.index)
-                          )}
-                          title={!getLibrarySiblingAvailability(
-                            sibling.label,
-                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                            libraryBrowseTrail.slice(0, landing.index)
-                          )
-                            ? getLibrarySiblingReasonLabel(
-                                sibling.label,
-                                libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                                libraryBrowseTrail.slice(0, landing.index)
-                              )
-                            : ''}
-                          on:click={() =>
-                            enterLibrarySiblingGroup(
-                              sibling.label,
-                              libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                              libraryBrowseTrail.slice(0, landing.index)
-                            )}
-                        >
-                          <strong>{sibling.label}</strong>
-                          <small>{sibling.count} 本</small>
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
-                {#if landing.subgroupShelves.length > 0}
-                  <div class="group-browse-trail-subgroups">
-                    {#each landing.subgroupShelves as subgroupShelf}
-                      <div class="group-browse-subgroup-shelf">
-                        <div class="group-browse-subgroup-copy">
-                          <strong>{subgroupShelf.title}</strong>
-                          <span>{subgroupShelf.description}</span>
-                        </div>
-                        <BookshelfPreview
-                          sectionTitle={subgroupShelf.title}
-                          books={landing.scopedBooks}
-                          viewMode={libraryViewMode}
-                          groupBy={subgroupShelf.groupBy}
-                          activeGroupLabel=""
-                          showImportTile={false}
-                          blockedGroupExplanations={collectLibraryBrowseExplanations(
-                            landing.scopedBooks.map((book) =>
-                              getLibraryEnterFromTrailExplanation(
-                                landing.index,
-                                getLibraryGroupLabel(book, subgroupShelf.groupBy),
-                                subgroupShelf.groupBy
-                              )
-                            )
-                          )}
-                          groupEnterHintSurface="subgroup"
-                          onEnterGroupAvailable={(label, nextGroupBy) =>
-                            getLibraryEnterFromTrailAvailability(
-                              landing.index,
-                              label,
-                              nextGroupBy
-                            )}
-                          onEnterGroupReasonLabel={(label, nextGroupBy) =>
-                            getLibraryEnterFromTrailReasonLabel(
-                              landing.index,
-                              label,
-                              nextGroupBy
-                            )}
-                          onEnterGroup={(label, nextGroupBy) =>
-                            enterLibraryGroupFromTrail(landing.index, label, nextGroupBy)}
-                          onOpenLink={handleOpenReaderTarget}
-                        />
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </section>
-        {/if}
+        <LibraryBrowseTrailLandings
+          landings={desktopTrailLandings}
+          viewMode={libraryViewMode}
+          getLandingGroupBy={getLibraryLandingGroupBy}
+          getTrailActionExplanations={getLibraryTrailActionExplanations}
+          getTrailSiblingExplanations={(landing) =>
+            getLibraryTrailSiblingExplanations(landing.index, landing.siblingGroups)}
+          isJumpAvailable={getLibraryJumpTrailAvailability}
+          getJumpReasonLabel={getLibraryJumpTrailReasonLabel}
+          onJumpTrail={jumpLibraryGroupTrailToIndex}
+          isSiblingAvailable={(label, groupBy, trailIndex) =>
+            getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          getSiblingReasonLabel={(label, groupBy, trailIndex) =>
+            getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          onSelectSibling={(label, groupBy, trailIndex) =>
+            enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          getBlockedGroupExplanations={getLibraryBlockedTrailGroupExplanations}
+          isEnterFromTrailAvailable={getLibraryEnterFromTrailAvailability}
+          getEnterFromTrailReasonLabel={getLibraryEnterFromTrailReasonLabel}
+          onEnterFromTrail={enterLibraryGroupFromTrail}
+          onOpenLink={handleOpenReaderTarget}
+        />
 
         {#if desktopGroupOverview}
-          {@const desktopOverviewSiblingExplanations = collectLibraryBrowseExplanations(
-            desktopCurrentSiblingGroups.map((sibling) =>
-              getLibrarySiblingExplanation(
-                sibling.label,
-                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                libraryBrowseTrail
+          <LibraryBrowseOverview
+            overview={desktopGroupOverview}
+            groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
+            siblingGroups={desktopCurrentSiblingGroups}
+            siblingGuardExplanations={collectLibraryBrowseExplanations(
+              desktopCurrentSiblingGroups.map((sibling) =>
+                getLibrarySiblingExplanation(
+                  sibling.label,
+                  libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                  libraryBrowseTrail
+                )
               )
-            )
-          )}
-          {@const desktopOverviewPivotExplanations = collectLibraryBrowseExplanations(
-            desktopGroupOverview.pivots.flatMap((section) =>
-              section.items.map((item) =>
-                getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+            )}
+            pivotGuardExplanations={collectLibraryBrowseExplanations(
+              desktopGroupOverview.pivots.flatMap((section) =>
+                section.items.map((item) =>
+                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+                )
               )
-            )
-          )}
-          <section
-            class="group-browse-overview"
-            aria-label={`${desktopGroupOverview.title} 分组概览`}
-          >
-            <div class="group-browse-copy">
-              <span class="group-browse-eyebrow">{desktopGroupOverview.eyebrow}</span>
-              <strong>{desktopGroupOverview.title}</strong>
-              <p>{desktopGroupOverview.summary}</p>
-            </div>
-            <div class="group-browse-metrics">
-              {#each desktopGroupOverview.metrics as metric}
-                <div class="group-browse-metric">
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
-                </div>
-              {/each}
-            </div>
-            {#if desktopCurrentSiblingGroups.length > 0}
-              <div class="group-browse-sibling-graph">
-                <span class="group-browse-sibling-title">同层其它分组</span>
-                <LibraryBrowseGuardHint
-                  explanations={desktopOverviewSiblingExplanations}
-                  heading="当前组的同层切换里有暂不可用的入口"
-                />
-                <div class="group-browse-sibling-list">
-                  {#each desktopCurrentSiblingGroups as sibling}
-                    <button
-                      type="button"
-                      class="group-browse-sibling"
-                      disabled={!getLibrarySiblingAvailability(
-                        sibling.label,
-                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                        libraryBrowseTrail
-                      )}
-                      title={!getLibrarySiblingAvailability(
-                        sibling.label,
-                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                        libraryBrowseTrail
-                      )
-                        ? getLibrarySiblingReasonLabel(
-                            sibling.label,
-                            libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                            libraryBrowseTrail
-                          )
-                        : ''}
-                      on:click={() =>
-                        enterLibrarySiblingGroup(
-                          sibling.label,
-                          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                          libraryBrowseTrail
-                        )}
-                    >
-                      <strong>{sibling.label}</strong>
-                      <small>{sibling.count} 本</small>
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-            {#if desktopGroupOverview.pivots.some((section) => section.items.length > 0)}
-              <div class="group-browse-pivots">
-                <LibraryBrowseGuardHint
-                  explanations={desktopOverviewPivotExplanations}
-                  heading="当前组的跨维继续看里有暂不可用的入口"
-                />
-                {#each desktopGroupOverview.pivots as section}
-                  {#if section.items.length > 0}
-                    <div class="group-browse-pivot-section">
-                      <span class="group-browse-pivot-title">{section.title}</span>
-                      <div class="group-browse-pivot-list">
-                        {#each section.items as item}
-                          <button
-                            type="button"
-                            class="group-browse-pivot"
-                            disabled={!getLibraryEnterGroupAvailability(item.value, item.groupBy)}
-                            title={!getLibraryEnterGroupAvailability(item.value, item.groupBy)
-                              ? getLibraryEnterGroupReasonLabel(item.value, item.groupBy)
-                              : ''}
-                            on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
-                          >
-                            <strong>{item.value}</strong>
-                            <small>{item.label}</small>
-                          </button>
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-                {/each}
-              </div>
-            {/if}
-          </section>
+            )}
+            isSiblingAvailable={(label, groupBy) =>
+              getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
+            getSiblingReasonLabel={(label, groupBy) =>
+              getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail)}
+            onSelectSibling={(label, groupBy) =>
+              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
+            isPivotAvailable={isLibraryPivotAvailable}
+            getPivotReasonLabel={getLibraryPivotReasonLabel}
+            onSelectPivot={handleLibraryGroupPivot}
+          />
         {/if}
 
         {@const desktopSubgroupShelves = getActiveLibrarySubgroupShelves(
@@ -2801,247 +2636,60 @@
             onSelectPivot={handleLibraryGroupPivot}
           />
         {/if}
-        {#if starterTrailLandings.length > 0}
-          <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
-            {#each starterTrailLandings as landing}
-              {@const starterTrailActionExplanations = collectLibraryBrowseExplanations([
-                getLibraryJumpTrailExplanation(landing.index)
-              ])}
-              {@const starterTrailSiblingExplanations = getLibraryTrailSiblingExplanations(
-                landing.index,
-                landing.siblingGroups
-              )}
-              <div class="group-browse-trail-card">
-                <div class="group-browse-trail-copy">
-                  <span class="group-browse-eyebrow">{landing.eyebrow}</span>
-                  <strong>{landing.title}</strong>
-                  <p>{landing.summary}</p>
-                  <LibraryBrowseGuardHint
-                    explanations={starterTrailActionExplanations}
-                    heading="这一层的返回入口暂不可用"
-                  />
-                  <div class="group-browse-trail-actions">
-                    <button
-                      type="button"
-                      class="group-browse-trail-action"
-                      disabled={!getLibraryJumpTrailAvailability(landing.index)}
-                      title={!getLibraryJumpTrailAvailability(landing.index)
-                        ? getLibraryJumpTrailReasonLabel(landing.index)
-                        : ''}
-                      on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
-                    >
-                      回到这一层
-                    </button>
-                  </div>
-                </div>
-                <div class="group-browse-trail-metrics">
-                  {#each landing.metrics as metric}
-                    <div class="group-browse-trail-metric">
-                      <span>{metric.label}</span>
-                      <strong>{metric.value}</strong>
-                    </div>
-                  {/each}
-                </div>
-                {#if landing.siblingGroups.length > 0}
-                  <div class="group-browse-sibling-graph">
-                    <span class="group-browse-sibling-title">同层其它分组</span>
-                    <LibraryBrowseGuardHint
-                      explanations={starterTrailSiblingExplanations}
-                      heading="这一层的同层切换里有暂不可用的入口"
-                    />
-                    <div class="group-browse-sibling-list">
-                      {#each landing.siblingGroups as sibling}
-                        <button
-                          type="button"
-                          class="group-browse-sibling"
-                          disabled={!getLibrarySiblingAvailability(
-                            sibling.label,
-                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                            libraryBrowseTrail.slice(0, landing.index)
-                          )}
-                          title={!getLibrarySiblingAvailability(
-                            sibling.label,
-                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                            libraryBrowseTrail.slice(0, landing.index)
-                          )
-                            ? getLibrarySiblingReasonLabel(
-                                sibling.label,
-                                libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                                libraryBrowseTrail.slice(0, landing.index)
-                              )
-                            : ''}
-                          on:click={() =>
-                            enterLibrarySiblingGroup(
-                              sibling.label,
-                              libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
-                              libraryBrowseTrail.slice(0, landing.index)
-                            )}
-                        >
-                          <strong>{sibling.label}</strong>
-                          <small>{sibling.count} 本</small>
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
-                {#if landing.subgroupShelves.length > 0}
-                  <div class="group-browse-trail-subgroups">
-                    {#each landing.subgroupShelves as subgroupShelf}
-                      <div class="group-browse-subgroup-shelf">
-                        <div class="group-browse-subgroup-copy">
-                          <strong>{subgroupShelf.title}</strong>
-                          <span>{subgroupShelf.description}</span>
-                        </div>
-                        <BookshelfPreview
-                          sectionTitle={subgroupShelf.title}
-                          books={landing.scopedBooks}
-                          viewMode={libraryViewMode}
-                          groupBy={subgroupShelf.groupBy}
-                          activeGroupLabel=""
-                          showImportTile={false}
-                          blockedGroupExplanations={collectLibraryBrowseExplanations(
-                            landing.scopedBooks.map((book) =>
-                              getLibraryEnterFromTrailExplanation(
-                                landing.index,
-                                getLibraryGroupLabel(book, subgroupShelf.groupBy),
-                                subgroupShelf.groupBy
-                              )
-                            )
-                          )}
-                          groupEnterHintSurface="subgroup"
-                          onEnterGroupAvailable={(label, nextGroupBy) =>
-                            getLibraryEnterFromTrailAvailability(
-                              landing.index,
-                              label,
-                              nextGroupBy
-                            )}
-                          onEnterGroupReasonLabel={(label, nextGroupBy) =>
-                            getLibraryEnterFromTrailReasonLabel(
-                              landing.index,
-                              label,
-                              nextGroupBy
-                            )}
-                          onEnterGroup={(label, nextGroupBy) =>
-                            enterLibraryGroupFromTrail(landing.index, label, nextGroupBy)}
-                          onOpenLink={handleOpenReaderTarget}
-                        />
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </section>
-        {/if}
+        <LibraryBrowseTrailLandings
+          landings={starterTrailLandings}
+          viewMode={libraryViewMode}
+          getLandingGroupBy={getLibraryLandingGroupBy}
+          getTrailActionExplanations={getLibraryTrailActionExplanations}
+          getTrailSiblingExplanations={(landing) =>
+            getLibraryTrailSiblingExplanations(landing.index, landing.siblingGroups)}
+          isJumpAvailable={getLibraryJumpTrailAvailability}
+          getJumpReasonLabel={getLibraryJumpTrailReasonLabel}
+          onJumpTrail={jumpLibraryGroupTrailToIndex}
+          isSiblingAvailable={(label, groupBy, trailIndex) =>
+            getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          getSiblingReasonLabel={(label, groupBy, trailIndex) =>
+            getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          onSelectSibling={(label, groupBy, trailIndex) =>
+            enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          getBlockedGroupExplanations={getLibraryBlockedTrailGroupExplanations}
+          isEnterFromTrailAvailable={getLibraryEnterFromTrailAvailability}
+          getEnterFromTrailReasonLabel={getLibraryEnterFromTrailReasonLabel}
+          onEnterFromTrail={enterLibraryGroupFromTrail}
+          onOpenLink={handleOpenReaderTarget}
+        />
 
         {#if starterGroupOverview}
-          {@const starterOverviewSiblingExplanations = collectLibraryBrowseExplanations(
-            starterCurrentSiblingGroups.map((sibling) =>
-              getLibrarySiblingExplanation(
-                sibling.label,
-                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                libraryBrowseTrail
+          <LibraryBrowseOverview
+            overview={starterGroupOverview}
+            groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
+            siblingGroups={starterCurrentSiblingGroups}
+            siblingGuardExplanations={collectLibraryBrowseExplanations(
+              starterCurrentSiblingGroups.map((sibling) =>
+                getLibrarySiblingExplanation(
+                  sibling.label,
+                  libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                  libraryBrowseTrail
+                )
               )
-            )
-          )}
-          {@const starterOverviewPivotExplanations = collectLibraryBrowseExplanations(
-            starterGroupOverview.pivots.flatMap((section) =>
-              section.items.map((item) =>
-                getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+            )}
+            pivotGuardExplanations={collectLibraryBrowseExplanations(
+              starterGroupOverview.pivots.flatMap((section) =>
+                section.items.map((item) =>
+                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+                )
               )
-            )
-          )}
-          <section
-            class="group-browse-overview"
-            aria-label={`${starterGroupOverview.title} 分组概览`}
-          >
-            <div class="group-browse-copy">
-              <span class="group-browse-eyebrow">{starterGroupOverview.eyebrow}</span>
-              <strong>{starterGroupOverview.title}</strong>
-              <p>{starterGroupOverview.summary}</p>
-            </div>
-            <div class="group-browse-metrics">
-              {#each starterGroupOverview.metrics as metric}
-                <div class="group-browse-metric">
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
-                </div>
-              {/each}
-            </div>
-            {#if starterCurrentSiblingGroups.length > 0}
-              <div class="group-browse-sibling-graph">
-                <span class="group-browse-sibling-title">同层其它分组</span>
-                <LibraryBrowseGuardHint
-                  explanations={starterOverviewSiblingExplanations}
-                  heading="当前组的同层切换里有暂不可用的入口"
-                />
-                <div class="group-browse-sibling-list">
-                  {#each starterCurrentSiblingGroups as sibling}
-                    <button
-                      type="button"
-                      class="group-browse-sibling"
-                      disabled={!getLibrarySiblingAvailability(
-                        sibling.label,
-                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                        libraryBrowseTrail
-                      )}
-                      title={!getLibrarySiblingAvailability(
-                        sibling.label,
-                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                        libraryBrowseTrail
-                      )
-                        ? getLibrarySiblingReasonLabel(
-                            sibling.label,
-                            libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                            libraryBrowseTrail
-                          )
-                        : ''}
-                      on:click={() =>
-                        enterLibrarySiblingGroup(
-                          sibling.label,
-                          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                          libraryBrowseTrail
-                        )}
-                    >
-                      <strong>{sibling.label}</strong>
-                      <small>{sibling.count} 本</small>
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-            {#if starterGroupOverview.pivots.some((section) => section.items.length > 0)}
-              <div class="group-browse-pivots">
-                <LibraryBrowseGuardHint
-                  explanations={starterOverviewPivotExplanations}
-                  heading="当前组的跨维继续看里有暂不可用的入口"
-                />
-                {#each starterGroupOverview.pivots as section}
-                  {#if section.items.length > 0}
-                    <div class="group-browse-pivot-section">
-                      <span class="group-browse-pivot-title">{section.title}</span>
-                      <div class="group-browse-pivot-list">
-                        {#each section.items as item}
-                          <button
-                            type="button"
-                            class="group-browse-pivot"
-                            disabled={!getLibraryEnterGroupAvailability(item.value, item.groupBy)}
-                            title={!getLibraryEnterGroupAvailability(item.value, item.groupBy)
-                              ? getLibraryEnterGroupReasonLabel(item.value, item.groupBy)
-                              : ''}
-                            on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
-                          >
-                            <strong>{item.value}</strong>
-                            <small>{item.label}</small>
-                          </button>
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-                {/each}
-              </div>
-            {/if}
-          </section>
+            )}
+            isSiblingAvailable={(label, groupBy) =>
+              getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
+            getSiblingReasonLabel={(label, groupBy) =>
+              getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail)}
+            onSelectSibling={(label, groupBy) =>
+              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
+            isPivotAvailable={isLibraryPivotAvailable}
+            getPivotReasonLabel={getLibraryPivotReasonLabel}
+            onSelectPivot={handleLibraryGroupPivot}
+          />
         {/if}
 
         {@const starterSubgroupShelves = getActiveLibrarySubgroupShelves(
@@ -3293,276 +2941,6 @@
     color: var(--text-secondary);
   }
 
-  .group-browse-overview {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
-    gap: 14px;
-    padding: 14px 16px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.26),
-      0 10px 24px rgba(42, 30, 15, 0.05);
-  }
-
-  .group-browse-trail-landing {
-    display: grid;
-    gap: 12px;
-  }
-
-  .group-browse-trail-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
-    gap: 14px;
-    align-items: start;
-    padding: 14px 16px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
-    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.24),
-      0 10px 22px rgba(42, 30, 15, 0.04);
-    text-align: left;
-  }
-
-  .group-browse-trail-copy {
-    display: grid;
-    gap: 5px;
-    min-width: 0;
-  }
-
-  .group-browse-trail-copy strong {
-    color: var(--text-primary);
-    font: 600 15px/1.2 var(--font-chrome);
-  }
-
-  .group-browse-trail-copy p {
-    margin: 0;
-    max-width: 58ch;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.45;
-  }
-
-  .group-browse-trail-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 2px;
-  }
-
-  .group-browse-trail-action {
-    width: auto;
-    min-height: 30px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
-    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
-    color: var(--text-primary);
-    font: 600 11px/1 var(--font-chrome);
-  }
-
-  .group-browse-trail-action:hover {
-    border-color: color-mix(in srgb, #8c6a3b 22%, var(--line-soft) 78%);
-    background: color-mix(in srgb, var(--surface-reader) 70%, white 30%);
-  }
-
-  .group-browse-trail-action:disabled {
-    cursor: not-allowed;
-    opacity: 0.56;
-  }
-
-  .group-browse-trail-action:disabled:hover {
-    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
-    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
-  }
-
-  .group-browse-trail-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    align-self: start;
-  }
-
-  .group-browse-trail-metric {
-    display: grid;
-    gap: 6px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
-  }
-
-  .group-browse-trail-metric span {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
-    letter-spacing: 0.04em;
-  }
-
-  .group-browse-trail-metric strong {
-    color: var(--text-primary);
-    font: 600 14px/1.1 var(--font-chrome);
-  }
-
-  .group-browse-trail-subgroups {
-    display: grid;
-    gap: 14px;
-    grid-column: 1 / -1;
-  }
-
-  .group-browse-sibling-graph {
-    display: grid;
-    gap: 8px;
-    grid-column: 1 / -1;
-  }
-
-  .group-browse-sibling-title {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
-    letter-spacing: 0.04em;
-  }
-
-  .group-browse-sibling-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .group-browse-sibling {
-    display: inline-grid;
-    gap: 4px;
-    justify-items: start;
-    width: auto;
-    min-height: 0;
-    padding: 9px 11px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
-    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
-    box-shadow: 0 8px 20px rgba(42, 30, 15, 0.04);
-  }
-
-  .group-browse-sibling:hover {
-    border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
-    background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
-  }
-
-  .group-browse-sibling:disabled {
-    cursor: not-allowed;
-    opacity: 0.56;
-    box-shadow: none;
-  }
-
-  .group-browse-sibling:disabled:hover {
-    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
-    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
-  }
-
-  .group-browse-sibling strong {
-    color: var(--text-primary);
-    font: 600 12px/1.2 var(--font-chrome);
-  }
-
-  .group-browse-sibling small {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
-  }
-
-  .group-browse-copy {
-    display: grid;
-    gap: 5px;
-    min-width: 0;
-  }
-
-  .group-browse-eyebrow {
-    color: var(--text-muted);
-    font: 700 10px/1 var(--font-chrome);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .group-browse-copy strong {
-    color: var(--text-primary);
-    font: 600 16px/1.2 var(--font-chrome);
-  }
-
-  .group-browse-copy p {
-    margin: 0;
-    max-width: 56ch;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .group-browse-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .group-browse-pivots {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    grid-column: 1 / -1;
-  }
-
-  .group-browse-pivot-section {
-    display: grid;
-    gap: 8px;
-    align-content: start;
-  }
-
-  .group-browse-pivot-title {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
-    letter-spacing: 0.04em;
-  }
-
-  .group-browse-pivot-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .group-browse-pivot {
-    display: inline-grid;
-    gap: 4px;
-    justify-items: start;
-    min-width: 0;
-    padding: 9px 11px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
-    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
-    box-shadow: 0 8px 20px rgba(42, 30, 15, 0.05);
-  }
-
-  .group-browse-pivot strong {
-    color: var(--text-primary);
-    font: 600 12px/1.2 var(--font-chrome);
-  }
-
-  .group-browse-pivot small {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
-  }
-
-  .group-browse-pivot:hover {
-    background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
-    border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
-  }
-
-  .group-browse-pivot:disabled {
-    cursor: not-allowed;
-    opacity: 0.56;
-    box-shadow: none;
-  }
-
-  .group-browse-pivot:disabled:hover {
-    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
-    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
-  }
-
   .group-browse-subgroups {
     display: grid;
     gap: 18px;
@@ -3594,27 +2972,6 @@
     color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.45;
-  }
-
-  .group-browse-metric {
-    display: grid;
-    gap: 6px;
-    align-content: start;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
-  }
-
-  .group-browse-metric span {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
-    letter-spacing: 0.04em;
-  }
-
-  .group-browse-metric strong {
-    color: var(--text-primary);
-    font: 600 15px/1.1 var(--font-chrome);
   }
 
   .empty-library {
@@ -3755,16 +3112,5 @@
       align-items: start;
     }
 
-    .group-browse-overview {
-      grid-template-columns: 1fr;
-    }
-
-    .group-browse-trail-card {
-      grid-template-columns: 1fr;
-    }
-
-    .group-browse-pivots {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

@@ -37,15 +37,24 @@ export type ActiveLibraryGroupOverview = {
   eyebrow: string;
   title: string;
   summary: string;
-  metrics: Array<{ label: string; value: string }>;
-  pivots: Array<{
-    title: string;
-    items: Array<{
-      label: string;
-      value: string;
-      groupBy: LibraryGroupBy;
-    }>;
-  }>;
+  metrics: LibraryGroupMetric[];
+  pivots: LibraryGroupPivotSection[];
+};
+
+export type LibraryGroupMetric = {
+  label: string;
+  value: string;
+};
+
+export type LibraryGroupPivotItem = {
+  label: string;
+  value: string;
+  groupBy: LibraryGroupBy;
+};
+
+export type LibraryGroupPivotSection = {
+  title: string;
+  items: LibraryGroupPivotItem[];
 };
 
 export type ActiveLibrarySubgroupShelf = {
@@ -59,7 +68,7 @@ export type LibraryTrailLanding = {
   eyebrow: string;
   title: string;
   summary: string;
-  metrics: Array<{ label: string; value: string }>;
+  metrics: LibraryGroupMetric[];
   scopedBooks: LibraryShelfBook[];
   subgroupShelves: ActiveLibrarySubgroupShelf[];
   siblingGroups: Array<{ label: string; count: number }>;
