@@ -166,6 +166,7 @@
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   let libraryGroupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
+  let libraryGroupScope = '';
   let libraryFilterBy: LibraryFilter = 'all';
   let libraryFormatFilter = 'all';
   let libraryCollectionFilter = 'all';
@@ -727,16 +728,44 @@
     return books.filter((book) => book.tags?.includes(tag));
   };
 
+  const getLibraryGroupLabel = (
+    book: LibraryShelfBook,
+    groupBy: 'none' | 'author' | 'collection' | 'format'
+  ) => {
+    if (groupBy === 'author') return book.author?.trim() || '未知作者';
+    if (groupBy === 'collection') return normalizeCollectionFilterValue(book.collection);
+    if (groupBy === 'format') return normalizeFormatFilterValue(book.format);
+    return '';
+  };
+
+  const filterBooksByLibraryGroupScope = (
+    books: LibraryShelfBook[],
+    groupBy: 'none' | 'author' | 'collection' | 'format',
+    scope: string
+  ) => {
+    if (groupBy === 'none' || !scope) return books;
+    return books.filter((book) => getLibraryGroupLabel(book, groupBy) === scope);
+  };
+
   const filterBooksForLibraryView = (
     books: LibraryShelfBook[],
     filterBy: LibraryFilter,
     format: string,
     collection: string,
-    tag: string
+    tag: string,
+    groupBy: 'none' | 'author' | 'collection' | 'format',
+    groupScope: string
   ) =>
-    filterBooksByTag(
-      filterBooksByCollection(filterBooksByFormat(filterBooksByLibraryFilter(books, filterBy), format), collection),
-      tag
+    filterBooksByLibraryGroupScope(
+      filterBooksByTag(
+        filterBooksByCollection(
+          filterBooksByFormat(filterBooksByLibraryFilter(books, filterBy), format),
+          collection
+        ),
+        tag
+      ),
+      groupBy,
+      groupScope
     );
 
   const getLibraryFilterLabel = (filterBy: LibraryFilter) => {
@@ -744,6 +773,18 @@
     if (filterBy === 'unstarted') return '未开始';
     if (filterBy === 'finished') return '已读完';
     return '全部';
+  };
+
+  const getLibraryGroupScopeDescription = (
+    groupBy: 'none' | 'author' | 'collection' | 'format',
+    scope: string,
+    count: number
+  ) => {
+    if (!scope) return '';
+    if (groupBy === 'author') return `${scope} · ${count} 本`;
+    if (groupBy === 'collection') return `归类 ${scope} · ${count} 本`;
+    if (groupBy === 'format') return `格式 ${scope} · ${count} 本`;
+    return '';
   };
 
   const getLibraryActiveFilterDetail = (
@@ -807,6 +848,7 @@
       libraryViewMode,
       librarySortBy,
       libraryGroupBy,
+      libraryGroupScope || 'all-groups',
       libraryFilterBy,
       libraryFormatFilter,
       libraryCollectionFilter,
@@ -991,12 +1033,25 @@
   $: if (libraryTagFilter !== 'all' && !libraryTagOptions.includes(libraryTagFilter)) {
     libraryTagFilter = 'all';
   }
+  $: if (libraryGroupBy === 'none' && libraryGroupScope) {
+    libraryGroupScope = '';
+  }
+  $: if (
+    libraryGroupBy !== 'none' &&
+    libraryGroupScope &&
+    !libraryShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope) &&
+    !starterShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope)
+  ) {
+    libraryGroupScope = '';
+  }
   $: filteredRecoveryQueueBooks = filterBooksForLibraryView(
     recoveryQueueBooks,
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
-    libraryTagFilter
+    libraryTagFilter,
+    'none',
+    ''
   );
   $: recoveryQueueReviewBooks = filteredRecoveryQueueBooks.map(
     (book): ContinueReadingBook => ({
@@ -1025,21 +1080,27 @@
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
-    libraryTagFilter
+    libraryTagFilter,
+    'none',
+    ''
   );
   $: filteredRecentReadingBooks = filterBooksForLibraryView(
     recentReadingBooks,
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
-    libraryTagFilter
+    libraryTagFilter,
+    'none',
+    ''
   );
   $: filteredLibraryShelfBooks = filterBooksForLibraryView(
     libraryShelfBooks,
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
-    libraryTagFilter
+    libraryTagFilter,
+    libraryGroupBy,
+    libraryGroupScope
   );
   $: visibleLibraryBooksCount =
     filteredRecoveryQueueBooks.length +
@@ -1091,21 +1152,27 @@
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
-    libraryTagFilter
+    libraryTagFilter,
+    'none',
+    ''
   );
   $: filteredStarterRecentReadingBooks = filterBooksForLibraryView(
     starterRecentReadingBooks,
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
-    libraryTagFilter
+    libraryTagFilter,
+    'none',
+    ''
   );
   $: filteredStarterShelfBooks = filterBooksForLibraryView(
     starterShelfBooks,
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
-    libraryTagFilter
+    libraryTagFilter,
+    libraryGroupBy,
+    libraryGroupScope
   );
   $: visibleStarterLibraryBooksCount =
     filteredStarterContinueReadingBooks.length +
@@ -1582,6 +1649,14 @@
     librarySortBy = event.detail.sortBy;
   };
 
+  const handleEnterLibraryGroup = (label: string) => {
+    libraryGroupScope = label;
+  };
+
+  const handleExitLibraryGroup = () => {
+    libraryGroupScope = '';
+  };
+
   const handleLibraryFilterChange = (
     event: CustomEvent<{ filterBy: 'all' | 'reading' | 'unstarted' | 'finished' }>
   ) => {
@@ -1734,7 +1809,10 @@
       on:clearfilterchip={handleClearLibraryFilterChip}
       on:clearfilters={handleClearLibraryFilters}
       on:sortchange={handleLibrarySortChange}
-      on:groupbychange={(event) => (libraryGroupBy = event.detail.groupBy)}
+      on:groupbychange={(event) => {
+        libraryGroupScope = '';
+        libraryGroupBy = event.detail.groupBy;
+      }}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />
 
@@ -1847,7 +1925,15 @@
           books={filteredLibraryShelfBooks}
           viewMode={libraryViewMode}
           groupBy={libraryGroupBy}
-          showImportTile={true}
+          activeGroupLabel={libraryGroupScope}
+          activeGroupDescription={getLibraryGroupScopeDescription(
+            libraryGroupBy,
+            libraryGroupScope,
+            filteredLibraryShelfBooks.length
+          )}
+          showImportTile={!libraryGroupScope}
+          onEnterGroup={handleEnterLibraryGroup}
+          onExitGroup={handleExitLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
           onOpenSourcePath={handleOpenSourcePath}
@@ -1956,7 +2042,15 @@
           books={filteredStarterShelfBooks}
           viewMode={libraryViewMode}
           groupBy={libraryGroupBy}
-          showImportTile={true}
+          activeGroupLabel={libraryGroupScope}
+          activeGroupDescription={getLibraryGroupScopeDescription(
+            libraryGroupBy,
+            libraryGroupScope,
+            filteredStarterShelfBooks.length
+          )}
+          showImportTile={!libraryGroupScope}
+          onEnterGroup={handleEnterLibraryGroup}
+          onExitGroup={handleExitLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
           onFilterStatus={handleFilterByShelfStatus}
