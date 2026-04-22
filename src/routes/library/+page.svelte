@@ -165,6 +165,7 @@
   let bulkRepairSummary = '';
   let libraryViewMode: 'grid' | 'list' = 'grid';
   let librarySortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
+  let libraryGroupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
   let libraryFilterBy: LibraryFilter = 'all';
   let libraryFormatFilter = 'all';
   let libraryCollectionFilter = 'all';
@@ -805,6 +806,7 @@
       desktopLibraryMode ? 'desktop' : 'web',
       libraryViewMode,
       librarySortBy,
+      libraryGroupBy,
       libraryFilterBy,
       libraryFormatFilter,
       libraryCollectionFilter,
@@ -1702,6 +1704,7 @@
       query={libraryQuery}
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
+      groupBy={libraryGroupBy}
       activeFilter={libraryFilterBy}
       statusOptionCounts={libraryStatusOptionCounts}
       activeFormatFilter={libraryFormatFilter}
@@ -1731,6 +1734,7 @@
       on:clearfilterchip={handleClearLibraryFilterChip}
       on:clearfilters={handleClearLibraryFilters}
       on:sortchange={handleLibrarySortChange}
+      on:groupbychange={(event) => (libraryGroupBy = event.detail.groupBy)}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />
 
@@ -1842,6 +1846,7 @@
           sectionTitle={librarySearchActive ? '搜索结果' : '你的书库'}
           books={filteredLibraryShelfBooks}
           viewMode={libraryViewMode}
+          groupBy={libraryGroupBy}
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
@@ -1950,6 +1955,7 @@
           sectionTitle={librarySearchActive ? '搜索结果' : '你的书库'}
           books={filteredStarterShelfBooks}
           viewMode={libraryViewMode}
+          groupBy={libraryGroupBy}
           showImportTile={true}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}

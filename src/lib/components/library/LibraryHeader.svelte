@@ -7,6 +7,7 @@
   export let placeholder = '搜索书库、作者、标签';
   export let viewMode: 'grid' | 'list' = 'grid';
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
+  export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
     all: 0,
@@ -45,6 +46,7 @@
     importbooks: void;
     viewmodechange: { viewMode: 'grid' | 'list' };
     sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
+    groupbychange: { groupBy: 'none' | 'author' | 'collection' | 'format' };
     filterchange: { filterBy: 'all' | 'reading' | 'unstarted' | 'finished' };
     formatfilterchange: { format: string };
     collectionfilterchange: { collection: string };
@@ -79,6 +81,13 @@
     { value: 'reading', label: '在读' },
     { value: 'unstarted', label: '未开始' },
     { value: 'finished', label: '已读完' }
+  ] as const;
+
+  const groupOptions = [
+    { value: 'none', label: '不分组', detail: '平铺书库' },
+    { value: 'author', label: '按作者', detail: '作者书架' },
+    { value: 'collection', label: '按归类', detail: '书架归类' },
+    { value: 'format', label: '按格式', detail: '阅读格式' }
   ] as const;
 
   $: derivedPlaceholder =
@@ -147,10 +156,18 @@
 
   const handleSortChange = (nextSortBy: 'recent' | 'added' | 'title' | 'author' | 'format') => {
     if (nextSortBy === sortBy) {
-      sortMenuOpen = false;
       return;
     }
     dispatch('sortchange', { sortBy: nextSortBy });
+    sortMenuOpen = false;
+  };
+
+  const handleGroupByChange = (nextGroupBy: 'none' | 'author' | 'collection' | 'format') => {
+    if (nextGroupBy === groupBy) {
+      sortMenuOpen = false;
+      return;
+    }
+    dispatch('groupbychange', { groupBy: nextGroupBy });
     sortMenuOpen = false;
   };
 
@@ -241,7 +258,7 @@
           </button>
 
           {#if sortMenuOpen}
-            <div class="sort-menu" role="menu" aria-label="书库排序选项">
+            <div class="sort-menu" role="menu" aria-label="书库浏览选项">
               <span class="sort-menu-label">排序方式</span>
               {#each sortOptions as option}
                 <button
@@ -256,6 +273,21 @@
                   {#if sortBy === option.value}
                     <small>当前</small>
                   {/if}
+                </button>
+              {/each}
+
+              <span class="sort-menu-label secondary-label">书库分组</span>
+              {#each groupOptions as option}
+                <button
+                  type="button"
+                  class:active-sort={groupBy === option.value}
+                  class="sort-option"
+                  role="menuitemradio"
+                  aria-checked={groupBy === option.value}
+                  on:click={() => handleGroupByChange(option.value)}
+                >
+                  <span>{option.label}</span>
+                  <small>{groupBy === option.value ? '当前' : option.detail}</small>
                 </button>
               {/each}
             </div>
@@ -825,6 +857,12 @@
     line-height: 1;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  .sort-menu-label.secondary-label {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
   }
 
   .sort-option {

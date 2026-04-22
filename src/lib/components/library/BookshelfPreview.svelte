@@ -4,6 +4,7 @@
   export let sectionTitle = '最近阅读';
   export let books: BookshelfPreviewBook[] = [];
   export let viewMode: 'grid' | 'list' = 'grid';
+  export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
   export let showImportTile = false;
   export let importHref = '';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
@@ -43,6 +44,7 @@
   $: totalItems = books.length + (showImportTile ? 1 : 0);
   $: itemCountLabel = `${totalItems} 本`;
   $: viewModeLabel = viewMode === 'grid' ? '网格视图' : '列表视图';
+  $: groupedBooks = groupBooks(books, groupBy);
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
     if (!href || !onOpenLink) return;
@@ -183,6 +185,60 @@
     return book.status;
   };
 
+  const getGroupLabel = (
+    book: BookshelfPreviewBook,
+    nextGroupBy: 'none' | 'author' | 'collection' | 'format'
+  ) => {
+    if (nextGroupBy === 'author') return book.author?.trim() || '未知作者';
+    if (nextGroupBy === 'collection') return book.collection?.trim() || '未归类';
+    if (nextGroupBy === 'format') return book.format?.trim().toUpperCase() || '未知格式';
+    return '';
+  };
+
+  const getGroupDescription = (
+    label: string,
+    nextGroupBy: 'none' | 'author' | 'collection' | 'format',
+    count: number
+  ) => {
+    if (nextGroupBy === 'author') return `${label} · ${count} 本`;
+    if (nextGroupBy === 'collection') return `归类 ${label} · ${count} 本`;
+    if (nextGroupBy === 'format') return `格式 ${label} · ${count} 本`;
+    return '';
+  };
+
+  const groupBooks = (
+    sourceBooks: BookshelfPreviewBook[],
+    nextGroupBy: 'none' | 'author' | 'collection' | 'format'
+  ) => {
+    if (nextGroupBy === 'none') {
+      return [{ key: 'all', label: '', description: '', books: sourceBooks }];
+    }
+
+    const groups = new Map<
+      string,
+      { key: string; label: string; description: string; books: BookshelfPreviewBook[] }
+    >();
+
+    for (const book of sourceBooks) {
+      const label = getGroupLabel(book, nextGroupBy);
+      const key = `${nextGroupBy}:${label}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.books.push(book);
+        existing.description = getGroupDescription(label, nextGroupBy, existing.books.length);
+        continue;
+      }
+      groups.set(key, {
+        key,
+        label,
+        description: getGroupDescription(label, nextGroupBy, 1),
+        books: [book]
+      });
+    }
+
+    return Array.from(groups.values());
+  };
+
   const getSecondaryMeta = (book: BookshelfPreviewBook) => {
     if (book.compatibilityLabel) return book.compatibilityLabel;
     if (book.readingStatusLabel && book.status && book.status !== book.readingStatusLabel) {
@@ -205,8 +261,20 @@
     </div>
   </header>
 
-  <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={sectionTitle}>
-    {#each books as book}
+  <div class="shelf-body" aria-label={sectionTitle}>
+    {#each groupedBooks as group}
+      <section class:ungrouped={groupBy === 'none'} class="group-section" aria-label={groupBy === 'none' ? sectionTitle : `${group.label} 分组`}>
+        {#if groupBy !== 'none'}
+          <header class="group-head">
+            <div class="group-copy">
+              <strong>{group.label}</strong>
+              <span>{group.description}</span>
+            </div>
+          </header>
+        {/if}
+
+        <div class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} aria-label={groupBy === 'none' ? sectionTitle : group.label}>
+    {#each group.books as book}
       {@const bookKey = getBookKey(book)}
       {@const filterableStatus = getFilterableStatus(book)}
       {@const filterableStatusLabel = getFilterStatusLabel(filterableStatus)}
@@ -462,6 +530,9 @@
         {/if}
       </article>
     {/each}
+        </div>
+      </section>
+    {/each}
 
     {#if showImportTile}
       <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="导入书籍">
@@ -579,6 +650,45 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--text-muted) 78%, white 22%);
     transform: translateY(-50%);
+  }
+
+  .shelf-body {
+    display: grid;
+    gap: 18px;
+  }
+
+  .group-section {
+    display: grid;
+    gap: 10px;
+  }
+
+  .group-section.ungrouped {
+    gap: 0;
+  }
+
+  .group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-inline: 2px;
+  }
+
+  .group-copy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .group-copy strong {
+    font: 600 12px/1.2 var(--font-chrome);
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+  }
+
+  .group-copy span {
+    color: var(--text-muted);
+    font: 500 10px/1.2 var(--font-chrome);
   }
 
 
@@ -1216,6 +1326,10 @@
 
     .shelf {
       --book-width: 112px;
+    }
+
+    .shelf-body {
+      gap: 16px;
     }
 
     .grid {
