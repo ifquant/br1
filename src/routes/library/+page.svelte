@@ -52,6 +52,7 @@
     metrics: Array<{ label: string; value: string }>;
     scopedBooks: LibraryShelfBook[];
     subgroupShelves: ActiveLibrarySubgroupShelf[];
+    siblingGroups: Array<{ label: string; count: number }>;
   };
   type ActiveLibraryGroupOverview = {
     eyebrow: string;
@@ -1038,6 +1039,28 @@
       );
     }, books);
 
+  const getLibrarySiblingGroups = (
+    books: LibraryShelfBook[],
+    trail: LibraryGroupSegment[],
+    groupBy: 'author' | 'collection' | 'format',
+    activeLabel: string,
+    limit = 6
+  ) =>
+    Array.from(
+      countByLabel(
+        getScopedLibraryBooksForTrail(books, trail).map((book) =>
+          getLibraryGroupLabel(book, groupBy)
+        )
+      ).entries()
+    )
+      .filter(([label]) => label !== activeLabel)
+      .sort((left, right) => {
+        if (right[1] !== left[1]) return right[1] - left[1];
+        return left[0].localeCompare(right[0], 'zh-CN');
+      })
+      .slice(0, limit)
+      .map(([label, count]) => ({ label, count }));
+
   const getLibraryTrailLandings = (
     books: LibraryShelfBook[],
     trail: LibraryGroupSegment[]
@@ -1060,6 +1083,12 @@
           scopedBooks,
           subgroupShelves: getActiveLibrarySubgroupShelves(
             scopedBooks,
+            segment.groupBy,
+            segment.label
+          ),
+          siblingGroups: getLibrarySiblingGroups(
+            books,
+            trail.slice(0, index),
             segment.groupBy,
             segment.label
           )
@@ -2109,6 +2138,18 @@
     });
   };
 
+  const enterLibrarySiblingGroup = async (
+    label: string,
+    nextGroupBy: 'author' | 'collection' | 'format',
+    trail: LibraryGroupSegment[]
+  ) => {
+    await syncLibraryBrowseLocation({
+      groupBy: nextGroupBy,
+      groupScope: label,
+      trail
+    });
+  };
+
   const handleJumpLibraryGroupTrail = async (
     event: CustomEvent<{ index: number }>
   ) => {
@@ -2389,6 +2430,12 @@
           filteredLibraryBrowseBooks,
           libraryBrowseTrail
         )}
+        {@const desktopCurrentSiblingGroups = getLibrarySiblingGroups(
+          filteredLibraryBrowseBooks,
+          libraryBrowseTrail,
+          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+          libraryGroupScope
+        )}
         {#if desktopTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
             {#each desktopTrailLandings as landing}
@@ -2415,6 +2462,28 @@
                     </div>
                   {/each}
                 </div>
+                {#if landing.siblingGroups.length > 0}
+                  <div class="group-browse-sibling-graph">
+                    <span class="group-browse-sibling-title">同层其它分组</span>
+                    <div class="group-browse-sibling-list">
+                      {#each landing.siblingGroups as sibling}
+                        <button
+                          type="button"
+                          class="group-browse-sibling"
+                          on:click={() =>
+                            enterLibrarySiblingGroup(
+                              sibling.label,
+                              libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                              libraryBrowseTrail.slice(0, landing.index)
+                            )}
+                        >
+                          <strong>{sibling.label}</strong>
+                          <small>{sibling.count} 本</small>
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
                 {#if landing.subgroupShelves.length > 0}
                   <div class="group-browse-trail-subgroups">
                     {#each landing.subgroupShelves as subgroupShelf}
@@ -2466,6 +2535,28 @@
                 </div>
               {/each}
             </div>
+            {#if desktopCurrentSiblingGroups.length > 0}
+              <div class="group-browse-sibling-graph">
+                <span class="group-browse-sibling-title">同层其它分组</span>
+                <div class="group-browse-sibling-list">
+                  {#each desktopCurrentSiblingGroups as sibling}
+                    <button
+                      type="button"
+                      class="group-browse-sibling"
+                      on:click={() =>
+                        enterLibrarySiblingGroup(
+                          sibling.label,
+                          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                          libraryBrowseTrail
+                        )}
+                    >
+                      <strong>{sibling.label}</strong>
+                      <small>{sibling.count} 本</small>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+            {/if}
             {#if desktopGroupOverview.pivots.some((section) => section.items.length > 0)}
               <div class="group-browse-pivots">
                 {#each desktopGroupOverview.pivots as section}
@@ -2615,6 +2706,12 @@
           filteredStarterBrowseBooks,
           libraryBrowseTrail
         )}
+        {@const starterCurrentSiblingGroups = getLibrarySiblingGroups(
+          filteredStarterBrowseBooks,
+          libraryBrowseTrail,
+          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+          libraryGroupScope
+        )}
         {#if starterTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
             {#each starterTrailLandings as landing}
@@ -2641,6 +2738,28 @@
                     </div>
                   {/each}
                 </div>
+                {#if landing.siblingGroups.length > 0}
+                  <div class="group-browse-sibling-graph">
+                    <span class="group-browse-sibling-title">同层其它分组</span>
+                    <div class="group-browse-sibling-list">
+                      {#each landing.siblingGroups as sibling}
+                        <button
+                          type="button"
+                          class="group-browse-sibling"
+                          on:click={() =>
+                            enterLibrarySiblingGroup(
+                              sibling.label,
+                              libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                              libraryBrowseTrail.slice(0, landing.index)
+                            )}
+                        >
+                          <strong>{sibling.label}</strong>
+                          <small>{sibling.count} 本</small>
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
                 {#if landing.subgroupShelves.length > 0}
                   <div class="group-browse-trail-subgroups">
                     {#each landing.subgroupShelves as subgroupShelf}
@@ -2692,6 +2811,28 @@
                 </div>
               {/each}
             </div>
+            {#if starterCurrentSiblingGroups.length > 0}
+              <div class="group-browse-sibling-graph">
+                <span class="group-browse-sibling-title">同层其它分组</span>
+                <div class="group-browse-sibling-list">
+                  {#each starterCurrentSiblingGroups as sibling}
+                    <button
+                      type="button"
+                      class="group-browse-sibling"
+                      on:click={() =>
+                        enterLibrarySiblingGroup(
+                          sibling.label,
+                          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                          libraryBrowseTrail
+                        )}
+                    >
+                      <strong>{sibling.label}</strong>
+                      <small>{sibling.count} 本</small>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+            {/if}
             {#if starterGroupOverview.pivots.some((section) => section.items.length > 0)}
               <div class="group-browse-pivots">
                 {#each starterGroupOverview.pivots as section}
@@ -3047,6 +3188,52 @@
     display: grid;
     gap: 14px;
     grid-column: 1 / -1;
+  }
+
+  .group-browse-sibling-graph {
+    display: grid;
+    gap: 8px;
+    grid-column: 1 / -1;
+  }
+
+  .group-browse-sibling-title {
+    color: var(--text-muted);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.04em;
+  }
+
+  .group-browse-sibling-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .group-browse-sibling {
+    display: inline-grid;
+    gap: 4px;
+    justify-items: start;
+    width: auto;
+    min-height: 0;
+    padding: 9px 11px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
+    box-shadow: 0 8px 20px rgba(42, 30, 15, 0.04);
+  }
+
+  .group-browse-sibling:hover {
+    border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
+    background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
+  }
+
+  .group-browse-sibling strong {
+    color: var(--text-primary);
+    font: 600 12px/1.2 var(--font-chrome);
+  }
+
+  .group-browse-sibling small {
+    color: var(--text-muted);
+    font: 600 10px/1 var(--font-chrome);
   }
 
   .group-browse-copy {
