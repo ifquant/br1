@@ -14,7 +14,6 @@
   } from '$lib/library/types';
   import {
     buildLibraryBrowseHref,
-    buildLibraryBrowseSurfaceModel,
     filterBooksByLibraryGroupScope,
     getLibraryBrowseStateFromUrl,
     getLibraryEnterFromTrailExplanation,
@@ -2001,14 +2000,9 @@
           />
         {/if}
 
-        {@const desktopBrowseSurface = buildLibraryBrowseSurfaceModel(
-          getCurrentLibraryBrowseState(),
-          filteredLibraryBrowseBooks,
-          filteredLibraryShelfBooks
-        )}
         <LibraryGroupedBrowsePanel
-          browseSurface={desktopBrowseSurface}
           browseState={getCurrentLibraryBrowseState()}
+          browseBooks={filteredLibraryBrowseBooks}
           viewMode={libraryViewMode}
           shelfBooks={filteredLibraryShelfBooks}
           shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
@@ -2096,11 +2090,6 @@
           />
         {/if}
 
-        {@const starterBrowseSurface = buildLibraryBrowseSurfaceModel(
-          getCurrentLibraryBrowseState(),
-          filteredStarterBrowseBooks,
-          filteredStarterShelfBooks
-        )}
         {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
           <section class="empty-library" aria-label="样例搜索无结果">
             <div class="empty-copy">
@@ -2122,8 +2111,8 @@
         {/if}
 
         <LibraryGroupedBrowsePanel
-          browseSurface={starterBrowseSurface}
           browseState={getCurrentLibraryBrowseState()}
+          browseBooks={filteredStarterBrowseBooks}
           viewMode={libraryViewMode}
           shelfBooks={filteredStarterShelfBooks}
           shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}

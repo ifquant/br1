@@ -4,6 +4,7 @@
   import LibraryBrowseOverview from './LibraryBrowseOverview.svelte';
   import LibraryBrowseTrailLandings from './LibraryBrowseTrailLandings.svelte';
   import {
+    buildLibraryBrowseSurfaceModel,
     getLibraryBlockedTrailGroupExplanations,
     getLibraryBrowseActionAvailability,
     getLibraryBrowseActionReasonLabel,
@@ -14,20 +15,19 @@
   import type {
     LibraryBrowseAction,
     BookshelfPreviewBook,
-    LibraryBrowseSurfaceModel,
     LibraryGroupBy,
     LibraryBrowseState,
     LibraryShelfBook,
     LibraryTrailLanding
   } from '$lib/library/types';
 
-  export let browseSurface: LibraryBrowseSurfaceModel;
   export let browseState: LibraryBrowseState = {
     groupBy: 'none',
     groupScope: '',
     trail: []
   };
   export let viewMode: 'grid' | 'list' = 'grid';
+  export let browseBooks: LibraryShelfBook[] = [];
   export let shelfBooks: BookshelfPreviewBook[] = [];
   export let shelfSectionTitle = '书架';
   export let onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
@@ -60,6 +60,7 @@
   $: currentGroupLabel = browseState.groupScope;
   $: shelfGroupBy = browseState.groupBy;
   $: showImportTile = !browseState.groupScope;
+  $: browseSurface = buildLibraryBrowseSurfaceModel(browseState, browseBooks, shelfBooks);
 
   const isActionAvailable = (action: LibraryBrowseAction) =>
     getLibraryBrowseActionAvailability(browseState, action).kind === 'allowed';
