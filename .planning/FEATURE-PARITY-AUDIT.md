@@ -195,6 +195,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - grouped library browse now also has surface-specific guard explanations for path, sibling, pivot, subgroup, and top-level group-entry states instead of one generic blocked-navigation hint
 - the remaining grouped-browse content surfaces now also expose local guard explanations in ancestor landing cards and current-group overview blocks instead of falling back to disabled buttons plus hover text
 - grouped library browse content is no longer trapped entirely in `+page.svelte`; current-group overview and ancestor landing sections now exist as dedicated library components with their own style and guard-hint boundaries
+- grouped library browse presenter logic is now further centralized in the shared navigation module, so the library route is progressively converging on state assembly plus callbacks instead of also defining explanation and surface-derivation helpers inline
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

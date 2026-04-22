@@ -507,6 +507,15 @@ export const getLibraryBrowseInvalidReasonLabel = (
   return '这个浏览入口当前不可用。';
 };
 
+export const getLibraryBrowseActionReasonLabel = (
+  current: LibraryBrowseState,
+  action: LibraryBrowseAction
+) => {
+  const result = getLibraryBrowseActionAvailability(current, action);
+  if (result.kind === 'blocked') return getLibraryBrowseInvalidReasonLabel(result.reason);
+  return '';
+};
+
 export const getLibraryBrowseGuardExplanation = (
   surface: LibraryBrowseGuardSurface,
   reason: LibraryBrowseInvalidReason
@@ -558,6 +567,154 @@ export const getLibraryBrowseGuardExplanation = (
     detail: '这个浏览入口暂时不能继续使用，请先回到仍有效的分组上下文。'
   };
 };
+
+export const getLibraryBrowseActionExplanation = (
+  current: LibraryBrowseState,
+  action: LibraryBrowseAction,
+  surface: LibraryBrowseGuardSurface
+): LibraryBrowseGuardExplanation | null => {
+  const result = getLibraryBrowseActionAvailability(current, action);
+  if (result.kind !== 'blocked') return null;
+  return getLibraryBrowseGuardExplanation(surface, result.reason);
+};
+
+export const collectLibraryBrowseExplanations = (
+  explanations: Array<LibraryBrowseGuardExplanation | null>
+) => explanations.filter((entry): entry is LibraryBrowseGuardExplanation => entry !== null);
+
+export const getLibraryJumpTrailExplanation = (
+  current: LibraryBrowseState,
+  index: number
+) =>
+  getLibraryBrowseActionExplanation(
+    current,
+    {
+      type: 'jump-trail',
+      index
+    },
+    'path'
+  );
+
+export const getLibraryExitExplanation = (current: LibraryBrowseState) =>
+  getLibraryBrowseActionExplanation(current, { type: 'exit-group' }, 'exit');
+
+export const getLibraryEnterGroupExplanation = (
+  current: LibraryBrowseState,
+  label: string,
+  groupBy: LibraryGroupBy,
+  surface: LibraryBrowseGuardSurface = 'group-card'
+) =>
+  getLibraryBrowseActionExplanation(
+    current,
+    {
+      type: 'enter-group',
+      groupBy,
+      label
+    },
+    surface
+  );
+
+export const getLibraryEnterFromTrailExplanation = (
+  current: LibraryBrowseState,
+  trailIndex: number,
+  label: string,
+  groupBy: LibraryGroupBy
+) =>
+  getLibraryBrowseActionExplanation(
+    current,
+    {
+      type: 'enter-from-trail',
+      trailIndex,
+      groupBy,
+      label
+    },
+    'subgroup'
+  );
+
+export const getLibrarySiblingExplanation = (
+  current: LibraryBrowseState,
+  label: string,
+  groupBy: LibraryGroupBy,
+  trail: LibraryGroupSegment[]
+) =>
+  getLibraryBrowseActionExplanation(
+    current,
+    {
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail
+    },
+    'sibling'
+  );
+
+export const getLibraryLandingGroupBy = (
+  current: LibraryBrowseState,
+  fallbackGroupBy: LibraryGroupBy,
+  landingIndex: number
+) => (current.trail[landingIndex]?.groupBy ?? fallbackGroupBy) as LibraryGroupBy;
+
+export const getLibraryTrailActionExplanations = (
+  current: LibraryBrowseState,
+  landing: { index: number }
+) => collectLibraryBrowseExplanations([getLibraryJumpTrailExplanation(current, landing.index)]);
+
+export const getLibraryTrailSiblingExplanations = (
+  current: LibraryBrowseState,
+  siblings: Array<{ label: string; count: number }>,
+  landingIndex: number,
+  fallbackGroupBy: LibraryGroupBy
+) =>
+  collectLibraryBrowseExplanations(
+    siblings.map((sibling) =>
+      getLibrarySiblingExplanation(
+        current,
+        sibling.label,
+        getLibraryLandingGroupBy(current, fallbackGroupBy, landingIndex),
+        current.trail.slice(0, landingIndex)
+      )
+    )
+  );
+
+export const getLibraryBlockedTrailGroupExplanations = (
+  current: LibraryBrowseState,
+  landing: { index: number; scopedBooks: LibraryShelfBook[] },
+  groupBy: LibraryGroupBy
+) =>
+  collectLibraryBrowseExplanations(
+    landing.scopedBooks.map((book) =>
+      getLibraryEnterFromTrailExplanation(
+        current,
+        landing.index,
+        getLibraryGroupLabel(book, groupBy),
+        groupBy
+      )
+    )
+  );
+
+export const getLibrarySiblingGuardExplanations = (
+  current: LibraryBrowseState,
+  siblings: Array<{ label: string; count: number }>,
+  groupBy: LibraryGroupBy,
+  trail: LibraryGroupSegment[]
+) =>
+  collectLibraryBrowseExplanations(
+    siblings.map((sibling) => getLibrarySiblingExplanation(current, sibling.label, groupBy, trail))
+  );
+
+export const getLibraryPivotGuardExplanations = (
+  current: LibraryBrowseState,
+  overview: ActiveLibraryGroupOverview | null
+) =>
+  collectLibraryBrowseExplanations(
+    overview
+      ? overview.pivots.flatMap((section) =>
+          section.items.map((item) =>
+            getLibraryEnterGroupExplanation(current, item.value, item.groupBy, 'pivot')
+          )
+        )
+      : []
+  );
 
 type LibraryBrowseActionByType<TType extends LibraryBrowseAction['type']> = Extract<
   LibraryBrowseAction,

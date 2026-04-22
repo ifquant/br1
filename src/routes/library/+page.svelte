@@ -6,8 +6,6 @@
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
     LibraryBrowseAction,
-    LibraryBrowseGuardExplanation,
-    LibraryBrowseGuardSurface,
     ContinueReadingBook,
     LibraryGroupBy,
     LibraryGroupSegment,
@@ -20,14 +18,25 @@
     getActiveLibraryGroupOverview,
     getActiveLibrarySubgroupShelves,
     getLibraryBrowseActionAvailability,
-    getLibraryBrowseGuardExplanation,
     getLibraryBrowseStateFromUrl,
+    getLibraryBrowseActionReasonLabel,
+    collectLibraryBrowseExplanations,
+    getLibraryBlockedTrailGroupExplanations,
+    getLibraryEnterFromTrailExplanation,
+    getLibraryEnterGroupExplanation,
+    getLibraryExitExplanation,
     getLibraryGroupLabel,
+    getLibraryJumpTrailExplanation,
+    getLibraryLandingGroupBy,
+    getLibraryPivotGuardExplanations,
     getLibraryGroupScopeDescription,
-    getLibraryBrowseInvalidReasonLabel,
     getNextLibraryBrowseState,
+    getLibrarySiblingExplanation,
+    getLibrarySiblingGuardExplanations,
     getLibrarySiblingGroups,
-    getLibraryTrailLandings
+    getLibraryTrailActionExplanations,
+    getLibraryTrailLandings,
+    getLibraryTrailSiblingExplanations
   } from '$lib/library/navigation';
   import {
     BookshelfPreview,
@@ -1738,21 +1747,6 @@
   const getLibraryExitAvailability = () =>
     isLibraryBrowseActionAvailable({ type: 'exit-group' });
 
-  const getLibraryBrowseActionReasonLabel = (action: LibraryBrowseAction) => {
-    const result = getLibraryBrowseActionAvailability(getCurrentLibraryBrowseState(), action);
-    if (result.kind === 'blocked') return getLibraryBrowseInvalidReasonLabel(result.reason);
-    return '';
-  };
-
-  const getLibraryBrowseActionExplanation = (
-    action: LibraryBrowseAction,
-    surface: LibraryBrowseGuardSurface
-  ): LibraryBrowseGuardExplanation | null => {
-    const result = getLibraryBrowseActionAvailability(getCurrentLibraryBrowseState(), action);
-    if (result.kind !== 'blocked') return null;
-    return getLibraryBrowseGuardExplanation(surface, result.reason);
-  };
-
   const getLibraryEnterGroupAvailability = (
     label: string,
     groupBy: 'author' | 'collection' | 'format'
@@ -1767,7 +1761,7 @@
     label: string,
     groupBy: 'author' | 'collection' | 'format'
   ) =>
-    getLibraryBrowseActionReasonLabel({
+    getLibraryBrowseActionReasonLabel(getCurrentLibraryBrowseState(), {
       type: 'enter-group',
       groupBy,
       label
@@ -1800,7 +1794,7 @@
     label: string,
     groupBy: 'author' | 'collection' | 'format'
   ) =>
-    getLibraryBrowseActionReasonLabel({
+    getLibraryBrowseActionReasonLabel(getCurrentLibraryBrowseState(), {
       type: 'enter-from-trail',
       trailIndex,
       groupBy,
@@ -1824,7 +1818,7 @@
     groupBy: 'author' | 'collection' | 'format',
     trail: LibraryGroupSegment[]
   ) =>
-    getLibraryBrowseActionReasonLabel({
+    getLibraryBrowseActionReasonLabel(getCurrentLibraryBrowseState(), {
       type: 'switch-sibling',
       groupBy,
       label,
@@ -1832,108 +1826,13 @@
     });
 
   const getLibraryJumpTrailReasonLabel = (index: number) =>
-    getLibraryBrowseActionReasonLabel({
+    getLibraryBrowseActionReasonLabel(getCurrentLibraryBrowseState(), {
       type: 'jump-trail',
       index
     });
 
   const getLibraryExitReasonLabel = () =>
-    getLibraryBrowseActionReasonLabel({ type: 'exit-group' });
-
-  const getLibraryJumpTrailExplanation = (index: number) =>
-    getLibraryBrowseActionExplanation(
-      {
-        type: 'jump-trail',
-        index
-      },
-      'path'
-    );
-
-  const getLibraryExitExplanation = () =>
-    getLibraryBrowseActionExplanation({ type: 'exit-group' }, 'exit');
-
-  const getLibraryEnterGroupExplanation = (
-    label: string,
-    groupBy: 'author' | 'collection' | 'format',
-    surface: LibraryBrowseGuardSurface = 'group-card'
-  ) =>
-    getLibraryBrowseActionExplanation(
-      {
-        type: 'enter-group',
-        groupBy,
-        label
-      },
-      surface
-    );
-
-  const getLibraryEnterFromTrailExplanation = (
-    trailIndex: number,
-    label: string,
-    groupBy: 'author' | 'collection' | 'format'
-  ) =>
-    getLibraryBrowseActionExplanation(
-      {
-        type: 'enter-from-trail',
-        trailIndex,
-        groupBy,
-        label
-      },
-      'subgroup'
-    );
-
-  const getLibrarySiblingExplanation = (
-    label: string,
-    groupBy: 'author' | 'collection' | 'format',
-    trail: LibraryGroupSegment[]
-  ) =>
-    getLibraryBrowseActionExplanation(
-      {
-        type: 'switch-sibling',
-        groupBy,
-        label,
-        trail
-      },
-      'sibling'
-    );
-
-  const collectLibraryBrowseExplanations = (
-    explanations: Array<LibraryBrowseGuardExplanation | null>
-  ) => explanations.filter((entry): entry is LibraryBrowseGuardExplanation => entry !== null);
-
-  const getLibraryTrailSiblingExplanations = (
-    index: number,
-    siblings: Array<{ label: string; count: number }>
-  ) =>
-    collectLibraryBrowseExplanations(
-      siblings.map((sibling) =>
-        getLibrarySiblingExplanation(
-          sibling.label,
-          libraryBrowseTrail[index]?.groupBy ?? (libraryGroupBy === 'none' ? 'author' : libraryGroupBy),
-          libraryBrowseTrail.slice(0, index)
-        )
-      )
-    );
-
-  const getLibraryLandingGroupBy = (landing: { index: number }) =>
-    (libraryBrowseTrail[landing.index]?.groupBy ??
-      (libraryGroupBy === 'none' ? 'author' : libraryGroupBy)) as LibraryGroupBy;
-
-  const getLibraryTrailActionExplanations = (landing: { index: number }) =>
-    collectLibraryBrowseExplanations([getLibraryJumpTrailExplanation(landing.index)]);
-
-  const getLibraryBlockedTrailGroupExplanations = (
-    landing: { index: number; scopedBooks: LibraryShelfBook[] },
-    groupBy: LibraryGroupBy
-  ) =>
-    collectLibraryBrowseExplanations(
-      landing.scopedBooks.map((book) =>
-        getLibraryEnterFromTrailExplanation(
-          landing.index,
-          getLibraryGroupLabel(book, groupBy),
-          groupBy
-        )
-      )
-    );
+    getLibraryBrowseActionReasonLabel(getCurrentLibraryBrowseState(), { type: 'exit-group' });
 
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
     const result = getNextLibraryBrowseState(
@@ -2141,8 +2040,10 @@
       canExitGroup={getLibraryExitAvailability()}
       exitGroupReasonLabel={getLibraryExitReasonLabel()}
       activeGroupGuardExplanations={collectLibraryBrowseExplanations([
-        getLibraryExitExplanation(),
-        ...libraryBrowseTrail.map((_, index) => getLibraryJumpTrailExplanation(index))
+        getLibraryExitExplanation(getCurrentLibraryBrowseState()),
+        ...libraryBrowseTrail.map((_, index) =>
+          getLibraryJumpTrailExplanation(getCurrentLibraryBrowseState(), index)
+        )
       ])}
       activeGroupDescription={getLibraryGroupScopeDescription(
         libraryGroupBy,
@@ -2305,25 +2206,19 @@
           libraryGroupScope
         )}
         {@const desktopTrailGuardExplanations = collectLibraryBrowseExplanations(
-          libraryBrowseTrail.map((_, index) => getLibraryJumpTrailExplanation(index))
-        )}
-        {@const desktopSiblingGuardExplanations = collectLibraryBrowseExplanations(
-          desktopCurrentSiblingGroups.map((sibling) =>
-            getLibrarySiblingExplanation(
-              sibling.label,
-              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-              libraryBrowseTrail
-            )
+          libraryBrowseTrail.map((_, index) =>
+            getLibraryJumpTrailExplanation(getCurrentLibraryBrowseState(), index)
           )
         )}
-        {@const desktopPivotGuardExplanations = collectLibraryBrowseExplanations(
+        {@const desktopSiblingGuardExplanations = getLibrarySiblingGuardExplanations(
+          getCurrentLibraryBrowseState(),
+          desktopCurrentSiblingGroups,
+          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+          libraryBrowseTrail
+        )}
+        {@const desktopPivotGuardExplanations = getLibraryPivotGuardExplanations(
+          getCurrentLibraryBrowseState(),
           desktopGroupOverview
-            ? desktopGroupOverview.pivots.flatMap((section) =>
-                section.items.map((item) =>
-                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
-                )
-              )
-            : []
         )}
         {#if desktopGroupOverview}
           <LibraryBrowseNavigator
@@ -2365,10 +2260,21 @@
         <LibraryBrowseTrailLandings
           landings={desktopTrailLandings}
           viewMode={libraryViewMode}
-          getLandingGroupBy={getLibraryLandingGroupBy}
-          getTrailActionExplanations={getLibraryTrailActionExplanations}
+          getLandingGroupBy={(landing) =>
+            getLibraryLandingGroupBy(
+              getCurrentLibraryBrowseState(),
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+              landing.index
+            )}
+          getTrailActionExplanations={(landing) =>
+            getLibraryTrailActionExplanations(getCurrentLibraryBrowseState(), landing)}
           getTrailSiblingExplanations={(landing) =>
-            getLibraryTrailSiblingExplanations(landing.index, landing.siblingGroups)}
+            getLibraryTrailSiblingExplanations(
+              getCurrentLibraryBrowseState(),
+              landing.siblingGroups,
+              landing.index,
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy
+            )}
           isJumpAvailable={getLibraryJumpTrailAvailability}
           getJumpReasonLabel={getLibraryJumpTrailReasonLabel}
           onJumpTrail={jumpLibraryGroupTrailToIndex}
@@ -2378,7 +2284,8 @@
             getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
           onSelectSibling={(label, groupBy, trailIndex) =>
             enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          getBlockedGroupExplanations={getLibraryBlockedTrailGroupExplanations}
+          getBlockedGroupExplanations={(landing, groupBy) =>
+            getLibraryBlockedTrailGroupExplanations(getCurrentLibraryBrowseState(), landing, groupBy)}
           isEnterFromTrailAvailable={getLibraryEnterFromTrailAvailability}
           getEnterFromTrailReasonLabel={getLibraryEnterFromTrailReasonLabel}
           onEnterFromTrail={enterLibraryGroupFromTrail}
@@ -2390,21 +2297,15 @@
             overview={desktopGroupOverview}
             groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
             siblingGroups={desktopCurrentSiblingGroups}
-            siblingGuardExplanations={collectLibraryBrowseExplanations(
-              desktopCurrentSiblingGroups.map((sibling) =>
-                getLibrarySiblingExplanation(
-                  sibling.label,
-                  libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                  libraryBrowseTrail
-                )
-              )
+            siblingGuardExplanations={getLibrarySiblingGuardExplanations(
+              getCurrentLibraryBrowseState(),
+              desktopCurrentSiblingGroups,
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+              libraryBrowseTrail
             )}
-            pivotGuardExplanations={collectLibraryBrowseExplanations(
-              desktopGroupOverview.pivots.flatMap((section) =>
-                section.items.map((item) =>
-                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
-                )
-              )
+            pivotGuardExplanations={getLibraryPivotGuardExplanations(
+              getCurrentLibraryBrowseState(),
+              desktopGroupOverview
             )}
             isSiblingAvailable={(label, groupBy) =>
               getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
@@ -2441,6 +2342,7 @@
                   blockedGroupExplanations={collectLibraryBrowseExplanations(
                     filteredLibraryShelfBooks.map((book) =>
                       getLibraryEnterGroupExplanation(
+                        getCurrentLibraryBrowseState(),
                         getLibraryGroupLabel(book, subgroupShelf.groupBy),
                         subgroupShelf.groupBy,
                         'subgroup'
@@ -2470,6 +2372,7 @@
               ? []
               : filteredLibraryShelfBooks.map((book) =>
                   getLibraryEnterGroupExplanation(
+                    getCurrentLibraryBrowseState(),
                     getLibraryGroupLabel(book, libraryGroupBy),
                     libraryGroupBy,
                     'group-card'
@@ -2579,25 +2482,19 @@
           libraryGroupScope
         )}
         {@const starterTrailGuardExplanations = collectLibraryBrowseExplanations(
-          libraryBrowseTrail.map((_, index) => getLibraryJumpTrailExplanation(index))
-        )}
-        {@const starterSiblingGuardExplanations = collectLibraryBrowseExplanations(
-          starterCurrentSiblingGroups.map((sibling) =>
-            getLibrarySiblingExplanation(
-              sibling.label,
-              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-              libraryBrowseTrail
-            )
+          libraryBrowseTrail.map((_, index) =>
+            getLibraryJumpTrailExplanation(getCurrentLibraryBrowseState(), index)
           )
         )}
-        {@const starterPivotGuardExplanations = collectLibraryBrowseExplanations(
+        {@const starterSiblingGuardExplanations = getLibrarySiblingGuardExplanations(
+          getCurrentLibraryBrowseState(),
+          starterCurrentSiblingGroups,
+          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+          libraryBrowseTrail
+        )}
+        {@const starterPivotGuardExplanations = getLibraryPivotGuardExplanations(
+          getCurrentLibraryBrowseState(),
           starterGroupOverview
-            ? starterGroupOverview.pivots.flatMap((section) =>
-                section.items.map((item) =>
-                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
-                )
-              )
-            : []
         )}
         {#if starterGroupOverview}
           <LibraryBrowseNavigator
@@ -2639,10 +2536,21 @@
         <LibraryBrowseTrailLandings
           landings={starterTrailLandings}
           viewMode={libraryViewMode}
-          getLandingGroupBy={getLibraryLandingGroupBy}
-          getTrailActionExplanations={getLibraryTrailActionExplanations}
+          getLandingGroupBy={(landing) =>
+            getLibraryLandingGroupBy(
+              getCurrentLibraryBrowseState(),
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+              landing.index
+            )}
+          getTrailActionExplanations={(landing) =>
+            getLibraryTrailActionExplanations(getCurrentLibraryBrowseState(), landing)}
           getTrailSiblingExplanations={(landing) =>
-            getLibraryTrailSiblingExplanations(landing.index, landing.siblingGroups)}
+            getLibraryTrailSiblingExplanations(
+              getCurrentLibraryBrowseState(),
+              landing.siblingGroups,
+              landing.index,
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy
+            )}
           isJumpAvailable={getLibraryJumpTrailAvailability}
           getJumpReasonLabel={getLibraryJumpTrailReasonLabel}
           onJumpTrail={jumpLibraryGroupTrailToIndex}
@@ -2652,7 +2560,8 @@
             getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
           onSelectSibling={(label, groupBy, trailIndex) =>
             enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          getBlockedGroupExplanations={getLibraryBlockedTrailGroupExplanations}
+          getBlockedGroupExplanations={(landing, groupBy) =>
+            getLibraryBlockedTrailGroupExplanations(getCurrentLibraryBrowseState(), landing, groupBy)}
           isEnterFromTrailAvailable={getLibraryEnterFromTrailAvailability}
           getEnterFromTrailReasonLabel={getLibraryEnterFromTrailReasonLabel}
           onEnterFromTrail={enterLibraryGroupFromTrail}
@@ -2664,21 +2573,15 @@
             overview={starterGroupOverview}
             groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
             siblingGroups={starterCurrentSiblingGroups}
-            siblingGuardExplanations={collectLibraryBrowseExplanations(
-              starterCurrentSiblingGroups.map((sibling) =>
-                getLibrarySiblingExplanation(
-                  sibling.label,
-                  libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                  libraryBrowseTrail
-                )
-              )
+            siblingGuardExplanations={getLibrarySiblingGuardExplanations(
+              getCurrentLibraryBrowseState(),
+              starterCurrentSiblingGroups,
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+              libraryBrowseTrail
             )}
-            pivotGuardExplanations={collectLibraryBrowseExplanations(
-              starterGroupOverview.pivots.flatMap((section) =>
-                section.items.map((item) =>
-                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
-                )
-              )
+            pivotGuardExplanations={getLibraryPivotGuardExplanations(
+              getCurrentLibraryBrowseState(),
+              starterGroupOverview
             )}
             isSiblingAvailable={(label, groupBy) =>
               getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
@@ -2715,6 +2618,7 @@
                   blockedGroupExplanations={collectLibraryBrowseExplanations(
                     filteredStarterShelfBooks.map((book) =>
                       getLibraryEnterGroupExplanation(
+                        getCurrentLibraryBrowseState(),
                         getLibraryGroupLabel(book, subgroupShelf.groupBy),
                         subgroupShelf.groupBy,
                         'subgroup'
@@ -2764,6 +2668,7 @@
               ? []
               : filteredStarterShelfBooks.map((book) =>
                   getLibraryEnterGroupExplanation(
+                    getCurrentLibraryBrowseState(),
                     getLibraryGroupLabel(book, libraryGroupBy),
                     libraryGroupBy,
                     'group-card'
