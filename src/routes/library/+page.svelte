@@ -5,6 +5,7 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
+    LibraryBrowseAction,
     ContinueReadingBook,
     LibraryGroupBy,
     LibraryGroupSegment,
@@ -16,15 +17,11 @@
     filterBooksByLibraryGroupScope,
     getActiveLibraryGroupOverview,
     getActiveLibrarySubgroupShelves,
-    getLibraryEnterBrowseState,
-    getLibraryEnterFromTrailState,
-    getLibraryExitBrowseState,
     getLibraryBrowseStateFromUrl,
     getLibraryGroupLabel,
     getLibraryGroupScopeDescription,
-    getLibraryJumpTrailState,
+    getNextLibraryBrowseState,
     getLibrarySiblingGroups,
-    getLibrarySiblingBrowseState,
     getLibraryTrailLandings
   } from '$lib/library/navigation';
   import {
@@ -1716,61 +1713,50 @@
     librarySortBy = event.detail.sortBy;
   };
 
+  const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
+    const nextState = getNextLibraryBrowseState(
+      {
+        groupBy: libraryGroupBy,
+        groupScope: libraryGroupScope,
+        trail: libraryBrowseTrail
+      },
+      action
+    );
+    if (!nextState) return;
+    await syncLibraryBrowseLocation(nextState);
+  };
+
   const handleEnterLibraryGroup = async (
     label: string,
     nextGroupBy: 'author' | 'collection' | 'format'
   ) => {
-    await syncLibraryBrowseLocation(
-      getLibraryEnterBrowseState(
-        {
-          groupBy: libraryGroupBy,
-          groupScope: libraryGroupScope,
-          trail: libraryBrowseTrail
-        },
-        nextGroupBy,
-        label
-      )
-    );
+    await dispatchLibraryBrowseAction({
+      type: 'enter-group',
+      groupBy: nextGroupBy,
+      label
+    });
   };
 
   const handleExitLibraryGroup = async () => {
-    await syncLibraryBrowseLocation(
-      getLibraryExitBrowseState({
-        groupBy: libraryGroupBy,
-        groupScope: libraryGroupScope,
-        trail: libraryBrowseTrail
-      })
-    );
+    await dispatchLibraryBrowseAction({ type: 'exit-group' });
   };
 
   const handleLibraryGroupPivot = async (
     nextGroupBy: 'author' | 'collection' | 'format',
     label: string
   ) => {
-    await syncLibraryBrowseLocation(
-      getLibraryEnterBrowseState(
-        {
-          groupBy: libraryGroupBy,
-          groupScope: libraryGroupScope,
-          trail: libraryBrowseTrail
-        },
-        nextGroupBy,
-        label
-      )
-    );
+    await dispatchLibraryBrowseAction({
+      type: 'enter-group',
+      groupBy: nextGroupBy,
+      label
+    });
   };
 
   const jumpLibraryGroupTrailToIndex = async (index: number) => {
-    const nextState = getLibraryJumpTrailState(
-      {
-        groupBy: libraryGroupBy,
-        groupScope: libraryGroupScope,
-        trail: libraryBrowseTrail
-      },
+    await dispatchLibraryBrowseAction({
+      type: 'jump-trail',
       index
-    );
-    if (!nextState) return;
-    await syncLibraryBrowseLocation(nextState);
+    });
   };
 
   const enterLibraryGroupFromTrail = async (
@@ -1778,18 +1764,12 @@
     label: string,
     nextGroupBy: 'author' | 'collection' | 'format'
   ) => {
-    const nextState = getLibraryEnterFromTrailState(
-      {
-        groupBy: libraryGroupBy,
-        groupScope: libraryGroupScope,
-        trail: libraryBrowseTrail
-      },
+    await dispatchLibraryBrowseAction({
+      type: 'enter-from-trail',
       trailIndex,
-      nextGroupBy,
+      groupBy: nextGroupBy,
       label
-    );
-    if (!nextState) return;
-    await syncLibraryBrowseLocation(nextState);
+    });
   };
 
   const enterLibrarySiblingGroup = async (
@@ -1797,7 +1777,12 @@
     nextGroupBy: 'author' | 'collection' | 'format',
     trail: LibraryGroupSegment[]
   ) => {
-    await syncLibraryBrowseLocation(getLibrarySiblingBrowseState(nextGroupBy, label, trail));
+    await dispatchLibraryBrowseAction({
+      type: 'switch-sibling',
+      groupBy: nextGroupBy,
+      label,
+      trail
+    });
   };
 
   const handleJumpLibraryGroupTrail = async (

@@ -71,6 +71,32 @@ export type LibraryBrowseState = {
   trail: LibraryGroupSegment[];
 };
 
+export type LibraryBrowseAction =
+  | {
+      type: 'enter-group';
+      groupBy: LibraryGroupBy;
+      label: string;
+    }
+  | {
+      type: 'exit-group';
+    }
+  | {
+      type: 'jump-trail';
+      index: number;
+    }
+  | {
+      type: 'enter-from-trail';
+      trailIndex: number;
+      groupBy: LibraryGroupBy;
+      label: string;
+    }
+  | {
+      type: 'switch-sibling';
+      groupBy: LibraryGroupBy;
+      label: string;
+      trail: LibraryGroupSegment[];
+    };
+
 export type ManualRelinkReview = {
   note: string;
   repairContractLabel: string;

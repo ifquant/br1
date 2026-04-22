@@ -1,4 +1,5 @@
 import type {
+  LibraryBrowseAction,
   ActiveLibraryGroupOverview,
   LibraryBrowseState,
   ActiveLibrarySubgroupShelf,
@@ -443,3 +444,31 @@ export const getLibrarySiblingBrowseState = (
   groupScope: nextLabel,
   trail
 });
+
+export const getNextLibraryBrowseState = (
+  current: LibraryBrowseState,
+  action: LibraryBrowseAction
+): LibraryBrowseState | null => {
+  if (action.type === 'enter-group') {
+    return getLibraryEnterBrowseState(current, action.groupBy, action.label);
+  }
+
+  if (action.type === 'exit-group') {
+    return getLibraryExitBrowseState(current);
+  }
+
+  if (action.type === 'jump-trail') {
+    return getLibraryJumpTrailState(current, action.index);
+  }
+
+  if (action.type === 'enter-from-trail') {
+    return getLibraryEnterFromTrailState(
+      current,
+      action.trailIndex,
+      action.groupBy,
+      action.label
+    );
+  }
+
+  return getLibrarySiblingBrowseState(action.groupBy, action.label, action.trail);
+};
