@@ -24,7 +24,6 @@
   } from '$lib/library/navigation';
   import {
     LibraryBrowseBody,
-    LibraryEmptyState,
     LibraryPageChrome
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
@@ -1886,58 +1885,81 @@
         options={{ scrollbars: { autoHide: 'leave', theme: 'os-theme-readest' } }}
       >
       {#if desktopLibraryMode}
-        {#if importedBooks.length}
-          <LibraryBrowseBody
-            workflowNotice={readingWorkflowNotice}
-            groupedBrowseMode={libraryGroupedBrowseMode}
-            recoveryShelf={{
-              sectionTitle: '待修复书籍',
-              sectionDescription: recoveryQueueSummaryText,
-              primaryActionLabel: '修复',
-              books: recoveryQueueReviewBooks,
-              onOpenSourcePath: handleOpenSourcePath,
-              onImportBooks: triggerImportPicker,
-              onRepairBook: handleRepairLibraryBook,
-              onRemoveBook: handleRemoveLibraryBook,
-              bulkActionLabel:
-                bulkRepairEligibleQueueBooks.length > 0
-                  ? bulkRepairBusy
-                    ? '批量修复中…'
-                    : `批量修复副本（${bulkRepairEligibleQueueBooks.length}）`
-                  : '',
-              bulkActionDisabled: bulkRepairBusy,
-              operationSummary: bulkRepairSummary,
-              onBulkAction: handleBulkRepairLibraryBooks
-            }}
-            continueShelf={{
-              sectionTitle: '继续阅读',
-              sectionDescription: '回到当前正在读的书。',
-              primaryActionLabel: '继续',
-              books: filteredContinueReadingBooks,
-              onOpenSourcePath: handleOpenSourcePath,
-              onImportBooks: triggerImportPicker,
-              onRepairBook: handleRepairLibraryBook,
-              onRemoveBook: handleRemoveLibraryBook
-            }}
-            recentShelf={{
-              sectionTitle: '最近阅读',
-              sectionDescription: '重新打开你最近看过，但当前不在继续阅读队列中的书。',
-              primaryActionLabel: '重开',
-              books: filteredRecentReadingBooks,
-              onOpenSourcePath: handleOpenSourcePath,
-              onImportBooks: triggerImportPicker,
-              onRepairBook: handleRepairLibraryBook,
-              onRemoveBook: handleRemoveLibraryBook
-            }}
-            browseState={getCurrentLibraryBrowseState()}
-            browseBooks={filteredLibraryBrowseBooks}
-            viewMode={libraryViewMode}
-            shelfBooks={filteredLibraryShelfBooks}
-            shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
-            onDispatchBrowseAction={dispatchLibraryBrowseAction}
-            onOpenLink={handleOpenReaderTarget}
-            onImportBooks={triggerImportPicker}
-            onOpenSourcePath={handleOpenSourcePath}
+        <LibraryBrowseBody
+          workflowNotice={readingWorkflowNotice}
+          groupedBrowseMode={libraryGroupedBrowseMode}
+          recoveryShelf={{
+            sectionTitle: '待修复书籍',
+            sectionDescription: recoveryQueueSummaryText,
+            primaryActionLabel: '修复',
+            books: recoveryQueueReviewBooks,
+            onOpenSourcePath: handleOpenSourcePath,
+            onImportBooks: triggerImportPicker,
+            onRepairBook: handleRepairLibraryBook,
+            onRemoveBook: handleRemoveLibraryBook,
+            bulkActionLabel:
+              bulkRepairEligibleQueueBooks.length > 0
+                ? bulkRepairBusy
+                  ? '批量修复中…'
+                  : `批量修复副本（${bulkRepairEligibleQueueBooks.length}）`
+                : '',
+            bulkActionDisabled: bulkRepairBusy,
+            operationSummary: bulkRepairSummary,
+            onBulkAction: handleBulkRepairLibraryBooks
+          }}
+          continueShelf={{
+            sectionTitle: '继续阅读',
+            sectionDescription: '回到当前正在读的书。',
+            primaryActionLabel: '继续',
+            books: filteredContinueReadingBooks,
+            onOpenSourcePath: handleOpenSourcePath,
+            onImportBooks: triggerImportPicker,
+            onRepairBook: handleRepairLibraryBook,
+            onRemoveBook: handleRemoveLibraryBook
+          }}
+          recentShelf={{
+            sectionTitle: '最近阅读',
+            sectionDescription: '重新打开你最近看过，但当前不在继续阅读队列中的书。',
+            primaryActionLabel: '重开',
+            books: filteredRecentReadingBooks,
+            onOpenSourcePath: handleOpenSourcePath,
+            onImportBooks: triggerImportPicker,
+            onRepairBook: handleRepairLibraryBook,
+            onRemoveBook: handleRemoveLibraryBook
+          }}
+          initialEmptyState={
+            importedBooks.length === 0
+              ? {
+                  ariaLabel: '空书库',
+                  title: '你的书库还是空的',
+                  message: '可以从本机导入新书，或者先把已有的 Readest 书库迁进来。',
+                  actions: [
+                    {
+                      label: '从本机导入',
+                      onClick: triggerImportPicker
+                    },
+                    ...(readestLibraryCount > 0
+                      ? [
+                          {
+                            label: migrationBusy ? '兼容中…' : `同步 Readest 的 ${readestLibraryCount} 本书`,
+                            secondary: true,
+                            onClick: handleReadestMigrationClick
+                          }
+                        ]
+                      : [])
+                  ]
+                }
+              : null
+          }
+          browseState={getCurrentLibraryBrowseState()}
+          browseBooks={filteredLibraryBrowseBooks}
+          viewMode={libraryViewMode}
+          shelfBooks={filteredLibraryShelfBooks}
+          shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
+          onDispatchBrowseAction={dispatchLibraryBrowseAction}
+          onOpenLink={handleOpenReaderTarget}
+          onImportBooks={triggerImportPicker}
+          onOpenSourcePath={handleOpenSourcePath}
           onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
           onRemoveBook={handleRemoveLibraryBook}
           onFilterStatus={handleFilterByShelfStatus}
@@ -1984,28 +2006,6 @@
                 : [])
           ]}
         />
-        {:else}
-          <LibraryEmptyState
-            ariaLabel="空书库"
-            title="你的书库还是空的"
-            message="可以从本机导入新书，或者先把已有的 Readest 书库迁进来。"
-            actions={[
-              {
-                label: '从本机导入',
-                onClick: triggerImportPicker
-              },
-              ...(readestLibraryCount > 0
-                ? [
-                    {
-                      label: migrationBusy ? '兼容中…' : `同步 Readest 的 ${readestLibraryCount} 本书`,
-                      secondary: true,
-                      onClick: handleReadestMigrationClick
-                    }
-                  ]
-                : [])
-            ]}
-          />
-        {/if}
       {:else}
         <LibraryBrowseBody
           workflowNotice={starterReadingWorkflowNotice}

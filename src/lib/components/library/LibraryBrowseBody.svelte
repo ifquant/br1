@@ -35,6 +35,7 @@
   export let recoveryShelf: WorkflowShelf | null = null;
   export let continueShelf: WorkflowShelf | null = null;
   export let recentShelf: WorkflowShelf | null = null;
+  export let initialEmptyState: LibraryEmptyStateModel | null = null;
   export let beforePanelEmptyStates: LibraryEmptyStateModel[] = [];
   export let afterPanelEmptyStates: LibraryEmptyStateModel[] = [];
   export let browseState: LibraryBrowseState = {
@@ -73,96 +74,106 @@
   export let onFilterTag: ((tag: string) => void | Promise<void>) | null = null;
 </script>
 
-{#if workflowNotice}
-  <section class="reading-workflow-note" aria-label="阅读流程提示">
-    <strong>{workflowNotice.title}</strong>
-    <span>{workflowNotice.message}</span>
-  </section>
-{/if}
-
-{#if !groupedBrowseMode && recoveryShelf && recoveryShelf.books.length > 0}
-  <ContinueReadingShelf
-    sectionTitle={recoveryShelf.sectionTitle}
-    sectionDescription={recoveryShelf.sectionDescription}
-    primaryActionLabel={recoveryShelf.primaryActionLabel}
-    books={recoveryShelf.books}
-    bulkActionLabel={recoveryShelf.bulkActionLabel ?? ''}
-    bulkActionDisabled={recoveryShelf.bulkActionDisabled ?? false}
-    operationSummary={recoveryShelf.operationSummary ?? ''}
-    onOpenLink={onOpenLink}
-    onOpenSourcePath={recoveryShelf.onOpenSourcePath ?? null}
-    onImportBooks={recoveryShelf.onImportBooks ?? null}
-    onBulkAction={recoveryShelf.onBulkAction ?? null}
-    onRepairBook={recoveryShelf.onRepairBook ?? null}
-    onRemoveBook={recoveryShelf.onRemoveBook ?? null}
-  />
-{/if}
-
-{#if !groupedBrowseMode && continueShelf && continueShelf.books.length > 0}
-  <ContinueReadingShelf
-    sectionTitle={continueShelf.sectionTitle}
-    sectionDescription={continueShelf.sectionDescription}
-    primaryActionLabel={continueShelf.primaryActionLabel}
-    books={continueShelf.books}
-    onOpenLink={onOpenLink}
-    onOpenSourcePath={continueShelf.onOpenSourcePath ?? null}
-    onImportBooks={continueShelf.onImportBooks ?? null}
-    onRepairBook={continueShelf.onRepairBook ?? null}
-    onRemoveBook={continueShelf.onRemoveBook ?? null}
-  />
-{/if}
-
-{#if !groupedBrowseMode && recentShelf && recentShelf.books.length > 0}
-  <ContinueReadingShelf
-    sectionTitle={recentShelf.sectionTitle}
-    sectionDescription={recentShelf.sectionDescription}
-    primaryActionLabel={recentShelf.primaryActionLabel}
-    books={recentShelf.books}
-    onOpenLink={onOpenLink}
-    onOpenSourcePath={recentShelf.onOpenSourcePath ?? null}
-    onImportBooks={recentShelf.onImportBooks ?? null}
-    onRepairBook={recentShelf.onRepairBook ?? null}
-    onRemoveBook={recentShelf.onRemoveBook ?? null}
-  />
-{/if}
-
-{#each beforePanelEmptyStates as emptyState}
+{#if initialEmptyState}
   <LibraryEmptyState
-    ariaLabel={emptyState.ariaLabel}
-    title={emptyState.title}
-    message={emptyState.message}
-    filterChips={emptyState.filterChips ?? []}
-    actions={emptyState.actions ?? []}
+    ariaLabel={initialEmptyState.ariaLabel}
+    title={initialEmptyState.title}
+    message={initialEmptyState.message}
+    filterChips={initialEmptyState.filterChips ?? []}
+    actions={initialEmptyState.actions ?? []}
   />
-{/each}
+{:else}
+  {#if workflowNotice}
+    <section class="reading-workflow-note" aria-label="阅读流程提示">
+      <strong>{workflowNotice.title}</strong>
+      <span>{workflowNotice.message}</span>
+    </section>
+  {/if}
 
-<LibraryGroupedBrowsePanel
-  {browseState}
-  {browseBooks}
-  {viewMode}
-  shelfBooks={shelfBooks}
-  {shelfSectionTitle}
-  {onDispatchBrowseAction}
-  {onOpenLink}
-  {onImportBooks}
-  {onOpenSourcePath}
-  {onUpdateBookMetadata}
-  {onRemoveBook}
-  {onFilterStatus}
-  {onFilterFormat}
-  {onFilterCollection}
-  {onFilterTag}
-/>
+  {#if !groupedBrowseMode && recoveryShelf && recoveryShelf.books.length > 0}
+    <ContinueReadingShelf
+      sectionTitle={recoveryShelf.sectionTitle}
+      sectionDescription={recoveryShelf.sectionDescription}
+      primaryActionLabel={recoveryShelf.primaryActionLabel}
+      books={recoveryShelf.books}
+      bulkActionLabel={recoveryShelf.bulkActionLabel ?? ''}
+      bulkActionDisabled={recoveryShelf.bulkActionDisabled ?? false}
+      operationSummary={recoveryShelf.operationSummary ?? ''}
+      onOpenLink={onOpenLink}
+      onOpenSourcePath={recoveryShelf.onOpenSourcePath ?? null}
+      onImportBooks={recoveryShelf.onImportBooks ?? null}
+      onBulkAction={recoveryShelf.onBulkAction ?? null}
+      onRepairBook={recoveryShelf.onRepairBook ?? null}
+      onRemoveBook={recoveryShelf.onRemoveBook ?? null}
+    />
+  {/if}
 
-{#each afterPanelEmptyStates as emptyState}
-  <LibraryEmptyState
-    ariaLabel={emptyState.ariaLabel}
-    title={emptyState.title}
-    message={emptyState.message}
-    filterChips={emptyState.filterChips ?? []}
-    actions={emptyState.actions ?? []}
+  {#if !groupedBrowseMode && continueShelf && continueShelf.books.length > 0}
+    <ContinueReadingShelf
+      sectionTitle={continueShelf.sectionTitle}
+      sectionDescription={continueShelf.sectionDescription}
+      primaryActionLabel={continueShelf.primaryActionLabel}
+      books={continueShelf.books}
+      onOpenLink={onOpenLink}
+      onOpenSourcePath={continueShelf.onOpenSourcePath ?? null}
+      onImportBooks={continueShelf.onImportBooks ?? null}
+      onRepairBook={continueShelf.onRepairBook ?? null}
+      onRemoveBook={continueShelf.onRemoveBook ?? null}
+    />
+  {/if}
+
+  {#if !groupedBrowseMode && recentShelf && recentShelf.books.length > 0}
+    <ContinueReadingShelf
+      sectionTitle={recentShelf.sectionTitle}
+      sectionDescription={recentShelf.sectionDescription}
+      primaryActionLabel={recentShelf.primaryActionLabel}
+      books={recentShelf.books}
+      onOpenLink={onOpenLink}
+      onOpenSourcePath={recentShelf.onOpenSourcePath ?? null}
+      onImportBooks={recentShelf.onImportBooks ?? null}
+      onRepairBook={recentShelf.onRepairBook ?? null}
+      onRemoveBook={recentShelf.onRemoveBook ?? null}
+    />
+  {/if}
+
+  {#each beforePanelEmptyStates as emptyState}
+    <LibraryEmptyState
+      ariaLabel={emptyState.ariaLabel}
+      title={emptyState.title}
+      message={emptyState.message}
+      filterChips={emptyState.filterChips ?? []}
+      actions={emptyState.actions ?? []}
+    />
+  {/each}
+
+  <LibraryGroupedBrowsePanel
+    {browseState}
+    {browseBooks}
+    {viewMode}
+    shelfBooks={shelfBooks}
+    {shelfSectionTitle}
+    {onDispatchBrowseAction}
+    {onOpenLink}
+    {onImportBooks}
+    {onOpenSourcePath}
+    {onUpdateBookMetadata}
+    {onRemoveBook}
+    {onFilterStatus}
+    {onFilterFormat}
+    {onFilterCollection}
+    {onFilterTag}
   />
-{/each}
+
+  {#each afterPanelEmptyStates as emptyState}
+    <LibraryEmptyState
+      ariaLabel={emptyState.ariaLabel}
+      title={emptyState.title}
+      message={emptyState.message}
+      filterChips={emptyState.filterChips ?? []}
+      actions={emptyState.actions ?? []}
+    />
+  {/each}
+{/if}
 
 <style>
   .reading-workflow-note {
