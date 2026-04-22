@@ -3,25 +3,34 @@
   import LibraryBrowseNavigator from './LibraryBrowseNavigator.svelte';
   import LibraryBrowseOverview from './LibraryBrowseOverview.svelte';
   import LibraryBrowseTrailLandings from './LibraryBrowseTrailLandings.svelte';
+  import {
+    getLibraryBlockedTrailGroupExplanations,
+    getLibraryBrowseActionAvailability,
+    getLibraryBrowseActionReasonLabel,
+    getLibraryLandingGroupBy,
+    getLibraryTrailActionExplanations,
+    getLibraryTrailSiblingExplanations
+  } from '$lib/library/navigation';
   import type {
+    LibraryBrowseAction,
     BookshelfPreviewBook,
-    LibraryBrowseGuardExplanation,
     LibraryBrowseSurfaceModel,
     LibraryGroupBy,
-    LibraryGroupSegment,
+    LibraryBrowseState,
     LibraryShelfBook,
     LibraryTrailLanding
   } from '$lib/library/types';
 
   export let browseSurface: LibraryBrowseSurfaceModel;
-  export let trail: LibraryGroupSegment[] = [];
-  export let currentGroupBy: LibraryGroupBy = 'author';
-  export let currentGroupLabel = '';
+  export let browseState: LibraryBrowseState = {
+    groupBy: 'none',
+    groupScope: '',
+    trail: []
+  };
   export let viewMode: 'grid' | 'list' = 'grid';
   export let shelfBooks: BookshelfPreviewBook[] = [];
   export let shelfSectionTitle = '书架';
-  export let shelfGroupBy: 'none' | LibraryGroupBy = 'none';
-  export let showImportTile = false;
+  export let onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
   export let onOpenLink: (href: string) => void | Promise<void>;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
@@ -46,62 +55,120 @@
   export let onFilterFormat: ((format: string) => void | Promise<void>) | null = null;
   export let onFilterCollection: ((collection: string) => void | Promise<void>) | null = null;
   export let onFilterTag: ((tag: string) => void | Promise<void>) | null = null;
-  export let getTrailAvailability: (index: number) => boolean;
-  export let getTrailReasonLabel: (index: number) => string;
-  export let onJumpTrail: (index: number) => void | Promise<void>;
-  export let getCurrentSiblingAvailability: (label: string, groupBy: LibraryGroupBy) => boolean;
-  export let getCurrentSiblingReasonLabel: (label: string, groupBy: LibraryGroupBy) => string;
-  export let onSelectCurrentSibling: (
-    label: string,
-    groupBy: LibraryGroupBy
-  ) => void | Promise<void>;
-  export let isPivotAvailable: (groupBy: LibraryGroupBy, value: string) => boolean;
-  export let getPivotReasonLabel: (groupBy: LibraryGroupBy, value: string) => string;
-  export let onSelectPivot: (groupBy: LibraryGroupBy, value: string) => void | Promise<void>;
-  export let getLandingGroupBy: (landing: LibraryTrailLanding) => LibraryGroupBy;
-  export let getTrailActionExplanations: (
-    landing: LibraryTrailLanding
-  ) => LibraryBrowseGuardExplanation[];
-  export let getTrailSiblingExplanations: (
-    landing: LibraryTrailLanding
-  ) => LibraryBrowseGuardExplanation[];
-  export let isTrailSiblingAvailable: (
+
+  $: currentGroupBy = browseState.groupBy === 'none' ? 'author' : browseState.groupBy;
+  $: currentGroupLabel = browseState.groupScope;
+  $: shelfGroupBy = browseState.groupBy;
+  $: showImportTile = !browseState.groupScope;
+
+  const isActionAvailable = (action: LibraryBrowseAction) =>
+    getLibraryBrowseActionAvailability(browseState, action).kind === 'allowed';
+
+  const getActionReasonLabel = (action: LibraryBrowseAction) =>
+    getLibraryBrowseActionReasonLabel(browseState, action);
+
+  const getTrailAvailability = (index: number) =>
+    isActionAvailable({
+      type: 'jump-trail',
+      index
+    });
+
+  const getTrailReasonLabel = (index: number) =>
+    getActionReasonLabel({
+      type: 'jump-trail',
+      index
+    });
+
+  const getCurrentSiblingAvailability = (label: string, groupBy: LibraryGroupBy) =>
+    isActionAvailable({
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail: browseState.trail
+    });
+
+  const getCurrentSiblingReasonLabel = (label: string, groupBy: LibraryGroupBy) =>
+    getActionReasonLabel({
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail: browseState.trail
+    });
+
+  const isPivotAvailable = (groupBy: LibraryGroupBy, value: string) =>
+    isActionAvailable({
+      type: 'enter-group',
+      groupBy,
+      label: value
+    });
+
+  const getPivotReasonLabel = (groupBy: LibraryGroupBy, value: string) =>
+    getActionReasonLabel({
+      type: 'enter-group',
+      groupBy,
+      label: value
+    });
+
+  const getTrailLandingGroupBy = (landing: LibraryTrailLanding) =>
+    getLibraryLandingGroupBy(browseState, currentGroupBy, landing.index);
+
+  const isTrailSiblingAvailable = (label: string, groupBy: LibraryGroupBy, trailIndex: number) =>
+    isActionAvailable({
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail: browseState.trail.slice(0, trailIndex)
+    });
+
+  const getTrailSiblingReasonLabel = (
     label: string,
     groupBy: LibraryGroupBy,
     trailIndex: number
-  ) => boolean;
-  export let getTrailSiblingReasonLabel: (
-    label: string,
-    groupBy: LibraryGroupBy,
-    trailIndex: number
-  ) => string;
-  export let onSelectTrailSibling: (
-    label: string,
-    groupBy: LibraryGroupBy,
-    trailIndex: number
-  ) => void | Promise<void>;
-  export let getBlockedTrailGroupExplanations: (
-    landing: LibraryTrailLanding,
-    groupBy: LibraryGroupBy
-  ) => LibraryBrowseGuardExplanation[];
-  export let isEnterFromTrailAvailable: (
+  ) =>
+    getActionReasonLabel({
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail: browseState.trail.slice(0, trailIndex)
+    });
+
+  const isEnterFromTrailAvailable = (
     trailIndex: number,
     label: string,
     groupBy: LibraryGroupBy
-  ) => boolean;
-  export let getEnterFromTrailReasonLabel: (
+  ) =>
+    isActionAvailable({
+      type: 'enter-from-trail',
+      trailIndex,
+      groupBy,
+      label
+    });
+
+  const getEnterFromTrailReasonLabel = (
     trailIndex: number,
     label: string,
     groupBy: LibraryGroupBy
-  ) => string;
-  export let onEnterFromTrail: (
-    trailIndex: number,
-    label: string,
-    groupBy: LibraryGroupBy
-  ) => void | Promise<void>;
-  export let isEnterGroupAvailable: (label: string, groupBy: LibraryGroupBy) => boolean;
-  export let getEnterGroupReasonLabel: (label: string, groupBy: LibraryGroupBy) => string;
-  export let onEnterGroup: (label: string, groupBy: LibraryGroupBy) => void | Promise<void>;
+  ) =>
+    getActionReasonLabel({
+      type: 'enter-from-trail',
+      trailIndex,
+      groupBy,
+      label
+    });
+
+  const isEnterGroupAvailable = (label: string, groupBy: LibraryGroupBy) =>
+    isActionAvailable({
+      type: 'enter-group',
+      groupBy,
+      label
+    });
+
+  const getEnterGroupReasonLabel = (label: string, groupBy: LibraryGroupBy) =>
+    getActionReasonLabel({
+      type: 'enter-group',
+      groupBy,
+      label
+    });
 </script>
 
 {#if browseSurface.overview}
@@ -109,12 +176,12 @@
     eyebrow="当前浏览导航"
     title={browseSurface.overview.title}
     summary={browseSurface.overview.summary}
-    {trail}
+    trail={browseState.trail}
     {currentGroupBy}
     currentGroupLabel={currentGroupLabel}
     siblings={browseSurface.siblingGroups}
-    trailAvailability={trail.map((_, index) => getTrailAvailability(index))}
-    trailReasonLabels={trail.map((_, index) => getTrailReasonLabel(index))}
+    trailAvailability={browseState.trail.map((_, index) => getTrailAvailability(index))}
+    trailReasonLabels={browseState.trail.map((_, index) => getTrailReasonLabel(index))}
     trailGuardExplanations={browseSurface.trailGuardExplanations}
     siblingAvailability={browseSurface.siblingGroups.map((sibling) =>
       getCurrentSiblingAvailability(sibling.label, currentGroupBy))}
@@ -125,28 +192,59 @@
     pivots={browseSurface.overview.pivots}
     {isPivotAvailable}
     {getPivotReasonLabel}
-    {onJumpTrail}
-    onSelectSibling={onSelectCurrentSibling}
-    {onSelectPivot}
+    onJumpTrail={(index) => onDispatchBrowseAction({ type: 'jump-trail', index })}
+    onSelectSibling={(label, groupBy) =>
+      onDispatchBrowseAction({
+        type: 'switch-sibling',
+        groupBy,
+        label,
+        trail: browseState.trail
+      })}
+    onSelectPivot={(groupBy, value) =>
+      onDispatchBrowseAction({
+        type: 'enter-group',
+        groupBy,
+        label: value
+      })}
   />
 {/if}
 
 <LibraryBrowseTrailLandings
   landings={browseSurface.trailLandings}
   {viewMode}
-  {getLandingGroupBy}
-  {getTrailActionExplanations}
-  {getTrailSiblingExplanations}
+  getLandingGroupBy={getTrailLandingGroupBy}
+  getTrailActionExplanations={(landing) =>
+    getLibraryTrailActionExplanations(browseState, landing)}
+  getTrailSiblingExplanations={(landing) =>
+    getLibraryTrailSiblingExplanations(
+      browseState,
+      landing.siblingGroups,
+      landing.index,
+      currentGroupBy
+    )}
   isJumpAvailable={getTrailAvailability}
   getJumpReasonLabel={getTrailReasonLabel}
-  {onJumpTrail}
+  onJumpTrail={(index) => onDispatchBrowseAction({ type: 'jump-trail', index })}
   isSiblingAvailable={isTrailSiblingAvailable}
   getSiblingReasonLabel={getTrailSiblingReasonLabel}
-  onSelectSibling={onSelectTrailSibling}
-  getBlockedGroupExplanations={getBlockedTrailGroupExplanations}
+  onSelectSibling={(label, groupBy, trailIndex) =>
+    onDispatchBrowseAction({
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail: browseState.trail.slice(0, trailIndex)
+    })}
+  getBlockedGroupExplanations={(landing, groupBy) =>
+    getLibraryBlockedTrailGroupExplanations(browseState, landing, groupBy)}
   {isEnterFromTrailAvailable}
   {getEnterFromTrailReasonLabel}
-  {onEnterFromTrail}
+  onEnterFromTrail={(trailIndex, label, groupBy) =>
+    onDispatchBrowseAction({
+      type: 'enter-from-trail',
+      trailIndex,
+      groupBy,
+      label
+    })}
   {onOpenLink}
 />
 
@@ -159,10 +257,21 @@
     pivotGuardExplanations={browseSurface.pivotGuardExplanations}
     isSiblingAvailable={getCurrentSiblingAvailability}
     getSiblingReasonLabel={getCurrentSiblingReasonLabel}
-    onSelectSibling={onSelectCurrentSibling}
+    onSelectSibling={(label, groupBy) =>
+      onDispatchBrowseAction({
+        type: 'switch-sibling',
+        groupBy,
+        label,
+        trail: browseState.trail
+      })}
     {isPivotAvailable}
     {getPivotReasonLabel}
-    onSelectPivot={onSelectPivot}
+    onSelectPivot={(groupBy, value) =>
+      onDispatchBrowseAction({
+        type: 'enter-group',
+        groupBy,
+        label: value
+      })}
   />
 {/if}
 
@@ -185,7 +294,12 @@
           groupEnterHintSurface="subgroup"
           onEnterGroupAvailable={isEnterGroupAvailable}
           onEnterGroupReasonLabel={getEnterGroupReasonLabel}
-          {onEnterGroup}
+          onEnterGroup={(label, groupBy) =>
+            onDispatchBrowseAction({
+              type: 'enter-group',
+              groupBy,
+              label
+            })}
           {onOpenLink}
         />
       </div>
@@ -204,7 +318,12 @@
   groupEnterHintSurface="group-card"
   onEnterGroupAvailable={isEnterGroupAvailable}
   onEnterGroupReasonLabel={getEnterGroupReasonLabel}
-  {onEnterGroup}
+  onEnterGroup={(label, groupBy) =>
+    onDispatchBrowseAction({
+      type: 'enter-group',
+      groupBy,
+      label
+    })}
   {onOpenLink}
   {onImportBooks}
   {onOpenSourcePath}
