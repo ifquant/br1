@@ -36,9 +36,7 @@
   import {
     BookshelfPreview,
     ContinueReadingShelf,
-    LibraryBrowseOverview,
-    LibraryBrowseTrailLandings,
-    LibraryBrowseNavigator,
+    LibraryGroupedBrowsePanel,
     LibraryHeader
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
@@ -2190,46 +2188,37 @@
           filteredLibraryBrowseBooks,
           filteredLibraryShelfBooks
         )}
-        {#if desktopBrowseSurface.overview}
-          <LibraryBrowseNavigator
-            eyebrow="当前浏览导航"
-            title={desktopBrowseSurface.overview.title}
-            summary={desktopBrowseSurface.overview.summary}
-            trail={libraryBrowseTrail}
-            currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
-            currentGroupLabel={libraryGroupScope}
-            siblings={desktopBrowseSurface.siblingGroups}
-            trailAvailability={libraryBrowseTrail.map((_, index) =>
-              getLibraryJumpTrailAvailability(index))}
-            trailReasonLabels={libraryBrowseTrail.map((_, index) =>
-              getLibraryJumpTrailReasonLabel(index))}
-            trailGuardExplanations={desktopBrowseSurface.trailGuardExplanations}
-            siblingAvailability={desktopBrowseSurface.siblingGroups.map((sibling) =>
-              getLibrarySiblingAvailability(
-                sibling.label,
-                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                libraryBrowseTrail
-              ))}
-            siblingReasonLabels={desktopBrowseSurface.siblingGroups.map((sibling) =>
-              getLibrarySiblingReasonLabel(
-                sibling.label,
-                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                libraryBrowseTrail
-              ))}
-            siblingGuardExplanations={desktopBrowseSurface.siblingGuardExplanations}
-            pivotGuardExplanations={desktopBrowseSurface.pivotGuardExplanations}
-            pivots={desktopBrowseSurface.overview.pivots}
-            isPivotAvailable={isLibraryPivotAvailable}
-            getPivotReasonLabel={getLibraryPivotReasonLabel}
-            onJumpTrail={jumpLibraryGroupTrailToIndex}
-            onSelectSibling={(label, groupBy) =>
-              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
-            onSelectPivot={handleLibraryGroupPivot}
-          />
-        {/if}
-        <LibraryBrowseTrailLandings
-          landings={desktopBrowseSurface.trailLandings}
+        <LibraryGroupedBrowsePanel
+          browseSurface={desktopBrowseSurface}
+          trail={libraryBrowseTrail}
+          currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
+          currentGroupLabel={libraryGroupScope}
           viewMode={libraryViewMode}
+          shelfBooks={filteredLibraryShelfBooks}
+          shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
+          shelfGroupBy={libraryGroupBy}
+          showImportTile={!libraryGroupScope}
+          onOpenLink={handleOpenReaderTarget}
+          onImportBooks={triggerImportPicker}
+          onOpenSourcePath={handleOpenSourcePath}
+          onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
+          onRemoveBook={handleRemoveLibraryBook}
+          onFilterStatus={handleFilterByShelfStatus}
+          onFilterFormat={handleFilterByShelfFormat}
+          onFilterCollection={handleFilterByShelfCollection}
+          onFilterTag={handleFilterByShelfTag}
+          getTrailAvailability={getLibraryJumpTrailAvailability}
+          getTrailReasonLabel={getLibraryJumpTrailReasonLabel}
+          onJumpTrail={jumpLibraryGroupTrailToIndex}
+          getCurrentSiblingAvailability={(label, groupBy) =>
+            getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
+          getCurrentSiblingReasonLabel={(label, groupBy) =>
+            getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail)}
+          onSelectCurrentSibling={(label, groupBy) =>
+            enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
+          isPivotAvailable={isLibraryPivotAvailable}
+          getPivotReasonLabel={getLibraryPivotReasonLabel}
+          onSelectPivot={handleLibraryGroupPivot}
           getLandingGroupBy={(landing) =>
             getLibraryLandingGroupBy(
               getCurrentLibraryBrowseState(),
@@ -2245,89 +2234,20 @@
               landing.index,
               libraryGroupBy === 'none' ? 'author' : libraryGroupBy
             )}
-          isJumpAvailable={getLibraryJumpTrailAvailability}
-          getJumpReasonLabel={getLibraryJumpTrailReasonLabel}
-          onJumpTrail={jumpLibraryGroupTrailToIndex}
-          isSiblingAvailable={(label, groupBy, trailIndex) =>
+          isTrailSiblingAvailable={(label, groupBy, trailIndex) =>
             getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          getSiblingReasonLabel={(label, groupBy, trailIndex) =>
+          getTrailSiblingReasonLabel={(label, groupBy, trailIndex) =>
             getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          onSelectSibling={(label, groupBy, trailIndex) =>
+          onSelectTrailSibling={(label, groupBy, trailIndex) =>
             enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          getBlockedGroupExplanations={(landing, groupBy) =>
+          getBlockedTrailGroupExplanations={(landing, groupBy) =>
             getLibraryBlockedTrailGroupExplanations(getCurrentLibraryBrowseState(), landing, groupBy)}
           isEnterFromTrailAvailable={getLibraryEnterFromTrailAvailability}
           getEnterFromTrailReasonLabel={getLibraryEnterFromTrailReasonLabel}
           onEnterFromTrail={enterLibraryGroupFromTrail}
-          onOpenLink={handleOpenReaderTarget}
-        />
-
-        {#if desktopBrowseSurface.overview}
-          <LibraryBrowseOverview
-            overview={desktopBrowseSurface.overview}
-            groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
-            siblingGroups={desktopBrowseSurface.siblingGroups}
-            siblingGuardExplanations={desktopBrowseSurface.siblingGuardExplanations}
-            pivotGuardExplanations={desktopBrowseSurface.pivotGuardExplanations}
-            isSiblingAvailable={(label, groupBy) =>
-              getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
-            getSiblingReasonLabel={(label, groupBy) =>
-              getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail)}
-            onSelectSibling={(label, groupBy) =>
-              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
-            isPivotAvailable={isLibraryPivotAvailable}
-            getPivotReasonLabel={getLibraryPivotReasonLabel}
-            onSelectPivot={handleLibraryGroupPivot}
-          />
-        {/if}
-        {#if desktopBrowseSurface.subgroupShelves.length > 0}
-          <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
-            {#each desktopBrowseSurface.subgroupShelves as subgroupSurface}
-              <div class="group-browse-subgroup-shelf">
-                <div class="group-browse-subgroup-copy">
-                  <strong>{subgroupSurface.shelf.title}</strong>
-                  <span>{subgroupSurface.shelf.description}</span>
-                </div>
-                <BookshelfPreview
-                  sectionTitle={subgroupSurface.shelf.title}
-                  books={filteredLibraryShelfBooks}
-                  viewMode={libraryViewMode}
-                  groupBy={subgroupSurface.shelf.groupBy}
-                  activeGroupLabel=""
-                  showImportTile={false}
-                  blockedGroupExplanations={subgroupSurface.blockedGroupExplanations}
-                  groupEnterHintSurface="subgroup"
-                  onEnterGroupAvailable={getLibraryEnterGroupAvailability}
-                  onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
-                  onEnterGroup={handleEnterLibraryGroup}
-                  onOpenLink={handleOpenReaderTarget}
-                />
-              </div>
-            {/each}
-          </section>
-        {/if}
-
-        <BookshelfPreview
-          sectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
-          books={filteredLibraryShelfBooks}
-          viewMode={libraryViewMode}
-          groupBy={libraryGroupBy}
-          activeGroupLabel={libraryGroupScope}
-          showImportTile={!libraryGroupScope}
-          blockedGroupExplanations={desktopBrowseSurface.shelfGroupCardExplanations}
-          groupEnterHintSurface="group-card"
-          onEnterGroupAvailable={getLibraryEnterGroupAvailability}
-          onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
+          isEnterGroupAvailable={getLibraryEnterGroupAvailability}
+          getEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
           onEnterGroup={handleEnterLibraryGroup}
-          onOpenLink={handleOpenReaderTarget}
-          onImportBooks={triggerImportPicker}
-          onOpenSourcePath={handleOpenSourcePath}
-          onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
-          onRemoveBook={handleRemoveLibraryBook}
-          onFilterStatus={handleFilterByShelfStatus}
-          onFilterFormat={handleFilterByShelfFormat}
-          onFilterCollection={handleFilterByShelfCollection}
-          onFilterTag={handleFilterByShelfTag}
         />
       {/if}
 
@@ -2407,123 +2327,6 @@
           filteredStarterBrowseBooks,
           filteredStarterShelfBooks
         )}
-        {#if starterBrowseSurface.overview}
-          <LibraryBrowseNavigator
-            eyebrow="当前浏览导航"
-            title={starterBrowseSurface.overview.title}
-            summary={starterBrowseSurface.overview.summary}
-            trail={libraryBrowseTrail}
-            currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
-            currentGroupLabel={libraryGroupScope}
-            siblings={starterBrowseSurface.siblingGroups}
-            trailAvailability={libraryBrowseTrail.map((_, index) =>
-              getLibraryJumpTrailAvailability(index))}
-            trailReasonLabels={libraryBrowseTrail.map((_, index) =>
-              getLibraryJumpTrailReasonLabel(index))}
-            trailGuardExplanations={starterBrowseSurface.trailGuardExplanations}
-            siblingAvailability={starterBrowseSurface.siblingGroups.map((sibling) =>
-              getLibrarySiblingAvailability(
-                sibling.label,
-                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                libraryBrowseTrail
-              ))}
-            siblingReasonLabels={starterBrowseSurface.siblingGroups.map((sibling) =>
-              getLibrarySiblingReasonLabel(
-                sibling.label,
-                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                libraryBrowseTrail
-              ))}
-            siblingGuardExplanations={starterBrowseSurface.siblingGuardExplanations}
-            pivotGuardExplanations={starterBrowseSurface.pivotGuardExplanations}
-            pivots={starterBrowseSurface.overview.pivots}
-            isPivotAvailable={isLibraryPivotAvailable}
-            getPivotReasonLabel={getLibraryPivotReasonLabel}
-            onJumpTrail={jumpLibraryGroupTrailToIndex}
-            onSelectSibling={(label, groupBy) =>
-              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
-            onSelectPivot={handleLibraryGroupPivot}
-          />
-        {/if}
-        <LibraryBrowseTrailLandings
-          landings={starterBrowseSurface.trailLandings}
-          viewMode={libraryViewMode}
-          getLandingGroupBy={(landing) =>
-            getLibraryLandingGroupBy(
-              getCurrentLibraryBrowseState(),
-              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-              landing.index
-            )}
-          getTrailActionExplanations={(landing) =>
-            getLibraryTrailActionExplanations(getCurrentLibraryBrowseState(), landing)}
-          getTrailSiblingExplanations={(landing) =>
-            getLibraryTrailSiblingExplanations(
-              getCurrentLibraryBrowseState(),
-              landing.siblingGroups,
-              landing.index,
-              libraryGroupBy === 'none' ? 'author' : libraryGroupBy
-            )}
-          isJumpAvailable={getLibraryJumpTrailAvailability}
-          getJumpReasonLabel={getLibraryJumpTrailReasonLabel}
-          onJumpTrail={jumpLibraryGroupTrailToIndex}
-          isSiblingAvailable={(label, groupBy, trailIndex) =>
-            getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          getSiblingReasonLabel={(label, groupBy, trailIndex) =>
-            getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          onSelectSibling={(label, groupBy, trailIndex) =>
-            enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
-          getBlockedGroupExplanations={(landing, groupBy) =>
-            getLibraryBlockedTrailGroupExplanations(getCurrentLibraryBrowseState(), landing, groupBy)}
-          isEnterFromTrailAvailable={getLibraryEnterFromTrailAvailability}
-          getEnterFromTrailReasonLabel={getLibraryEnterFromTrailReasonLabel}
-          onEnterFromTrail={enterLibraryGroupFromTrail}
-          onOpenLink={handleOpenReaderTarget}
-        />
-
-        {#if starterBrowseSurface.overview}
-          <LibraryBrowseOverview
-            overview={starterBrowseSurface.overview}
-            groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
-            siblingGroups={starterBrowseSurface.siblingGroups}
-            siblingGuardExplanations={starterBrowseSurface.siblingGuardExplanations}
-            pivotGuardExplanations={starterBrowseSurface.pivotGuardExplanations}
-            isSiblingAvailable={(label, groupBy) =>
-              getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
-            getSiblingReasonLabel={(label, groupBy) =>
-              getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail)}
-            onSelectSibling={(label, groupBy) =>
-              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
-            isPivotAvailable={isLibraryPivotAvailable}
-            getPivotReasonLabel={getLibraryPivotReasonLabel}
-            onSelectPivot={handleLibraryGroupPivot}
-          />
-        {/if}
-        {#if starterBrowseSurface.subgroupShelves.length > 0}
-          <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
-            {#each starterBrowseSurface.subgroupShelves as subgroupSurface}
-              <div class="group-browse-subgroup-shelf">
-                <div class="group-browse-subgroup-copy">
-                  <strong>{subgroupSurface.shelf.title}</strong>
-                  <span>{subgroupSurface.shelf.description}</span>
-                </div>
-                <BookshelfPreview
-                  sectionTitle={subgroupSurface.shelf.title}
-                  books={filteredStarterShelfBooks}
-                  viewMode={libraryViewMode}
-                  groupBy={subgroupSurface.shelf.groupBy}
-                  activeGroupLabel=""
-                  showImportTile={false}
-                  blockedGroupExplanations={subgroupSurface.blockedGroupExplanations}
-                  groupEnterHintSurface="subgroup"
-                  onEnterGroupAvailable={getLibraryEnterGroupAvailability}
-                  onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
-                  onEnterGroup={handleEnterLibraryGroup}
-                  onOpenLink={handleOpenReaderTarget}
-                />
-              </div>
-            {/each}
-          </section>
-        {/if}
-
         {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
           <section class="empty-library" aria-label="样例搜索无结果">
             <div class="empty-copy">
@@ -2544,24 +2347,63 @@
           </section>
         {/if}
 
-        <BookshelfPreview
-          sectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
-          books={filteredStarterShelfBooks}
+        <LibraryGroupedBrowsePanel
+          browseSurface={starterBrowseSurface}
+          trail={libraryBrowseTrail}
+          currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
+          currentGroupLabel={libraryGroupScope}
           viewMode={libraryViewMode}
-          groupBy={libraryGroupBy}
-          activeGroupLabel={libraryGroupScope}
+          shelfBooks={filteredStarterShelfBooks}
+          shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
+          shelfGroupBy={libraryGroupBy}
           showImportTile={!libraryGroupScope}
-          blockedGroupExplanations={starterBrowseSurface.shelfGroupCardExplanations}
-          groupEnterHintSurface="group-card"
-          onEnterGroupAvailable={getLibraryEnterGroupAvailability}
-          onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
-          onEnterGroup={handleEnterLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
           onFilterStatus={handleFilterByShelfStatus}
           onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}
+          getTrailAvailability={getLibraryJumpTrailAvailability}
+          getTrailReasonLabel={getLibraryJumpTrailReasonLabel}
+          onJumpTrail={jumpLibraryGroupTrailToIndex}
+          getCurrentSiblingAvailability={(label, groupBy) =>
+            getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
+          getCurrentSiblingReasonLabel={(label, groupBy) =>
+            getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail)}
+          onSelectCurrentSibling={(label, groupBy) =>
+            enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
+          isPivotAvailable={isLibraryPivotAvailable}
+          getPivotReasonLabel={getLibraryPivotReasonLabel}
+          onSelectPivot={handleLibraryGroupPivot}
+          getLandingGroupBy={(landing) =>
+            getLibraryLandingGroupBy(
+              getCurrentLibraryBrowseState(),
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+              landing.index
+            )}
+          getTrailActionExplanations={(landing) =>
+            getLibraryTrailActionExplanations(getCurrentLibraryBrowseState(), landing)}
+          getTrailSiblingExplanations={(landing) =>
+            getLibraryTrailSiblingExplanations(
+              getCurrentLibraryBrowseState(),
+              landing.siblingGroups,
+              landing.index,
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy
+            )}
+          isTrailSiblingAvailable={(label, groupBy, trailIndex) =>
+            getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          getTrailSiblingReasonLabel={(label, groupBy, trailIndex) =>
+            getLibrarySiblingReasonLabel(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          onSelectTrailSibling={(label, groupBy, trailIndex) =>
+            enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail.slice(0, trailIndex))}
+          getBlockedTrailGroupExplanations={(landing, groupBy) =>
+            getLibraryBlockedTrailGroupExplanations(getCurrentLibraryBrowseState(), landing, groupBy)}
+          isEnterFromTrailAvailable={getLibraryEnterFromTrailAvailability}
+          getEnterFromTrailReasonLabel={getLibraryEnterFromTrailReasonLabel}
+          onEnterFromTrail={enterLibraryGroupFromTrail}
+          isEnterGroupAvailable={getLibraryEnterGroupAvailability}
+          getEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
+          onEnterGroup={handleEnterLibraryGroup}
         />
       {/if}
     </OverlayScrollbarsComponent>
@@ -2721,39 +2563,6 @@
     font-size: 12px;
     line-height: 1.45;
     color: var(--text-secondary);
-  }
-
-  .group-browse-subgroups {
-    display: grid;
-    gap: 18px;
-  }
-
-  .group-browse-subgroup-shelf {
-    display: grid;
-    gap: 12px;
-    padding: 16px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 86%, white 14%);
-    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.24),
-      0 10px 24px rgba(42, 30, 15, 0.04);
-  }
-
-  .group-browse-subgroup-copy {
-    display: grid;
-    gap: 4px;
-  }
-
-  .group-browse-subgroup-copy strong {
-    color: var(--text-primary);
-    font: 600 14px/1.2 var(--font-chrome);
-  }
-
-  .group-browse-subgroup-copy span {
-    max-width: 54ch;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.45;
   }
 
   .empty-library {

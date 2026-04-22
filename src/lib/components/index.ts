@@ -2,6 +2,7 @@ export { default as BookshelfPreview } from './library/BookshelfPreview.svelte';
 export { default as LibraryBrowseGuardHint } from './library/LibraryBrowseGuardHint.svelte';
 export { default as LibraryBrowseNavigator } from './library/LibraryBrowseNavigator.svelte';
 export { default as LibraryBrowseOverview } from './library/LibraryBrowseOverview.svelte';
+export { default as LibraryGroupedBrowsePanel } from './library/LibraryGroupedBrowsePanel.svelte';
 export { default as LibraryBrowseTrailLandings } from './library/LibraryBrowseTrailLandings.svelte';
 export { default as ContinueReadingShelf } from './library/ContinueReadingShelf.svelte';
 export { default as LibraryHeader } from './library/LibraryHeader.svelte';

@@ -198,6 +198,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - grouped library browse presenter logic is now further centralized in the shared navigation module, so the library route is progressively converging on state assembly plus callbacks instead of also defining explanation and surface-derivation helpers inline
 - grouped library browse desktop/starter branches now also share a common surface-model builder, so the route no longer hand-assembles two parallel overview/trail/sibling/pivot bundles for the same browse mode
 - grouped library browse subgroup-shelf and main-shelf blocked-entry explanations now also come from that shared surface model, further reducing page-local browse assembly in the route
+- grouped library browse desktop/starter branches now also share a single grouped-browse panel component, so the route no longer maintains two near-identical content trees for navigator, trail landings, overview, subgroup shelves, and main shelf wiring
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 
