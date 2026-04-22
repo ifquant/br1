@@ -445,30 +445,38 @@ export const getLibrarySiblingBrowseState = (
   trail
 });
 
+type LibraryBrowseActionByType<TType extends LibraryBrowseAction['type']> = Extract<
+  LibraryBrowseAction,
+  { type: TType }
+>;
+
+type LibraryBrowseTransitionHandlerMap = {
+  [TType in LibraryBrowseAction['type']]: (
+    current: LibraryBrowseState,
+    action: LibraryBrowseActionByType<TType>
+  ) => LibraryBrowseState | null;
+};
+
+const libraryBrowseTransitionHandlers: LibraryBrowseTransitionHandlerMap = {
+  'enter-group': (current, action) =>
+    getLibraryEnterBrowseState(current, action.groupBy, action.label),
+  'exit-group': (current) => getLibraryExitBrowseState(current),
+  'jump-trail': (current, action) => getLibraryJumpTrailState(current, action.index),
+  'enter-from-trail': (current, action) =>
+    getLibraryEnterFromTrailState(current, action.trailIndex, action.groupBy, action.label),
+  'switch-sibling': (_current, action) =>
+    getLibrarySiblingBrowseState(action.groupBy, action.label, action.trail)
+};
+
+const dispatchLibraryBrowseAction = <TType extends LibraryBrowseAction['type']>(
+  current: LibraryBrowseState,
+  action: LibraryBrowseActionByType<TType>
+) => {
+  return libraryBrowseTransitionHandlers[action.type](current, action);
+};
+
 export const getNextLibraryBrowseState = (
   current: LibraryBrowseState,
   action: LibraryBrowseAction
-): LibraryBrowseState | null => {
-  if (action.type === 'enter-group') {
-    return getLibraryEnterBrowseState(current, action.groupBy, action.label);
-  }
-
-  if (action.type === 'exit-group') {
-    return getLibraryExitBrowseState(current);
-  }
-
-  if (action.type === 'jump-trail') {
-    return getLibraryJumpTrailState(current, action.index);
-  }
-
-  if (action.type === 'enter-from-trail') {
-    return getLibraryEnterFromTrailState(
-      current,
-      action.trailIndex,
-      action.groupBy,
-      action.label
-    );
-  }
-
-  return getLibrarySiblingBrowseState(action.groupBy, action.label, action.trail);
-};
+): LibraryBrowseState | null =>
+  dispatchLibraryBrowseAction(current, action);
