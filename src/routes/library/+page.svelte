@@ -22,6 +22,12 @@
     buildStarterLibraryBrowseBodyModel
   } from '$lib/library/body';
   import {
+    buildLibraryScrollContextKey as buildSharedLibraryScrollContextKey,
+    restoreLibraryScrollPosition as restoreSharedLibraryScrollPosition,
+    saveLibraryScrollPosition as saveSharedLibraryScrollPosition,
+    syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation
+  } from '$lib/library/runtime';
+  import {
     buildLibraryActiveFilterState,
     buildDesktopLibraryBrowseDerivations,
     buildLibraryFilterState,
@@ -609,50 +615,44 @@
     groupScope?: string;
     trail?: LibraryGroupSegment[];
   }) => {
-    const nextGroupBy = options.groupBy ?? libraryGroupBy;
-    const nextGroupScope = options.groupScope ?? libraryGroupScope;
-    const nextTrail = options.trail ?? libraryBrowseTrail;
-    const nextHref = buildLibraryBrowseHref($page.url, {
-      groupBy: nextGroupBy,
-      groupScope: nextGroupScope,
-      trail: nextTrail
-    });
-    const currentHref = `${$page.url.pathname}${$page.url.search}`;
-    if (nextHref === currentHref) return;
-
-    await goto(nextHref, {
-      replaceState: true,
-      noScroll: true,
-      keepFocus: true,
-      invalidateAll: false
+    await syncSharedLibraryBrowseLocation({
+      currentUrl: $page.url,
+      state: {
+        groupBy: options.groupBy ?? libraryGroupBy,
+        groupScope: options.groupScope ?? libraryGroupScope,
+        trail: options.trail ?? libraryBrowseTrail
+      },
+      goto
     });
   };
 
   const getLibraryViewport = () => libraryScrollRef?.osInstance()?.elements().viewport ?? null;
 
   const buildLibraryScrollContextKey = () =>
-    [
-      'br1-library-scroll',
-      desktopLibraryMode ? 'desktop' : 'web',
-      libraryViewMode,
-      librarySortBy,
-      libraryGroupBy,
-      libraryGroupScope || 'all-groups',
-      libraryBrowseTrail
-        .map((segment) => `${segment.groupBy}:${segment.label}`)
-        .join('>') || 'root',
-      libraryFilterBy,
-      libraryFormatFilter,
-      libraryCollectionFilter,
-      libraryTagFilter,
-      librarySearchActive ? normalizeLibrarySearchText(libraryQuery) : 'browse'
-    ].join(':');
+    buildSharedLibraryScrollContextKey({
+      desktopLibraryMode,
+      viewMode: libraryViewMode,
+      sortBy: librarySortBy,
+      groupBy: libraryGroupBy,
+      groupScope: libraryGroupScope,
+      trail: libraryBrowseTrail,
+      filterBy: libraryFilterBy,
+      formatFilter: libraryFormatFilter,
+      collectionFilter: libraryCollectionFilter,
+      tagFilter: libraryTagFilter,
+      normalizedQuery: normalizeLibrarySearchText(libraryQuery),
+      searchActive: librarySearchActive
+    });
 
   const saveLibraryScrollPosition = (contextKey: string) => {
     if (typeof window === 'undefined' || !contextKey) return;
     const viewport = getLibraryViewport();
     if (!viewport) return;
-    window.sessionStorage.setItem(contextKey, String(viewport.scrollTop));
+    saveSharedLibraryScrollPosition({
+      storage: window.sessionStorage,
+      contextKey,
+      scrollTop: viewport.scrollTop
+    });
   };
 
   const restoreLibraryScrollPosition = async (contextKey: string) => {
@@ -660,8 +660,10 @@
     await tick();
     const viewport = getLibraryViewport();
     if (!viewport) return;
-    const savedPosition = window.sessionStorage.getItem(contextKey);
-    viewport.scrollTop = savedPosition ? Number(savedPosition) || 0 : 0;
+    viewport.scrollTop = restoreSharedLibraryScrollPosition({
+      storage: window.sessionStorage,
+      contextKey
+    });
   };
 
   const syncLibraryScrollContext = async (previousKey: string, nextKey: string) => {
