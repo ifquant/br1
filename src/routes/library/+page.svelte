@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
@@ -787,6 +789,43 @@
     return '';
   };
 
+  const normalizeLibraryGroupByParam = (value: string | null) => {
+    if (value === 'author' || value === 'collection' || value === 'format') return value;
+    return 'none';
+  };
+
+  const syncLibraryBrowseLocation = async (options: {
+    groupBy?: 'none' | 'author' | 'collection' | 'format';
+    groupScope?: string;
+  }) => {
+    const nextGroupBy = options.groupBy ?? libraryGroupBy;
+    const nextGroupScope = options.groupScope ?? libraryGroupScope;
+    const nextUrl = new URL($page.url);
+
+    if (nextGroupBy === 'none') {
+      nextUrl.searchParams.delete('groupBy');
+      nextUrl.searchParams.delete('group');
+    } else {
+      nextUrl.searchParams.set('groupBy', nextGroupBy);
+      if (nextGroupScope) {
+        nextUrl.searchParams.set('group', nextGroupScope);
+      } else {
+        nextUrl.searchParams.delete('group');
+      }
+    }
+
+    const nextHref = `${nextUrl.pathname}${nextUrl.search}`;
+    const currentHref = `${$page.url.pathname}${$page.url.search}`;
+    if (nextHref === currentHref) return;
+
+    await goto(nextHref, {
+      replaceState: true,
+      noScroll: true,
+      keepFocus: true,
+      invalidateAll: false
+    });
+  };
+
   const getLibraryActiveFilterDetail = (
     searchActive: boolean,
     query: string,
@@ -1005,6 +1044,8 @@
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
   $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
   $: libraryCoverSummary = getLibraryCoverSummary(librarySummaryBooks);
+  $: libraryGroupBy = normalizeLibraryGroupByParam($page.url.searchParams.get('groupBy'));
+  $: libraryGroupScope = $page.url.searchParams.get('group')?.trim() ?? '';
   $: libraryActiveFilterDetail = getLibraryActiveFilterDetail(
     librarySearchActive,
     libraryQuery,
@@ -1034,7 +1075,7 @@
     libraryTagFilter = 'all';
   }
   $: if (libraryGroupBy === 'none' && libraryGroupScope) {
-    libraryGroupScope = '';
+    void syncLibraryBrowseLocation({ groupBy: 'none', groupScope: '' });
   }
   $: if (
     libraryGroupBy !== 'none' &&
@@ -1042,7 +1083,7 @@
     !libraryShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope) &&
     !starterShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope)
   ) {
-    libraryGroupScope = '';
+    void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '' });
   }
   $: filteredRecoveryQueueBooks = filterBooksForLibraryView(
     recoveryQueueBooks,
@@ -1649,12 +1690,12 @@
     librarySortBy = event.detail.sortBy;
   };
 
-  const handleEnterLibraryGroup = (label: string) => {
-    libraryGroupScope = label;
+  const handleEnterLibraryGroup = async (label: string) => {
+    await syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: label });
   };
 
-  const handleExitLibraryGroup = () => {
-    libraryGroupScope = '';
+  const handleExitLibraryGroup = async () => {
+    await syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '' });
   };
 
   const handleLibraryFilterChange = (
@@ -1780,6 +1821,12 @@
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
       groupBy={libraryGroupBy}
+      activeGroupLabel={libraryGroupScope}
+      activeGroupDescription={getLibraryGroupScopeDescription(
+        libraryGroupBy,
+        libraryGroupScope,
+        filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length
+      )}
       activeFilter={libraryFilterBy}
       statusOptionCounts={libraryStatusOptionCounts}
       activeFormatFilter={libraryFormatFilter}
@@ -1808,11 +1855,10 @@
       on:tagfilterchange={handleLibraryTagFilterChange}
       on:clearfilterchip={handleClearLibraryFilterChip}
       on:clearfilters={handleClearLibraryFilters}
+      on:exitgroup={handleExitLibraryGroup}
       on:sortchange={handleLibrarySortChange}
-      on:groupbychange={(event) => {
-        libraryGroupScope = '';
-        libraryGroupBy = event.detail.groupBy;
-      }}
+      on:groupbychange={(event) =>
+        syncLibraryBrowseLocation({ groupBy: event.detail.groupBy, groupScope: '' })}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />
 
@@ -1926,14 +1972,8 @@
           viewMode={libraryViewMode}
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
-          activeGroupDescription={getLibraryGroupScopeDescription(
-            libraryGroupBy,
-            libraryGroupScope,
-            filteredLibraryShelfBooks.length
-          )}
           showImportTile={!libraryGroupScope}
           onEnterGroup={handleEnterLibraryGroup}
-          onExitGroup={handleExitLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
           onOpenSourcePath={handleOpenSourcePath}
@@ -2043,14 +2083,8 @@
           viewMode={libraryViewMode}
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
-          activeGroupDescription={getLibraryGroupScopeDescription(
-            libraryGroupBy,
-            libraryGroupScope,
-            filteredStarterShelfBooks.length
-          )}
           showImportTile={!libraryGroupScope}
           onEnterGroup={handleEnterLibraryGroup}
-          onExitGroup={handleExitLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
           onFilterStatus={handleFilterByShelfStatus}

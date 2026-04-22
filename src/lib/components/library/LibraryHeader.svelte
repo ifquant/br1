@@ -8,6 +8,8 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
+  export let activeGroupLabel = '';
+  export let activeGroupDescription = '';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
     all: 0,
@@ -53,6 +55,7 @@
     tagfilterchange: { tag: string };
     clearfilterchip: { id: 'query' | 'status' | 'format' | 'collection' | 'tag' };
     clearfilters: void;
+    exitgroup: void;
   }>();
 
   const actions = [
@@ -143,6 +146,10 @@
 
   const handleClearFilters = () => {
     dispatch('clearfilters');
+  };
+
+  const handleExitGroup = () => {
+    dispatch('exitgroup');
   };
 
   const handleClearFilterChip = (id: 'query' | 'status' | 'format' | 'collection' | 'tag') => {
@@ -307,6 +314,23 @@
     {/each}
   </div>
 </header>
+
+{#if activeGroupLabel}
+  <div class="group-context" aria-label="当前书库分组路径">
+    <button type="button" class="group-context-back" on:click={handleExitGroup}>
+      返回整库
+    </button>
+    <div class="group-context-copy">
+      <span class="group-context-type">
+        {groupBy === 'author' ? '作者' : groupBy === 'collection' ? '归类' : groupBy === 'format' ? '格式' : '分组'}
+      </span>
+      <strong>{activeGroupLabel}</strong>
+      {#if activeGroupDescription}
+        <small>{activeGroupDescription}</small>
+      {/if}
+    </div>
+  </div>
+{/if}
 
 <div class="filter-row" aria-label="书库筛选">
   {#each filterOptions as option}
@@ -493,6 +517,54 @@
     flex-wrap: wrap;
     border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 82%, transparent);
     margin-bottom: 2px;
+  }
+
+  .group-context {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0 4px;
+    flex-wrap: wrap;
+  }
+
+  .group-context-back {
+    width: auto;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 80%, white 20%);
+    background: color-mix(in srgb, var(--surface-elevated) 82%, white 18%);
+    color: var(--text-secondary);
+    font: 600 11px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
+  }
+
+  .group-context-back:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-elevated) 72%, white 28%);
+  }
+
+  .group-context-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .group-context-type {
+    color: var(--text-muted);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .group-context-copy strong {
+    color: var(--text-primary);
+    font: 600 13px/1.2 var(--font-chrome);
+  }
+
+  .group-context-copy small {
+    color: var(--text-secondary);
+    font: 500 10px/1.3 var(--font-chrome);
   }
 
   .advanced-filter-row {

@@ -6,11 +6,9 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
   export let activeGroupLabel = '';
-  export let activeGroupDescription = '';
   export let showImportTile = false;
   export let importHref = '';
   export let onEnterGroup: ((label: string) => void | Promise<void>) | null = null;
-  export let onExitGroup: (() => void | Promise<void>) | null = null;
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
@@ -67,13 +65,6 @@
     event.preventDefault();
     event.stopPropagation();
     void onEnterGroup(label);
-  };
-
-  const handleExitGroup = (event: MouseEvent) => {
-    if (!onExitGroup) return;
-    event.preventDefault();
-    event.stopPropagation();
-    void onExitGroup();
   };
 
   const getBookKey = (book: BookshelfPreviewBook) =>
@@ -278,21 +269,6 @@
       </div>
     </div>
   </header>
-
-  {#if activeGroupLabel}
-    <div class="group-breadcrumb" aria-label="当前书库分组路径">
-      <button type="button" class="group-breadcrumb-action" on:click={handleExitGroup}>
-        返回整库
-      </button>
-      <span class="group-breadcrumb-separator" aria-hidden="true">/</span>
-      <div class="group-breadcrumb-copy">
-        <strong>{activeGroupLabel}</strong>
-        {#if activeGroupDescription}
-          <span>{activeGroupDescription}</span>
-        {/if}
-      </div>
-    </div>
-  {/if}
 
   <div class="shelf-body" aria-label={sectionTitle}>
     {#each groupedBooks as group}
@@ -700,15 +676,6 @@
     gap: 18px;
   }
 
-  .group-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 2px 2px 0;
-  }
-
-  .group-breadcrumb-action,
   .group-enter-action {
     width: auto;
     height: auto;
@@ -722,31 +689,9 @@
     letter-spacing: 0.01em;
   }
 
-  .group-breadcrumb-action:hover,
   .group-enter-action:hover {
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
-  }
-
-  .group-breadcrumb-separator {
-    color: var(--text-muted);
-    font-size: 10px;
-  }
-
-  .group-breadcrumb-copy {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .group-breadcrumb-copy strong {
-    color: var(--text-primary);
-    font: 600 11px/1.2 var(--font-chrome);
-  }
-
-  .group-breadcrumb-copy span {
-    color: var(--text-muted);
-    font: 500 10px/1.2 var(--font-chrome);
   }
 
   .group-section {
