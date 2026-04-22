@@ -16,10 +16,15 @@
     filterBooksByLibraryGroupScope,
     getActiveLibraryGroupOverview,
     getActiveLibrarySubgroupShelves,
+    getLibraryEnterBrowseState,
+    getLibraryEnterFromTrailState,
+    getLibraryExitBrowseState,
     getLibraryBrowseStateFromUrl,
     getLibraryGroupLabel,
     getLibraryGroupScopeDescription,
+    getLibraryJumpTrailState,
     getLibrarySiblingGroups,
+    getLibrarySiblingBrowseState,
     getLibraryTrailLandings
   } from '$lib/library/navigation';
   import {
@@ -1711,66 +1716,61 @@
     librarySortBy = event.detail.sortBy;
   };
 
-  const getLibraryNextBrowseTrail = (
-    nextGroupBy: 'author' | 'collection' | 'format',
-    nextLabel: string
-  ) => {
-    if (!libraryGroupScope || libraryGroupBy === 'none') return [];
-    if (libraryGroupBy === nextGroupBy && libraryGroupScope === nextLabel) {
-      return libraryBrowseTrail;
-    }
-    return [
-      ...libraryBrowseTrail,
-      {
-        groupBy: libraryGroupBy,
-        label: libraryGroupScope
-      }
-    ];
-  };
-
   const handleEnterLibraryGroup = async (
     label: string,
     nextGroupBy: 'author' | 'collection' | 'format'
   ) => {
-    await syncLibraryBrowseLocation({
-      groupBy: nextGroupBy,
-      groupScope: label,
-      trail: getLibraryNextBrowseTrail(nextGroupBy, label)
-    });
+    await syncLibraryBrowseLocation(
+      getLibraryEnterBrowseState(
+        {
+          groupBy: libraryGroupBy,
+          groupScope: libraryGroupScope,
+          trail: libraryBrowseTrail
+        },
+        nextGroupBy,
+        label
+      )
+    );
   };
 
   const handleExitLibraryGroup = async () => {
-    const previousSegment = libraryBrowseTrail.at(-1);
-    if (!previousSegment) {
-      await syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
-      return;
-    }
-    await syncLibraryBrowseLocation({
-      groupBy: previousSegment.groupBy,
-      groupScope: previousSegment.label,
-      trail: libraryBrowseTrail.slice(0, -1)
-    });
+    await syncLibraryBrowseLocation(
+      getLibraryExitBrowseState({
+        groupBy: libraryGroupBy,
+        groupScope: libraryGroupScope,
+        trail: libraryBrowseTrail
+      })
+    );
   };
 
   const handleLibraryGroupPivot = async (
     nextGroupBy: 'author' | 'collection' | 'format',
     label: string
   ) => {
-    await syncLibraryBrowseLocation({
-      groupBy: nextGroupBy,
-      groupScope: label,
-      trail: getLibraryNextBrowseTrail(nextGroupBy, label)
-    });
+    await syncLibraryBrowseLocation(
+      getLibraryEnterBrowseState(
+        {
+          groupBy: libraryGroupBy,
+          groupScope: libraryGroupScope,
+          trail: libraryBrowseTrail
+        },
+        nextGroupBy,
+        label
+      )
+    );
   };
 
   const jumpLibraryGroupTrailToIndex = async (index: number) => {
-    const targetSegment = libraryBrowseTrail[index];
-    if (!targetSegment) return;
-    await syncLibraryBrowseLocation({
-      groupBy: targetSegment.groupBy,
-      groupScope: targetSegment.label,
-      trail: libraryBrowseTrail.slice(0, index)
-    });
+    const nextState = getLibraryJumpTrailState(
+      {
+        groupBy: libraryGroupBy,
+        groupScope: libraryGroupScope,
+        trail: libraryBrowseTrail
+      },
+      index
+    );
+    if (!nextState) return;
+    await syncLibraryBrowseLocation(nextState);
   };
 
   const enterLibraryGroupFromTrail = async (
@@ -1778,13 +1778,18 @@
     label: string,
     nextGroupBy: 'author' | 'collection' | 'format'
   ) => {
-    const targetSegment = libraryBrowseTrail[trailIndex];
-    if (!targetSegment) return;
-    await syncLibraryBrowseLocation({
-      groupBy: nextGroupBy,
-      groupScope: label,
-      trail: [...libraryBrowseTrail.slice(0, trailIndex + 1)]
-    });
+    const nextState = getLibraryEnterFromTrailState(
+      {
+        groupBy: libraryGroupBy,
+        groupScope: libraryGroupScope,
+        trail: libraryBrowseTrail
+      },
+      trailIndex,
+      nextGroupBy,
+      label
+    );
+    if (!nextState) return;
+    await syncLibraryBrowseLocation(nextState);
   };
 
   const enterLibrarySiblingGroup = async (
@@ -1792,11 +1797,7 @@
     nextGroupBy: 'author' | 'collection' | 'format',
     trail: LibraryGroupSegment[]
   ) => {
-    await syncLibraryBrowseLocation({
-      groupBy: nextGroupBy,
-      groupScope: label,
-      trail
-    });
+    await syncLibraryBrowseLocation(getLibrarySiblingBrowseState(nextGroupBy, label, trail));
   };
 
   const handleJumpLibraryGroupTrail = async (

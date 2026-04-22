@@ -358,3 +358,88 @@ export const buildLibraryBrowseHref = (url: URL, state: LibraryBrowseState) => {
   }
   return `${nextUrl.pathname}${nextUrl.search}`;
 };
+
+export const getLibraryEnterBrowseState = (
+  current: LibraryBrowseState,
+  nextGroupBy: LibraryGroupBy,
+  nextLabel: string
+): LibraryBrowseState => {
+  if (!current.groupScope || current.groupBy === 'none') {
+    return {
+      groupBy: nextGroupBy,
+      groupScope: nextLabel,
+      trail: []
+    };
+  }
+
+  if (current.groupBy === nextGroupBy && current.groupScope === nextLabel) {
+    return current;
+  }
+
+  return {
+    groupBy: nextGroupBy,
+    groupScope: nextLabel,
+    trail: [
+      ...current.trail,
+      {
+        groupBy: current.groupBy,
+        label: current.groupScope
+      }
+    ]
+  };
+};
+
+export const getLibraryExitBrowseState = (current: LibraryBrowseState): LibraryBrowseState => {
+  const previousSegment = current.trail.at(-1);
+  if (!previousSegment) {
+    return {
+      groupBy: current.groupBy,
+      groupScope: '',
+      trail: []
+    };
+  }
+
+  return {
+    groupBy: previousSegment.groupBy,
+    groupScope: previousSegment.label,
+    trail: current.trail.slice(0, -1)
+  };
+};
+
+export const getLibraryJumpTrailState = (
+  current: LibraryBrowseState,
+  index: number
+): LibraryBrowseState | null => {
+  const targetSegment = current.trail[index];
+  if (!targetSegment) return null;
+  return {
+    groupBy: targetSegment.groupBy,
+    groupScope: targetSegment.label,
+    trail: current.trail.slice(0, index)
+  };
+};
+
+export const getLibraryEnterFromTrailState = (
+  current: LibraryBrowseState,
+  trailIndex: number,
+  nextGroupBy: LibraryGroupBy,
+  nextLabel: string
+): LibraryBrowseState | null => {
+  const targetSegment = current.trail[trailIndex];
+  if (!targetSegment) return null;
+  return {
+    groupBy: nextGroupBy,
+    groupScope: nextLabel,
+    trail: [...current.trail.slice(0, trailIndex + 1)]
+  };
+};
+
+export const getLibrarySiblingBrowseState = (
+  nextGroupBy: LibraryGroupBy,
+  nextLabel: string,
+  trail: LibraryGroupSegment[]
+): LibraryBrowseState => ({
+  groupBy: nextGroupBy,
+  groupScope: nextLabel,
+  trail
+});
