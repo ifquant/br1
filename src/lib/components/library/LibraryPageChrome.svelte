@@ -1,61 +1,56 @@
-<script lang="ts">
+  <script lang="ts">
   import LibraryHeader from './LibraryHeader.svelte';
-  import type { LibraryBrowseAction, LibraryBrowseState } from '$lib/library/types';
+  import type { LibraryBrowseAction, LibraryPageChromeModel } from '$lib/library/types';
 
-  type LibraryNotice = {
-    kind: 'info' | 'error';
-    message: string;
-    actionLabel?: string;
+  export let model: LibraryPageChromeModel = {
+    header: {
+      totalBooks: 0,
+      query: '',
+      viewMode: 'grid',
+      sortBy: 'recent',
+      groupBy: 'none',
+      browseState: {
+        groupBy: 'none',
+        groupScope: '',
+        trail: []
+      },
+      activeGroupVisibleCount: 0,
+      activeFilter: 'all',
+      statusOptionCounts: {
+        all: 0,
+        reading: 0,
+        unstarted: 0,
+        finished: 0
+      },
+      activeFormatFilter: 'all',
+      formatOptions: [],
+      formatOptionCounts: {},
+      activeCollectionFilter: 'all',
+      collectionOptions: [],
+      collectionOptionCounts: {},
+      activeTagFilter: 'all',
+      tagOptions: [],
+      tagOptionCounts: {},
+      importDisabled: false,
+      statusSummary: '',
+      activeFilterDetail: '',
+      activeFilterChips: [],
+      filterSummary: '',
+      formatSummary: '',
+      collectionSummary: '',
+      tagSummary: '',
+      coverSummary: ''
+    },
+    notice: null,
+    showReadestMigration: false,
+    readestLibraryCount: 0,
+    readestCompatibleCount: 0,
+    migrationBusy: false
   };
-
-  export let totalBooks = 0;
-  export let query = '';
-  export let viewMode: 'grid' | 'list' = 'grid';
-  export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
-  export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
-  export let browseState: LibraryBrowseState = {
-    groupBy: 'none',
-    groupScope: '',
-    trail: []
-  };
-  export let activeGroupVisibleCount = 0;
   export let onDispatchBrowseAction: ((action: LibraryBrowseAction) => void | Promise<void>) | null =
     null;
-  export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
-  export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
-    all: 0,
-    reading: 0,
-    unstarted: 0,
-    finished: 0
-  };
-  export let activeFormatFilter = 'all';
-  export let formatOptions: string[] = [];
-  export let formatOptionCounts: Record<string, number> = {};
-  export let activeCollectionFilter = 'all';
-  export let collectionOptions: string[] = [];
-  export let collectionOptionCounts: Record<string, number> = {};
-  export let activeTagFilter = 'all';
-  export let tagOptions: string[] = [];
-  export let tagOptionCounts: Record<string, number> = {};
-  export let statusSummary = '';
-  export let activeFilterDetail = '';
-  export let activeFilterChips: Array<{
-    id: 'query' | 'status' | 'format' | 'collection' | 'tag';
-    label: string;
-  }> = [];
-  export let formatSummary = '';
-  export let collectionSummary = '';
-  export let tagSummary = '';
-  export let coverSummary = '';
-  export let filterSummary = '';
-  export let importDisabled = false;
-  export let notice: LibraryNotice | null = null;
   export let onRunNoticeAction: (() => void | Promise<void>) | null = null;
   export let onClearNotice: (() => void | Promise<void>) | null = null;
-  export let showReadestMigration = false;
-  export let readestLibraryCount = 0;
-  export let readestCompatibleCount = 0;
-  export let migrationBusy = false;
   export let onReadestMigration: (() => void | Promise<void>) | null = null;
 
   const handleRunNoticeAction = () => {
@@ -75,34 +70,8 @@
 </script>
 
 <LibraryHeader
-  {totalBooks}
-  {query}
-  {viewMode}
-  {sortBy}
-  {groupBy}
-  {browseState}
-  {activeGroupVisibleCount}
+  model={model.header}
   {onDispatchBrowseAction}
-  {activeFilter}
-  {statusOptionCounts}
-  {activeFormatFilter}
-  {formatOptions}
-  {formatOptionCounts}
-  {activeCollectionFilter}
-  {collectionOptions}
-  {collectionOptionCounts}
-  {activeTagFilter}
-  {tagOptions}
-  {tagOptionCounts}
-  {statusSummary}
-  {activeFilterDetail}
-  {activeFilterChips}
-  {formatSummary}
-  {collectionSummary}
-  {tagSummary}
-  {coverSummary}
-  {filterSummary}
-  {importDisabled}
   on:querychange
   on:importbooks
   on:filterchange
@@ -116,13 +85,13 @@
   on:viewmodechange
 />
 
-{#if notice}
-  <section class:error={notice.kind === 'error'} class="library-notice" aria-live="polite">
-    <span>{notice.message}</span>
+{#if model.notice}
+  <section class:error={model.notice.kind === 'error'} class="library-notice" aria-live="polite">
+    <span>{model.notice.message}</span>
     <div class="notice-actions">
-      {#if notice.actionLabel}
+      {#if model.notice.actionLabel}
         <button type="button" class="notice-dismiss primary" on:click={handleRunNoticeAction}>
-          {notice.actionLabel}
+          {model.notice.actionLabel}
         </button>
       {/if}
       <button type="button" class="notice-dismiss" on:click={handleClearNotice}>知道了</button>
@@ -130,21 +99,21 @@
   </section>
 {/if}
 
-{#if showReadestMigration}
+{#if model.showReadestMigration}
   <section class="migration-banner" aria-label="Readest 迁移提示">
     <div class="migration-copy">
       <strong>发现 Readest 书库</strong>
       <span>
-        本机找到 {readestLibraryCount} 本 Readest 藏书；
-        {#if readestCompatibleCount > 0}
-          当前已有 {readestCompatibleCount} 本以兼容方式进入 br1，可继续同步补齐新增内容。
+        本机找到 {model.readestLibraryCount} 本 Readest 藏书；
+        {#if model.readestCompatibleCount > 0}
+          当前已有 {model.readestCompatibleCount} 本以兼容方式进入 br1，可继续同步补齐新增内容。
         {:else}
           还没有兼容进 br1，可开始同步本地元数据、封面和阅读位置。
         {/if}
       </span>
     </div>
     <button type="button" class="migration-button" on:click={handleReadestMigration}>
-      {migrationBusy ? '兼容中…' : `同步 Readest 藏书`}
+      {model.migrationBusy ? '兼容中…' : `同步 Readest 藏书`}
     </button>
   </section>
 {/if}

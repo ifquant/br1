@@ -10,50 +10,119 @@
     getLibraryGroupScopeDescription,
     getLibraryJumpTrailExplanation
   } from '$lib/library/navigation';
-  import type { LibraryBrowseAction, LibraryBrowseState } from '$lib/library/types';
+  import type {
+    LibraryBrowseAction,
+    LibraryBrowseState,
+    LibraryHeaderModel
+  } from '$lib/library/types';
 
-  export let totalBooks = 0;
-  export let query = '';
+  export let model: LibraryHeaderModel = {
+    totalBooks: 0,
+    query: '',
+    viewMode: 'grid',
+    sortBy: 'recent',
+    groupBy: 'none',
+    browseState: {
+      groupBy: 'none',
+      groupScope: '',
+      trail: []
+    },
+    activeGroupVisibleCount: 0,
+    activeFilter: 'all',
+    statusOptionCounts: {
+      all: 0,
+      reading: 0,
+      unstarted: 0,
+      finished: 0
+    },
+    activeFormatFilter: 'all',
+    formatOptions: [],
+    formatOptionCounts: {},
+    activeCollectionFilter: 'all',
+    collectionOptions: [],
+    collectionOptionCounts: {},
+    activeTagFilter: 'all',
+    tagOptions: [],
+    tagOptionCounts: {},
+    importDisabled: false,
+    statusSummary: '',
+    activeFilterDetail: '',
+    activeFilterChips: [],
+    filterSummary: '',
+    formatSummary: '',
+    collectionSummary: '',
+    tagSummary: '',
+    coverSummary: ''
+  };
+  let totalBooks = 0;
+  let query = '';
   export let placeholder = '搜索书库、作者、标签';
-  export let viewMode: 'grid' | 'list' = 'grid';
-  export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
-  export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
-  export let browseState: LibraryBrowseState = {
+  let viewMode: 'grid' | 'list' = 'grid';
+  let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
+  let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
+  let browseState: LibraryBrowseState = {
     groupBy: 'none',
     groupScope: '',
     trail: []
   };
-  export let activeGroupVisibleCount = 0;
+  let activeGroupVisibleCount = 0;
   export let onDispatchBrowseAction: ((action: LibraryBrowseAction) => void | Promise<void>) | null =
     null;
-  export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
-  export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
+  let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
+  let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
     all: 0,
     reading: 0,
     unstarted: 0,
     finished: 0
   };
-  export let activeFormatFilter = 'all';
-  export let formatOptions: string[] = [];
-  export let formatOptionCounts: Record<string, number> = {};
-  export let activeCollectionFilter = 'all';
-  export let collectionOptions: string[] = [];
-  export let collectionOptionCounts: Record<string, number> = {};
-  export let activeTagFilter = 'all';
-  export let tagOptions: string[] = [];
-  export let tagOptionCounts: Record<string, number> = {};
-  export let importDisabled = false;
-  export let statusSummary = '';
-  export let activeFilterDetail = '';
-  export let activeFilterChips: Array<{
-    id: 'query' | 'status' | 'format' | 'collection' | 'tag';
-    label: string;
-  }> = [];
-  export let filterSummary = '';
-  export let formatSummary = '';
-  export let collectionSummary = '';
-  export let tagSummary = '';
-  export let coverSummary = '';
+  let activeFormatFilter = 'all';
+  let formatOptions: string[] = [];
+  let formatOptionCounts: Record<string, number> = {};
+  let activeCollectionFilter = 'all';
+  let collectionOptions: string[] = [];
+  let collectionOptionCounts: Record<string, number> = {};
+  let activeTagFilter = 'all';
+  let tagOptions: string[] = [];
+  let tagOptionCounts: Record<string, number> = {};
+  let importDisabled = false;
+  let statusSummary = '';
+  let activeFilterDetail = '';
+  let activeFilterChips: LibraryHeaderModel['activeFilterChips'] = [];
+  let filterSummary = '';
+  let formatSummary = '';
+  let collectionSummary = '';
+  let tagSummary = '';
+  let coverSummary = '';
+
+  $: ({
+    totalBooks,
+    query,
+    viewMode,
+    sortBy,
+    groupBy,
+    browseState,
+    activeGroupVisibleCount,
+    activeFilter,
+    statusOptionCounts,
+    activeFormatFilter,
+    formatOptions,
+    formatOptionCounts,
+    activeCollectionFilter,
+    collectionOptions,
+    collectionOptionCounts,
+    activeTagFilter,
+    tagOptions,
+    tagOptionCounts,
+    importDisabled,
+    statusSummary,
+    activeFilterDetail,
+    activeFilterChips,
+    filterSummary,
+    formatSummary,
+    collectionSummary,
+    tagSummary,
+    coverSummary
+  } = model);
 
   let sortMenuOpen = false;
   let advancedFiltersOpen = false;

@@ -141,6 +141,11 @@ export type LibraryBrowseGuardExplanation = {
   detail: string;
 };
 
+export type LibraryActiveFilterChip = {
+  id: 'query' | 'status' | 'format' | 'collection' | 'tag';
+  label: string;
+};
+
 export type LibraryEmptyStateModel = {
   ariaLabel: string;
   title: string;
@@ -184,6 +189,51 @@ export type LibraryBrowseBodyModel = {
   initialEmptyState?: LibraryEmptyStateModel | null;
   beforePanelEmptyStates?: LibraryEmptyStateModel[];
   afterPanelEmptyStates?: LibraryEmptyStateModel[];
+};
+
+export type LibraryNoticeModel = {
+  kind: 'info' | 'error';
+  message: string;
+  actionLabel?: string;
+};
+
+export type LibraryHeaderModel = {
+  totalBooks: number;
+  query: string;
+  viewMode: 'grid' | 'list';
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  groupBy: 'none' | LibraryGroupBy;
+  browseState: LibraryBrowseState;
+  activeGroupVisibleCount: number;
+  activeFilter: 'all' | 'reading' | 'unstarted' | 'finished';
+  statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number>;
+  activeFormatFilter: string;
+  formatOptions: string[];
+  formatOptionCounts: Record<string, number>;
+  activeCollectionFilter: string;
+  collectionOptions: string[];
+  collectionOptionCounts: Record<string, number>;
+  activeTagFilter: string;
+  tagOptions: string[];
+  tagOptionCounts: Record<string, number>;
+  importDisabled: boolean;
+  statusSummary: string;
+  activeFilterDetail: string;
+  activeFilterChips: LibraryActiveFilterChip[];
+  filterSummary: string;
+  formatSummary: string;
+  collectionSummary: string;
+  tagSummary: string;
+  coverSummary: string;
+};
+
+export type LibraryPageChromeModel = {
+  header: LibraryHeaderModel;
+  notice?: LibraryNoticeModel | null;
+  showReadestMigration: boolean;
+  readestLibraryCount: number;
+  readestCompatibleCount: number;
+  migrationBusy: boolean;
 };
 
 export type LibraryBrowseActionGuardResult =

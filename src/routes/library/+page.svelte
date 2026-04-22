@@ -5,7 +5,10 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
+    LibraryActiveFilterChip,
     LibraryBrowseBodyModel,
+    LibraryNoticeModel,
+    LibraryPageChromeModel,
     LibraryBrowseAction,
     ContinueReadingBook,
     LibraryGroupBy,
@@ -13,6 +16,7 @@
     LibraryShelfBook,
     ManualRelinkReview
   } from '$lib/library/types';
+  import { buildLibraryPageChromeModel } from '$lib/library/chrome';
   import {
     buildDesktopLibraryBrowseBodyModel,
     buildStarterLibraryBrowseBodyModel
@@ -61,10 +65,6 @@
 
   const sampleNow = Date.parse('2026-04-14T10:00:00+08:00');
   type LibraryFilter = 'all' | 'reading' | 'unstarted' | 'finished';
-  type ActiveLibraryFilterChip = {
-    id: 'query' | 'status' | 'format' | 'collection' | 'tag';
-    label: string;
-  };
   const starterLibraryBooks: LibraryShelfBook[] = [
     {
       title: '政治秩序与政治衰败',
@@ -239,26 +239,64 @@
   let libraryCollectionSummary = '';
   let libraryTagSummary = '';
   let libraryActiveFilterDetail = '';
-  let libraryActiveFilterChips: ActiveLibraryFilterChip[] = [];
+  let libraryActiveFilterChips: LibraryActiveFilterChip[] = [];
   let libraryFilterSummary = '';
   let libraryCoverSummary = '';
   let readingWorkflowNotice:
     | LibraryBrowseBodyModel['workflowNotice']
     | null = null;
   let libraryScrollContextKey = '';
-  let libraryNotice:
-    | {
-        kind: 'error' | 'info';
-        message: string;
-        actionLabel?: string;
-        action?: () => void | Promise<void>;
-      }
-    | null = null;
+  let libraryNotice: (LibraryNoticeModel & { action?: () => void | Promise<void> }) | null = null;
   let starterReadingWorkflowNotice:
     | LibraryBrowseBodyModel['workflowNotice']
     | null = null;
   let desktopBrowseBodyModel: LibraryBrowseBodyModel = {};
   let starterBrowseBodyModel: LibraryBrowseBodyModel = {};
+  let libraryPageChromeModel: LibraryPageChromeModel = {
+    header: {
+      totalBooks: 0,
+      query: '',
+      viewMode: 'grid',
+      sortBy: 'recent',
+      groupBy: 'none',
+      browseState: {
+        groupBy: 'none',
+        groupScope: '',
+        trail: []
+      },
+      activeGroupVisibleCount: 0,
+      activeFilter: 'all',
+      statusOptionCounts: {
+        all: 0,
+        reading: 0,
+        unstarted: 0,
+        finished: 0
+      },
+      activeFormatFilter: 'all',
+      formatOptions: [],
+      formatOptionCounts: {},
+      activeCollectionFilter: 'all',
+      collectionOptions: [],
+      collectionOptionCounts: {},
+      activeTagFilter: 'all',
+      tagOptions: [],
+      tagOptionCounts: {},
+      importDisabled: false,
+      statusSummary: '',
+      activeFilterDetail: '',
+      activeFilterChips: [],
+      filterSummary: '',
+      formatSummary: '',
+      collectionSummary: '',
+      tagSummary: '',
+      coverSummary: ''
+    },
+    notice: null,
+    showReadestMigration: false,
+    readestLibraryCount: 0,
+    readestCompatibleCount: 0,
+    migrationBusy: false
+  };
 
   const formatLastOpenedLabel = (timestamp: number | null | undefined) => {
     if (typeof timestamp !== 'number' || timestamp <= 0) return '';
@@ -842,7 +880,7 @@
     formatFilter: string,
     collectionFilter: string,
     tagFilter: string
-  ): ActiveLibraryFilterChip[] =>
+  ): LibraryActiveFilterChip[] =>
     [
       searchActive
         ? { id: 'query' as const, label: `搜索 ${normalizeLibrarySearchText(query)}` }
@@ -855,7 +893,7 @@
         ? { id: 'collection' as const, label: `归类 ${collectionFilter}` }
         : null,
       tagFilter !== 'all' ? { id: 'tag' as const, label: `标签 ${tagFilter}` } : null
-    ].filter((chip): chip is ActiveLibraryFilterChip => chip !== null);
+    ].filter((chip): chip is LibraryActiveFilterChip => chip !== null);
 
   const getLibraryEmptyFilterTitle = (activeFilterDetail: string) => {
     const detail = activeFilterDetail.replace(/^当前筛选：/, '').trim();
@@ -1293,6 +1331,46 @@
     onClearFilterById: clearLibraryFilterById,
     onClearFilters: handleClearLibraryFilters,
     getEmptyFilterTitle: getLibraryEmptyFilterTitle
+  });
+  $: libraryPageChromeModel = buildLibraryPageChromeModel({
+    totalBooks: importedBooks.length || starterLibraryBooks.length,
+    query: libraryQuery,
+    viewMode: libraryViewMode,
+    sortBy: librarySortBy,
+    groupBy: libraryGroupBy,
+    browseState: getCurrentLibraryBrowseState(),
+    activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
+    activeFilter: libraryFilterBy,
+    statusOptionCounts: libraryStatusOptionCounts,
+    activeFormatFilter: libraryFormatFilter,
+    formatOptions: libraryFormatOptions,
+    formatOptionCounts: libraryFormatOptionCounts,
+    activeCollectionFilter: libraryCollectionFilter,
+    collectionOptions: libraryCollectionOptions,
+    collectionOptionCounts: libraryCollectionOptionCounts,
+    activeTagFilter: libraryTagFilter,
+    tagOptions: libraryTagOptions,
+    tagOptionCounts: libraryTagOptionCounts,
+    statusSummary: libraryStatusSummary,
+    activeFilterDetail: libraryActiveFilterDetail,
+    activeFilterChips: libraryActiveFilterChips,
+    formatSummary: libraryFormatSummary,
+    collectionSummary: libraryCollectionSummary,
+    tagSummary: libraryTagSummary,
+    coverSummary: libraryCoverSummary,
+    filterSummary: libraryFilterSummary,
+    importDisabled: migrationBusy,
+    notice: libraryNotice
+      ? {
+          kind: libraryNotice.kind,
+          message: libraryNotice.message,
+          actionLabel: libraryNotice.actionLabel
+        }
+      : null,
+    showReadestMigration,
+    readestLibraryCount,
+    readestCompatibleCount,
+    migrationBusy
   });
   $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
@@ -1831,7 +1909,7 @@
     libraryTagFilter = 'all';
   };
 
-  const clearLibraryFilterById = (id: ActiveLibraryFilterChip['id']) => {
+  const clearLibraryFilterById = (id: LibraryActiveFilterChip['id']) => {
     if (id === 'query') {
       libraryQuery = '';
       return;
@@ -1851,7 +1929,7 @@
     libraryTagFilter = 'all';
   };
 
-  const handleClearLibraryFilterChip = (event: CustomEvent<{ id: ActiveLibraryFilterChip['id'] }>) => {
+  const handleClearLibraryFilterChip = (event: CustomEvent<{ id: LibraryActiveFilterChip['id'] }>) => {
     clearLibraryFilterById(event.detail.id);
   };
 </script>
@@ -1867,41 +1945,10 @@
     />
 
     <LibraryPageChrome
-      totalBooks={importedBooks.length || starterLibraryBooks.length}
-      query={libraryQuery}
-      viewMode={libraryViewMode}
-      sortBy={librarySortBy}
-      groupBy={libraryGroupBy}
-      browseState={getCurrentLibraryBrowseState()}
-      activeGroupVisibleCount={filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length}
+      model={libraryPageChromeModel}
       onDispatchBrowseAction={dispatchLibraryBrowseAction}
-      activeFilter={libraryFilterBy}
-      statusOptionCounts={libraryStatusOptionCounts}
-      activeFormatFilter={libraryFormatFilter}
-      formatOptions={libraryFormatOptions}
-      formatOptionCounts={libraryFormatOptionCounts}
-      activeCollectionFilter={libraryCollectionFilter}
-      collectionOptions={libraryCollectionOptions}
-      collectionOptionCounts={libraryCollectionOptionCounts}
-      activeTagFilter={libraryTagFilter}
-      tagOptions={libraryTagOptions}
-      tagOptionCounts={libraryTagOptionCounts}
-      statusSummary={libraryStatusSummary}
-      activeFilterDetail={libraryActiveFilterDetail}
-      activeFilterChips={libraryActiveFilterChips}
-      formatSummary={libraryFormatSummary}
-      collectionSummary={libraryCollectionSummary}
-      tagSummary={libraryTagSummary}
-      coverSummary={libraryCoverSummary}
-      filterSummary={libraryFilterSummary}
-      importDisabled={migrationBusy}
-      notice={libraryNotice}
       onRunNoticeAction={runLibraryNoticeAction}
       onClearNotice={clearLibraryNotice}
-      {showReadestMigration}
-      {readestLibraryCount}
-      {readestCompatibleCount}
-      {migrationBusy}
       onReadestMigration={handleReadestMigrationClick}
       on:querychange={handleLibraryQueryChange}
       on:importbooks={triggerImportPicker}

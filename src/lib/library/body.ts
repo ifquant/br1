@@ -1,13 +1,9 @@
 import type {
+  LibraryActiveFilterChip,
   ContinueReadingBook,
   LibraryBrowseBodyModel,
   LibraryEmptyStateModel
 } from './types';
-
-type LibraryActiveFilterChip = {
-  id: 'query' | 'status' | 'format' | 'collection' | 'tag';
-  label: string;
-};
 
 type BuildFilterEmptyStateArgs = {
   ariaLabel: string;
