@@ -1,4 +1,5 @@
 export { default as BookshelfPreview } from './library/BookshelfPreview.svelte';
+export { default as LibraryBrowseGuardHint } from './library/LibraryBrowseGuardHint.svelte';
 export { default as LibraryBrowseNavigator } from './library/LibraryBrowseNavigator.svelte';
 export { default as ContinueReadingShelf } from './library/ContinueReadingShelf.svelte';
 export { default as LibraryHeader } from './library/LibraryHeader.svelte';

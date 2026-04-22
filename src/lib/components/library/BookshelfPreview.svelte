@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
   import type { BookshelfPreviewBook } from '$lib/library/types';
 
   export let sectionTitle = '最近阅读';
@@ -85,6 +86,14 @@
     if (!onEnterGroupReasonLabel || groupBy === 'none') return '';
     return onEnterGroupReasonLabel(label, groupBy);
   };
+
+  $: blockedGroupReasonLabels = topLevelGroupedBrowse
+    ? groupedBooks
+        .map((group) =>
+          !isEnterGroupAvailable(group.label) ? getEnterGroupReasonLabel(group.label) : ''
+        )
+        .filter(Boolean)
+    : [];
 
   const getBookKey = (book: BookshelfPreviewBook) =>
     book.readerHref || `${book.format}::${book.title}::${book.author}`;
@@ -288,6 +297,10 @@
       </div>
     </div>
   </header>
+  <LibraryBrowseGuardHint
+    reasonLabels={blockedGroupReasonLabels}
+    prefix="当前分组入口里有暂不可用的书架"
+  />
 
   <div class="shelf-body" aria-label={sectionTitle}>
     {#if topLevelGroupedBrowse}

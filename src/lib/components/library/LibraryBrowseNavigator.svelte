@@ -1,4 +1,6 @@
 <script lang="ts">
+  import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
+
   export let eyebrow = '当前浏览导航';
   export let title = '';
   export let summary = '';
@@ -37,6 +39,24 @@
 
   const getGroupByLabel = (groupBy: 'author' | 'collection' | 'format') =>
     groupBy === 'author' ? '作者' : groupBy === 'collection' ? '归类' : '格式';
+
+  $: pivotReasonLabels = pivots.flatMap((section) =>
+    section.items.map((item) =>
+      isPivotAvailable && !isPivotAvailable(item.groupBy, item.value) && getPivotReasonLabel
+        ? getPivotReasonLabel(item.groupBy, item.value)
+        : ''
+    )
+  );
+
+  $: navigatorReasonLabels = [
+    ...trailAvailability.map((available, index) =>
+      available === false ? trailReasonLabels[index] || '' : ''
+    ),
+    ...siblingAvailability.map((available, index) =>
+      available === false ? siblingReasonLabels[index] || '' : ''
+    ),
+    ...pivotReasonLabels
+  ].filter(Boolean);
 </script>
 
 <section class="group-browse-navigator" aria-label="当前分组浏览导航">
@@ -45,6 +65,10 @@
     <strong>{title}</strong>
     <p>{summary}</p>
   </div>
+  <LibraryBrowseGuardHint
+    reasonLabels={navigatorReasonLabels}
+    prefix="当前浏览导航里有暂不可用的入口"
+  />
   <div class="group-browse-navigator-sections">
     <div class="group-browse-navigator-section">
       <span class="group-browse-navigator-title">当前路径</span>
