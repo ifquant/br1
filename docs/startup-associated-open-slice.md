@@ -50,6 +50,12 @@ bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts 
 pnpm test:e2e:tauri:startup-associated-open
 ```
 
+以及一条 stress 入口：
+
+```bash
+pnpm test:e2e:tauri:startup-associated-open:stress
+```
+
 但最新调查说明，这条 focused startup case 不是稳定绿灯：
 
 - 有时能直接打开 reader window
@@ -62,6 +68,8 @@ pnpm test:e2e:tauri:startup-associated-open
 ```
 
 这说明即便专门给 startup case 单独起一条 harness，queue 仍然可能没有被消费。
+
+同时，最近一轮 20 次 stress 连跑已经全部通过，说明当前失败形态至少是低概率 intermittent，而不是每次必现的固定逻辑缺口。
 
 ### 2. broad 方式放宽 queue consumer 会污染标准 full
 
