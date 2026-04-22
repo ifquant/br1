@@ -13,6 +13,8 @@
     groupBy: 'author' | 'collection' | 'format';
     label: string;
   }> = [];
+  export let activeGroupTrailAvailability: boolean[] = [];
+  export let canExitGroup = true;
   export let activeGroupDescription = '';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
@@ -326,7 +328,12 @@
 
 {#if activeGroupLabel}
   <div class="group-context" aria-label="当前书库分组路径">
-    <button type="button" class="group-context-back" on:click={handleExitGroup}>
+    <button
+      type="button"
+      class="group-context-back"
+      disabled={!canExitGroup}
+      on:click={handleExitGroup}
+    >
       {activeGroupTrail.length > 0 ? '返回上一级' : '返回整库'}
     </button>
     <div class="group-context-copy">
@@ -335,6 +342,7 @@
           <button
             type="button"
             class="group-context-segment"
+            disabled={activeGroupTrailAvailability[index] === false}
             on:click={() => handleJumpTrail(index)}
           >
             <span>{segment.groupBy === 'author' ? '作者' : segment.groupBy === 'collection' ? '归类' : '格式'}</span>
@@ -568,6 +576,16 @@
     background: color-mix(in srgb, var(--surface-elevated) 72%, white 28%);
   }
 
+  .group-context-back:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+  }
+
+  .group-context-back:disabled:hover {
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--surface-elevated) 82%, white 18%);
+  }
+
   .group-context-copy {
     display: grid;
     gap: 2px;
@@ -599,6 +617,16 @@
   .group-context-segment:hover {
     border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
     background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
+  }
+
+  .group-context-segment:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+  }
+
+  .group-context-segment:disabled:hover {
+    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
   }
 
   .group-context-divider {

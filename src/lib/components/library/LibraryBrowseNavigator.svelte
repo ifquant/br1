@@ -9,6 +9,8 @@
   export let currentGroupBy: 'author' | 'collection' | 'format' = 'author';
   export let currentGroupLabel = '';
   export let siblings: Array<{ label: string; count: number }> = [];
+  export let trailAvailability: boolean[] = [];
+  export let siblingAvailability: boolean[] = [];
   export let pivots: Array<{
     title: string;
     items: Array<{
@@ -43,6 +45,7 @@
           <button
             type="button"
             class="group-browse-navigator-chip"
+            disabled={trailAvailability[index] === false}
             on:click={() => onJumpTrail && onJumpTrail(index)}
           >
             <strong>{segment.label}</strong>
@@ -60,10 +63,11 @@
       <div class="group-browse-navigator-section">
         <span class="group-browse-navigator-title">同层切换</span>
         <div class="group-browse-navigator-list">
-          {#each siblings as sibling}
+          {#each siblings as sibling, index}
             <button
               type="button"
               class="group-browse-navigator-chip"
+              disabled={siblingAvailability[index] === false}
               on:click={() => onSelectSibling && onSelectSibling(sibling.label, currentGroupBy)}
             >
               <strong>{sibling.label}</strong>
@@ -179,6 +183,17 @@
   .group-browse-navigator-chip:hover {
     border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
     background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
+  }
+
+  .group-browse-navigator-chip:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+    box-shadow: none;
+  }
+
+  .group-browse-navigator-chip:disabled:hover {
+    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
   }
 
   .group-browse-navigator-chip strong {

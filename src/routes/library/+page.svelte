@@ -17,6 +17,7 @@
     filterBooksByLibraryGroupScope,
     getActiveLibraryGroupOverview,
     getActiveLibrarySubgroupShelves,
+    getLibraryBrowseActionAvailability,
     getLibraryBrowseStateFromUrl,
     getLibraryGroupLabel,
     getLibraryGroupScopeDescription,
@@ -1713,13 +1714,39 @@
     librarySortBy = event.detail.sortBy;
   };
 
+  const getCurrentLibraryBrowseState = () => ({
+    groupBy: libraryGroupBy,
+    groupScope: libraryGroupScope,
+    trail: libraryBrowseTrail
+  });
+
+  const isLibraryBrowseActionAvailable = (action: LibraryBrowseAction) =>
+    getLibraryBrowseActionAvailability(getCurrentLibraryBrowseState(), action).kind === 'allowed';
+
+  const getLibraryJumpTrailAvailability = (index: number) =>
+    isLibraryBrowseActionAvailable({
+      type: 'jump-trail',
+      index
+    });
+
+  const getLibraryExitAvailability = () =>
+    isLibraryBrowseActionAvailable({ type: 'exit-group' });
+
+  const getLibrarySiblingAvailability = (
+    label: string,
+    groupBy: 'author' | 'collection' | 'format',
+    trail: LibraryGroupSegment[]
+  ) =>
+    isLibraryBrowseActionAvailable({
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail
+    });
+
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
     const result = getNextLibraryBrowseState(
-      {
-        groupBy: libraryGroupBy,
-        groupScope: libraryGroupScope,
-        trail: libraryBrowseTrail
-      },
+      getCurrentLibraryBrowseState(),
       action
     );
     if (result.kind !== 'applied') return;
@@ -1916,6 +1943,9 @@
       groupBy={libraryGroupBy}
       activeGroupLabel={libraryGroupScope}
       activeGroupTrail={libraryBrowseTrail}
+      activeGroupTrailAvailability={libraryBrowseTrail.map((_, index) =>
+        getLibraryJumpTrailAvailability(index))}
+      canExitGroup={getLibraryExitAvailability()}
       activeGroupDescription={getLibraryGroupScopeDescription(
         libraryGroupBy,
         libraryGroupScope,
@@ -2085,6 +2115,14 @@
             currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
             currentGroupLabel={libraryGroupScope}
             siblings={desktopCurrentSiblingGroups}
+            trailAvailability={libraryBrowseTrail.map((_, index) =>
+              getLibraryJumpTrailAvailability(index))}
+            siblingAvailability={desktopCurrentSiblingGroups.map((sibling) =>
+              getLibrarySiblingAvailability(
+                sibling.label,
+                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                libraryBrowseTrail
+              ))}
             pivots={desktopGroupOverview.pivots}
             onJumpTrail={jumpLibraryGroupTrailToIndex}
             onSelectSibling={(label, groupBy) =>
@@ -2126,6 +2164,11 @@
                         <button
                           type="button"
                           class="group-browse-sibling"
+                          disabled={!getLibrarySiblingAvailability(
+                            sibling.label,
+                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                            libraryBrowseTrail.slice(0, landing.index)
+                          )}
                           on:click={() =>
                             enterLibrarySiblingGroup(
                               sibling.label,
@@ -2194,6 +2237,11 @@
                     <button
                       type="button"
                       class="group-browse-sibling"
+                      disabled={!getLibrarySiblingAvailability(
+                        sibling.label,
+                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                        libraryBrowseTrail
+                      )}
                       on:click={() =>
                         enterLibrarySiblingGroup(
                           sibling.label,
@@ -2377,6 +2425,14 @@
             currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
             currentGroupLabel={libraryGroupScope}
             siblings={starterCurrentSiblingGroups}
+            trailAvailability={libraryBrowseTrail.map((_, index) =>
+              getLibraryJumpTrailAvailability(index))}
+            siblingAvailability={starterCurrentSiblingGroups.map((sibling) =>
+              getLibrarySiblingAvailability(
+                sibling.label,
+                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                libraryBrowseTrail
+              ))}
             pivots={starterGroupOverview.pivots}
             onJumpTrail={jumpLibraryGroupTrailToIndex}
             onSelectSibling={(label, groupBy) =>
@@ -2418,6 +2474,11 @@
                         <button
                           type="button"
                           class="group-browse-sibling"
+                          disabled={!getLibrarySiblingAvailability(
+                            sibling.label,
+                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                            libraryBrowseTrail.slice(0, landing.index)
+                          )}
                           on:click={() =>
                             enterLibrarySiblingGroup(
                               sibling.label,
@@ -2486,6 +2547,11 @@
                     <button
                       type="button"
                       class="group-browse-sibling"
+                      disabled={!getLibrarySiblingAvailability(
+                        sibling.label,
+                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                        libraryBrowseTrail
+                      )}
                       on:click={() =>
                         enterLibrarySiblingGroup(
                           sibling.label,
@@ -2891,6 +2957,17 @@
   .group-browse-sibling:hover {
     border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
     background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
+  }
+
+  .group-browse-sibling:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+    box-shadow: none;
+  }
+
+  .group-browse-sibling:disabled:hover {
+    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
   }
 
   .group-browse-sibling strong {
