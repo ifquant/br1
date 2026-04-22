@@ -26,6 +26,45 @@ export type LibraryShelfBook = {
   importedAtLabel?: string;
 };
 
+export type LibraryGroupBy = 'author' | 'collection' | 'format';
+
+export type LibraryGroupSegment = {
+  groupBy: LibraryGroupBy;
+  label: string;
+};
+
+export type ActiveLibraryGroupOverview = {
+  eyebrow: string;
+  title: string;
+  summary: string;
+  metrics: Array<{ label: string; value: string }>;
+  pivots: Array<{
+    title: string;
+    items: Array<{
+      label: string;
+      value: string;
+      groupBy: LibraryGroupBy;
+    }>;
+  }>;
+};
+
+export type ActiveLibrarySubgroupShelf = {
+  title: string;
+  description: string;
+  groupBy: LibraryGroupBy;
+};
+
+export type LibraryTrailLanding = {
+  index: number;
+  eyebrow: string;
+  title: string;
+  summary: string;
+  metrics: Array<{ label: string; value: string }>;
+  scopedBooks: LibraryShelfBook[];
+  subgroupShelves: ActiveLibrarySubgroupShelf[];
+  siblingGroups: Array<{ label: string; count: number }>;
+};
+
 export type ManualRelinkReview = {
   note: string;
   repairContractLabel: string;
