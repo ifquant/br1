@@ -5,6 +5,7 @@ export { default as LibraryBrowseNavigator } from './library/LibraryBrowseNaviga
 export { default as LibraryBrowseOverview } from './library/LibraryBrowseOverview.svelte';
 export { default as LibraryEmptyState } from './library/LibraryEmptyState.svelte';
 export { default as LibraryPageChrome } from './library/LibraryPageChrome.svelte';
+export { default as LibraryPageSurface } from './library/LibraryPageSurface.svelte';
 export { default as LibraryGroupedBrowsePanel } from './library/LibraryGroupedBrowsePanel.svelte';
 export { default as LibraryBrowseTrailLandings } from './library/LibraryBrowseTrailLandings.svelte';
 export { default as ContinueReadingShelf } from './library/ContinueReadingShelf.svelte';

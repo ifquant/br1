@@ -2,11 +2,9 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
-  import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
     LibraryActiveFilterChip,
-    LibraryBrowseBodyModel,
     LibraryBrowseState,
     LibraryNoticeModel,
     LibraryPageSurfaceModel,
@@ -54,8 +52,7 @@
     getLibrarySiblingExplanation
   } from '$lib/library/navigation';
   import {
-    LibraryBrowseBody,
-    LibraryPageChrome
+    LibraryPageSurface
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
@@ -285,9 +282,7 @@
   let libraryActiveFilterChips: LibraryActiveFilterChip[] = [];
   let libraryFilterSummary = '';
   let libraryCoverSummary = '';
-  let readingWorkflowNotice:
-    | LibraryBrowseBodyModel['workflowNotice']
-    | null = null;
+  let readingWorkflowNotice = null;
   let desktopLibraryBrowse: DesktopLibraryBrowseDerivations = {
     searchActive: false,
     groupedBrowseMode: false,
@@ -305,9 +300,7 @@
   };
   let libraryScrollContextKey = '';
   let libraryNotice: (LibraryNoticeModel & { action?: () => void | Promise<void> }) | null = null;
-  let starterReadingWorkflowNotice:
-    | LibraryBrowseBodyModel['workflowNotice']
-    | null = null;
+  let starterReadingWorkflowNotice = null;
   let starterLibraryBrowse: LibraryBrowseDerivations = {
     searchActive: false,
     groupedBrowseMode: false,
@@ -1387,20 +1380,6 @@
     }
   };
 
-  const handleLibraryViewModeChange = (nextViewMode: 'grid' | 'list') => {
-    libraryViewMode = nextViewMode;
-  };
-
-  const handleLibraryQueryChange = (event: CustomEvent<{ query: string }>) => {
-    libraryQuery = event.detail.query;
-  };
-
-  const handleLibrarySortChange = (
-    event: CustomEvent<{ sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' }>
-  ) => {
-    librarySortBy = event.detail.sortBy;
-  };
-
   const getCurrentLibraryBrowseState = () => ({
     groupBy: libraryGroupBy,
     groupScope: libraryGroupScope,
@@ -1411,33 +1390,6 @@
     const result = getNextLibraryBrowseState(currentLibraryBrowseState, action);
     if (result.kind !== 'applied') return;
     await syncLibraryBrowseLocation(result.state);
-  };
-
-  const handleJumpLibraryGroupTrail = async (
-    event: CustomEvent<{ index: number }>
-  ) => {
-    await dispatchLibraryBrowseAction({
-      type: 'jump-trail',
-      index: event.detail.index
-    });
-  };
-
-  const handleLibraryFilterChange = (
-    event: CustomEvent<{ filterBy: 'all' | 'reading' | 'unstarted' | 'finished' }>
-  ) => {
-    libraryFilterBy = event.detail.filterBy;
-  };
-
-  const handleLibraryCollectionFilterChange = (event: CustomEvent<{ collection: string }>) => {
-    libraryCollectionFilter = event.detail.collection;
-  };
-
-  const handleLibraryFormatFilterChange = (event: CustomEvent<{ format: string }>) => {
-    libraryFormatFilter = event.detail.format;
-  };
-
-  const handleLibraryTagFilterChange = (event: CustomEvent<{ tag: string }>) => {
-    libraryTagFilter = event.detail.tag;
   };
 
   const handleFilterByShelfStatus = (status: LibraryFilter) => {
@@ -1501,69 +1453,63 @@
     libraryTagFilter = 'all';
   };
 
-  const handleClearLibraryFilterChip = (event: CustomEvent<{ id: LibraryActiveFilterChip['id'] }>) => {
-    clearLibraryFilterById(event.detail.id);
-  };
 </script>
 
 <section class="library-page">
-  <div class="library-surface">
-    <input
-      bind:this={importInput}
-      class="import-input"
-      type="file"
-      accept={READER_FILE_INPUT_ACCEPT}
-      on:change={handleImportChange}
-    />
+  <input
+    bind:this={importInput}
+    class="import-input"
+    type="file"
+    accept={READER_FILE_INPUT_ACCEPT}
+    on:change={handleImportChange}
+  />
 
-    <LibraryPageChrome
-      model={activeLibraryPageSurfaceModel.chrome}
-      onDispatchBrowseAction={dispatchLibraryBrowseAction}
-      onRunNoticeAction={runLibraryNoticeAction}
-      onClearNotice={clearLibraryNotice}
-      onReadestMigration={handleReadestMigrationClick}
-      on:querychange={handleLibraryQueryChange}
-      on:importbooks={triggerImportPicker}
-      on:filterchange={handleLibraryFilterChange}
-      on:formatfilterchange={handleLibraryFormatFilterChange}
-      on:collectionfilterchange={handleLibraryCollectionFilterChange}
-      on:tagfilterchange={handleLibraryTagFilterChange}
-      on:clearfilterchip={handleClearLibraryFilterChip}
-      on:clearfilters={handleClearLibraryFilters}
-      on:jumptrail={handleJumpLibraryGroupTrail}
-      on:sortchange={handleLibrarySortChange}
-      on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
-    >
-
-      <OverlayScrollbarsComponent
-        bind:this={libraryScrollRef}
-        defer
-        element="div"
-        class="library-scroll"
-        options={{ scrollbars: { autoHide: 'leave', theme: 'os-theme-readest' } }}
-      >
-        <LibraryBrowseBody
-          model={activeLibraryPageSurfaceModel.body.body}
-          groupedBrowseMode={activeLibraryPageSurfaceModel.body.groupedBrowseMode}
-          browseState={activeLibraryPageSurfaceModel.body.browseState}
-          browseBooks={activeLibraryPageSurfaceModel.body.browseBooks}
-          viewMode={activeLibraryPageSurfaceModel.body.viewMode}
-          shelfBooks={activeLibraryPageSurfaceModel.body.shelfBooks}
-          shelfSectionTitle={activeLibraryPageSurfaceModel.body.shelfSectionTitle}
-          onDispatchBrowseAction={dispatchLibraryBrowseAction}
-          onOpenLink={handleOpenReaderTarget}
-          onImportBooks={triggerImportPicker}
-          onOpenSourcePath={activeLibraryPageSurfaceModel.supportsDesktopBookActions ? handleOpenSourcePath : null}
-          onUpdateBookMetadata={activeLibraryPageSurfaceModel.supportsDesktopBookActions ? handleUpdateLibraryBookMetadata : null}
-          onRemoveBook={activeLibraryPageSurfaceModel.supportsDesktopBookActions ? handleRemoveLibraryBook : null}
-          onFilterStatus={handleFilterByShelfStatus}
-          onFilterFormat={handleFilterByShelfFormat}
-          onFilterCollection={handleFilterByShelfCollection}
-          onFilterTag={handleFilterByShelfTag}
-        />
-      </OverlayScrollbarsComponent>
-    </LibraryPageChrome>
-  </div>
+  <LibraryPageSurface
+    model={activeLibraryPageSurfaceModel}
+    bind:scrollRef={libraryScrollRef}
+    onDispatchBrowseAction={dispatchLibraryBrowseAction}
+    onRunNoticeAction={runLibraryNoticeAction}
+    onClearNotice={clearLibraryNotice}
+    onReadestMigration={handleReadestMigrationClick}
+    onQueryChange={(query) => {
+      libraryQuery = query;
+    }}
+    onImportBooks={triggerImportPicker}
+    onFilterChange={(filterBy) => {
+      libraryFilterBy = filterBy;
+    }}
+    onFormatFilterChange={(format) => {
+      libraryFormatFilter = format;
+    }}
+    onCollectionFilterChange={(collection) => {
+      libraryCollectionFilter = collection;
+    }}
+    onTagFilterChange={(tag) => {
+      libraryTagFilter = tag;
+    }}
+    onClearFilterChip={clearLibraryFilterById}
+    onClearFilters={handleClearLibraryFilters}
+    onJumpTrail={(index) => {
+      void dispatchLibraryBrowseAction({
+        type: 'jump-trail',
+        index
+      });
+    }}
+    onSortChange={(sortBy) => {
+      librarySortBy = sortBy;
+    }}
+    onViewModeChange={(viewMode) => {
+      libraryViewMode = viewMode;
+    }}
+    onOpenLink={handleOpenReaderTarget}
+    onOpenSourcePath={handleOpenSourcePath}
+    onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
+    onRemoveBook={handleRemoveLibraryBook}
+    onFilterStatus={handleFilterByShelfStatus}
+    onFilterFormat={handleFilterByShelfFormat}
+    onFilterCollection={handleFilterByShelfCollection}
+    onFilterTag={handleFilterByShelfTag}
+  />
 </section>
 
 <style>
@@ -1572,74 +1518,7 @@
     display: grid;
   }
 
-  .library-surface {
-    min-height: 0;
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    border: 1px solid var(--line-soft);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-reader) 88%, white 12%);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.18) inset,
-      0 18px 44px rgba(42, 30, 15, 0.06);
-    padding: 14px 18px 0;
-  }
-
   .import-input {
     display: none;
-  }
-
-  :global(.library-scroll) {
-    min-height: 0;
-    overflow: hidden;
-    display: grid;
-    align-content: start;
-    gap: 18px;
-    padding: 10px 2px 18px;
-    overscroll-behavior: contain;
-  }
-
-  :global(.library-scroll .os-scrollbar.os-theme-readest) {
-    --os-size: 10px;
-    --os-padding-perpendicular: 2px;
-    --os-padding-axis: 2px;
-    --os-track-bg: transparent;
-    --os-track-bg-hover: transparent;
-    --os-track-bg-active: transparent;
-    --os-track-border: none;
-    --os-track-border-hover: none;
-    --os-track-border-active: none;
-    --os-handle-border-radius: 999px;
-    --os-handle-bg: rgba(95, 85, 72, 0.12);
-    --os-handle-bg-hover: rgba(95, 85, 72, 0.18);
-    --os-handle-bg-active: rgba(95, 85, 72, 0.22);
-    --os-handle-min-size: 28px;
-    --os-handle-interactive-area-offset: 1px;
-  }
-
-  :global(.library-scroll .os-scrollbar-vertical.os-theme-readest) {
-    --os-size: 8px;
-  }
-
-  @media (max-width: 900px) {
-    .library-surface {
-      padding: 12px 14px 0;
-      border-left: 0;
-      border-right: 0;
-      box-shadow: none;
-    }
-
-    :global(.library-scroll) {
-      gap: 16px;
-      padding-bottom: 16px;
-    }
-
-    :global(.library-scroll .os-scrollbar.os-theme-readest) {
-      --os-size: 8px;
-      --os-padding-perpendicular: 1px;
-      --os-padding-axis: 1px;
-    }
-
   }
 </style>

@@ -217,6 +217,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the remaining library-surface lifecycle runtime wiring now also routes through a shared helper in `library/runtime.ts`, so mount-time refresh, window/document listeners, viewport scroll binding, and Tauri reload-listener setup are no longer spelled out inline in `+page.svelte`
 - desktop/starter library body assembly now also routes through shared body-surface builders, so the route no longer builds separate body models and renders two parallel `LibraryBrowseBody` branches just to swap browse books, shelf books, and section titles between modes
 - desktop/starter library page assembly now also routes through a shared page-surface model, so the route no longer independently build chrome and body surfaces before stitching them together with another layer of mode-specific selection logic
+- the library page shell now also lives in a dedicated component, so `+page.svelte` no longer inlines the `LibraryPageChrome + OverlayScrollbars + LibraryBrowseBody` composition or its scroll-surface styling just to host the active page surface
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 
