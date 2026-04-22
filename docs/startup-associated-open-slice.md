@@ -34,7 +34,7 @@ bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts
 
 ## 这次调查确认的事实
 
-### 1. dedicated startup case 本身是可行的
+### 1. dedicated startup case 需要独立 reproducer，且结果仍会抖动
 
 下面这条 dedicated 命令可以直接给 Tauri app 传启动书籍参数：
 
@@ -44,7 +44,24 @@ BR1_TEST_ASSOCIATED_FILE_PATH="/Users/dev/workspace2/hc_apps/br1/static/samples/
 bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "opens a startup associated book argument in a separate reader window"
 ```
 
-在 focused 条件下，这条命令可以通过。
+为了避免每次手抄这条命令，仓库里现在补了一条 dedicated reproducer：
+
+```bash
+pnpm test:e2e:tauri:startup-associated-open
+```
+
+但最新调查说明，这条 focused startup case 不是稳定绿灯：
+
+- 有时能直接打开 reader window
+- 有时会停在只有 `main -> /library` 的状态
+
+一次实际失败的 startup state 是：
+
+```json
+{"handles":["main"],"urls":[{"handle":"main","url":"http://localhost:1420/library"}],"matchedHandle":null}
+```
+
+这说明即便专门给 startup case 单独起一条 harness，queue 仍然可能没有被消费。
 
 ### 2. broad 方式放宽 queue consumer 会污染标准 full
 
@@ -107,7 +124,8 @@ dedicated startup 失败时，曾观察到只有一个初始窗口，URL 已经�
 
 现在最重要的结论不是“startup associated-open 已完成”，而是：
 
-- 它在 dedicated focused 条件下可以成立
-- 但还没有找到一种不会污染标准 full desktop suite 的合并方式
+- 它需要 dedicated reproducer 才能稳定调查
+- 即便在 dedicated reproducer 下，startup queue 仍然会偶发不被消费
+- 而且还没有找到一种不会污染标准 full desktop suite 的合并方式
 
 所以在找到更窄、更准确的 ownership 方案之前，正确做法是保持主线稳定，把这条 startup 能力继续视为独立调查中的 slice。
