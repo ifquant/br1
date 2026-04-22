@@ -1891,8 +1891,6 @@
       on:clearfilters={handleClearLibraryFilters}
       on:jumptrail={handleJumpLibraryGroupTrail}
       on:sortchange={handleLibrarySortChange}
-      on:groupbychange={(event) =>
-        syncLibraryBrowseLocation({ groupBy: event.detail.groupBy, groupScope: '', trail: [] })}
       on:viewmodechange={(event) => handleLibraryViewModeChange(event.detail.viewMode)}
     />
 

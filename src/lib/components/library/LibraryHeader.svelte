@@ -225,6 +225,11 @@
       sortMenuOpen = false;
       return;
     }
+    if (onDispatchBrowseAction) {
+      void onDispatchBrowseAction({ type: 'set-grouping', groupBy: nextGroupBy });
+      sortMenuOpen = false;
+      return;
+    }
     dispatch('groupbychange', { groupBy: nextGroupBy });
     sortMenuOpen = false;
   };

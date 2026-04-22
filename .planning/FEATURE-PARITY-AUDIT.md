@@ -202,6 +202,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - grouped library browse panel wiring now also owns its own action-availability, reason-label, and dispatch composition from the shared browse state, so the route no longer has to pass a second layer of grouped-browse availability and transition adapters into each panel instance
 - grouped library header now also derives its grouped-browse trail, exit availability, reason labels, guard hints, and scope description directly from shared browse state plus dispatch actions, so the route is no longer hand-wiring a separate header-level browse controller beside the shared panel
 - grouped library browse panel now also builds its own shared surface model from browse state plus browse/shelf books, so the route no longer has to precompute desktop/starter grouped-browse surface payloads before rendering the panel
+- grouped library grouping-mode changes now also travel through the shared browse action system instead of a header-only `groupbychange` event path, so `不分组 / 按作者 / 按归类 / 按格式` no longer bypass the same transition model used by jump, exit, sibling, and pivot navigation
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

@@ -476,6 +476,7 @@ type LibraryBrowseActionGuardMap = {
 };
 
 const libraryBrowseActionGuards: LibraryBrowseActionGuardMap = {
+  'set-grouping': () => ({ kind: 'allowed' }),
   'enter-group': () => ({ kind: 'allowed' }),
   'exit-group': () => ({ kind: 'allowed' }),
   'jump-trail': (current, action) =>
@@ -801,6 +802,12 @@ type LibraryBrowseTransitionHandlerMap = {
 };
 
 const libraryBrowseTransitionHandlers: LibraryBrowseTransitionHandlerMap = {
+  'set-grouping': (current, action) =>
+    toLibraryBrowseTransitionResult(current, {
+      groupBy: action.groupBy,
+      groupScope: '',
+      trail: []
+    }),
   'enter-group': (current, action) =>
     toLibraryBrowseTransitionResult(
       current,

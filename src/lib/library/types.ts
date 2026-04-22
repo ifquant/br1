@@ -98,6 +98,10 @@ export type LibraryBrowseState = {
 
 export type LibraryBrowseAction =
   | {
+      type: 'set-grouping';
+      groupBy: 'none' | LibraryGroupBy;
+    }
+  | {
       type: 'enter-group';
       groupBy: LibraryGroupBy;
       label: string;
