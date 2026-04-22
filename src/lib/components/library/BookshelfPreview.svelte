@@ -8,7 +8,9 @@
   export let activeGroupLabel = '';
   export let showImportTile = false;
   export let importHref = '';
-  export let onEnterGroup: ((label: string) => void | Promise<void>) | null = null;
+  export let onEnterGroup:
+    | ((label: string, groupBy: 'author' | 'collection' | 'format') => void | Promise<void>)
+    | null = null;
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
@@ -62,10 +64,10 @@
   };
 
   const handleEnterGroup = (event: MouseEvent, label: string) => {
-    if (!onEnterGroup) return;
+    if (!onEnterGroup || groupBy === 'none') return;
     event.preventDefault();
     event.stopPropagation();
-    void onEnterGroup(label);
+    void onEnterGroup(label, groupBy);
   };
 
   const getBookKey = (book: BookshelfPreviewBook) =>

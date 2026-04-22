@@ -54,6 +54,11 @@
       }>;
     }>;
   };
+  type ActiveLibrarySubgroupShelf = {
+    title: string;
+    description: string;
+    groupBy: 'author' | 'collection' | 'format';
+  };
 
   const starterLibraryBooks: LibraryShelfBook[] = [
     {
@@ -949,6 +954,60 @@
         }
       ]
     };
+  };
+
+  const getActiveLibrarySubgroupShelves = (
+    books: LibraryShelfBook[],
+    groupBy: 'none' | 'author' | 'collection' | 'format',
+    scope: string
+  ): ActiveLibrarySubgroupShelf[] => {
+    if (!scope || groupBy === 'none') return [];
+
+    const candidates: ActiveLibrarySubgroupShelf[] =
+      groupBy === 'author'
+        ? [
+            {
+              title: '按归类继续看',
+              description: `在 ${scope} 这一组里，先按归类拆开后再继续浏览。`,
+              groupBy: 'collection'
+            },
+            {
+              title: '按格式继续看',
+              description: `在 ${scope} 这一组里，按阅读格式重新组织书架。`,
+              groupBy: 'format'
+            }
+          ]
+        : groupBy === 'collection'
+          ? [
+              {
+                title: '按作者继续看',
+                description: `在 ${scope} 这一组里，先看有哪些作者，再决定继续进入谁的书架。`,
+                groupBy: 'author'
+              },
+              {
+                title: '按格式继续看',
+                description: `在 ${scope} 这一组里，按阅读格式重新组织书架。`,
+                groupBy: 'format'
+              }
+            ]
+          : [
+              {
+                title: '按作者继续看',
+                description: `在 ${scope} 这一组里，先看作者分布，再继续进入具体书架。`,
+                groupBy: 'author'
+              },
+              {
+                title: '按归类继续看',
+                description: `在 ${scope} 这一组里，沿着书架归类继续下钻。`,
+                groupBy: 'collection'
+              }
+            ];
+
+    return candidates.filter((section) => {
+      return countDistinctLibraryValues(
+        books.map((book) => getLibraryGroupLabel(book, section.groupBy))
+      ) > 1;
+    });
   };
 
   const normalizeLibraryGroupByParam = (value: string | null) => {
@@ -1857,8 +1916,11 @@
     librarySortBy = event.detail.sortBy;
   };
 
-  const handleEnterLibraryGroup = async (label: string) => {
-    await syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: label });
+  const handleEnterLibraryGroup = async (
+    label: string,
+    nextGroupBy: 'author' | 'collection' | 'format'
+  ) => {
+    await syncLibraryBrowseLocation({ groupBy: nextGroupBy, groupScope: label });
   };
 
   const handleExitLibraryGroup = async () => {
@@ -2189,6 +2251,34 @@
           </section>
         {/if}
 
+        {@const desktopSubgroupShelves = getActiveLibrarySubgroupShelves(
+          filteredLibraryShelfBooks,
+          libraryGroupBy,
+          libraryGroupScope
+        )}
+        {#if desktopSubgroupShelves.length > 0}
+          <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
+            {#each desktopSubgroupShelves as subgroupShelf}
+              <div class="group-browse-subgroup-shelf">
+                <div class="group-browse-subgroup-copy">
+                  <strong>{subgroupShelf.title}</strong>
+                  <span>{subgroupShelf.description}</span>
+                </div>
+                <BookshelfPreview
+                  sectionTitle={subgroupShelf.title}
+                  books={filteredLibraryShelfBooks}
+                  viewMode={libraryViewMode}
+                  groupBy={subgroupShelf.groupBy}
+                  activeGroupLabel=""
+                  showImportTile={false}
+                  onEnterGroup={handleEnterLibraryGroup}
+                  onOpenLink={handleOpenReaderTarget}
+                />
+              </div>
+            {/each}
+          </section>
+        {/if}
+
         <BookshelfPreview
           sectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
           books={filteredLibraryShelfBooks}
@@ -2326,6 +2416,34 @@
                 {/each}
               </div>
             {/if}
+          </section>
+        {/if}
+
+        {@const starterSubgroupShelves = getActiveLibrarySubgroupShelves(
+          filteredStarterShelfBooks,
+          libraryGroupBy,
+          libraryGroupScope
+        )}
+        {#if starterSubgroupShelves.length > 0}
+          <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
+            {#each starterSubgroupShelves as subgroupShelf}
+              <div class="group-browse-subgroup-shelf">
+                <div class="group-browse-subgroup-copy">
+                  <strong>{subgroupShelf.title}</strong>
+                  <span>{subgroupShelf.description}</span>
+                </div>
+                <BookshelfPreview
+                  sectionTitle={subgroupShelf.title}
+                  books={filteredStarterShelfBooks}
+                  viewMode={libraryViewMode}
+                  groupBy={subgroupShelf.groupBy}
+                  activeGroupLabel=""
+                  showImportTile={false}
+                  onEnterGroup={handleEnterLibraryGroup}
+                  onOpenLink={handleOpenReaderTarget}
+                />
+              </div>
+            {/each}
           </section>
         {/if}
 
@@ -2620,6 +2738,39 @@
   .group-browse-pivot:hover {
     background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
     border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
+  }
+
+  .group-browse-subgroups {
+    display: grid;
+    gap: 18px;
+  }
+
+  .group-browse-subgroup-shelf {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 86%, white 14%);
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      0 10px 24px rgba(42, 30, 15, 0.04);
+  }
+
+  .group-browse-subgroup-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .group-browse-subgroup-copy strong {
+    color: var(--text-primary);
+    font: 600 14px/1.2 var(--font-chrome);
+  }
+
+  .group-browse-subgroup-copy span {
+    max-width: 54ch;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .group-browse-metric {
