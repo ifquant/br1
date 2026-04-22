@@ -3,41 +3,13 @@
   import LibraryEmptyState from './LibraryEmptyState.svelte';
   import LibraryGroupedBrowsePanel from './LibraryGroupedBrowsePanel.svelte';
   import type {
-    ContinueReadingBook,
     LibraryBrowseAction,
+    LibraryBrowseBodyModel,
     LibraryBrowseState,
-    LibraryEmptyStateModel,
     LibraryShelfBook
   } from '$lib/library/types';
-
-  type WorkflowNotice = {
-    title: string;
-    message: string;
-  };
-
-  type WorkflowShelf = {
-    sectionTitle: string;
-    sectionDescription: string;
-    primaryActionLabel: string;
-    books: ContinueReadingBook[];
-    onOpenSourcePath?: ((filePath: string) => void | Promise<void>) | null;
-    onImportBooks?: (() => void | Promise<void>) | null;
-    onRepairBook?: ((book: ContinueReadingBook) => void | Promise<void>) | null;
-    onRemoveBook?: ((book: ContinueReadingBook) => void | Promise<void>) | null;
-    bulkActionLabel?: string;
-    bulkActionDisabled?: boolean;
-    operationSummary?: string;
-    onBulkAction?: (() => void | Promise<void>) | null;
-  };
-
-  export let workflowNotice: WorkflowNotice | null = null;
+  export let model: LibraryBrowseBodyModel = {};
   export let groupedBrowseMode = false;
-  export let recoveryShelf: WorkflowShelf | null = null;
-  export let continueShelf: WorkflowShelf | null = null;
-  export let recentShelf: WorkflowShelf | null = null;
-  export let initialEmptyState: LibraryEmptyStateModel | null = null;
-  export let beforePanelEmptyStates: LibraryEmptyStateModel[] = [];
-  export let afterPanelEmptyStates: LibraryEmptyStateModel[] = [];
   export let browseState: LibraryBrowseState = {
     groupBy: 'none',
     groupScope: '',
@@ -72,6 +44,14 @@
   export let onFilterFormat: ((format: string) => void | Promise<void>) | null = null;
   export let onFilterCollection: ((collection: string) => void | Promise<void>) | null = null;
   export let onFilterTag: ((tag: string) => void | Promise<void>) | null = null;
+
+  $: workflowNotice = model.workflowNotice ?? null;
+  $: recoveryShelf = model.recoveryShelf ?? null;
+  $: continueShelf = model.continueShelf ?? null;
+  $: recentShelf = model.recentShelf ?? null;
+  $: initialEmptyState = model.initialEmptyState ?? null;
+  $: beforePanelEmptyStates = model.beforePanelEmptyStates ?? [];
+  $: afterPanelEmptyStates = model.afterPanelEmptyStates ?? [];
 </script>
 
 {#if initialEmptyState}

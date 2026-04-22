@@ -156,6 +156,36 @@ export type LibraryEmptyStateModel = {
   }>;
 };
 
+export type LibraryWorkflowNotice = {
+  title: string;
+  message: string;
+};
+
+export type LibraryWorkflowShelf = {
+  sectionTitle: string;
+  sectionDescription: string;
+  primaryActionLabel: string;
+  books: ContinueReadingBook[];
+  onOpenSourcePath?: ((filePath: string) => void | Promise<void>) | null;
+  onImportBooks?: (() => void | Promise<void>) | null;
+  onRepairBook?: ((book: ContinueReadingBook) => void | Promise<void>) | null;
+  onRemoveBook?: ((book: ContinueReadingBook) => void | Promise<void>) | null;
+  bulkActionLabel?: string;
+  bulkActionDisabled?: boolean;
+  operationSummary?: string;
+  onBulkAction?: (() => void | Promise<void>) | null;
+};
+
+export type LibraryBrowseBodyModel = {
+  workflowNotice?: LibraryWorkflowNotice | null;
+  recoveryShelf?: LibraryWorkflowShelf | null;
+  continueShelf?: LibraryWorkflowShelf | null;
+  recentShelf?: LibraryWorkflowShelf | null;
+  initialEmptyState?: LibraryEmptyStateModel | null;
+  beforePanelEmptyStates?: LibraryEmptyStateModel[];
+  afterPanelEmptyStates?: LibraryEmptyStateModel[];
+};
+
 export type LibraryBrowseActionGuardResult =
   | {
       kind: 'allowed';
