@@ -1,5 +1,6 @@
 import type {
   LibraryBrowseAction,
+  LibraryBrowseActionGuardResult,
   LibraryBrowseTransitionResult,
   ActiveLibraryGroupOverview,
   LibraryBrowseState,
@@ -463,6 +464,37 @@ export const getLibrarySiblingBrowseState = (
   trail
 });
 
+type LibraryBrowseActionGuardMap = {
+  [TType in LibraryBrowseAction['type']]: (
+    current: LibraryBrowseState,
+    action: LibraryBrowseActionByType<TType>
+  ) => LibraryBrowseActionGuardResult;
+};
+
+const libraryBrowseActionGuards: LibraryBrowseActionGuardMap = {
+  'enter-group': () => ({ kind: 'allowed' }),
+  'exit-group': () => ({ kind: 'allowed' }),
+  'jump-trail': (current, action) =>
+    current.trail[action.index]
+      ? { kind: 'allowed' }
+      : { kind: 'blocked', reason: 'missing-trail-segment' },
+  'enter-from-trail': (current, action) =>
+    current.trail[action.trailIndex]
+      ? { kind: 'allowed' }
+      : { kind: 'blocked', reason: 'missing-trail-segment' },
+  'switch-sibling': () => ({ kind: 'allowed' })
+};
+
+const getLibraryBrowseActionGuard = <TType extends LibraryBrowseAction['type']>(
+  current: LibraryBrowseState,
+  action: LibraryBrowseActionByType<TType>
+) => libraryBrowseActionGuards[action.type](current, action);
+
+export const getLibraryBrowseActionAvailability = (
+  current: LibraryBrowseState,
+  action: LibraryBrowseAction
+) => getLibraryBrowseActionGuard(current, action);
+
 type LibraryBrowseActionByType<TType extends LibraryBrowseAction['type']> = Extract<
   LibraryBrowseAction,
   { type: TType }
@@ -484,33 +516,18 @@ const libraryBrowseTransitionHandlers: LibraryBrowseTransitionHandlerMap = {
   'exit-group': (current) =>
     toLibraryBrowseTransitionResult(current, getLibraryExitBrowseState(current)),
   'jump-trail': (current, action) => {
-    const nextState = getLibraryJumpTrailState(current, action.index);
-    if (!nextState) {
-      return {
-        kind: 'invalid',
-        reason: 'missing-trail-segment',
-        action
-      };
-    }
+    const nextState = getLibraryJumpTrailState(current, action.index)!;
     return toLibraryBrowseTransitionResult(current, nextState);
   },
-  'enter-from-trail': (current, action) =>
-    {
-      const nextState = getLibraryEnterFromTrailState(
-        current,
-        action.trailIndex,
-        action.groupBy,
-        action.label
-      );
-      if (!nextState) {
-        return {
-          kind: 'invalid',
-          reason: 'missing-trail-segment',
-          action
-        };
-      }
-      return toLibraryBrowseTransitionResult(current, nextState);
-    },
+  'enter-from-trail': (current, action) => {
+    const nextState = getLibraryEnterFromTrailState(
+      current,
+      action.trailIndex,
+      action.groupBy,
+      action.label
+    )!;
+    return toLibraryBrowseTransitionResult(current, nextState);
+  },
   'switch-sibling': (current, action) =>
     toLibraryBrowseTransitionResult(
       current,
@@ -528,5 +545,14 @@ const dispatchLibraryBrowseAction = <TType extends LibraryBrowseAction['type']>(
 export const getNextLibraryBrowseState = (
   current: LibraryBrowseState,
   action: LibraryBrowseAction
-): LibraryBrowseTransitionResult =>
-  dispatchLibraryBrowseAction(current, action);
+): LibraryBrowseTransitionResult => {
+  const guard = getLibraryBrowseActionAvailability(current, action);
+  if (guard.kind === 'blocked') {
+    return {
+      kind: 'invalid',
+      reason: guard.reason,
+      action
+    };
+  }
+  return dispatchLibraryBrowseAction(current, action);
+};
