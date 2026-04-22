@@ -23,6 +23,7 @@
   } from '$lib/library/body';
   import {
     buildLibraryScrollContextKey as buildSharedLibraryScrollContextKey,
+    installLibrarySurfaceRuntime,
     restoreLibraryScrollPosition as restoreSharedLibraryScrollPosition,
     saveLibraryScrollPosition as saveSharedLibraryScrollPosition,
     syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation
@@ -701,72 +702,18 @@
   };
 
   onMount(() => {
-    void loadLibrary();
-
-    const handleBeforeUnload = () => {
-      saveLibraryScrollPosition(libraryScrollContextKey);
-    };
-
-    const handleWindowFocus = () => {
-      void loadLibrary();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') return;
-      void loadLibrary();
-    };
-
-    const attachViewportListener = () => {
-      const viewport = getLibraryViewport();
-      if (!viewport) return () => {};
-      const handleScroll = () => {
-        saveLibraryScrollPosition(libraryScrollContextKey);
-      };
-      viewport.addEventListener('scroll', handleScroll, { passive: true });
-      return () => {
-        viewport.removeEventListener('scroll', handleScroll);
-      };
-    };
-
-    let detachViewportListener = attachViewportListener();
-    const refreshViewportListener = window.setInterval(() => {
-      const viewport = getLibraryViewport();
-      if (!viewport) return;
-      detachViewportListener();
-      detachViewportListener = attachViewportListener();
-      window.clearInterval(refreshViewportListener);
-    }, 120);
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('focus', handleWindowFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    let detachLibraryReloadListener = () => {};
-    if (canPersistLibrary()) {
-      void (async () => {
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          detachLibraryReloadListener = await getCurrentWindow().listen(
-            LIBRARY_SURFACE_RELOAD_EVENT,
-            () => {
-              void loadLibrary();
-            }
-          );
-        } catch (error) {
-          console.warn('Failed to attach the library surface reload listener', error);
-        }
-      })();
-    }
-
-    return () => {
-      window.clearInterval(refreshViewportListener);
-      detachViewportListener();
-      detachLibraryReloadListener();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('focus', handleWindowFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      saveLibraryScrollPosition(libraryScrollContextKey);
-    };
+    return installLibrarySurfaceRuntime({
+      win: window,
+      doc: document,
+      canPersistLibrary: canPersistLibrary(),
+      reloadEventName: LIBRARY_SURFACE_RELOAD_EVENT,
+      getViewport: getLibraryViewport,
+      onRefreshLibrary: () => {
+        void loadLibrary();
+      },
+      onSaveScrollPosition: saveLibraryScrollPosition,
+      getScrollContextKey: () => libraryScrollContextKey
+    });
   });
 
   $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;

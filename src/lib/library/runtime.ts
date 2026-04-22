@@ -100,3 +100,89 @@ export const restoreLibraryScrollPosition = ({
   const savedPosition = storage.getItem(contextKey);
   return savedPosition ? Number(savedPosition) || 0 : 0;
 };
+
+type InstallLibrarySurfaceRuntimeArgs = {
+  win: Window;
+  doc: Document;
+  canPersistLibrary: boolean;
+  reloadEventName: string;
+  getViewport: () => HTMLElement | null;
+  onRefreshLibrary: () => void | Promise<void>;
+  onSaveScrollPosition: (contextKey: string) => void;
+  getScrollContextKey: () => string;
+};
+
+export const installLibrarySurfaceRuntime = ({
+  win,
+  doc,
+  canPersistLibrary,
+  reloadEventName,
+  getViewport,
+  onRefreshLibrary,
+  onSaveScrollPosition,
+  getScrollContextKey
+}: InstallLibrarySurfaceRuntimeArgs) => {
+  void onRefreshLibrary();
+
+  const handleBeforeUnload = () => {
+    onSaveScrollPosition(getScrollContextKey());
+  };
+
+  const handleWindowFocus = () => {
+    void onRefreshLibrary();
+  };
+
+  const handleVisibilityChange = () => {
+    if (doc.visibilityState !== 'visible') return;
+    void onRefreshLibrary();
+  };
+
+  const attachViewportListener = () => {
+    const viewport = getViewport();
+    if (!viewport) return () => {};
+    const handleScroll = () => {
+      onSaveScrollPosition(getScrollContextKey());
+    };
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll);
+    };
+  };
+
+  let detachViewportListener = attachViewportListener();
+  const refreshViewportListener = win.setInterval(() => {
+    const viewport = getViewport();
+    if (!viewport) return;
+    detachViewportListener();
+    detachViewportListener = attachViewportListener();
+    win.clearInterval(refreshViewportListener);
+  }, 120);
+
+  win.addEventListener('beforeunload', handleBeforeUnload);
+  win.addEventListener('focus', handleWindowFocus);
+  doc.addEventListener('visibilitychange', handleVisibilityChange);
+
+  let detachLibraryReloadListener = () => {};
+  if (canPersistLibrary) {
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        detachLibraryReloadListener = await getCurrentWindow().listen(reloadEventName, () => {
+          void onRefreshLibrary();
+        });
+      } catch (error) {
+        console.warn('Failed to attach the library surface reload listener', error);
+      }
+    })();
+  }
+
+  return () => {
+    win.clearInterval(refreshViewportListener);
+    detachViewportListener();
+    detachLibraryReloadListener();
+    win.removeEventListener('beforeunload', handleBeforeUnload);
+    win.removeEventListener('focus', handleWindowFocus);
+    doc.removeEventListener('visibilitychange', handleVisibilityChange);
+    onSaveScrollPosition(getScrollContextKey());
+  };
+};
