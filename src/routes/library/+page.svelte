@@ -23,9 +23,7 @@
     getLibrarySiblingExplanation
   } from '$lib/library/navigation';
   import {
-    BookshelfPreview,
-    ContinueReadingShelf,
-    LibraryGroupedBrowsePanel,
+    LibraryBrowseBody,
     LibraryHeader
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
@@ -1938,87 +1936,89 @@
       class="library-scroll"
       options={{ scrollbars: { autoHide: 'leave', theme: 'os-theme-readest' } }}
     >
-      {#if importedBooks.length}
-        {#if readingWorkflowNotice}
-          <section class="reading-workflow-note" aria-label="阅读流程提示">
-            <strong>{readingWorkflowNotice.title}</strong>
-            <span>{readingWorkflowNotice.message}</span>
-          </section>
-        {/if}
-
-        {#if !libraryGroupedBrowseMode && filteredRecoveryQueueBooks.length}
-          <ContinueReadingShelf
-            sectionTitle="待修复书籍"
-            sectionDescription={recoveryQueueSummaryText}
-            primaryActionLabel="修复"
-            bulkActionLabel={
-              bulkRepairEligibleQueueBooks.length > 0
-                ? bulkRepairBusy
-                  ? '批量修复中…'
-                  : `批量修复副本（${bulkRepairEligibleQueueBooks.length}）`
-                : ''
-            }
-            bulkActionDisabled={bulkRepairBusy}
-            operationSummary={bulkRepairSummary}
-            books={recoveryQueueReviewBooks}
-            onOpenLink={handleOpenReaderTarget}
-            onOpenSourcePath={handleOpenSourcePath}
-            onImportBooks={triggerImportPicker}
-            onBulkAction={handleBulkRepairLibraryBooks}
-            onRepairBook={handleRepairLibraryBook}
-            onRemoveBook={handleRemoveLibraryBook}
-          />
-        {/if}
-
-        {#if !libraryGroupedBrowseMode && filteredContinueReadingBooks.length}
-          <ContinueReadingShelf
-            sectionTitle="继续阅读"
-            sectionDescription="回到当前正在读的书。"
-            primaryActionLabel="继续"
-            books={filteredContinueReadingBooks}
-            onOpenLink={handleOpenReaderTarget}
-            onOpenSourcePath={handleOpenSourcePath}
-            onImportBooks={triggerImportPicker}
-            onRepairBook={handleRepairLibraryBook}
-            onRemoveBook={handleRemoveLibraryBook}
-          />
-        {/if}
-
-        {#if !libraryGroupedBrowseMode && filteredRecentReadingBooks.length}
-          <ContinueReadingShelf
-            sectionTitle="最近阅读"
-            sectionDescription="重新打开你最近看过，但当前不在继续阅读队列中的书。"
-            primaryActionLabel="重开"
-            books={filteredRecentReadingBooks}
-            onOpenLink={handleOpenReaderTarget}
-            onOpenSourcePath={handleOpenSourcePath}
-            onImportBooks={triggerImportPicker}
-            onRepairBook={handleRepairLibraryBook}
-            onRemoveBook={handleRemoveLibraryBook}
-          />
-        {/if}
-
-        <LibraryGroupedBrowsePanel
-          browseState={getCurrentLibraryBrowseState()}
-          browseBooks={filteredLibraryBrowseBooks}
-          viewMode={libraryViewMode}
-          shelfBooks={filteredLibraryShelfBooks}
-          shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
-          onDispatchBrowseAction={dispatchLibraryBrowseAction}
-          onOpenLink={handleOpenReaderTarget}
-          onImportBooks={triggerImportPicker}
-          onOpenSourcePath={handleOpenSourcePath}
-          onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
-          onRemoveBook={handleRemoveLibraryBook}
-          onFilterStatus={handleFilterByShelfStatus}
-          onFilterFormat={handleFilterByShelfFormat}
-          onFilterCollection={handleFilterByShelfCollection}
-          onFilterTag={handleFilterByShelfTag}
-        />
-      {/if}
-
       {#if desktopLibraryMode}
-        {#if !importedBooks.length}
+        {#if importedBooks.length}
+          <LibraryBrowseBody
+            workflowNotice={readingWorkflowNotice}
+            groupedBrowseMode={libraryGroupedBrowseMode}
+            recoveryShelf={{
+              sectionTitle: '待修复书籍',
+              sectionDescription: recoveryQueueSummaryText,
+              primaryActionLabel: '修复',
+              books: recoveryQueueReviewBooks,
+              onOpenSourcePath: handleOpenSourcePath,
+              onImportBooks: triggerImportPicker,
+              onRepairBook: handleRepairLibraryBook,
+              onRemoveBook: handleRemoveLibraryBook,
+              bulkActionLabel:
+                bulkRepairEligibleQueueBooks.length > 0
+                  ? bulkRepairBusy
+                    ? '批量修复中…'
+                    : `批量修复副本（${bulkRepairEligibleQueueBooks.length}）`
+                  : '',
+              bulkActionDisabled: bulkRepairBusy,
+              operationSummary: bulkRepairSummary,
+              onBulkAction: handleBulkRepairLibraryBooks
+            }}
+            continueShelf={{
+              sectionTitle: '继续阅读',
+              sectionDescription: '回到当前正在读的书。',
+              primaryActionLabel: '继续',
+              books: filteredContinueReadingBooks,
+              onOpenSourcePath: handleOpenSourcePath,
+              onImportBooks: triggerImportPicker,
+              onRepairBook: handleRepairLibraryBook,
+              onRemoveBook: handleRemoveLibraryBook
+            }}
+            recentShelf={{
+              sectionTitle: '最近阅读',
+              sectionDescription: '重新打开你最近看过，但当前不在继续阅读队列中的书。',
+              primaryActionLabel: '重开',
+              books: filteredRecentReadingBooks,
+              onOpenSourcePath: handleOpenSourcePath,
+              onImportBooks: triggerImportPicker,
+              onRepairBook: handleRepairLibraryBook,
+              onRemoveBook: handleRemoveLibraryBook
+            }}
+            browseState={getCurrentLibraryBrowseState()}
+            browseBooks={filteredLibraryBrowseBooks}
+            viewMode={libraryViewMode}
+            shelfBooks={filteredLibraryShelfBooks}
+            shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
+            onDispatchBrowseAction={dispatchLibraryBrowseAction}
+            onOpenLink={handleOpenReaderTarget}
+            onImportBooks={triggerImportPicker}
+            onOpenSourcePath={handleOpenSourcePath}
+            onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
+            onRemoveBook={handleRemoveLibraryBook}
+            onFilterStatus={handleFilterByShelfStatus}
+            onFilterFormat={handleFilterByShelfFormat}
+            onFilterCollection={handleFilterByShelfCollection}
+            onFilterTag={handleFilterByShelfTag}
+          >
+            <svelte:fragment slot="afterPanel">
+              {#if libraryQuery && visibleLibraryBooksCount === 0}
+                <section class="empty-library" aria-label="搜索无结果">
+                  <div class="empty-copy">
+                    <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
+                    <span>
+                      试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
+                    </span>
+                  </div>
+                  {@render emptyFilterRecovery()}
+                </section>
+              {:else if visibleLibraryBooksCount === 0}
+                <section class="empty-library" aria-label="筛选无结果">
+                  <div class="empty-copy">
+                    <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
+                    <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
+                  </div>
+                  {@render emptyFilterRecovery()}
+                </section>
+              {/if}
+            </svelte:fragment>
+          </LibraryBrowseBody>
+        {:else}
           <section class="empty-library" aria-label="空书库">
             <div class="empty-copy">
               <strong>你的书库还是空的</strong>
@@ -2041,74 +2041,23 @@
               {/if}
             </div>
           </section>
-        {:else if libraryQuery && visibleLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="搜索无结果">
-            <div class="empty-copy">
-              <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-              <span>
-                试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
-              </span>
-            </div>
-            {@render emptyFilterRecovery()}
-          </section>
-        {:else if visibleLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="筛选无结果">
-            <div class="empty-copy">
-              <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-              <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
-            </div>
-            {@render emptyFilterRecovery()}
-          </section>
         {/if}
       {:else}
-        {#if starterReadingWorkflowNotice}
-          <section class="reading-workflow-note" aria-label="样例阅读流程提示">
-            <strong>{starterReadingWorkflowNotice.title}</strong>
-            <span>{starterReadingWorkflowNotice.message}</span>
-          </section>
-        {/if}
-
-        {#if !libraryGroupedBrowseMode && filteredStarterContinueReadingBooks.length}
-          <ContinueReadingShelf
-            sectionTitle="继续阅读"
-            sectionDescription="回到当前正在读的样例书。"
-            primaryActionLabel="继续"
-            books={filteredStarterContinueReadingBooks}
-            onOpenLink={handleOpenReaderTarget}
-          />
-        {/if}
-
-        {#if !libraryGroupedBrowseMode && filteredStarterRecentReadingBooks.length}
-          <ContinueReadingShelf
-            sectionTitle="最近阅读"
-            sectionDescription="重新打开你最近看过的样例书。"
-            primaryActionLabel="重开"
-            books={filteredStarterRecentReadingBooks}
-            onOpenLink={handleOpenReaderTarget}
-          />
-        {/if}
-
-        {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="样例搜索无结果">
-            <div class="empty-copy">
-              <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-              <span>
-                试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
-              </span>
-            </div>
-            {@render emptyFilterRecovery()}
-          </section>
-        {:else if visibleStarterLibraryBooksCount === 0}
-          <section class="empty-library" aria-label="样例筛选无结果">
-            <div class="empty-copy">
-              <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-              <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
-            </div>
-            {@render emptyFilterRecovery()}
-          </section>
-        {/if}
-
-        <LibraryGroupedBrowsePanel
+        <LibraryBrowseBody
+          workflowNotice={starterReadingWorkflowNotice}
+          groupedBrowseMode={libraryGroupedBrowseMode}
+          continueShelf={{
+            sectionTitle: '继续阅读',
+            sectionDescription: '回到当前正在读的样例书。',
+            primaryActionLabel: '继续',
+            books: filteredStarterContinueReadingBooks
+          }}
+          recentShelf={{
+            sectionTitle: '最近阅读',
+            sectionDescription: '重新打开你最近看过的样例书。',
+            primaryActionLabel: '重开',
+            books: filteredStarterRecentReadingBooks
+          }}
           browseState={getCurrentLibraryBrowseState()}
           browseBooks={filteredStarterBrowseBooks}
           viewMode={libraryViewMode}
@@ -2121,7 +2070,29 @@
           onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}
-        />
+        >
+          <svelte:fragment slot="beforePanel">
+            {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
+              <section class="empty-library" aria-label="样例搜索无结果">
+                <div class="empty-copy">
+                  <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
+                  <span>
+                    试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
+                  </span>
+                </div>
+                {@render emptyFilterRecovery()}
+              </section>
+            {:else if visibleStarterLibraryBooksCount === 0}
+              <section class="empty-library" aria-label="样例筛选无结果">
+                <div class="empty-copy">
+                  <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
+                  <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
+                </div>
+                {@render emptyFilterRecovery()}
+              </section>
+            {/if}
+          </svelte:fragment>
+        </LibraryBrowseBody>
       {/if}
     </OverlayScrollbarsComponent>
   </div>
@@ -2253,33 +2224,6 @@
     font-weight: 600;
     line-height: 1;
     box-shadow: 0 10px 20px rgba(42, 30, 15, 0.12);
-  }
-
-  .reading-workflow-note {
-    display: grid;
-    gap: 4px;
-    padding: 12px 14px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 86%, white 14%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.28),
-      0 10px 24px rgba(42, 30, 15, 0.04);
-  }
-
-  .reading-workflow-note strong {
-    font-family: var(--font-chrome);
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--text-primary);
-  }
-
-  .reading-workflow-note span {
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--text-secondary);
   }
 
   .empty-library {
