@@ -246,6 +246,12 @@ export type LibraryPageChromeModel = {
   migrationBusy: boolean;
 };
 
+export type LibraryPageSurfaceModel = {
+  chrome: LibraryPageChromeModel;
+  body: LibraryBrowseBodySurfaceModel;
+  supportsDesktopBookActions: boolean;
+};
+
 export type LibraryBrowseActionGuardResult =
   | {
       kind: 'allowed';

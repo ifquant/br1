@@ -6,10 +6,10 @@
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
     LibraryActiveFilterChip,
-    LibraryBrowseBodySurfaceModel,
     LibraryBrowseBodyModel,
+    LibraryBrowseState,
     LibraryNoticeModel,
-    LibraryPageChromeModel,
+    LibraryPageSurfaceModel,
     LibraryBrowseAction,
     ContinueReadingBook,
     LibraryGroupBy,
@@ -17,11 +17,11 @@
     LibraryShelfBook,
     ManualRelinkReview
   } from '$lib/library/types';
-  import { buildLibraryPageChromeModel } from '$lib/library/chrome';
   import {
-    buildDesktopLibraryBrowseBodySurfaceModel,
-    buildStarterLibraryBrowseBodySurfaceModel
-  } from '$lib/library/body';
+    createEmptyLibraryPageSurfaceModel,
+    buildDesktopLibraryPageSurfaceModel,
+    buildStarterLibraryPageSurfaceModel
+  } from '$lib/library/surface';
   import {
     buildLibraryScrollContextKey as buildSharedLibraryScrollContextKey,
     installLibrarySurfaceRuntime,
@@ -321,90 +321,14 @@
     visibleBooksCount: 0,
     workflowNotice: null
   };
-  let desktopBrowseBodySurfaceModel: LibraryBrowseBodySurfaceModel = {
-    body: {},
-    groupedBrowseMode: false,
-    browseState: {
-      groupBy: 'none',
-      groupScope: '',
-      trail: []
-    },
-    browseBooks: [],
-    viewMode: 'grid',
-    shelfBooks: [],
-    shelfSectionTitle: '书架'
+  let currentLibraryBrowseState: LibraryBrowseState = {
+    groupBy: 'none',
+    groupScope: '',
+    trail: []
   };
-  let starterBrowseBodySurfaceModel: LibraryBrowseBodySurfaceModel = {
-    body: {},
-    groupedBrowseMode: false,
-    browseState: {
-      groupBy: 'none',
-      groupScope: '',
-      trail: []
-    },
-    browseBooks: [],
-    viewMode: 'grid',
-    shelfBooks: [],
-    shelfSectionTitle: '书架'
-  };
-  let activeBrowseBodySurfaceModel: LibraryBrowseBodySurfaceModel = {
-    body: {},
-    groupedBrowseMode: false,
-    browseState: {
-      groupBy: 'none',
-      groupScope: '',
-      trail: []
-    },
-    browseBooks: [],
-    viewMode: 'grid',
-    shelfBooks: [],
-    shelfSectionTitle: '书架'
-  };
-  let libraryPageChromeModel: LibraryPageChromeModel = {
-    header: {
-      totalBooks: 0,
-      query: '',
-      viewMode: 'grid',
-      sortBy: 'recent',
-      groupBy: 'none',
-      browseState: {
-        groupBy: 'none',
-        groupScope: '',
-        trail: []
-      },
-      activeGroupVisibleCount: 0,
-      activeFilter: 'all',
-      statusOptionCounts: {
-        all: 0,
-        reading: 0,
-        unstarted: 0,
-        finished: 0
-      },
-      activeFormatFilter: 'all',
-      formatOptions: [],
-      formatOptionCounts: {},
-      activeCollectionFilter: 'all',
-      collectionOptions: [],
-      collectionOptionCounts: {},
-      activeTagFilter: 'all',
-      tagOptions: [],
-      tagOptionCounts: {},
-      importDisabled: false,
-      statusSummary: '',
-      activeFilterDetail: '',
-      activeFilterChips: [],
-      filterSummary: '',
-      formatSummary: '',
-      collectionSummary: '',
-      tagSummary: '',
-      coverSummary: ''
-    },
-    notice: null,
-    showReadestMigration: false,
-    readestLibraryCount: 0,
-    readestCompatibleCount: 0,
-    migrationBusy: false
-  };
+  let desktopLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(true);
+  let starterLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
+  let activeLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
 
   const formatLastOpenedLabel = (timestamp: number | null | undefined) => {
     if (typeof timestamp !== 'number' || timestamp <= 0) return '';
@@ -883,101 +807,146 @@
       } / ${importedBooks.length || starterLibraryBooks.length} 本`
     : '';
   $: starterReadingWorkflowNotice = starterLibraryBrowse.workflowNotice;
-  $: desktopBrowseBodySurfaceModel = buildDesktopLibraryBrowseBodySurfaceModel({
-    browseState: getCurrentLibraryBrowseState(),
-    groupedBrowseMode: libraryGroupedBrowseMode,
-    browseBooks: filteredLibraryBrowseBooks,
-    viewMode: libraryViewMode,
-    shelfBooks: filteredLibraryShelfBooks,
-    searchActive: librarySearchActive,
-    groupBy: libraryGroupBy,
-    workflowNotice: readingWorkflowNotice,
-    recoveryQueueSummaryText,
-    recoveryQueueReviewBooks,
-    bulkRepairEligibleCount: bulkRepairEligibleQueueBooks.length,
-    bulkRepairBusy,
-    bulkRepairSummary,
-    filteredContinueReadingBooks,
-    filteredRecentReadingBooks,
-    importedBooksCount: importedBooks.length,
-    readestLibraryCount,
-    migrationBusy,
-    libraryQuery,
-    visibleLibraryBooksCount,
-    activeFilterDetail: libraryActiveFilterDetail,
-    activeFilterChips: libraryActiveFilterChips,
-    onOpenSourcePath: handleOpenSourcePath,
-    onImportBooks: triggerImportPicker,
-    onRepairBook: handleRepairLibraryBook,
-    onRemoveBook: handleRemoveLibraryBook,
-    onBulkRepairBooks: handleBulkRepairLibraryBooks,
-    onReadestMigration: handleReadestMigrationClick,
-    onClearFilterById: clearLibraryFilterById,
-    onClearFilters: handleClearLibraryFilters,
-    getEmptyFilterTitle: getLibraryEmptyFilterTitle
+  $: currentLibraryBrowseState = getCurrentLibraryBrowseState();
+  $: desktopLibraryPageSurfaceModel = buildDesktopLibraryPageSurfaceModel({
+    chrome: {
+      totalBooks: importedBooks.length || starterLibraryBooks.length,
+      query: libraryQuery,
+      viewMode: libraryViewMode,
+      sortBy: librarySortBy,
+      groupBy: libraryGroupBy,
+      browseState: currentLibraryBrowseState,
+      activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
+      activeFilter: libraryFilterBy,
+      statusOptionCounts: libraryStatusOptionCounts,
+      activeFormatFilter: libraryFormatFilter,
+      formatOptions: libraryFormatOptions,
+      formatOptionCounts: libraryFormatOptionCounts,
+      activeCollectionFilter: libraryCollectionFilter,
+      collectionOptions: libraryCollectionOptions,
+      collectionOptionCounts: libraryCollectionOptionCounts,
+      activeTagFilter: libraryTagFilter,
+      tagOptions: libraryTagOptions,
+      tagOptionCounts: libraryTagOptionCounts,
+      statusSummary: libraryStatusSummary,
+      activeFilterDetail: libraryActiveFilterDetail,
+      activeFilterChips: libraryActiveFilterChips,
+      formatSummary: libraryFormatSummary,
+      collectionSummary: libraryCollectionSummary,
+      tagSummary: libraryTagSummary,
+      coverSummary: libraryCoverSummary,
+      filterSummary: libraryFilterSummary,
+      importDisabled: migrationBusy,
+      notice: libraryNotice
+        ? {
+            kind: libraryNotice.kind,
+            message: libraryNotice.message,
+            actionLabel: libraryNotice.actionLabel
+          }
+        : null,
+      showReadestMigration,
+      readestLibraryCount,
+      readestCompatibleCount,
+      migrationBusy
+    },
+    body: {
+      browseState: currentLibraryBrowseState,
+      groupedBrowseMode: libraryGroupedBrowseMode,
+      browseBooks: filteredLibraryBrowseBooks,
+      viewMode: libraryViewMode,
+      shelfBooks: filteredLibraryShelfBooks,
+      searchActive: librarySearchActive,
+      groupBy: libraryGroupBy,
+      workflowNotice: readingWorkflowNotice,
+      recoveryQueueSummaryText,
+      recoveryQueueReviewBooks,
+      bulkRepairEligibleCount: bulkRepairEligibleQueueBooks.length,
+      bulkRepairBusy,
+      bulkRepairSummary,
+      filteredContinueReadingBooks,
+      filteredRecentReadingBooks,
+      importedBooksCount: importedBooks.length,
+      readestLibraryCount,
+      migrationBusy,
+      libraryQuery,
+      visibleLibraryBooksCount,
+      activeFilterDetail: libraryActiveFilterDetail,
+      activeFilterChips: libraryActiveFilterChips,
+      onOpenSourcePath: handleOpenSourcePath,
+      onImportBooks: triggerImportPicker,
+      onRepairBook: handleRepairLibraryBook,
+      onRemoveBook: handleRemoveLibraryBook,
+      onBulkRepairBooks: handleBulkRepairLibraryBooks,
+      onReadestMigration: handleReadestMigrationClick,
+      onClearFilterById: clearLibraryFilterById,
+      onClearFilters: handleClearLibraryFilters,
+      getEmptyFilterTitle: getLibraryEmptyFilterTitle
+    }
   });
-  $: starterBrowseBodySurfaceModel = buildStarterLibraryBrowseBodySurfaceModel({
-    browseState: getCurrentLibraryBrowseState(),
-    groupedBrowseMode: libraryGroupedBrowseMode,
-    browseBooks: filteredStarterBrowseBooks,
-    viewMode: libraryViewMode,
-    shelfBooks: filteredStarterShelfBooks,
-    searchActive: librarySearchActive,
-    groupBy: libraryGroupBy,
-    workflowNotice: starterReadingWorkflowNotice,
-    filteredContinueReadingBooks: filteredStarterContinueReadingBooks,
-    filteredRecentReadingBooks: filteredStarterRecentReadingBooks,
-    libraryQuery,
-    visibleStarterLibraryBooksCount,
-    activeFilterDetail: libraryActiveFilterDetail,
-    activeFilterChips: libraryActiveFilterChips,
-    onClearFilterById: clearLibraryFilterById,
-    onClearFilters: handleClearLibraryFilters,
-    getEmptyFilterTitle: getLibraryEmptyFilterTitle
+  $: starterLibraryPageSurfaceModel = buildStarterLibraryPageSurfaceModel({
+    chrome: {
+      totalBooks: importedBooks.length || starterLibraryBooks.length,
+      query: libraryQuery,
+      viewMode: libraryViewMode,
+      sortBy: librarySortBy,
+      groupBy: libraryGroupBy,
+      browseState: currentLibraryBrowseState,
+      activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
+      activeFilter: libraryFilterBy,
+      statusOptionCounts: libraryStatusOptionCounts,
+      activeFormatFilter: libraryFormatFilter,
+      formatOptions: libraryFormatOptions,
+      formatOptionCounts: libraryFormatOptionCounts,
+      activeCollectionFilter: libraryCollectionFilter,
+      collectionOptions: libraryCollectionOptions,
+      collectionOptionCounts: libraryCollectionOptionCounts,
+      activeTagFilter: libraryTagFilter,
+      tagOptions: libraryTagOptions,
+      tagOptionCounts: libraryTagOptionCounts,
+      statusSummary: libraryStatusSummary,
+      activeFilterDetail: libraryActiveFilterDetail,
+      activeFilterChips: libraryActiveFilterChips,
+      formatSummary: libraryFormatSummary,
+      collectionSummary: libraryCollectionSummary,
+      tagSummary: libraryTagSummary,
+      coverSummary: libraryCoverSummary,
+      filterSummary: libraryFilterSummary,
+      importDisabled: migrationBusy,
+      notice: libraryNotice
+        ? {
+            kind: libraryNotice.kind,
+            message: libraryNotice.message,
+            actionLabel: libraryNotice.actionLabel
+          }
+        : null,
+      showReadestMigration,
+      readestLibraryCount,
+      readestCompatibleCount,
+      migrationBusy
+    },
+    body: {
+      browseState: currentLibraryBrowseState,
+      groupedBrowseMode: libraryGroupedBrowseMode,
+      browseBooks: filteredStarterBrowseBooks,
+      viewMode: libraryViewMode,
+      shelfBooks: filteredStarterShelfBooks,
+      searchActive: librarySearchActive,
+      groupBy: libraryGroupBy,
+      workflowNotice: starterReadingWorkflowNotice,
+      filteredContinueReadingBooks: filteredStarterContinueReadingBooks,
+      filteredRecentReadingBooks: filteredStarterRecentReadingBooks,
+      libraryQuery,
+      visibleStarterLibraryBooksCount,
+      activeFilterDetail: libraryActiveFilterDetail,
+      activeFilterChips: libraryActiveFilterChips,
+      onClearFilterById: clearLibraryFilterById,
+      onClearFilters: handleClearLibraryFilters,
+      getEmptyFilterTitle: getLibraryEmptyFilterTitle
+    }
   });
-  $: activeBrowseBodySurfaceModel = desktopLibraryMode
-    ? desktopBrowseBodySurfaceModel
-    : starterBrowseBodySurfaceModel;
-  $: libraryPageChromeModel = buildLibraryPageChromeModel({
-    totalBooks: importedBooks.length || starterLibraryBooks.length,
-    query: libraryQuery,
-    viewMode: libraryViewMode,
-    sortBy: librarySortBy,
-    groupBy: libraryGroupBy,
-    browseState: getCurrentLibraryBrowseState(),
-    activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
-    activeFilter: libraryFilterBy,
-    statusOptionCounts: libraryStatusOptionCounts,
-    activeFormatFilter: libraryFormatFilter,
-    formatOptions: libraryFormatOptions,
-    formatOptionCounts: libraryFormatOptionCounts,
-    activeCollectionFilter: libraryCollectionFilter,
-    collectionOptions: libraryCollectionOptions,
-    collectionOptionCounts: libraryCollectionOptionCounts,
-    activeTagFilter: libraryTagFilter,
-    tagOptions: libraryTagOptions,
-    tagOptionCounts: libraryTagOptionCounts,
-    statusSummary: libraryStatusSummary,
-    activeFilterDetail: libraryActiveFilterDetail,
-    activeFilterChips: libraryActiveFilterChips,
-    formatSummary: libraryFormatSummary,
-    collectionSummary: libraryCollectionSummary,
-    tagSummary: libraryTagSummary,
-    coverSummary: libraryCoverSummary,
-    filterSummary: libraryFilterSummary,
-    importDisabled: migrationBusy,
-    notice: libraryNotice
-      ? {
-          kind: libraryNotice.kind,
-          message: libraryNotice.message,
-          actionLabel: libraryNotice.actionLabel
-        }
-      : null,
-    showReadestMigration,
-    readestLibraryCount,
-    readestCompatibleCount,
-    migrationBusy
-  });
+  $: activeLibraryPageSurfaceModel = desktopLibraryMode
+    ? desktopLibraryPageSurfaceModel
+    : starterLibraryPageSurfaceModel;
   $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
     const previousKey = libraryScrollContextKey;
@@ -1439,10 +1408,7 @@
   });
 
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
-    const result = getNextLibraryBrowseState(
-      getCurrentLibraryBrowseState(),
-      action
-    );
+    const result = getNextLibraryBrowseState(currentLibraryBrowseState, action);
     if (result.kind !== 'applied') return;
     await syncLibraryBrowseLocation(result.state);
   };
@@ -1551,7 +1517,7 @@
     />
 
     <LibraryPageChrome
-      model={libraryPageChromeModel}
+      model={activeLibraryPageSurfaceModel.chrome}
       onDispatchBrowseAction={dispatchLibraryBrowseAction}
       onRunNoticeAction={runLibraryNoticeAction}
       onClearNotice={clearLibraryNotice}
@@ -1577,19 +1543,19 @@
         options={{ scrollbars: { autoHide: 'leave', theme: 'os-theme-readest' } }}
       >
         <LibraryBrowseBody
-          model={activeBrowseBodySurfaceModel.body}
-          groupedBrowseMode={activeBrowseBodySurfaceModel.groupedBrowseMode}
-          browseState={activeBrowseBodySurfaceModel.browseState}
-          browseBooks={activeBrowseBodySurfaceModel.browseBooks}
-          viewMode={activeBrowseBodySurfaceModel.viewMode}
-          shelfBooks={activeBrowseBodySurfaceModel.shelfBooks}
-          shelfSectionTitle={activeBrowseBodySurfaceModel.shelfSectionTitle}
+          model={activeLibraryPageSurfaceModel.body.body}
+          groupedBrowseMode={activeLibraryPageSurfaceModel.body.groupedBrowseMode}
+          browseState={activeLibraryPageSurfaceModel.body.browseState}
+          browseBooks={activeLibraryPageSurfaceModel.body.browseBooks}
+          viewMode={activeLibraryPageSurfaceModel.body.viewMode}
+          shelfBooks={activeLibraryPageSurfaceModel.body.shelfBooks}
+          shelfSectionTitle={activeLibraryPageSurfaceModel.body.shelfSectionTitle}
           onDispatchBrowseAction={dispatchLibraryBrowseAction}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
-          onOpenSourcePath={desktopLibraryMode ? handleOpenSourcePath : null}
-          onUpdateBookMetadata={desktopLibraryMode ? handleUpdateLibraryBookMetadata : null}
-          onRemoveBook={desktopLibraryMode ? handleRemoveLibraryBook : null}
+          onOpenSourcePath={activeLibraryPageSurfaceModel.supportsDesktopBookActions ? handleOpenSourcePath : null}
+          onUpdateBookMetadata={activeLibraryPageSurfaceModel.supportsDesktopBookActions ? handleUpdateLibraryBookMetadata : null}
+          onRemoveBook={activeLibraryPageSurfaceModel.supportsDesktopBookActions ? handleRemoveLibraryBook : null}
           onFilterStatus={handleFilterByShelfStatus}
           onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
