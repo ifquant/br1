@@ -50,6 +50,8 @@
     title: string;
     summary: string;
     metrics: Array<{ label: string; value: string }>;
+    scopedBooks: LibraryShelfBook[];
+    subgroupShelves: ActiveLibrarySubgroupShelf[];
   };
   type ActiveLibraryGroupOverview = {
     eyebrow: string;
@@ -1054,7 +1056,13 @@
           eyebrow: `第 ${index + 1} 层 · ${overview.eyebrow}`,
           title: overview.title,
           summary: overview.summary,
-          metrics: overview.metrics
+          metrics: overview.metrics,
+          scopedBooks,
+          subgroupShelves: getActiveLibrarySubgroupShelves(
+            scopedBooks,
+            segment.groupBy,
+            segment.label
+          )
         };
       })
       .filter((entry): entry is LibraryTrailLanding => entry !== null);
@@ -2087,6 +2095,20 @@
     });
   };
 
+  const enterLibraryGroupFromTrail = async (
+    trailIndex: number,
+    label: string,
+    nextGroupBy: 'author' | 'collection' | 'format'
+  ) => {
+    const targetSegment = libraryBrowseTrail[trailIndex];
+    if (!targetSegment) return;
+    await syncLibraryBrowseLocation({
+      groupBy: nextGroupBy,
+      groupScope: label,
+      trail: [...libraryBrowseTrail.slice(0, trailIndex + 1)]
+    });
+  };
+
   const handleJumpLibraryGroupTrail = async (
     event: CustomEvent<{ index: number }>
   ) => {
@@ -2370,15 +2392,20 @@
         {#if desktopTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
             {#each desktopTrailLandings as landing}
-              <button
-                type="button"
-                class="group-browse-trail-card"
-                on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
-              >
+              <div class="group-browse-trail-card">
                 <div class="group-browse-trail-copy">
                   <span class="group-browse-eyebrow">{landing.eyebrow}</span>
                   <strong>{landing.title}</strong>
                   <p>{landing.summary}</p>
+                  <div class="group-browse-trail-actions">
+                    <button
+                      type="button"
+                      class="group-browse-trail-action"
+                      on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
+                    >
+                      回到这一层
+                    </button>
+                  </div>
                 </div>
                 <div class="group-browse-trail-metrics">
                   {#each landing.metrics as metric}
@@ -2388,7 +2415,30 @@
                     </div>
                   {/each}
                 </div>
-              </button>
+                {#if landing.subgroupShelves.length > 0}
+                  <div class="group-browse-trail-subgroups">
+                    {#each landing.subgroupShelves as subgroupShelf}
+                      <div class="group-browse-subgroup-shelf">
+                        <div class="group-browse-subgroup-copy">
+                          <strong>{subgroupShelf.title}</strong>
+                          <span>{subgroupShelf.description}</span>
+                        </div>
+                        <BookshelfPreview
+                          sectionTitle={subgroupShelf.title}
+                          books={landing.scopedBooks}
+                          viewMode={libraryViewMode}
+                          groupBy={subgroupShelf.groupBy}
+                          activeGroupLabel=""
+                          showImportTile={false}
+                          onEnterGroup={(label, nextGroupBy) =>
+                            enterLibraryGroupFromTrail(landing.index, label, nextGroupBy)}
+                          onOpenLink={handleOpenReaderTarget}
+                        />
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
             {/each}
           </section>
         {/if}
@@ -2568,15 +2618,20 @@
         {#if starterTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
             {#each starterTrailLandings as landing}
-              <button
-                type="button"
-                class="group-browse-trail-card"
-                on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
-              >
+              <div class="group-browse-trail-card">
                 <div class="group-browse-trail-copy">
                   <span class="group-browse-eyebrow">{landing.eyebrow}</span>
                   <strong>{landing.title}</strong>
                   <p>{landing.summary}</p>
+                  <div class="group-browse-trail-actions">
+                    <button
+                      type="button"
+                      class="group-browse-trail-action"
+                      on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
+                    >
+                      回到这一层
+                    </button>
+                  </div>
                 </div>
                 <div class="group-browse-trail-metrics">
                   {#each landing.metrics as metric}
@@ -2586,7 +2641,30 @@
                     </div>
                   {/each}
                 </div>
-              </button>
+                {#if landing.subgroupShelves.length > 0}
+                  <div class="group-browse-trail-subgroups">
+                    {#each landing.subgroupShelves as subgroupShelf}
+                      <div class="group-browse-subgroup-shelf">
+                        <div class="group-browse-subgroup-copy">
+                          <strong>{subgroupShelf.title}</strong>
+                          <span>{subgroupShelf.description}</span>
+                        </div>
+                        <BookshelfPreview
+                          sectionTitle={subgroupShelf.title}
+                          books={landing.scopedBooks}
+                          viewMode={libraryViewMode}
+                          groupBy={subgroupShelf.groupBy}
+                          activeGroupLabel=""
+                          showImportTile={false}
+                          onEnterGroup={(label, nextGroupBy) =>
+                            enterLibraryGroupFromTrail(landing.index, label, nextGroupBy)}
+                          onOpenLink={handleOpenReaderTarget}
+                        />
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
             {/each}
           </section>
         {/if}
@@ -2896,11 +2974,6 @@
     text-align: left;
   }
 
-  .group-browse-trail-card:hover {
-    border-color: color-mix(in srgb, #8c6a3b 20%, var(--line-soft) 80%);
-    background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
-  }
-
   .group-browse-trail-copy {
     display: grid;
     gap: 5px;
@@ -2920,10 +2993,34 @@
     line-height: 1.45;
   }
 
+  .group-browse-trail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 2px;
+  }
+
+  .group-browse-trail-action {
+    width: auto;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
+    color: var(--text-primary);
+    font: 600 11px/1 var(--font-chrome);
+  }
+
+  .group-browse-trail-action:hover {
+    border-color: color-mix(in srgb, #8c6a3b 22%, var(--line-soft) 78%);
+    background: color-mix(in srgb, var(--surface-reader) 70%, white 30%);
+  }
+
   .group-browse-trail-metrics {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
+    align-self: start;
   }
 
   .group-browse-trail-metric {
@@ -2944,6 +3041,12 @@
   .group-browse-trail-metric strong {
     color: var(--text-primary);
     font: 600 14px/1.1 var(--font-chrome);
+  }
+
+  .group-browse-trail-subgroups {
+    display: grid;
+    gap: 14px;
+    grid-column: 1 / -1;
   }
 
   .group-browse-copy {
