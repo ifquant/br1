@@ -44,6 +44,13 @@
     groupBy: 'author' | 'collection' | 'format';
     label: string;
   };
+  type LibraryTrailLanding = {
+    index: number;
+    eyebrow: string;
+    title: string;
+    summary: string;
+    metrics: Array<{ label: string; value: string }>;
+  };
   type ActiveLibraryGroupOverview = {
     eyebrow: string;
     title: string;
@@ -213,9 +220,11 @@
   let filteredRecentReadingBooks: LibraryShelfBook[] = [];
   let filteredRecoveryQueueBooks: LibraryShelfBook[] = [];
   let bulkRepairEligibleQueueBooks: LibraryShelfBook[] = [];
+  let filteredLibraryBrowseBooks: LibraryShelfBook[] = [];
   let filteredLibraryShelfBooks: LibraryShelfBook[] = [];
   let filteredStarterContinueReadingBooks: LibraryShelfBook[] = [];
   let filteredStarterRecentReadingBooks: LibraryShelfBook[] = [];
+  let filteredStarterBrowseBooks: LibraryShelfBook[] = [];
   let filteredStarterShelfBooks: LibraryShelfBook[] = [];
   let visibleLibraryBooksCount = 0;
   let visibleStarterLibraryBooksCount = 0;
@@ -1015,6 +1024,41 @@
     });
   };
 
+  const getScopedLibraryBooksForTrail = (
+    books: LibraryShelfBook[],
+    trail: LibraryGroupSegment[]
+  ) =>
+    trail.reduce((currentBooks, segment) => {
+      return filterBooksByLibraryGroupScope(
+        currentBooks,
+        segment.groupBy,
+        segment.label
+      );
+    }, books);
+
+  const getLibraryTrailLandings = (
+    books: LibraryShelfBook[],
+    trail: LibraryGroupSegment[]
+  ): LibraryTrailLanding[] =>
+    trail
+      .map((segment, index) => {
+        const scopedBooks = getScopedLibraryBooksForTrail(books, trail.slice(0, index + 1));
+        const overview = getActiveLibraryGroupOverview(
+          scopedBooks,
+          segment.groupBy,
+          segment.label
+        );
+        if (!overview) return null;
+        return {
+          index,
+          eyebrow: `第 ${index + 1} 层 · ${overview.eyebrow}`,
+          title: overview.title,
+          summary: overview.summary,
+          metrics: overview.metrics
+        };
+      })
+      .filter((entry): entry is LibraryTrailLanding => entry !== null);
+
   const normalizeLibraryGroupByParam = (value: string | null) => {
     if (value === 'author' || value === 'collection' || value === 'format') return value;
     return 'none';
@@ -1402,6 +1446,15 @@
     'none',
     ''
   );
+  $: filteredLibraryBrowseBooks = filterBooksForLibraryView(
+    libraryShelfBooks,
+    libraryFilterBy,
+    libraryFormatFilter,
+    libraryCollectionFilter,
+    libraryTagFilter,
+    'none',
+    ''
+  );
   $: filteredLibraryShelfBooks = filterBooksForLibraryView(
     libraryShelfBooks,
     libraryFilterBy,
@@ -1470,6 +1523,15 @@
   );
   $: filteredStarterRecentReadingBooks = filterBooksForLibraryView(
     starterRecentReadingBooks,
+    libraryFilterBy,
+    libraryFormatFilter,
+    libraryCollectionFilter,
+    libraryTagFilter,
+    'none',
+    ''
+  );
+  $: filteredStarterBrowseBooks = filterBooksForLibraryView(
+    starterShelfBooks,
     libraryFilterBy,
     libraryFormatFilter,
     libraryCollectionFilter,
@@ -2015,16 +2077,20 @@
     });
   };
 
-  const handleJumpLibraryGroupTrail = async (
-    event: CustomEvent<{ index: number }>
-  ) => {
-    const targetSegment = libraryBrowseTrail[event.detail.index];
+  const jumpLibraryGroupTrailToIndex = async (index: number) => {
+    const targetSegment = libraryBrowseTrail[index];
     if (!targetSegment) return;
     await syncLibraryBrowseLocation({
       groupBy: targetSegment.groupBy,
       groupScope: targetSegment.label,
-      trail: libraryBrowseTrail.slice(0, event.detail.index)
+      trail: libraryBrowseTrail.slice(0, index)
     });
+  };
+
+  const handleJumpLibraryGroupTrail = async (
+    event: CustomEvent<{ index: number }>
+  ) => {
+    await jumpLibraryGroupTrailToIndex(event.detail.index);
   };
 
   const handleLibraryFilterChange = (
@@ -2297,6 +2363,36 @@
           />
         {/if}
 
+        {@const desktopTrailLandings = getLibraryTrailLandings(
+          filteredLibraryBrowseBooks,
+          libraryBrowseTrail
+        )}
+        {#if desktopTrailLandings.length > 0}
+          <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
+            {#each desktopTrailLandings as landing}
+              <button
+                type="button"
+                class="group-browse-trail-card"
+                on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
+              >
+                <div class="group-browse-trail-copy">
+                  <span class="group-browse-eyebrow">{landing.eyebrow}</span>
+                  <strong>{landing.title}</strong>
+                  <p>{landing.summary}</p>
+                </div>
+                <div class="group-browse-trail-metrics">
+                  {#each landing.metrics as metric}
+                    <div class="group-browse-trail-metric">
+                      <span>{metric.label}</span>
+                      <strong>{metric.value}</strong>
+                    </div>
+                  {/each}
+                </div>
+              </button>
+            {/each}
+          </section>
+        {/if}
+
         {@const desktopGroupOverview = getActiveLibraryGroupOverview(
           filteredLibraryShelfBooks,
           libraryGroupBy,
@@ -2463,6 +2559,36 @@
             books={filteredStarterRecentReadingBooks}
             onOpenLink={handleOpenReaderTarget}
           />
+        {/if}
+
+        {@const starterTrailLandings = getLibraryTrailLandings(
+          filteredStarterBrowseBooks,
+          libraryBrowseTrail
+        )}
+        {#if starterTrailLandings.length > 0}
+          <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
+            {#each starterTrailLandings as landing}
+              <button
+                type="button"
+                class="group-browse-trail-card"
+                on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
+              >
+                <div class="group-browse-trail-copy">
+                  <span class="group-browse-eyebrow">{landing.eyebrow}</span>
+                  <strong>{landing.title}</strong>
+                  <p>{landing.summary}</p>
+                </div>
+                <div class="group-browse-trail-metrics">
+                  {#each landing.metrics as metric}
+                    <div class="group-browse-trail-metric">
+                      <span>{metric.label}</span>
+                      <strong>{metric.value}</strong>
+                    </div>
+                  {/each}
+                </div>
+              </button>
+            {/each}
+          </section>
         {/if}
 
         {@const starterGroupOverview = getActiveLibraryGroupOverview(
@@ -2751,6 +2877,75 @@
       0 10px 24px rgba(42, 30, 15, 0.05);
   }
 
+  .group-browse-trail-landing {
+    display: grid;
+    gap: 12px;
+  }
+
+  .group-browse-trail-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
+    gap: 14px;
+    align-items: start;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
+    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      0 10px 22px rgba(42, 30, 15, 0.04);
+    text-align: left;
+  }
+
+  .group-browse-trail-card:hover {
+    border-color: color-mix(in srgb, #8c6a3b 20%, var(--line-soft) 80%);
+    background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
+  }
+
+  .group-browse-trail-copy {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .group-browse-trail-copy strong {
+    color: var(--text-primary);
+    font: 600 15px/1.2 var(--font-chrome);
+  }
+
+  .group-browse-trail-copy p {
+    margin: 0;
+    max-width: 58ch;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .group-browse-trail-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .group-browse-trail-metric {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .group-browse-trail-metric span {
+    color: var(--text-muted);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.04em;
+  }
+
+  .group-browse-trail-metric strong {
+    color: var(--text-primary);
+    font: 600 14px/1.1 var(--font-chrome);
+  }
+
   .group-browse-copy {
     display: grid;
     gap: 5px;
@@ -3028,6 +3223,10 @@
     }
 
     .group-browse-overview {
+      grid-template-columns: 1fr;
+    }
+
+    .group-browse-trail-card {
       grid-template-columns: 1fr;
     }
 
