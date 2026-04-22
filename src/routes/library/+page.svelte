@@ -35,6 +35,7 @@
     LibraryBrowseNavigator,
     LibraryHeader
   } from '$lib/components';
+  import LibraryBrowseGuardHint from '$lib/components/library/LibraryBrowseGuardHint.svelte';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import type {
@@ -1898,6 +1899,20 @@
     explanations: Array<LibraryBrowseGuardExplanation | null>
   ) => explanations.filter((entry): entry is LibraryBrowseGuardExplanation => entry !== null);
 
+  const getLibraryTrailSiblingExplanations = (
+    index: number,
+    siblings: Array<{ label: string; count: number }>
+  ) =>
+    collectLibraryBrowseExplanations(
+      siblings.map((sibling) =>
+        getLibrarySiblingExplanation(
+          sibling.label,
+          libraryBrowseTrail[index]?.groupBy ?? (libraryGroupBy === 'none' ? 'author' : libraryGroupBy),
+          libraryBrowseTrail.slice(0, index)
+        )
+      )
+    );
+
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
     const result = getNextLibraryBrowseState(
       getCurrentLibraryBrowseState(),
@@ -2328,11 +2343,22 @@
         {#if desktopTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
             {#each desktopTrailLandings as landing}
+              {@const desktopTrailActionExplanations = collectLibraryBrowseExplanations([
+                getLibraryJumpTrailExplanation(landing.index)
+              ])}
+              {@const desktopTrailSiblingExplanations = getLibraryTrailSiblingExplanations(
+                landing.index,
+                landing.siblingGroups
+              )}
               <div class="group-browse-trail-card">
                 <div class="group-browse-trail-copy">
                   <span class="group-browse-eyebrow">{landing.eyebrow}</span>
                   <strong>{landing.title}</strong>
                   <p>{landing.summary}</p>
+                  <LibraryBrowseGuardHint
+                    explanations={desktopTrailActionExplanations}
+                    heading="这一层的返回入口暂不可用"
+                  />
                   <div class="group-browse-trail-actions">
                     <button
                       type="button"
@@ -2358,6 +2384,10 @@
                 {#if landing.siblingGroups.length > 0}
                   <div class="group-browse-sibling-graph">
                     <span class="group-browse-sibling-title">同层其它分组</span>
+                    <LibraryBrowseGuardHint
+                      explanations={desktopTrailSiblingExplanations}
+                      heading="这一层的同层切换里有暂不可用的入口"
+                    />
                     <div class="group-browse-sibling-list">
                       {#each landing.siblingGroups as sibling}
                         <button
@@ -2444,6 +2474,22 @@
         {/if}
 
         {#if desktopGroupOverview}
+          {@const desktopOverviewSiblingExplanations = collectLibraryBrowseExplanations(
+            desktopCurrentSiblingGroups.map((sibling) =>
+              getLibrarySiblingExplanation(
+                sibling.label,
+                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                libraryBrowseTrail
+              )
+            )
+          )}
+          {@const desktopOverviewPivotExplanations = collectLibraryBrowseExplanations(
+            desktopGroupOverview.pivots.flatMap((section) =>
+              section.items.map((item) =>
+                getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+              )
+            )
+          )}
           <section
             class="group-browse-overview"
             aria-label={`${desktopGroupOverview.title} 分组概览`}
@@ -2464,6 +2510,10 @@
             {#if desktopCurrentSiblingGroups.length > 0}
               <div class="group-browse-sibling-graph">
                 <span class="group-browse-sibling-title">同层其它分组</span>
+                <LibraryBrowseGuardHint
+                  explanations={desktopOverviewSiblingExplanations}
+                  heading="当前组的同层切换里有暂不可用的入口"
+                />
                 <div class="group-browse-sibling-list">
                   {#each desktopCurrentSiblingGroups as sibling}
                     <button
@@ -2501,6 +2551,10 @@
             {/if}
             {#if desktopGroupOverview.pivots.some((section) => section.items.length > 0)}
               <div class="group-browse-pivots">
+                <LibraryBrowseGuardHint
+                  explanations={desktopOverviewPivotExplanations}
+                  heading="当前组的跨维继续看里有暂不可用的入口"
+                />
                 {#each desktopGroupOverview.pivots as section}
                   {#if section.items.length > 0}
                     <div class="group-browse-pivot-section">
@@ -2750,11 +2804,22 @@
         {#if starterTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
             {#each starterTrailLandings as landing}
+              {@const starterTrailActionExplanations = collectLibraryBrowseExplanations([
+                getLibraryJumpTrailExplanation(landing.index)
+              ])}
+              {@const starterTrailSiblingExplanations = getLibraryTrailSiblingExplanations(
+                landing.index,
+                landing.siblingGroups
+              )}
               <div class="group-browse-trail-card">
                 <div class="group-browse-trail-copy">
                   <span class="group-browse-eyebrow">{landing.eyebrow}</span>
                   <strong>{landing.title}</strong>
                   <p>{landing.summary}</p>
+                  <LibraryBrowseGuardHint
+                    explanations={starterTrailActionExplanations}
+                    heading="这一层的返回入口暂不可用"
+                  />
                   <div class="group-browse-trail-actions">
                     <button
                       type="button"
@@ -2780,6 +2845,10 @@
                 {#if landing.siblingGroups.length > 0}
                   <div class="group-browse-sibling-graph">
                     <span class="group-browse-sibling-title">同层其它分组</span>
+                    <LibraryBrowseGuardHint
+                      explanations={starterTrailSiblingExplanations}
+                      heading="这一层的同层切换里有暂不可用的入口"
+                    />
                     <div class="group-browse-sibling-list">
                       {#each landing.siblingGroups as sibling}
                         <button
@@ -2866,6 +2935,22 @@
         {/if}
 
         {#if starterGroupOverview}
+          {@const starterOverviewSiblingExplanations = collectLibraryBrowseExplanations(
+            starterCurrentSiblingGroups.map((sibling) =>
+              getLibrarySiblingExplanation(
+                sibling.label,
+                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                libraryBrowseTrail
+              )
+            )
+          )}
+          {@const starterOverviewPivotExplanations = collectLibraryBrowseExplanations(
+            starterGroupOverview.pivots.flatMap((section) =>
+              section.items.map((item) =>
+                getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+              )
+            )
+          )}
           <section
             class="group-browse-overview"
             aria-label={`${starterGroupOverview.title} 分组概览`}
@@ -2886,6 +2971,10 @@
             {#if starterCurrentSiblingGroups.length > 0}
               <div class="group-browse-sibling-graph">
                 <span class="group-browse-sibling-title">同层其它分组</span>
+                <LibraryBrowseGuardHint
+                  explanations={starterOverviewSiblingExplanations}
+                  heading="当前组的同层切换里有暂不可用的入口"
+                />
                 <div class="group-browse-sibling-list">
                   {#each starterCurrentSiblingGroups as sibling}
                     <button
@@ -2923,6 +3012,10 @@
             {/if}
             {#if starterGroupOverview.pivots.some((section) => section.items.length > 0)}
               <div class="group-browse-pivots">
+                <LibraryBrowseGuardHint
+                  explanations={starterOverviewPivotExplanations}
+                  heading="当前组的跨维继续看里有暂不可用的入口"
+                />
                 {#each starterGroupOverview.pivots as section}
                   {#if section.items.length > 0}
                     <div class="group-browse-pivot-section">

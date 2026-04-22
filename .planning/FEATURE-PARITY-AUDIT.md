@@ -193,6 +193,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - notes / bookmarks / search persistence
 - growing reader layout parity
 - grouped library browse now also has surface-specific guard explanations for path, sibling, pivot, subgroup, and top-level group-entry states instead of one generic blocked-navigation hint
+- the remaining grouped-browse content surfaces now also expose local guard explanations in ancestor landing cards and current-group overview blocks instead of falling back to disabled buttons plus hover text
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 
