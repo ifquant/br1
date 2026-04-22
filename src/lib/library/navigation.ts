@@ -4,6 +4,7 @@ import type {
   LibraryBrowseGuardExplanation,
   LibraryBrowseGuardSurface,
   LibraryBrowseInvalidReason,
+  LibraryBrowseSurfaceModel,
   LibraryBrowseTransitionResult,
   ActiveLibraryGroupOverview,
   LibraryBrowseState,
@@ -715,6 +716,44 @@ export const getLibraryPivotGuardExplanations = (
         )
       : []
   );
+
+export const buildLibraryBrowseSurfaceModel = (
+  current: LibraryBrowseState,
+  browseBooks: LibraryShelfBook[],
+  shelfBooks: LibraryShelfBook[]
+): LibraryBrowseSurfaceModel => {
+  const fallbackGroupBy = current.groupBy === 'none' ? 'author' : current.groupBy;
+  const overview = getActiveLibraryGroupOverview(shelfBooks, current.groupBy, current.groupScope);
+  const trailLandings = getLibraryTrailLandings(browseBooks, current.trail);
+  const siblingGroups = getLibrarySiblingGroups(
+    browseBooks,
+    current.trail,
+    fallbackGroupBy,
+    current.groupScope
+  );
+  const subgroupShelves = getActiveLibrarySubgroupShelves(
+    shelfBooks,
+    current.groupBy,
+    current.groupScope
+  );
+
+  return {
+    overview,
+    trailLandings,
+    siblingGroups,
+    subgroupShelves,
+    trailGuardExplanations: collectLibraryBrowseExplanations(
+      current.trail.map((_, index) => getLibraryJumpTrailExplanation(current, index))
+    ),
+    siblingGuardExplanations: getLibrarySiblingGuardExplanations(
+      current,
+      siblingGroups,
+      fallbackGroupBy,
+      current.trail
+    ),
+    pivotGuardExplanations: getLibraryPivotGuardExplanations(current, overview)
+  };
+};
 
 type LibraryBrowseActionByType<TType extends LibraryBrowseAction['type']> = Extract<
   LibraryBrowseAction,

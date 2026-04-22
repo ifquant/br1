@@ -74,6 +74,16 @@ export type LibraryTrailLanding = {
   siblingGroups: Array<{ label: string; count: number }>;
 };
 
+export type LibraryBrowseSurfaceModel = {
+  overview: ActiveLibraryGroupOverview | null;
+  trailLandings: LibraryTrailLanding[];
+  siblingGroups: Array<{ label: string; count: number }>;
+  subgroupShelves: ActiveLibrarySubgroupShelf[];
+  trailGuardExplanations: LibraryBrowseGuardExplanation[];
+  siblingGuardExplanations: LibraryBrowseGuardExplanation[];
+  pivotGuardExplanations: LibraryBrowseGuardExplanation[];
+};
+
 export type LibraryBrowseState = {
   groupBy: 'none' | LibraryGroupBy;
   groupScope: string;

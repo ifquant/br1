@@ -14,9 +14,8 @@
   } from '$lib/library/types';
   import {
     buildLibraryBrowseHref,
+    buildLibraryBrowseSurfaceModel,
     filterBooksByLibraryGroupScope,
-    getActiveLibraryGroupOverview,
-    getActiveLibrarySubgroupShelves,
     getLibraryBrowseActionAvailability,
     getLibraryBrowseStateFromUrl,
     getLibraryBrowseActionReasonLabel,
@@ -28,14 +27,10 @@
     getLibraryGroupLabel,
     getLibraryJumpTrailExplanation,
     getLibraryLandingGroupBy,
-    getLibraryPivotGuardExplanations,
     getLibraryGroupScopeDescription,
     getNextLibraryBrowseState,
     getLibrarySiblingExplanation,
-    getLibrarySiblingGuardExplanations,
-    getLibrarySiblingGroups,
     getLibraryTrailActionExplanations,
-    getLibraryTrailLandings,
     getLibraryTrailSiblingExplanations
   } from '$lib/library/navigation';
   import {
@@ -2190,65 +2185,40 @@
           />
         {/if}
 
-        {@const desktopTrailLandings = getLibraryTrailLandings(
-          filteredLibraryBrowseBooks,
-          libraryBrowseTrail
-        )}
-        {@const desktopGroupOverview = getActiveLibraryGroupOverview(
-          filteredLibraryShelfBooks,
-          libraryGroupBy,
-          libraryGroupScope
-        )}
-        {@const desktopCurrentSiblingGroups = getLibrarySiblingGroups(
-          filteredLibraryBrowseBooks,
-          libraryBrowseTrail,
-          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-          libraryGroupScope
-        )}
-        {@const desktopTrailGuardExplanations = collectLibraryBrowseExplanations(
-          libraryBrowseTrail.map((_, index) =>
-            getLibraryJumpTrailExplanation(getCurrentLibraryBrowseState(), index)
-          )
-        )}
-        {@const desktopSiblingGuardExplanations = getLibrarySiblingGuardExplanations(
+        {@const desktopBrowseSurface = buildLibraryBrowseSurfaceModel(
           getCurrentLibraryBrowseState(),
-          desktopCurrentSiblingGroups,
-          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-          libraryBrowseTrail
+          filteredLibraryBrowseBooks,
+          filteredLibraryShelfBooks
         )}
-        {@const desktopPivotGuardExplanations = getLibraryPivotGuardExplanations(
-          getCurrentLibraryBrowseState(),
-          desktopGroupOverview
-        )}
-        {#if desktopGroupOverview}
+        {#if desktopBrowseSurface.overview}
           <LibraryBrowseNavigator
             eyebrow="当前浏览导航"
-            title={desktopGroupOverview.title}
-            summary={desktopGroupOverview.summary}
+            title={desktopBrowseSurface.overview.title}
+            summary={desktopBrowseSurface.overview.summary}
             trail={libraryBrowseTrail}
             currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
             currentGroupLabel={libraryGroupScope}
-            siblings={desktopCurrentSiblingGroups}
+            siblings={desktopBrowseSurface.siblingGroups}
             trailAvailability={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailAvailability(index))}
             trailReasonLabels={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailReasonLabel(index))}
-            trailGuardExplanations={desktopTrailGuardExplanations}
-            siblingAvailability={desktopCurrentSiblingGroups.map((sibling) =>
+            trailGuardExplanations={desktopBrowseSurface.trailGuardExplanations}
+            siblingAvailability={desktopBrowseSurface.siblingGroups.map((sibling) =>
               getLibrarySiblingAvailability(
                 sibling.label,
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
-            siblingReasonLabels={desktopCurrentSiblingGroups.map((sibling) =>
+            siblingReasonLabels={desktopBrowseSurface.siblingGroups.map((sibling) =>
               getLibrarySiblingReasonLabel(
                 sibling.label,
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
-            siblingGuardExplanations={desktopSiblingGuardExplanations}
-            pivotGuardExplanations={desktopPivotGuardExplanations}
-            pivots={desktopGroupOverview.pivots}
+            siblingGuardExplanations={desktopBrowseSurface.siblingGuardExplanations}
+            pivotGuardExplanations={desktopBrowseSurface.pivotGuardExplanations}
+            pivots={desktopBrowseSurface.overview.pivots}
             isPivotAvailable={isLibraryPivotAvailable}
             getPivotReasonLabel={getLibraryPivotReasonLabel}
             onJumpTrail={jumpLibraryGroupTrailToIndex}
@@ -2258,7 +2228,7 @@
           />
         {/if}
         <LibraryBrowseTrailLandings
-          landings={desktopTrailLandings}
+          landings={desktopBrowseSurface.trailLandings}
           viewMode={libraryViewMode}
           getLandingGroupBy={(landing) =>
             getLibraryLandingGroupBy(
@@ -2292,21 +2262,13 @@
           onOpenLink={handleOpenReaderTarget}
         />
 
-        {#if desktopGroupOverview}
+        {#if desktopBrowseSurface.overview}
           <LibraryBrowseOverview
-            overview={desktopGroupOverview}
+            overview={desktopBrowseSurface.overview}
             groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
-            siblingGroups={desktopCurrentSiblingGroups}
-            siblingGuardExplanations={getLibrarySiblingGuardExplanations(
-              getCurrentLibraryBrowseState(),
-              desktopCurrentSiblingGroups,
-              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-              libraryBrowseTrail
-            )}
-            pivotGuardExplanations={getLibraryPivotGuardExplanations(
-              getCurrentLibraryBrowseState(),
-              desktopGroupOverview
-            )}
+            siblingGroups={desktopBrowseSurface.siblingGroups}
+            siblingGuardExplanations={desktopBrowseSurface.siblingGuardExplanations}
+            pivotGuardExplanations={desktopBrowseSurface.pivotGuardExplanations}
             isSiblingAvailable={(label, groupBy) =>
               getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
             getSiblingReasonLabel={(label, groupBy) =>
@@ -2318,15 +2280,9 @@
             onSelectPivot={handleLibraryGroupPivot}
           />
         {/if}
-
-        {@const desktopSubgroupShelves = getActiveLibrarySubgroupShelves(
-          filteredLibraryShelfBooks,
-          libraryGroupBy,
-          libraryGroupScope
-        )}
-        {#if desktopSubgroupShelves.length > 0}
+        {#if desktopBrowseSurface.subgroupShelves.length > 0}
           <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
-            {#each desktopSubgroupShelves as subgroupShelf}
+            {#each desktopBrowseSurface.subgroupShelves as subgroupShelf}
               <div class="group-browse-subgroup-shelf">
                 <div class="group-browse-subgroup-copy">
                   <strong>{subgroupShelf.title}</strong>
@@ -2466,65 +2422,40 @@
           />
         {/if}
 
-        {@const starterTrailLandings = getLibraryTrailLandings(
-          filteredStarterBrowseBooks,
-          libraryBrowseTrail
-        )}
-        {@const starterGroupOverview = getActiveLibraryGroupOverview(
-          filteredStarterShelfBooks,
-          libraryGroupBy,
-          libraryGroupScope
-        )}
-        {@const starterCurrentSiblingGroups = getLibrarySiblingGroups(
-          filteredStarterBrowseBooks,
-          libraryBrowseTrail,
-          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-          libraryGroupScope
-        )}
-        {@const starterTrailGuardExplanations = collectLibraryBrowseExplanations(
-          libraryBrowseTrail.map((_, index) =>
-            getLibraryJumpTrailExplanation(getCurrentLibraryBrowseState(), index)
-          )
-        )}
-        {@const starterSiblingGuardExplanations = getLibrarySiblingGuardExplanations(
+        {@const starterBrowseSurface = buildLibraryBrowseSurfaceModel(
           getCurrentLibraryBrowseState(),
-          starterCurrentSiblingGroups,
-          libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-          libraryBrowseTrail
+          filteredStarterBrowseBooks,
+          filteredStarterShelfBooks
         )}
-        {@const starterPivotGuardExplanations = getLibraryPivotGuardExplanations(
-          getCurrentLibraryBrowseState(),
-          starterGroupOverview
-        )}
-        {#if starterGroupOverview}
+        {#if starterBrowseSurface.overview}
           <LibraryBrowseNavigator
             eyebrow="当前浏览导航"
-            title={starterGroupOverview.title}
-            summary={starterGroupOverview.summary}
+            title={starterBrowseSurface.overview.title}
+            summary={starterBrowseSurface.overview.summary}
             trail={libraryBrowseTrail}
             currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
             currentGroupLabel={libraryGroupScope}
-            siblings={starterCurrentSiblingGroups}
+            siblings={starterBrowseSurface.siblingGroups}
             trailAvailability={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailAvailability(index))}
             trailReasonLabels={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailReasonLabel(index))}
-            trailGuardExplanations={starterTrailGuardExplanations}
-            siblingAvailability={starterCurrentSiblingGroups.map((sibling) =>
+            trailGuardExplanations={starterBrowseSurface.trailGuardExplanations}
+            siblingAvailability={starterBrowseSurface.siblingGroups.map((sibling) =>
               getLibrarySiblingAvailability(
                 sibling.label,
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
-            siblingReasonLabels={starterCurrentSiblingGroups.map((sibling) =>
+            siblingReasonLabels={starterBrowseSurface.siblingGroups.map((sibling) =>
               getLibrarySiblingReasonLabel(
                 sibling.label,
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
-            siblingGuardExplanations={starterSiblingGuardExplanations}
-            pivotGuardExplanations={starterPivotGuardExplanations}
-            pivots={starterGroupOverview.pivots}
+            siblingGuardExplanations={starterBrowseSurface.siblingGuardExplanations}
+            pivotGuardExplanations={starterBrowseSurface.pivotGuardExplanations}
+            pivots={starterBrowseSurface.overview.pivots}
             isPivotAvailable={isLibraryPivotAvailable}
             getPivotReasonLabel={getLibraryPivotReasonLabel}
             onJumpTrail={jumpLibraryGroupTrailToIndex}
@@ -2534,7 +2465,7 @@
           />
         {/if}
         <LibraryBrowseTrailLandings
-          landings={starterTrailLandings}
+          landings={starterBrowseSurface.trailLandings}
           viewMode={libraryViewMode}
           getLandingGroupBy={(landing) =>
             getLibraryLandingGroupBy(
@@ -2568,21 +2499,13 @@
           onOpenLink={handleOpenReaderTarget}
         />
 
-        {#if starterGroupOverview}
+        {#if starterBrowseSurface.overview}
           <LibraryBrowseOverview
-            overview={starterGroupOverview}
+            overview={starterBrowseSurface.overview}
             groupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
-            siblingGroups={starterCurrentSiblingGroups}
-            siblingGuardExplanations={getLibrarySiblingGuardExplanations(
-              getCurrentLibraryBrowseState(),
-              starterCurrentSiblingGroups,
-              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-              libraryBrowseTrail
-            )}
-            pivotGuardExplanations={getLibraryPivotGuardExplanations(
-              getCurrentLibraryBrowseState(),
-              starterGroupOverview
-            )}
+            siblingGroups={starterBrowseSurface.siblingGroups}
+            siblingGuardExplanations={starterBrowseSurface.siblingGuardExplanations}
+            pivotGuardExplanations={starterBrowseSurface.pivotGuardExplanations}
             isSiblingAvailable={(label, groupBy) =>
               getLibrarySiblingAvailability(label, groupBy, libraryBrowseTrail)}
             getSiblingReasonLabel={(label, groupBy) =>
@@ -2594,15 +2517,9 @@
             onSelectPivot={handleLibraryGroupPivot}
           />
         {/if}
-
-        {@const starterSubgroupShelves = getActiveLibrarySubgroupShelves(
-          filteredStarterShelfBooks,
-          libraryGroupBy,
-          libraryGroupScope
-        )}
-        {#if starterSubgroupShelves.length > 0}
+        {#if starterBrowseSurface.subgroupShelves.length > 0}
           <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
-            {#each starterSubgroupShelves as subgroupShelf}
+            {#each starterBrowseSurface.subgroupShelves as subgroupShelf}
               <div class="group-browse-subgroup-shelf">
                 <div class="group-browse-subgroup-copy">
                   <strong>{subgroupShelf.title}</strong>
