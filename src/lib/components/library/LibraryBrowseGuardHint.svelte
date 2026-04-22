@@ -1,20 +1,33 @@
 <script lang="ts">
-  export let reasonLabels: string[] = [];
-  export let prefix = '当前部分浏览入口暂不可用';
+  import type { LibraryBrowseGuardExplanation } from '$lib/library/types';
 
-  $: visibleReasonLabels = Array.from(
-    new Set(
-      reasonLabels
-        .map((label) => label.trim())
-        .filter(Boolean)
-    )
+  export let explanations: LibraryBrowseGuardExplanation[] = [];
+  export let heading = '当前部分浏览入口暂不可用';
+
+  $: visibleExplanations = Array.from(
+    explanations.reduce((entries, explanation) => {
+      const title = explanation.title.trim();
+      const detail = explanation.detail.trim();
+      if (!title || !detail) return entries;
+      const key = `${title}::${detail}`;
+      if (entries.some((entry) => entry.key === key)) return entries;
+      entries.push({ key, title, detail });
+      return entries;
+    }, [] as Array<{ key: string; title: string; detail: string }>)
   );
 </script>
 
-{#if visibleReasonLabels.length > 0}
+{#if visibleExplanations.length > 0}
   <div class="browse-guard-hint" aria-live="polite">
-    <strong>{prefix}</strong>
-    <span>{visibleReasonLabels[0]}</span>
+    <strong>{heading}</strong>
+    <div class="browse-guard-hint-list">
+      {#each visibleExplanations.slice(0, 2) as explanation}
+        <div class="browse-guard-hint-item">
+          <span class="browse-guard-hint-title">{explanation.title}</span>
+          <span>{explanation.detail}</span>
+        </div>
+      {/each}
+    </div>
   </div>
 {/if}
 
@@ -29,6 +42,21 @@
   }
 
   .browse-guard-hint strong {
+    color: var(--text-primary);
+    font: 600 11px/1.2 var(--font-chrome);
+  }
+
+  .browse-guard-hint-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  .browse-guard-hint-item {
+    display: grid;
+    gap: 2px;
+  }
+
+  .browse-guard-hint-title {
     color: var(--text-primary);
     font: 600 11px/1.2 var(--font-chrome);
   }

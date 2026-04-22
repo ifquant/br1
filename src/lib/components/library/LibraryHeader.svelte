@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { onMount } from 'svelte';
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
+  import type { LibraryBrowseGuardExplanation } from '$lib/library/types';
 
   export let totalBooks = 0;
   export let query = '';
@@ -18,6 +19,7 @@
   export let activeGroupTrailReasonLabels: string[] = [];
   export let canExitGroup = true;
   export let exitGroupReasonLabel = '';
+  export let activeGroupGuardExplanations: LibraryBrowseGuardExplanation[] = [];
   export let activeGroupDescription = '';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
@@ -169,13 +171,6 @@
   const handleClearFilterChip = (id: 'query' | 'status' | 'format' | 'collection' | 'tag') => {
     dispatch('clearfilterchip', { id });
   };
-
-  $: groupContextReasonLabels = [
-    !canExitGroup ? exitGroupReasonLabel : '',
-    ...activeGroupTrailAvailability.map((available, index) =>
-      available === false ? activeGroupTrailReasonLabels[index] || '' : ''
-    )
-  ].filter(Boolean);
 
   const handleViewModeChange = (nextViewMode: 'grid' | 'list') => {
     if (nextViewMode === viewMode) return;
@@ -379,10 +374,10 @@
 {/if}
 
 <div class="filter-row" aria-label="书库筛选">
-  {#if activeGroupLabel && groupContextReasonLabels.length > 0}
+  {#if activeGroupLabel && activeGroupGuardExplanations.length > 0}
     <LibraryBrowseGuardHint
-      reasonLabels={groupContextReasonLabels}
-      prefix="当前分组路径里有暂不可用的导航入口"
+      explanations={activeGroupGuardExplanations}
+      heading="当前分组路径里有暂不可用的导航入口"
     />
   {/if}
   {#each filterOptions as option}

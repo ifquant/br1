@@ -192,6 +192,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - `EPUB/PDF` reopen and geometry regressions
 - notes / bookmarks / search persistence
 - growing reader layout parity
+- grouped library browse now also has surface-specific guard explanations for path, sibling, pivot, subgroup, and top-level group-entry states instead of one generic blocked-navigation hint
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

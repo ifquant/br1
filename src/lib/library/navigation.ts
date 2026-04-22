@@ -1,6 +1,8 @@
 import type {
   LibraryBrowseAction,
   LibraryBrowseActionGuardResult,
+  LibraryBrowseGuardExplanation,
+  LibraryBrowseGuardSurface,
   LibraryBrowseInvalidReason,
   LibraryBrowseTransitionResult,
   ActiveLibraryGroupOverview,
@@ -503,6 +505,58 @@ export const getLibraryBrowseInvalidReasonLabel = (
     return '当前分组路径已经变化，这个入口暂时不能继续使用。';
   }
   return '这个浏览入口当前不可用。';
+};
+
+export const getLibraryBrowseGuardExplanation = (
+  surface: LibraryBrowseGuardSurface,
+  reason: LibraryBrowseInvalidReason
+): LibraryBrowseGuardExplanation => {
+  if (reason === 'missing-trail-segment') {
+    if (surface === 'path') {
+      return {
+        title: '当前路径需要刷新',
+        detail: '当前分组路径已经变化，先回到仍有效的上一级，再继续沿这条路径浏览。'
+      };
+    }
+
+    if (surface === 'exit') {
+      return {
+        title: '返回入口需要重建',
+        detail: '当前分组上下文已经变化，先重新进入一个有效分组，再决定回退到哪一层。'
+      };
+    }
+
+    if (surface === 'sibling') {
+      return {
+        title: '同层切换需要重算',
+        detail: '这组同层关系已经变化，先让当前层级稳定下来，再切到旁边的分组。'
+      };
+    }
+
+    if (surface === 'pivot') {
+      return {
+        title: '跨维跳转需要重建',
+        detail: '当前分组上下文已经变化，先回到仍有效的当前组，再从作者、归类或格式里重新选择下一跳。'
+      };
+    }
+
+    if (surface === 'subgroup') {
+      return {
+        title: '子层入口需要刷新',
+        detail: '当前祖先层已经变化，先回到仍有效的这一层，再继续往下钻。'
+      };
+    }
+
+    return {
+      title: '分组入口需要刷新',
+      detail: '当前书库分组结果已经变化，先让当前浏览状态刷新，再进入这组书架。'
+    };
+  }
+
+  return {
+    title: '浏览入口当前不可用',
+    detail: '这个浏览入口暂时不能继续使用，请先回到仍有效的分组上下文。'
+  };
 };
 
 type LibraryBrowseActionByType<TType extends LibraryBrowseAction['type']> = Extract<

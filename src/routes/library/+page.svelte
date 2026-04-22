@@ -6,6 +6,8 @@
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
     LibraryBrowseAction,
+    LibraryBrowseGuardExplanation,
+    LibraryBrowseGuardSurface,
     ContinueReadingBook,
     LibraryGroupBy,
     LibraryGroupSegment,
@@ -18,6 +20,7 @@
     getActiveLibraryGroupOverview,
     getActiveLibrarySubgroupShelves,
     getLibraryBrowseActionAvailability,
+    getLibraryBrowseGuardExplanation,
     getLibraryBrowseStateFromUrl,
     getLibraryGroupLabel,
     getLibraryGroupScopeDescription,
@@ -1739,6 +1742,15 @@
     return '';
   };
 
+  const getLibraryBrowseActionExplanation = (
+    action: LibraryBrowseAction,
+    surface: LibraryBrowseGuardSurface
+  ): LibraryBrowseGuardExplanation | null => {
+    const result = getLibraryBrowseActionAvailability(getCurrentLibraryBrowseState(), action);
+    if (result.kind !== 'blocked') return null;
+    return getLibraryBrowseGuardExplanation(surface, result.reason);
+  };
+
   const getLibraryEnterGroupAvailability = (
     label: string,
     groupBy: 'author' | 'collection' | 'format'
@@ -1825,6 +1837,66 @@
 
   const getLibraryExitReasonLabel = () =>
     getLibraryBrowseActionReasonLabel({ type: 'exit-group' });
+
+  const getLibraryJumpTrailExplanation = (index: number) =>
+    getLibraryBrowseActionExplanation(
+      {
+        type: 'jump-trail',
+        index
+      },
+      'path'
+    );
+
+  const getLibraryExitExplanation = () =>
+    getLibraryBrowseActionExplanation({ type: 'exit-group' }, 'exit');
+
+  const getLibraryEnterGroupExplanation = (
+    label: string,
+    groupBy: 'author' | 'collection' | 'format',
+    surface: LibraryBrowseGuardSurface = 'group-card'
+  ) =>
+    getLibraryBrowseActionExplanation(
+      {
+        type: 'enter-group',
+        groupBy,
+        label
+      },
+      surface
+    );
+
+  const getLibraryEnterFromTrailExplanation = (
+    trailIndex: number,
+    label: string,
+    groupBy: 'author' | 'collection' | 'format'
+  ) =>
+    getLibraryBrowseActionExplanation(
+      {
+        type: 'enter-from-trail',
+        trailIndex,
+        groupBy,
+        label
+      },
+      'subgroup'
+    );
+
+  const getLibrarySiblingExplanation = (
+    label: string,
+    groupBy: 'author' | 'collection' | 'format',
+    trail: LibraryGroupSegment[]
+  ) =>
+    getLibraryBrowseActionExplanation(
+      {
+        type: 'switch-sibling',
+        groupBy,
+        label,
+        trail
+      },
+      'sibling'
+    );
+
+  const collectLibraryBrowseExplanations = (
+    explanations: Array<LibraryBrowseGuardExplanation | null>
+  ) => explanations.filter((entry): entry is LibraryBrowseGuardExplanation => entry !== null);
 
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
     const result = getNextLibraryBrowseState(
@@ -2031,6 +2103,10 @@
         getLibraryJumpTrailReasonLabel(index))}
       canExitGroup={getLibraryExitAvailability()}
       exitGroupReasonLabel={getLibraryExitReasonLabel()}
+      activeGroupGuardExplanations={collectLibraryBrowseExplanations([
+        getLibraryExitExplanation(),
+        ...libraryBrowseTrail.map((_, index) => getLibraryJumpTrailExplanation(index))
+      ])}
       activeGroupDescription={getLibraryGroupScopeDescription(
         libraryGroupBy,
         libraryGroupScope,
@@ -2191,6 +2267,27 @@
           libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
           libraryGroupScope
         )}
+        {@const desktopTrailGuardExplanations = collectLibraryBrowseExplanations(
+          libraryBrowseTrail.map((_, index) => getLibraryJumpTrailExplanation(index))
+        )}
+        {@const desktopSiblingGuardExplanations = collectLibraryBrowseExplanations(
+          desktopCurrentSiblingGroups.map((sibling) =>
+            getLibrarySiblingExplanation(
+              sibling.label,
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+              libraryBrowseTrail
+            )
+          )
+        )}
+        {@const desktopPivotGuardExplanations = collectLibraryBrowseExplanations(
+          desktopGroupOverview
+            ? desktopGroupOverview.pivots.flatMap((section) =>
+                section.items.map((item) =>
+                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+                )
+              )
+            : []
+        )}
         {#if desktopGroupOverview}
           <LibraryBrowseNavigator
             eyebrow="当前浏览导航"
@@ -2204,6 +2301,7 @@
               getLibraryJumpTrailAvailability(index))}
             trailReasonLabels={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailReasonLabel(index))}
+            trailGuardExplanations={desktopTrailGuardExplanations}
             siblingAvailability={desktopCurrentSiblingGroups.map((sibling) =>
               getLibrarySiblingAvailability(
                 sibling.label,
@@ -2216,6 +2314,8 @@
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
+            siblingGuardExplanations={desktopSiblingGuardExplanations}
+            pivotGuardExplanations={desktopPivotGuardExplanations}
             pivots={desktopGroupOverview.pivots}
             isPivotAvailable={isLibraryPivotAvailable}
             getPivotReasonLabel={getLibraryPivotReasonLabel}
@@ -2308,6 +2408,16 @@
                           groupBy={subgroupShelf.groupBy}
                           activeGroupLabel=""
                           showImportTile={false}
+                          blockedGroupExplanations={collectLibraryBrowseExplanations(
+                            landing.scopedBooks.map((book) =>
+                              getLibraryEnterFromTrailExplanation(
+                                landing.index,
+                                getLibraryGroupLabel(book, subgroupShelf.groupBy),
+                                subgroupShelf.groupBy
+                              )
+                            )
+                          )}
+                          groupEnterHintSurface="subgroup"
                           onEnterGroupAvailable={(label, nextGroupBy) =>
                             getLibraryEnterFromTrailAvailability(
                               landing.index,
@@ -2439,6 +2549,16 @@
                   groupBy={subgroupShelf.groupBy}
                   activeGroupLabel=""
                   showImportTile={false}
+                  blockedGroupExplanations={collectLibraryBrowseExplanations(
+                    filteredLibraryShelfBooks.map((book) =>
+                      getLibraryEnterGroupExplanation(
+                        getLibraryGroupLabel(book, subgroupShelf.groupBy),
+                        subgroupShelf.groupBy,
+                        'subgroup'
+                      )
+                    )
+                  )}
+                  groupEnterHintSurface="subgroup"
                   onEnterGroupAvailable={getLibraryEnterGroupAvailability}
                   onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
                   onEnterGroup={handleEnterLibraryGroup}
@@ -2456,6 +2576,18 @@
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
+          blockedGroupExplanations={collectLibraryBrowseExplanations(
+            libraryGroupBy === 'none'
+              ? []
+              : filteredLibraryShelfBooks.map((book) =>
+                  getLibraryEnterGroupExplanation(
+                    getLibraryGroupLabel(book, libraryGroupBy),
+                    libraryGroupBy,
+                    'group-card'
+                  )
+                )
+          )}
+          groupEnterHintSurface="group-card"
           onEnterGroupAvailable={getLibraryEnterGroupAvailability}
           onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
           onEnterGroup={handleEnterLibraryGroup}
@@ -2557,6 +2689,27 @@
           libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
           libraryGroupScope
         )}
+        {@const starterTrailGuardExplanations = collectLibraryBrowseExplanations(
+          libraryBrowseTrail.map((_, index) => getLibraryJumpTrailExplanation(index))
+        )}
+        {@const starterSiblingGuardExplanations = collectLibraryBrowseExplanations(
+          starterCurrentSiblingGroups.map((sibling) =>
+            getLibrarySiblingExplanation(
+              sibling.label,
+              libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+              libraryBrowseTrail
+            )
+          )
+        )}
+        {@const starterPivotGuardExplanations = collectLibraryBrowseExplanations(
+          starterGroupOverview
+            ? starterGroupOverview.pivots.flatMap((section) =>
+                section.items.map((item) =>
+                  getLibraryEnterGroupExplanation(item.value, item.groupBy, 'pivot')
+                )
+              )
+            : []
+        )}
         {#if starterGroupOverview}
           <LibraryBrowseNavigator
             eyebrow="当前浏览导航"
@@ -2570,6 +2723,7 @@
               getLibraryJumpTrailAvailability(index))}
             trailReasonLabels={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailReasonLabel(index))}
+            trailGuardExplanations={starterTrailGuardExplanations}
             siblingAvailability={starterCurrentSiblingGroups.map((sibling) =>
               getLibrarySiblingAvailability(
                 sibling.label,
@@ -2582,6 +2736,8 @@
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
+            siblingGuardExplanations={starterSiblingGuardExplanations}
+            pivotGuardExplanations={starterPivotGuardExplanations}
             pivots={starterGroupOverview.pivots}
             isPivotAvailable={isLibraryPivotAvailable}
             getPivotReasonLabel={getLibraryPivotReasonLabel}
@@ -2674,6 +2830,16 @@
                           groupBy={subgroupShelf.groupBy}
                           activeGroupLabel=""
                           showImportTile={false}
+                          blockedGroupExplanations={collectLibraryBrowseExplanations(
+                            landing.scopedBooks.map((book) =>
+                              getLibraryEnterFromTrailExplanation(
+                                landing.index,
+                                getLibraryGroupLabel(book, subgroupShelf.groupBy),
+                                subgroupShelf.groupBy
+                              )
+                            )
+                          )}
+                          groupEnterHintSurface="subgroup"
                           onEnterGroupAvailable={(label, nextGroupBy) =>
                             getLibraryEnterFromTrailAvailability(
                               landing.index,
@@ -2805,6 +2971,16 @@
                   groupBy={subgroupShelf.groupBy}
                   activeGroupLabel=""
                   showImportTile={false}
+                  blockedGroupExplanations={collectLibraryBrowseExplanations(
+                    filteredStarterShelfBooks.map((book) =>
+                      getLibraryEnterGroupExplanation(
+                        getLibraryGroupLabel(book, subgroupShelf.groupBy),
+                        subgroupShelf.groupBy,
+                        'subgroup'
+                      )
+                    )
+                  )}
+                  groupEnterHintSurface="subgroup"
                   onEnterGroupAvailable={getLibraryEnterGroupAvailability}
                   onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
                   onEnterGroup={handleEnterLibraryGroup}
@@ -2842,6 +3018,18 @@
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
+          blockedGroupExplanations={collectLibraryBrowseExplanations(
+            libraryGroupBy === 'none'
+              ? []
+              : filteredStarterShelfBooks.map((book) =>
+                  getLibraryEnterGroupExplanation(
+                    getLibraryGroupLabel(book, libraryGroupBy),
+                    libraryGroupBy,
+                    'group-card'
+                  )
+                )
+          )}
+          groupEnterHintSurface="group-card"
           onEnterGroupAvailable={getLibraryEnterGroupAvailability}
           onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
           onEnterGroup={handleEnterLibraryGroup}

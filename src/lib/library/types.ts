@@ -99,6 +99,19 @@ export type LibraryBrowseAction =
 
 export type LibraryBrowseInvalidReason = 'missing-trail-segment';
 
+export type LibraryBrowseGuardSurface =
+  | 'path'
+  | 'exit'
+  | 'sibling'
+  | 'pivot'
+  | 'subgroup'
+  | 'group-card';
+
+export type LibraryBrowseGuardExplanation = {
+  title: string;
+  detail: string;
+};
+
 export type LibraryBrowseActionGuardResult =
   | {
       kind: 'allowed';

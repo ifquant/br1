@@ -1,5 +1,6 @@
 <script lang="ts">
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
+  import type { LibraryBrowseGuardExplanation } from '$lib/library/types';
 
   export let eyebrow = '当前浏览导航';
   export let title = '';
@@ -15,6 +16,9 @@
   export let trailReasonLabels: string[] = [];
   export let siblingAvailability: boolean[] = [];
   export let siblingReasonLabels: string[] = [];
+  export let trailGuardExplanations: LibraryBrowseGuardExplanation[] = [];
+  export let siblingGuardExplanations: LibraryBrowseGuardExplanation[] = [];
+  export let pivotGuardExplanations: LibraryBrowseGuardExplanation[] = [];
   export let pivots: Array<{
     title: string;
     items: Array<{
@@ -39,24 +43,6 @@
 
   const getGroupByLabel = (groupBy: 'author' | 'collection' | 'format') =>
     groupBy === 'author' ? '作者' : groupBy === 'collection' ? '归类' : '格式';
-
-  $: pivotReasonLabels = pivots.flatMap((section) =>
-    section.items.map((item) =>
-      isPivotAvailable && !isPivotAvailable(item.groupBy, item.value) && getPivotReasonLabel
-        ? getPivotReasonLabel(item.groupBy, item.value)
-        : ''
-    )
-  );
-
-  $: navigatorReasonLabels = [
-    ...trailAvailability.map((available, index) =>
-      available === false ? trailReasonLabels[index] || '' : ''
-    ),
-    ...siblingAvailability.map((available, index) =>
-      available === false ? siblingReasonLabels[index] || '' : ''
-    ),
-    ...pivotReasonLabels
-  ].filter(Boolean);
 </script>
 
 <section class="group-browse-navigator" aria-label="当前分组浏览导航">
@@ -65,13 +51,13 @@
     <strong>{title}</strong>
     <p>{summary}</p>
   </div>
-  <LibraryBrowseGuardHint
-    reasonLabels={navigatorReasonLabels}
-    prefix="当前浏览导航里有暂不可用的入口"
-  />
   <div class="group-browse-navigator-sections">
     <div class="group-browse-navigator-section">
       <span class="group-browse-navigator-title">当前路径</span>
+      <LibraryBrowseGuardHint
+        explanations={trailGuardExplanations}
+        heading="当前路径里有暂不可用的导航入口"
+      />
       <div class="group-browse-navigator-list">
         {#each trail as segment, index}
           <button
@@ -95,6 +81,10 @@
     {#if siblings.length > 0}
       <div class="group-browse-navigator-section">
         <span class="group-browse-navigator-title">同层切换</span>
+        <LibraryBrowseGuardHint
+          explanations={siblingGuardExplanations}
+          heading="同层切换里有暂不可用的导航入口"
+        />
         <div class="group-browse-navigator-list">
           {#each siblings as sibling, index}
             <button
@@ -115,6 +105,10 @@
     {#if pivots.some((section) => section.items.length > 0)}
       <div class="group-browse-navigator-section">
         <span class="group-browse-navigator-title">跨维继续看</span>
+        <LibraryBrowseGuardHint
+          explanations={pivotGuardExplanations}
+          heading="跨维继续看里有暂不可用的导航入口"
+        />
         <div class="group-browse-navigator-list">
           {#each pivots as section}
             {#each section.items as item}

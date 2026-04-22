@@ -1,6 +1,10 @@
 <script lang="ts">
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
-  import type { BookshelfPreviewBook } from '$lib/library/types';
+  import type {
+    BookshelfPreviewBook,
+    LibraryBrowseGuardExplanation,
+    LibraryBrowseGuardSurface
+  } from '$lib/library/types';
 
   export let sectionTitle = '最近阅读';
   export let books: BookshelfPreviewBook[] = [];
@@ -18,6 +22,8 @@
   export let onEnterGroupReasonLabel:
     | ((label: string, groupBy: 'author' | 'collection' | 'format') => string)
     | null = null;
+  export let blockedGroupExplanations: LibraryBrowseGuardExplanation[] = [];
+  export let groupEnterHintSurface: LibraryBrowseGuardSurface = 'group-card';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
@@ -86,14 +92,6 @@
     if (!onEnterGroupReasonLabel || groupBy === 'none') return '';
     return onEnterGroupReasonLabel(label, groupBy);
   };
-
-  $: blockedGroupReasonLabels = topLevelGroupedBrowse
-    ? groupedBooks
-        .map((group) =>
-          !isEnterGroupAvailable(group.label) ? getEnterGroupReasonLabel(group.label) : ''
-        )
-        .filter(Boolean)
-    : [];
 
   const getBookKey = (book: BookshelfPreviewBook) =>
     book.readerHref || `${book.format}::${book.title}::${book.author}`;
@@ -298,8 +296,12 @@
     </div>
   </header>
   <LibraryBrowseGuardHint
-    reasonLabels={blockedGroupReasonLabels}
-    prefix="当前分组入口里有暂不可用的书架"
+    explanations={topLevelGroupedBrowse ? blockedGroupExplanations : []}
+    heading={
+      groupEnterHintSurface === 'subgroup'
+        ? '当前子层入口里有暂不可用的书架'
+        : '当前分组入口里有暂不可用的书架'
+    }
   />
 
   <div class="shelf-body" aria-label={sectionTitle}>
