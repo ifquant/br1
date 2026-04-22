@@ -40,6 +40,12 @@
     id: 'query' | 'status' | 'format' | 'collection' | 'tag';
     label: string;
   };
+  type ActiveLibraryGroupOverview = {
+    eyebrow: string;
+    title: string;
+    summary: string;
+    metrics: Array<{ label: string; value: string }>;
+  };
 
   const starterLibraryBooks: LibraryShelfBook[] = [
     {
@@ -798,6 +804,62 @@
     if (groupBy === 'collection') return '归类书架';
     if (groupBy === 'format') return '格式书架';
     return '你的书库';
+  };
+
+  const countDistinctLibraryValues = (values: Array<string | undefined | null>) =>
+    new Set(values.map((value) => value?.trim()).filter(Boolean)).size;
+
+  const getActiveLibraryGroupOverview = (
+    books: LibraryShelfBook[],
+    groupBy: 'none' | 'author' | 'collection' | 'format',
+    scope: string
+  ): ActiveLibraryGroupOverview | null => {
+    if (!scope || groupBy === 'none') return null;
+
+    const totalBooks = books.length;
+    const readingCount = books.filter((book) => book.readingStatusLabel === '在读').length;
+    const finishedCount = books.filter((book) => book.readingStatusLabel === '已读完').length;
+    const unstartedCount = books.filter((book) => book.readingStatusLabel === '未开始').length;
+    const authorCount = countDistinctLibraryValues(books.map((book) => book.author));
+    const collectionCount = countDistinctLibraryValues(books.map((book) => book.collection));
+    const formatCount = countDistinctLibraryValues(books.map((book) => book.format));
+
+    if (groupBy === 'author') {
+      return {
+        eyebrow: '当前作者组',
+        title: scope,
+        summary: `这组共有 ${totalBooks} 本书，分布在 ${collectionCount} 个归类里，覆盖 ${formatCount} 种阅读格式。`,
+        metrics: [
+          { label: '在读', value: `${readingCount} 本` },
+          { label: '已读完', value: `${finishedCount} 本` },
+          { label: '未开始', value: `${unstartedCount} 本` }
+        ]
+      };
+    }
+
+    if (groupBy === 'collection') {
+      return {
+        eyebrow: '当前归类组',
+        title: scope,
+        summary: `这组共有 ${totalBooks} 本书，来自 ${authorCount} 位作者，覆盖 ${formatCount} 种阅读格式。`,
+        metrics: [
+          { label: '作者', value: `${authorCount} 位` },
+          { label: '在读', value: `${readingCount} 本` },
+          { label: '已读完', value: `${finishedCount} 本` }
+        ]
+      };
+    }
+
+    return {
+      eyebrow: '当前格式组',
+      title: scope,
+      summary: `这组共有 ${totalBooks} 本书，来自 ${authorCount} 位作者，分布在 ${collectionCount} 个归类里。`,
+      metrics: [
+        { label: '作者', value: `${authorCount} 位` },
+        { label: '归类', value: `${collectionCount} 组` },
+        { label: '在读', value: `${readingCount} 本` }
+      ]
+    };
   };
 
   const normalizeLibraryGroupByParam = (value: string | null) => {
@@ -1982,6 +2044,32 @@
           />
         {/if}
 
+        {@const desktopGroupOverview = getActiveLibraryGroupOverview(
+          filteredLibraryShelfBooks,
+          libraryGroupBy,
+          libraryGroupScope
+        )}
+        {#if desktopGroupOverview}
+          <section
+            class="group-browse-overview"
+            aria-label={`${desktopGroupOverview.title} 分组概览`}
+          >
+            <div class="group-browse-copy">
+              <span class="group-browse-eyebrow">{desktopGroupOverview.eyebrow}</span>
+              <strong>{desktopGroupOverview.title}</strong>
+              <p>{desktopGroupOverview.summary}</p>
+            </div>
+            <div class="group-browse-metrics">
+              {#each desktopGroupOverview.metrics as metric}
+                <div class="group-browse-metric">
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                </div>
+              {/each}
+            </div>
+          </section>
+        {/if}
+
         <BookshelfPreview
           sectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
           books={filteredLibraryShelfBooks}
@@ -2071,6 +2159,32 @@
             books={filteredStarterRecentReadingBooks}
             onOpenLink={handleOpenReaderTarget}
           />
+        {/if}
+
+        {@const starterGroupOverview = getActiveLibraryGroupOverview(
+          filteredStarterShelfBooks,
+          libraryGroupBy,
+          libraryGroupScope
+        )}
+        {#if starterGroupOverview}
+          <section
+            class="group-browse-overview"
+            aria-label={`${starterGroupOverview.title} 分组概览`}
+          >
+            <div class="group-browse-copy">
+              <span class="group-browse-eyebrow">{starterGroupOverview.eyebrow}</span>
+              <strong>{starterGroupOverview.title}</strong>
+              <p>{starterGroupOverview.summary}</p>
+            </div>
+            <div class="group-browse-metrics">
+              {#each starterGroupOverview.metrics as metric}
+                <div class="group-browse-metric">
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                </div>
+              {/each}
+            </div>
+          </section>
         {/if}
 
         {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
@@ -2268,6 +2382,73 @@
     color: var(--text-secondary);
   }
 
+  .group-browse-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.26),
+      0 10px 24px rgba(42, 30, 15, 0.05);
+  }
+
+  .group-browse-copy {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .group-browse-eyebrow {
+    color: var(--text-muted);
+    font: 700 10px/1 var(--font-chrome);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .group-browse-copy strong {
+    color: var(--text-primary);
+    font: 600 16px/1.2 var(--font-chrome);
+  }
+
+  .group-browse-copy p {
+    margin: 0;
+    max-width: 56ch;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .group-browse-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .group-browse-metric {
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .group-browse-metric span {
+    color: var(--text-muted);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.04em;
+  }
+
+  .group-browse-metric strong {
+    color: var(--text-primary);
+    font: 600 15px/1.1 var(--font-chrome);
+  }
+
   .empty-library {
     display: grid;
     gap: 14px;
@@ -2404,6 +2585,10 @@
     .migration-banner {
       grid-template-columns: 1fr;
       align-items: start;
+    }
+
+    .group-browse-overview {
+      grid-template-columns: 1fr;
     }
   }
 </style>
