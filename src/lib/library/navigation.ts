@@ -1,6 +1,7 @@
 import type {
   LibraryBrowseAction,
   LibraryBrowseActionGuardResult,
+  LibraryBrowseInvalidReason,
   LibraryBrowseTransitionResult,
   ActiveLibraryGroupOverview,
   LibraryBrowseState,
@@ -494,6 +495,15 @@ export const getLibraryBrowseActionAvailability = (
   current: LibraryBrowseState,
   action: LibraryBrowseAction
 ) => getLibraryBrowseActionGuard(current, action);
+
+export const getLibraryBrowseInvalidReasonLabel = (
+  reason: LibraryBrowseInvalidReason
+) => {
+  if (reason === 'missing-trail-segment') {
+    return '当前分组路径已经变化，这个入口暂时不能继续使用。';
+  }
+  return '这个浏览入口当前不可用。';
+};
 
 type LibraryBrowseActionByType<TType extends LibraryBrowseAction['type']> = Extract<
   LibraryBrowseAction,

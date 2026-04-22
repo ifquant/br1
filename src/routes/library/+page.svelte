@@ -21,6 +21,7 @@
     getLibraryBrowseStateFromUrl,
     getLibraryGroupLabel,
     getLibraryGroupScopeDescription,
+    getLibraryBrowseInvalidReasonLabel,
     getNextLibraryBrowseState,
     getLibrarySiblingGroups,
     getLibraryTrailLandings
@@ -1732,6 +1733,12 @@
   const getLibraryExitAvailability = () =>
     isLibraryBrowseActionAvailable({ type: 'exit-group' });
 
+  const getLibraryBrowseActionReasonLabel = (action: LibraryBrowseAction) => {
+    const result = getLibraryBrowseActionAvailability(getCurrentLibraryBrowseState(), action);
+    if (result.kind === 'blocked') return getLibraryBrowseInvalidReasonLabel(result.reason);
+    return '';
+  };
+
   const getLibraryEnterGroupAvailability = (
     label: string,
     groupBy: 'author' | 'collection' | 'format'
@@ -1742,12 +1749,44 @@
       label
     });
 
+  const getLibraryEnterGroupReasonLabel = (
+    label: string,
+    groupBy: 'author' | 'collection' | 'format'
+  ) =>
+    getLibraryBrowseActionReasonLabel({
+      type: 'enter-group',
+      groupBy,
+      label
+    });
+
+  const isLibraryPivotAvailable = (
+    groupBy: 'author' | 'collection' | 'format',
+    value: string
+  ) => getLibraryEnterGroupAvailability(value, groupBy);
+
+  const getLibraryPivotReasonLabel = (
+    groupBy: 'author' | 'collection' | 'format',
+    value: string
+  ) => getLibraryEnterGroupReasonLabel(value, groupBy);
+
   const getLibraryEnterFromTrailAvailability = (
     trailIndex: number,
     label: string,
     groupBy: 'author' | 'collection' | 'format'
   ) =>
     isLibraryBrowseActionAvailable({
+      type: 'enter-from-trail',
+      trailIndex,
+      groupBy,
+      label
+    });
+
+  const getLibraryEnterFromTrailReasonLabel = (
+    trailIndex: number,
+    label: string,
+    groupBy: 'author' | 'collection' | 'format'
+  ) =>
+    getLibraryBrowseActionReasonLabel({
       type: 'enter-from-trail',
       trailIndex,
       groupBy,
@@ -1765,6 +1804,27 @@
       label,
       trail
     });
+
+  const getLibrarySiblingReasonLabel = (
+    label: string,
+    groupBy: 'author' | 'collection' | 'format',
+    trail: LibraryGroupSegment[]
+  ) =>
+    getLibraryBrowseActionReasonLabel({
+      type: 'switch-sibling',
+      groupBy,
+      label,
+      trail
+    });
+
+  const getLibraryJumpTrailReasonLabel = (index: number) =>
+    getLibraryBrowseActionReasonLabel({
+      type: 'jump-trail',
+      index
+    });
+
+  const getLibraryExitReasonLabel = () =>
+    getLibraryBrowseActionReasonLabel({ type: 'exit-group' });
 
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
     const result = getNextLibraryBrowseState(
@@ -1967,7 +2027,10 @@
       activeGroupTrail={libraryBrowseTrail}
       activeGroupTrailAvailability={libraryBrowseTrail.map((_, index) =>
         getLibraryJumpTrailAvailability(index))}
+      activeGroupTrailReasonLabels={libraryBrowseTrail.map((_, index) =>
+        getLibraryJumpTrailReasonLabel(index))}
       canExitGroup={getLibraryExitAvailability()}
+      exitGroupReasonLabel={getLibraryExitReasonLabel()}
       activeGroupDescription={getLibraryGroupScopeDescription(
         libraryGroupBy,
         libraryGroupScope,
@@ -2139,13 +2202,23 @@
             siblings={desktopCurrentSiblingGroups}
             trailAvailability={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailAvailability(index))}
+            trailReasonLabels={libraryBrowseTrail.map((_, index) =>
+              getLibraryJumpTrailReasonLabel(index))}
             siblingAvailability={desktopCurrentSiblingGroups.map((sibling) =>
               getLibrarySiblingAvailability(
                 sibling.label,
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
+            siblingReasonLabels={desktopCurrentSiblingGroups.map((sibling) =>
+              getLibrarySiblingReasonLabel(
+                sibling.label,
+                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                libraryBrowseTrail
+              ))}
             pivots={desktopGroupOverview.pivots}
+            isPivotAvailable={isLibraryPivotAvailable}
+            getPivotReasonLabel={getLibraryPivotReasonLabel}
             onJumpTrail={jumpLibraryGroupTrailToIndex}
             onSelectSibling={(label, groupBy) =>
               enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
@@ -2165,6 +2238,9 @@
                       type="button"
                       class="group-browse-trail-action"
                       disabled={!getLibraryJumpTrailAvailability(landing.index)}
+                      title={!getLibraryJumpTrailAvailability(landing.index)
+                        ? getLibraryJumpTrailReasonLabel(landing.index)
+                        : ''}
                       on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
                     >
                       回到这一层
@@ -2192,6 +2268,17 @@
                             libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
                             libraryBrowseTrail.slice(0, landing.index)
                           )}
+                          title={!getLibrarySiblingAvailability(
+                            sibling.label,
+                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                            libraryBrowseTrail.slice(0, landing.index)
+                          )
+                            ? getLibrarySiblingReasonLabel(
+                                sibling.label,
+                                libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                                libraryBrowseTrail.slice(0, landing.index)
+                              )
+                            : ''}
                           on:click={() =>
                             enterLibrarySiblingGroup(
                               sibling.label,
@@ -2223,6 +2310,12 @@
                           showImportTile={false}
                           onEnterGroupAvailable={(label, nextGroupBy) =>
                             getLibraryEnterFromTrailAvailability(
+                              landing.index,
+                              label,
+                              nextGroupBy
+                            )}
+                          onEnterGroupReasonLabel={(label, nextGroupBy) =>
+                            getLibraryEnterFromTrailReasonLabel(
                               landing.index,
                               label,
                               nextGroupBy
@@ -2271,6 +2364,17 @@
                         libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                         libraryBrowseTrail
                       )}
+                      title={!getLibrarySiblingAvailability(
+                        sibling.label,
+                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                        libraryBrowseTrail
+                      )
+                        ? getLibrarySiblingReasonLabel(
+                            sibling.label,
+                            libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                            libraryBrowseTrail
+                          )
+                        : ''}
                       on:click={() =>
                         enterLibrarySiblingGroup(
                           sibling.label,
@@ -2297,6 +2401,9 @@
                             type="button"
                             class="group-browse-pivot"
                             disabled={!getLibraryEnterGroupAvailability(item.value, item.groupBy)}
+                            title={!getLibraryEnterGroupAvailability(item.value, item.groupBy)
+                              ? getLibraryEnterGroupReasonLabel(item.value, item.groupBy)
+                              : ''}
                             on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
                           >
                             <strong>{item.value}</strong>
@@ -2333,6 +2440,7 @@
                   activeGroupLabel=""
                   showImportTile={false}
                   onEnterGroupAvailable={getLibraryEnterGroupAvailability}
+                  onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
                   onEnterGroup={handleEnterLibraryGroup}
                   onOpenLink={handleOpenReaderTarget}
                 />
@@ -2349,6 +2457,7 @@
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
           onEnterGroupAvailable={getLibraryEnterGroupAvailability}
+          onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
           onEnterGroup={handleEnterLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
@@ -2459,13 +2568,23 @@
             siblings={starterCurrentSiblingGroups}
             trailAvailability={libraryBrowseTrail.map((_, index) =>
               getLibraryJumpTrailAvailability(index))}
+            trailReasonLabels={libraryBrowseTrail.map((_, index) =>
+              getLibraryJumpTrailReasonLabel(index))}
             siblingAvailability={starterCurrentSiblingGroups.map((sibling) =>
               getLibrarySiblingAvailability(
                 sibling.label,
                 libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                 libraryBrowseTrail
               ))}
+            siblingReasonLabels={starterCurrentSiblingGroups.map((sibling) =>
+              getLibrarySiblingReasonLabel(
+                sibling.label,
+                libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                libraryBrowseTrail
+              ))}
             pivots={starterGroupOverview.pivots}
+            isPivotAvailable={isLibraryPivotAvailable}
+            getPivotReasonLabel={getLibraryPivotReasonLabel}
             onJumpTrail={jumpLibraryGroupTrailToIndex}
             onSelectSibling={(label, groupBy) =>
               enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
@@ -2485,6 +2604,9 @@
                       type="button"
                       class="group-browse-trail-action"
                       disabled={!getLibraryJumpTrailAvailability(landing.index)}
+                      title={!getLibraryJumpTrailAvailability(landing.index)
+                        ? getLibraryJumpTrailReasonLabel(landing.index)
+                        : ''}
                       on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
                     >
                       回到这一层
@@ -2512,6 +2634,17 @@
                             libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
                             libraryBrowseTrail.slice(0, landing.index)
                           )}
+                          title={!getLibrarySiblingAvailability(
+                            sibling.label,
+                            libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                            libraryBrowseTrail.slice(0, landing.index)
+                          )
+                            ? getLibrarySiblingReasonLabel(
+                                sibling.label,
+                                libraryBrowseTrail[landing.index]?.groupBy ?? libraryGroupBy,
+                                libraryBrowseTrail.slice(0, landing.index)
+                              )
+                            : ''}
                           on:click={() =>
                             enterLibrarySiblingGroup(
                               sibling.label,
@@ -2543,6 +2676,12 @@
                           showImportTile={false}
                           onEnterGroupAvailable={(label, nextGroupBy) =>
                             getLibraryEnterFromTrailAvailability(
+                              landing.index,
+                              label,
+                              nextGroupBy
+                            )}
+                          onEnterGroupReasonLabel={(label, nextGroupBy) =>
+                            getLibraryEnterFromTrailReasonLabel(
                               landing.index,
                               label,
                               nextGroupBy
@@ -2591,6 +2730,17 @@
                         libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
                         libraryBrowseTrail
                       )}
+                      title={!getLibrarySiblingAvailability(
+                        sibling.label,
+                        libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                        libraryBrowseTrail
+                      )
+                        ? getLibrarySiblingReasonLabel(
+                            sibling.label,
+                            libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
+                            libraryBrowseTrail
+                          )
+                        : ''}
                       on:click={() =>
                         enterLibrarySiblingGroup(
                           sibling.label,
@@ -2617,6 +2767,9 @@
                             type="button"
                             class="group-browse-pivot"
                             disabled={!getLibraryEnterGroupAvailability(item.value, item.groupBy)}
+                            title={!getLibraryEnterGroupAvailability(item.value, item.groupBy)
+                              ? getLibraryEnterGroupReasonLabel(item.value, item.groupBy)
+                              : ''}
                             on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
                           >
                             <strong>{item.value}</strong>
@@ -2653,6 +2806,7 @@
                   activeGroupLabel=""
                   showImportTile={false}
                   onEnterGroupAvailable={getLibraryEnterGroupAvailability}
+                  onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
                   onEnterGroup={handleEnterLibraryGroup}
                   onOpenLink={handleOpenReaderTarget}
                 />
@@ -2689,6 +2843,7 @@
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
           onEnterGroupAvailable={getLibraryEnterGroupAvailability}
+          onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
           onEnterGroup={handleEnterLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}

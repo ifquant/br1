@@ -14,7 +14,9 @@
     label: string;
   }> = [];
   export let activeGroupTrailAvailability: boolean[] = [];
+  export let activeGroupTrailReasonLabels: string[] = [];
   export let canExitGroup = true;
+  export let exitGroupReasonLabel = '';
   export let activeGroupDescription = '';
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
@@ -332,6 +334,7 @@
       type="button"
       class="group-context-back"
       disabled={!canExitGroup}
+      title={!canExitGroup ? exitGroupReasonLabel : ''}
       on:click={handleExitGroup}
     >
       {activeGroupTrail.length > 0 ? '返回上一级' : '返回整库'}
@@ -343,6 +346,9 @@
             type="button"
             class="group-context-segment"
             disabled={activeGroupTrailAvailability[index] === false}
+            title={activeGroupTrailAvailability[index] === false
+              ? activeGroupTrailReasonLabels[index] || ''
+              : ''}
             on:click={() => handleJumpTrail(index)}
           >
             <span>{segment.groupBy === 'author' ? '作者' : segment.groupBy === 'collection' ? '归类' : '格式'}</span>

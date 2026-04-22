@@ -14,6 +14,9 @@
   export let onEnterGroupAvailable:
     | ((label: string, groupBy: 'author' | 'collection' | 'format') => boolean)
     | null = null;
+  export let onEnterGroupReasonLabel:
+    | ((label: string, groupBy: 'author' | 'collection' | 'format') => string)
+    | null = null;
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
@@ -76,6 +79,11 @@
   const isEnterGroupAvailable = (label: string) => {
     if (!onEnterGroupAvailable || groupBy === 'none') return true;
     return onEnterGroupAvailable(label, groupBy);
+  };
+
+  const getEnterGroupReasonLabel = (label: string) => {
+    if (!onEnterGroupReasonLabel || groupBy === 'none') return '';
+    return onEnterGroupReasonLabel(label, groupBy);
   };
 
   const getBookKey = (book: BookshelfPreviewBook) =>
@@ -292,6 +300,7 @@
               class="group-card-link"
               aria-label={`进入 ${group.label} 分组`}
               disabled={!isEnterGroupAvailable(group.label)}
+              title={!isEnterGroupAvailable(group.label) ? getEnterGroupReasonLabel(group.label) : ''}
               on:click={(event: MouseEvent) => handleEnterGroup(event, group.label)}
             >
               <div class="group-cover-shell" aria-hidden="true">

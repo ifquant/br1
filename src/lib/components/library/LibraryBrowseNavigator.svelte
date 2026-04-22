@@ -10,7 +10,9 @@
   export let currentGroupLabel = '';
   export let siblings: Array<{ label: string; count: number }> = [];
   export let trailAvailability: boolean[] = [];
+  export let trailReasonLabels: string[] = [];
   export let siblingAvailability: boolean[] = [];
+  export let siblingReasonLabels: string[] = [];
   export let pivots: Array<{
     title: string;
     items: Array<{
@@ -25,6 +27,12 @@
     | null = null;
   export let onSelectPivot:
     | ((groupBy: 'author' | 'collection' | 'format', value: string) => void | Promise<void>)
+    | null = null;
+  export let isPivotAvailable:
+    | ((groupBy: 'author' | 'collection' | 'format', value: string) => boolean)
+    | null = null;
+  export let getPivotReasonLabel:
+    | ((groupBy: 'author' | 'collection' | 'format', value: string) => string)
     | null = null;
 
   const getGroupByLabel = (groupBy: 'author' | 'collection' | 'format') =>
@@ -46,6 +54,7 @@
             type="button"
             class="group-browse-navigator-chip"
             disabled={trailAvailability[index] === false}
+            title={trailAvailability[index] === false ? trailReasonLabels[index] || '' : ''}
             on:click={() => onJumpTrail && onJumpTrail(index)}
           >
             <strong>{segment.label}</strong>
@@ -68,6 +77,7 @@
               type="button"
               class="group-browse-navigator-chip"
               disabled={siblingAvailability[index] === false}
+              title={siblingAvailability[index] === false ? siblingReasonLabels[index] || '' : ''}
               on:click={() => onSelectSibling && onSelectSibling(sibling.label, currentGroupBy)}
             >
               <strong>{sibling.label}</strong>
@@ -87,6 +97,12 @@
               <button
                 type="button"
                 class="group-browse-navigator-chip"
+                disabled={isPivotAvailable ? !isPivotAvailable(item.groupBy, item.value) : false}
+                title={
+                  isPivotAvailable && !isPivotAvailable(item.groupBy, item.value) && getPivotReasonLabel
+                    ? getPivotReasonLabel(item.groupBy, item.value)
+                    : ''
+                }
                 on:click={() => onSelectPivot && onSelectPivot(item.groupBy, item.value)}
               >
                 <strong>{item.value}</strong>
