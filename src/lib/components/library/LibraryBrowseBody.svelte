@@ -1,10 +1,12 @@
 <script lang="ts">
   import ContinueReadingShelf from './ContinueReadingShelf.svelte';
+  import LibraryEmptyState from './LibraryEmptyState.svelte';
   import LibraryGroupedBrowsePanel from './LibraryGroupedBrowsePanel.svelte';
   import type {
     ContinueReadingBook,
     LibraryBrowseAction,
     LibraryBrowseState,
+    LibraryEmptyStateModel,
     LibraryShelfBook
   } from '$lib/library/types';
 
@@ -33,6 +35,8 @@
   export let recoveryShelf: WorkflowShelf | null = null;
   export let continueShelf: WorkflowShelf | null = null;
   export let recentShelf: WorkflowShelf | null = null;
+  export let beforePanelEmptyStates: LibraryEmptyStateModel[] = [];
+  export let afterPanelEmptyStates: LibraryEmptyStateModel[] = [];
   export let browseState: LibraryBrowseState = {
     groupBy: 'none',
     groupScope: '',
@@ -122,7 +126,15 @@
   />
 {/if}
 
-<slot name="beforePanel" />
+{#each beforePanelEmptyStates as emptyState}
+  <LibraryEmptyState
+    ariaLabel={emptyState.ariaLabel}
+    title={emptyState.title}
+    message={emptyState.message}
+    filterChips={emptyState.filterChips ?? []}
+    actions={emptyState.actions ?? []}
+  />
+{/each}
 
 <LibraryGroupedBrowsePanel
   {browseState}
@@ -142,7 +154,15 @@
   {onFilterTag}
 />
 
-<slot name="afterPanel" />
+{#each afterPanelEmptyStates as emptyState}
+  <LibraryEmptyState
+    ariaLabel={emptyState.ariaLabel}
+    title={emptyState.title}
+    message={emptyState.message}
+    filterChips={emptyState.filterChips ?? []}
+    actions={emptyState.actions ?? []}
+  />
+{/each}
 
 <style>
   .reading-workflow-note {

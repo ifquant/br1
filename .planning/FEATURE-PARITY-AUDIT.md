@@ -206,6 +206,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - desktop and starter library modes now also share a first body-level browse shell for workflow notices, continue/recent/recovery shelves, grouped-browse panel composition, and empty-state slot placement, so the route no longer maintains two large parallel body templates around the same browse surface
 - the library page now also has a shared top-level chrome shell for the header, notice banner, and Readest migration banner, so the route no longer hand-renders the same page chrome around the browse body while keeping the scroll viewport wiring local
 - the library page now also uses a shared empty-state component for empty library, empty search, empty filter, and filter-recovery chips/actions, so the route no longer hardcodes repeated empty-state sections and their styling in multiple desktop/starter slots
+- the shared library browse body now also owns empty-state placement through explicit before/after empty-state models instead of route-provided slots, so desktop/starter body assembly is moving from structural slot composition toward plain data-model configuration
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

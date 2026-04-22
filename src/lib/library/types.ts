@@ -141,6 +141,21 @@ export type LibraryBrowseGuardExplanation = {
   detail: string;
 };
 
+export type LibraryEmptyStateModel = {
+  ariaLabel: string;
+  title: string;
+  message: string;
+  filterChips?: Array<{
+    label: string;
+    onClick: () => void | Promise<void>;
+  }>;
+  actions?: Array<{
+    label: string;
+    secondary?: boolean;
+    onClick: () => void | Promise<void>;
+  }>;
+};
+
 export type LibraryBrowseActionGuardResult =
   | {
       kind: 'allowed';

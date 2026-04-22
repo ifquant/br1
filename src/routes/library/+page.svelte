@@ -1938,49 +1938,52 @@
             onOpenLink={handleOpenReaderTarget}
             onImportBooks={triggerImportPicker}
             onOpenSourcePath={handleOpenSourcePath}
-            onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
-            onRemoveBook={handleRemoveLibraryBook}
-            onFilterStatus={handleFilterByShelfStatus}
-            onFilterFormat={handleFilterByShelfFormat}
-            onFilterCollection={handleFilterByShelfCollection}
-            onFilterTag={handleFilterByShelfTag}
-          >
-            <svelte:fragment slot="afterPanel">
-              {#if libraryQuery && visibleLibraryBooksCount === 0}
-                <LibraryEmptyState
-                  ariaLabel="搜索无结果"
-                  title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
-                  message="试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。"
-                  filterChips={libraryActiveFilterChips.map((chip) => ({
-                    label: chip.label,
-                    onClick: () => clearLibraryFilterById(chip.id)
-                  }))}
-                  actions={[
+          onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
+          onRemoveBook={handleRemoveLibraryBook}
+          onFilterStatus={handleFilterByShelfStatus}
+          onFilterFormat={handleFilterByShelfFormat}
+          onFilterCollection={handleFilterByShelfCollection}
+          onFilterTag={handleFilterByShelfTag}
+          afterPanelEmptyStates={[
+            ...(libraryQuery && visibleLibraryBooksCount === 0
+              ? [
+                  {
+                    ariaLabel: '搜索无结果',
+                    title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
+                    message: '试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。',
+                    filterChips: libraryActiveFilterChips.map((chip) => ({
+                      label: chip.label,
+                      onClick: () => clearLibraryFilterById(chip.id)
+                    })),
+                    actions: [
+                      {
+                        label: '清除筛选',
+                        onClick: handleClearLibraryFilters
+                      }
+                    ]
+                  }
+                ]
+              : !libraryQuery && visibleLibraryBooksCount === 0
+                ? [
                     {
-                      label: '清除筛选',
-                      onClick: handleClearLibraryFilters
+                      ariaLabel: '筛选无结果',
+                      title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
+                      message: '切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。',
+                      filterChips: libraryActiveFilterChips.map((chip) => ({
+                        label: chip.label,
+                        onClick: () => clearLibraryFilterById(chip.id)
+                      })),
+                      actions: [
+                        {
+                          label: '清除筛选',
+                          onClick: handleClearLibraryFilters
+                        }
+                      ]
                     }
-                  ]}
-                />
-              {:else if visibleLibraryBooksCount === 0}
-                <LibraryEmptyState
-                  ariaLabel="筛选无结果"
-                  title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
-                  message="切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。"
-                  filterChips={libraryActiveFilterChips.map((chip) => ({
-                    label: chip.label,
-                    onClick: () => clearLibraryFilterById(chip.id)
-                  }))}
-                  actions={[
-                    {
-                      label: '清除筛选',
-                      onClick: handleClearLibraryFilters
-                    }
-                  ]}
-                />
-              {/if}
-            </svelte:fragment>
-          </LibraryBrowseBody>
+                  ]
+                : [])
+          ]}
+        />
         {:else}
           <LibraryEmptyState
             ariaLabel="空书库"
@@ -2031,43 +2034,46 @@
           onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}
-        >
-          <svelte:fragment slot="beforePanel">
-            {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
-              <LibraryEmptyState
-                ariaLabel="样例搜索无结果"
-                title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
-                message="试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。"
-                filterChips={libraryActiveFilterChips.map((chip) => ({
-                  label: chip.label,
-                  onClick: () => clearLibraryFilterById(chip.id)
-                }))}
-                actions={[
+          beforePanelEmptyStates={[
+            ...(libraryQuery && visibleStarterLibraryBooksCount === 0
+              ? [
                   {
-                    label: '清除筛选',
-                    onClick: handleClearLibraryFilters
+                    ariaLabel: '样例搜索无结果',
+                    title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
+                    message: '试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。',
+                    filterChips: libraryActiveFilterChips.map((chip) => ({
+                      label: chip.label,
+                      onClick: () => clearLibraryFilterById(chip.id)
+                    })),
+                    actions: [
+                      {
+                        label: '清除筛选',
+                        onClick: handleClearLibraryFilters
+                      }
+                    ]
                   }
-                ]}
-              />
-            {:else if visibleStarterLibraryBooksCount === 0}
-              <LibraryEmptyState
-                ariaLabel="样例筛选无结果"
-                title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
-                message="切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。"
-                filterChips={libraryActiveFilterChips.map((chip) => ({
-                  label: chip.label,
-                  onClick: () => clearLibraryFilterById(chip.id)
-                }))}
-                actions={[
-                  {
-                    label: '清除筛选',
-                    onClick: handleClearLibraryFilters
-                  }
-                ]}
-              />
-            {/if}
-          </svelte:fragment>
-        </LibraryBrowseBody>
+                ]
+              : visibleStarterLibraryBooksCount === 0
+                ? [
+                    {
+                      ariaLabel: '样例筛选无结果',
+                      title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
+                      message: '切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。',
+                      filterChips: libraryActiveFilterChips.map((chip) => ({
+                        label: chip.label,
+                        onClick: () => clearLibraryFilterById(chip.id)
+                      })),
+                      actions: [
+                        {
+                          label: '清除筛选',
+                          onClick: handleClearLibraryFilters
+                        }
+                      ]
+                    }
+                  ]
+                : [])
+          ]}
+        />
       {/if}
       </OverlayScrollbarsComponent>
     </LibraryPageChrome>
