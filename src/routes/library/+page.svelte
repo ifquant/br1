@@ -14,6 +14,10 @@
     ManualRelinkReview
   } from '$lib/library/types';
   import {
+    buildDesktopLibraryBrowseBodyModel,
+    buildStarterLibraryBrowseBodyModel
+  } from '$lib/library/body';
+  import {
     buildLibraryBrowseHref,
     filterBooksByLibraryGroupScope,
     getLibraryBrowseStateFromUrl,
@@ -1252,164 +1256,44 @@
         return null;
       })()
     : null;
-  $: desktopBrowseBodyModel = {
+  $: desktopBrowseBodyModel = buildDesktopLibraryBrowseBodyModel({
     workflowNotice: readingWorkflowNotice,
-    recoveryShelf: {
-      sectionTitle: '待修复书籍',
-      sectionDescription: recoveryQueueSummaryText,
-      primaryActionLabel: '修复',
-      books: recoveryQueueReviewBooks,
-      onOpenSourcePath: handleOpenSourcePath,
-      onImportBooks: triggerImportPicker,
-      onRepairBook: handleRepairLibraryBook,
-      onRemoveBook: handleRemoveLibraryBook,
-      bulkActionLabel:
-        bulkRepairEligibleQueueBooks.length > 0
-          ? bulkRepairBusy
-            ? '批量修复中…'
-            : `批量修复副本（${bulkRepairEligibleQueueBooks.length}）`
-          : '',
-      bulkActionDisabled: bulkRepairBusy,
-      operationSummary: bulkRepairSummary,
-      onBulkAction: handleBulkRepairLibraryBooks
-    },
-    continueShelf: {
-      sectionTitle: '继续阅读',
-      sectionDescription: '回到当前正在读的书。',
-      primaryActionLabel: '继续',
-      books: filteredContinueReadingBooks,
-      onOpenSourcePath: handleOpenSourcePath,
-      onImportBooks: triggerImportPicker,
-      onRepairBook: handleRepairLibraryBook,
-      onRemoveBook: handleRemoveLibraryBook
-    },
-    recentShelf: {
-      sectionTitle: '最近阅读',
-      sectionDescription: '重新打开你最近看过，但当前不在继续阅读队列中的书。',
-      primaryActionLabel: '重开',
-      books: filteredRecentReadingBooks,
-      onOpenSourcePath: handleOpenSourcePath,
-      onImportBooks: triggerImportPicker,
-      onRepairBook: handleRepairLibraryBook,
-      onRemoveBook: handleRemoveLibraryBook
-    },
-    initialEmptyState:
-      importedBooks.length === 0
-        ? {
-            ariaLabel: '空书库',
-            title: '你的书库还是空的',
-            message: '可以从本机导入新书，或者先把已有的 Readest 书库迁进来。',
-            actions: [
-              {
-                label: '从本机导入',
-                onClick: triggerImportPicker
-              },
-              ...(readestLibraryCount > 0
-                ? [
-                    {
-                      label: migrationBusy ? '兼容中…' : `同步 Readest 的 ${readestLibraryCount} 本书`,
-                      secondary: true,
-                      onClick: handleReadestMigrationClick
-                    }
-                  ]
-                : [])
-            ]
-          }
-        : null,
-    afterPanelEmptyStates: [
-      ...(libraryQuery && visibleLibraryBooksCount === 0
-        ? [
-            {
-              ariaLabel: '搜索无结果',
-              title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
-              message: '试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。',
-              filterChips: libraryActiveFilterChips.map((chip) => ({
-                label: chip.label,
-                onClick: () => clearLibraryFilterById(chip.id)
-              })),
-              actions: [
-                {
-                  label: '清除筛选',
-                  onClick: handleClearLibraryFilters
-                }
-              ]
-            }
-          ]
-        : !libraryQuery && visibleLibraryBooksCount === 0
-          ? [
-              {
-                ariaLabel: '筛选无结果',
-                title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
-                message: '切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。',
-                filterChips: libraryActiveFilterChips.map((chip) => ({
-                  label: chip.label,
-                  onClick: () => clearLibraryFilterById(chip.id)
-                })),
-                actions: [
-                  {
-                    label: '清除筛选',
-                    onClick: handleClearLibraryFilters
-                  }
-                ]
-              }
-            ]
-          : [])
-    ]
-  };
-  $: starterBrowseBodyModel = {
+    recoveryQueueSummaryText,
+    recoveryQueueReviewBooks,
+    bulkRepairEligibleCount: bulkRepairEligibleQueueBooks.length,
+    bulkRepairBusy,
+    bulkRepairSummary,
+    filteredContinueReadingBooks,
+    filteredRecentReadingBooks,
+    importedBooksCount: importedBooks.length,
+    readestLibraryCount,
+    migrationBusy,
+    libraryQuery,
+    visibleLibraryBooksCount,
+    activeFilterDetail: libraryActiveFilterDetail,
+    activeFilterChips: libraryActiveFilterChips,
+    onOpenSourcePath: handleOpenSourcePath,
+    onImportBooks: triggerImportPicker,
+    onRepairBook: handleRepairLibraryBook,
+    onRemoveBook: handleRemoveLibraryBook,
+    onBulkRepairBooks: handleBulkRepairLibraryBooks,
+    onReadestMigration: handleReadestMigrationClick,
+    onClearFilterById: clearLibraryFilterById,
+    onClearFilters: handleClearLibraryFilters,
+    getEmptyFilterTitle: getLibraryEmptyFilterTitle
+  });
+  $: starterBrowseBodyModel = buildStarterLibraryBrowseBodyModel({
     workflowNotice: starterReadingWorkflowNotice,
-    continueShelf: {
-      sectionTitle: '继续阅读',
-      sectionDescription: '回到当前正在读的样例书。',
-      primaryActionLabel: '继续',
-      books: filteredStarterContinueReadingBooks
-    },
-    recentShelf: {
-      sectionTitle: '最近阅读',
-      sectionDescription: '重新打开你最近看过的样例书。',
-      primaryActionLabel: '重开',
-      books: filteredStarterRecentReadingBooks
-    },
-    beforePanelEmptyStates: [
-      ...(libraryQuery && visibleStarterLibraryBooksCount === 0
-        ? [
-            {
-              ariaLabel: '样例搜索无结果',
-              title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
-              message: '试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。',
-              filterChips: libraryActiveFilterChips.map((chip) => ({
-                label: chip.label,
-                onClick: () => clearLibraryFilterById(chip.id)
-              })),
-              actions: [
-                {
-                  label: '清除筛选',
-                  onClick: handleClearLibraryFilters
-                }
-              ]
-            }
-          ]
-        : visibleStarterLibraryBooksCount === 0
-          ? [
-              {
-                ariaLabel: '样例筛选无结果',
-                title: getLibraryEmptyFilterTitle(libraryActiveFilterDetail),
-                message: '切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。',
-                filterChips: libraryActiveFilterChips.map((chip) => ({
-                  label: chip.label,
-                  onClick: () => clearLibraryFilterById(chip.id)
-                })),
-                actions: [
-                  {
-                    label: '清除筛选',
-                    onClick: handleClearLibraryFilters
-                  }
-                ]
-              }
-            ]
-          : [])
-    ]
-  };
+    filteredContinueReadingBooks: filteredStarterContinueReadingBooks,
+    filteredRecentReadingBooks: filteredStarterRecentReadingBooks,
+    libraryQuery,
+    visibleStarterLibraryBooksCount,
+    activeFilterDetail: libraryActiveFilterDetail,
+    activeFilterChips: libraryActiveFilterChips,
+    onClearFilterById: clearLibraryFilterById,
+    onClearFilters: handleClearLibraryFilters,
+    getEmptyFilterTitle: getLibraryEmptyFilterTitle
+  });
   $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
     const previousKey = libraryScrollContextKey;

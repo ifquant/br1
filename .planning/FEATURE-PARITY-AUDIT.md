@@ -209,6 +209,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the shared library browse body now also owns empty-state placement through explicit before/after empty-state models instead of route-provided slots, so desktop/starter body assembly is moving from structural slot composition toward plain data-model configuration
 - the desktop-only initial empty-library branch now also routes through that same shared browse-body empty-state model instead of staying as a final route-local special case, so the page is closer to pure state assembly while the shell decides whether to render an initial empty library or the normal browse surface
 - the library route now also feeds desktop/starter browse bodies through explicit shared body models instead of scattering workflow shelves, initial empty states, and filter-empty states across two long component prop lists, so body-level page composition is moving from template wiring toward plain state/model assembly
+- those desktop/starter body models are now also built in a shared `library/body.ts` helper instead of being assembled inline in `+page.svelte`, so body-level recovery copy, empty-state recovery, and workflow shelf composition are no longer expanding the route file itself
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 
