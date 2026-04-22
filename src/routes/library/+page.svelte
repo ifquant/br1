@@ -2282,29 +2282,20 @@
         {/if}
         {#if desktopBrowseSurface.subgroupShelves.length > 0}
           <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
-            {#each desktopBrowseSurface.subgroupShelves as subgroupShelf}
+            {#each desktopBrowseSurface.subgroupShelves as subgroupSurface}
               <div class="group-browse-subgroup-shelf">
                 <div class="group-browse-subgroup-copy">
-                  <strong>{subgroupShelf.title}</strong>
-                  <span>{subgroupShelf.description}</span>
+                  <strong>{subgroupSurface.shelf.title}</strong>
+                  <span>{subgroupSurface.shelf.description}</span>
                 </div>
                 <BookshelfPreview
-                  sectionTitle={subgroupShelf.title}
+                  sectionTitle={subgroupSurface.shelf.title}
                   books={filteredLibraryShelfBooks}
                   viewMode={libraryViewMode}
-                  groupBy={subgroupShelf.groupBy}
+                  groupBy={subgroupSurface.shelf.groupBy}
                   activeGroupLabel=""
                   showImportTile={false}
-                  blockedGroupExplanations={collectLibraryBrowseExplanations(
-                    filteredLibraryShelfBooks.map((book) =>
-                      getLibraryEnterGroupExplanation(
-                        getCurrentLibraryBrowseState(),
-                        getLibraryGroupLabel(book, subgroupShelf.groupBy),
-                        subgroupShelf.groupBy,
-                        'subgroup'
-                      )
-                    )
-                  )}
+                  blockedGroupExplanations={subgroupSurface.blockedGroupExplanations}
                   groupEnterHintSurface="subgroup"
                   onEnterGroupAvailable={getLibraryEnterGroupAvailability}
                   onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
@@ -2323,18 +2314,7 @@
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
-          blockedGroupExplanations={collectLibraryBrowseExplanations(
-            libraryGroupBy === 'none'
-              ? []
-              : filteredLibraryShelfBooks.map((book) =>
-                  getLibraryEnterGroupExplanation(
-                    getCurrentLibraryBrowseState(),
-                    getLibraryGroupLabel(book, libraryGroupBy),
-                    libraryGroupBy,
-                    'group-card'
-                  )
-                )
-          )}
+          blockedGroupExplanations={desktopBrowseSurface.shelfGroupCardExplanations}
           groupEnterHintSurface="group-card"
           onEnterGroupAvailable={getLibraryEnterGroupAvailability}
           onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
@@ -2519,29 +2499,20 @@
         {/if}
         {#if starterBrowseSurface.subgroupShelves.length > 0}
           <section class="group-browse-subgroups" aria-label="当前分组的继续浏览入口">
-            {#each starterBrowseSurface.subgroupShelves as subgroupShelf}
+            {#each starterBrowseSurface.subgroupShelves as subgroupSurface}
               <div class="group-browse-subgroup-shelf">
                 <div class="group-browse-subgroup-copy">
-                  <strong>{subgroupShelf.title}</strong>
-                  <span>{subgroupShelf.description}</span>
+                  <strong>{subgroupSurface.shelf.title}</strong>
+                  <span>{subgroupSurface.shelf.description}</span>
                 </div>
                 <BookshelfPreview
-                  sectionTitle={subgroupShelf.title}
+                  sectionTitle={subgroupSurface.shelf.title}
                   books={filteredStarterShelfBooks}
                   viewMode={libraryViewMode}
-                  groupBy={subgroupShelf.groupBy}
+                  groupBy={subgroupSurface.shelf.groupBy}
                   activeGroupLabel=""
                   showImportTile={false}
-                  blockedGroupExplanations={collectLibraryBrowseExplanations(
-                    filteredStarterShelfBooks.map((book) =>
-                      getLibraryEnterGroupExplanation(
-                        getCurrentLibraryBrowseState(),
-                        getLibraryGroupLabel(book, subgroupShelf.groupBy),
-                        subgroupShelf.groupBy,
-                        'subgroup'
-                      )
-                    )
-                  )}
+                  blockedGroupExplanations={subgroupSurface.blockedGroupExplanations}
                   groupEnterHintSurface="subgroup"
                   onEnterGroupAvailable={getLibraryEnterGroupAvailability}
                   onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}
@@ -2580,18 +2551,7 @@
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
-          blockedGroupExplanations={collectLibraryBrowseExplanations(
-            libraryGroupBy === 'none'
-              ? []
-              : filteredStarterShelfBooks.map((book) =>
-                  getLibraryEnterGroupExplanation(
-                    getCurrentLibraryBrowseState(),
-                    getLibraryGroupLabel(book, libraryGroupBy),
-                    libraryGroupBy,
-                    'group-card'
-                  )
-                )
-          )}
+          blockedGroupExplanations={starterBrowseSurface.shelfGroupCardExplanations}
           groupEnterHintSurface="group-card"
           onEnterGroupAvailable={getLibraryEnterGroupAvailability}
           onEnterGroupReasonLabel={getLibraryEnterGroupReasonLabel}

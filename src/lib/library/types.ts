@@ -78,10 +78,16 @@ export type LibraryBrowseSurfaceModel = {
   overview: ActiveLibraryGroupOverview | null;
   trailLandings: LibraryTrailLanding[];
   siblingGroups: Array<{ label: string; count: number }>;
-  subgroupShelves: ActiveLibrarySubgroupShelf[];
+  subgroupShelves: LibraryBrowseSubgroupShelfSurface[];
   trailGuardExplanations: LibraryBrowseGuardExplanation[];
   siblingGuardExplanations: LibraryBrowseGuardExplanation[];
   pivotGuardExplanations: LibraryBrowseGuardExplanation[];
+  shelfGroupCardExplanations: LibraryBrowseGuardExplanation[];
+};
+
+export type LibraryBrowseSubgroupShelfSurface = {
+  shelf: ActiveLibrarySubgroupShelf;
+  blockedGroupExplanations: LibraryBrowseGuardExplanation[];
 };
 
 export type LibraryBrowseState = {

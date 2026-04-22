@@ -717,6 +717,25 @@ export const getLibraryPivotGuardExplanations = (
       : []
   );
 
+export const getLibraryShelfGroupExplanations = (
+  current: LibraryBrowseState,
+  shelfBooks: LibraryShelfBook[],
+  groupBy: 'none' | LibraryGroupBy,
+  surface: LibraryBrowseGuardSurface
+) =>
+  collectLibraryBrowseExplanations(
+    groupBy === 'none'
+      ? []
+      : shelfBooks.map((book) =>
+          getLibraryEnterGroupExplanation(
+            current,
+            getLibraryGroupLabel(book, groupBy),
+            groupBy,
+            surface
+          )
+        )
+  );
+
 export const buildLibraryBrowseSurfaceModel = (
   current: LibraryBrowseState,
   browseBooks: LibraryShelfBook[],
@@ -735,7 +754,15 @@ export const buildLibraryBrowseSurfaceModel = (
     shelfBooks,
     current.groupBy,
     current.groupScope
-  );
+  ).map((shelf) => ({
+    shelf,
+    blockedGroupExplanations: getLibraryShelfGroupExplanations(
+      current,
+      shelfBooks,
+      shelf.groupBy,
+      'subgroup'
+    )
+  }));
 
   return {
     overview,
@@ -751,7 +778,13 @@ export const buildLibraryBrowseSurfaceModel = (
       fallbackGroupBy,
       current.trail
     ),
-    pivotGuardExplanations: getLibraryPivotGuardExplanations(current, overview)
+    pivotGuardExplanations: getLibraryPivotGuardExplanations(current, overview),
+    shelfGroupCardExplanations: getLibraryShelfGroupExplanations(
+      current,
+      shelfBooks,
+      current.groupBy,
+      'group-card'
+    )
   };
 };
 
