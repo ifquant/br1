@@ -5,7 +5,12 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type { ContinueReadingBook, LibraryShelfBook, ManualRelinkReview } from '$lib/library/types';
-  import { BookshelfPreview, ContinueReadingShelf, LibraryHeader } from '$lib/components';
+  import {
+    BookshelfPreview,
+    ContinueReadingShelf,
+    LibraryBrowseNavigator,
+    LibraryHeader
+  } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import type {
@@ -2442,87 +2447,20 @@
           libraryGroupScope
         )}
         {#if desktopGroupOverview}
-          <section class="group-browse-navigator" aria-label="当前分组浏览导航">
-            <div class="group-browse-navigator-copy">
-              <span class="group-browse-eyebrow">当前浏览导航</span>
-              <strong>{desktopGroupOverview.title}</strong>
-              <p>{desktopGroupOverview.summary}</p>
-            </div>
-            <div class="group-browse-navigator-sections">
-              <div class="group-browse-navigator-section">
-                <span class="group-browse-navigator-title">当前路径</span>
-                <div class="group-browse-navigator-list">
-                  {#each libraryBrowseTrail as segment, index}
-                    <button
-                      type="button"
-                      class="group-browse-navigator-chip"
-                      on:click={() => jumpLibraryGroupTrailToIndex(index)}
-                    >
-                      <strong>{segment.label}</strong>
-                      <small>
-                        {segment.groupBy === 'author'
-                          ? '作者'
-                          : segment.groupBy === 'collection'
-                            ? '归类'
-                            : '格式'}
-                      </small>
-                    </button>
-                  {/each}
-                  <span class="group-browse-navigator-chip current">
-                    <strong>{libraryGroupScope}</strong>
-                    <small>
-                      {libraryGroupBy === 'author'
-                        ? '作者'
-                        : libraryGroupBy === 'collection'
-                          ? '归类'
-                          : '格式'}
-                    </small>
-                  </span>
-                </div>
-              </div>
-              {#if desktopCurrentSiblingGroups.length > 0}
-                <div class="group-browse-navigator-section">
-                  <span class="group-browse-navigator-title">同层切换</span>
-                  <div class="group-browse-navigator-list">
-                    {#each desktopCurrentSiblingGroups as sibling}
-                      <button
-                        type="button"
-                        class="group-browse-navigator-chip"
-                        on:click={() =>
-                          enterLibrarySiblingGroup(
-                            sibling.label,
-                            libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                            libraryBrowseTrail
-                          )}
-                      >
-                        <strong>{sibling.label}</strong>
-                        <small>{sibling.count} 本</small>
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-              {#if desktopGroupOverview.pivots.some((section) => section.items.length > 0)}
-                <div class="group-browse-navigator-section">
-                  <span class="group-browse-navigator-title">跨维继续看</span>
-                  <div class="group-browse-navigator-list">
-                    {#each desktopGroupOverview.pivots as section}
-                      {#each section.items as item}
-                        <button
-                          type="button"
-                          class="group-browse-navigator-chip"
-                          on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
-                        >
-                          <strong>{item.value}</strong>
-                          <small>{section.title} · {item.label}</small>
-                        </button>
-                      {/each}
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-            </div>
-          </section>
+          <LibraryBrowseNavigator
+            eyebrow="当前浏览导航"
+            title={desktopGroupOverview.title}
+            summary={desktopGroupOverview.summary}
+            trail={libraryBrowseTrail}
+            currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
+            currentGroupLabel={libraryGroupScope}
+            siblings={desktopCurrentSiblingGroups}
+            pivots={desktopGroupOverview.pivots}
+            onJumpTrail={jumpLibraryGroupTrailToIndex}
+            onSelectSibling={(label, groupBy) =>
+              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
+            onSelectPivot={handleLibraryGroupPivot}
+          />
         {/if}
         {#if desktopTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
@@ -2801,87 +2739,20 @@
           libraryGroupScope
         )}
         {#if starterGroupOverview}
-          <section class="group-browse-navigator" aria-label="当前分组浏览导航">
-            <div class="group-browse-navigator-copy">
-              <span class="group-browse-eyebrow">当前浏览导航</span>
-              <strong>{starterGroupOverview.title}</strong>
-              <p>{starterGroupOverview.summary}</p>
-            </div>
-            <div class="group-browse-navigator-sections">
-              <div class="group-browse-navigator-section">
-                <span class="group-browse-navigator-title">当前路径</span>
-                <div class="group-browse-navigator-list">
-                  {#each libraryBrowseTrail as segment, index}
-                    <button
-                      type="button"
-                      class="group-browse-navigator-chip"
-                      on:click={() => jumpLibraryGroupTrailToIndex(index)}
-                    >
-                      <strong>{segment.label}</strong>
-                      <small>
-                        {segment.groupBy === 'author'
-                          ? '作者'
-                          : segment.groupBy === 'collection'
-                            ? '归类'
-                            : '格式'}
-                      </small>
-                    </button>
-                  {/each}
-                  <span class="group-browse-navigator-chip current">
-                    <strong>{libraryGroupScope}</strong>
-                    <small>
-                      {libraryGroupBy === 'author'
-                        ? '作者'
-                        : libraryGroupBy === 'collection'
-                          ? '归类'
-                          : '格式'}
-                    </small>
-                  </span>
-                </div>
-              </div>
-              {#if starterCurrentSiblingGroups.length > 0}
-                <div class="group-browse-navigator-section">
-                  <span class="group-browse-navigator-title">同层切换</span>
-                  <div class="group-browse-navigator-list">
-                    {#each starterCurrentSiblingGroups as sibling}
-                      <button
-                        type="button"
-                        class="group-browse-navigator-chip"
-                        on:click={() =>
-                          enterLibrarySiblingGroup(
-                            sibling.label,
-                            libraryGroupBy === 'none' ? 'author' : libraryGroupBy,
-                            libraryBrowseTrail
-                          )}
-                      >
-                        <strong>{sibling.label}</strong>
-                        <small>{sibling.count} 本</small>
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-              {#if starterGroupOverview.pivots.some((section) => section.items.length > 0)}
-                <div class="group-browse-navigator-section">
-                  <span class="group-browse-navigator-title">跨维继续看</span>
-                  <div class="group-browse-navigator-list">
-                    {#each starterGroupOverview.pivots as section}
-                      {#each section.items as item}
-                        <button
-                          type="button"
-                          class="group-browse-navigator-chip"
-                          on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
-                        >
-                          <strong>{item.value}</strong>
-                          <small>{section.title} · {item.label}</small>
-                        </button>
-                      {/each}
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-            </div>
-          </section>
+          <LibraryBrowseNavigator
+            eyebrow="当前浏览导航"
+            title={starterGroupOverview.title}
+            summary={starterGroupOverview.summary}
+            trail={libraryBrowseTrail}
+            currentGroupBy={libraryGroupBy === 'none' ? 'author' : libraryGroupBy}
+            currentGroupLabel={libraryGroupScope}
+            siblings={starterCurrentSiblingGroups}
+            pivots={starterGroupOverview.pivots}
+            onJumpTrail={jumpLibraryGroupTrailToIndex}
+            onSelectSibling={(label, groupBy) =>
+              enterLibrarySiblingGroup(label, groupBy, libraryBrowseTrail)}
+            onSelectPivot={handleLibraryGroupPivot}
+          />
         {/if}
         {#if starterTrailLandings.length > 0}
           <section class="group-browse-trail-landing" aria-label="当前分组的祖先层级">
@@ -3354,93 +3225,6 @@
     display: grid;
     gap: 14px;
     grid-column: 1 / -1;
-  }
-
-  .group-browse-navigator {
-    display: grid;
-    gap: 14px;
-    padding: 16px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 84%, white 16%);
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 86%, white 14%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.24),
-      0 10px 24px rgba(42, 30, 15, 0.05);
-  }
-
-  .group-browse-navigator-copy {
-    display: grid;
-    gap: 5px;
-    min-width: 0;
-  }
-
-  .group-browse-navigator-copy strong {
-    color: var(--text-primary);
-    font: 600 16px/1.2 var(--font-chrome);
-  }
-
-  .group-browse-navigator-copy p {
-    margin: 0;
-    max-width: 60ch;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.45;
-  }
-
-  .group-browse-navigator-sections {
-    display: grid;
-    gap: 12px;
-  }
-
-  .group-browse-navigator-section {
-    display: grid;
-    gap: 8px;
-  }
-
-  .group-browse-navigator-title {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
-    letter-spacing: 0.04em;
-  }
-
-  .group-browse-navigator-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .group-browse-navigator-chip {
-    display: inline-grid;
-    gap: 4px;
-    justify-items: start;
-    width: auto;
-    min-height: 0;
-    padding: 9px 11px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
-    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
-    box-shadow: 0 8px 20px rgba(42, 30, 15, 0.04);
-  }
-
-  .group-browse-navigator-chip.current {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, #8c6a3b 24%, white 76%);
-    background: color-mix(in srgb, #ead5b7 22%, white 78%);
-  }
-
-  .group-browse-navigator-chip:hover {
-    border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
-    background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
-  }
-
-  .group-browse-navigator-chip strong {
-    color: var(--text-primary);
-    font: 600 12px/1.2 var(--font-chrome);
-  }
-
-  .group-browse-navigator-chip small {
-    color: var(--text-muted);
-    font: 600 10px/1 var(--font-chrome);
   }
 
   .group-browse-sibling-graph {
