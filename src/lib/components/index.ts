@@ -3,6 +3,7 @@ export { default as LibraryBrowseBody } from './library/LibraryBrowseBody.svelte
 export { default as LibraryBrowseGuardHint } from './library/LibraryBrowseGuardHint.svelte';
 export { default as LibraryBrowseNavigator } from './library/LibraryBrowseNavigator.svelte';
 export { default as LibraryBrowseOverview } from './library/LibraryBrowseOverview.svelte';
+export { default as LibraryEmptyState } from './library/LibraryEmptyState.svelte';
 export { default as LibraryPageChrome } from './library/LibraryPageChrome.svelte';
 export { default as LibraryGroupedBrowsePanel } from './library/LibraryGroupedBrowsePanel.svelte';
 export { default as LibraryBrowseTrailLandings } from './library/LibraryBrowseTrailLandings.svelte';

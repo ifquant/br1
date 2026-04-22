@@ -24,6 +24,7 @@
   } from '$lib/library/navigation';
   import {
     LibraryBrowseBody,
+    LibraryEmptyState,
     LibraryPageChrome
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
@@ -1819,29 +1820,6 @@
 
 <section class="library-page">
   <div class="library-surface">
-    {#snippet emptyFilterRecovery()}
-      {#if libraryActiveFilterChips.length > 0}
-        <div class="empty-filter-chips" aria-label="空态筛选条件">
-          {#each libraryActiveFilterChips as chip}
-            <button
-              type="button"
-              class="empty-filter-chip"
-              aria-label={`移除空态筛选：${chip.label}`}
-              on:click={() => clearLibraryFilterById(chip.id)}
-            >
-              <span>{chip.label}</span>
-              <small>移除</small>
-            </button>
-          {/each}
-        </div>
-      {/if}
-      <div class="empty-actions">
-        <button type="button" class="empty-action" on:click={handleClearLibraryFilters}>
-          清除筛选
-        </button>
-      </div>
-    {/snippet}
-
     <input
       bind:this={importInput}
       class="import-input"
@@ -1969,49 +1947,61 @@
           >
             <svelte:fragment slot="afterPanel">
               {#if libraryQuery && visibleLibraryBooksCount === 0}
-                <section class="empty-library" aria-label="搜索无结果">
-                  <div class="empty-copy">
-                    <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-                    <span>
-                      试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
-                    </span>
-                  </div>
-                  {@render emptyFilterRecovery()}
-                </section>
+                <LibraryEmptyState
+                  ariaLabel="搜索无结果"
+                  title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
+                  message="试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。"
+                  filterChips={libraryActiveFilterChips.map((chip) => ({
+                    label: chip.label,
+                    onClick: () => clearLibraryFilterById(chip.id)
+                  }))}
+                  actions={[
+                    {
+                      label: '清除筛选',
+                      onClick: handleClearLibraryFilters
+                    }
+                  ]}
+                />
               {:else if visibleLibraryBooksCount === 0}
-                <section class="empty-library" aria-label="筛选无结果">
-                  <div class="empty-copy">
-                    <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-                    <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
-                  </div>
-                  {@render emptyFilterRecovery()}
-                </section>
+                <LibraryEmptyState
+                  ariaLabel="筛选无结果"
+                  title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
+                  message="切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。"
+                  filterChips={libraryActiveFilterChips.map((chip) => ({
+                    label: chip.label,
+                    onClick: () => clearLibraryFilterById(chip.id)
+                  }))}
+                  actions={[
+                    {
+                      label: '清除筛选',
+                      onClick: handleClearLibraryFilters
+                    }
+                  ]}
+                />
               {/if}
             </svelte:fragment>
           </LibraryBrowseBody>
         {:else}
-          <section class="empty-library" aria-label="空书库">
-            <div class="empty-copy">
-              <strong>你的书库还是空的</strong>
-              <span>
-                可以从本机导入新书，或者先把已有的 Readest 书库迁进来。
-              </span>
-            </div>
-            <div class="empty-actions">
-              <button type="button" class="empty-action" on:click={triggerImportPicker}>
-                从本机导入
-              </button>
-              {#if readestLibraryCount > 0}
-                <button
-                  type="button"
-                  class="empty-action secondary"
-                  on:click={handleReadestMigrationClick}
-                >
-                  {migrationBusy ? '兼容中…' : `同步 Readest 的 ${readestLibraryCount} 本书`}
-                </button>
-              {/if}
-            </div>
-          </section>
+          <LibraryEmptyState
+            ariaLabel="空书库"
+            title="你的书库还是空的"
+            message="可以从本机导入新书，或者先把已有的 Readest 书库迁进来。"
+            actions={[
+              {
+                label: '从本机导入',
+                onClick: triggerImportPicker
+              },
+              ...(readestLibraryCount > 0
+                ? [
+                    {
+                      label: migrationBusy ? '兼容中…' : `同步 Readest 的 ${readestLibraryCount} 本书`,
+                      secondary: true,
+                      onClick: handleReadestMigrationClick
+                    }
+                  ]
+                : [])
+            ]}
+          />
         {/if}
       {:else}
         <LibraryBrowseBody
@@ -2044,23 +2034,37 @@
         >
           <svelte:fragment slot="beforePanel">
             {#if libraryQuery && visibleStarterLibraryBooksCount === 0}
-              <section class="empty-library" aria-label="样例搜索无结果">
-                <div class="empty-copy">
-                  <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-                  <span>
-                    试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。
-                  </span>
-                </div>
-                {@render emptyFilterRecovery()}
-              </section>
+              <LibraryEmptyState
+                ariaLabel="样例搜索无结果"
+                title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
+                message="试试搜索标题、作者、格式、归类，或者移除搜索条件后再调整当前筛选。"
+                filterChips={libraryActiveFilterChips.map((chip) => ({
+                  label: chip.label,
+                  onClick: () => clearLibraryFilterById(chip.id)
+                }))}
+                actions={[
+                  {
+                    label: '清除筛选',
+                    onClick: handleClearLibraryFilters
+                  }
+                ]}
+              />
             {:else if visibleStarterLibraryBooksCount === 0}
-              <section class="empty-library" aria-label="样例筛选无结果">
-                <div class="empty-copy">
-                  <strong>{getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}</strong>
-                  <span>切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。</span>
-                </div>
-                {@render emptyFilterRecovery()}
-              </section>
+              <LibraryEmptyState
+                ariaLabel="样例筛选无结果"
+                title={getLibraryEmptyFilterTitle(libraryActiveFilterDetail)}
+                message="切回“全部 / 全部格式 / 全部归类 / 全部标签”查看完整书库，或重新打开一本书来更新它的阅读状态。"
+                filterChips={libraryActiveFilterChips.map((chip) => ({
+                  label: chip.label,
+                  onClick: () => clearLibraryFilterById(chip.id)
+                }))}
+                actions={[
+                  {
+                    label: '清除筛选',
+                    onClick: handleClearLibraryFilters
+                  }
+                ]}
+              />
             {/if}
           </svelte:fragment>
         </LibraryBrowseBody>
@@ -2092,88 +2096,6 @@
 
   .import-input {
     display: none;
-  }
-
-  .empty-library {
-    display: grid;
-    gap: 14px;
-    align-content: start;
-    padding: 26px 18px;
-    border: 1px dashed color-mix(in srgb, var(--line-soft) 88%, white 12%);
-    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
-  }
-
-  .empty-copy {
-    display: grid;
-    gap: 4px;
-  }
-
-  .empty-copy strong {
-    font-family: var(--font-chrome);
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--text-primary);
-  }
-
-  .empty-copy span {
-    max-width: 52ch;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .empty-action {
-    justify-self: start;
-    border: 0;
-    border-radius: 999px;
-    padding: 10px 14px;
-    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
-    color: var(--text-primary);
-    font-family: var(--font-chrome);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1;
-    box-shadow:
-      inset 0 0 0 1px var(--border-light),
-      0 10px 20px rgba(42, 30, 15, 0.06);
-  }
-
-  .empty-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .empty-filter-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .empty-filter-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border: 1px solid color-mix(in srgb, var(--accent-warm) 24%, white 76%);
-    border-radius: 999px;
-    padding: 7px 10px;
-    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
-    color: color-mix(in srgb, #73481f 86%, var(--text-secondary) 14%);
-    font-family: var(--font-chrome);
-    font-size: 11px;
-    font-weight: 650;
-    line-height: 1;
-  }
-
-  .empty-filter-chip small {
-    color: color-mix(in srgb, currentColor 68%, transparent);
-    font-size: 9px;
-    font-weight: 700;
-  }
-
-  .empty-action.secondary {
-    background: transparent;
-    box-shadow: inset 0 0 0 1px rgba(76, 57, 34, 0.12);
   }
 
   :global(.library-scroll) {
