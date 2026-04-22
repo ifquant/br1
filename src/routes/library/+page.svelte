@@ -45,6 +45,14 @@
     title: string;
     summary: string;
     metrics: Array<{ label: string; value: string }>;
+    pivots: Array<{
+      title: string;
+      items: Array<{
+        label: string;
+        value: string;
+        groupBy: 'author' | 'collection' | 'format';
+      }>;
+    }>;
   };
 
   const starterLibraryBooks: LibraryShelfBook[] = [
@@ -809,6 +817,27 @@
   const countDistinctLibraryValues = (values: Array<string | undefined | null>) =>
     new Set(values.map((value) => value?.trim()).filter(Boolean)).size;
 
+  const summarizeLibraryValueCounts = (
+    values: Array<string | undefined | null>,
+    limit = 3
+  ) =>
+    Array.from(
+      values
+        .map((value) => value?.trim())
+        .filter((value): value is string => !!value)
+        .reduce((counts, value) => {
+          counts.set(value, (counts.get(value) ?? 0) + 1);
+          return counts;
+        }, new Map<string, number>())
+        .entries()
+    )
+      .sort((left, right) => {
+        if (right[1] !== left[1]) return right[1] - left[1];
+        return left[0].localeCompare(right[0], 'zh-CN');
+      })
+      .slice(0, limit)
+      .map(([value, count]) => ({ value, count }));
+
   const getActiveLibraryGroupOverview = (
     books: LibraryShelfBook[],
     groupBy: 'none' | 'author' | 'collection' | 'format',
@@ -825,6 +854,8 @@
     const formatCount = countDistinctLibraryValues(books.map((book) => book.format));
 
     if (groupBy === 'author') {
+      const topCollections = summarizeLibraryValueCounts(books.map((book) => book.collection));
+      const topFormats = summarizeLibraryValueCounts(books.map((book) => book.format));
       return {
         eyebrow: '当前作者组',
         title: scope,
@@ -833,11 +864,31 @@
           { label: '在读', value: `${readingCount} 本` },
           { label: '已读完', value: `${finishedCount} 本` },
           { label: '未开始', value: `${unstartedCount} 本` }
+        ],
+        pivots: [
+          {
+            title: '常见归类',
+            items: topCollections.map((entry) => ({
+              label: `${entry.count} 本`,
+              value: entry.value,
+              groupBy: 'collection'
+            }))
+          },
+          {
+            title: '常见格式',
+            items: topFormats.map((entry) => ({
+              label: `${entry.count} 本`,
+              value: entry.value,
+              groupBy: 'format'
+            }))
+          }
         ]
       };
     }
 
     if (groupBy === 'collection') {
+      const topAuthors = summarizeLibraryValueCounts(books.map((book) => book.author));
+      const topFormats = summarizeLibraryValueCounts(books.map((book) => book.format));
       return {
         eyebrow: '当前归类组',
         title: scope,
@@ -846,10 +897,30 @@
           { label: '作者', value: `${authorCount} 位` },
           { label: '在读', value: `${readingCount} 本` },
           { label: '已读完', value: `${finishedCount} 本` }
+        ],
+        pivots: [
+          {
+            title: '常见作者',
+            items: topAuthors.map((entry) => ({
+              label: `${entry.count} 本`,
+              value: entry.value,
+              groupBy: 'author'
+            }))
+          },
+          {
+            title: '常见格式',
+            items: topFormats.map((entry) => ({
+              label: `${entry.count} 本`,
+              value: entry.value,
+              groupBy: 'format'
+            }))
+          }
         ]
       };
     }
 
+    const topAuthors = summarizeLibraryValueCounts(books.map((book) => book.author));
+    const topCollections = summarizeLibraryValueCounts(books.map((book) => book.collection));
     return {
       eyebrow: '当前格式组',
       title: scope,
@@ -858,6 +929,24 @@
         { label: '作者', value: `${authorCount} 位` },
         { label: '归类', value: `${collectionCount} 组` },
         { label: '在读', value: `${readingCount} 本` }
+      ],
+      pivots: [
+        {
+          title: '常见作者',
+          items: topAuthors.map((entry) => ({
+            label: `${entry.count} 本`,
+            value: entry.value,
+            groupBy: 'author'
+          }))
+        },
+        {
+          title: '常见归类',
+          items: topCollections.map((entry) => ({
+            label: `${entry.count} 本`,
+            value: entry.value,
+            groupBy: 'collection'
+          }))
+        }
       ]
     };
   };
@@ -1776,6 +1865,13 @@
     await syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '' });
   };
 
+  const handleLibraryGroupPivot = async (
+    nextGroupBy: 'author' | 'collection' | 'format',
+    label: string
+  ) => {
+    await syncLibraryBrowseLocation({ groupBy: nextGroupBy, groupScope: label });
+  };
+
   const handleLibraryFilterChange = (
     event: CustomEvent<{ filterBy: 'all' | 'reading' | 'unstarted' | 'finished' }>
   ) => {
@@ -2067,6 +2163,29 @@
                 </div>
               {/each}
             </div>
+            {#if desktopGroupOverview.pivots.some((section) => section.items.length > 0)}
+              <div class="group-browse-pivots">
+                {#each desktopGroupOverview.pivots as section}
+                  {#if section.items.length > 0}
+                    <div class="group-browse-pivot-section">
+                      <span class="group-browse-pivot-title">{section.title}</span>
+                      <div class="group-browse-pivot-list">
+                        {#each section.items as item}
+                          <button
+                            type="button"
+                            class="group-browse-pivot"
+                            on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
+                          >
+                            <strong>{item.value}</strong>
+                            <small>{item.label}</small>
+                          </button>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+                {/each}
+              </div>
+            {/if}
           </section>
         {/if}
 
@@ -2184,6 +2303,29 @@
                 </div>
               {/each}
             </div>
+            {#if starterGroupOverview.pivots.some((section) => section.items.length > 0)}
+              <div class="group-browse-pivots">
+                {#each starterGroupOverview.pivots as section}
+                  {#if section.items.length > 0}
+                    <div class="group-browse-pivot-section">
+                      <span class="group-browse-pivot-title">{section.title}</span>
+                      <div class="group-browse-pivot-list">
+                        {#each section.items as item}
+                          <button
+                            type="button"
+                            class="group-browse-pivot"
+                            on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
+                          >
+                            <strong>{item.value}</strong>
+                            <small>{item.label}</small>
+                          </button>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+                {/each}
+              </div>
+            {/if}
           </section>
         {/if}
 
@@ -2428,6 +2570,58 @@
     gap: 10px;
   }
 
+  .group-browse-pivots {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    grid-column: 1 / -1;
+  }
+
+  .group-browse-pivot-section {
+    display: grid;
+    gap: 8px;
+    align-content: start;
+  }
+
+  .group-browse-pivot-title {
+    color: var(--text-muted);
+    font: 600 10px/1 var(--font-chrome);
+    letter-spacing: 0.04em;
+  }
+
+  .group-browse-pivot-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .group-browse-pivot {
+    display: inline-grid;
+    gap: 4px;
+    justify-items: start;
+    min-width: 0;
+    padding: 9px 11px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
+    box-shadow: 0 8px 20px rgba(42, 30, 15, 0.05);
+  }
+
+  .group-browse-pivot strong {
+    color: var(--text-primary);
+    font: 600 12px/1.2 var(--font-chrome);
+  }
+
+  .group-browse-pivot small {
+    color: var(--text-muted);
+    font: 600 10px/1 var(--font-chrome);
+  }
+
+  .group-browse-pivot:hover {
+    background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
+    border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
+  }
+
   .group-browse-metric {
     display: grid;
     gap: 6px;
@@ -2588,6 +2782,10 @@
     }
 
     .group-browse-overview {
+      grid-template-columns: 1fr;
+    }
+
+    .group-browse-pivots {
       grid-template-columns: 1fr;
     }
   }
