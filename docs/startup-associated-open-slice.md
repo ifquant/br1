@@ -56,6 +56,19 @@ pnpm test:e2e:tauri:startup-associated-open
 pnpm test:e2e:tauri:startup-associated-open:stress
 ```
 
+另外，startup reproducer 的失败信息现在不只包含：
+
+- `Startup state`
+- `Queue state`
+
+还会附带 Rust 侧的 startup-phase 诊断轨迹，覆盖：
+
+- `setup`
+- `single_instance` / `opened`
+- `queue_with_report`
+- `queue_runtime`
+- `consume`
+
 但最新调查说明，这条 focused startup case 不是稳定绿灯：
 
 - 有时能直接打开 reader window

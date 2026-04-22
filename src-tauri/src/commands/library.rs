@@ -1,7 +1,8 @@
 use crate::models::{
-    AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord, LibraryRepairCandidatePreview,
-    PendingAssociatedBookOpenRequests, ReadestImportResult, ReadestLibrarySummary,
-    RemovedLibraryBookRecords, TrustedAssociatedBookOpenPaths, TrustedLibraryImportPaths,
+    AssociatedBookOpenDiagnostics, AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord,
+    LibraryRepairCandidatePreview, PendingAssociatedBookOpenRequests, ReadestImportResult,
+    ReadestLibrarySummary, RemovedLibraryBookRecords, TrustedAssociatedBookOpenPaths,
+    TrustedLibraryImportPaths,
 };
 use crate::util::{
     book_mime_type, cover_mime_type, ensure_library_root, find_readest_book_file,
@@ -26,6 +27,27 @@ use zip::ZipArchive;
 pub(crate) const ASSOCIATED_BOOK_OPEN_EVENT: &str = "br1:associated-book-open-requested";
 const SUPPORTED_BOOK_DIALOG_EXTENSIONS: &[&str] =
     &["epub", "pdf", "fb2", "mobi", "azw3", "cbz", "txt"];
+
+fn append_associated_book_open_diagnostic<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage: &str,
+    detail: impl Into<String>,
+) {
+    let diagnostics = app.state::<AssociatedBookOpenDiagnostics>();
+    let Ok(mut entries) = diagnostics.0.lock() else {
+        return;
+    };
+
+    let timestamp_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|value| value.as_millis())
+        .unwrap_or_default();
+    entries.push(format!("[{timestamp_ms}] {stage}: {}", detail.into()));
+    if entries.len() > 128 {
+        let overflow = entries.len() - 128;
+        entries.drain(0..overflow);
+    }
+}
 
 fn title_looks_like_stored_filename(value: &str) -> bool {
     let trimmed = value.trim();
@@ -470,12 +492,23 @@ pub(crate) fn queue_associated_book_open_requests_runtime<R: tauri::Runtime>(
     file_paths: Vec<String>,
     cwd: Option<PathBuf>,
 ) -> Result<usize, String> {
+    append_associated_book_open_diagnostic(
+        app,
+        "queue_runtime.begin",
+        format!("inputs={:?}, cwd={cwd:?}", file_paths),
+    );
     let requests = normalize_associated_book_requests(file_paths, cwd.as_deref());
     if requests.is_empty() {
+        append_associated_book_open_diagnostic(app, "queue_runtime.empty", "no normalized requests");
         return Ok(0);
     }
 
     register_trusted_associated_book_paths(app, &requests)?;
+    append_associated_book_open_diagnostic(
+        app,
+        "queue_runtime.normalized",
+        format!("requests={requests:?}"),
+    );
 
     let pending = app.state::<PendingAssociatedBookOpenRequests>();
     let mut queue = pending
@@ -487,6 +520,11 @@ pub(crate) fn queue_associated_book_open_requests_runtime<R: tauri::Runtime>(
     drop(queue);
 
     let _ = app.emit_to("main", ASSOCIATED_BOOK_OPEN_EVENT, ());
+    append_associated_book_open_diagnostic(
+        app,
+        "queue_runtime.emitted",
+        format!("queued_count={queued_count}"),
+    );
     Ok(queued_count)
 }
 
@@ -1328,12 +1366,18 @@ pub(crate) fn probe_untrusted_library_paths_for_webdriver(
 pub(crate) fn consume_associated_book_open_requests(
     app: tauri::AppHandle,
 ) -> Result<Vec<AssociatedBookOpenRequest>, String> {
+    append_associated_book_open_diagnostic(&app, "consume.begin", "attempting to drain queue");
     let pending = app.state::<PendingAssociatedBookOpenRequests>();
     let mut queue = pending
         .0
         .lock()
         .map_err(|_| "Failed to lock associated-book queue".to_string())?;
     let requests = std::mem::take(&mut *queue);
+    append_associated_book_open_diagnostic(
+        &app,
+        "consume.end",
+        format!("drained_count={}", requests.len()),
+    );
     Ok(requests)
 }
 
@@ -1348,6 +1392,19 @@ pub(crate) fn inspect_associated_book_open_requests_for_webdriver(
         .lock()
         .map_err(|_| "Failed to lock associated-book queue".to_string())?;
     Ok(queue.clone())
+}
+
+#[cfg(feature = "webdriver")]
+#[tauri::command]
+pub(crate) fn inspect_associated_book_open_diagnostics_for_webdriver(
+    app: tauri::AppHandle,
+) -> Result<Vec<String>, String> {
+    let diagnostics = app.state::<AssociatedBookOpenDiagnostics>();
+    let entries = diagnostics
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock associated-book diagnostics".to_string())?;
+    Ok(entries.clone())
 }
 
 #[tauri::command]

@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager, RunEvent};
 
 mod commands;
@@ -27,6 +28,27 @@ fn focus_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     if let Some(main_window) = app.get_webview_window("main") {
         let _ = main_window.show();
         let _ = main_window.set_focus();
+    }
+}
+
+fn append_associated_book_open_diagnostic<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage: &str,
+    detail: impl Into<String>,
+) {
+    let diagnostics = app.state::<models::AssociatedBookOpenDiagnostics>();
+    let Ok(mut entries) = diagnostics.0.lock() else {
+        return;
+    };
+
+    let timestamp_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_millis())
+        .unwrap_or_default();
+    entries.push(format!("[{timestamp_ms}] {stage}: {}", detail.into()));
+    if entries.len() > 128 {
+        let overflow = entries.len() - 128;
+        entries.drain(0..overflow);
     }
 }
 
@@ -161,8 +183,18 @@ fn queue_associated_book_open_requests_with_report<R: tauri::Runtime>(
     file_paths: Vec<String>,
     cwd: Option<PathBuf>,
 ) {
+    append_associated_book_open_diagnostic(
+        app,
+        "queue_with_report.begin",
+        format!("inputs={:?}, cwd={:?}", file_paths, cwd),
+    );
     let rejected_inputs = collect_associated_book_open_rejections(&file_paths, cwd.as_deref());
     if !rejected_inputs.is_empty() {
+        append_associated_book_open_diagnostic(
+            app,
+            "queue_with_report.rejected",
+            format!("count={}", rejected_inputs.len()),
+        );
         let _ = app.emit_to(
             "main",
             ASSOCIATED_BOOK_OPEN_REJECTION_EVENT,
@@ -170,17 +202,29 @@ fn queue_associated_book_open_requests_with_report<R: tauri::Runtime>(
         );
     }
 
-    let _ = commands::library::queue_associated_book_open_requests_runtime(app, file_paths, cwd);
+    let result =
+        commands::library::queue_associated_book_open_requests_runtime(app, file_paths, cwd);
+    append_associated_book_open_diagnostic(
+        app,
+        "queue_with_report.end",
+        format!("result={result:?}"),
+    );
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(models::PendingAssociatedBookOpenRequests::default())
+        .manage(models::AssociatedBookOpenDiagnostics::default())
         .manage(models::TrustedAssociatedBookOpenPaths::default())
         .manage(models::TrustedLibraryImportPaths::default())
         .manage(models::RemovedLibraryBookRecords::default())
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            append_associated_book_open_diagnostic(
+                app,
+                "single_instance",
+                format!("argv={argv:?}, cwd={cwd}"),
+            );
             queue_associated_book_open_requests_with_report(
                 app,
                 argv.into_iter().skip(1).collect(),
@@ -218,6 +262,8 @@ pub fn run() {
             #[cfg(feature = "webdriver")]
             commands::library::inspect_associated_book_open_requests_for_webdriver,
             #[cfg(feature = "webdriver")]
+            commands::library::inspect_associated_book_open_diagnostics_for_webdriver,
+            #[cfg(feature = "webdriver")]
             commands::library::trust_library_import_paths_for_webdriver,
             #[cfg(feature = "webdriver")]
             commands::library::probe_untrusted_library_paths_for_webdriver,
@@ -231,6 +277,11 @@ pub fn run() {
             commands::library::update_library_reading_state
         ])
         .setup(|app| {
+            append_associated_book_open_diagnostic(
+                app.handle(),
+                "setup",
+                format!("argv={:?}", std::env::args().collect::<Vec<_>>()),
+            );
             queue_associated_book_open_requests_with_report(
                 app.handle(),
                 std::env::args().skip(1).collect(),
@@ -250,6 +301,7 @@ pub fn run() {
     app.run(|app, event| {
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         if let RunEvent::Opened { urls } = event {
+            append_associated_book_open_diagnostic(app, "opened", format!("urls={urls:?}"));
             queue_associated_book_open_requests_with_report(
                 app,
                 urls.into_iter().map(|url| url.to_string()).collect(),

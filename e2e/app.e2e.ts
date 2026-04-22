@@ -158,6 +158,23 @@ describe('br1 desktop app', () => {
     };
   };
 
+  const inspectAssociatedBookOpenDiagnostics = async () => {
+    const result = await invokeDesktopCommand<string[]>(
+      'inspect_associated_book_open_diagnostics_for_webdriver'
+    );
+    if (!result.ok) {
+      return {
+        ok: false as const,
+        error: result.error
+      };
+    }
+
+    return {
+      ok: true as const,
+      entries: result.result
+    };
+  };
+
   const readLibraryProgressBadgeForTitle = async (title: string) =>
     browser.execute((expectedTitle) => {
       const rows = Array.from(document.querySelectorAll('.continue-shelf .row, .shelf .book-card, .bookshelf .book-card, .bookshelf .book-list-row'));
@@ -3193,14 +3210,16 @@ describe('br1 desktop app', () => {
 
     let startupState = await expectedReaderWindow();
     let queueState = await inspectAssociatedBookOpenQueue();
+    let diagnosticsState = await inspectAssociatedBookOpenDiagnostics();
 
     await browser.waitUntil(async () => {
       startupState = await expectedReaderWindow();
       queueState = await inspectAssociatedBookOpenQueue();
+      diagnosticsState = await inspectAssociatedBookOpenDiagnostics();
       return !!startupState.matchedHandle;
     }, {
       timeout: 15000,
-      timeoutMsg: `expected a startup associated book argument to open a reader window\nStartup state: ${JSON.stringify(startupState)}\nQueue state: ${JSON.stringify(queueState)}`
+      timeoutMsg: `expected a startup associated book argument to open a reader window\nStartup state: ${JSON.stringify(startupState)}\nQueue state: ${JSON.stringify(queueState)}\nDiagnostics: ${JSON.stringify(diagnosticsState)}`
     });
 
     expect(startupState.matchedHandle).toBeTruthy();

@@ -115,6 +115,9 @@ pub(crate) struct PendingAssociatedBookOpenRequests(
 );
 
 #[derive(Default)]
+pub(crate) struct AssociatedBookOpenDiagnostics(pub(crate) Mutex<Vec<String>>);
+
+#[derive(Default)]
 pub(crate) struct TrustedAssociatedBookOpenPaths(pub(crate) Mutex<HashSet<String>>);
 
 #[derive(Default)]
