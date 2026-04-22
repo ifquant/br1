@@ -191,6 +191,16 @@ export type LibraryBrowseBodyModel = {
   afterPanelEmptyStates?: LibraryEmptyStateModel[];
 };
 
+export type LibraryBrowseBodySurfaceModel = {
+  body: LibraryBrowseBodyModel;
+  groupedBrowseMode: boolean;
+  browseState: LibraryBrowseState;
+  browseBooks: LibraryShelfBook[];
+  viewMode: 'grid' | 'list';
+  shelfBooks: LibraryShelfBook[];
+  shelfSectionTitle: string;
+};
+
 export type LibraryNoticeModel = {
   kind: 'info' | 'error';
   message: string;

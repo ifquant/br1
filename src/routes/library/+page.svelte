@@ -6,6 +6,7 @@
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
     LibraryActiveFilterChip,
+    LibraryBrowseBodySurfaceModel,
     LibraryBrowseBodyModel,
     LibraryNoticeModel,
     LibraryPageChromeModel,
@@ -18,8 +19,8 @@
   } from '$lib/library/types';
   import { buildLibraryPageChromeModel } from '$lib/library/chrome';
   import {
-    buildDesktopLibraryBrowseBodyModel,
-    buildStarterLibraryBrowseBodyModel
+    buildDesktopLibraryBrowseBodySurfaceModel,
+    buildStarterLibraryBrowseBodySurfaceModel
   } from '$lib/library/body';
   import {
     buildLibraryScrollContextKey as buildSharedLibraryScrollContextKey,
@@ -34,7 +35,6 @@
     buildLibraryFilterState,
     buildStarterLibraryBrowseDerivations,
     filterBooksForLibraryView,
-    getLibraryBrowseSectionTitle,
     getLibraryEmptyFilterTitle,
     isLibraryViewFiltered,
     normalizeLibrarySearchText,
@@ -321,8 +321,45 @@
     visibleBooksCount: 0,
     workflowNotice: null
   };
-  let desktopBrowseBodyModel: LibraryBrowseBodyModel = {};
-  let starterBrowseBodyModel: LibraryBrowseBodyModel = {};
+  let desktopBrowseBodySurfaceModel: LibraryBrowseBodySurfaceModel = {
+    body: {},
+    groupedBrowseMode: false,
+    browseState: {
+      groupBy: 'none',
+      groupScope: '',
+      trail: []
+    },
+    browseBooks: [],
+    viewMode: 'grid',
+    shelfBooks: [],
+    shelfSectionTitle: '书架'
+  };
+  let starterBrowseBodySurfaceModel: LibraryBrowseBodySurfaceModel = {
+    body: {},
+    groupedBrowseMode: false,
+    browseState: {
+      groupBy: 'none',
+      groupScope: '',
+      trail: []
+    },
+    browseBooks: [],
+    viewMode: 'grid',
+    shelfBooks: [],
+    shelfSectionTitle: '书架'
+  };
+  let activeBrowseBodySurfaceModel: LibraryBrowseBodySurfaceModel = {
+    body: {},
+    groupedBrowseMode: false,
+    browseState: {
+      groupBy: 'none',
+      groupScope: '',
+      trail: []
+    },
+    browseBooks: [],
+    viewMode: 'grid',
+    shelfBooks: [],
+    shelfSectionTitle: '书架'
+  };
   let libraryPageChromeModel: LibraryPageChromeModel = {
     header: {
       totalBooks: 0,
@@ -846,7 +883,14 @@
       } / ${importedBooks.length || starterLibraryBooks.length} 本`
     : '';
   $: starterReadingWorkflowNotice = starterLibraryBrowse.workflowNotice;
-  $: desktopBrowseBodyModel = buildDesktopLibraryBrowseBodyModel({
+  $: desktopBrowseBodySurfaceModel = buildDesktopLibraryBrowseBodySurfaceModel({
+    browseState: getCurrentLibraryBrowseState(),
+    groupedBrowseMode: libraryGroupedBrowseMode,
+    browseBooks: filteredLibraryBrowseBooks,
+    viewMode: libraryViewMode,
+    shelfBooks: filteredLibraryShelfBooks,
+    searchActive: librarySearchActive,
+    groupBy: libraryGroupBy,
     workflowNotice: readingWorkflowNotice,
     recoveryQueueSummaryText,
     recoveryQueueReviewBooks,
@@ -872,7 +916,14 @@
     onClearFilters: handleClearLibraryFilters,
     getEmptyFilterTitle: getLibraryEmptyFilterTitle
   });
-  $: starterBrowseBodyModel = buildStarterLibraryBrowseBodyModel({
+  $: starterBrowseBodySurfaceModel = buildStarterLibraryBrowseBodySurfaceModel({
+    browseState: getCurrentLibraryBrowseState(),
+    groupedBrowseMode: libraryGroupedBrowseMode,
+    browseBooks: filteredStarterBrowseBooks,
+    viewMode: libraryViewMode,
+    shelfBooks: filteredStarterShelfBooks,
+    searchActive: librarySearchActive,
+    groupBy: libraryGroupBy,
     workflowNotice: starterReadingWorkflowNotice,
     filteredContinueReadingBooks: filteredStarterContinueReadingBooks,
     filteredRecentReadingBooks: filteredStarterRecentReadingBooks,
@@ -884,6 +935,9 @@
     onClearFilters: handleClearLibraryFilters,
     getEmptyFilterTitle: getLibraryEmptyFilterTitle
   });
+  $: activeBrowseBodySurfaceModel = desktopLibraryMode
+    ? desktopBrowseBodySurfaceModel
+    : starterBrowseBodySurfaceModel;
   $: libraryPageChromeModel = buildLibraryPageChromeModel({
     totalBooks: importedBooks.length || starterLibraryBooks.length,
     query: libraryQuery,
@@ -1522,44 +1576,25 @@
         class="library-scroll"
         options={{ scrollbars: { autoHide: 'leave', theme: 'os-theme-readest' } }}
       >
-      {#if desktopLibraryMode}
         <LibraryBrowseBody
-          model={desktopBrowseBodyModel}
-          groupedBrowseMode={libraryGroupedBrowseMode}
-          browseState={getCurrentLibraryBrowseState()}
-          browseBooks={filteredLibraryBrowseBooks}
-          viewMode={libraryViewMode}
-          shelfBooks={filteredLibraryShelfBooks}
-          shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
+          model={activeBrowseBodySurfaceModel.body}
+          groupedBrowseMode={activeBrowseBodySurfaceModel.groupedBrowseMode}
+          browseState={activeBrowseBodySurfaceModel.browseState}
+          browseBooks={activeBrowseBodySurfaceModel.browseBooks}
+          viewMode={activeBrowseBodySurfaceModel.viewMode}
+          shelfBooks={activeBrowseBodySurfaceModel.shelfBooks}
+          shelfSectionTitle={activeBrowseBodySurfaceModel.shelfSectionTitle}
           onDispatchBrowseAction={dispatchLibraryBrowseAction}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
-          onOpenSourcePath={handleOpenSourcePath}
-          onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
-          onRemoveBook={handleRemoveLibraryBook}
+          onOpenSourcePath={desktopLibraryMode ? handleOpenSourcePath : null}
+          onUpdateBookMetadata={desktopLibraryMode ? handleUpdateLibraryBookMetadata : null}
+          onRemoveBook={desktopLibraryMode ? handleRemoveLibraryBook : null}
           onFilterStatus={handleFilterByShelfStatus}
           onFilterFormat={handleFilterByShelfFormat}
           onFilterCollection={handleFilterByShelfCollection}
           onFilterTag={handleFilterByShelfTag}
         />
-      {:else}
-        <LibraryBrowseBody
-          model={starterBrowseBodyModel}
-          groupedBrowseMode={libraryGroupedBrowseMode}
-          browseState={getCurrentLibraryBrowseState()}
-          browseBooks={filteredStarterBrowseBooks}
-          viewMode={libraryViewMode}
-          shelfBooks={filteredStarterShelfBooks}
-          shelfSectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
-          onDispatchBrowseAction={dispatchLibraryBrowseAction}
-          onOpenLink={handleOpenReaderTarget}
-          onImportBooks={triggerImportPicker}
-          onFilterStatus={handleFilterByShelfStatus}
-          onFilterFormat={handleFilterByShelfFormat}
-          onFilterCollection={handleFilterByShelfCollection}
-          onFilterTag={handleFilterByShelfTag}
-        />
-      {/if}
       </OverlayScrollbarsComponent>
     </LibraryPageChrome>
   </div>

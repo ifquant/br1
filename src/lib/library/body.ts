@@ -1,9 +1,14 @@
 import type {
   LibraryActiveFilterChip,
   ContinueReadingBook,
+  LibraryBrowseBodySurfaceModel,
   LibraryBrowseBodyModel,
-  LibraryEmptyStateModel
+  LibraryBrowseState,
+  LibraryEmptyStateModel,
+  LibraryGroupBy,
+  LibraryShelfBook
 } from './types';
+import { getLibraryBrowseSectionTitle } from './page';
 
 type BuildFilterEmptyStateArgs = {
   ariaLabel: string;
@@ -52,6 +57,26 @@ type BuildStarterLibraryBrowseBodyModelArgs = {
   onClearFilterById: (id: LibraryActiveFilterChip['id']) => void | Promise<void>;
   onClearFilters: () => void | Promise<void>;
   getEmptyFilterTitle: (detail: string) => string;
+};
+
+type BuildDesktopLibraryBrowseBodySurfaceModelArgs = BuildDesktopLibraryBrowseBodyModelArgs & {
+  browseState: LibraryBrowseState;
+  groupedBrowseMode: boolean;
+  browseBooks: LibraryShelfBook[];
+  viewMode: 'grid' | 'list';
+  shelfBooks: LibraryShelfBook[];
+  searchActive: boolean;
+  groupBy: 'none' | LibraryGroupBy;
+};
+
+type BuildStarterLibraryBrowseBodySurfaceModelArgs = BuildStarterLibraryBrowseBodyModelArgs & {
+  browseState: LibraryBrowseState;
+  groupedBrowseMode: boolean;
+  browseBooks: LibraryShelfBook[];
+  viewMode: 'grid' | 'list';
+  shelfBooks: LibraryShelfBook[];
+  searchActive: boolean;
+  groupBy: 'none' | LibraryGroupBy;
 };
 
 const buildFilterChips = (
@@ -249,4 +274,42 @@ export const buildStarterLibraryBrowseBodyModel = ({
           ]
         : [])
   ]
+});
+
+export const buildDesktopLibraryBrowseBodySurfaceModel = ({
+  browseState,
+  groupedBrowseMode,
+  browseBooks,
+  viewMode,
+  shelfBooks,
+  searchActive,
+  groupBy,
+  ...bodyArgs
+}: BuildDesktopLibraryBrowseBodySurfaceModelArgs): LibraryBrowseBodySurfaceModel => ({
+  body: buildDesktopLibraryBrowseBodyModel(bodyArgs),
+  groupedBrowseMode,
+  browseState,
+  browseBooks,
+  viewMode,
+  shelfBooks,
+  shelfSectionTitle: getLibraryBrowseSectionTitle(searchActive, groupBy)
+});
+
+export const buildStarterLibraryBrowseBodySurfaceModel = ({
+  browseState,
+  groupedBrowseMode,
+  browseBooks,
+  viewMode,
+  shelfBooks,
+  searchActive,
+  groupBy,
+  ...bodyArgs
+}: BuildStarterLibraryBrowseBodySurfaceModelArgs): LibraryBrowseBodySurfaceModel => ({
+  body: buildStarterLibraryBrowseBodyModel(bodyArgs),
+  groupedBrowseMode,
+  browseState,
+  browseBooks,
+  viewMode,
+  shelfBooks,
+  shelfSectionTitle: getLibraryBrowseSectionTitle(searchActive, groupBy)
 });
