@@ -789,6 +789,17 @@
     return '';
   };
 
+  const getLibraryBrowseSectionTitle = (
+    searchActive: boolean,
+    groupBy: 'none' | 'author' | 'collection' | 'format'
+  ) => {
+    if (searchActive) return '搜索结果';
+    if (groupBy === 'author') return '作者书架';
+    if (groupBy === 'collection') return '归类书架';
+    if (groupBy === 'format') return '格式书架';
+    return '你的书库';
+  };
+
   const normalizeLibraryGroupByParam = (value: string | null) => {
     if (value === 'author' || value === 'collection' || value === 'format') return value;
     return 'none';
@@ -1143,12 +1154,15 @@
     libraryGroupBy,
     libraryGroupScope
   );
-  $: visibleLibraryBooksCount =
-    filteredRecoveryQueueBooks.length +
-    filteredContinueReadingBooks.length +
-    filteredRecentReadingBooks.length +
-    filteredLibraryShelfBooks.length;
-  $: readingWorkflowNotice = !librarySearchActive && libraryFilterBy === 'all' && libraryCollectionFilter === 'all' && libraryTagFilter === 'all'
+  $: libraryGroupedBrowseMode = libraryGroupBy !== 'none';
+  $: visibleLibraryBooksCount = libraryGroupedBrowseMode
+    ? filteredLibraryShelfBooks.length
+    : filteredRecoveryQueueBooks.length +
+      filteredContinueReadingBooks.length +
+      filteredRecentReadingBooks.length +
+      filteredLibraryShelfBooks.length;
+  $: readingWorkflowNotice = !libraryGroupedBrowseMode &&
+    !librarySearchActive && libraryFilterBy === 'all' && libraryCollectionFilter === 'all' && libraryTagFilter === 'all'
     ? (() => {
         const hasReadingHistory = importedBooks.some(
           (book) => hasBookBeenOpened(book)
@@ -1215,16 +1229,18 @@
     libraryGroupBy,
     libraryGroupScope
   );
-  $: visibleStarterLibraryBooksCount =
-    filteredStarterContinueReadingBooks.length +
-    filteredStarterRecentReadingBooks.length +
-    filteredStarterShelfBooks.length;
+  $: visibleStarterLibraryBooksCount = libraryGroupedBrowseMode
+    ? filteredStarterShelfBooks.length
+    : filteredStarterContinueReadingBooks.length +
+      filteredStarterRecentReadingBooks.length +
+      filteredStarterShelfBooks.length;
   $: libraryFilterSummary = isLibraryViewFiltered()
     ? `筛选命中 ${
         desktopLibraryMode ? visibleLibraryBooksCount : visibleStarterLibraryBooksCount
       } / ${importedBooks.length || starterLibraryBooks.length} 本`
     : '';
-  $: starterReadingWorkflowNotice = !librarySearchActive && libraryFilterBy === 'all' && libraryCollectionFilter === 'all' && libraryTagFilter === 'all'
+  $: starterReadingWorkflowNotice = !libraryGroupedBrowseMode &&
+    !librarySearchActive && libraryFilterBy === 'all' && libraryCollectionFilter === 'all' && libraryTagFilter === 'all'
     ? (() => {
         if (filteredStarterContinueReadingBooks.length > 0) return null;
         if (filteredStarterRecentReadingBooks.length > 0) {
@@ -1914,7 +1930,7 @@
           </section>
         {/if}
 
-        {#if filteredRecoveryQueueBooks.length}
+        {#if !libraryGroupedBrowseMode && filteredRecoveryQueueBooks.length}
           <ContinueReadingShelf
             sectionTitle="待修复书籍"
             sectionDescription={recoveryQueueSummaryText}
@@ -1938,7 +1954,7 @@
           />
         {/if}
 
-        {#if filteredContinueReadingBooks.length}
+        {#if !libraryGroupedBrowseMode && filteredContinueReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="继续阅读"
             sectionDescription="回到当前正在读的书。"
@@ -1952,7 +1968,7 @@
           />
         {/if}
 
-        {#if filteredRecentReadingBooks.length}
+        {#if !libraryGroupedBrowseMode && filteredRecentReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="最近阅读"
             sectionDescription="重新打开你最近看过，但当前不在继续阅读队列中的书。"
@@ -1967,7 +1983,7 @@
         {/if}
 
         <BookshelfPreview
-          sectionTitle={librarySearchActive ? '搜索结果' : '你的书库'}
+          sectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
           books={filteredLibraryShelfBooks}
           viewMode={libraryViewMode}
           groupBy={libraryGroupBy}
@@ -2037,7 +2053,7 @@
           </section>
         {/if}
 
-        {#if filteredStarterContinueReadingBooks.length}
+        {#if !libraryGroupedBrowseMode && filteredStarterContinueReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="继续阅读"
             sectionDescription="回到当前正在读的样例书。"
@@ -2047,7 +2063,7 @@
           />
         {/if}
 
-        {#if filteredStarterRecentReadingBooks.length}
+        {#if !libraryGroupedBrowseMode && filteredStarterRecentReadingBooks.length}
           <ContinueReadingShelf
             sectionTitle="最近阅读"
             sectionDescription="重新打开你最近看过的样例书。"
@@ -2078,7 +2094,7 @@
         {/if}
 
         <BookshelfPreview
-          sectionTitle={librarySearchActive ? '搜索结果' : '你的书库'}
+          sectionTitle={getLibraryBrowseSectionTitle(librarySearchActive, libraryGroupBy)}
           books={filteredStarterShelfBooks}
           viewMode={libraryViewMode}
           groupBy={libraryGroupBy}
