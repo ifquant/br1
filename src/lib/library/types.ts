@@ -97,6 +97,23 @@ export type LibraryBrowseAction =
       trail: LibraryGroupSegment[];
     };
 
+export type LibraryBrowseInvalidReason = 'missing-trail-segment';
+
+export type LibraryBrowseTransitionResult =
+  | {
+      kind: 'applied';
+      state: LibraryBrowseState;
+    }
+  | {
+      kind: 'noop';
+      state: LibraryBrowseState;
+    }
+  | {
+      kind: 'invalid';
+      reason: LibraryBrowseInvalidReason;
+      action: LibraryBrowseAction;
+    };
+
 export type ManualRelinkReview = {
   note: string;
   repairContractLabel: string;

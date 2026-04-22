@@ -1,5 +1,6 @@
 import type {
   LibraryBrowseAction,
+  LibraryBrowseTransitionResult,
   ActiveLibraryGroupOverview,
   LibraryBrowseState,
   ActiveLibrarySubgroupShelf,
@@ -59,6 +60,23 @@ const countByLabel = (labels: string[]) =>
     counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
     return counts;
   }, new Map<string, number>());
+
+const isSameLibraryBrowseState = (left: LibraryBrowseState, right: LibraryBrowseState) =>
+  left.groupBy === right.groupBy &&
+  left.groupScope === right.groupScope &&
+  left.trail.length === right.trail.length &&
+  left.trail.every(
+    (segment, index) =>
+      segment.groupBy === right.trail[index]?.groupBy && segment.label === right.trail[index]?.label
+  );
+
+const toLibraryBrowseTransitionResult = (
+  current: LibraryBrowseState,
+  next: LibraryBrowseState
+): LibraryBrowseTransitionResult =>
+  isSameLibraryBrowseState(current, next)
+    ? { kind: 'noop', state: next }
+    : { kind: 'applied', state: next };
 
 export const getActiveLibraryGroupOverview = (
   books: LibraryShelfBook[],
@@ -454,18 +472,50 @@ type LibraryBrowseTransitionHandlerMap = {
   [TType in LibraryBrowseAction['type']]: (
     current: LibraryBrowseState,
     action: LibraryBrowseActionByType<TType>
-  ) => LibraryBrowseState | null;
+  ) => LibraryBrowseTransitionResult;
 };
 
 const libraryBrowseTransitionHandlers: LibraryBrowseTransitionHandlerMap = {
   'enter-group': (current, action) =>
-    getLibraryEnterBrowseState(current, action.groupBy, action.label),
-  'exit-group': (current) => getLibraryExitBrowseState(current),
-  'jump-trail': (current, action) => getLibraryJumpTrailState(current, action.index),
+    toLibraryBrowseTransitionResult(
+      current,
+      getLibraryEnterBrowseState(current, action.groupBy, action.label)
+    ),
+  'exit-group': (current) =>
+    toLibraryBrowseTransitionResult(current, getLibraryExitBrowseState(current)),
+  'jump-trail': (current, action) => {
+    const nextState = getLibraryJumpTrailState(current, action.index);
+    if (!nextState) {
+      return {
+        kind: 'invalid',
+        reason: 'missing-trail-segment',
+        action
+      };
+    }
+    return toLibraryBrowseTransitionResult(current, nextState);
+  },
   'enter-from-trail': (current, action) =>
-    getLibraryEnterFromTrailState(current, action.trailIndex, action.groupBy, action.label),
-  'switch-sibling': (_current, action) =>
-    getLibrarySiblingBrowseState(action.groupBy, action.label, action.trail)
+    {
+      const nextState = getLibraryEnterFromTrailState(
+        current,
+        action.trailIndex,
+        action.groupBy,
+        action.label
+      );
+      if (!nextState) {
+        return {
+          kind: 'invalid',
+          reason: 'missing-trail-segment',
+          action
+        };
+      }
+      return toLibraryBrowseTransitionResult(current, nextState);
+    },
+  'switch-sibling': (current, action) =>
+    toLibraryBrowseTransitionResult(
+      current,
+      getLibrarySiblingBrowseState(action.groupBy, action.label, action.trail)
+    )
 };
 
 const dispatchLibraryBrowseAction = <TType extends LibraryBrowseAction['type']>(
@@ -478,5 +528,5 @@ const dispatchLibraryBrowseAction = <TType extends LibraryBrowseAction['type']>(
 export const getNextLibraryBrowseState = (
   current: LibraryBrowseState,
   action: LibraryBrowseAction
-): LibraryBrowseState | null =>
+): LibraryBrowseTransitionResult =>
   dispatchLibraryBrowseAction(current, action);

@@ -1714,7 +1714,7 @@
   };
 
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
-    const nextState = getNextLibraryBrowseState(
+    const result = getNextLibraryBrowseState(
       {
         groupBy: libraryGroupBy,
         groupScope: libraryGroupScope,
@@ -1722,8 +1722,8 @@
       },
       action
     );
-    if (!nextState) return;
-    await syncLibraryBrowseLocation(nextState);
+    if (result.kind !== 'applied') return;
+    await syncLibraryBrowseLocation(result.state);
   };
 
   const handleEnterLibraryGroup = async (
