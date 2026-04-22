@@ -16,16 +16,10 @@
     buildLibraryBrowseHref,
     buildLibraryBrowseSurfaceModel,
     filterBooksByLibraryGroupScope,
-    getLibraryBrowseActionAvailability,
-    getLibraryBrowseActionReasonLabel,
     getLibraryBrowseStateFromUrl,
-    collectLibraryBrowseExplanations,
     getLibraryEnterFromTrailExplanation,
     getLibraryEnterGroupExplanation,
-    getLibraryExitExplanation,
     getLibraryGroupLabel,
-    getLibraryJumpTrailExplanation,
-    getLibraryGroupScopeDescription,
     getNextLibraryBrowseState,
     getLibrarySiblingExplanation
   } from '$lib/library/navigation';
@@ -1724,27 +1718,6 @@
     trail: libraryBrowseTrail
   });
 
-  const isLibraryBrowseActionAvailable = (action: LibraryBrowseAction) =>
-    getLibraryBrowseActionAvailability(getCurrentLibraryBrowseState(), action).kind === 'allowed';
-
-  const getLibraryJumpTrailAvailability = (index: number) =>
-    isLibraryBrowseActionAvailable({
-      type: 'jump-trail',
-      index
-    });
-
-  const getLibraryExitAvailability = () =>
-    isLibraryBrowseActionAvailable({ type: 'exit-group' });
-
-  const getLibraryJumpTrailReasonLabel = (index: number) =>
-    getLibraryBrowseActionReasonLabel(getCurrentLibraryBrowseState(), {
-      type: 'jump-trail',
-      index
-    });
-
-  const getLibraryExitReasonLabel = () =>
-    getLibraryBrowseActionReasonLabel(getCurrentLibraryBrowseState(), { type: 'exit-group' });
-
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
     const result = getNextLibraryBrowseState(
       getCurrentLibraryBrowseState(),
@@ -1752,10 +1725,6 @@
     );
     if (result.kind !== 'applied') return;
     await syncLibraryBrowseLocation(result.state);
-  };
-
-  const handleExitLibraryGroup = async () => {
-    await dispatchLibraryBrowseAction({ type: 'exit-group' });
   };
 
   const handleJumpLibraryGroupTrail = async (
@@ -1890,25 +1859,9 @@
       viewMode={libraryViewMode}
       sortBy={librarySortBy}
       groupBy={libraryGroupBy}
-      activeGroupLabel={libraryGroupScope}
-      activeGroupTrail={libraryBrowseTrail}
-      activeGroupTrailAvailability={libraryBrowseTrail.map((_, index) =>
-        getLibraryJumpTrailAvailability(index))}
-      activeGroupTrailReasonLabels={libraryBrowseTrail.map((_, index) =>
-        getLibraryJumpTrailReasonLabel(index))}
-      canExitGroup={getLibraryExitAvailability()}
-      exitGroupReasonLabel={getLibraryExitReasonLabel()}
-      activeGroupGuardExplanations={collectLibraryBrowseExplanations([
-        getLibraryExitExplanation(getCurrentLibraryBrowseState()),
-        ...libraryBrowseTrail.map((_, index) =>
-          getLibraryJumpTrailExplanation(getCurrentLibraryBrowseState(), index)
-        )
-      ])}
-      activeGroupDescription={getLibraryGroupScopeDescription(
-        libraryGroupBy,
-        libraryGroupScope,
-        filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length
-      )}
+      browseState={getCurrentLibraryBrowseState()}
+      activeGroupVisibleCount={filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length}
+      onDispatchBrowseAction={dispatchLibraryBrowseAction}
       activeFilter={libraryFilterBy}
       statusOptionCounts={libraryStatusOptionCounts}
       activeFormatFilter={libraryFormatFilter}
@@ -1937,7 +1890,6 @@
       on:tagfilterchange={handleLibraryTagFilterChange}
       on:clearfilterchip={handleClearLibraryFilterChip}
       on:clearfilters={handleClearLibraryFilters}
-      on:exitgroup={handleExitLibraryGroup}
       on:jumptrail={handleJumpLibraryGroupTrail}
       on:sortchange={handleLibrarySortChange}
       on:groupbychange={(event) =>

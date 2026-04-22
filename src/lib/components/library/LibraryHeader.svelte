@@ -2,7 +2,15 @@
   import { createEventDispatcher } from 'svelte';
   import { onMount } from 'svelte';
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
-  import type { LibraryBrowseGuardExplanation } from '$lib/library/types';
+  import {
+    collectLibraryBrowseExplanations,
+    getLibraryBrowseActionAvailability,
+    getLibraryBrowseActionReasonLabel,
+    getLibraryExitExplanation,
+    getLibraryGroupScopeDescription,
+    getLibraryJumpTrailExplanation
+  } from '$lib/library/navigation';
+  import type { LibraryBrowseAction, LibraryBrowseState } from '$lib/library/types';
 
   export let totalBooks = 0;
   export let query = '';
@@ -10,17 +18,14 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' = 'recent';
   export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
-  export let activeGroupLabel = '';
-  export let activeGroupTrail: Array<{
-    groupBy: 'author' | 'collection' | 'format';
-    label: string;
-  }> = [];
-  export let activeGroupTrailAvailability: boolean[] = [];
-  export let activeGroupTrailReasonLabels: string[] = [];
-  export let canExitGroup = true;
-  export let exitGroupReasonLabel = '';
-  export let activeGroupGuardExplanations: LibraryBrowseGuardExplanation[] = [];
-  export let activeGroupDescription = '';
+  export let browseState: LibraryBrowseState = {
+    groupBy: 'none',
+    groupScope: '',
+    trail: []
+  };
+  export let activeGroupVisibleCount = 0;
+  export let onDispatchBrowseAction: ((action: LibraryBrowseAction) => void | Promise<void>) | null =
+    null;
   export let activeFilter: 'all' | 'reading' | 'unstarted' | 'finished' = 'all';
   export let statusOptionCounts: Record<'all' | 'reading' | 'unstarted' | 'finished', number> = {
     all: 0,
@@ -126,6 +131,28 @@
     activeFilterChips.some((chip) => chip.id !== 'query' && chip.id !== 'status') ||
     !!filterSummary;
   $: showAdvancedFilters = advancedFiltersOpen || advancedFiltersActive;
+  $: activeGroupLabel = browseState.groupScope;
+  $: activeGroupTrail = browseState.trail;
+  $: canExitGroup =
+    getLibraryBrowseActionAvailability(browseState, { type: 'exit-group' }).kind === 'allowed';
+  $: exitGroupReasonLabel = getLibraryBrowseActionReasonLabel(browseState, { type: 'exit-group' });
+  $: activeGroupTrailAvailability = activeGroupTrail.map(
+    (_, index) =>
+      getLibraryBrowseActionAvailability(browseState, { type: 'jump-trail', index }).kind ===
+      'allowed'
+  );
+  $: activeGroupTrailReasonLabels = activeGroupTrail.map((_, index) =>
+    getLibraryBrowseActionReasonLabel(browseState, { type: 'jump-trail', index })
+  );
+  $: activeGroupGuardExplanations = collectLibraryBrowseExplanations([
+    getLibraryExitExplanation(browseState),
+    ...activeGroupTrail.map((_, index) => getLibraryJumpTrailExplanation(browseState, index))
+  ]);
+  $: activeGroupDescription = getLibraryGroupScopeDescription(
+    groupBy,
+    activeGroupLabel,
+    activeGroupVisibleCount
+  );
 
   const handleQueryInput = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -161,10 +188,18 @@
   };
 
   const handleExitGroup = () => {
+    if (onDispatchBrowseAction) {
+      void onDispatchBrowseAction({ type: 'exit-group' });
+      return;
+    }
     dispatch('exitgroup');
   };
 
   const handleJumpTrail = (index: number) => {
+    if (onDispatchBrowseAction) {
+      void onDispatchBrowseAction({ type: 'jump-trail', index });
+      return;
+    }
     dispatch('jumptrail', { index });
   };
 
