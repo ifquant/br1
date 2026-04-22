@@ -65,6 +65,12 @@ export type LibraryTrailLanding = {
   siblingGroups: Array<{ label: string; count: number }>;
 };
 
+export type LibraryBrowseState = {
+  groupBy: 'none' | LibraryGroupBy;
+  groupScope: string;
+  trail: LibraryGroupSegment[];
+};
+
 export type ManualRelinkReview = {
   note: string;
   repairContractLabel: string;

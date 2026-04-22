@@ -1,5 +1,6 @@
 import type {
   ActiveLibraryGroupOverview,
+  LibraryBrowseState,
   ActiveLibrarySubgroupShelf,
   LibraryGroupBy,
   LibraryGroupSegment,
@@ -296,4 +297,64 @@ export const getLibraryGroupScopeDescription = (
   if (groupBy === 'collection') return `归类 ${scope} · ${count} 本`;
   if (groupBy === 'format') return `格式 ${scope} · ${count} 本`;
   return '';
+};
+
+export const normalizeLibraryGroupByParam = (value: string | null): 'none' | LibraryGroupBy => {
+  if (value === 'author' || value === 'collection' || value === 'format') return value;
+  return 'none';
+};
+
+export const parseLibraryBrowseTrailParam = (value: string | null): LibraryGroupSegment[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((entry) => {
+      if (!entry || typeof entry !== 'object') return [];
+      const groupBy = 'groupBy' in entry ? entry.groupBy : '';
+      const label = 'label' in entry ? entry.label : '';
+      if (
+        (groupBy === 'author' || groupBy === 'collection' || groupBy === 'format') &&
+        typeof label === 'string' &&
+        label.trim()
+      ) {
+        return [{ groupBy, label: label.trim() }];
+      }
+      return [];
+    });
+  } catch {
+    return [];
+  }
+};
+
+export const serializeLibraryBrowseTrailParam = (trail: LibraryGroupSegment[]) =>
+  trail.length > 0 ? JSON.stringify(trail) : '';
+
+export const getLibraryBrowseStateFromUrl = (url: URL): LibraryBrowseState => ({
+  groupBy: normalizeLibraryGroupByParam(url.searchParams.get('groupBy')),
+  groupScope: url.searchParams.get('group')?.trim() ?? '',
+  trail: parseLibraryBrowseTrailParam(url.searchParams.get('trail'))
+});
+
+export const buildLibraryBrowseHref = (url: URL, state: LibraryBrowseState) => {
+  const nextUrl = new URL(url);
+  if (state.groupBy === 'none') {
+    nextUrl.searchParams.delete('groupBy');
+    nextUrl.searchParams.delete('group');
+    nextUrl.searchParams.delete('trail');
+  } else {
+    nextUrl.searchParams.set('groupBy', state.groupBy);
+    if (state.groupScope) {
+      nextUrl.searchParams.set('group', state.groupScope);
+    } else {
+      nextUrl.searchParams.delete('group');
+    }
+    const serializedTrail = serializeLibraryBrowseTrailParam(state.trail);
+    if (serializedTrail) {
+      nextUrl.searchParams.set('trail', serializedTrail);
+    } else {
+      nextUrl.searchParams.delete('trail');
+    }
+  }
+  return `${nextUrl.pathname}${nextUrl.search}`;
 };

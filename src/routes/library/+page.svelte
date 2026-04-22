@@ -12,9 +12,11 @@
     ManualRelinkReview
   } from '$lib/library/types';
   import {
+    buildLibraryBrowseHref,
     filterBooksByLibraryGroupScope,
     getActiveLibraryGroupOverview,
     getActiveLibrarySubgroupShelves,
+    getLibraryBrowseStateFromUrl,
     getLibraryGroupLabel,
     getLibraryGroupScopeDescription,
     getLibrarySiblingGroups,
@@ -792,37 +794,6 @@
   };
 
 
-  const normalizeLibraryGroupByParam = (value: string | null) => {
-    if (value === 'author' || value === 'collection' || value === 'format') return value;
-    return 'none';
-  };
-
-  const parseLibraryBrowseTrailParam = (value: string | null): LibraryGroupSegment[] => {
-    if (!value) return [];
-    try {
-      const parsed = JSON.parse(value);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.flatMap((entry) => {
-        if (!entry || typeof entry !== 'object') return [];
-        const groupBy = 'groupBy' in entry ? entry.groupBy : '';
-        const label = 'label' in entry ? entry.label : '';
-        if (
-          (groupBy === 'author' || groupBy === 'collection' || groupBy === 'format') &&
-          typeof label === 'string' &&
-          label.trim()
-        ) {
-          return [{ groupBy, label: label.trim() }];
-        }
-        return [];
-      });
-    } catch {
-      return [];
-    }
-  };
-
-  const serializeLibraryBrowseTrailParam = (trail: LibraryGroupSegment[]) =>
-    trail.length > 0 ? JSON.stringify(trail) : '';
-
   const syncLibraryBrowseLocation = async (options: {
     groupBy?: 'none' | 'author' | 'collection' | 'format';
     groupScope?: string;
@@ -831,28 +802,11 @@
     const nextGroupBy = options.groupBy ?? libraryGroupBy;
     const nextGroupScope = options.groupScope ?? libraryGroupScope;
     const nextTrail = options.trail ?? libraryBrowseTrail;
-    const nextUrl = new URL($page.url);
-
-    if (nextGroupBy === 'none') {
-      nextUrl.searchParams.delete('groupBy');
-      nextUrl.searchParams.delete('group');
-      nextUrl.searchParams.delete('trail');
-    } else {
-      nextUrl.searchParams.set('groupBy', nextGroupBy);
-      if (nextGroupScope) {
-        nextUrl.searchParams.set('group', nextGroupScope);
-      } else {
-        nextUrl.searchParams.delete('group');
-      }
-      const serializedTrail = serializeLibraryBrowseTrailParam(nextTrail);
-      if (serializedTrail) {
-        nextUrl.searchParams.set('trail', serializedTrail);
-      } else {
-        nextUrl.searchParams.delete('trail');
-      }
-    }
-
-    const nextHref = `${nextUrl.pathname}${nextUrl.search}`;
+    const nextHref = buildLibraryBrowseHref($page.url, {
+      groupBy: nextGroupBy,
+      groupScope: nextGroupScope,
+      trail: nextTrail
+    });
     const currentHref = `${$page.url.pathname}${$page.url.search}`;
     if (nextHref === currentHref) return;
 
@@ -1085,9 +1039,8 @@
   $: libraryCollectionSummary = getLibraryCollectionSummary(librarySummaryBooks);
   $: libraryTagSummary = getLibraryTagSummary(librarySummaryBooks);
   $: libraryCoverSummary = getLibraryCoverSummary(librarySummaryBooks);
-  $: libraryGroupBy = normalizeLibraryGroupByParam($page.url.searchParams.get('groupBy'));
-  $: libraryGroupScope = $page.url.searchParams.get('group')?.trim() ?? '';
-  $: libraryBrowseTrail = parseLibraryBrowseTrailParam($page.url.searchParams.get('trail'));
+  $: ({ groupBy: libraryGroupBy, groupScope: libraryGroupScope, trail: libraryBrowseTrail } =
+    getLibraryBrowseStateFromUrl($page.url));
   $: libraryActiveFilterDetail = getLibraryActiveFilterDetail(
     librarySearchActive,
     libraryQuery,
