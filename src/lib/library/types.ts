@@ -207,6 +207,18 @@ export type LibraryNoticeModel = {
   actionLabel?: string;
 };
 
+export type LibraryNoticeState = LibraryNoticeModel & {
+  action?: () => void | Promise<void>;
+};
+
+export type LibraryFilterControlsState = {
+  query: string;
+  filterBy: 'all' | 'reading' | 'unstarted' | 'finished';
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+};
+
 export type LibraryHeaderModel = {
   totalBooks: number;
   query: string;

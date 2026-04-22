@@ -6,7 +6,8 @@
   import type {
     LibraryActiveFilterChip,
     LibraryBrowseState,
-    LibraryNoticeModel,
+    LibraryFilterControlsState,
+    LibraryNoticeState,
     LibraryPageSurfaceModel,
     LibraryBrowseAction,
     ContinueReadingBook,
@@ -15,6 +16,12 @@
     LibraryShelfBook,
     ManualRelinkReview
   } from '$lib/library/types';
+  import {
+    createLibraryNotice,
+    getAppliedLibraryBrowseState,
+    getNextLibraryFilterControlsState,
+    runLibraryNoticeAction as runSharedLibraryNoticeAction
+  } from '$lib/library/controller';
   import {
     createEmptyLibraryPageSurfaceModel,
     buildDesktopLibraryPageSurfaceModel,
@@ -48,7 +55,6 @@
     getLibraryEnterFromTrailExplanation,
     getLibraryEnterGroupExplanation,
     getLibraryGroupLabel,
-    getNextLibraryBrowseState,
     getLibrarySiblingExplanation
   } from '$lib/library/navigation';
   import {
@@ -299,7 +305,7 @@
     workflowNotice: null
   };
   let libraryScrollContextKey = '';
-  let libraryNotice: (LibraryNoticeModel & { action?: () => void | Promise<void> }) | null = null;
+  let libraryNotice: LibraryNoticeState | null = null;
   let starterReadingWorkflowNotice = null;
   let starterLibraryBrowse: LibraryBrowseDerivations = {
     searchActive: false,
@@ -322,6 +328,22 @@
   let desktopLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(true);
   let starterLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
   let activeLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
+
+  const getCurrentLibraryFilterControlsState = (): LibraryFilterControlsState => ({
+    query: libraryQuery,
+    filterBy: libraryFilterBy,
+    formatFilter: libraryFormatFilter,
+    collectionFilter: libraryCollectionFilter,
+    tagFilter: libraryTagFilter
+  });
+
+  const applyLibraryFilterControlsState = (next: LibraryFilterControlsState) => {
+    libraryQuery = next.query;
+    libraryFilterBy = next.filterBy;
+    libraryFormatFilter = next.formatFilter;
+    libraryCollectionFilter = next.collectionFilter;
+    libraryTagFilter = next.tagFilter;
+  };
 
   const formatLastOpenedLabel = (timestamp: number | null | undefined) => {
     if (typeof timestamp !== 'number' || timestamp <= 0) return '';
@@ -956,17 +978,11 @@
     message: string,
     action?: { label: string; run: () => void | Promise<void> }
   ) => {
-    libraryNotice = {
-      kind,
-      message,
-      actionLabel: action?.label,
-      action: action?.run
-    };
+    libraryNotice = createLibraryNotice(kind, message, action);
   };
 
   const runLibraryNoticeAction = () => {
-    if (!libraryNotice?.action) return;
-    void libraryNotice.action();
+    runSharedLibraryNoticeAction(libraryNotice);
   };
 
   const describeReadestMigrationResult = (result: Awaited<ReturnType<typeof importBooksFromReadest>>) => {
@@ -1387,70 +1403,63 @@
   });
 
   const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
-    const result = getNextLibraryBrowseState(currentLibraryBrowseState, action);
-    if (result.kind !== 'applied') return;
-    await syncLibraryBrowseLocation(result.state);
+    const nextState = getAppliedLibraryBrowseState(currentLibraryBrowseState, action);
+    if (!nextState) return;
+    await syncLibraryBrowseLocation(nextState);
   };
 
   const handleFilterByShelfStatus = (status: LibraryFilter) => {
     if (status === 'all') return;
-    libraryQuery = '';
-    libraryFilterBy = status;
-    libraryFormatFilter = 'all';
-    libraryCollectionFilter = 'all';
-    libraryTagFilter = 'all';
+    applyLibraryFilterControlsState(
+      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+        type: 'apply-shelf-status',
+        filterBy: status
+      })
+    );
   };
 
   const handleFilterByShelfCollection = (collection: string) => {
-    libraryQuery = '';
-    libraryFilterBy = 'all';
-    libraryFormatFilter = 'all';
-    libraryTagFilter = 'all';
-    libraryCollectionFilter = collection;
+    applyLibraryFilterControlsState(
+      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+        type: 'apply-shelf-collection',
+        collection
+      })
+    );
   };
 
   const handleFilterByShelfFormat = (format: string) => {
-    libraryQuery = '';
-    libraryFilterBy = 'all';
-    libraryFormatFilter = format.trim().toUpperCase() || 'all';
-    libraryCollectionFilter = 'all';
-    libraryTagFilter = 'all';
+    applyLibraryFilterControlsState(
+      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+        type: 'apply-shelf-format',
+        format
+      })
+    );
   };
 
   const handleFilterByShelfTag = (tag: string) => {
-    libraryQuery = '';
-    libraryFilterBy = 'all';
-    libraryFormatFilter = 'all';
-    libraryCollectionFilter = 'all';
-    libraryTagFilter = tag;
+    applyLibraryFilterControlsState(
+      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+        type: 'apply-shelf-tag',
+        tag
+      })
+    );
   };
 
   const handleClearLibraryFilters = () => {
-    libraryQuery = '';
-    libraryFilterBy = 'all';
-    libraryFormatFilter = 'all';
-    libraryCollectionFilter = 'all';
-    libraryTagFilter = 'all';
+    applyLibraryFilterControlsState(
+      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+        type: 'reset-all'
+      })
+    );
   };
 
   const clearLibraryFilterById = (id: LibraryActiveFilterChip['id']) => {
-    if (id === 'query') {
-      libraryQuery = '';
-      return;
-    }
-    if (id === 'status') {
-      libraryFilterBy = 'all';
-      return;
-    }
-    if (id === 'format') {
-      libraryFormatFilter = 'all';
-      return;
-    }
-    if (id === 'collection') {
-      libraryCollectionFilter = 'all';
-      return;
-    }
-    libraryTagFilter = 'all';
+    applyLibraryFilterControlsState(
+      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+        type: 'clear-chip',
+        id
+      })
+    );
   };
 
 </script>
@@ -1467,20 +1476,45 @@
     onClearNotice={clearLibraryNotice}
     onReadestMigration={handleReadestMigrationClick}
     onQueryChange={(query) => {
-      libraryQuery = query;
+      applyLibraryFilterControlsState(
+        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+          type: 'set-query',
+          query
+        })
+      );
     }}
     onImportBooks={triggerImportPicker}
     onFilterChange={(filterBy) => {
-      libraryFilterBy = filterBy;
+      applyLibraryFilterControlsState(
+        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+          type: 'set-status',
+          filterBy
+        })
+      );
     }}
     onFormatFilterChange={(format) => {
-      libraryFormatFilter = format;
+      applyLibraryFilterControlsState(
+        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+          type: 'set-format',
+          format
+        })
+      );
     }}
     onCollectionFilterChange={(collection) => {
-      libraryCollectionFilter = collection;
+      applyLibraryFilterControlsState(
+        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+          type: 'set-collection',
+          collection
+        })
+      );
     }}
     onTagFilterChange={(tag) => {
-      libraryTagFilter = tag;
+      applyLibraryFilterControlsState(
+        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
+          type: 'set-tag',
+          tag
+        })
+      );
     }}
     onClearFilterChip={clearLibraryFilterById}
     onClearFilters={handleClearLibraryFilters}
