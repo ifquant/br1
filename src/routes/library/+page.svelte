@@ -1732,6 +1732,28 @@
   const getLibraryExitAvailability = () =>
     isLibraryBrowseActionAvailable({ type: 'exit-group' });
 
+  const getLibraryEnterGroupAvailability = (
+    label: string,
+    groupBy: 'author' | 'collection' | 'format'
+  ) =>
+    isLibraryBrowseActionAvailable({
+      type: 'enter-group',
+      groupBy,
+      label
+    });
+
+  const getLibraryEnterFromTrailAvailability = (
+    trailIndex: number,
+    label: string,
+    groupBy: 'author' | 'collection' | 'format'
+  ) =>
+    isLibraryBrowseActionAvailable({
+      type: 'enter-from-trail',
+      trailIndex,
+      groupBy,
+      label
+    });
+
   const getLibrarySiblingAvailability = (
     label: string,
     groupBy: 'author' | 'collection' | 'format',
@@ -2142,6 +2164,7 @@
                     <button
                       type="button"
                       class="group-browse-trail-action"
+                      disabled={!getLibraryJumpTrailAvailability(landing.index)}
                       on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
                     >
                       回到这一层
@@ -2198,6 +2221,12 @@
                           groupBy={subgroupShelf.groupBy}
                           activeGroupLabel=""
                           showImportTile={false}
+                          onEnterGroupAvailable={(label, nextGroupBy) =>
+                            getLibraryEnterFromTrailAvailability(
+                              landing.index,
+                              label,
+                              nextGroupBy
+                            )}
                           onEnterGroup={(label, nextGroupBy) =>
                             enterLibraryGroupFromTrail(landing.index, label, nextGroupBy)}
                           onOpenLink={handleOpenReaderTarget}
@@ -2267,6 +2296,7 @@
                           <button
                             type="button"
                             class="group-browse-pivot"
+                            disabled={!getLibraryEnterGroupAvailability(item.value, item.groupBy)}
                             on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
                           >
                             <strong>{item.value}</strong>
@@ -2302,6 +2332,7 @@
                   groupBy={subgroupShelf.groupBy}
                   activeGroupLabel=""
                   showImportTile={false}
+                  onEnterGroupAvailable={getLibraryEnterGroupAvailability}
                   onEnterGroup={handleEnterLibraryGroup}
                   onOpenLink={handleOpenReaderTarget}
                 />
@@ -2317,6 +2348,7 @@
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
+          onEnterGroupAvailable={getLibraryEnterGroupAvailability}
           onEnterGroup={handleEnterLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
@@ -2452,6 +2484,7 @@
                     <button
                       type="button"
                       class="group-browse-trail-action"
+                      disabled={!getLibraryJumpTrailAvailability(landing.index)}
                       on:click={() => jumpLibraryGroupTrailToIndex(landing.index)}
                     >
                       回到这一层
@@ -2508,6 +2541,12 @@
                           groupBy={subgroupShelf.groupBy}
                           activeGroupLabel=""
                           showImportTile={false}
+                          onEnterGroupAvailable={(label, nextGroupBy) =>
+                            getLibraryEnterFromTrailAvailability(
+                              landing.index,
+                              label,
+                              nextGroupBy
+                            )}
                           onEnterGroup={(label, nextGroupBy) =>
                             enterLibraryGroupFromTrail(landing.index, label, nextGroupBy)}
                           onOpenLink={handleOpenReaderTarget}
@@ -2577,6 +2616,7 @@
                           <button
                             type="button"
                             class="group-browse-pivot"
+                            disabled={!getLibraryEnterGroupAvailability(item.value, item.groupBy)}
                             on:click={() => handleLibraryGroupPivot(item.groupBy, item.value)}
                           >
                             <strong>{item.value}</strong>
@@ -2612,6 +2652,7 @@
                   groupBy={subgroupShelf.groupBy}
                   activeGroupLabel=""
                   showImportTile={false}
+                  onEnterGroupAvailable={getLibraryEnterGroupAvailability}
                   onEnterGroup={handleEnterLibraryGroup}
                   onOpenLink={handleOpenReaderTarget}
                 />
@@ -2647,6 +2688,7 @@
           groupBy={libraryGroupBy}
           activeGroupLabel={libraryGroupScope}
           showImportTile={!libraryGroupScope}
+          onEnterGroupAvailable={getLibraryEnterGroupAvailability}
           onEnterGroup={handleEnterLibraryGroup}
           onOpenLink={handleOpenReaderTarget}
           onImportBooks={triggerImportPicker}
@@ -2890,6 +2932,16 @@
     background: color-mix(in srgb, var(--surface-reader) 70%, white 30%);
   }
 
+  .group-browse-trail-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+  }
+
+  .group-browse-trail-action:disabled:hover {
+    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
+    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
+  }
+
   .group-browse-trail-metrics {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3062,6 +3114,17 @@
   .group-browse-pivot:hover {
     background: color-mix(in srgb, var(--surface-reader) 68%, white 32%);
     border-color: color-mix(in srgb, #8c6a3b 24%, var(--line-soft) 76%);
+  }
+
+  .group-browse-pivot:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+    box-shadow: none;
+  }
+
+  .group-browse-pivot:disabled:hover {
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
+    border-color: color-mix(in srgb, var(--line-soft) 82%, white 18%);
   }
 
   .group-browse-subgroups {

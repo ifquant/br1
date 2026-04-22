@@ -11,6 +11,9 @@
   export let onEnterGroup:
     | ((label: string, groupBy: 'author' | 'collection' | 'format') => void | Promise<void>)
     | null = null;
+  export let onEnterGroupAvailable:
+    | ((label: string, groupBy: 'author' | 'collection' | 'format') => boolean)
+    | null = null;
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
   export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
@@ -68,6 +71,11 @@
     event.preventDefault();
     event.stopPropagation();
     void onEnterGroup(label, groupBy);
+  };
+
+  const isEnterGroupAvailable = (label: string) => {
+    if (!onEnterGroupAvailable || groupBy === 'none') return true;
+    return onEnterGroupAvailable(label, groupBy);
   };
 
   const getBookKey = (book: BookshelfPreviewBook) =>
@@ -283,6 +291,7 @@
               class:list-link={viewMode === 'list'}
               class="group-card-link"
               aria-label={`进入 ${group.label} 分组`}
+              disabled={!isEnterGroupAvailable(group.label)}
               on:click={(event: MouseEvent) => handleEnterGroup(event, group.label)}
             >
               <div class="group-cover-shell" aria-hidden="true">
@@ -823,6 +832,11 @@
     width: 100%;
     color: inherit;
     text-decoration: none;
+  }
+
+  .group-card-link:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
   }
 
   .group-cover-shell {
