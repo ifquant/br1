@@ -1337,6 +1337,19 @@ pub(crate) fn consume_associated_book_open_requests(
     Ok(requests)
 }
 
+#[cfg(feature = "webdriver")]
+#[tauri::command]
+pub(crate) fn inspect_associated_book_open_requests_for_webdriver(
+    app: tauri::AppHandle,
+) -> Result<Vec<AssociatedBookOpenRequest>, String> {
+    let pending = app.state::<PendingAssociatedBookOpenRequests>();
+    let queue = pending
+        .0
+        .lock()
+        .map_err(|_| "Failed to lock associated-book queue".to_string())?;
+    Ok(queue.clone())
+}
+
 #[tauri::command]
 pub(crate) fn detect_readest_library(
     app: tauri::AppHandle,
