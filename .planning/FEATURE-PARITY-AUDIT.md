@@ -204,6 +204,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - grouped library browse panel now also builds its own shared surface model from browse state plus browse/shelf books, so the route no longer has to precompute desktop/starter grouped-browse surface payloads before rendering the panel
 - grouped library grouping-mode changes now also travel through the shared browse action system instead of a header-only `groupbychange` event path, so `不分组 / 按作者 / 按归类 / 按格式` no longer bypass the same transition model used by jump, exit, sibling, and pivot navigation
 - desktop and starter library modes now also share a first body-level browse shell for workflow notices, continue/recent/recovery shelves, grouped-browse panel composition, and empty-state slot placement, so the route no longer maintains two large parallel body templates around the same browse surface
+- the library page now also has a shared top-level chrome shell for the header, notice banner, and Readest migration banner, so the route no longer hand-renders the same page chrome around the browse body while keeping the scroll viewport wiring local
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 
