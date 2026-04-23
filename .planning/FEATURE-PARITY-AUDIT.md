@@ -235,6 +235,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the library page now also routes its filter inventory and summary projection layer through a shared builder, so `+page.svelte` no longer manually expands filter counts, option inventories, and summaries inline while active-filter detail stays separate to avoid reactive cycles
 - the library page now also routes its current filter-controls state, current browse state, browse dispatch, and action-set assembly through shared controller helpers, so `+page.svelte` no longer carries that controller wiring inline
 - the library page now also routes browse-location normalization through shared navigation helpers, so `+page.svelte` no longer hard-codes the invalid-group and stale-trail correction rules inline before syncing URL state
+- the library page now also routes viewport scroll persistence through shared runtime helpers, so `+page.svelte` no longer implements local save/restore/sync scroll host helpers inline
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import type {
     LibraryActiveFilterChip,
@@ -32,9 +32,9 @@
   import {
     buildLibraryScrollContextKey as buildSharedLibraryScrollContextKey,
     installLibrarySurfaceRuntime,
-    restoreLibraryScrollPosition as restoreSharedLibraryScrollPosition,
-    saveLibraryScrollPosition as saveSharedLibraryScrollPosition,
-    syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation
+    saveLibraryViewportScrollPosition,
+    syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation,
+    syncLibraryViewportScrollContext
   } from '$lib/library/runtime';
   import {
     buildLibraryPageBrowseState,
@@ -338,33 +338,6 @@
       searchActive: librarySearchActive
     });
 
-  const saveLibraryScrollPosition = (contextKey: string) => {
-    if (typeof window === 'undefined' || !contextKey) return;
-    const viewport = getLibraryViewport();
-    if (!viewport) return;
-    saveSharedLibraryScrollPosition({
-      storage: window.sessionStorage,
-      contextKey,
-      scrollTop: viewport.scrollTop
-    });
-  };
-
-  const restoreLibraryScrollPosition = async (contextKey: string) => {
-    if (typeof window === 'undefined' || !contextKey) return;
-    await tick();
-    const viewport = getLibraryViewport();
-    if (!viewport) return;
-    viewport.scrollTop = restoreSharedLibraryScrollPosition({
-      storage: window.sessionStorage,
-      contextKey
-    });
-  };
-
-  const syncLibraryScrollContext = async (previousKey: string, nextKey: string) => {
-    if (previousKey) saveLibraryScrollPosition(previousKey);
-    await restoreLibraryScrollPosition(nextKey);
-  };
-
   const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinator({
     getLibraryNoticeState: () => libraryNotice,
     setLibraryNoticeState: (notice) => {
@@ -436,7 +409,14 @@
       onRefreshLibrary: () => {
         void desktopLibraryPageCoordinator.loadLibrary();
       },
-      onSaveScrollPosition: saveLibraryScrollPosition,
+      onSaveScrollPosition: (contextKey) => {
+        if (typeof window === 'undefined') return;
+        saveLibraryViewportScrollPosition({
+          storage: window.sessionStorage,
+          contextKey,
+          getViewport: getLibraryViewport
+        });
+      },
       getScrollContextKey: () => libraryScrollContextKey
     });
   });
@@ -651,7 +631,12 @@
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
     const previousKey = libraryScrollContextKey;
     libraryScrollContextKey = nextLibraryScrollContextKey;
-    void syncLibraryScrollContext(previousKey, libraryScrollContextKey);
+    void syncLibraryViewportScrollContext({
+      previousKey,
+      nextKey: libraryScrollContextKey,
+      storage: window.sessionStorage,
+      getViewport: getLibraryViewport
+    });
   }
 
   $: activeLibraryPageActions = buildLibraryPageActionSet({

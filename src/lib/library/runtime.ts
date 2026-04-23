@@ -101,6 +101,74 @@ export const restoreLibraryScrollPosition = ({
   return savedPosition ? Number(savedPosition) || 0 : 0;
 };
 
+export const saveLibraryViewportScrollPosition = ({
+  storage,
+  contextKey,
+  getViewport
+}: {
+  storage: Storage;
+  contextKey: string;
+  getViewport: () => HTMLElement | null;
+}) => {
+  if (!contextKey) return;
+  const viewport = getViewport();
+  if (!viewport) return;
+  saveLibraryScrollPosition({
+    storage,
+    contextKey,
+    scrollTop: viewport.scrollTop
+  });
+};
+
+export const restoreLibraryViewportScrollPosition = async ({
+  storage,
+  contextKey,
+  getViewport,
+  afterViewportReady
+}: {
+  storage: Storage;
+  contextKey: string;
+  getViewport: () => HTMLElement | null;
+  afterViewportReady?: () => Promise<void>;
+}) => {
+  if (!contextKey) return;
+  await afterViewportReady?.();
+  const viewport = getViewport();
+  if (!viewport) return;
+  viewport.scrollTop = restoreLibraryScrollPosition({
+    storage,
+    contextKey
+  });
+};
+
+export const syncLibraryViewportScrollContext = async ({
+  previousKey,
+  nextKey,
+  storage,
+  getViewport,
+  afterViewportReady
+}: {
+  previousKey: string;
+  nextKey: string;
+  storage: Storage;
+  getViewport: () => HTMLElement | null;
+  afterViewportReady?: () => Promise<void>;
+}) => {
+  if (previousKey) {
+    saveLibraryViewportScrollPosition({
+      storage,
+      contextKey: previousKey,
+      getViewport
+    });
+  }
+  await restoreLibraryViewportScrollPosition({
+    storage,
+    contextKey: nextKey,
+    getViewport,
+    afterViewportReady
+  });
+};
+
 type InstallLibrarySurfaceRuntimeArgs = {
   win: Window;
   doc: Document;
