@@ -26,11 +26,13 @@
     createReaderSidebarController,
     createReaderTtsController,
     activateReaderParallelPane,
+    closeReaderParallelSecondaryPane,
     READER_EMPTY_TITLE,
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
     parseReaderRouteOpenState,
     canRequestAssistanceForText,
+    openReaderParallelSecondaryPaneFromPrimary,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
     type ReaderTtsSpeechTarget,
@@ -58,7 +60,6 @@
 
   let toc: ReaderTocItem[] = [];
   let activeHref = '';
-  let controlRequest: ReaderControlRequest | null = null;
   let controlNonce = 0;
   let lastAutoKey = '';
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,6 +70,7 @@
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
+  let parallelEnabled = false;
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceRequestNonce = 0;
@@ -89,16 +91,16 @@
   $: if (routeOpenState.autoOpenKey !== parallelSession.panes.primary.source.sourceKey) {
     parallelSession = createReaderParallelSessionFromRoute(routeOpenState);
   }
+  $: parallelEnabled = parallelSession.panes.secondary.openTarget !== null;
   $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
   $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
-    controlRequest = toReaderOpenControlRequest(autoOpenTarget, controlNonce);
     parallelSession = updateReaderParallelPaneControlRequest(
       parallelSession,
       'primary',
-      controlRequest
+      toReaderOpenControlRequest(autoOpenTarget, controlNonce)
     );
     parallelSession = activateReaderParallelPane(parallelSession, 'primary');
     lastAutoKey = routeOpenState.autoOpenKey;
@@ -111,13 +113,33 @@
 
   const issueHrefControl = (href: string) => {
     controlNonce += 1;
-    controlRequest = { type: 'href', href, nonce: controlNonce };
     parallelSession = updateReaderParallelPaneControlRequest(
       parallelSession,
       'primary',
-      controlRequest
+      { type: 'href', href, nonce: controlNonce }
     );
     parallelSession = activateReaderParallelPane(parallelSession, 'primary');
+  };
+
+  const issuePrimaryControlRequest = (request: ReaderControlRequest) => {
+    parallelSession = updateReaderParallelPaneControlRequest(parallelSession, 'primary', request);
+    parallelSession = activateReaderParallelPane(parallelSession, 'primary');
+  };
+
+  const issueSecondaryControlRequest = (request: ReaderControlRequest) => {
+    parallelSession = updateReaderParallelPaneControlRequest(parallelSession, 'secondary', request);
+    parallelSession = activateReaderParallelPane(parallelSession, 'secondary');
+  };
+
+  const toggleParallelSurface = () => {
+    if (parallelEnabled) {
+      parallelSession = closeReaderParallelSecondaryPane(parallelSession);
+      return;
+    }
+
+    controlNonce += 1;
+    parallelSession = openReaderParallelSecondaryPaneFromPrimary(parallelSession, controlNonce);
+    parallelSession = activateReaderParallelPane(parallelSession, 'secondary');
   };
 
   const searchController = createReaderSearchController({
@@ -128,15 +150,15 @@
     },
     dispatchSearch: (query, config) => {
       controlNonce += 1;
-      controlRequest = { type: 'search', nonce: controlNonce, query, config };
+      issuePrimaryControlRequest({ type: 'search', nonce: controlNonce, query, config });
     },
     dispatchSearchResult: (cfi) => {
       controlNonce += 1;
-      controlRequest = { type: 'href', href: cfi, nonce: controlNonce };
+      issuePrimaryControlRequest({ type: 'href', href: cfi, nonce: controlNonce });
     },
     dispatchClearSearchCache: () => {
       controlNonce += 1;
-      controlRequest = { type: 'clear-search-cache', nonce: controlNonce };
+      issuePrimaryControlRequest({ type: 'clear-search-cache', nonce: controlNonce });
     }
   });
   const searchState = searchController.state;
@@ -536,62 +558,91 @@
         on:mousedown={sidebarController.beginResize}
       ></button>
     {/if}
-    <ReaderStage
-      {controlRequest}
-      {autoOpenPicker}
-      {isWindowMode}
-      sidebarVisible={$sidebarState.visible}
-      isCurrentLocationBookmarked={$bookmarksState.bookmarks.some(
-        (bookmark) => bookmark.locator === $bookmarksState.activeLocator
-      )}
-      ttsSession={$ttsState}
-      notes={$notesState.notes}
-      activeSidebarTab={$sidebarState.tab}
-      on:gotolibrary={handleGoToLibrary}
-      on:togglebookmark={handleToggleBookmark}
-      on:togglesidebar={sidebarController.toggleVisible}
-      on:togglepin={sidebarController.togglePinned}
-      on:switchsidebartab={({ detail }) => {
-        sidebarController.toggleTab(detail);
-      }}
-      on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
-        controlRequest = detail;
-        parallelSession = updateReaderParallelPaneControlRequest(
-          parallelSession,
-          'primary',
-          detail
-        );
-        parallelSession = activateReaderParallelPane(parallelSession, 'primary');
-      }}
-      on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
-        currentPreview = detail;
-        activeHref = detail.chapterHref;
-        searchController.setActiveResultCfi(detail.progressLocation);
-        bookmarksController.syncPreview(detail);
-        queueLibraryReadingStatePersist(detail);
-        parallelSession = updateReaderParallelPanePreview(parallelSession, 'primary', detail);
-      }}
-      on:notefocus={({ detail }: CustomEvent<string>) => {
-        notesController.setActiveCfi(detail);
-        sidebarController.openTab('notes');
-      }}
-      on:selectionchange={({ detail }) => {
-        notesController.setSelection(detail);
-      }}
-      on:searchchange={({ detail }) => {
-        searchController.handleSearchChange(detail);
-      }}
-      on:searchcachekeychange={({ detail }) => {
-        searchController.setCacheKey(detail);
-      }}
-      on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
-        toc = detail;
-      }}
-      onTtsStart={handleTtsStart}
-      onTtsPause={handleTtsPause}
-      onTtsResume={handleTtsResume}
-      onTtsStop={handleTtsStop}
-    />
+    <div class="reader-surface">
+      <div class="parallel-surface-toolbar" aria-label="并行阅读控制">
+        <button
+          type="button"
+          class="parallel-toggle"
+          aria-pressed={parallelEnabled}
+          aria-label={parallelEnabled ? '关闭并行阅读' : '开启并行阅读'}
+          on:click={toggleParallelSurface}
+        >
+          {parallelEnabled ? '关闭并行阅读' : '并行阅读'}
+        </button>
+      </div>
+
+      <div class:parallel-enabled={parallelEnabled} class="reader-stage-stack">
+        <ReaderStage
+          controlRequest={parallelSession.panes.primary.controlRequest}
+          {autoOpenPicker}
+          {isWindowMode}
+          sidebarVisible={$sidebarState.visible}
+          isCurrentLocationBookmarked={$bookmarksState.bookmarks.some(
+            (bookmark) => bookmark.locator === $bookmarksState.activeLocator
+          )}
+          ttsSession={$ttsState}
+          notes={$notesState.notes}
+          activeSidebarTab={$sidebarState.tab}
+          on:gotolibrary={handleGoToLibrary}
+          on:togglebookmark={handleToggleBookmark}
+          on:togglesidebar={sidebarController.toggleVisible}
+          on:togglepin={sidebarController.togglePinned}
+          on:switchsidebartab={({ detail }) => {
+            sidebarController.toggleTab(detail);
+          }}
+          on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
+            issuePrimaryControlRequest(detail);
+          }}
+          on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
+            currentPreview = detail;
+            activeHref = detail.chapterHref;
+            searchController.setActiveResultCfi(detail.progressLocation);
+            bookmarksController.syncPreview(detail);
+            queueLibraryReadingStatePersist(detail);
+            parallelSession = updateReaderParallelPanePreview(parallelSession, 'primary', detail);
+          }}
+          on:notefocus={({ detail }: CustomEvent<string>) => {
+            notesController.setActiveCfi(detail);
+            sidebarController.openTab('notes');
+          }}
+          on:selectionchange={({ detail }) => {
+            notesController.setSelection(detail);
+          }}
+          on:searchchange={({ detail }) => {
+            searchController.handleSearchChange(detail);
+          }}
+          on:searchcachekeychange={({ detail }) => {
+            searchController.setCacheKey(detail);
+          }}
+          on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
+            toc = detail;
+          }}
+          onTtsStart={handleTtsStart}
+          onTtsPause={handleTtsPause}
+          onTtsResume={handleTtsResume}
+          onTtsStop={handleTtsStop}
+        />
+
+        {#if parallelEnabled}
+          <ReaderStage
+            controlRequest={parallelSession.panes.secondary.controlRequest}
+            autoOpenPicker={false}
+            {isWindowMode}
+            sidebarVisible={$sidebarState.visible}
+            isCurrentLocationBookmarked={false}
+            ttsSession={$ttsState}
+            notes={[]}
+            activeSidebarTab={$sidebarState.tab}
+            on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
+              issueSecondaryControlRequest(detail);
+            }}
+            on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
+              parallelSession = updateReaderParallelPanePreview(parallelSession, 'secondary', detail);
+            }}
+          />
+        {/if}
+      </div>
+    </div>
 
     {#if !isWindowMode}
       {#if bridgePanelOpen}
@@ -834,6 +885,56 @@
     font-size: 13px;
   }
 
+  .reader-surface {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .parallel-surface-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .parallel-toggle {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
+    color: var(--text-secondary);
+    font: 700 12px/1 var(--font-chrome);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+
+  .parallel-toggle:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-reader) 96%, white 4%);
+  }
+
+  .parallel-toggle:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 72%, white 28%);
+    outline-offset: 3px;
+  }
+
+  .reader-stage-stack {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .reader-stage-stack.parallel-enabled {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 1180px) {
+    .reader-stage-stack.parallel-enabled {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
   @media (max-width: 1120px) {
     .workspace {
       grid-template-columns: 236px minmax(0, 1fr);
@@ -896,6 +997,14 @@
       width: 100%;
       min-height: 38px;
       writing-mode: horizontal-tb;
+    }
+
+    .parallel-surface-toolbar {
+      justify-content: stretch;
+    }
+
+    .parallel-toggle {
+      width: 100%;
     }
 
     .window-chrome {

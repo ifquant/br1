@@ -219,6 +219,44 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 });
 
+test('reader can open a parallel surface without collapsing the shell', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '并行阅读测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  const stages = page.getByRole('main', { name: 'reader stage' });
+  await expect(stages).toHaveCount(1);
+  await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
+
+  await page.getByRole('button', { name: '并行阅读' }).click();
+
+  await expect(page.getByRole('button', { name: '关闭并行阅读' })).toBeVisible();
+  await expect(stages).toHaveCount(2);
+
+  const primaryStage = stages.first();
+  const secondaryStage = stages.nth(1);
+  const primaryProgress = primaryStage.getByLabel('阅读进度').locator('span');
+  const secondaryProgress = secondaryStage.getByLabel('阅读进度').locator('span');
+
+  await expect(primaryStage.getByLabel('阅读页脚控制')).toBeVisible();
+  await expect(secondaryStage.getByLabel('阅读页脚控制')).toBeVisible();
+  await expect(primaryStage.getByRole('button', { name: '下一页' })).toBeVisible();
+  await expect(secondaryStage.getByRole('button', { name: '下一页' })).toBeVisible();
+  await expect(primaryProgress).not.toHaveText('');
+  await expect(secondaryProgress).not.toHaveText('');
+
+  await primaryStage.getByRole('button', { name: '下一页' }).click();
+
+  await expect(stages).toHaveCount(2);
+  await expect(primaryStage.getByLabel('阅读页脚控制')).toBeVisible();
+  await expect(secondaryStage.getByLabel('阅读页脚控制')).toBeVisible();
+  await expect(secondaryStage.getByRole('button', { name: '下一页' })).toBeVisible();
+});
+
 test('reader opens txt assets in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

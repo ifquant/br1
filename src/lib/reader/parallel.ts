@@ -1,6 +1,7 @@
 import { createEmptyReaderPreviewState, READER_EMPTY_TITLE, READER_NOT_OPENED_LOCATION_LABEL, READER_OPENING_LOCATION_LABEL } from './types';
 import type { ReaderControlRequest, ReaderEngineMountState, ReaderPreviewState } from './types';
 import type { ReaderRouteOpenState, ReaderRouteOpenTarget } from './route';
+import { toReaderOpenControlRequest } from './route';
 
 export type ReaderParallelPaneId = 'primary' | 'secondary';
 
@@ -43,8 +44,18 @@ const createReaderParallelPaneProgressState = (
   location: preview.progressLocation
 });
 
-const createReaderParallelPaneSourceState = (
-  id: ReaderParallelPaneId,
+const createReaderParallelPaneEmptySourceState = (
+  id: ReaderParallelPaneId
+): ReaderParallelPaneSourceState => {
+  return {
+    kind: 'empty',
+    sourceKey: '',
+    bookKey: '',
+    label: id === READER_PARALLEL_PRIMARY_PANE_ID ? '等待打开书籍' : '等待打开第二个书籍'
+  };
+};
+
+const createReaderParallelPaneSourceStateFromRoute = (
   routeOpenState: ReaderRouteOpenState
 ): ReaderParallelPaneSourceState => {
   const target = routeOpenState.target;
@@ -54,7 +65,7 @@ const createReaderParallelPaneSourceState = (
       kind: 'empty',
       sourceKey: routeOpenState.autoOpenKey || routeOpenState.bookKey || '',
       bookKey: routeOpenState.bookKey || '',
-      label: id === READER_PARALLEL_PRIMARY_PANE_ID ? '等待打开书籍' : '等待打开第二个书籍'
+      label: '等待打开书籍'
     };
   }
 
@@ -65,6 +76,15 @@ const createReaderParallelPaneSourceState = (
     label: target.label
   };
 };
+
+const createReaderParallelPaneSourceStateFromTarget = (
+  target: ReaderRouteOpenTarget
+): ReaderParallelPaneSourceState => ({
+  kind: 'route',
+  sourceKey: target.bookKey,
+  bookKey: target.bookKey,
+  label: target.label
+});
 
 const createEmptyReaderParallelPaneState = (
   id: ReaderParallelPaneId,
@@ -83,7 +103,7 @@ const createReaderParallelPaneStateFromRoute = (
   id: ReaderParallelPaneId,
   routeOpenState: ReaderRouteOpenState
 ): ReaderParallelPaneState => {
-  const source = createReaderParallelPaneSourceState(id, routeOpenState);
+  const source = createReaderParallelPaneSourceStateFromRoute(routeOpenState);
   const openTarget = routeOpenState.target;
 
   return {
@@ -163,12 +183,50 @@ export const createReaderParallelSessionFromRoute = (
     primary: createReaderParallelPaneStateFromRoute(READER_PARALLEL_PRIMARY_PANE_ID, routeOpenState),
     secondary: createEmptyReaderParallelPaneState(
       READER_PARALLEL_SECONDARY_PANE_ID,
-      createReaderParallelPaneSourceState(READER_PARALLEL_SECONDARY_PANE_ID, {
-        ...routeOpenState,
-        autoOpenKey: '',
-        target: null,
-        bookKey: ''
-      })
+      createReaderParallelPaneEmptySourceState(READER_PARALLEL_SECONDARY_PANE_ID)
+    )
+  }
+});
+
+export const openReaderParallelSecondaryPaneFromPrimary = (
+  session: ReaderParallelSessionState,
+  nonce: number
+): ReaderParallelSessionState => {
+  const primaryPane = session.panes.primary;
+  if (!primaryPane.openTarget) return session;
+
+  const nextSecondaryPane = {
+    ...createEmptyReaderParallelPaneState(
+      READER_PARALLEL_SECONDARY_PANE_ID,
+      createReaderParallelPaneSourceStateFromTarget(primaryPane.openTarget)
+    ),
+    openTarget: primaryPane.openTarget,
+    controlRequest: toReaderOpenControlRequest(primaryPane.openTarget, nonce),
+    mountState: 'loading' as ReaderEngineMountState
+  };
+
+  return {
+    ...session,
+    panes: {
+      ...session.panes,
+      secondary: nextSecondaryPane
+    }
+  };
+};
+
+export const closeReaderParallelSecondaryPane = (
+  session: ReaderParallelSessionState
+): ReaderParallelSessionState => ({
+  ...session,
+  activePaneId:
+    session.activePaneId === READER_PARALLEL_SECONDARY_PANE_ID
+      ? READER_PARALLEL_PRIMARY_PANE_ID
+      : session.activePaneId,
+  panes: {
+    ...session.panes,
+    secondary: createEmptyReaderParallelPaneState(
+      READER_PARALLEL_SECONDARY_PANE_ID,
+      createReaderParallelPaneEmptySourceState(READER_PARALLEL_SECONDARY_PANE_ID)
     )
   }
 });

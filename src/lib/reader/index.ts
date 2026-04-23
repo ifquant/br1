@@ -57,7 +57,9 @@ export {
   READER_PARALLEL_PRIMARY_PANE_ID,
   READER_PARALLEL_SECONDARY_PANE_ID,
   activateReaderParallelPane,
+  closeReaderParallelSecondaryPane,
   createReaderParallelSessionFromRoute,
+  openReaderParallelSecondaryPaneFromPrimary,
   updateReaderParallelPaneControlRequest,
   updateReaderParallelPanePreview
 } from './parallel';

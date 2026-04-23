@@ -217,8 +217,8 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Outcome: users can open two panes side by side without breaking existing single-reader workflows.
   - Touches: reader workspace/stage/viewport composition, reader navigation, e2e tests.
   - Verify: `pnpm check`; targeted parallel-reader regression; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0501
+  - Notes: added a route-level toggle that clones the current primary source into a second `ReaderStage`, keeps primary and secondary control requests separate, and stacks the panes on narrow screens while splitting them side by side when there is room. Tutorial: `tutorials/commit/0501-add-the-first-parallel-read-surface.md`.
 
 - [ ] P1-3.3 Add code syntax highlighting
   - Outcome: code blocks in reader content have an explicit highlighting path and do not rely only on browser defaults.
