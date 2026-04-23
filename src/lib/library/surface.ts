@@ -19,6 +19,71 @@ type BuildLibraryPageSurfaceSetArgs = {
   desktopLibraryMode: boolean;
 };
 
+type BuildLibraryPageSurfaceSetFromStateArgs = {
+  totalBooks: number;
+  query: string;
+  viewMode: 'grid' | 'list';
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  groupBy: 'none' | 'author' | 'collection' | 'format';
+  browseState: Parameters<typeof buildLibraryPageChromeModel>[0]['browseState'];
+  activeGroupVisibleCount: number;
+  activeFilter: Parameters<typeof buildLibraryPageChromeModel>[0]['activeFilter'];
+  statusOptionCounts: Parameters<typeof buildLibraryPageChromeModel>[0]['statusOptionCounts'];
+  activeFormatFilter: string;
+  formatOptions: string[];
+  formatOptionCounts: Record<string, number>;
+  activeCollectionFilter: string;
+  collectionOptions: string[];
+  collectionOptionCounts: Record<string, number>;
+  activeTagFilter: string;
+  tagOptions: string[];
+  tagOptionCounts: Record<string, number>;
+  statusSummary: string;
+  activeFilterDetail: string;
+  activeFilterChips: Parameters<typeof buildLibraryPageChromeModel>[0]['activeFilterChips'];
+  formatSummary: string;
+  collectionSummary: string;
+  tagSummary: string;
+  coverSummary: string;
+  filterSummary: string;
+  importDisabled: boolean;
+  notice: Parameters<typeof buildLibraryPageChromeModel>[0]['notice'];
+  showReadestMigration: boolean;
+  readestLibraryCount: number;
+  readestCompatibleCount: number;
+  migrationBusy: boolean;
+  groupedBrowseMode: boolean;
+  desktopBrowseBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['browseBooks'];
+  desktopShelfBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['shelfBooks'];
+  desktopWorkflowNotice: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['workflowNotice'];
+  recoveryQueueSummaryText: string;
+  recoveryQueueReviewBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['recoveryQueueReviewBooks'];
+  bulkRepairEligibleCount: number;
+  bulkRepairBusy: boolean;
+  bulkRepairSummary: string;
+  filteredContinueReadingBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['filteredContinueReadingBooks'];
+  filteredRecentReadingBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['filteredRecentReadingBooks'];
+  importedBooksCount: number;
+  libraryQuery: string;
+  visibleLibraryBooksCount: number;
+  onOpenSourcePath: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onOpenSourcePath'];
+  onImportBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onImportBooks'];
+  onRepairBook: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onRepairBook'];
+  onRemoveBook: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onRemoveBook'];
+  onBulkRepairBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onBulkRepairBooks'];
+  onReadestMigration: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onReadestMigration'];
+  onClearFilterById: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onClearFilterById'];
+  onClearFilters: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onClearFilters'];
+  getEmptyFilterTitle: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['getEmptyFilterTitle'];
+  starterBrowseBooks: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0]['browseBooks'];
+  starterShelfBooks: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0]['shelfBooks'];
+  starterWorkflowNotice: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0]['workflowNotice'];
+  filteredStarterContinueReadingBooks: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0]['filteredContinueReadingBooks'];
+  filteredStarterRecentReadingBooks: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0]['filteredRecentReadingBooks'];
+  visibleStarterLibraryBooksCount: number;
+  desktopLibraryMode: boolean;
+};
+
 export const createEmptyLibraryPageSurfaceModel = (
   supportsDesktopBookActions: boolean
 ): LibraryPageSurfaceModel => ({
@@ -122,3 +187,157 @@ export const buildLibraryPageSurfaceSet = ({
     active: desktopLibraryMode ? desktop : starter
   };
 };
+
+export const buildLibraryPageSurfaceSetFromState = ({
+  totalBooks,
+  query,
+  viewMode,
+  sortBy,
+  groupBy,
+  browseState,
+  activeGroupVisibleCount,
+  activeFilter,
+  statusOptionCounts,
+  activeFormatFilter,
+  formatOptions,
+  formatOptionCounts,
+  activeCollectionFilter,
+  collectionOptions,
+  collectionOptionCounts,
+  activeTagFilter,
+  tagOptions,
+  tagOptionCounts,
+  statusSummary,
+  activeFilterDetail,
+  activeFilterChips,
+  formatSummary,
+  collectionSummary,
+  tagSummary,
+  coverSummary,
+  filterSummary,
+  importDisabled,
+  notice,
+  showReadestMigration,
+  readestLibraryCount,
+  readestCompatibleCount,
+  migrationBusy,
+  groupedBrowseMode,
+  desktopBrowseBooks,
+  desktopShelfBooks,
+  desktopWorkflowNotice,
+  recoveryQueueSummaryText,
+  recoveryQueueReviewBooks,
+  bulkRepairEligibleCount,
+  bulkRepairBusy,
+  bulkRepairSummary,
+  filteredContinueReadingBooks,
+  filteredRecentReadingBooks,
+  importedBooksCount,
+  libraryQuery,
+  visibleLibraryBooksCount,
+  onOpenSourcePath,
+  onImportBooks,
+  onRepairBook,
+  onRemoveBook,
+  onBulkRepairBooks,
+  onReadestMigration,
+  onClearFilterById,
+  onClearFilters,
+  getEmptyFilterTitle,
+  starterBrowseBooks,
+  starterShelfBooks,
+  starterWorkflowNotice,
+  filteredStarterContinueReadingBooks,
+  filteredStarterRecentReadingBooks,
+  visibleStarterLibraryBooksCount,
+  desktopLibraryMode
+}: BuildLibraryPageSurfaceSetFromStateArgs) =>
+  buildLibraryPageSurfaceSet({
+    chrome: {
+      totalBooks,
+      query,
+      viewMode,
+      sortBy,
+      groupBy,
+      browseState,
+      activeGroupVisibleCount,
+      activeFilter,
+      statusOptionCounts,
+      activeFormatFilter,
+      formatOptions,
+      formatOptionCounts,
+      activeCollectionFilter,
+      collectionOptions,
+      collectionOptionCounts,
+      activeTagFilter,
+      tagOptions,
+      tagOptionCounts,
+      statusSummary,
+      activeFilterDetail,
+      activeFilterChips,
+      formatSummary,
+      collectionSummary,
+      tagSummary,
+      coverSummary,
+      filterSummary,
+      importDisabled,
+      notice,
+      showReadestMigration,
+      readestLibraryCount,
+      readestCompatibleCount,
+      migrationBusy
+    },
+    desktopBody: {
+      browseState,
+      groupedBrowseMode,
+      browseBooks: desktopBrowseBooks,
+      viewMode,
+      shelfBooks: desktopShelfBooks,
+      searchActive: query.trim().length > 0,
+      groupBy,
+      workflowNotice: desktopWorkflowNotice,
+      recoveryQueueSummaryText,
+      recoveryQueueReviewBooks,
+      bulkRepairEligibleCount,
+      bulkRepairBusy,
+      bulkRepairSummary,
+      filteredContinueReadingBooks,
+      filteredRecentReadingBooks,
+      importedBooksCount,
+      readestLibraryCount,
+      migrationBusy,
+      libraryQuery,
+      visibleLibraryBooksCount,
+      activeFilterDetail,
+      activeFilterChips,
+      onOpenSourcePath,
+      onImportBooks,
+      onRepairBook,
+      onRemoveBook,
+      onBulkRepairBooks,
+      onReadestMigration,
+      onClearFilterById,
+      onClearFilters,
+      getEmptyFilterTitle
+    },
+    starterBody: {
+      browseState,
+      groupedBrowseMode,
+      browseBooks: starterBrowseBooks,
+      viewMode,
+      shelfBooks: starterShelfBooks,
+      searchActive: query.trim().length > 0,
+      groupBy,
+      workflowNotice: starterWorkflowNotice,
+      filteredContinueReadingBooks: filteredStarterContinueReadingBooks,
+      filteredRecentReadingBooks: filteredStarterRecentReadingBooks,
+      libraryQuery,
+      visibleStarterLibraryBooksCount,
+      activeFilterDetail,
+      activeFilterChips,
+      onClearFilterById,
+      onClearFilters,
+      getEmptyFilterTitle
+    },
+    desktopLibraryMode
+  });
