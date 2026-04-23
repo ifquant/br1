@@ -19,6 +19,20 @@ type SyncLibraryBrowseLocationArgs = {
   ) => Promise<void>;
 };
 
+export const buildLibraryBrowseLocationBindings = (options: {
+  getCurrentState: () => LibraryBrowseState;
+  getCurrentUrl: () => URL;
+  goto: SyncLibraryBrowseLocationArgs['goto'];
+}) => ({
+  getCurrentBrowseState: options.getCurrentState,
+  syncBrowseState: (state: LibraryBrowseState) =>
+    syncLibraryBrowseLocation({
+      currentUrl: options.getCurrentUrl(),
+      state,
+      goto: options.goto
+    })
+});
+
 type LibraryScrollContextKeyArgs = {
   desktopLibraryMode: boolean;
   viewMode: 'grid' | 'list';

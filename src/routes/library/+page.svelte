@@ -35,11 +35,11 @@
     createEmptyLibraryPageSurfaceModel,
   } from '$lib/library/surface';
   import {
+    buildLibraryBrowseLocationBindings,
     buildLibraryScrollContextKeyFromPageState,
     installLibrarySurfaceRuntime,
     normalizeLibraryBrowseLocation,
     saveLibraryViewportScrollPosition,
-    syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation,
     syncLibraryViewportScrollContext
   } from '$lib/library/runtime';
   import {
@@ -303,6 +303,16 @@
     groupScope: '',
     trail: []
   };
+  let activeLibraryBrowseLocationBindings = buildLibraryBrowseLocationBindings({
+    getCurrentState: () =>
+      buildCurrentLibraryBrowseState({
+        groupBy: libraryGroupBy,
+        groupScope: libraryGroupScope,
+        trail: libraryBrowseTrail
+      }),
+    getCurrentUrl: () => $page.url,
+    goto
+  });
   let activeLibraryFilterControlsBindings = buildLibraryFilterControlsBindings({
     getCurrentState: () =>
       buildCurrentLibraryFilterControlsState({
@@ -481,11 +491,7 @@
   $: {
     void normalizeLibraryBrowseLocation({
       currentUrl: $page.url,
-      state: {
-        groupBy: libraryGroupBy,
-        groupScope: libraryGroupScope,
-        trail: libraryBrowseTrail
-      },
+      state: activeLibraryBrowseLocationBindings.getCurrentBrowseState(),
       desktopShelfBooks: libraryShelfBooks,
       starterShelfBooks,
       goto
@@ -631,13 +637,7 @@
       onUpdateBookMetadata: desktopLibraryPageCoordinator.handleUpdateLibraryBookMetadata,
       onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
       ...activeLibraryFilterControlsBindings,
-      getCurrentBrowseState: () => currentLibraryBrowseState,
-      syncBrowseState: (state) =>
-        syncSharedLibraryBrowseLocation({
-          currentUrl: $page.url,
-          state,
-          goto
-        }),
+      ...activeLibraryBrowseLocationBindings,
       setSortBy: (sortBy) => {
         librarySortBy = sortBy;
       },
