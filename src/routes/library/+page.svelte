@@ -34,6 +34,7 @@
   } from '$lib/library/runtime';
   import {
     buildLibraryPageBrowseState,
+    buildLibraryPageFilterProjectionState,
     buildLibraryPageFilterStateSet,
     getLibraryEmptyFilterTitle,
     normalizeLibrarySearchText,
@@ -533,17 +534,21 @@
   ) {
     void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
   }
-  $: libraryStatusOptionCounts = libraryFilterState.statusOptionCounts;
-  $: libraryFormatOptions = libraryFilterState.formatOptions;
-  $: libraryCollectionOptions = libraryFilterState.collectionOptions;
-  $: libraryTagOptions = libraryFilterState.tagOptions;
-  $: libraryFormatOptionCounts = libraryFilterState.formatOptionCounts;
-  $: libraryCollectionOptionCounts = libraryFilterState.collectionOptionCounts;
-  $: libraryTagOptionCounts = libraryFilterState.tagOptionCounts;
-  $: libraryFormatSummary = libraryFilterState.formatSummary;
-  $: libraryCollectionSummary = libraryFilterState.collectionSummary;
-  $: libraryTagSummary = libraryFilterState.tagSummary;
-  $: libraryCoverSummary = libraryFilterState.coverSummary;
+  $: ({
+    statusOptionCounts: libraryStatusOptionCounts,
+    formatOptions: libraryFormatOptions,
+    collectionOptions: libraryCollectionOptions,
+    tagOptions: libraryTagOptions,
+    formatOptionCounts: libraryFormatOptionCounts,
+    collectionOptionCounts: libraryCollectionOptionCounts,
+    tagOptionCounts: libraryTagOptionCounts,
+    formatSummary: libraryFormatSummary,
+    collectionSummary: libraryCollectionSummary,
+    tagSummary: libraryTagSummary,
+    coverSummary: libraryCoverSummary
+  } = buildLibraryPageFilterProjectionState({
+    filterState: libraryFilterState
+  }));
   $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
   $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
   $: currentLibraryBrowseState = getCurrentLibraryBrowseState();

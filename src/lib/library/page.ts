@@ -67,6 +67,20 @@ export type LibraryPageFilterStateSet = {
   filterState: LibraryFilterState;
 };
 
+export type LibraryPageFilterProjectionState = {
+  statusOptionCounts: Record<LibraryFilter, number>;
+  formatOptions: string[];
+  collectionOptions: string[];
+  tagOptions: string[];
+  formatOptionCounts: Record<string, number>;
+  collectionOptionCounts: Record<string, number>;
+  tagOptionCounts: Record<string, number>;
+  formatSummary: string;
+  collectionSummary: string;
+  tagSummary: string;
+  coverSummary: string;
+};
+
 export type LibraryPageViewState = {
   recoveryQueueBooks: LibraryShelfBook[];
   continueReadingBooks: LibraryShelfBook[];
@@ -586,6 +600,24 @@ export const buildLibraryActiveFilterState = ({
     collectionFilter,
     tagFilter
   )
+});
+
+export const buildLibraryPageFilterProjectionState = ({
+  filterState
+}: {
+  filterState: LibraryFilterState;
+}): LibraryPageFilterProjectionState => ({
+  statusOptionCounts: filterState.statusOptionCounts,
+  formatOptions: filterState.formatOptions,
+  collectionOptions: filterState.collectionOptions,
+  tagOptions: filterState.tagOptions,
+  formatOptionCounts: filterState.formatOptionCounts,
+  collectionOptionCounts: filterState.collectionOptionCounts,
+  tagOptionCounts: filterState.tagOptionCounts,
+  formatSummary: filterState.formatSummary,
+  collectionSummary: filterState.collectionSummary,
+  tagSummary: filterState.tagSummary,
+  coverSummary: filterState.coverSummary
 });
 
 export const buildDesktopLibraryBrowseDerivations = ({

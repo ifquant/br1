@@ -232,6 +232,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the second-stage library page view-state now also routes through a shared builder, so `+page.svelte` no longer hand-expands queue books, recovery summaries, workflow notices, and desktop/starter visible-count state inline while filter option summaries stay route-local to avoid reactive cycles
 - the library page now also routes its main browse-state chain through a shared builder, so `+page.svelte` no longer has to manually stitch first-stage browse derivations together with second-stage view-state expansion
 - the library page now also routes its `summaryBooks + filterState` assembly through a shared builder, so `+page.svelte` no longer wires those two filter-state layers together inline while browse-state stays separately shared to avoid reactive cycles
+- the library page now also routes its filter inventory and summary projection layer through a shared builder, so `+page.svelte` no longer manually expands filter counts, option inventories, and summaries inline while active-filter detail stays separate to avoid reactive cycles
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 
