@@ -34,7 +34,7 @@
   } from '$lib/library/runtime';
   import {
     buildLibraryPageBrowseState,
-    buildLibraryFilterState,
+    buildLibraryPageFilterStateSet,
     getLibraryEmptyFilterTitle,
     normalizeLibrarySearchText,
     type DesktopLibraryBrowseDerivations,
@@ -452,10 +452,13 @@
   });
 
   $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;
-  $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
-  $: libraryFilterState = buildLibraryFilterState({
-    summaryBooks: librarySummaryBooks
-  });
+  $: ({
+    summaryBooks: librarySummaryBooks,
+    filterState: libraryFilterState
+  } = buildLibraryPageFilterStateSet({
+    importedBooks,
+    starterLibraryBooks
+  }));
   $: ({
     searchActive: librarySearchActive,
     activeFilterState: libraryActiveFilterState,

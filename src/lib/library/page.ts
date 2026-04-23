@@ -62,6 +62,11 @@ export type LibraryPageDerivations = {
 
 export type LibraryPageBrowseState = LibraryPageDerivations & LibraryPageViewState;
 
+export type LibraryPageFilterStateSet = {
+  summaryBooks: LibraryShelfBook[];
+  filterState: LibraryFilterState;
+};
+
 export type LibraryPageViewState = {
   recoveryQueueBooks: LibraryShelfBook[];
   continueReadingBooks: LibraryShelfBook[];
@@ -986,5 +991,23 @@ export const buildLibraryPageBrowseState = ({
   return {
     ...derivations,
     ...viewState
+  };
+};
+
+export const buildLibraryPageFilterStateSet = ({
+  importedBooks,
+  starterLibraryBooks,
+}: {
+  importedBooks: LibraryShelfBook[];
+  starterLibraryBooks: LibraryShelfBook[];
+}): LibraryPageFilterStateSet => {
+  const summaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
+  const filterState = buildLibraryFilterState({
+    summaryBooks
+  });
+
+  return {
+    summaryBooks,
+    filterState
   };
 };
