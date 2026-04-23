@@ -1404,6 +1404,37 @@ describe('br1 desktop app', () => {
     }
   };
 
+  const openLibrarySampleInReader = async (filename: string) => {
+    const libraryHandle = await switchToLibraryWindow();
+    const sourcePath = join(appDataRoot, `br1-sample-${Date.now()}-${filename}`);
+    await copyFile(join(staticSamplesRoot, filename), sourcePath);
+    const [importedBook] = await importDesktopLibraryBooks([sourcePath]);
+    const filePath = importedBook?.filePath ?? '';
+    if (!filePath) {
+      throw new Error(`expected to import a desktop sample book: ${filename}`);
+    }
+
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+    await openReaderFromLibraryPath(filePath, libraryHandle);
+    await waitForDesktopReaderToHydrate();
+
+    return {
+      libraryHandle,
+      filePath,
+      sourcePath: importedBook?.sourcePath ?? sourcePath
+    };
+  };
+
+  const reopenLastReaderBook = async (filePath: string, libraryHandle: string) => {
+    await cleanupReaderAttempt(libraryHandle);
+    await browser.switchToWindow(libraryHandle);
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+    await openReaderFromLibraryPath(filePath, libraryHandle);
+    await waitForDesktopReaderToHydrate();
+  };
+
   const openUsableShelfPdfFromLibrary = async () => {
     const libraryHandle = await switchToLibraryWindow();
     const [samplePdf] = await importDesktopLibraryBooks([join(staticSamplesRoot, 'sample-outline.pdf')]);
@@ -7077,6 +7108,78 @@ describe('br1 desktop app', () => {
     await cleanupReaderAttempt(libraryHandle);
   });
 
+  it('P0 settings persist across reopen', async function () {
+    this.timeout(300000);
+    const { libraryHandle, filePath } = await openLibrarySampleInReader('sample-book.epub');
+
+    await selectReaderMenuSetting('reader flow mode', '滚动');
+    await selectReaderMenuSetting('reader font family', '无衬线');
+    await selectReaderMenuSetting('reader font scale', '大');
+    await selectReaderMenuSetting('reader line height', '舒展');
+    await selectReaderMenuSetting('reader page margins', '宽');
+    await setReaderViewWidthMode('wide');
+
+    await browser.waitUntil(async () => {
+      const storedSettings = await readStoredReaderSettings();
+      const rendererSettings = await readDesktopRendererSettings();
+      const details = await readReaderDetails();
+      return (
+        storedSettings.flowMode === 'scrolled' &&
+        storedSettings.fontFamily === 'sans' &&
+        storedSettings.fontScale === 'lg' &&
+        storedSettings.lineHeight === 'relaxed' &&
+        storedSettings.pageMargins === 'wide' &&
+        storedSettings.viewWidthMode === 'wide' &&
+        rendererSettings.flow === 'scrolled' &&
+        details.layoutLabel === 'SCROLL'
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected reader settings to apply before the reopen regression'
+    }).catch(async (error) => {
+      const storedSettings = await readStoredReaderSettings();
+      const rendererSettings = await readDesktopRendererSettings();
+      const details = await readReaderDetails();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nStored settings: ${JSON.stringify(
+          storedSettings
+        )}\nRenderer settings: ${JSON.stringify(rendererSettings)}\nReader details: ${JSON.stringify(details)}`
+      );
+    });
+
+    await reopenLastReaderBook(filePath, libraryHandle);
+
+    await browser.waitUntil(async () => {
+      const storedSettings = await readStoredReaderSettings();
+      const rendererSettings = await readDesktopRendererSettings();
+      const details = await readReaderDetails();
+      return (
+        storedSettings.flowMode === 'scrolled' &&
+        storedSettings.fontFamily === 'sans' &&
+        storedSettings.fontScale === 'lg' &&
+        storedSettings.lineHeight === 'relaxed' &&
+        storedSettings.pageMargins === 'wide' &&
+        storedSettings.viewWidthMode === 'wide' &&
+        rendererSettings.flow === 'scrolled' &&
+        details.layoutLabel === 'SCROLL'
+      );
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected reader settings to survive closing and reopening the same sample book'
+    }).catch(async (error) => {
+      const storedSettings = await readStoredReaderSettings();
+      const rendererSettings = await readDesktopRendererSettings();
+      const details = await readReaderDetails();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nStored settings: ${JSON.stringify(
+          storedSettings
+        )}\nRenderer settings: ${JSON.stringify(rendererSettings)}\nReader details: ${JSON.stringify(details)}`
+      );
+    });
+
+    await cleanupReaderAttempt(libraryHandle);
+  });
+
   it('persists MOBI and AZW3 highlights and notes separately through the desktop reader store', async function () {
     this.timeout(300000);
     const importedBooks = await importDesktopSampleLibraryBooks();
@@ -8638,6 +8741,150 @@ describe('br1 desktop app', () => {
 
     await clearAllReaderNotes();
     await cleanupReaderAttempt(libraryHandle);
+  });
+
+  it('P0 search cache can replay and clear current-book search', async function () {
+    this.timeout(300000);
+    const { libraryHandle, filePath } = await openLibrarySampleInReader('sample-book.epub');
+    await browser.switchToWindow(libraryHandle);
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+    const href = await readLibraryHrefForPath(filePath);
+    if (!href) {
+      throw new Error(`expected to find a library href for ${filePath}`);
+    }
+    const target = new URL(href, 'http://localhost');
+    const bookKey =
+      target.searchParams.get('path') ||
+      target.searchParams.get('url') ||
+      target.searchParams.get('label') ||
+      filePath;
+    const searchCacheBookKey = await buildReaderSearchCacheBookKey(bookKey);
+    const historyKey = `br1.reader.search.history:${bookKey}`;
+    const query = 'reader-cache-replay-regression';
+    const cacheKey = JSON.stringify({
+      query,
+      scope: 'book',
+      matchCase: true,
+      matchWholeWords: false,
+      matchDiacritics: false,
+      section: null
+    });
+    const seededResults = [
+      {
+        cfi: 'epubcfi(/6/2[cache-replay]!/4/2/6)',
+        label: 'Replay Fixture',
+        excerpt: {
+          pre: 'Seeded cache entry for ',
+          match: query,
+          post: ' survives reopen.'
+        }
+      }
+    ];
+
+    await browser.execute(([nextHistoryKey]) => {
+      localStorage.removeItem(nextHistoryKey);
+      localStorage.removeItem('br1.reader.search.config');
+    }, [historyKey] as const);
+    await browser.execute(([nextHistoryKey, nextQuery]) => {
+      localStorage.setItem(
+        nextHistoryKey,
+        JSON.stringify([
+          {
+            id: JSON.stringify([nextQuery, 'book', true, false, false]),
+            query: nextQuery,
+            config: {
+              scope: 'book',
+              matchCase: true,
+              matchWholeWords: false,
+              matchDiacritics: false
+            },
+            resultCount: 1,
+            createdAt: Date.now()
+          }
+        ])
+      );
+      localStorage.setItem(
+        'br1.reader.search.config',
+        JSON.stringify({
+          scope: 'book',
+          matchCase: true,
+          matchWholeWords: false,
+          matchDiacritics: false
+        })
+      );
+    }, [historyKey, query] as const);
+    await clearReaderSearchCacheOnDisk(searchCacheBookKey);
+    await seedReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey, seededResults);
+
+    await reopenLastReaderBook(filePath, libraryHandle);
+    await switchReaderToSearchTab();
+
+    await browser.waitUntil(async () => {
+      const cacheStatus = await $('[aria-label="搜索缓存状态"]');
+      if (!(await cacheStatus.isDisplayed())) return false;
+      const text = await cacheStatus.getText();
+      return (
+        text.includes('当前书搜索缓存已启用') &&
+        text.includes(query) &&
+        text.includes('清空缓存')
+      );
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected the search cache status panel to expose the replayable current-book cache'
+    }).catch(async (error) => {
+      const cacheStatusText = await $('[aria-label="搜索缓存状态"]').getText().catch(() => '');
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nSearch cache status: ${cacheStatusText}`
+      );
+    });
+
+    const cacheQueryEntry = await $(`//ul[@aria-label="搜索缓存查询记录"]//button[contains(., "${query}")]`);
+    await cacheQueryEntry.click();
+    const searchInput = await $('input[type="search"]');
+    await browser.waitUntil(async () => (await searchInput.getValue()) === query, {
+      timeout: 30000,
+      timeoutMsg: 'expected clicking a cache query entry to restore the cached search query'
+    });
+    await searchInput.clearValue();
+    await browser.waitUntil(async () => {
+      const cacheStatus = await $('[aria-label="搜索缓存状态"]');
+      if (!(await cacheStatus.isDisplayed())) return false;
+      const text = await cacheStatus.getText();
+      return text.includes('清空缓存');
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected the search cache status panel to return before clearing the cache'
+    });
+
+    const clearCacheButton = await $('//section[@aria-label="搜索缓存状态"]//button[normalize-space()="清空缓存"]');
+    await clearCacheButton.click();
+    await browser.waitUntil(async () => {
+      const notices = await $$('.search-notice');
+      for (const notice of notices) {
+        const text = await notice.getText();
+        if (text.includes('已清空当前书的搜索缓存')) return true;
+      }
+      return false;
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected clearing the current-book search cache to show a user-facing notice'
+    });
+
+      await browser.waitUntil(async () => {
+        try {
+        await loadReaderSearchCacheOnDisk(searchCacheBookKey, cacheKey);
+        return false;
+      } catch {
+        return true;
+      }
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected clearing the current-book search cache to remove the disk cache entry'
+    });
+
+    await cleanupReaderAttempt(libraryHandle);
+    await clearReaderSearchCacheOnDisk(searchCacheBookKey);
   });
 
   it('restores search history, options, and disk cache after reopening the same book', async function () {

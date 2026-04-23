@@ -98,12 +98,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Done commit: 26e74db
   - Notes: `e2e/app.e2e.ts` now has a targeted `certifies associated-open queue normalization and trusted-open boundaries` regression, and the startup associated-open desktop test continues to cover packaged-style intake.
 
-- [ ] P0-2.1 Certify scroll/paginated and reader settings persistence
+- [x] P0-2.1 Certify scroll/paginated and reader settings persistence
   - Outcome: flow, typography, margins, theme, width mode, and chrome mode persist across reload/reopen for primary supported surfaces.
   - Touches: reader settings, stage/header/viewport wiring, e2e coverage.
   - Verify: `pnpm check`; targeted settings persistence regressions; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0486-certify-p0-reader-settings-and-search-cache
+  - Notes: `e2e/app.e2e.ts` now has `P0 settings persist across reopen`, which reopens a sample EPUB after changing flow/font/layout settings and confirms the settings still drive the real reader state.
 
 - [ ] P0-2.2 Close remaining layout polish for reader chrome and sidebar
   - Outcome: header, footer, viewport, sidebar, PDF host, TXT paper, and foliate surfaces share consistent layout tokens and no obvious Readest-parity shell mismatch remains.
@@ -112,12 +112,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Done commit:
   - Notes:
 
-- [ ] P0-3.1 Certify search cache, history, replay, and clearing behavior
+- [x] P0-3.1 Certify search cache, history, replay, and clearing behavior
   - Outcome: whole-book search has reliable query execution, result navigation, history replay, cache identity, cache ledger, and cache clear semantics.
   - Touches: search controller, reader sidebar, search cache service, e2e tests.
   - Verify: `pnpm check`; targeted search/cache regressions; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0486-certify-p0-reader-settings-and-search-cache
+  - Notes: `e2e/app.e2e.ts` now has `P0 search cache can replay and clear current-book search`, which replays a seeded current-book cache entry, restores the query, and confirms the cache file is removed after clear.
 
 - [ ] P0-3.2 Certify annotations, notes, bookmarks, and progress restore
   - Outcome: create, edit, delete, locate, persist, reopen, selection-set, and format-capability behavior are covered for the supported reader surfaces.
