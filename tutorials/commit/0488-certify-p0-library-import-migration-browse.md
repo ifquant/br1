@@ -17,6 +17,7 @@ Readest 迁移本身这次没有重复做一条新回归，而是沿用现有的
 
 - `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`，PASS
 - `bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "P0 library import migration grouping filtering and sorting"`，PASS
+- `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`，PASS
 
 没做的事：
 
