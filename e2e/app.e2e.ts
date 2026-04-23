@@ -251,6 +251,11 @@ describe('br1 desktop app', () => {
     return join(appDataRoot, 'reader-highlights-workspace', `${safeKey}.json`);
   };
 
+  const readerBookmarksFilePath = (bookKey: string) => {
+    const safeKey = createHash('sha256').update(bookKey).digest('hex');
+    return join(appDataRoot, 'reader-bookmarks', `${safeKey}.json`);
+  };
+
   const loadReaderNotesOnDisk = async (bookKey: string) => {
     const notesFile = readerNotesFilePath(bookKey);
     const raw = await readFile(notesFile, 'utf8');
@@ -272,6 +277,27 @@ describe('br1 desktop app', () => {
 
   const clearReaderHighlightsWorkspaceStateOnDisk = async (bookKey: string) => {
     await rm(readerHighlightsWorkspaceFilePath(bookKey), { force: true });
+  };
+
+  const loadReaderBookmarksOnDisk = async (bookKey: string) => {
+    const bookmarksFile = readerBookmarksFilePath(bookKey);
+    const raw = await readFile(bookmarksFile, 'utf8');
+    const parsed = JSON.parse(raw) as {
+      bookmarks?: Array<{
+        id?: string;
+        locator?: string;
+        targetHref?: string;
+        chapterLabel?: string;
+        chapterHref?: string;
+        progressLabel?: string;
+        locationLabel?: string;
+      }>;
+    };
+    return parsed.bookmarks ?? [];
+  };
+
+  const clearReaderBookmarksOnDisk = async (bookKey: string) => {
+    await rm(readerBookmarksFilePath(bookKey), { force: true });
   };
 
   const clickAnnotationKindFilter = async (label: '全部类型' | '高亮' | '笔记') => {
@@ -1907,6 +1933,21 @@ describe('br1 desktop app', () => {
         throw new Error('expected an enabled note action for the current selection');
       }
       target.click();
+    });
+  };
+
+  const saveCurrentLocationBookmark = async () => {
+    await browser.execute(() => {
+      const button = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('.reader-head-frame button[aria-label]')
+      ).find((candidate) =>
+        candidate.getAttribute('aria-label') === '添加当前位置书签' ||
+        candidate.getAttribute('aria-label') === '移除当前位置书签'
+      );
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error('expected the current-location bookmark toggle to exist');
+      }
+      button.click();
     });
   };
 
@@ -5191,7 +5232,7 @@ describe('br1 desktop app', () => {
     }, notesStorageKey);
   });
 
-  it('persists txt highlights and notes separately through the desktop reader store', async function () {
+  it('P0 annotations notes bookmarks and progress restore', async function () {
     this.timeout(300000);
     const importedBooks = await importDesktopSampleLibraryBooks();
     const txtBook = importedBooks.find((entry) => entry.format === 'TXT');
@@ -5201,7 +5242,9 @@ describe('br1 desktop app', () => {
       (await loadLibraryRecordByIdOnDisk(txtBook!.id)) ??
       (await loadLibraryRecordBySourcePathOnDisk(txtBook!.sourcePath));
     let currentFilePath = (refreshedTxtBook?.filePath ?? refreshedTxtBook?.file_path ?? txtBook!.filePath) as string;
+    let readerBookKey = currentFilePath;
     await clearReaderNotesOnDisk(currentFilePath);
+    await clearReaderBookmarksOnDisk(currentFilePath);
 
     const libraryHandle = await switchToLibraryWindow();
     await browser.refresh();
@@ -5209,8 +5252,18 @@ describe('br1 desktop app', () => {
 
     await openReaderFromLibraryPath(currentFilePath, libraryHandle);
     await switchReaderToNotesTab();
+    const openedHref = await readLibraryHrefForPath(currentFilePath);
+    if (openedHref) {
+      const openedTarget = new URL(openedHref, 'http://localhost');
+      readerBookKey =
+        openedTarget.searchParams.get('path') ||
+        openedTarget.searchParams.get('url') ||
+        openedTarget.searchParams.get('label') ||
+        currentFilePath;
+    }
     await clearAllReaderNotes();
-    await clearReaderHighlightsWorkspaceStateOnDisk(currentFilePath);
+    await clearReaderHighlightsWorkspaceStateOnDisk(readerBookKey);
+    await clearReaderBookmarksOnDisk(readerBookKey);
 
     await selectPlainTextInReader('plain text file exists');
     await browser.waitUntil(async () => {
@@ -5316,6 +5369,86 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the TXT desktop notes workspace to show two highlights and one note'
     });
 
+    await browser.execute(() => {
+      const surface = document.querySelector('.plain-text-surface');
+      if (!(surface instanceof HTMLElement)) {
+        throw new Error('expected the TXT reader surface to exist before bookmarking');
+      }
+      const maxScroll = surface.scrollHeight - surface.clientHeight;
+      if (maxScroll <= 0) {
+        throw new Error('expected the TXT fixture to produce a scrollable desktop surface before bookmarking');
+      }
+      surface.scrollTop = maxScroll * 0.44;
+      surface.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+
+    let bookmarkedProgressFraction = 0;
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      bookmarkedProgressFraction = details.progressFraction ?? 0;
+      return bookmarkedProgressFraction > 0.2;
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop reader to expose a non-trivial progress position before bookmarking'
+    });
+
+    await saveCurrentLocationBookmark();
+    await clickReaderSidebarTab('书签');
+    await browser.waitUntil(async () => {
+      const panel = await $('[aria-label="书签面板"]');
+      if (!(await panel.isDisplayed())) return false;
+      const text = await panel.getText();
+      const cards = await $$('.bookmark-card');
+      return (
+        text.includes('已保存 1 个阅读位置') &&
+        text.includes('当前位置已保存') &&
+        text.includes('全部章节') &&
+        cards.length === 1
+      );
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop bookmarks workspace to show the saved bookmark before reopen'
+    });
+
+    await browser.execute(() => {
+      const surface = document.querySelector('.plain-text-surface');
+      if (!(surface instanceof HTMLElement)) {
+        throw new Error('expected the TXT reader surface to exist before bookmarking locate verification');
+      }
+      const maxScroll = surface.scrollHeight - surface.clientHeight;
+      if (maxScroll <= 0) {
+        throw new Error('expected the TXT fixture to keep a scrollable desktop surface before bookmarking locate verification');
+      }
+      surface.scrollTop = maxScroll * 0.82;
+      surface.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      return (details.progressFraction ?? 0) > Math.min(bookmarkedProgressFraction + 0.2, 0.8);
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop reader to move away from the bookmarked location before locating it'
+    });
+
+    const bookmarkLink = await $('.bookmark-link');
+    await bookmarkLink.click();
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      if (details.stageError) {
+        throw new Error(details.stageError);
+      }
+      return Math.abs((details.progressFraction ?? 0) - bookmarkedProgressFraction) < 0.12;
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected the saved bookmark to restore the bookmarked TXT reader location'
+    }).catch(async (error) => {
+      const details = await readReaderDetails();
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nBookmark locate details: ${JSON.stringify(details)}\nSaved progress fraction: ${bookmarkedProgressFraction}`
+      );
+    });
+
     await selectReaderMenuSetting('reader flow mode', '滚动');
     await selectReaderMenuSetting('reader font family', '无衬线');
     await selectReaderMenuSetting('reader font scale', '大');
@@ -5350,6 +5483,7 @@ describe('br1 desktop app', () => {
       );
     });
 
+    await clickGoToLibrary();
     await cleanupReaderAttempt(libraryHandle);
     const reopenedTxtRecord =
       (await loadLibraryRecordByIdOnDisk(txtBook!.id)) ??
@@ -5365,6 +5499,7 @@ describe('br1 desktop app', () => {
       const plainTextState = await readPlainTextReaderSettings();
       return (
         details.layoutLabel === 'SCROLL' &&
+        Math.abs((details.progressFraction ?? 0) - bookmarkedProgressFraction) < 0.12 &&
         plainTextState.surfacePadding.includes('34px') &&
         plainTextState.fontSize === '22px' &&
         plainTextState.lineHeightPx > 42 &&
@@ -5403,6 +5538,47 @@ describe('br1 desktop app', () => {
       timeout: 30000,
       timeoutMsg: 'expected the TXT desktop notes workspace to persist both highlights and the note after reopen'
     });
+
+    await clickReaderSidebarTab('书签');
+    await browser.waitUntil(async () => {
+      const panel = await $('[aria-label="书签面板"]');
+      if (!(await panel.isDisplayed())) return false;
+      const text = await panel.getText();
+      const cards = await $$('.bookmark-card');
+      return (
+        text.includes('已保存 1 个阅读位置') &&
+        text.includes('当前位置已保存') &&
+        cards.length === 1
+      );
+    }, {
+      timeout: 30000,
+      timeoutMsg: 'expected the TXT desktop bookmarks workspace to persist the saved bookmark after reopen'
+    });
+    await loadReaderBookmarksOnDisk(readerBookKey).catch(() => []);
+
+    await browser.execute(() => {
+      const controls = document.querySelector('[aria-label="阅读控制"]');
+      if (!(controls instanceof HTMLElement)) {
+        throw new Error('expected the reader control strip to exist');
+      }
+      const button = Array.from(controls.querySelectorAll('button')).find((candidate) =>
+        candidate.getAttribute('aria-label') === '移除当前位置书签'
+      );
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error('expected the reader to expose the saved bookmark toggle after reopen');
+      }
+      button.click();
+    });
+    await browser.waitUntil(async () => {
+      const panel = await $('[aria-label="书签面板"]');
+      const text = await panel.getText();
+      return text.includes('还没有书签');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected the TXT desktop bookmarks workspace to remove the persisted bookmark during cleanup'
+    });
+
+    await clickReaderSidebarTab('笔记');
 
     await clickAnnotationKindFilter('高亮');
     await browser.waitUntil(async () => {
@@ -5937,6 +6113,8 @@ describe('br1 desktop app', () => {
     });
 
     await clearAllReaderNotes();
+    await clearReaderBookmarksOnDisk(readerBookKey);
+    await clearReaderHighlightsWorkspaceStateOnDisk(readerBookKey);
     await cleanupReaderAttempt(libraryHandle);
   });
 

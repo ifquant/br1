@@ -119,12 +119,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Done commit: 0486-certify-p0-reader-settings-and-search-cache
   - Notes: `e2e/app.e2e.ts` now has `P0 search cache can replay and clear current-book search`, which replays a seeded current-book cache entry, restores the query, and confirms the cache file is removed after clear.
 
-- [ ] P0-3.2 Certify annotations, notes, bookmarks, and progress restore
+- [x] P0-3.2 Certify annotations, notes, bookmarks, and progress restore
   - Outcome: create, edit, delete, locate, persist, reopen, selection-set, and format-capability behavior are covered for the supported reader surfaces.
   - Touches: reader sidebar, reader viewport, notes/bookmarks/highlights services, e2e tests.
   - Verify: `pnpm check`; targeted annotation/bookmark/progress regressions; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0487-certify-p0-annotations-bookmarks-progress
+  - Notes: `e2e/app.e2e.ts` now has `P0 annotations notes bookmarks and progress restore`, which creates TXT highlights and a note, persists a bookmark, proves bookmark locate behavior, and reopens with restored progress plus the saved notes/bookmarks still present.
 
 - [ ] P0-4.1 Certify library import, migration, grouping, filtering, and sorting
   - Outcome: library management can be treated as a complete local bookshelf workflow rather than an import launcher.
