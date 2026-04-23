@@ -155,6 +155,62 @@ export const buildLibraryScrollContextKeyFromPageState = ({
     searchActive: query.trim().length > 0
   });
 
+export const syncLibraryViewportScrollContextFromPageState = async ({
+  currentKey,
+  setCurrentKey,
+  storage,
+  getViewport,
+  desktopLibraryMode,
+  viewMode,
+  sortBy,
+  browseState,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter,
+  query,
+  afterViewportReady
+}: {
+  currentKey: string;
+  setCurrentKey: (key: string) => void;
+  storage: Storage;
+  getViewport: () => HTMLElement | null;
+  desktopLibraryMode: boolean;
+  viewMode: 'grid' | 'list';
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  browseState: LibraryBrowseState;
+  filterBy: 'all' | 'reading' | 'unstarted' | 'finished';
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+  query: string;
+  afterViewportReady?: () => Promise<void>;
+}) => {
+  const nextKey = buildLibraryScrollContextKeyFromPageState({
+    desktopLibraryMode,
+    viewMode,
+    sortBy,
+    browseState,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    query
+  });
+
+  if (nextKey === currentKey) return;
+
+  setCurrentKey(nextKey);
+
+  await syncLibraryViewportScrollContext({
+    previousKey: currentKey,
+    nextKey,
+    storage,
+    getViewport,
+    afterViewportReady
+  });
+};
+
 export const saveLibraryScrollPosition = ({
   storage,
   contextKey,

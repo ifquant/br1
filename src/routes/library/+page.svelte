@@ -37,11 +37,10 @@
   } from '$lib/library/surface';
   import {
     buildLibraryBrowseLocationBindings,
-    buildLibraryScrollContextKeyFromPageState,
     installLibrarySurfaceRuntime,
     normalizeLibraryBrowseLocation,
     saveLibraryViewportScrollPosition,
-    syncLibraryViewportScrollContext
+    syncLibraryViewportScrollContextFromPageState
   } from '$lib/library/runtime';
   import {
     buildLibraryPageBrowseState,
@@ -615,25 +614,23 @@
       visibleStarterLibraryBooksCount,
       desktopLibraryMode
     }));
-  $: nextLibraryScrollContextKey = buildLibraryScrollContextKeyFromPageState({
-    desktopLibraryMode,
-    viewMode: libraryViewMode,
-    sortBy: librarySortBy,
-    browseState: currentLibraryBrowseState,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter,
-    query: libraryQuery
-  });
-  $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
-    const previousKey = libraryScrollContextKey;
-    libraryScrollContextKey = nextLibraryScrollContextKey;
-    void syncLibraryViewportScrollContext({
-      previousKey,
-      nextKey: libraryScrollContextKey,
+  $: if (typeof window !== 'undefined') {
+    void syncLibraryViewportScrollContextFromPageState({
+      currentKey: libraryScrollContextKey,
+      setCurrentKey: (key) => {
+        libraryScrollContextKey = key;
+      },
       storage: window.sessionStorage,
-      getViewport: getLibraryViewport
+      getViewport: getLibraryViewport,
+      desktopLibraryMode,
+      viewMode: libraryViewMode,
+      sortBy: librarySortBy,
+      browseState: currentLibraryBrowseState,
+      filterBy: libraryFilterBy,
+      formatFilter: libraryFormatFilter,
+      collectionFilter: libraryCollectionFilter,
+      tagFilter: libraryTagFilter,
+      query: libraryQuery
     });
   }
 
