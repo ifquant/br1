@@ -77,12 +77,23 @@ Planning consequence:
 
 Goal: prove the local reader core is shippable before moving the main execution line to advanced reading features.
 
-- [ ] P0-0.1 Run a P0 exit audit
+- [x] P0-0.1 Run a P0 exit audit
   - Outcome: every P0 row is marked `PASS`, `BLOCKED`, or `SHIPPABLE_WITH_CAVEAT` inside this checklist.
   - Touches: planning docs only unless the audit exposes a blocking correctness bug.
-  - Verify: `pnpm check`; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Verify: `pnpm check` (PASS); `git diff --check` (PASS).
+  - Done commit: pending
+  - Notes: P0 has no `BLOCKED` row. The local reader core is shippable for the Phase 1 baseline, with one documented layout caveat: P0-2.2 is source/static certified but not screenshot-regression certified.
+
+  | Row | Verdict | Evidence | Blocking Gap | Follow-up Item |
+  |---|---|---|---|---|
+  | Multi-format open/import/reopen | PASS | `6a71dd4`; `tests/e2e/library-smoke.spec.ts` loops EPUB, PDF, FB2, MOBI, AZW3, CBZ, and TXT sample fixtures through open/reopen evidence. | None. | P0-1.1 |
+  | File association and trusted open | PASS | `26e74db`; associated-open queue normalization, startup open-with intake, trusted library-file open, and untrusted renderer-path rejection are covered by desktop regressions. | None. | P0-1.2 |
+  | Scroll/paginated and settings persistence | PASS | `38a05da`; `P0 settings persist across reopen` reopens a sample EPUB after changing flow, typography, margins, theme, width, and chrome settings. | None. | P0-2.1 |
+  | Reader chrome/sidebar layout polish | SHIPPABLE_WITH_CAVEAT | `e3f5b83`; shared window-shell width and edge tokens now align header, footer, viewport, pinned sidebar, overlay sidebar, and PDF/TXT/foliate host surfaces. | No functional blocker; visual edge-case drift at unusual window sizes remains possible because this slice used source/static certification only. | P0-2.2 |
+  | Search cache/history/replay/clear | PASS | `38a05da`; `P0 search cache can replay and clear current-book search` verifies replay, query restoration, cache identity, and clear semantics. | None. | P0-3.1 |
+  | Annotations/notes/bookmarks/progress | PASS | `a6e6285`; `P0 annotations notes bookmarks and progress restore` creates TXT highlights/notes/bookmarks, locates via bookmark, and reopens with restored progress. | None. | P0-3.2 |
+  | Library import/migration/group/filter/sort | PASS | `83d5932`; `P0 library import migration grouping filtering and sorting` covers sample import, format sorting, format grouping, format filtering, and reuses the existing Readest migration banner/notice regression. | None. | P0-4.1 |
+  | Library repair/remove/restore/cover/metadata | PASS | `add8f96`; `P0 library repair remove restore cover and metadata` anchors cover/repair trust safety and reuses existing remove/undo, row repair, bulk repair, and metadata persistence regressions. | None. | P0-4.2 |
 
 - [x] P0-1.1 Certify multi-format open/import/reopen coverage
   - Outcome: EPUB, PDF, FB2, MOBI, AZW3, CBZ, and TXT each have fixture-backed import, open, return, and reopen evidence.
