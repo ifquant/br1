@@ -352,15 +352,15 @@
     padding: 0;
     border: 0;
     background: transparent;
-    width: min(100%, 1080px);
+    width: min(100%, var(--reader-window-frame-width, 1080px));
     margin-inline: auto;
   }
 
   .canvas.window-mode.focus-width {
-    width: min(100%, 920px);
+    width: min(100%, var(--reader-window-frame-width-focus, 920px));
   }
 
   .canvas.window-mode.wide-width {
-    width: min(100%, 1320px);
+    width: min(100%, var(--reader-window-frame-width-wide, 1320px));
   }
 </style>

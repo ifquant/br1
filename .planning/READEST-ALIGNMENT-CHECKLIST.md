@@ -105,12 +105,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Done commit: 38a05da
   - Notes: `e2e/app.e2e.ts` now has `P0 settings persist across reopen`, which reopens a sample EPUB after changing flow/font/layout settings and confirms the settings still drive the real reader state.
 
-- [ ] P0-2.2 Close remaining layout polish for reader chrome and sidebar
+- [x] P0-2.2 Close remaining layout polish for reader chrome and sidebar
   - Outcome: header, footer, viewport, sidebar, PDF host, TXT paper, and foliate surfaces share consistent layout tokens and no obvious Readest-parity shell mismatch remains.
   - Touches: reader components and styles.
   - Verify: `pnpm check`; visual/source review; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: pending
+  - Notes: normalized window-shell width and edge tokens across header, footer, viewport, and sidebar; removed the sidebar's extra window-mode vertical margin so pinned/overlay chrome lines up with the reader stage. Inspected PDF/TXT/foliate window surfaces and found no remaining shell-token drift after the sidebar margin fix.
 
 - [x] P0-3.1 Certify search cache, history, replay, and clearing behavior
   - Outcome: whole-book search has reliable query execution, result navigation, history replay, cache identity, cache ledger, and cache clear semantics.

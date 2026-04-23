@@ -480,6 +480,13 @@
   .reader-shell.window-mode {
     min-height: 100vh;
     padding-top: 0;
+    --reader-window-frame-width: 1080px;
+    --reader-window-frame-width-focus: 920px;
+    --reader-window-frame-width-wide: 1320px;
+    --reader-window-edge-x: 18px;
+    --reader-window-edge-y-top: 8px;
+    --reader-window-edge-y-bottom: 12px;
+    --reader-window-sidebar-gap: 18px;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-page) 95%, white 5%);
@@ -491,7 +498,7 @@
     align-items: start;
     position: relative;
     min-height: 26px;
-    padding: 8px 18px 0;
+    padding: var(--reader-window-edge-y-top, 8px) var(--reader-window-edge-x, 18px) 0;
     background: transparent;
     user-select: none;
     pointer-events: none;
@@ -525,13 +532,14 @@
   }
 
   .workspace.window-mode {
-    --reader-workspace-edge: 18px;
-    --reader-workspace-gap: 18px;
     position: relative;
     align-items: stretch;
-    gap: var(--reader-workspace-gap);
+    gap: var(--reader-window-sidebar-gap, 18px);
     min-height: calc(100vh - 26px);
-    padding: 8px var(--reader-workspace-edge) 12px;
+    padding:
+      var(--reader-window-edge-y-top, 8px)
+      var(--reader-window-edge-x, 18px)
+      var(--reader-window-edge-y-bottom, 12px);
     box-sizing: border-box;
     grid-template-columns: minmax(208px, var(--reader-sidebar-width, 224px)) minmax(0, 1fr);
   }
@@ -549,11 +557,11 @@
     cursor: col-resize;
     position: absolute;
     left: calc(
-      var(--reader-workspace-edge, 18px) + var(--reader-sidebar-width, 224px) +
-        (var(--reader-workspace-gap, 18px) / 2) - 2px
+      var(--reader-window-edge-x, 18px) + var(--reader-sidebar-width, 224px) +
+        (var(--reader-window-sidebar-gap, 18px) / 2) - 2px
     );
-    top: 8px;
-    bottom: 12px;
+    top: var(--reader-window-edge-y-top, 8px);
+    bottom: var(--reader-window-edge-y-bottom, 12px);
     z-index: 21;
     border: 0;
     padding: 0;
@@ -675,8 +683,10 @@
     }
 
     .workspace.window-mode {
-      --reader-workspace-edge: 14px;
-      --reader-workspace-gap: 14px;
+      --reader-window-edge-x: 14px;
+      --reader-window-edge-y-top: 8px;
+      --reader-window-edge-y-bottom: 10px;
+      --reader-window-sidebar-gap: 14px;
       grid-template-columns: 208px minmax(0, 1fr);
     }
 
@@ -725,14 +735,13 @@
 
     .window-chrome {
       grid-template-columns: 56px minmax(0, 1fr);
-      padding-inline: 10px;
+      padding-inline: var(--reader-window-edge-x, 10px);
     }
 
     .workspace.window-mode {
-      --reader-workspace-edge: 10px;
-      --reader-workspace-gap: 10px;
-      padding-inline: var(--reader-workspace-edge);
-      padding-bottom: 10px;
+      --reader-window-edge-x: 10px;
+      --reader-window-edge-y-bottom: 10px;
+      --reader-window-sidebar-gap: 10px;
     }
   }
 </style>

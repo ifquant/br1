@@ -2743,7 +2743,7 @@
   .reader-sidebar.window-mode {
     border: 1px solid color-mix(in srgb, var(--border-light) 84%, transparent 16%);
     border-radius: 24px;
-    margin: 8px 0 12px;
+    margin: 0;
     box-shadow:
       0 18px 38px rgba(50, 35, 18, 0.06),
       inset 0 1px 0 rgba(255, 255, 255, 0.28);
@@ -2754,9 +2754,9 @@
 
   .reader-sidebar.overlay-mode {
     position: absolute;
-    top: 8px;
-    left: var(--reader-workspace-edge, 18px);
-    bottom: 12px;
+    top: var(--reader-window-edge-y-top, 8px);
+    left: var(--reader-window-edge-x, 18px);
+    bottom: var(--reader-window-edge-y-bottom, 12px);
     width: min(336px, 42vw);
     z-index: 20;
     margin: 0;

@@ -434,7 +434,7 @@
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr) auto;
     align-items: center;
-    width: min(100%, 1080px);
+    width: min(100%, var(--reader-window-frame-width, 1080px));
     margin: 0 auto;
     min-height: 44px;
     padding: 4px 20px 2px 16px;
@@ -447,11 +447,11 @@
   }
 
   .reader-head-frame.window-mode.focus-width {
-    width: min(100%, 920px);
+    width: min(100%, var(--reader-window-frame-width-focus, 920px));
   }
 
   .reader-head-frame.window-mode.wide-width {
-    width: min(100%, 1320px);
+    width: min(100%, var(--reader-window-frame-width-wide, 1320px));
   }
 
   .reader-head.window-mode.visible {

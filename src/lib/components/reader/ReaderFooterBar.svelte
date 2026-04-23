@@ -120,7 +120,7 @@
   }
 
   .footer-frame.window-mode {
-    width: min(100%, 1080px);
+    width: min(100%, var(--reader-window-frame-width, 1080px));
     margin: 0 auto;
     padding: 6px 12px 10px;
     border-top: 1px solid rgba(64, 47, 24, 0.04);
@@ -130,11 +130,11 @@
   }
 
   .footer-frame.window-mode.focus-width {
-    width: min(100%, 920px);
+    width: min(100%, var(--reader-window-frame-width-focus, 920px));
   }
 
   .footer-frame.window-mode.wide-width {
-    width: min(100%, 1320px);
+    width: min(100%, var(--reader-window-frame-width-wide, 1320px));
   }
 
   .footer-controls {
