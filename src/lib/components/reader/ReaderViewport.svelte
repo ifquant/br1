@@ -1115,9 +1115,9 @@
             </div>
           {/if}
           {#if openStatus !== 'open'}
-            <div class="stage-overlay" aria-hidden="true">
-              <div class="overlay-stack">
-                <p class="stage-status" aria-live="polite">
+            <div class="stage-overlay">
+              <div class="overlay-stack" role="status" aria-live="polite" aria-atomic="true">
+                <p class="stage-status">
                   {#if openStatus === 'loading'}
                     正在打开 {openSourceLabel || '书籍'}…
                   {:else if openStatus === 'error'}
@@ -1127,7 +1127,7 @@
                   {/if}
                 </p>
                 {#if openStatus === 'error'}
-                  <p class="stage-error" aria-live="polite">
+                  <p class="stage-error">
                     {#if openFailureMessage}
                       <span>{openFailureMessage}</span>
                     {/if}
@@ -1172,11 +1172,11 @@
           </div>
 
           {#if openStatus !== 'open'}
-            <div class="paper-copy" aria-hidden="true">
+            <div class="paper-copy">
               {#if openStatus === 'error'}
                 <p>无法打开 {openFailureSource || '书籍'}。</p>
                 {#if openFailureMessage}
-                  <p class="stage-error" aria-live="polite">
+                  <p class="stage-error">
                     <span>{openFailureMessage}</span>
                   </p>
                 {/if}

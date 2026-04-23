@@ -199,12 +199,12 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Done commit: 0498
   - Notes: this v1 adds a persisted reading ruler plus a line/paragraph focus band in the viewport overlay, with no paragraph detection or foliate DOM rewriting.
 
-- [ ] P1-2.4 Run an accessibility hardening pass
+- [x] P1-2.4 Run an accessibility hardening pass
   - Outcome: keyboard navigation, focus states, ARIA labels, reduced-motion behavior, and screen-reader basics are explicitly audited and fixed.
   - Touches: reader chrome, sidebar, library actions where needed.
   - Verify: `pnpm check`; keyboard/manual audit notes; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: e808de3
+  - Notes: added explicit focus-visible rings for reader chrome, sidebar controls, the route-level resize/bridge buttons, reduced-motion fallbacks for window-mode chrome, and live-region status output for TTS plus reader open/error status.
 
 - [ ] P1-3.1 Add the parallel-read session model
   - Outcome: two reader panes can be represented with independent source, navigation, progress, and loading state.

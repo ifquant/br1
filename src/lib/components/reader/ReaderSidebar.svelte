@@ -4320,6 +4320,11 @@
     border-top: 1px solid rgba(64, 47, 24, 0.06);
   }
 
+  .reader-sidebar :is(button, input, a[href]):focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--reader-shell-accent, #8c6a3b) 72%, white 28%);
+    outline-offset: 2px;
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;

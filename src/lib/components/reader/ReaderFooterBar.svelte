@@ -160,6 +160,12 @@
     color: var(--text-primary);
   }
 
+  .footer-controls button:focus-visible,
+  .progress-strip input:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--reader-shell-accent, #8c6a3b) 72%, white 28%);
+    outline-offset: 2px;
+  }
+
   .progress-strip {
     display: inline-flex;
     gap: 8px;
@@ -201,5 +207,12 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--text-muted) 70%, white 30%);
     transform: translateY(-50%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .footer-bar.window-mode {
+      transition: none;
+      transform: none;
+    }
   }
 </style>

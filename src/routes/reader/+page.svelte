@@ -702,6 +702,11 @@
     background: var(--border-light);
   }
 
+  .sidebar-resize-handle:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 72%, white 28%);
+    outline-offset: 3px;
+  }
+
   .bridge-placeholder {
     display: grid;
     align-content: start;
@@ -740,6 +745,12 @@
   .bridge-tab button:hover {
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
+  }
+
+  .bridge-placeholder button:focus-visible,
+  .bridge-tab button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 72%, white 28%);
+    outline-offset: 3px;
   }
 
   .label {

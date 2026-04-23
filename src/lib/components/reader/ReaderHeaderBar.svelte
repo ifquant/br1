@@ -204,7 +204,14 @@
             ⏹
           </button>
         {/if}
-        <span class:error={ttsSession.status === 'error'} class="tts-status" title={ttsStatusDetail}>
+        <span
+          class:error={ttsSession.status === 'error'}
+          class="tts-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          title={ttsStatusDetail}
+        >
           {ttsStatusLabel}
         </span>
       </div>
@@ -629,6 +636,13 @@
     color: var(--reader-shell-text, var(--text-primary));
   }
 
+  .leading-tools button:focus-visible,
+  .controls button:focus-visible,
+  .header-menu button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--reader-shell-accent, #8c6a3b) 72%, white 28%);
+    outline-offset: 2px;
+  }
+
   .head-meta {
     display: grid;
     gap: 2px;
@@ -835,5 +849,12 @@
     background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 92%, white 8%);
     color: var(--reader-shell-accent, var(--text-primary));
     box-shadow: inset 0 0 0 1px var(--reader-shell-border, var(--border-light));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reader-head.window-mode {
+      transition: none;
+      transform: none;
+    }
   }
 </style>
