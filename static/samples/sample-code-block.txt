@@ -1,0 +1,14 @@
+Bridge Reader code fixture
+
+This text fixture keeps the TXT fallback path small while proving that fenced code
+blocks receive explicit reader syntax highlighting.
+
+```ts
+const answer = 42;
+function describe(value: number) {
+  // The regression checks this comment and keyword tokens.
+  return `value:${value}`;
+}
+```
+
+The prose after the code block proves normal text still renders beside highlighted code.

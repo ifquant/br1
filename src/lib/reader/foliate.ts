@@ -316,7 +316,58 @@ export const getReaderViewStyles = (settings: ReaderSettings) => {
   }
 
   pre {
+    margin: 1.2em 0;
+    padding: 0.95em 1em;
+    border: 1px solid color-mix(in srgb, var(--theme-primary-color) 18%, transparent);
+    border-radius: 12px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
+      color-mix(in srgb, var(--theme-bg-color) 88%, var(--theme-primary-color) 12%);
+    color: var(--theme-fg-color);
+    font-size: 0.84em;
+    line-height: 1.65;
+    overflow-x: auto;
     white-space: pre-wrap !important;
+  }
+
+  code:not(pre code) {
+    padding: 0.05em 0.28em;
+    border-radius: 0.35em;
+    background: color-mix(in srgb, var(--theme-primary-color) 10%, transparent);
+    color: color-mix(in srgb, var(--theme-primary-color) 68%, var(--theme-fg-color) 32%);
+    font-size: 0.9em;
+  }
+
+  .reader-code-block,
+  .reader-code-highlighted {
+    tab-size: 2;
+  }
+
+  .reader-code-token-comment {
+    color: color-mix(in srgb, var(--theme-fg-color) 48%, transparent);
+    font-style: italic;
+  }
+
+  .reader-code-token-keyword {
+    color: color-mix(in srgb, #9d4f28 76%, var(--theme-primary-color) 24%);
+    font-weight: 700;
+  }
+
+  .reader-code-token-string {
+    color: #6f7d21;
+  }
+
+  .reader-code-token-number,
+  .reader-code-token-literal {
+    color: #9b5f95;
+  }
+
+  .reader-code-token-property {
+    color: #6b6fa8;
+  }
+
+  .reader-code-token-operator {
+    color: color-mix(in srgb, var(--theme-primary-color) 82%, var(--theme-fg-color) 18%);
   }
 
   a:any-link {

@@ -882,6 +882,25 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(page.locator('.note-card', { hasText: '高亮' })).toHaveCount(0);
 });
 
+test('reader highlights fenced code blocks in the txt fallback surface', async ({ page }) => {
+  await page.goto(
+    `/reader?source=asset&url=${encodeURIComponent('/samples/sample-code-block.txt')}&label=${encodeURIComponent('Sample Code TXT Book')}`
+  );
+
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible({ timeout: 15000 });
+  const codeBlock = page.locator('.plain-text-code-block').first();
+  await expect(codeBlock).toBeVisible({ timeout: 15000 });
+  await expect(codeBlock).toHaveAttribute('data-language', 'ts');
+  await expect(codeBlock.locator('.reader-code-token-keyword').first()).toContainText('const');
+  await expect(codeBlock.locator('.reader-code-token-number').first()).toContainText('42');
+  await expect(codeBlock.locator('.reader-code-token-comment').first()).toContainText(
+    'The regression checks this comment and keyword tokens.'
+  );
+  await expect(page.locator('.plain-text-paper')).toContainText(
+    'The prose after the code block proves normal text still renders beside highlighted code.'
+  );
+});
+
 const sampleReaderCases = [
   {
     assetPath: '/samples/sample-book.epub',

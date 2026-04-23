@@ -213,19 +213,19 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Done commit: 0500
   - Notes: added `src/lib/reader/parallel.ts` with primary/secondary pane state, route-derived session creation, pane preview/control updates, and active-pane switching; the route now keeps a single-pane session anchor in sync without rendering a second viewport. Tutorial: `tutorials/commit/0500-add-the-parallel-read-session-model.md`.
 
-- [ ] P1-3.2 Implement the first parallel-read surface
+- [x] P1-3.2 Implement the first parallel-read surface
   - Outcome: users can open two panes side by side without breaking existing single-reader workflows.
   - Touches: reader workspace/stage/viewport composition, reader navigation, e2e tests.
   - Verify: `pnpm check`; targeted parallel-reader regression; `git diff --check`.
   - Done commit: 0501
   - Notes: added a route-level toggle that clones the current primary source into a second `ReaderStage`, keeps primary and secondary control requests separate, and stacks the panes on narrow screens while splitting them side by side when there is room. Tutorial: `tutorials/commit/0501-add-the-first-parallel-read-surface.md`.
 
-- [ ] P1-3.3 Add code syntax highlighting
+- [x] P1-3.3 Add code syntax highlighting
   - Outcome: code blocks in reader content have an explicit highlighting path and do not rely only on browser defaults.
   - Touches: reader content injection or renderer styling boundary, dependencies if required, tests/fixtures.
   - Verify: `pnpm check`; code-block fixture regression; bundle/source review; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0502
+  - Notes: added a lightweight local tokenizer/styling path, apply it to foliate-rendered documents on content load, and use fenced-code parsing for TXT fallback fixtures without changing ordinary TXT rendering. Tutorial: `tutorials/commit/0502-add-reader-code-syntax-highlighting.md`.
 
 ## P2 Services And Ecosystem
 

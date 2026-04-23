@@ -9,6 +9,7 @@
     READER_OPENING_LOCATION_LABEL,
     READER_UNKNOWN_FORMAT_LABEL,
     READER_WAITING_LAYOUT_LABEL,
+    applyReaderCodeHighlightingToDocument,
     createEmptyReaderPreviewState,
     createFoliateViewElement,
     ensureFoliateViewDefinition,
@@ -21,10 +22,13 @@
     loadReaderBookDocument,
     pickAuthor,
     pickText,
+    parsePlainTextCodeBlocks,
+    renderPlainTextBlocksHtml,
     wrapFoliateViewElement,
     type ReaderControlRequest,
     type ReaderBookDocument,
-    type FoliateViewElement
+    type FoliateViewElement,
+    type ReaderPlainTextBlock
   } from '$lib/reader';
   import { Overlayer } from 'foliate-js/overlayer.js';
   import type {
@@ -80,6 +84,9 @@
   let currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
   let openEngineMode: 'foliate' | 'plain-text' = 'foliate';
   let plainTextContent = '';
+  let plainTextBlocks: ReaderPlainTextBlock[] = [];
+  let plainTextHasCodeBlocks = false;
+  let plainTextHighlightedHtml = '';
   let plainTextTitle = '';
   let plainTextScroller: HTMLDivElement | null = null;
   let readerViewportVars = '';
@@ -300,6 +307,8 @@
     readerViewportVars = getReaderViewportVars();
   }
 
+  $: plainTextHasCodeBlocks = plainTextBlocks.some((block) => block.kind === 'code');
+
   const getResponsiveMaxInlineSize = () => {
     const { width, height } = getViewportStageSize();
     const aspectRatio = width / Math.max(height, 1);
@@ -498,6 +507,7 @@
     const docs = foliateViewElement?.renderer?.getContents?.() ?? [];
     for (const { doc, index } of docs) {
       if (!(doc instanceof Document) || typeof index !== 'number') continue;
+      applyReaderCodeHighlightingToDocument(doc);
       bindSelectionTracking(doc, index);
     }
   };
@@ -578,6 +588,9 @@
       if (isPlainTextFormat(currentFormatLabel)) {
         openEngineMode = 'plain-text';
         plainTextContent = await loadPlainTextSource(source);
+        plainTextBlocks = parsePlainTextCodeBlocks(plainTextContent);
+        plainTextHasCodeBlocks = plainTextBlocks.some((block) => block.kind === 'code');
+        plainTextHighlightedHtml = plainTextHasCodeBlocks ? renderPlainTextBlocksHtml(plainTextBlocks) : '';
         plainTextTitle = sourceLabel || '纯文本书籍';
         currentLayoutLabel = 'SCROLL';
         syncEngineModeVisibility();
@@ -591,6 +604,9 @@
 
       openEngineMode = 'foliate';
       plainTextContent = '';
+      plainTextBlocks = [];
+      plainTextHasCodeBlocks = false;
+      plainTextHighlightedHtml = '';
       plainTextTitle = '';
       syncEngineModeVisibility();
 
@@ -1098,7 +1114,13 @@
               aria-label="plain text reading surface"
             >
               <article class="plain-text-paper">
-                <pre>{plainTextContent}</pre>
+                {#if plainTextHasCodeBlocks}
+                  <div class="plain-text-blocks">
+                    {@html plainTextHighlightedHtml}
+                  </div>
+                {:else}
+                  <pre>{plainTextContent}</pre>
+                {/if}
               </article>
             </div>
           {/if}
@@ -1153,7 +1175,13 @@
                 aria-label="plain text reading surface"
               >
                 <article class="plain-text-paper">
-                  <pre>{plainTextContent}</pre>
+                  {#if plainTextHasCodeBlocks}
+                    <div class="plain-text-blocks">
+                      {@html plainTextHighlightedHtml}
+                    </div>
+                  {:else}
+                    <pre>{plainTextContent}</pre>
+                  {/if}
                 </article>
               </div>
             {/if}
@@ -1357,6 +1385,55 @@
     font-size: var(--reader-font-size, 20px);
     line-height: var(--reader-line-height, 1.9);
     color: var(--reader-text-color, color-mix(in srgb, #2c241c 88%, white 12%));
+  }
+
+  .plain-text-blocks {
+    display: grid;
+    gap: 1em;
+  }
+
+  :global(.plain-text-code-block) {
+    padding: 0.95em 1em;
+    border: 1px solid color-mix(in srgb, var(--reader-accent-color, #8c6a3b) 20%, transparent);
+    border-radius: 14px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent),
+      color-mix(in srgb, var(--reader-paper-bg, #f9f2e6) 86%, var(--reader-accent-color, #8c6a3b) 14%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+  }
+
+  :global(.plain-text-code-block code) {
+    font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+    font-size: 0.88em;
+    line-height: 1.66;
+    tab-size: 2;
+  }
+
+  :global(.reader-code-token-comment) {
+    color: color-mix(in srgb, var(--reader-text-color, #2c241c) 48%, transparent);
+    font-style: italic;
+  }
+
+  :global(.reader-code-token-keyword) {
+    color: color-mix(in srgb, #9d4f28 76%, var(--reader-accent-color, #8c6a3b) 24%);
+    font-weight: 700;
+  }
+
+  :global(.reader-code-token-string) {
+    color: #6f7d21;
+  }
+
+  :global(.reader-code-token-number),
+  :global(.reader-code-token-literal) {
+    color: #9b5f95;
+  }
+
+  :global(.reader-code-token-property) {
+    color: #6b6fa8;
+  }
+
+  :global(.reader-code-token-operator) {
+    color: color-mix(in srgb, var(--reader-accent-color, #8c6a3b) 82%, var(--reader-text-color, #2c241c) 18%);
   }
 
   .window-stage {

@@ -27,6 +27,19 @@ export type {
   ReaderTranslationRequest
 } from './assistance';
 export {
+  applyReaderCodeHighlightingToDocument,
+  highlightReaderCode,
+  parsePlainTextCodeBlocks,
+  renderPlainTextBlocksHtml,
+  renderReaderCodeHtml
+} from './codeHighlighting';
+export type {
+  ReaderCodeLine,
+  ReaderCodeToken,
+  ReaderCodeTokenKind,
+  ReaderPlainTextBlock
+} from './codeHighlighting';
+export {
   READER_EMPTY_TITLE,
   READER_NOT_OPENED_LOCATION_LABEL,
   READER_OPENING_LOCATION_LABEL,
