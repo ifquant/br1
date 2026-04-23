@@ -88,42 +88,60 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIB-01 | Phase 1 | Pending |
-| LIB-02 | Phase 2 | Pending |
-| LIB-03 | Phase 2 | Pending |
-| LIB-04 | Phase 3 | Pending |
-| LIB-05 | Phase 3 | Pending |
-| RDR-01 | Phase 4 | Pending |
-| RDR-02 | Phase 5 | Pending |
-| RDR-03 | Phase 6 | Pending |
-| RDR-04 | Phase 7 | Pending |
-| RDR-05 | Phase 8 | Pending |
-| FMT-01 | Phase 4 | Pending |
-| FMT-02 | Phase 4 | Pending |
-| FMT-03 | Phase 9 | Pending |
-| FMT-04 | Phase 9 | Pending |
-| FMT-05 | Phase 4 | Pending |
-| ANT-01 | Phase 7 | Pending |
-| ANT-02 | Phase 7 | Pending |
-| ANT-03 | Phase 7 | Pending |
-| ANT-04 | Phase 6 | Pending |
-| SRCH-01 | Phase 7 | Pending |
-| SRCH-02 | Phase 7 | Pending |
-| SRCH-03 | Phase 10 | Pending |
-| SRCH-04 | Phase 10 | Pending |
-| VIEW-01 | Phase 8 | Pending |
-| VIEW-02 | Phase 8 | Pending |
-| VIEW-03 | Phase 8 | Pending |
-| VIEW-04 | Phase 5 | Pending |
-| SVC-01 | Phase 11 | Pending |
-| SVC-02 | Phase 11 | Pending |
-| SVC-03 | Phase 11 | Pending |
-| DSK-01 | Phase 6 | Pending |
-| DSK-02 | Phase 1 | Pending |
-| DSK-03 | Phase 12 | Pending |
-| QUAL-01 | Phase 12 | Pending |
-| QUAL-02 | Phase 12 | Pending |
-| QUAL-03 | Phase 12 | Pending |
+| LIB-01 | P0-4 | Pending |
+| LIB-02 | P0-4 | Pending |
+| LIB-03 | P0-4 | Pending |
+| LIB-04 | P0-4 | Pending |
+| LIB-05 | P0-4 | Pending |
+| RDR-01 | P0-1 | Pending |
+| RDR-02 | P0-2 | Pending |
+| RDR-03 | P0-1 / P0-3 | Pending |
+| RDR-04 | P0-3 | Pending |
+| RDR-05 | P0-2 | Pending |
+| FMT-01 | P0-1 | Pending |
+| FMT-02 | P0-1 | Pending |
+| FMT-03 | P0-1 | Pending |
+| FMT-04 | P0-1 / P0-3 | Pending |
+| FMT-05 | P0-1 | Pending |
+| ANT-01 | P0-3 | Pending |
+| ANT-02 | P0-3 | Pending |
+| ANT-03 | P0-3 | Pending |
+| ANT-04 | P0-3 | Pending |
+| SRCH-01 | P0-3 | Pending |
+| SRCH-02 | P0-3 | Pending |
+| SRCH-03 | P0-3 | Pending |
+| SRCH-04 | P0-3 | Pending |
+| VIEW-01 | P0-2 | Pending |
+| VIEW-02 | P0-2 | Pending |
+| VIEW-03 | P0-2 | Pending |
+| VIEW-04 | P0-2 | Pending |
+| SVC-01 | P2-1 / P2-2 / P2-3 / P2-4 | Pending |
+| SVC-02 | P2-1 / P2-2 / P2-3 / P2-4 | Pending |
+| SVC-03 | P2-3 / P2-4 | Pending |
+| DSK-01 | P0-1 | Pending |
+| DSK-02 | P0-1 / P0-4 | Pending |
+| DSK-03 | P0 exit audit | Pending |
+| QUAL-01 | P0 exit audit | Pending |
+| QUAL-02 | P0 exit audit | Pending |
+| QUAL-03 | P0 exit audit | Pending |
+
+### New Readest Gap Phase Coverage
+
+These 2026-04 gap-driven phases are tracked in `.planning/ROADMAP.md` and `.planning/READEST-GAP-AUDIT-2026-04.md`. They do not replace the v1 requirement IDs above; they make the previously frozen advanced/service requirements executable.
+
+| Gap Area | Phase | Status |
+|----------|-------|--------|
+| Dictionary / Wikipedia lookup | P1-1 | Planned |
+| In-reading assistance surface | P1-1 | Planned |
+| Text-to-Speech | P1-2 | Planned |
+| Visual and focus aids | P1-2 | Planned |
+| Accessibility review and support | P1-2 | Planned |
+| Parallel Read | P1-3 | Planned |
+| Code syntax highlighting | P1-3 | Planned |
+| OPDS / Calibre integration | P2-1 | Planned |
+| DeepL / Yandex translation | P2-2 | Planned |
+| Cross-device sync | P2-3 | Planned |
+| KOReader sync | P2-4 | Planned |
 
 **Coverage:**
 - v1 requirements: 36 total
@@ -132,4 +150,4 @@
 
 ---
 *Requirements defined: 2026-04-13*
-*Last updated: 2026-04-13 after initial definition of full Readest parity scope*
+*Last updated: 2026-04-23 after the Readest gap audit recut P1/P2 into executable phases*
