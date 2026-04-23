@@ -181,9 +181,61 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   setImportInputValue
 });
 
-export const buildDesktopLibraryPageCoordinatorEnvironment = (
-  env: DesktopLibraryPageCoordinatorEnvironment
-) => env;
+export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
+  canPersistLibrary,
+  toAssetReaderTarget,
+  openReaderTarget,
+  openLibraryBookPath,
+  importBooksFromDesktopPicker,
+  loadPersistedLibraryBooks,
+  detectReadestLibrary,
+  importBooksFromReadest,
+  importLibraryBooks,
+  previewLibraryRepairCandidate,
+  selectSingleSystemBookPath,
+  removeLibraryBook,
+  restoreRemovedLibraryBook,
+  updateLibraryBookMetadata,
+  confirmReplacement,
+  confirmRemoval,
+  createObjectUrl
+}: {
+  canPersistLibrary: () => boolean;
+  toAssetReaderTarget: (url: string, label?: string) => LibraryReaderTarget;
+  openReaderTarget: (target: string | LibraryReaderTarget) => Promise<boolean>;
+  openLibraryBookPath: (filePath: string) => Promise<void>;
+  importBooksFromDesktopPicker: () => Promise<LibraryImportActionResult>;
+  loadPersistedLibraryBooks: () => Promise<PersistedLibraryBook[]>;
+  detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
+  importBooksFromReadest: () => Promise<LibraryImportActionResult>;
+  importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>;
+  previewLibraryRepairCandidate: DesktopLibraryPageCoordinatorEnvironment['previewLibraryRepairCandidate'];
+  selectSingleSystemBookPath: () => Promise<string | null>;
+  removeLibraryBook: (filePath: string) => Promise<PersistedLibraryBook[]>;
+  restoreRemovedLibraryBook: (recordId: string) => Promise<PersistedLibraryBook[]>;
+  updateLibraryBookMetadata: DesktopLibraryPageCoordinatorEnvironment['updateLibraryBookMetadata'];
+  confirmReplacement: (message: string) => boolean;
+  confirmRemoval: (message: string) => boolean;
+  createObjectUrl: (file: File) => string;
+}): DesktopLibraryPageCoordinatorEnvironment => ({
+  canPersistLibrary,
+  toAssetReaderTarget,
+  openReaderTarget,
+  openLibraryBookPath,
+  importBooksFromDesktopPicker,
+  loadPersistedLibraryBooks,
+  detectReadestLibrary,
+  importBooksFromReadest,
+  importLibraryBooks,
+  previewLibraryRepairCandidate,
+  selectSingleSystemBookPath,
+  removeLibraryBook,
+  restoreRemovedLibraryBook,
+  updateLibraryBookMetadata,
+  confirmReplacement,
+  confirmRemoval,
+  createObjectUrl
+});
 
 export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCoordinatorOptions) => {
   const clearLibraryNotice = () => {

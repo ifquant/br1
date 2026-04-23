@@ -28,7 +28,7 @@
   } from '$lib/library/controller';
   import {
     buildDesktopLibraryPageActionEnvironmentBindings,
-    buildDesktopLibraryPageCoordinatorEnvironment,
+    buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv,
     buildDesktopLibraryPageCoordinatorFromBindings,
     buildDesktopLibraryPageCoordinatorStateBindingsFromPageState
   } from '$lib/library/desktopPage';
@@ -398,7 +398,7 @@
         if (importInput) importInput.value = value;
       }
     }),
-    env: buildDesktopLibraryPageCoordinatorEnvironment({
+    env: buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv({
       canPersistLibrary,
       toAssetReaderTarget: (url, label) => toAssetReaderTarget(url, label ?? ''),
       openReaderTarget,
@@ -413,10 +413,8 @@
       removeLibraryBook,
       restoreRemovedLibraryBook,
       updateLibraryBookMetadata,
-      confirmReplacement: (message) =>
-        typeof window === 'undefined' || window.confirm(message),
-      confirmRemoval: (message) =>
-        typeof window === 'undefined' || window.confirm(message),
+      confirmReplacement: (message) => typeof window === 'undefined' || window.confirm(message),
+      confirmRemoval: (message) => typeof window === 'undefined' || window.confirm(message),
       createObjectUrl: (file) => URL.createObjectURL(file)
     })
   });
