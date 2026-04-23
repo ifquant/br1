@@ -26,6 +26,48 @@ export const runLibraryNoticeAction = (notice: LibraryNoticeState | null) => {
   void notice.action();
 };
 
+export const buildLibraryFilterControlsState = ({
+  query,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter
+}: {
+  query: string;
+  filterBy: LibraryFilterControlsState['filterBy'];
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+}): LibraryFilterControlsState => ({
+  query,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter
+});
+
+export const applyLibraryFilterControlsState = ({
+  next,
+  setQuery,
+  setFilterBy,
+  setFormatFilter,
+  setCollectionFilter,
+  setTagFilter
+}: {
+  next: LibraryFilterControlsState;
+  setQuery: (query: string) => void;
+  setFilterBy: (filterBy: LibraryFilterControlsState['filterBy']) => void;
+  setFormatFilter: (formatFilter: string) => void;
+  setCollectionFilter: (collectionFilter: string) => void;
+  setTagFilter: (tagFilter: string) => void;
+}) => {
+  setQuery(next.query);
+  setFilterBy(next.filterBy);
+  setFormatFilter(next.formatFilter);
+  setCollectionFilter(next.collectionFilter);
+  setTagFilter(next.tagFilter);
+};
+
 type LibraryFilterControlsAction =
   | {
       type: 'set-query';
@@ -160,6 +202,27 @@ export const getAppliedLibraryBrowseState = (
   return result.kind === 'applied' ? result.state : null;
 };
 
+export const buildCurrentLibraryBrowseState = ({
+  groupBy,
+  groupScope,
+  trail
+}: LibraryBrowseState): LibraryBrowseState => ({
+  groupBy,
+  groupScope,
+  trail
+});
+
+export const buildLibraryBrowseActionDispatcher = (options: {
+  getCurrentBrowseState: () => LibraryBrowseState;
+  syncBrowseState: (state: LibraryBrowseState) => void | Promise<void>;
+}) => {
+  return async (action: LibraryBrowseAction) => {
+    const nextState = getAppliedLibraryBrowseState(options.getCurrentBrowseState(), action);
+    if (!nextState) return;
+    await options.syncBrowseState(nextState);
+  };
+};
+
 export const buildLibraryPageActions = (options: {
   onImportChange: (event: Event) => void | Promise<void>;
   onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
@@ -285,3 +348,43 @@ export const buildLibraryPageActions = (options: {
   onSortChange: options.setSortBy,
   onViewModeChange: options.setViewMode
 });
+
+export const buildLibraryPageActionSet = (options: {
+  onImportChange: (event: Event) => void | Promise<void>;
+  onRunNoticeAction: () => void | Promise<void>;
+  onClearNotice: () => void | Promise<void>;
+  onReadestMigration: () => void | Promise<void>;
+  onOpenLink: (href: string) => void | Promise<void>;
+  onImportBooks: () => void | Promise<void>;
+  onOpenSourcePath: (filePath: string) => void | Promise<void>;
+  onUpdateBookMetadata: (
+    book: LibraryShelfBook,
+    metadata: LibraryBookMetadataUpdate
+  ) => void | Promise<void>;
+  onRemoveBook: (book: LibraryShelfBook) => void | Promise<void>;
+  getCurrentFilterControlsState: () => LibraryFilterControlsState;
+  applyFilterControlsState: (next: LibraryFilterControlsState) => void;
+  getCurrentBrowseState: () => LibraryBrowseState;
+  syncBrowseState: (state: LibraryBrowseState) => void | Promise<void>;
+  setSortBy: (sortBy: 'recent' | 'added' | 'title' | 'author' | 'format') => void | Promise<void>;
+  setViewMode: (viewMode: 'grid' | 'list') => void | Promise<void>;
+}): LibraryPageActions =>
+  buildLibraryPageActions({
+    onImportChange: options.onImportChange,
+    onDispatchBrowseAction: buildLibraryBrowseActionDispatcher({
+      getCurrentBrowseState: options.getCurrentBrowseState,
+      syncBrowseState: options.syncBrowseState
+    }),
+    onRunNoticeAction: options.onRunNoticeAction,
+    onClearNotice: options.onClearNotice,
+    onReadestMigration: options.onReadestMigration,
+    onOpenLink: options.onOpenLink,
+    onImportBooks: options.onImportBooks,
+    onOpenSourcePath: options.onOpenSourcePath,
+    onUpdateBookMetadata: options.onUpdateBookMetadata,
+    onRemoveBook: options.onRemoveBook,
+    getCurrentFilterControlsState: options.getCurrentFilterControlsState,
+    applyFilterControlsState: options.applyFilterControlsState,
+    setSortBy: options.setSortBy,
+    setViewMode: options.setViewMode
+  });

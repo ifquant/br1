@@ -17,7 +17,11 @@
     LibraryShelfBook
   } from '$lib/library/types';
   import {
+    applyLibraryFilterControlsState as applySharedLibraryFilterControlsState,
+    buildCurrentLibraryBrowseState,
+    buildLibraryFilterControlsState,
     buildLibraryPageActions,
+    buildLibraryPageActionSet,
     getAppliedLibraryBrowseState
   } from '$lib/library/controller';
   import { buildDesktopLibraryPageCoordinator } from '$lib/library/desktopPage';
@@ -299,22 +303,6 @@
   let starterLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
   let activeLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
 
-  const getCurrentLibraryFilterControlsState = (): LibraryFilterControlsState => ({
-    query: libraryQuery,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter
-  });
-
-  const applyLibraryFilterControlsState = (next: LibraryFilterControlsState) => {
-    libraryQuery = next.query;
-    libraryFilterBy = next.filterBy;
-    libraryFormatFilter = next.formatFilter;
-    libraryCollectionFilter = next.collectionFilter;
-    libraryTagFilter = next.tagFilter;
-  };
-
   const syncLibraryBrowseLocation = async (options: {
     groupBy?: 'none' | 'author' | 'collection' | 'format';
     groupScope?: string;
@@ -551,7 +539,11 @@
   }));
   $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
   $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
-  $: currentLibraryBrowseState = getCurrentLibraryBrowseState();
+  $: currentLibraryBrowseState = buildCurrentLibraryBrowseState({
+    groupBy: libraryGroupBy,
+    groupScope: libraryGroupScope,
+    trail: libraryBrowseTrail
+  });
   $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
     buildLibraryPageSurfaceSet({
       chrome: {
@@ -655,22 +647,8 @@
     void syncLibraryScrollContext(previousKey, libraryScrollContextKey);
   }
 
-  const getCurrentLibraryBrowseState = () => ({
-    groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope,
-    trail: libraryBrowseTrail
-  });
-
-  const dispatchLibraryBrowseAction = async (action: LibraryBrowseAction) => {
-    const nextState = getAppliedLibraryBrowseState(currentLibraryBrowseState, action);
-    if (!nextState) return;
-    await syncLibraryBrowseLocation(nextState);
-  };
-
-  $: activeLibraryPageActions = {
-    ...buildLibraryPageActions({
+  $: activeLibraryPageActions = buildLibraryPageActionSet({
       onImportChange: desktopLibraryPageCoordinator.handleImportChange,
-      onDispatchBrowseAction: dispatchLibraryBrowseAction,
       onRunNoticeAction: desktopLibraryPageCoordinator.runLibraryNoticeAction,
       onClearNotice: desktopLibraryPageCoordinator.clearLibraryNotice,
       onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
@@ -679,16 +657,42 @@
       onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
       onUpdateBookMetadata: desktopLibraryPageCoordinator.handleUpdateLibraryBookMetadata,
       onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
-      getCurrentFilterControlsState: getCurrentLibraryFilterControlsState,
-      applyFilterControlsState: applyLibraryFilterControlsState,
+      getCurrentFilterControlsState: () =>
+        buildLibraryFilterControlsState({
+          query: libraryQuery,
+          filterBy: libraryFilterBy,
+          formatFilter: libraryFormatFilter,
+          collectionFilter: libraryCollectionFilter,
+          tagFilter: libraryTagFilter
+        }),
+      applyFilterControlsState: (next) =>
+        applySharedLibraryFilterControlsState({
+          next,
+          setQuery: (query) => {
+            libraryQuery = query;
+          },
+          setFilterBy: (filterBy) => {
+            libraryFilterBy = filterBy;
+          },
+          setFormatFilter: (formatFilter) => {
+            libraryFormatFilter = formatFilter;
+          },
+          setCollectionFilter: (collectionFilter) => {
+            libraryCollectionFilter = collectionFilter;
+          },
+          setTagFilter: (tagFilter) => {
+            libraryTagFilter = tagFilter;
+          }
+        }),
+      getCurrentBrowseState: () => currentLibraryBrowseState,
+      syncBrowseState: (state) => syncLibraryBrowseLocation(state),
       setSortBy: (sortBy) => {
         librarySortBy = sortBy;
       },
       setViewMode: (viewMode) => {
         libraryViewMode = viewMode;
       }
-    })
-  };
+    });
 
 </script>
 
