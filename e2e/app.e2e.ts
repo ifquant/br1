@@ -422,6 +422,24 @@ describe('br1 desktop app', () => {
     }, label);
   };
 
+  const clickLibraryBrowseMenuOption = async (label: string) => {
+    await browser.execute((targetLabel) => {
+      const menu = document.querySelector('[role="menu"][aria-label="书库浏览选项"]');
+      if (!(menu instanceof HTMLElement)) {
+        throw new Error('expected library browse menu to exist');
+      }
+
+      const target = Array.from(menu.querySelectorAll('button')).find(
+        (button) => button.textContent?.replace(/\s+/g, ' ').trim().startsWith(targetLabel)
+      );
+      if (!(target instanceof HTMLButtonElement)) {
+        throw new Error(`expected library browse menu option to exist: ${targetLabel}`);
+      }
+
+      target.click();
+    }, label);
+  };
+
   const toggleFirstHighlightSelection = async () => {
     await browser.execute(() => {
       const firstToggle = document.querySelector('.highlight-selection-toggle');
@@ -5070,6 +5088,208 @@ describe('br1 desktop app', () => {
     if (migrationState.noticeText.includes('已同步') || migrationState.bannerText.includes('已有')) {
       expect(migrationState.compatibleCardCount).toBeGreaterThan(0);
     }
+  });
+
+  it('P0 library import migration grouping filtering and sorting', async function () {
+    this.timeout(120000);
+
+    await importDesktopSampleLibraryBooks();
+    const importedRecords = await loadLibraryRecordsOnDisk();
+    const sampleRecords = importedRecords.filter((record) =>
+      normalizeFsPathAlias(record.sourcePath ?? '').startsWith(normalizeFsPathAlias(staticSamplesRoot))
+    );
+    const importedPaths = sampleRecords.map((record) => normalizeFsPathAlias(record.filePath ?? record.file_path ?? ''));
+    const importedFormats = sampleRecords.map((record) => String(record.format ?? '').trim().toUpperCase());
+    const expectedSortedPaths = [...sampleRecords]
+      .sort((left, right) => String(left.format ?? '').localeCompare(String(right.format ?? ''), 'en'))
+      .map((record) => normalizeFsPathAlias(record.filePath ?? record.file_path ?? ''));
+    const expectedGroupFormats = [...new Set(importedFormats)].sort((left, right) =>
+      left.localeCompare(right, 'en')
+    );
+    expect(sampleRecords.length).toBeGreaterThan(0);
+    const filterBook = sampleRecords[0]!;
+    const filterBookPath = normalizeFsPathAlias(filterBook.filePath ?? filterBook.file_path ?? '');
+    const filterFormat = String(filterBook.format ?? '').trim().toUpperCase();
+    const hiddenBook =
+      sampleRecords.find((record) => {
+        const recordPath = normalizeFsPathAlias(record.filePath ?? record.file_path ?? '');
+        return recordPath !== filterBookPath && String(record.format ?? '').trim().toUpperCase() !== filterFormat;
+      }) ??
+      sampleRecords.find((record) => normalizeFsPathAlias(record.filePath ?? record.file_path ?? '') !== filterBookPath);
+    expect(hiddenBook).toBeTruthy();
+    const libraryHandle = await switchToLibraryWindow();
+
+    await browser.refresh();
+    await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+    await browser.waitUntil(async () => {
+      const hrefs = await Promise.all(
+        sampleRecords.map((record) => readLibraryHrefForPath(record.filePath ?? record.file_path ?? ''))
+      );
+      return hrefs.every((href) => !!href);
+    }, {
+      timeout: 20000,
+      timeoutMsg: 'expected the imported sample books to render as openable library entries after refresh'
+    });
+
+    const sortByFormatButton = await $('[aria-label="更多操作"]');
+    await sortByFormatButton.waitForDisplayed({ timeout: 10000 });
+    await sortByFormatButton.click();
+    await clickLibraryBrowseMenuOption('格式');
+
+    await browser.waitUntil(async () => {
+      const pathsInOrder = (await browser.execute(() =>
+        Array.from(document.querySelectorAll('a[href]'))
+          .map((node) => node.getAttribute('href') ?? '')
+          .filter(Boolean)
+      )) as string[];
+
+      const normalizedPathsInOrder = pathsInOrder
+        .map((href) => {
+          const target = new URL(href, 'http://localhost');
+          return normalizeFsPathAlias(target.searchParams.get('path') ?? '');
+        })
+        .filter((path) => importedPaths.includes(path));
+
+      return JSON.stringify(normalizedPathsInOrder) === JSON.stringify(expectedSortedPaths);
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected sorting by format to order the imported sample titles consistently'
+    }).catch(async (error) => {
+      const actualHrefs = (await browser.execute(() =>
+        Array.from(document.querySelectorAll('a[href]'))
+          .map((node) => node.getAttribute('href') ?? '')
+          .filter(Boolean)
+      )) as string[];
+      const actualPathsInOrder = actualHrefs
+        .map((href) => {
+          const target = new URL(href, 'http://localhost');
+          return normalizeFsPathAlias(target.searchParams.get('path') ?? '');
+        })
+        .filter((path) => importedPaths.includes(path));
+
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nExpected order: ${JSON.stringify(expectedSortedPaths)}\nActual order: ${JSON.stringify(actualPathsInOrder)}`
+      );
+    });
+
+    await sortByFormatButton.click();
+    await clickLibraryBrowseMenuOption('按格式');
+
+    await browser.waitUntil(async () => {
+      const groupLabels = await browser.execute((targetFormats) => {
+        return Array.from(document.querySelectorAll('.group-card-link'))
+          .map((button) => button.getAttribute('aria-label') ?? '')
+          .map((label) => label.match(/^进入 (.+) 分组$/)?.[1] ?? '')
+          .filter((label) => targetFormats.includes(label));
+      }, expectedGroupFormats);
+
+      return JSON.stringify(groupLabels) === JSON.stringify(expectedGroupFormats);
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected grouping by format to surface the imported formats in format order'
+    });
+
+    const enterAzw3Group = await browser.execute(() => {
+      const shelf = document.querySelector('[aria-label="格式书架"]');
+      if (!(shelf instanceof HTMLElement)) return false;
+
+      const target = Array.from(shelf.querySelectorAll('.group-card-link')).find(
+        (button) => button.getAttribute('aria-label') === '进入 AZW3 分组'
+      );
+      if (!(target instanceof HTMLButtonElement)) return false;
+      target.click();
+      return true;
+    });
+    expect(enterAzw3Group).toBe(true);
+
+    await browser.waitUntil(async () => {
+      const currentGroupPath = await browser.execute(() => {
+        return document.querySelector('[aria-label="当前书库分组路径"]')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+      });
+      return currentGroupPath.includes('格式') && currentGroupPath.includes('AZW3');
+    }, {
+      timeout: 10000,
+      timeoutMsg: 'expected entering the AZW3 group to expose the active group path'
+    });
+
+    await browser.execute(() => {
+      const backButton = document.querySelector('[aria-label="当前书库分组路径"] button');
+      if (!(backButton instanceof HTMLButtonElement)) {
+        throw new Error('expected a group back button to exist');
+      }
+      backButton.click();
+    });
+
+    await sortByFormatButton.click();
+    await clickLibraryBrowseMenuOption('不分组');
+
+    await browser.execute((targetPath) => {
+      const normalizePathAlias = (value: string) =>
+        value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
+      const shelf = document.querySelector('[aria-label="你的书库"]');
+      if (!(shelf instanceof HTMLElement)) {
+        throw new Error('expected the library shelf to exist before filtering');
+      }
+
+      const targetCard = Array.from(shelf.querySelectorAll('.book-card')).find((candidate) => {
+        const link = candidate.querySelector<HTMLAnchorElement>('a[href*="/reader?"]');
+        if (!link) return false;
+        const href = link.getAttribute('href') ?? '';
+        const url = new URL(href, window.location.origin);
+        return normalizePathAlias(url.searchParams.get('path') ?? '') === normalizePathAlias(targetPath);
+      });
+      if (!(targetCard instanceof HTMLElement)) {
+        throw new Error('expected to find the imported sample book');
+      }
+
+      const detailButton = Array.from(targetCard.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === '详情'
+      );
+      if (!(detailButton instanceof HTMLButtonElement)) {
+        throw new Error('expected the sample book details button to exist');
+      }
+
+      detailButton.click();
+    }, filterBookPath);
+    const filterMetadataPanel = await $(`[aria-label="《${filterBook.title}》的书库元数据"]`);
+    await filterMetadataPanel.waitForDisplayed({ timeout: 10000 });
+    expect(await filterMetadataPanel.getText()).toContain(filterFormat);
+    await browser.execute(([targetTitle, targetLabel]) => {
+      const panel = document.querySelector(`[aria-label="《${targetTitle}》的书库元数据"]`);
+      if (!(panel instanceof HTMLElement)) {
+        throw new Error('expected the filter metadata panel to exist');
+      }
+
+      const button = Array.from(panel.querySelectorAll('button')).find(
+        (candidate) => candidate.getAttribute('aria-label') === targetLabel
+      );
+      if (!(button instanceof HTMLButtonElement)) {
+        throw new Error(`expected the filter button to exist: ${targetLabel}`);
+      }
+
+      button.click();
+    }, [filterBook.title, `筛选 ${filterFormat} 格式`] as const);
+
+    const activeFilterDetail = await $('[aria-label="书库当前筛选详情"]');
+    await activeFilterDetail.waitForDisplayed({ timeout: 10000 });
+    expect(await activeFilterDetail.getText()).toContain(`当前筛选：格式 ${filterFormat}`);
+    const filterBookLink = await $(`a[aria-label="在阅读器打开《${filterBook.title}》"]`);
+    await expect(filterBookLink).toBeDisplayed();
+    if (hiddenBook) {
+      await browser.waitUntil(async () => !(await readLibraryHrefForPath(hiddenBook.filePath ?? hiddenBook.file_path ?? '')), {
+        timeout: 10000,
+        timeoutMsg: 'expected applying the format filter to hide a differently formatted sample book'
+      });
+    }
+
+    await (await $(`[aria-label="移除书库筛选：格式 ${filterFormat}"]`)).click();
+    await browser.waitUntil(async () => !(await $('[aria-label="书库当前筛选详情"]').isExisting()), {
+      timeout: 10000,
+      timeoutMsg: 'expected clearing the format filter to remove the active filter detail'
+    });
+
+    await browser.switchToWindow(libraryHandle);
   });
 
   it('migrates legacy browser notes into the host-side book store when reopening a book', async function () {
