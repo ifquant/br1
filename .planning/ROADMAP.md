@@ -2,7 +2,7 @@
 
 ## Overview
 
-`br1` 的第一阶段不再按局部页面或旧 `Readest` phase 顺排推进，而改成按 **Feature 总账** 收口。执行顺序以 `.planning/FEATURE-PARITY-AUDIT.md` 为产品真相来源，以本地阅读器核心能力是否真正关闭作为推进条件。
+`br1` 的执行顺序按 **Feature 总账** 收口，而不是继续围绕局部页面或旧 phase 顺排。执行顺序以 `.planning/FEATURE-PARITY-AUDIT.md` 和 `.planning/READEST-GAP-AUDIT-2026-04.md` 为产品真相来源，以“当前离 Readest 的真实产品差距”作为排期依据。
 
 主线分层：
 
@@ -73,8 +73,8 @@ Plans:
 - [ ] P0-4: 收口本地书库管理与工作流
 
 ### P1 Advanced Reading Experience
-**Goal**: 在 P0 完成后，补足高级阅读体验能力。
-**Depends on**: P0 完成
+**Goal**: 在 P0 核心阅读器收口后，优先补足用户能直接感知的高级阅读体验能力，而不是继续只做内部结构整理。
+**Depends on**: P0 完成并通过一次 P0 exit audit
 **Feature Rows**:
 - Dictionary / Wikipedia Lookup
 - Parallel Read
@@ -83,27 +83,100 @@ Plans:
 - Visual & Focus Aids
 - Text-to-Speech (TTS) Support
 
+#### P1-1 Lookup and In-Reading Assistance
+**Goal**: 建立 reader 内上下文查询层，让 `Dictionary / Wikipedia Lookup` 成为正式产品面。
+**Success Criteria**:
+1. reader 内有显式 lookup 入口，而不是只停留在 future idea
+2. 选中文本或当前术语可以进入统一的 lookup workflow
+3. 至少一条 dictionary / Wikipedia 路径具备清晰成功与失败语义
+4. lookup 能与现有 reader workspace 共存，而不是破坏阅读主线
+
+Plans:
+- [ ] P1-1: 收口 lookup 与 in-reading assistance
+
+#### P1-2 Read Aloud, Focus, and Accessibility
+**Goal**: 把 `TTS / Visual & Focus Aids / Accessibility` 收成一条真实阅读体验增强线。
+**Success Criteria**:
+1. TTS 不再是占位按钮，而是可触发、可停止、可恢复的产品能力
+2. focus aids 不再只靠宽度/氛围模式，而有明确的阅读辅助面
+3. accessibility 有正式审计与关键键盘/读屏契约
+4. 这些能力与现有 reader shell 保持一致，不另起一套孤立 UI
+
+Plans:
+- [ ] P1-2: 收口 TTS、focus aids 与 accessibility
+
+#### P1-3 Parallel and Specialized Reading Surfaces
+**Goal**: 建立需要新增 reader surface 形态的高级阅读能力。
+**Success Criteria**:
+1. `Parallel Read` 有清晰双栏/双文档状态模型
+2. specialized surfaces 不再局限于当前单文档阅读面
+3. code syntax highlighting 有正式渲染路径而不是只靠默认 HTML
+4. 新 surface 与当前 library/reader 状态流兼容
+
+Plans:
+- [ ] P1-3: 收口 parallel read 与 specialized reading surfaces
+
 Status:
 
-- [ ] 边界已冻结，但当前不执行
+- [ ] 已拆成可执行 phases，仍受 P0 exit gate 约束
 
 Notes:
 
 - 不允许在 P0 未关闭前零散插入这些功能
-- 只允许做避免返工的接口预留和技术预研
+- 但不再把 P1 永久冻结；P0 收口后应直接进入 P1-1
 
 ### P2 Services and Ecosystem
-**Goal**: 在 P0 完成后，独立推进服务、同步与生态能力。
-**Depends on**: P0 完成
+**Goal**: 在 P0/P1 建立稳定阅读器产品面后，独立推进目录、翻译、同步和生态能力。
+**Depends on**: P0 完成，且 P1 至少打开第一条主线
 **Feature Rows**:
 - OPDS / Calibre Integration
 - Translate with DeepL and Yandex
 - Sync across Platforms
 - Sync with Koreader
 
+#### P2-1 Catalog Connectors
+**Goal**: 把 `OPDS / Calibre` 从空白能力变成正式 catalog connector。
+**Success Criteria**:
+1. 有明确的远端目录接入模型
+2. 至少一条 OPDS/Calibre 浏览与导入链路成立
+3. 失败语义、认证/连接问题和导入契约清晰
+
+Plans:
+- [ ] P2-1: 建立 catalog connectors
+
+#### P2-2 Translation Bridges
+**Goal**: 把 `DeepL / Yandex` 翻译收成 reader 内的正式 bridge 能力。
+**Success Criteria**:
+1. 至少一条翻译 provider 路径成立
+2. 有明确的 provider failure / quota / key 缺失语义
+3. 与 lookup / annotation / reading flow 的关系清晰
+
+Plans:
+- [ ] P2-2: 建立 translation bridges
+
+#### P2-3 Cross-Device Sync Substrate
+**Goal**: 建立远端状态与账号边界，让 `Sync across Platforms` 成为可实现目标。
+**Success Criteria**:
+1. 有明确的账号/远端状态模型
+2. library / notes / bookmarks / progress 的同步边界清晰
+3. 冲突、失败、离线和恢复语义被正式定义
+
+Plans:
+- [ ] P2-3: 建立 cross-device sync substrate
+
+#### P2-4 Ecosystem Adapters
+**Goal**: 建立外部阅读生态适配层，优先对齐 `KOReader Sync`。
+**Success Criteria**:
+1. 外部生态同步不再只是 roadmap 条目
+2. KOReader 适配边界与本地/远端状态模型清晰
+3. 不把生态适配和主同步协议混成一条实现线
+
+Plans:
+- [ ] P2-4: 建立 ecosystem adapters
+
 Status:
 
-- [ ] 边界已冻结，但当前不执行
+- [ ] 已拆成可执行 phases，顺序受 P0/P1 gate 约束
 
 Notes:
 
@@ -114,10 +187,12 @@ Notes:
 
 1. **先完成 P0**
    - P0-1 → P0-2 → P0-3 → P0-4
-2. **P0 Exit Gate**
-   - 只有当 `.planning/FEATURE-PARITY-AUDIT.md` 中属于 P0 的 feature rows 都从 `Partial/Not started` 变成 `Completed`，才允许开始 P1
-3. **P1 / P2 暂不执行**
-   - 当前只冻结边界，不开始实现
+2. **做一次 P0 Exit Audit**
+   - 不是只看局部页面完成，而是重新核对 `.planning/FEATURE-PARITY-AUDIT.md` 中 P0 rows 是否真的收平
+3. **进入 P1**
+   - P1-1 → P1-2 → P1-3
+4. **再进入 P2**
+   - P2-1 → P2-2 → P2-3 → P2-4
 
 ## Historical Execution Record
 
@@ -142,5 +217,10 @@ Notes:
 | P0-2 阅读模式与版式系统 | Planned | 当前已有 width/atmosphere/chrome mode，仍缺 scroll/paginated 和正式 settings 系统 |
 | P0-3 搜索、批注、书签、进度 | Planned | 当前已有 search/notes/bookmarks 骨架，仍缺 highlight 产品化和正式闭环 |
 | P0-4 Library 管理 | Planned | 当前已有本地书库基础，仍缺完整书库工作面收口 |
-| P1 Advanced Reading Experience | Frozen | 不执行，只保留边界 |
-| P2 Services and Ecosystem | Frozen | 不执行，只保留边界 |
+| P1-1 Lookup and In-Reading Assistance | Planned | 审计已确认这是 Readest 高级阅读体验里的第一批直接差距 |
+| P1-2 Read Aloud, Focus, and Accessibility | Planned | TTS、focus aids 和 a11y 不再继续冻结 |
+| P1-3 Parallel and Specialized Reading Surfaces | Planned | 并行阅读与 specialized surface 进入正式排期 |
+| P2-1 Catalog Connectors | Planned | OPDS / Calibre 不再只保留边界 |
+| P2-2 Translation Bridges | Planned | DeepL / Yandex 翻译进入正式排期 |
+| P2-3 Cross-Device Sync Substrate | Planned | 跨平台同步进入正式排期 |
+| P2-4 Ecosystem Adapters | Planned | KOReader 适配独立成相邻 phase |

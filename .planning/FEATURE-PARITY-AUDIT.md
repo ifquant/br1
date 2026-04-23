@@ -1,6 +1,6 @@
 # br1 Feature Parity Audit
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Purpose
 
@@ -147,13 +147,14 @@ These rows should all be treated as `Not started` for planning purposes. They sh
 
 ### Immediate Planning Priority
 
-1. Finish `Phase 5` and `Phase 6`
-2. Finish `Phase 7` and `Phase 8`
-3. Re-audit the P0 rows after that
+1. Finish the remaining `P0` rows and run a real `P0 exit audit`
+2. Move directly into `P1-1 Lookup and In-Reading Assistance`
+3. Then execute `P1-2 Read Aloud, Focus, and Accessibility`
+4. Only after that begin the `P2` service/ecosystem phases
 
 Reason:
 
-The current codebase is strongest on local desktop reading foundations. It is still too early to mix in remote/service capability work without first stabilizing the local product surface.
+The current codebase is strongest on local desktop reading foundations, but the biggest remaining Readest gap is no longer route structure or local reopen flows. It is the missing `P1` and `P2` product surface.
 
 ### Recommended Product Buckets
 
@@ -256,6 +257,12 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the library page now also routes surface-input threading through a shared page-to-surface projection, so `+page.svelte` no longer hand-build the large `buildLibraryPageSurfaceSetFromState(...)` argument block inline
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
+
+The 2026-04 Readest gap audit also changes one planning conclusion:
+
+- route-closure should now be treated as an internal maintenance line
+- the next product-moving work after `P0` should be `P1-1 Lookup and In-Reading Assistance`, not another long route-closure push
+- `P2` is no longer just a frozen boundary; it now needs explicit service phases for `OPDS/Calibre`, translation, cross-device sync, and `KOReader`
 
 That means the correct next planning move is:
 
