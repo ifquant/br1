@@ -55,11 +55,11 @@
 
 ## Evolution
 
-项目推进过程中持续检查：
+项目推进过程中以 `.planning/READEST-ALIGNMENT-CHECKLIST.md` 作为唯一 Readest 对齐执行计划持续检查：
 
-1. 已完成阶段是否把 Active requirements 变成了 Validated requirements
-2. `Readest` 对齐目标是否仍然完整、准确，是否有新增上游能力需要纳入
+1. 已完成 checklist item 是否已经打勾并记录 commit / verification
+2. `Readest` 对齐目标是否仍然完整、准确，是否有新增上游能力需要纳入 checklist
 3. 第二阶段 AI 阅读器方向是否需要新增 Active requirements，但不得反向污染第一阶段对齐范围
 
 ---
-*Last updated: 2026-04-13 after initial GSD project definition for Readest parity*
+*Last updated: 2026-04-23 after consolidating Readest alignment planning into a single checklist*
