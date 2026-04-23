@@ -44,6 +44,14 @@ export {
   remoteSyncResultIsConflict,
   remoteSyncResultNeedsRetry
 } from './remote.js';
+export {
+  createKoReaderAnnotationSyncRecords,
+  createKoReaderReadingStateSyncRecord,
+  normalizeKoReaderProgressValue,
+  parseKoReaderPageProgress,
+  restoreKoReaderAnnotationsFromSync,
+  restoreKoReaderBookConfigFromSync
+} from './koreader.js';
 export type {
   Br1RemoteSyncOperation,
   Br1RemoteSyncProvider,
@@ -51,3 +59,10 @@ export type {
   Br1RemoteSyncResult,
   Br1RemoteSyncStatus
 } from './remote.js';
+export type {
+  KoReaderAnnotation,
+  KoReaderAnnotationStyle,
+  KoReaderBookConfig,
+  KoReaderBookIdentity,
+  KoReaderProgressValue
+} from './koreader.js';
