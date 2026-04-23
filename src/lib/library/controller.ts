@@ -46,6 +46,21 @@ export const buildLibraryFilterControlsState = ({
   tagFilter
 });
 
+export const buildCurrentLibraryFilterControlsState = (options: {
+  query: string;
+  filterBy: LibraryFilterControlsState['filterBy'];
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+}) =>
+  buildLibraryFilterControlsState({
+    query: options.query,
+    filterBy: options.filterBy,
+    formatFilter: options.formatFilter,
+    collectionFilter: options.collectionFilter,
+    tagFilter: options.tagFilter
+  });
+
 export const applyLibraryFilterControlsState = ({
   next,
   setQuery,
@@ -67,6 +82,26 @@ export const applyLibraryFilterControlsState = ({
   setCollectionFilter(next.collectionFilter);
   setTagFilter(next.tagFilter);
 };
+
+export const buildLibraryFilterControlsBindings = (options: {
+  getCurrentState: () => LibraryFilterControlsState;
+  setQuery: (query: string) => void;
+  setFilterBy: (filterBy: LibraryFilterControlsState['filterBy']) => void;
+  setFormatFilter: (formatFilter: string) => void;
+  setCollectionFilter: (collectionFilter: string) => void;
+  setTagFilter: (tagFilter: string) => void;
+}) => ({
+  getCurrentFilterControlsState: options.getCurrentState,
+  applyFilterControlsState: (next: LibraryFilterControlsState) =>
+    applyLibraryFilterControlsState({
+      next,
+      setQuery: options.setQuery,
+      setFilterBy: options.setFilterBy,
+      setFormatFilter: options.setFormatFilter,
+      setCollectionFilter: options.setCollectionFilter,
+      setTagFilter: options.setTagFilter
+    })
+});
 
 export const getNormalizedLibraryFilterControlsState = ({
   current,

@@ -17,9 +17,9 @@
     LibraryShelfBook
   } from '$lib/library/types';
   import {
-    applyLibraryFilterControlsState as applySharedLibraryFilterControlsState,
+    buildCurrentLibraryFilterControlsState,
     buildCurrentLibraryBrowseState,
-    buildLibraryFilterControlsState,
+    buildLibraryFilterControlsBindings,
     buildLibraryPageActions,
     buildLibraryPageActionSet,
     getNormalizedLibraryFilterControlsState,
@@ -303,6 +303,31 @@
     groupScope: '',
     trail: []
   };
+  let activeLibraryFilterControlsBindings = buildLibraryFilterControlsBindings({
+    getCurrentState: () =>
+      buildCurrentLibraryFilterControlsState({
+        query: libraryQuery,
+        filterBy: libraryFilterBy,
+        formatFilter: libraryFormatFilter,
+        collectionFilter: libraryCollectionFilter,
+        tagFilter: libraryTagFilter
+      }),
+    setQuery: (query) => {
+      libraryQuery = query;
+    },
+    setFilterBy: (filterBy) => {
+      libraryFilterBy = filterBy;
+    },
+    setFormatFilter: (formatFilter) => {
+      libraryFormatFilter = formatFilter;
+    },
+    setCollectionFilter: (collectionFilter) => {
+      libraryCollectionFilter = collectionFilter;
+    },
+    setTagFilter: (tagFilter) => {
+      libraryTagFilter = tagFilter;
+    }
+  });
   let activeLibraryPageActions: LibraryPageActions;
   let desktopLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(true);
   let starterLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
@@ -484,13 +509,8 @@
   $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
   $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
   $: {
-    const currentFilterControlsState = buildLibraryFilterControlsState({
-      query: libraryQuery,
-      filterBy: libraryFilterBy,
-      formatFilter: libraryFormatFilter,
-      collectionFilter: libraryCollectionFilter,
-      tagFilter: libraryTagFilter
-    });
+    const currentFilterControlsState =
+      activeLibraryFilterControlsBindings.getCurrentFilterControlsState();
     const normalizedFilterControlsState = getNormalizedLibraryFilterControlsState({
       current: currentFilterControlsState,
       formatOptions: libraryFormatOptions,
@@ -499,24 +519,7 @@
     });
 
     if (normalizedFilterControlsState !== currentFilterControlsState) {
-      applySharedLibraryFilterControlsState({
-        next: normalizedFilterControlsState,
-        setQuery: (query) => {
-          libraryQuery = query;
-        },
-        setFilterBy: (filterBy) => {
-          libraryFilterBy = filterBy;
-        },
-        setFormatFilter: (formatFilter) => {
-          libraryFormatFilter = formatFilter;
-        },
-        setCollectionFilter: (collectionFilter) => {
-          libraryCollectionFilter = collectionFilter;
-        },
-        setTagFilter: (tagFilter) => {
-          libraryTagFilter = tagFilter;
-        }
-      });
+      activeLibraryFilterControlsBindings.applyFilterControlsState(normalizedFilterControlsState);
     }
   }
   $: currentLibraryBrowseState = buildCurrentLibraryBrowseState({
@@ -627,33 +630,7 @@
       onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
       onUpdateBookMetadata: desktopLibraryPageCoordinator.handleUpdateLibraryBookMetadata,
       onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
-      getCurrentFilterControlsState: () =>
-        buildLibraryFilterControlsState({
-          query: libraryQuery,
-          filterBy: libraryFilterBy,
-          formatFilter: libraryFormatFilter,
-          collectionFilter: libraryCollectionFilter,
-          tagFilter: libraryTagFilter
-        }),
-      applyFilterControlsState: (next) =>
-      applySharedLibraryFilterControlsState({
-          next,
-          setQuery: (query) => {
-            libraryQuery = query;
-          },
-          setFilterBy: (filterBy) => {
-            libraryFilterBy = filterBy;
-          },
-          setFormatFilter: (formatFilter) => {
-            libraryFormatFilter = formatFilter;
-          },
-          setCollectionFilter: (collectionFilter) => {
-            libraryCollectionFilter = collectionFilter;
-          },
-          setTagFilter: (tagFilter) => {
-            libraryTagFilter = tagFilter;
-          }
-        }),
+      ...activeLibraryFilterControlsBindings,
       getCurrentBrowseState: () => currentLibraryBrowseState,
       syncBrowseState: (state) =>
         syncSharedLibraryBrowseLocation({
