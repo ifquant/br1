@@ -126,12 +126,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Done commit: a6e6285
   - Notes: `e2e/app.e2e.ts` now has `P0 annotations notes bookmarks and progress restore`, which creates TXT highlights and a note, persists a bookmark, proves bookmark locate behavior, and reopens with restored progress plus the saved notes/bookmarks still present.
 
-- [ ] P0-4.1 Certify library import, migration, grouping, filtering, and sorting
+- [x] P0-4.1 Certify library import, migration, grouping, filtering, and sorting
   - Outcome: library management can be treated as a complete local bookshelf workflow rather than an import launcher.
   - Touches: library surface, desktop catalog/projection modules, library tests.
-  - Verify: `pnpm check`; targeted library workflow regressions; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Verify: `pnpm check` (PASS); `bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "P0 library import migration grouping filtering and sorting"` (PASS); `git diff --check` (PASS).
+  - Done commit: 83d5932
+  - Notes: `e2e/app.e2e.ts` now has `P0 library import migration grouping filtering and sorting`, which drives the persisted sample records through format sorting, format grouping, and metadata-driven filtering. The Readest migration evidence still comes from `reports Readest migration outcomes through the library banner and notice flow`.
 
 - [ ] P0-4.2 Certify library repair, remove, restore, cover, and metadata workflows
   - Outcome: destructive and recovery flows preserve user data, respect trusted paths, and surface clear recovery states.
