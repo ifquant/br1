@@ -18,33 +18,14 @@
   } from '$lib/library/types';
   import {
     buildLibraryPageActions,
-    createLibraryNotice,
-    getAppliedLibraryBrowseState,
-    runLibraryNoticeAction as runSharedLibraryNoticeAction
+    getAppliedLibraryBrowseState
   } from '$lib/library/controller';
-  import {
-    buildDesktopCatalogProjection,
-    sortRecordsForLibraryShelf
-  } from '$lib/library/desktopCatalog';
+  import { buildDesktopLibraryPageCoordinator } from '$lib/library/desktopPage';
   import {
     buildManualRelinkReview as buildDesktopManualRelinkReview,
-    getRecoveryQueuePersistedRecords,
     isPersistedRecordBulkRepairEligible,
-    isPersistedRecordManualRepairOnly,
     lookupPersistedRecordForBook
   } from '$lib/library/desktopRecords';
-  import {
-    importDesktopLibraryBooks,
-    loadDesktopLibrarySurface,
-    migrateDesktopReadestLibrary
-  } from '$lib/library/desktopIngress';
-  import {
-    bulkRepairDesktopLibraryBooks,
-    removeLibraryBookFromDesktop,
-    repairDesktopLibraryBook,
-    restoreRemovedLibraryRecord as restoreRemovedLibraryRecordFromDesktop,
-    updateDesktopLibraryBookMetadata
-  } from '$lib/library/desktopMaintenance';
   import {
     createEmptyLibraryPageSurfaceModel,
     buildDesktopLibraryPageSurfaceModel,
@@ -85,10 +66,7 @@
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
   import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
-  import type {
-    LibraryReaderTarget,
-    PersistedLibraryBook
-  } from '$lib/services/libraryPersistence';
+  import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
   import {
     canPersistLibrary,
     detectReadestLibrary,
@@ -407,31 +385,66 @@
     await restoreLibraryScrollPosition(nextKey);
   };
 
-  const applyPersistedLibraryRecords = async (records: PersistedLibraryBook[]) => {
-    persistedLibraryRecords = records;
-    const projection = await buildDesktopCatalogProjection(records);
-    readestCompatibleCount = projection.readestCompatibleCount;
-    importedBooks = projection.importedBooks;
-  };
-
-  const loadLibrary = async () => {
-    if (!canPersistLibrary()) return;
-    await loadDesktopLibrarySurface({
-      detectReadestLibrary,
-      loadPersistedLibraryBooks,
-      applyPersistedLibraryRecords,
-      triggerReadestMigration,
-      setDesktopLibraryMode: (value) => {
-        desktopLibraryMode = value;
-      },
-      setReadestLibraryCount: (count) => {
-        readestLibraryCount = count;
-      },
-      setShowReadestMigration: (value) => {
-        showReadestMigration = value;
-      }
-    });
-  };
+  const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinator({
+    getLibraryNoticeState: () => libraryNotice,
+    setLibraryNoticeState: (notice) => {
+      libraryNotice = notice;
+    },
+    setPersistedLibraryRecords: (records) => {
+      persistedLibraryRecords = records;
+    },
+    setReadestCompatibleCount: (count) => {
+      readestCompatibleCount = count;
+    },
+    setImportedBooks: (books) => {
+      importedBooks = books;
+    },
+    canPersistLibrary,
+    getPersistedLibraryRecords: () => persistedLibraryRecords,
+    getBulkRepairBusy: () => bulkRepairBusy,
+    setBulkRepairBusy: (busy) => {
+      bulkRepairBusy = busy;
+    },
+    setBulkRepairSummary: (summary) => {
+      bulkRepairSummary = summary;
+    },
+    getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
+    getMigrationBusy: () => migrationBusy,
+    setMigrationBusy: (busy) => {
+      migrationBusy = busy;
+    },
+    setDesktopLibraryMode: (value) => {
+      desktopLibraryMode = value;
+    },
+    setReadestLibraryCount: (count) => {
+      readestLibraryCount = count;
+    },
+    setShowReadestMigration: (value) => {
+      showReadestMigration = value;
+    },
+    getImportInput: () => importInput,
+    toAssetReaderTarget: (url, label) => toAssetReaderTarget(url, label ?? ''),
+    openReaderTarget,
+    openLibraryBookPath,
+    importBooksFromDesktopPicker,
+    loadPersistedLibraryBooks,
+    detectReadestLibrary,
+    importBooksFromReadest,
+    importLibraryBooks,
+    previewLibraryRepairCandidate,
+    selectSingleSystemBookPath,
+    removeLibraryBook,
+    restoreRemovedLibraryBook,
+    updateLibraryBookMetadata,
+    confirmReplacement: (message) =>
+      typeof window === 'undefined' || window.confirm(message),
+    confirmRemoval: (message) =>
+      typeof window === 'undefined' || window.confirm(message),
+    createObjectUrl: (file) => URL.createObjectURL(file),
+    setImportInputValue: (value) => {
+      if (importInput) importInput.value = value;
+    }
+  });
 
   onMount(() => {
     return installLibrarySurfaceRuntime({
@@ -441,7 +454,7 @@
       reloadEventName: LIBRARY_SURFACE_RELOAD_EVENT,
       getViewport: getLibraryViewport,
       onRefreshLibrary: () => {
-        void loadLibrary();
+        void desktopLibraryPageCoordinator.loadLibrary();
       },
       onSaveScrollPosition: saveLibraryScrollPosition,
       getScrollContextKey: () => libraryScrollContextKey
@@ -647,12 +660,12 @@
       visibleLibraryBooksCount,
       activeFilterDetail: libraryActiveFilterDetail,
       activeFilterChips: libraryActiveFilterChips,
-      onOpenSourcePath: handleOpenSourcePath,
-      onImportBooks: triggerImportPicker,
-      onRepairBook: handleRepairLibraryBook,
-      onRemoveBook: handleRemoveLibraryBook,
-      onBulkRepairBooks: handleBulkRepairLibraryBooks,
-      onReadestMigration: handleReadestMigrationClick,
+      onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
+      onImportBooks: desktopLibraryPageCoordinator.triggerImportPicker,
+      onRepairBook: desktopLibraryPageCoordinator.handleRepairLibraryBook,
+      onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
+      onBulkRepairBooks: desktopLibraryPageCoordinator.handleBulkRepairLibraryBooks,
+      onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
       onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
       onClearFilters: activeLibraryPageActions.onClearFilters!,
       getEmptyFilterTitle: getLibraryEmptyFilterTitle
@@ -729,214 +742,6 @@
     void syncLibraryScrollContext(previousKey, libraryScrollContextKey);
   }
 
-  const clearLibraryNotice = () => {
-    libraryNotice = null;
-  };
-
-  const setLibraryNotice = (
-    kind: 'error' | 'info',
-    message: string,
-    action?: { label: string; run: () => void | Promise<void> }
-  ) => {
-    libraryNotice = createLibraryNotice(kind, message, action);
-  };
-
-  const runLibraryNoticeAction = () => {
-    runSharedLibraryNoticeAction(libraryNotice);
-  };
-
-  const handleOpenReaderTarget = async (target: string | LibraryReaderTarget) => {
-    clearLibraryNotice();
-    const href = typeof target === 'string' ? target : target.href;
-    const opened = await openReaderTarget(target);
-    if (!opened && typeof window !== 'undefined') {
-      window.location.href = href;
-    }
-  };
-
-  const handleOpenSourcePath = async (filePath: string) => {
-    try {
-      clearLibraryNotice();
-      await openLibraryBookPath(filePath);
-    } catch (error) {
-      console.error('Failed to open the original book path', error);
-      setLibraryNotice('error', '无法打开原文件，请确认当前运行在桌面环境且文件路径仍然有效。');
-    }
-  };
-
-  const triggerImportPicker = async () => {
-    if (canPersistLibrary()) {
-      await importDesktopLibraryBooks({
-        clearLibraryNotice,
-        setLibraryNotice,
-        importBooksFromDesktopPicker,
-        reloadLibrary: loadLibrary,
-        setShowReadestMigration: (value) => {
-          showReadestMigration = value;
-        },
-        onOpenReaderTarget: handleOpenReaderTarget
-      });
-      return;
-    }
-
-    if (!importInput) return;
-    if (typeof importInput.showPicker === 'function') {
-      try {
-        await importInput.showPicker();
-        return;
-      } catch (error) {
-        console.warn('showPicker() failed in library import flow, falling back to click()', error);
-      }
-    }
-    importInput.click();
-  };
-
-  const handleImportChange = async (event: Event) => {
-    const input = event.currentTarget as HTMLInputElement;
-    const [file] = input.files ?? [];
-    if (!file) return;
-
-    clearLibraryNotice();
-    const objectUrl = URL.createObjectURL(file);
-    await handleOpenReaderTarget(toAssetReaderTarget(objectUrl, file.name));
-
-    input.value = '';
-  };
-
-  const triggerReadestMigration = async ({
-    autoOpenFirstBook = true,
-    reloadAfterImport = true
-  }: {
-    autoOpenFirstBook?: boolean;
-    reloadAfterImport?: boolean;
-  } = {}) => {
-    if (!canPersistLibrary() || migrationBusy) return;
-
-    await migrateDesktopReadestLibrary({
-      migrationBusy,
-      setMigrationBusy: (value) => {
-        migrationBusy = value;
-      },
-      clearLibraryNotice,
-      setLibraryNotice,
-      importBooksFromReadest,
-      reloadLibrary: loadLibrary,
-      loadPersistedLibraryBooks,
-      applyPersistedLibraryRecords,
-      setShowReadestMigration: (value) => {
-        showReadestMigration = value;
-      },
-      onOpenReaderTarget: handleOpenReaderTarget,
-      autoOpenFirstBook,
-      reloadAfterImport
-    });
-  };
-
-  const handleReadestMigrationClick = () => {
-    void triggerReadestMigration();
-  };
-
-  const reloadLibraryAfterRepair = async () => {
-    const currentRecords = await loadPersistedLibraryBooks();
-    await applyPersistedLibraryRecords(currentRecords);
-  };
-
-  const restoreRemovedLibraryRecord = async (record: PersistedLibraryBook) => {
-    await restoreRemovedLibraryRecordFromDesktop({
-      record,
-      clearLibraryNotice,
-      setLibraryNotice,
-      restoreRemovedLibraryBook,
-      applyPersistedLibraryRecords
-    });
-  };
-
-  const handleRemoveLibraryBook = async (book: LibraryShelfBook) => {
-    if (!canPersistLibrary()) return;
-
-    await removeLibraryBookFromDesktop({
-      book,
-      persistedRecord: lookupPersistedRecordForBook(persistedLibraryRecords, book),
-      clearLibraryNotice,
-      setLibraryNotice,
-      confirmRemoval: (message) =>
-        typeof window === 'undefined' || window.confirm(message),
-      removeLibraryBook,
-      applyPersistedLibraryRecords,
-      onRestoreRemovedRecord: restoreRemovedLibraryRecord
-    });
-  };
-
-  const handleUpdateLibraryBookMetadata = async (
-    book: LibraryShelfBook,
-    metadata: {
-      title: string;
-      author: string;
-      description?: string;
-      language?: string;
-      publisher?: string;
-      collection?: string;
-      tags?: string[];
-    }
-  ) => {
-    if (!canPersistLibrary()) return;
-
-    await updateDesktopLibraryBookMetadata({
-      book,
-      persistedRecord: lookupPersistedRecordForBook(persistedLibraryRecords, book),
-      metadata,
-      clearLibraryNotice,
-      setLibraryNotice,
-      updateLibraryBookMetadata,
-      applyPersistedLibraryRecords
-    });
-  };
-
-  const handleRepairLibraryBook = async (book: LibraryShelfBook) => {
-    if (!canPersistLibrary()) return;
-
-    await repairDesktopLibraryBook({
-      book,
-      persistedRecord: lookupPersistedRecordForBook(persistedLibraryRecords, book),
-      clearLibraryNotice,
-      setLibraryNotice,
-      importLibraryBooks,
-      selectSingleSystemBookPath,
-      previewLibraryRepairCandidate,
-      confirmReplacement: (message) =>
-        typeof window === 'undefined' || window.confirm(message),
-      reloadLibraryAfterRepair
-    });
-  };
-
-  const handleBulkRepairLibraryBooks = async () => {
-    if (!canPersistLibrary() || bulkRepairBusy) return;
-
-    const eligibleRecords = bulkRepairEligibleQueueBooks
-      .map((book) => lookupPersistedRecordForBook(persistedLibraryRecords, book))
-      .filter((record): record is PersistedLibraryBook => !!record && !!record.sourcePath);
-
-    await bulkRepairDesktopLibraryBooks({
-      eligibleRecords,
-      bulkRepairBusy,
-      setBulkRepairBusy: (busy) => {
-        bulkRepairBusy = busy;
-      },
-      setBulkRepairSummary: (summary) => {
-        bulkRepairSummary = summary;
-      },
-      clearLibraryNotice,
-      setLibraryNotice,
-      importLibraryBooks,
-      loadPersistedLibraryBooks,
-      applyPersistedLibraryRecords,
-      getManualRepairCount: (records) =>
-        getRecoveryQueuePersistedRecords(records, sortRecordsForLibraryShelf).filter(
-          isPersistedRecordManualRepairOnly
-        ).length
-    });
-  };
-
   const getCurrentLibraryBrowseState = () => ({
     groupBy: libraryGroupBy,
     groupScope: libraryGroupScope,
@@ -951,16 +756,16 @@
 
   $: activeLibraryPageActions = {
     ...buildLibraryPageActions({
-      onImportChange: handleImportChange,
+      onImportChange: desktopLibraryPageCoordinator.handleImportChange,
       onDispatchBrowseAction: dispatchLibraryBrowseAction,
-      onRunNoticeAction: runLibraryNoticeAction,
-      onClearNotice: clearLibraryNotice,
-      onReadestMigration: handleReadestMigrationClick,
-      onOpenLink: handleOpenReaderTarget,
-      onImportBooks: triggerImportPicker,
-      onOpenSourcePath: handleOpenSourcePath,
-      onUpdateBookMetadata: handleUpdateLibraryBookMetadata,
-      onRemoveBook: handleRemoveLibraryBook,
+      onRunNoticeAction: desktopLibraryPageCoordinator.runLibraryNoticeAction,
+      onClearNotice: desktopLibraryPageCoordinator.clearLibraryNotice,
+      onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
+      onOpenLink: desktopLibraryPageCoordinator.handleOpenReaderTarget,
+      onImportBooks: desktopLibraryPageCoordinator.triggerImportPicker,
+      onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
+      onUpdateBookMetadata: desktopLibraryPageCoordinator.handleUpdateLibraryBookMetadata,
+      onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
       getCurrentFilterControlsState: getCurrentLibraryFilterControlsState,
       applyFilterControlsState: applyLibraryFilterControlsState,
       setSortBy: (sortBy) => {
