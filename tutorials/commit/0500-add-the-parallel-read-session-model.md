@@ -29,4 +29,5 @@
 
 ## 验证
 
-- not run yet
+- `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`
+- `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`

@@ -210,7 +210,7 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Outcome: two reader panes can be represented with independent source, navigation, progress, and loading state.
   - Touches: reader types, route/control model, reader workspace shell.
   - Verify: `pnpm check`; source-level model review; `git diff --check`.
-  - Done commit: 8d22695
+  - Done commit: 0500
   - Notes: added `src/lib/reader/parallel.ts` with primary/secondary pane state, route-derived session creation, pane preview/control updates, and active-pane switching; the route now keeps a single-pane session anchor in sync without rendering a second viewport. Tutorial: `tutorials/commit/0500-add-the-parallel-read-session-model.md`.
 
 - [ ] P1-3.2 Implement the first parallel-read surface
