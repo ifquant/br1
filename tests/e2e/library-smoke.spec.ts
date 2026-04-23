@@ -228,17 +228,16 @@ test('reader can open a parallel surface without collapsing the shell', async ({
 
   await page.goto(readerHref);
 
-  const stages = page.getByRole('main', { name: 'reader stage' });
-  await expect(stages).toHaveCount(1);
   await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
+  await expect(page.locator('.reader-stage')).toHaveCount(1);
 
   await page.getByRole('button', { name: '并行阅读' }).click();
 
   await expect(page.getByRole('button', { name: '关闭并行阅读' })).toBeVisible();
-  await expect(stages).toHaveCount(2);
+  await expect(page.locator('.reader-stage')).toHaveCount(2);
 
-  const primaryStage = stages.first();
-  const secondaryStage = stages.nth(1);
+  const primaryStage = page.getByRole('region', { name: '主阅读窗格' });
+  const secondaryStage = page.getByRole('region', { name: '并行阅读窗格' });
   const primaryProgress = primaryStage.getByLabel('阅读进度').locator('span');
   const secondaryProgress = secondaryStage.getByLabel('阅读进度').locator('span');
 
@@ -251,7 +250,8 @@ test('reader can open a parallel surface without collapsing the shell', async ({
 
   await primaryStage.getByRole('button', { name: '下一页' }).click();
 
-  await expect(stages).toHaveCount(2);
+  await expect(page.getByRole('region', { name: '主阅读窗格' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '并行阅读窗格' })).toBeVisible();
   await expect(primaryStage.getByLabel('阅读页脚控制')).toBeVisible();
   await expect(secondaryStage.getByLabel('阅读页脚控制')).toBeVisible();
   await expect(secondaryStage.getByRole('button', { name: '下一页' })).toBeVisible();

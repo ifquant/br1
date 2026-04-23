@@ -92,6 +92,7 @@
     parallelSession = createReaderParallelSessionFromRoute(routeOpenState);
   }
   $: parallelEnabled = parallelSession.panes.secondary.openTarget !== null;
+  $: canOpenParallelSurface = parallelEnabled || parallelSession.panes.primary.openTarget !== null;
   $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
   $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
 
@@ -136,6 +137,8 @@
       parallelSession = closeReaderParallelSecondaryPane(parallelSession);
       return;
     }
+
+    if (!canOpenParallelSurface) return;
 
     controlNonce += 1;
     parallelSession = openReaderParallelSecondaryPaneFromPrimary(parallelSession, controlNonce);
@@ -565,6 +568,7 @@
           class="parallel-toggle"
           aria-pressed={parallelEnabled}
           aria-label={parallelEnabled ? '关闭并行阅读' : '开启并行阅读'}
+          disabled={!canOpenParallelSurface}
           on:click={toggleParallelSurface}
         >
           {parallelEnabled ? '关闭并行阅读' : '并行阅读'}
@@ -574,6 +578,8 @@
       <div class:parallel-enabled={parallelEnabled} class="reader-stage-stack">
         <ReaderStage
           controlRequest={parallelSession.panes.primary.controlRequest}
+          landmarkRole={parallelEnabled ? 'region' : 'main'}
+          landmarkLabel={parallelEnabled ? '主阅读窗格' : 'reader stage'}
           {autoOpenPicker}
           {isWindowMode}
           sidebarVisible={$sidebarState.visible}
@@ -626,6 +632,8 @@
         {#if parallelEnabled}
           <ReaderStage
             controlRequest={parallelSession.panes.secondary.controlRequest}
+            landmarkRole="region"
+            landmarkLabel="并行阅读窗格"
             autoOpenPicker={false}
             {isWindowMode}
             sidebarVisible={$sidebarState.visible}

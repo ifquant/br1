@@ -43,6 +43,8 @@
   export let sidebarVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
   export let isCurrentLocationBookmarked = false;
+  export let landmarkRole: 'main' | 'region' = 'main';
+  export let landmarkLabel = 'reader stage';
   export let ttsSession: ReaderTtsSessionState;
   export let notes: ReaderNote[] = [];
   export let onTtsStart: (() => void) | null = null;
@@ -218,8 +220,8 @@
   class:window-mode={isWindowMode}
   class="reader-stage"
   style={getStageThemeVars()}
-  role="main"
-  aria-label="reader stage"
+  role={landmarkRole}
+  aria-label={landmarkLabel}
   on:mousemove={handleStagePointerMove}
   on:mouseleave={handleStageLeave}
   on:focusin={showChrome}
