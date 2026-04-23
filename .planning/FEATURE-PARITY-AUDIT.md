@@ -242,6 +242,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the desktop library page now also routes those state/env bundles through shared builders, so `+page.svelte` no longer directly owns the raw coordinator input objects even after the split
 - the library page now also drops its local browse-sync and scroll-key runtime wrappers, so `+page.svelte` calls the shared runtime helpers directly instead of re-wrapping them with page-local pass-through helpers
 - the library page now also routes invalid format/collection/tag filter resets through a shared controller normalization helper, so `+page.svelte` no longer hard-codes three separate inventory-reset guards inline
+- the library page now also routes browse-state normalization orchestration through a shared runtime helper, so `+page.svelte` no longer manually normalize, compare, and sync URL browse state inline
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

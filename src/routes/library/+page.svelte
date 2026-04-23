@@ -37,6 +37,7 @@
   import {
     buildLibraryScrollContextKeyFromPageState,
     installLibrarySurfaceRuntime,
+    normalizeLibraryBrowseLocation,
     saveLibraryViewportScrollPosition,
     syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation,
     syncLibraryViewportScrollContext
@@ -58,8 +59,6 @@
     getLibraryBrowseStateFromUrl,
     getLibraryEnterFromTrailExplanation,
     getLibraryEnterGroupExplanation,
-    getNormalizedLibraryBrowseState,
-    isSameLibraryBrowseStateShape,
     getLibrarySiblingExplanation
   } from '$lib/library/navigation';
   import {
@@ -455,28 +454,17 @@
   $: ({ groupBy: libraryGroupBy, groupScope: libraryGroupScope, trail: libraryBrowseTrail } =
     getLibraryBrowseStateFromUrl($page.url));
   $: {
-    const normalizedBrowseState = getNormalizedLibraryBrowseState(
-      {
+    void normalizeLibraryBrowseLocation({
+      currentUrl: $page.url,
+      state: {
         groupBy: libraryGroupBy,
         groupScope: libraryGroupScope,
         trail: libraryBrowseTrail
       },
-      libraryShelfBooks,
-      starterShelfBooks
-    );
-    if (
-      !isSameLibraryBrowseStateShape(normalizedBrowseState, {
-        groupBy: libraryGroupBy,
-        groupScope: libraryGroupScope,
-        trail: libraryBrowseTrail
-      })
-    ) {
-      void syncSharedLibraryBrowseLocation({
-        currentUrl: $page.url,
-        state: normalizedBrowseState,
-        goto
-      });
-    }
+      desktopShelfBooks: libraryShelfBooks,
+      starterShelfBooks,
+      goto
+    });
   }
   $: ({
     statusOptionCounts: libraryStatusOptionCounts,

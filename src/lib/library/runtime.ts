@@ -1,5 +1,9 @@
-import { buildLibraryBrowseHref } from './navigation';
-import type { LibraryBrowseState, LibraryGroupSegment } from './types';
+import {
+  buildLibraryBrowseHref,
+  getNormalizedLibraryBrowseState,
+  isSameLibraryBrowseStateShape
+} from './navigation';
+import type { LibraryBrowseState, LibraryGroupSegment, LibraryShelfBook } from './types';
 
 type SyncLibraryBrowseLocationArgs = {
   currentUrl: URL;
@@ -44,6 +48,31 @@ export const syncLibraryBrowseLocation = async ({
     noScroll: true,
     keepFocus: true,
     invalidateAll: false
+  });
+};
+
+export const normalizeLibraryBrowseLocation = async ({
+  currentUrl,
+  state,
+  desktopShelfBooks,
+  starterShelfBooks,
+  goto
+}: SyncLibraryBrowseLocationArgs & {
+  desktopShelfBooks: LibraryShelfBook[];
+  starterShelfBooks: LibraryShelfBook[];
+}) => {
+  const normalizedState = getNormalizedLibraryBrowseState(
+    state,
+    desktopShelfBooks,
+    starterShelfBooks
+  );
+
+  if (isSameLibraryBrowseStateShape(normalizedState, state)) return;
+
+  await syncLibraryBrowseLocation({
+    currentUrl,
+    state: normalizedState,
+    goto
   });
 };
 
