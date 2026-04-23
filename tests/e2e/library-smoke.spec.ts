@@ -812,6 +812,18 @@ test('reader supports txt notes through selection, persistence, and note reopen 
 
 const sampleReaderCases = [
   {
+    assetPath: '/samples/sample-book.epub',
+    label: 'Sample EPUB Book',
+    format: 'EPUB',
+    layout: 'PAGINATED'
+  },
+  {
+    assetPath: '/samples/sample-outline.pdf',
+    label: 'Sample PDF Outline',
+    format: 'PDF',
+    layout: 'FIXED'
+  },
+  {
     assetPath: '/samples/sample-book.fb2',
     label: 'Sample FB2 Book',
     format: 'FB2',
@@ -844,7 +856,7 @@ const sampleReaderCases = [
 ] as const;
 
 for (const sample of sampleReaderCases) {
-  test(`reader opens ${sample.format} sample assets in web mode`, async ({ page }) => {
+  test(`reader opens and reopens ${sample.format} sample assets in web mode`, async ({ page }) => {
     await page.goto(
       `/reader?source=asset&url=${encodeURIComponent(sample.assetPath)}&label=${encodeURIComponent(sample.label)}`
     );
@@ -852,7 +864,16 @@ for (const sample of sampleReaderCases) {
     const footer = page.getByLabel('阅读页脚控制');
 
     await expect(page.locator('.stage-error')).toHaveCount(0);
+    await expect(page.getByRole('main', { name: /reader stage/i })).toBeVisible();
     await expect(page.getByText(new RegExp(`Failed to open ${sample.label}`, 'i'))).toHaveCount(0);
+    await expect(footer).toContainText(sample.format);
+    await expect(footer).toContainText(readerLayoutLabel(sample.layout));
+    await expect(footer).not.toContainText('正在打开');
+
+    await page.reload();
+
+    await expect(page.locator('.stage-error')).toHaveCount(0);
+    await expect(page.getByRole('main', { name: /reader stage/i })).toBeVisible();
     await expect(footer).toContainText(sample.format);
     await expect(footer).toContainText(readerLayoutLabel(sample.layout));
     await expect(footer).not.toContainText('正在打开');
