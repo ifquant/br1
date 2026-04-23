@@ -242,7 +242,11 @@ pub fn run() {
     let app = builder
         .invoke_handler(tauri::generate_handler![
             commands::bookmarks::load_reader_bookmarks,
+            commands::catalogs::browse_catalog_source,
+            commands::catalogs::create_catalog_import_intent,
             commands::catalogs::get_catalog_connector_status,
+            commands::catalogs::list_catalog_sources,
+            commands::catalogs::search_catalog_source,
             commands::highlights_workspace::load_reader_highlights_workspace_state,
             commands::library::load_library_books,
             commands::library::load_library_book_binary,

@@ -238,19 +238,19 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 0503
   - Notes: added renderer-safe catalog status and import-intent model/facade plus matching Tauri command model stubs; OPDS/Calibre parsing, browsing, auth handling, and network fetching remain deferred to P2-1.2/P2-1.3. Tutorial: `tutorials/commit/0503-add-the-catalog-connector-domain-model.md`.
 
-- [ ] P2-1.2 Implement OPDS parsing and browsing
+- [x] P2-1.2 Implement OPDS parsing and browsing
   - Outcome: OPDS fixture feeds can be listed, paged, searched, and converted into safe import intents.
   - Touches: Tauri catalog command/module, parser tests, library catalog UI.
-  - Verify: `pnpm check`; Rust parser tests; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Verify: `pnpm check` (PASS); `cargo test --manifest-path src-tauri/Cargo.toml catalogs` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
+  - Done commit: 0504
+  - Notes: added bundled OPDS fixture sources, allowlisted page browsing, local search filtering, import-intent conversion, parser tests, and renderer-safe service functions; renderer input cannot trigger arbitrary URL fetching. Tutorial: `tutorials/commit/0504-implement-fixture-backed-opds-and-calibre-catalogs.md`.
 
 - [ ] P2-1.3 Add Calibre-compatible catalog flow
   - Outcome: Calibre OPDS or compatible catalog sources can be configured and browsed through the same catalog surface.
   - Touches: catalog source settings, auth/connectivity states, tests.
   - Verify: `pnpm check`; fixture/manual catalog regression; `git diff --check`.
   - Done commit:
-  - Notes:
+  - Notes: 0504 added a Calibre-compatible allowlisted fixture source through the same parser and import-intent flow, but user-managed source settings, credentials, and live connectivity are still missing; keep this item open until that configuration flow exists.
 
 - [ ] P2-2.1 Add translation provider configuration
   - Outcome: DeepL/Yandex provider settings are stored locally and missing-key states are visible; no service key is bundled.

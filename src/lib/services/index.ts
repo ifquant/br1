@@ -1,12 +1,19 @@
 export {
+  browseCatalogSource,
   createCatalogImportIntent,
   createUnavailableCatalogConnectorStatus,
   getCatalogConnectorStatus,
+  listCatalogSources,
+  normalizeCatalogBrowseRequest,
+  normalizeCatalogImportIntentRequest,
   normalizeCatalogSearchRequest,
-  normalizeCatalogSource
+  normalizeCatalogSource,
+  requestCatalogImportIntent,
+  searchCatalogSource
 } from './catalogs';
 export type {
   CatalogAuthChallenge,
+  CatalogBrowseRequest,
   CatalogConnectorKind,
   CatalogConnectorStatus,
   CatalogConnectorStatusKind,
@@ -19,14 +26,18 @@ export type {
   CatalogErrorCode,
   CatalogErrorState,
   CatalogImportIntent,
+  CatalogImportIntentRequest,
+  CatalogImportIntentResponse,
   CatalogImportIntentStatus,
   CatalogPage,
+  CatalogPageResponse,
   CatalogPagination,
   CatalogSearchRequest,
   CatalogSearchTemplate,
   CatalogSource,
   CatalogSourceAuthKind,
-  CatalogSourceAuthState
+  CatalogSourceAuthState,
+  CatalogSourceListResponse
 } from './catalogs';
 export {
   goToLibrarySurface,

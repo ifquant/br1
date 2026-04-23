@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>urn:fixture:opds:root</id>
+  <title>Readest Fixture Catalog</title>
+  <updated>2026-04-23T00:00:00Z</updated>
+  <link rel="self" href="fixture://opds/root.xml" type="application/atom+xml;profile=opds-catalog"/>
+  <link rel="next" href="fixture://opds/next.xml" type="application/atom+xml;profile=opds-catalog"/>
+  <link rel="search" href="fixture://opds/search.xml?q={searchTerms}" type="application/atom+xml"/>
+  <entry>
+    <id>urn:fixture:opds:one</id>
+    <title>Fixture EPUB One</title>
+    <updated>2026-04-23T00:00:00Z</updated>
+    <author>
+      <name>Ada Catalog</name>
+      <uri>https://example.invalid/authors/ada</uri>
+    </author>
+    <summary>A small OPDS entry used to verify import intent conversion.</summary>
+    <category term="fiction"/>
+    <link rel="http://opds-spec.org/image/thumbnail" href="fixture://opds/covers/one.jpg" type="image/jpeg"/>
+    <link rel="http://opds-spec.org/acquisition" href="fixture://opds/files/fixture-one.epub" type="application/epub+zip" title="fixture-one.epub" length="1024"/>
+  </entry>
+  <entry>
+    <id>urn:fixture:opds:two</id>
+    <title>Learning Rust Catalogs</title>
+    <updated>2026-04-23T00:00:00Z</updated>
+    <author>
+      <name>Ferris Reader</name>
+    </author>
+    <summary>Rust catalog fixture for OPDS search filtering.</summary>
+    <category term="rust"/>
+    <link rel="alternate" href="fixture://opds/books/two" type="text/html"/>
+  </entry>
+</feed>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>urn:fixture:opds:next</id>
+  <title>Readest Fixture Catalog - Page 2</title>
+  <updated>2026-04-23T00:00:00Z</updated>
+  <link rel="self" href="fixture://opds/next.xml" type="application/atom+xml;profile=opds-catalog"/>
+  <link rel="previous" href="fixture://opds/root.xml" type="application/atom+xml;profile=opds-catalog"/>
+  <link rel="search" href="fixture://opds/search.xml?q={searchTerms}" type="application/atom+xml"/>
+  <entry>
+    <id>urn:fixture:opds:three</id>
+    <title>Second Page PDF</title>
+    <updated>2026-04-23T00:00:00Z</updated>
+    <author>
+      <name>Page Turner</name>
+    </author>
+    <summary>Second fixture page used to verify allowlisted pagination.</summary>
+    <category term="pdf"/>
+    <link rel="http://opds-spec.org/acquisition/open-access" href="fixture://opds/files/fixture-three.pdf" type="application/pdf" title="fixture-three.pdf" length="2048"/>
+  </entry>
+</feed>

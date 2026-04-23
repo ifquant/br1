@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>urn:calibre:root</id>
+  <title>Calibre Fixture Library</title>
+  <updated>2026-04-23T00:00:00Z</updated>
+  <link rel="self" href="fixture://calibre/root.xml" type="application/atom+xml;profile=opds-catalog"/>
+  <link rel="search" href="fixture://calibre/search?query={searchTerms}" type="application/atom+xml"/>
+  <entry>
+    <id>urn:calibre:book:1</id>
+    <title>Calibre Fixture EPUB</title>
+    <updated>2026-04-23T00:00:00Z</updated>
+    <author>
+      <name>Calibre Author</name>
+    </author>
+    <summary>Calibre-compatible OPDS entry with an EPUB acquisition link.</summary>
+    <category term="calibre"/>
+    <category term="epub"/>
+    <link rel="http://opds-spec.org/acquisition" href="fixture://calibre/files/calibre-fixture.epub" type="application/epub+zip" title="calibre-fixture.epub"/>
+  </entry>
+  <entry>
+    <id>urn:calibre:book:2</id>
+    <title>Calibre Fixture PDF</title>
+    <updated>2026-04-23T00:00:00Z</updated>
+    <author>
+      <name>Calibre Author</name>
+    </author>
+    <summary>Calibre-compatible OPDS entry with a PDF acquisition link.</summary>
+    <category term="calibre"/>
+    <category term="pdf"/>
+    <link rel="http://opds-spec.org/acquisition" href="fixture://calibre/files/calibre-fixture.pdf" type="application/pdf" title="calibre-fixture.pdf"/>
+  </entry>
+</feed>

@@ -89,6 +89,17 @@ export type CatalogSearchRequest = {
   pageHref?: string;
 };
 
+export type CatalogBrowseRequest = {
+  sourceId: string;
+  pageHref?: string;
+};
+
+export type CatalogImportIntentRequest = {
+  sourceId: string;
+  entryId: string;
+  pageHref?: string;
+};
+
 export type CatalogAuthChallenge = {
   sourceId: string;
   kind: Exclude<CatalogSourceAuthKind, 'none'>;
@@ -151,6 +162,10 @@ export type CatalogConnectorStatus = {
 
 export type CatalogConnectorStatusResponse = CatalogConnectorStatus;
 
+export type CatalogSourceListResponse = CatalogSource[];
+export type CatalogPageResponse = CatalogPage;
+export type CatalogImportIntentResponse = CatalogImportIntent;
+
 export const createUnavailableCatalogConnectorStatus = (
   message = 'Catalog connectors require the desktop runtime.'
 ): CatalogConnectorStatus => ({
@@ -186,6 +201,72 @@ export const normalizeCatalogSearchRequest = (
   sourceId: request.sourceId.trim(),
   query: request.query.replace(/\s+/g, ' ').trim().slice(0, 240),
   pageHref: request.pageHref?.trim() || undefined
+});
+
+export const normalizeCatalogBrowseRequest = (request: CatalogBrowseRequest): CatalogBrowseRequest => ({
+  sourceId: request.sourceId.trim(),
+  pageHref: request.pageHref?.trim() || undefined
+});
+
+export const normalizeCatalogImportIntentRequest = (
+  request: CatalogImportIntentRequest
+): CatalogImportIntentRequest => ({
+  sourceId: request.sourceId.trim(),
+  entryId: request.entryId.trim(),
+  pageHref: request.pageHref?.trim() || undefined
+});
+
+const createUnavailableCatalogSource = (sourceId: string): CatalogSource => ({
+  id: sourceId.trim(),
+  kind: 'opds',
+  title: 'Unavailable catalog source',
+  baseUrl: '',
+  auth: {
+    kind: 'none',
+    label: 'Catalog connectors require the desktop runtime.',
+    configured: false,
+    required: false
+  },
+  tags: [],
+  createdAt: 0,
+  updatedAt: 0
+});
+
+const createCatalogErrorPage = (
+  request: CatalogBrowseRequest,
+  message: string,
+  code: CatalogErrorCode = 'unavailable'
+): CatalogPage => ({
+  source: createUnavailableCatalogSource(request.sourceId),
+  entries: [],
+  pagination: {
+    pageId: request.pageHref || 'unavailable',
+    selfHref: request.pageHref,
+    totalResults: 0,
+    itemsPerPage: 0,
+    startIndex: 1
+  },
+  error: {
+    code,
+    message,
+    sourceId: request.sourceId.trim() || undefined,
+    retryable: false
+  }
+});
+
+const createBlockedCatalogImportIntent = (
+  request: CatalogImportIntentRequest,
+  reason: string,
+  now = Date.now()
+): CatalogImportIntent => ({
+  id: `catalog:${request.sourceId.trim()}:${request.entryId.trim()}:blocked`,
+  sourceId: request.sourceId.trim(),
+  entryId: request.entryId.trim(),
+  title: 'Unavailable catalog entry',
+  acquisitionHref: '',
+  status: 'blocked',
+  blockedReason: reason,
+  createdAt: now
 });
 
 const getImportableLink = (entry: CatalogEntry): CatalogEntryLink | undefined =>
@@ -250,5 +331,66 @@ export const getCatalogConnectorStatus = async (): Promise<CatalogConnectorStatu
         retryable: true
       }
     };
+  }
+};
+
+export const listCatalogSources = async (): Promise<CatalogSource[]> => {
+  if (!isTauriDesktop()) {
+    return [];
+  }
+
+  try {
+    return await invokeTauri<CatalogSourceListResponse>('list_catalog_sources');
+  } catch {
+    return [];
+  }
+};
+
+export const browseCatalogSource = async (request: CatalogBrowseRequest): Promise<CatalogPage> => {
+  const normalized = normalizeCatalogBrowseRequest(request);
+  if (!isTauriDesktop()) {
+    return createCatalogErrorPage(normalized, 'Catalog browsing requires the desktop runtime.');
+  }
+
+  try {
+    return await invokeTauri<CatalogPageResponse>('browse_catalog_source', { request: normalized });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return createCatalogErrorPage(normalized, message, 'unknown');
+  }
+};
+
+export const searchCatalogSource = async (request: CatalogSearchRequest): Promise<CatalogPage> => {
+  const normalized = normalizeCatalogSearchRequest(request);
+  if (!isTauriDesktop()) {
+    return createCatalogErrorPage(normalized, 'Catalog search requires the desktop runtime.');
+  }
+
+  try {
+    return await invokeTauri<CatalogPageResponse>('search_catalog_source', { request: normalized });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return createCatalogErrorPage(normalized, message, 'unknown');
+  }
+};
+
+export const requestCatalogImportIntent = async (
+  request: CatalogImportIntentRequest
+): Promise<CatalogImportIntent> => {
+  const normalized = normalizeCatalogImportIntentRequest(request);
+  if (!isTauriDesktop()) {
+    return createBlockedCatalogImportIntent(
+      normalized,
+      'Catalog import intents require the desktop runtime.'
+    );
+  }
+
+  try {
+    return await invokeTauri<CatalogImportIntentResponse>('create_catalog_import_intent', {
+      request: normalized
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return createBlockedCatalogImportIntent(normalized, message);
   }
 };
