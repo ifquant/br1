@@ -273,12 +273,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 0509
   - Notes: Yandex now rides the same `translate_reader_assistance` Tauri command and reader assist result state as DeepL, the sidebar translation mode exposes both providers through the same existing chip row, and Tauri derives Yandex auth (`Api-Key` or `Bearer`) plus required `folderId` from local env only. Missing local auth/folder config, offline failures, auth/config failures, and rate/quota-style failures are surfaced as explicit states without adding a generic proxy or renderer-controlled URL. Tutorial: `tutorials/commit/0509-implement-reader-yandex-translation-bridge.md`.
 
-- [ ] P2-3.1 Add the sync substrate data model
+- [x] P2-3.1 Add the sync substrate data model
   - Outcome: library metadata, reading state, bookmarks, notes, highlights, and settings have exportable/importable sync records and stable ids.
   - Touches: sync types, persistence services, conflict model.
-  - Verify: `pnpm check`; sync fixture tests; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Verify: `pnpm check` (PASS); `pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/sync/model.test.js` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: added `src/lib/sync` with explicit record envelopes for library metadata, reading state, bookmarks, notes, highlights workspace, and persisted reader settings; stable record ids are derived from durable book ids or hashed persisted store keys without changing existing product writes. Import/export UI, snapshot file commands, conflict resolution flow, and any migration of timestamp-based per-item annotation ids remain deferred to P2-3.2+.
 
 - [ ] P2-3.2 Implement local sync snapshot import/export
   - Outcome: users can create and restore a local sync snapshot before remote providers exist.
