@@ -3252,6 +3252,114 @@ describe('br1 desktop app', () => {
     }
   });
 
+  it('certifies associated-open queue normalization and trusted-open boundaries', async () => {
+    const libraryHandle = await switchToLibraryWindow();
+
+    try {
+      const handlesBeforeQueue = await browser.getWindowHandles();
+      const fb2Path = join(staticSamplesRoot, 'sample-book.fb2');
+      const fb2FileUrl = new URL(`file://${fb2Path}`).toString();
+
+      const queuedCount = await queueAssociatedBookOpenRequests([
+        fb2Path,
+        `  "${fb2Path}"  `,
+        `file://localhost${fb2Path}`,
+        fb2FileUrl
+      ]);
+      expect(queuedCount).toBe(1);
+
+      await browser.waitUntil(async () => {
+        const handles = await browser.getWindowHandles();
+        return handles.length > handlesBeforeQueue.length;
+      }, {
+        timeout: 10000,
+        timeoutMsg: 'expected an associated book open request to create a reader window'
+      });
+
+      const handlesAfterQueue = await browser.getWindowHandles();
+      const readerHandle = handlesAfterQueue.find((handle) => !handlesBeforeQueue.includes(handle));
+      expect(readerHandle).toBeTruthy();
+
+      await browser.switchToWindow(readerHandle!);
+
+      const readerShell = await $('.reader-shell');
+      await readerShell.waitForDisplayed({ timeout: 10000 });
+
+      await browser.waitUntil(async () => {
+        const details = await readReaderDetails();
+        if (details.stageError) {
+          throw new Error(details.stageError);
+        }
+        return details.title === 'Bridge Reader Sample FB2' && details.formatLabel === 'FB2';
+      }, {
+        timeout: 20000,
+        timeoutMsg: 'expected the associated FB2 request to open in a reader window with readable metadata'
+      });
+
+      const readerUrl = new URL(await browser.getUrl());
+      expect(readerUrl.searchParams.get('mode')).toBe('window');
+      expect(readerUrl.searchParams.get('source')).toBe('library-file');
+      expect(readerUrl.searchParams.get('path')).toBe(fb2Path);
+
+      await cleanupReaderAttempt(libraryHandle);
+
+      const [trustedImportedBook] = await importDesktopLibraryBooks([join(staticSamplesRoot, 'sample-book.txt')]);
+      expect(trustedImportedBook?.filePath).toBeTruthy();
+      await browser.refresh();
+      await $('.library-page').waitForDisplayed({ timeout: 10000 });
+
+      await openReaderFromLibraryPath(trustedImportedBook!.filePath, libraryHandle);
+
+      const trustedReaderUrl = new URL(await browser.getUrl());
+      expect(trustedReaderUrl.searchParams.get('mode')).toBe('window');
+      expect(trustedReaderUrl.searchParams.get('source')).toBe('library-file');
+      expect(normalizeFsPathAlias(trustedReaderUrl.searchParams.get('path') ?? '')).toBe(
+        normalizeFsPathAlias(trustedImportedBook!.filePath)
+      );
+
+      await cleanupReaderAttempt(libraryHandle);
+
+      const untrustedBook = join(appDataRoot, `br1-untrusted-renderer-${Date.now()}.txt`);
+      const untrustedCover = join(appDataRoot, `br1-untrusted-cover-${Date.now()}.png`);
+
+      await writeFile(untrustedBook, 'renderer-controlled book path must not be trusted', 'utf8');
+      await writeFile(untrustedCover, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+
+      try {
+        const records = await loadLibraryRecordsOnDisk();
+        const existingRecord = records.find((record) => record.id || record.filePath || record.file_path);
+        expect(existingRecord).toBeTruthy();
+        const recordId = existingRecord!.id ?? existingRecord!.filePath ?? existingRecord!.file_path ?? '';
+
+        const probe = await invokeDesktopCommand<{
+          importError?: string | null;
+          bookBinaryError?: string | null;
+          fingerprintError?: string | null;
+          coverError?: string | null;
+          repairPreviewError?: string | null;
+          restoreError?: string | null;
+        }>('probe_untrusted_library_paths_for_webdriver', {
+          bookPath: untrustedBook,
+          coverPath: untrustedCover,
+          recordId
+        });
+        expect(probe.ok).toBe(true);
+        if (!probe.ok) throw new Error(probe.error);
+        expect(probe.result.importError).toContain('not an approved picker or library source');
+        expect(probe.result.bookBinaryError).toContain('not an approved library source');
+        expect(probe.result.fingerprintError).toContain('not an approved library source');
+        expect(probe.result.coverError).toContain('not a br1 library asset');
+        expect(probe.result.repairPreviewError).toContain('not an approved picker or library source');
+        expect(probe.result.restoreError).toContain('Library record not found for restore');
+      } finally {
+        await rm(untrustedBook, { force: true });
+        await rm(untrustedCover, { force: true });
+      }
+    } finally {
+      await cleanupReaderAttempt(libraryHandle);
+    }
+  });
+
   it('opens a trusted imported library book in a separate reader window', async () => {
     const libraryHandle = await switchToLibraryWindow();
 
