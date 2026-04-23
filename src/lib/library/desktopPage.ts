@@ -92,6 +92,32 @@ export type DesktopLibraryPageCoordinatorOptions = {
   setImportInputValue: (value: string) => void;
 };
 
+export type DesktopLibraryPageCoordinatorStateBindings = Pick<
+  DesktopLibraryPageCoordinatorOptions,
+  | 'getLibraryNoticeState'
+  | 'setLibraryNoticeState'
+  | 'setPersistedLibraryRecords'
+  | 'setReadestCompatibleCount'
+  | 'setImportedBooks'
+  | 'getPersistedLibraryRecords'
+  | 'getBulkRepairBusy'
+  | 'setBulkRepairBusy'
+  | 'setBulkRepairSummary'
+  | 'getBulkRepairEligibleQueueBooks'
+  | 'getMigrationBusy'
+  | 'setMigrationBusy'
+  | 'setDesktopLibraryMode'
+  | 'setReadestLibraryCount'
+  | 'setShowReadestMigration'
+  | 'getImportInput'
+  | 'setImportInputValue'
+>;
+
+export type DesktopLibraryPageCoordinatorEnvironment = Omit<
+  DesktopLibraryPageCoordinatorOptions,
+  keyof DesktopLibraryPageCoordinatorStateBindings
+>;
+
 export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCoordinatorOptions) => {
   const clearLibraryNotice = () => {
     options.setLibraryNoticeState(null);
@@ -327,3 +353,15 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
 export const buildDesktopLibraryPageCoordinatorFromState = (
   options: DesktopLibraryPageCoordinatorOptions
 ) => buildDesktopLibraryPageCoordinator(options);
+
+export const buildDesktopLibraryPageCoordinatorFromBindings = ({
+  state,
+  env
+}: {
+  state: DesktopLibraryPageCoordinatorStateBindings;
+  env: DesktopLibraryPageCoordinatorEnvironment;
+}) =>
+  buildDesktopLibraryPageCoordinator({
+    ...state,
+    ...env
+  });

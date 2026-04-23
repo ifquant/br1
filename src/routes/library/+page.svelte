@@ -24,7 +24,7 @@
     buildLibraryPageActionSet,
     getAppliedLibraryBrowseState
   } from '$lib/library/controller';
-  import { buildDesktopLibraryPageCoordinatorFromState } from '$lib/library/desktopPage';
+  import { buildDesktopLibraryPageCoordinatorFromBindings } from '$lib/library/desktopPage';
   import {
     buildLibraryPageSurfaceSetFromState,
     createEmptyLibraryPageSurfaceModel,
@@ -338,64 +338,68 @@
       searchActive: librarySearchActive
     });
 
-  const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromState({
-    getLibraryNoticeState: () => libraryNotice,
-    setLibraryNoticeState: (notice) => {
-      libraryNotice = notice;
+  const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromBindings({
+    state: {
+      getLibraryNoticeState: () => libraryNotice,
+      setLibraryNoticeState: (notice) => {
+        libraryNotice = notice;
+      },
+      setPersistedLibraryRecords: (records) => {
+        persistedLibraryRecords = records;
+      },
+      setReadestCompatibleCount: (count) => {
+        readestCompatibleCount = count;
+      },
+      setImportedBooks: (books) => {
+        importedBooks = books;
+      },
+      getPersistedLibraryRecords: () => persistedLibraryRecords,
+      getBulkRepairBusy: () => bulkRepairBusy,
+      setBulkRepairBusy: (busy) => {
+        bulkRepairBusy = busy;
+      },
+      setBulkRepairSummary: (summary) => {
+        bulkRepairSummary = summary;
+      },
+      getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
+      getMigrationBusy: () => migrationBusy,
+      setMigrationBusy: (busy) => {
+        migrationBusy = busy;
+      },
+      setDesktopLibraryMode: (value) => {
+        desktopLibraryMode = value;
+      },
+      setReadestLibraryCount: (count) => {
+        readestLibraryCount = count;
+      },
+      setShowReadestMigration: (value) => {
+        showReadestMigration = value;
+      },
+      getImportInput: () => importInput,
+      setImportInputValue: (value) => {
+        if (importInput) importInput.value = value;
+      }
     },
-    setPersistedLibraryRecords: (records) => {
-      persistedLibraryRecords = records;
-    },
-    setReadestCompatibleCount: (count) => {
-      readestCompatibleCount = count;
-    },
-    setImportedBooks: (books) => {
-      importedBooks = books;
-    },
-    canPersistLibrary,
-    getPersistedLibraryRecords: () => persistedLibraryRecords,
-    getBulkRepairBusy: () => bulkRepairBusy,
-    setBulkRepairBusy: (busy) => {
-      bulkRepairBusy = busy;
-    },
-    setBulkRepairSummary: (summary) => {
-      bulkRepairSummary = summary;
-    },
-    getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
-    getMigrationBusy: () => migrationBusy,
-    setMigrationBusy: (busy) => {
-      migrationBusy = busy;
-    },
-    setDesktopLibraryMode: (value) => {
-      desktopLibraryMode = value;
-    },
-    setReadestLibraryCount: (count) => {
-      readestLibraryCount = count;
-    },
-    setShowReadestMigration: (value) => {
-      showReadestMigration = value;
-    },
-    getImportInput: () => importInput,
-    toAssetReaderTarget: (url, label) => toAssetReaderTarget(url, label ?? ''),
-    openReaderTarget,
-    openLibraryBookPath,
-    importBooksFromDesktopPicker,
-    loadPersistedLibraryBooks,
-    detectReadestLibrary,
-    importBooksFromReadest,
-    importLibraryBooks,
-    previewLibraryRepairCandidate,
-    selectSingleSystemBookPath,
-    removeLibraryBook,
-    restoreRemovedLibraryBook,
-    updateLibraryBookMetadata,
-    confirmReplacement: (message) =>
-      typeof window === 'undefined' || window.confirm(message),
-    confirmRemoval: (message) =>
-      typeof window === 'undefined' || window.confirm(message),
-    createObjectUrl: (file) => URL.createObjectURL(file),
-    setImportInputValue: (value) => {
-      if (importInput) importInput.value = value;
+    env: {
+      canPersistLibrary,
+      toAssetReaderTarget: (url, label) => toAssetReaderTarget(url, label ?? ''),
+      openReaderTarget,
+      openLibraryBookPath,
+      importBooksFromDesktopPicker,
+      loadPersistedLibraryBooks,
+      detectReadestLibrary,
+      importBooksFromReadest,
+      importLibraryBooks,
+      previewLibraryRepairCandidate,
+      selectSingleSystemBookPath,
+      removeLibraryBook,
+      restoreRemovedLibraryBook,
+      updateLibraryBookMetadata,
+      confirmReplacement: (message) =>
+        typeof window === 'undefined' || window.confirm(message),
+      confirmRemoval: (message) =>
+        typeof window === 'undefined' || window.confirm(message),
+      createObjectUrl: (file) => URL.createObjectURL(file)
     }
   });
 
