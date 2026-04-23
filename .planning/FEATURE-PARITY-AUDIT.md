@@ -228,6 +228,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the shared controller layer now also builds the library page action model itself, so shelf-filter, clear-filter, query/filter mutation, trail-jump dispatch, and sort/view-mode wiring are no longer hand-assembled inline in `+page.svelte`
 - the remaining desktop page coordinator logic now also routes through a shared module, so notice state helpers, desktop ingress, import-file opening, Readest migration, repair reload, and desktop maintenance handler wiring are no longer defined inline in `+page.svelte`
 - desktop/starter page-surface assembly now also routes through a shared surface-set builder, so `+page.svelte` no longer hand-builds two separate page-surface object literals and then selects the active one inline
+- the remaining browse/filter page derivations now also route through a shared builder, so `+page.svelte` no longer spells out the whole reactive chain for search state, active-filter state, desktop browse, starter browse, and filter-summary calculation inline
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

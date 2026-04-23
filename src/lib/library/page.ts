@@ -45,6 +45,14 @@ export type DesktopLibraryBrowseDerivations = LibraryBrowseDerivations & {
   filteredRecoveryQueueBooks: LibraryShelfBook[];
 };
 
+export type LibraryPageDerivations = {
+  searchActive: boolean;
+  activeFilterState: LibraryActiveFilterState;
+  desktopBrowse: DesktopLibraryBrowseDerivations;
+  starterBrowse: LibraryBrowseDerivations;
+  filterSummary: string;
+};
+
 export const getLibraryBookKey = (book: LibraryShelfBook) =>
   book.readerHref || `${book.title}::${book.author}`;
 
@@ -742,5 +750,82 @@ export const buildStarterLibraryBrowseDerivations = ({
       filteredStarterContinueReadingBooks: filteredContinueReadingBooks,
       filteredStarterRecentReadingBooks: filteredRecentReadingBooks
     })
+  };
+};
+
+export const buildLibraryPageDerivations = ({
+  importedBooks,
+  starterLibraryBooks,
+  query,
+  sortBy,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter,
+  groupBy,
+  groupScope,
+  desktopLibraryMode
+}: {
+  importedBooks: LibraryShelfBook[];
+  starterLibraryBooks: LibraryShelfBook[];
+  query: string;
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  filterBy: LibraryFilter;
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+  groupBy: 'none' | 'author' | 'collection' | 'format';
+  groupScope: string;
+  desktopLibraryMode: boolean;
+}): LibraryPageDerivations => {
+  const searchActive = normalizeLibrarySearchText(query).length > 0;
+  const desktopBrowse = buildDesktopLibraryBrowseDerivations({
+    books: importedBooks,
+    query,
+    sortBy,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    groupBy,
+    groupScope
+  });
+  const starterBrowse = buildStarterLibraryBrowseDerivations({
+    books: starterLibraryBooks,
+    query,
+    sortBy,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    groupBy,
+    groupScope
+  });
+  const activeFilterState = buildLibraryActiveFilterState({
+    searchActive,
+    query,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter
+  });
+  const filterSummary = isLibraryViewFiltered({
+      searchActive,
+      filterBy,
+      formatFilter,
+      collectionFilter,
+      tagFilter
+    })
+    ? `筛选命中 ${
+        desktopLibraryMode ? desktopBrowse.visibleBooksCount : starterBrowse.visibleBooksCount
+      } / ${(importedBooks.length ? importedBooks : starterLibraryBooks).length} 本`
+    : '';
+
+  return {
+    searchActive,
+    activeFilterState,
+    desktopBrowse,
+    starterBrowse,
+    filterSummary
   };
 };

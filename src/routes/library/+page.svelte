@@ -38,13 +38,9 @@
     syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation
   } from '$lib/library/runtime';
   import {
-    buildLibraryActiveFilterState,
-    buildDesktopLibraryBrowseDerivations,
     buildLibraryFilterState,
-    buildStarterLibraryBrowseDerivations,
-    filterBooksForLibraryView,
+    buildLibraryPageDerivations,
     getLibraryEmptyFilterTitle,
-    isLibraryViewFiltered,
     normalizeLibrarySearchText,
     type DesktopLibraryBrowseDerivations,
     type LibraryBrowseDerivations,
@@ -460,9 +456,15 @@
     });
   });
 
-  $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;
-  $: desktopLibraryBrowse = buildDesktopLibraryBrowseDerivations({
-    books: importedBooks,
+  $: ({
+    searchActive: librarySearchActive,
+    activeFilterState: libraryActiveFilterState,
+    desktopBrowse: desktopLibraryBrowse,
+    starterBrowse: starterLibraryBrowse,
+    filterSummary: libraryFilterSummary
+  } = buildLibraryPageDerivations({
+    importedBooks,
+    starterLibraryBooks,
     query: libraryQuery,
     sortBy: librarySortBy,
     filterBy: libraryFilterBy,
@@ -470,24 +472,17 @@
     collectionFilter: libraryCollectionFilter,
     tagFilter: libraryTagFilter,
     groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope
+    groupScope: libraryGroupScope,
+    desktopLibraryMode
+  }));
+  $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
+  $: libraryFilterState = buildLibraryFilterState({
+    summaryBooks: librarySummaryBooks
   });
   $: recoveryQueueBooks = desktopLibraryBrowse.recoveryQueueBooks;
   $: continueReadingBooks = desktopLibraryBrowse.continueReadingBooks;
   $: recentReadingBooks = desktopLibraryBrowse.recentReadingBooks;
   $: libraryShelfBooks = desktopLibraryBrowse.shelfBooks;
-  $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
-  $: libraryFilterState = buildLibraryFilterState({
-    summaryBooks: librarySummaryBooks
-  });
-  $: libraryActiveFilterState = buildLibraryActiveFilterState({
-    searchActive: librarySearchActive,
-    query: libraryQuery,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter
-  });
   $: libraryStatusOptionCounts = libraryFilterState.statusOptionCounts;
   $: libraryFormatOptions = libraryFilterState.formatOptions;
   $: libraryCollectionOptions = libraryFilterState.collectionOptions;
@@ -563,17 +558,6 @@
   $: libraryGroupedBrowseMode = desktopLibraryBrowse.groupedBrowseMode;
   $: visibleLibraryBooksCount = desktopLibraryBrowse.visibleBooksCount;
   $: readingWorkflowNotice = desktopLibraryBrowse.workflowNotice;
-  $: starterLibraryBrowse = buildStarterLibraryBrowseDerivations({
-    books: starterLibraryBooks,
-    query: libraryQuery,
-    sortBy: librarySortBy,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter,
-    groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope
-  });
   $: starterContinueReadingBooks = starterLibraryBrowse.continueReadingBooks;
   $: starterRecentReadingBooks = starterLibraryBrowse.recentReadingBooks;
   $: starterShelfBooks = starterLibraryBrowse.shelfBooks;
@@ -582,17 +566,6 @@
   $: filteredStarterBrowseBooks = starterLibraryBrowse.filteredBrowseBooks;
   $: filteredStarterShelfBooks = starterLibraryBrowse.filteredShelfBooks;
   $: visibleStarterLibraryBooksCount = starterLibraryBrowse.visibleBooksCount;
-  $: libraryFilterSummary = isLibraryViewFiltered({
-    searchActive: librarySearchActive,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter
-  })
-    ? `筛选命中 ${
-        desktopLibraryMode ? visibleLibraryBooksCount : visibleStarterLibraryBooksCount
-      } / ${importedBooks.length || starterLibraryBooks.length} 本`
-    : '';
   $: starterReadingWorkflowNotice = starterLibraryBrowse.workflowNotice;
   $: currentLibraryBrowseState = getCurrentLibraryBrowseState();
   $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
