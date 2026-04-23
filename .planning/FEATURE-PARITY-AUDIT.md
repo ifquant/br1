@@ -251,6 +251,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the library page now also builds desktop coordinator state bindings from current page state through a shared desktopPage helper, so `+page.svelte` no longer manually wrap a large set of current values into getter-shaped coordinator state inputs
 - the library page now also builds desktop coordinator env bindings from current page env through a shared desktopPage helper, so `+page.svelte` no longer directly assemble the coordinator env object literal inline
 - the library page now also builds the desktop coordinator itself from current page state and env through a shared desktopPage helper, so `+page.svelte` no longer manually orchestrate the coordinator's intermediate binding layers
+- the library page now also builds library-surface runtime bindings from host dependencies through a shared runtime helper, so `+page.svelte` no longer manually assemble the mount-time runtime host args inline
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

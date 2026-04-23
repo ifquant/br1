@@ -315,6 +315,39 @@ type InstallLibrarySurfaceRuntimeArgs = {
   getScrollContextKey: () => string;
 };
 
+export const buildLibrarySurfaceRuntimeBindings = ({
+  win,
+  doc,
+  canPersistLibrary,
+  reloadEventName,
+  getViewport,
+  onRefreshLibrary,
+  getScrollContextKey
+}: {
+  win: Window;
+  doc: Document;
+  canPersistLibrary: boolean;
+  reloadEventName: string;
+  getViewport: () => HTMLElement | null;
+  onRefreshLibrary: () => void | Promise<void>;
+  getScrollContextKey: () => string;
+}): InstallLibrarySurfaceRuntimeArgs => ({
+  win,
+  doc,
+  canPersistLibrary,
+  reloadEventName,
+  getViewport,
+  onRefreshLibrary,
+  onSaveScrollPosition: (contextKey) => {
+    saveLibraryViewportScrollPosition({
+      storage: win.sessionStorage,
+      contextKey,
+      getViewport
+    });
+  },
+  getScrollContextKey
+});
+
 export const installLibrarySurfaceRuntime = ({
   win,
   doc,

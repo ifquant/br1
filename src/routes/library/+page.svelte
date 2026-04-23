@@ -35,10 +35,10 @@
     createEmptyLibraryPageSurfaceModel,
   } from '$lib/library/surface';
   import {
+    buildLibrarySurfaceRuntimeBindings,
     buildLibraryBrowseLocationBindings,
     installLibrarySurfaceRuntime,
     normalizeLibraryBrowseLocation,
-    saveLibraryViewportScrollPosition,
     syncLibraryViewportScrollContextFromPageState
   } from '$lib/library/runtime';
   import {
@@ -418,25 +418,19 @@
   });
 
   onMount(() => {
-    return installLibrarySurfaceRuntime({
-      win: window,
-      doc: document,
-      canPersistLibrary: canPersistLibrary(),
-      reloadEventName: LIBRARY_SURFACE_RELOAD_EVENT,
-      getViewport: getLibraryViewport,
-      onRefreshLibrary: () => {
-        void desktopLibraryPageCoordinator.loadLibrary();
-      },
-      onSaveScrollPosition: (contextKey) => {
-        if (typeof window === 'undefined') return;
-        saveLibraryViewportScrollPosition({
-          storage: window.sessionStorage,
-          contextKey,
-          getViewport: getLibraryViewport
-        });
-      },
-      getScrollContextKey: () => libraryScrollContextKey
-    });
+    return installLibrarySurfaceRuntime(
+      buildLibrarySurfaceRuntimeBindings({
+        win: window,
+        doc: document,
+        canPersistLibrary: canPersistLibrary(),
+        reloadEventName: LIBRARY_SURFACE_RELOAD_EVENT,
+        getViewport: getLibraryViewport,
+        onRefreshLibrary: () => {
+          void desktopLibraryPageCoordinator.loadLibrary();
+        },
+        getScrollContextKey: () => libraryScrollContextKey
+      })
+    );
   });
 
   $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;
