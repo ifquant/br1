@@ -33,7 +33,7 @@
 ## 验证
 
 - `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`
-- `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec exec playwright test e2e/app.e2e.ts --grep "opens a startup associated book argument in a separate reader window|certifies associated-open queue normalization and trusted-open boundaries"`
+- `APP_OPEN_ARGS=/Users/dev/workspace2/hc_apps/br1-readest-alignment-exec/static/samples/sample-book.fb2 BR1_TEST_ASSOCIATED_FILE_PATH=/Users/dev/workspace2/hc_apps/br1-readest-alignment-exec/static/samples/sample-book.fb2 bash /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec/scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "opens a startup associated book argument in a separate reader window|certifies associated-open queue normalization and trusted-open boundaries"`
 - `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`
 
 ## 没有包含
