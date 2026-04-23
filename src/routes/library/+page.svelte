@@ -17,9 +17,9 @@
     LibraryShelfBook
   } from '$lib/library/types';
   import {
+    buildLibraryPageActions,
     createLibraryNotice,
     getAppliedLibraryBrowseState,
-    getNextLibraryFilterControlsState,
     runLibraryNoticeAction as runSharedLibraryNoticeAction
   } from '$lib/library/controller';
   import {
@@ -653,8 +653,8 @@
       onRemoveBook: handleRemoveLibraryBook,
       onBulkRepairBooks: handleBulkRepairLibraryBooks,
       onReadestMigration: handleReadestMigrationClick,
-      onClearFilterById: clearLibraryFilterById,
-      onClearFilters: handleClearLibraryFilters,
+      onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
+      onClearFilters: activeLibraryPageActions.onClearFilters!,
       getEmptyFilterTitle: getLibraryEmptyFilterTitle
     }
   });
@@ -714,8 +714,8 @@
       visibleStarterLibraryBooksCount,
       activeFilterDetail: libraryActiveFilterDetail,
       activeFilterChips: libraryActiveFilterChips,
-      onClearFilterById: clearLibraryFilterById,
-      onClearFilters: handleClearLibraryFilters,
+      onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
+      onClearFilters: activeLibraryPageActions.onClearFilters!,
       getEmptyFilterTitle: getLibraryEmptyFilterTitle
     }
   });
@@ -949,129 +949,27 @@
     await syncLibraryBrowseLocation(nextState);
   };
 
-  const handleFilterByShelfStatus = (status: LibraryFilter) => {
-    if (status === 'all') return;
-    applyLibraryFilterControlsState(
-      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-        type: 'apply-shelf-status',
-        filterBy: status
-      })
-    );
-  };
-
-  const handleFilterByShelfCollection = (collection: string) => {
-    applyLibraryFilterControlsState(
-      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-        type: 'apply-shelf-collection',
-        collection
-      })
-    );
-  };
-
-  const handleFilterByShelfFormat = (format: string) => {
-    applyLibraryFilterControlsState(
-      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-        type: 'apply-shelf-format',
-        format
-      })
-    );
-  };
-
-  const handleFilterByShelfTag = (tag: string) => {
-    applyLibraryFilterControlsState(
-      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-        type: 'apply-shelf-tag',
-        tag
-      })
-    );
-  };
-
-  const handleClearLibraryFilters = () => {
-    applyLibraryFilterControlsState(
-      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-        type: 'reset-all'
-      })
-    );
-  };
-
-  const clearLibraryFilterById = (id: LibraryActiveFilterChip['id']) => {
-    applyLibraryFilterControlsState(
-      getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-        type: 'clear-chip',
-        id
-      })
-    );
-  };
-
   $: activeLibraryPageActions = {
-    onImportChange: handleImportChange,
-    onDispatchBrowseAction: dispatchLibraryBrowseAction,
-    onRunNoticeAction: runLibraryNoticeAction,
-    onClearNotice: clearLibraryNotice,
-    onReadestMigration: handleReadestMigrationClick,
-    onOpenLink: handleOpenReaderTarget,
-    onImportBooks: triggerImportPicker,
-    onOpenSourcePath: handleOpenSourcePath,
-    onUpdateBookMetadata: handleUpdateLibraryBookMetadata,
-    onRemoveBook: handleRemoveLibraryBook,
-    onFilterStatus: handleFilterByShelfStatus,
-    onFilterFormat: handleFilterByShelfFormat,
-    onFilterCollection: handleFilterByShelfCollection,
-    onFilterTag: handleFilterByShelfTag,
-    onQueryChange: (query) => {
-      applyLibraryFilterControlsState(
-        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-          type: 'set-query',
-          query
-        })
-      );
-    },
-    onFilterChange: (filterBy) => {
-      applyLibraryFilterControlsState(
-        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-          type: 'set-status',
-          filterBy
-        })
-      );
-    },
-    onFormatFilterChange: (format) => {
-      applyLibraryFilterControlsState(
-        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-          type: 'set-format',
-          format
-        })
-      );
-    },
-    onCollectionFilterChange: (collection) => {
-      applyLibraryFilterControlsState(
-        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-          type: 'set-collection',
-          collection
-        })
-      );
-    },
-    onTagFilterChange: (tag) => {
-      applyLibraryFilterControlsState(
-        getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
-          type: 'set-tag',
-          tag
-        })
-      );
-    },
-    onClearFilterChip: clearLibraryFilterById,
-    onClearFilters: handleClearLibraryFilters,
-    onJumpTrail: (index) => {
-      void dispatchLibraryBrowseAction({
-        type: 'jump-trail',
-        index
-      });
-    },
-    onSortChange: (sortBy) => {
-      librarySortBy = sortBy;
-    },
-    onViewModeChange: (viewMode) => {
-      libraryViewMode = viewMode;
-    }
+    ...buildLibraryPageActions({
+      onImportChange: handleImportChange,
+      onDispatchBrowseAction: dispatchLibraryBrowseAction,
+      onRunNoticeAction: runLibraryNoticeAction,
+      onClearNotice: clearLibraryNotice,
+      onReadestMigration: handleReadestMigrationClick,
+      onOpenLink: handleOpenReaderTarget,
+      onImportBooks: triggerImportPicker,
+      onOpenSourcePath: handleOpenSourcePath,
+      onUpdateBookMetadata: handleUpdateLibraryBookMetadata,
+      onRemoveBook: handleRemoveLibraryBook,
+      getCurrentFilterControlsState: getCurrentLibraryFilterControlsState,
+      applyFilterControlsState: applyLibraryFilterControlsState,
+      setSortBy: (sortBy) => {
+        librarySortBy = sortBy;
+      },
+      setViewMode: (viewMode) => {
+        libraryViewMode = viewMode;
+      }
+    })
   };
 
 </script>

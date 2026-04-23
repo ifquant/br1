@@ -2,9 +2,12 @@ import { getNextLibraryBrowseState } from './navigation';
 import type {
   LibraryActiveFilterChip,
   LibraryBrowseAction,
+  LibraryBookMetadataUpdate,
   LibraryBrowseState,
   LibraryFilterControlsState,
-  LibraryNoticeState
+  LibraryNoticeState,
+  LibraryPageActions,
+  LibraryShelfBook
 } from './types';
 
 export const createLibraryNotice = (
@@ -156,3 +159,129 @@ export const getAppliedLibraryBrowseState = (
   const result = getNextLibraryBrowseState(current, action);
   return result.kind === 'applied' ? result.state : null;
 };
+
+export const buildLibraryPageActions = (options: {
+  onImportChange: (event: Event) => void | Promise<void>;
+  onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
+  onRunNoticeAction: () => void | Promise<void>;
+  onClearNotice: () => void | Promise<void>;
+  onReadestMigration: () => void | Promise<void>;
+  onOpenLink: (href: string) => void | Promise<void>;
+  onImportBooks: () => void | Promise<void>;
+  onOpenSourcePath: (filePath: string) => void | Promise<void>;
+  onUpdateBookMetadata: (
+    book: LibraryShelfBook,
+    metadata: LibraryBookMetadataUpdate
+  ) => void | Promise<void>;
+  onRemoveBook: (book: LibraryShelfBook) => void | Promise<void>;
+  getCurrentFilterControlsState: () => LibraryFilterControlsState;
+  applyFilterControlsState: (next: LibraryFilterControlsState) => void;
+  setSortBy: (sortBy: 'recent' | 'added' | 'title' | 'author' | 'format') => void | Promise<void>;
+  setViewMode: (viewMode: 'grid' | 'list') => void | Promise<void>;
+}): LibraryPageActions => ({
+  onImportChange: options.onImportChange,
+  onDispatchBrowseAction: options.onDispatchBrowseAction,
+  onRunNoticeAction: options.onRunNoticeAction,
+  onClearNotice: options.onClearNotice,
+  onReadestMigration: options.onReadestMigration,
+  onOpenLink: options.onOpenLink,
+  onImportBooks: options.onImportBooks,
+  onOpenSourcePath: options.onOpenSourcePath,
+  onUpdateBookMetadata: options.onUpdateBookMetadata,
+  onRemoveBook: options.onRemoveBook,
+  onFilterStatus: (status) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'apply-shelf-status',
+        filterBy: status
+      })
+    );
+  },
+  onFilterFormat: (format) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'apply-shelf-format',
+        format
+      })
+    );
+  },
+  onFilterCollection: (collection) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'apply-shelf-collection',
+        collection
+      })
+    );
+  },
+  onFilterTag: (tag) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'apply-shelf-tag',
+        tag
+      })
+    );
+  },
+  onQueryChange: (query) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'set-query',
+        query
+      })
+    );
+  },
+  onFilterChange: (filterBy) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'set-status',
+        filterBy
+      })
+    );
+  },
+  onFormatFilterChange: (format) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'set-format',
+        format
+      })
+    );
+  },
+  onCollectionFilterChange: (collection) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'set-collection',
+        collection
+      })
+    );
+  },
+  onTagFilterChange: (tag) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'set-tag',
+        tag
+      })
+    );
+  },
+  onClearFilterChip: (id) => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'clear-chip',
+        id
+      })
+    );
+  },
+  onClearFilters: () => {
+    options.applyFilterControlsState(
+      getNextLibraryFilterControlsState(options.getCurrentFilterControlsState(), {
+        type: 'reset-all'
+      })
+    );
+  },
+  onJumpTrail: (index) => {
+    void options.onDispatchBrowseAction({
+      type: 'jump-trail',
+      index
+    });
+  },
+  onSortChange: options.setSortBy,
+  onViewModeChange: options.setViewMode
+});
