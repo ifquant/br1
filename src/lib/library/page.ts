@@ -6,6 +6,7 @@ import {
 } from './desktopRecords';
 import type {
   LibraryActiveFilterChip,
+  LibraryBrowseState,
   ContinueReadingBook,
   LibraryShelfBook
 } from './types';
@@ -79,6 +80,15 @@ export type LibraryPageFilterProjectionState = {
   collectionSummary: string;
   tagSummary: string;
   coverSummary: string;
+};
+
+export type LibraryPageProjectionState = {
+  filterStateSet: LibraryPageFilterStateSet;
+  browseState: LibraryPageBrowseState;
+  filterProjectionState: LibraryPageFilterProjectionState;
+  currentBrowseState: LibraryBrowseState;
+  activeFilterDetail: string;
+  activeFilterChips: LibraryActiveFilterChip[];
 };
 
 export type LibraryPageViewState = {
@@ -1041,5 +1051,70 @@ export const buildLibraryPageFilterStateSet = ({
   return {
     summaryBooks,
     filterState
+  };
+};
+
+export const buildLibraryPageProjectionState = ({
+  importedBooks,
+  starterLibraryBooks,
+  query,
+  sortBy,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter,
+  groupBy,
+  groupScope,
+  trail,
+  persistedLibraryRecords,
+  desktopLibraryMode
+}: {
+  importedBooks: LibraryShelfBook[];
+  starterLibraryBooks: LibraryShelfBook[];
+  query: string;
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  filterBy: LibraryFilter;
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+  groupBy: 'none' | 'author' | 'collection' | 'format';
+  groupScope: string;
+  trail: LibraryBrowseState['trail'];
+  persistedLibraryRecords: PersistedLibraryBook[];
+  desktopLibraryMode: boolean;
+}): LibraryPageProjectionState => {
+  const filterStateSet = buildLibraryPageFilterStateSet({
+    importedBooks,
+    starterLibraryBooks
+  });
+  const browseState = buildLibraryPageBrowseState({
+    importedBooks,
+    starterLibraryBooks,
+    query,
+    sortBy,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    groupBy,
+    groupScope,
+    persistedLibraryRecords,
+    desktopLibraryMode
+  });
+  const filterProjectionState = buildLibraryPageFilterProjectionState({
+    filterState: filterStateSet.filterState
+  });
+
+  return {
+    filterStateSet,
+    browseState,
+    filterProjectionState,
+    currentBrowseState: {
+      groupBy,
+      groupScope,
+      trail
+    },
+    activeFilterDetail: browseState.activeFilterState.activeFilterDetail,
+    activeFilterChips: browseState.activeFilterState.activeFilterChips
   };
 };

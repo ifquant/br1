@@ -42,11 +42,8 @@
     syncLibraryViewportScrollContextFromPageState
   } from '$lib/library/runtime';
   import {
-    buildLibraryPageBrowseState,
-    buildLibraryPageFilterProjectionState,
-    buildLibraryPageFilterStateSet,
+    buildLibraryPageProjectionState,
     getLibraryEmptyFilterTitle,
-    normalizeLibrarySearchText,
     type DesktopLibraryBrowseDerivations,
     type LibraryBrowseDerivations,
     type LibraryFilter,
@@ -433,60 +430,6 @@
     );
   });
 
-  $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;
-  $: ({
-    summaryBooks: librarySummaryBooks,
-    filterState: libraryFilterState
-  } = buildLibraryPageFilterStateSet({
-    importedBooks,
-    starterLibraryBooks
-  }));
-  $: ({
-    searchActive: librarySearchActive,
-    activeFilterState: libraryActiveFilterState,
-    desktopBrowse: desktopLibraryBrowse,
-    starterBrowse: starterLibraryBrowse,
-    filterSummary: libraryFilterSummary,
-    recoveryQueueBooks,
-    continueReadingBooks,
-    recentReadingBooks,
-    libraryShelfBooks,
-    filteredRecoveryQueueBooks,
-    recoveryQueueReviewBooks,
-    bulkRepairEligibleQueueBooks,
-    manualRepairQueueCount,
-    recoveryQueueSummaryText,
-    libraryStatusSummary,
-    filteredContinueReadingBooks,
-    filteredRecentReadingBooks,
-    filteredLibraryBrowseBooks,
-    filteredLibraryShelfBooks,
-    libraryGroupedBrowseMode,
-    visibleLibraryBooksCount,
-    readingWorkflowNotice,
-    starterContinueReadingBooks,
-    starterRecentReadingBooks,
-    starterShelfBooks,
-    filteredStarterContinueReadingBooks,
-    filteredStarterRecentReadingBooks,
-    filteredStarterBrowseBooks,
-    filteredStarterShelfBooks,
-    visibleStarterLibraryBooksCount,
-    starterReadingWorkflowNotice
-  } = buildLibraryPageBrowseState({
-    importedBooks,
-    starterLibraryBooks,
-    query: libraryQuery,
-    sortBy: librarySortBy,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter,
-    groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope,
-    persistedLibraryRecords,
-    desktopLibraryMode
-  }));
   $: ({ groupBy: libraryGroupBy, groupScope: libraryGroupScope, trail: libraryBrowseTrail } =
     getLibraryBrowseStateFromUrl($page.url));
   $: {
@@ -499,22 +442,74 @@
     });
   }
   $: ({
-    statusOptionCounts: libraryStatusOptionCounts,
-    formatOptions: libraryFormatOptions,
-    collectionOptions: libraryCollectionOptions,
-    tagOptions: libraryTagOptions,
-    formatOptionCounts: libraryFormatOptionCounts,
-    collectionOptionCounts: libraryCollectionOptionCounts,
-    tagOptionCounts: libraryTagOptionCounts,
-    formatSummary: libraryFormatSummary,
-    collectionSummary: libraryCollectionSummary,
-    tagSummary: libraryTagSummary,
-    coverSummary: libraryCoverSummary
-  } = buildLibraryPageFilterProjectionState({
-    filterState: libraryFilterState
+    filterStateSet: {
+      summaryBooks: librarySummaryBooks,
+      filterState: libraryFilterState
+    },
+    browseState: {
+      searchActive: librarySearchActive,
+      activeFilterState: libraryActiveFilterState,
+      desktopBrowse: desktopLibraryBrowse,
+      starterBrowse: starterLibraryBrowse,
+      filterSummary: libraryFilterSummary,
+      recoveryQueueBooks,
+      continueReadingBooks,
+      recentReadingBooks,
+      libraryShelfBooks,
+      filteredRecoveryQueueBooks,
+      recoveryQueueReviewBooks,
+      bulkRepairEligibleQueueBooks,
+      manualRepairQueueCount,
+      recoveryQueueSummaryText,
+      libraryStatusSummary,
+      filteredContinueReadingBooks,
+      filteredRecentReadingBooks,
+      filteredLibraryBrowseBooks,
+      filteredLibraryShelfBooks,
+      libraryGroupedBrowseMode,
+      visibleLibraryBooksCount,
+      readingWorkflowNotice,
+      starterContinueReadingBooks,
+      starterRecentReadingBooks,
+      starterShelfBooks,
+      filteredStarterContinueReadingBooks,
+      filteredStarterRecentReadingBooks,
+      filteredStarterBrowseBooks,
+      filteredStarterShelfBooks,
+      visibleStarterLibraryBooksCount,
+      starterReadingWorkflowNotice
+    },
+    filterProjectionState: {
+      statusOptionCounts: libraryStatusOptionCounts,
+      formatOptions: libraryFormatOptions,
+      collectionOptions: libraryCollectionOptions,
+      tagOptions: libraryTagOptions,
+      formatOptionCounts: libraryFormatOptionCounts,
+      collectionOptionCounts: libraryCollectionOptionCounts,
+      tagOptionCounts: libraryTagOptionCounts,
+      formatSummary: libraryFormatSummary,
+      collectionSummary: libraryCollectionSummary,
+      tagSummary: libraryTagSummary,
+      coverSummary: libraryCoverSummary
+    },
+    currentBrowseState: currentLibraryBrowseState,
+    activeFilterDetail: libraryActiveFilterDetail,
+    activeFilterChips: libraryActiveFilterChips
+  } = buildLibraryPageProjectionState({
+    importedBooks,
+    starterLibraryBooks,
+    query: libraryQuery,
+    sortBy: librarySortBy,
+    filterBy: libraryFilterBy,
+    formatFilter: libraryFormatFilter,
+    collectionFilter: libraryCollectionFilter,
+    tagFilter: libraryTagFilter,
+    groupBy: libraryGroupBy,
+    groupScope: libraryGroupScope,
+    trail: libraryBrowseTrail,
+    persistedLibraryRecords,
+    desktopLibraryMode
   }));
-  $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
-  $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
   $: {
     const currentFilterControlsState =
       activeLibraryFilterControlsBindings.getCurrentFilterControlsState();
@@ -529,11 +524,6 @@
       activeLibraryFilterControlsBindings.applyFilterControlsState(normalizedFilterControlsState);
     }
   }
-  $: currentLibraryBrowseState = buildCurrentLibraryBrowseState({
-    groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope,
-    trail: libraryBrowseTrail
-  });
   $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
     buildLibraryPageSurfaceSetFromState({
       totalBooks: importedBooks.length || starterLibraryBooks.length,
