@@ -240,6 +240,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the desktop library page now also exposes a shared coordinator-builder entrypoint, so route-side coordinator wiring is anchored in `desktopPage.ts` instead of calling the lower-level factory directly from `+page.svelte`
 - the desktop library page now also splits coordinator wiring into explicit state and env bundles, so `+page.svelte` no longer passes one flat coordinator parameter block without showing which inputs are page state versus environment boundary
 - the desktop library page now also routes those state/env bundles through shared builders, so `+page.svelte` no longer directly owns the raw coordinator input objects even after the split
+- the library page now also drops its local browse-sync and scroll-key runtime wrappers, so `+page.svelte` calls the shared runtime helpers directly instead of re-wrapping them with page-local pass-through helpers
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

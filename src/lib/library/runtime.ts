@@ -76,6 +76,42 @@ export const buildLibraryScrollContextKey = ({
     searchActive ? normalizedQuery : 'browse'
   ].join(':');
 
+export const buildLibraryScrollContextKeyFromPageState = ({
+  desktopLibraryMode,
+  viewMode,
+  sortBy,
+  browseState,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter,
+  query
+}: {
+  desktopLibraryMode: boolean;
+  viewMode: 'grid' | 'list';
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  browseState: LibraryBrowseState;
+  filterBy: 'all' | 'reading' | 'unstarted' | 'finished';
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+  query: string;
+}) =>
+  buildLibraryScrollContextKey({
+    desktopLibraryMode,
+    viewMode,
+    sortBy,
+    groupBy: browseState.groupBy,
+    groupScope: browseState.groupScope,
+    trail: browseState.trail,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    normalizedQuery: query.trim().toLowerCase(),
+    searchActive: query.trim().length > 0
+  });
+
 export const saveLibraryScrollPosition = ({
   storage,
   contextKey,
