@@ -11,6 +11,7 @@ export {
   createReadyReaderAssistanceState,
   isLookupReaderAssistanceRequest,
   isTranslationReaderAssistanceRequest,
+  getReaderTranslationProviderDisplayLabel,
   normalizeAssistanceTerm,
   normalizeAssistanceText,
   normalizeReaderAssistanceRequest
@@ -24,6 +25,8 @@ export type {
   ReaderLookupProvider,
   ReaderLookupRequest,
   ReaderTranslationProvider,
+  ReaderTranslationProviderStatus,
+  ReaderTranslationProviderStatusKind,
   ReaderTranslationRequest
 } from './assistance';
 export {

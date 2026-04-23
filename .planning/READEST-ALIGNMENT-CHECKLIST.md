@@ -252,26 +252,26 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 0505
   - Notes: added Tauri-owned user catalog source settings, normalized/persisted OPDS and Calibre-compatible source metadata, auth-required connectivity states, configured fixture browsing through the same catalog parser/search/import flow, and explicit unsupported states for live URLs without adding arbitrary network fetch/proxy behavior. Tutorial: `tutorials/commit/0505-complete-calibre-compatible-catalog-settings.md`.
 
-- [ ] P2-2.1 Add translation provider configuration
+- [x] P2-2.1 Add translation provider configuration
   - Outcome: DeepL/Yandex provider settings are stored locally and missing-key states are visible; no service key is bundled.
   - Touches: settings service, Tauri/service boundary, reader UI.
   - Verify: `pnpm check`; provider-config regression; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0506
+  - Notes: Tauri now owns reader translation provider status storage for DeepL/Yandex, renderer reads only redacted configuration/status summaries, and the assist sidebar shows missing-key states without bundling or exposing service keys. Translation requests still short-circuit because the actual bridge is not wired yet.
 
 - [ ] P2-2.2 Implement DeepL translation bridge
   - Outcome: selected text or paragraph translation works through a provider abstraction with quota/key/network failure states.
   - Touches: translation service, reader assistance UI, tests.
   - Verify: `pnpm check`; mocked provider test; `git diff --check`.
   - Done commit:
-  - Notes:
+  - Notes: groundwork now exists in the provider-status/config boundary, but actual translation still needs the bridge and result mapping.
 
 - [ ] P2-2.3 Implement Yandex translation bridge
   - Outcome: Yandex uses the same translation request/result workflow as DeepL.
   - Touches: translation provider, config UI, tests.
   - Verify: `pnpm check`; mocked provider test; `git diff --check`.
   - Done commit:
-  - Notes:
+  - Notes: same groundwork as P2-2.2; the provider split is modeled, but the actual translation response path remains open.
 
 - [ ] P2-3.1 Add the sync substrate data model
   - Outcome: library metadata, reading state, bookmarks, notes, highlights, and settings have exportable/importable sync records and stable ids.

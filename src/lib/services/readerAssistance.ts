@@ -2,13 +2,16 @@ import type {
   ReaderAssistanceRequest,
   ReaderAssistanceResult,
   ReaderAssistanceState,
-  ReaderLookupProvider
+  ReaderLookupProvider,
+  ReaderTranslationProvider,
+  ReaderTranslationProviderStatus
 } from '$lib/reader';
 import {
   createEmptyReaderAssistanceResultState,
   createErrorReaderAssistanceState,
   createOfflineReaderAssistanceState,
   createReadyReaderAssistanceState,
+  getReaderTranslationProviderDisplayLabel,
   normalizeReaderAssistanceRequest
 } from '$lib/reader';
 import { isTauriDesktop, invokeTauri } from './platform';
@@ -18,6 +21,10 @@ type WikipediaLookupCommandResponse = {
   result: ReaderAssistanceResult | null;
   error?: string;
 };
+
+type ReaderTranslationProviderStatusResponse = ReaderTranslationProviderStatus[];
+
+const TRANSLATION_PROVIDERS: ReaderTranslationProvider[] = ['deepl', 'yandex'];
 
 const getLookupLanguage = (
   provider: ReaderLookupProvider,
@@ -41,14 +48,69 @@ const createRejectedReaderAssistanceState = (
   message: string
 ): ReaderAssistanceState => createErrorReaderAssistanceState(request, message);
 
+const createMissingTranslationKeyState = (
+  request: ReaderAssistanceRequest,
+  provider: ReaderTranslationProvider
+): ReaderAssistanceState =>
+  createErrorReaderAssistanceState(
+    request,
+    `${getReaderTranslationProviderDisplayLabel(provider)} translation has no API key configured yet.`
+  );
+
+export const createDefaultReaderTranslationProviderStatuses = (): ReaderTranslationProviderStatus[] =>
+  TRANSLATION_PROVIDERS.map((provider) => ({
+    provider,
+    status: 'missingKey',
+    configured: false,
+    label: `${getReaderTranslationProviderDisplayLabel(provider)} API key is not configured yet.`,
+    updatedAt: 0
+  }));
+
+export const loadReaderTranslationProviderStatuses = async (): Promise<
+  ReaderTranslationProviderStatus[]
+> => {
+  const defaultStatuses = createDefaultReaderTranslationProviderStatuses();
+  if (!isTauriDesktop()) {
+    return defaultStatuses;
+  }
+
+  try {
+    const response = await invokeTauri<ReaderTranslationProviderStatusResponse>(
+      'get_reader_translation_provider_statuses'
+    );
+    return TRANSLATION_PROVIDERS.map(
+      (provider) =>
+        response.find((item) => item.provider === provider) ??
+        defaultStatuses.find((item) => item.provider === provider)!
+    );
+  } catch {
+    return defaultStatuses;
+  }
+};
+
 export const requestReaderAssistance = async (
   request: ReaderAssistanceRequest
 ): Promise<ReaderAssistanceState> => {
   const normalizedRequest = normalizeReaderAssistanceRequest(request);
   if (normalizedRequest.kind !== 'lookup') {
+    if (!isTauriDesktop()) {
+      return createOfflineReaderAssistanceState(
+        normalizedRequest,
+        `${getReaderTranslationProviderDisplayLabel(normalizedRequest.provider)} translation requires the desktop runtime.`
+      );
+    }
+
+    const providerStatuses = await loadReaderTranslationProviderStatuses();
+    const providerStatus = providerStatuses.find(
+      (status) => status.provider === normalizedRequest.provider
+    );
+    if (!providerStatus || !providerStatus.configured) {
+      return createMissingTranslationKeyState(normalizedRequest, normalizedRequest.provider);
+    }
+
     return createRejectedReaderAssistanceState(
       normalizedRequest,
-      `Reader translation provider is not implemented: ${normalizedRequest.provider}`
+      `${getReaderTranslationProviderDisplayLabel(normalizedRequest.provider)} translation bridge is not implemented yet.`
     );
   }
 

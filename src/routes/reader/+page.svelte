@@ -11,6 +11,7 @@
     ReaderSidebarCallbacks,
     ReaderSearchHistoryEntry,
     ReaderSearchResult,
+    ReaderTranslationProviderStatus,
     ReaderTocItem
   } from '$lib/reader';
   import {
@@ -41,6 +42,7 @@
   } from '$lib/reader';
   import { supportsTextAnnotationsForFormat } from '$lib/reader/formats';
   import {
+    createDefaultReaderTranslationProviderStatuses,
     canPersistReaderBookmarks,
     canPersistReaderNotes,
     clearReaderSearchCache,
@@ -52,6 +54,7 @@
     openLibraryBookPath,
     saveReaderBookmarks,
     saveReaderNotes,
+    loadReaderTranslationProviderStatuses,
     startCurrentWindowDrag,
     requestReaderAssistance,
     toLibraryCoverUrl,
@@ -75,6 +78,8 @@
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceRequestNonce = 0;
   let lastAssistanceBookKey = '';
+  let translationProviderStatuses: ReaderTranslationProviderStatus[] =
+    createDefaultReaderTranslationProviderStatuses();
   const ttsController = createReaderTtsController();
   const ttsState = ttsController.state;
 
@@ -259,6 +264,10 @@
   }
 
   onMount(() => {
+    void (async () => {
+      translationProviderStatuses = await loadReaderTranslationProviderStatuses();
+    })();
+
     if (typeof localStorage === 'undefined') return;
     searchController.restoreConfig();
     searchController.enablePersistence();
@@ -550,6 +559,7 @@
         bookmarksState={$bookmarksState}
         notesState={$notesState}
         assistance={assistanceState}
+        translationProviderStatuses={translationProviderStatuses}
         callbacks={sidebarCallbacks}
       />
     {/if}

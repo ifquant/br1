@@ -18,6 +18,7 @@
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
     ReaderSidebarSearchState,
+    ReaderTranslationProviderStatus,
     ReaderTocItem,
     SidebarTab
   } from '$lib/reader';
@@ -25,6 +26,7 @@
     READER_EMPTY_TITLE,
     createEmptyReaderAssistanceState,
     createEmptyReaderPreviewState,
+    getReaderTranslationProviderDisplayLabel,
     getReaderFormatDisplayLabel,
     getReaderLayoutDisplayLabel,
     getReaderLocationDisplayLabel,
@@ -46,6 +48,7 @@
   export let coverUrl = '';
   export let preview: ReaderPreviewState = createEmptyReaderPreviewState();
   export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
+  export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let search: ReaderSidebarSearchState = {
     term: '',
     status: 'idle',
@@ -1863,6 +1866,18 @@
           </div>
 
           <div class="assist-result" aria-label="查找结果">
+            <div class="assist-translation-status">
+              <strong>翻译提供方状态</strong>
+              <span>翻译配置由桌面端托管，renderer 只读取状态，不保存密钥。</span>
+              <div class="assist-translation-status-list">
+                {#each translationProviderStatuses as provider}
+                  <div class:missing-key={!provider.configured} class="assist-translation-status-row">
+                    <span>{getReaderTranslationProviderDisplayLabel(provider.provider)}</span>
+                    <span>{provider.label}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
             {#if assistance.status === 'loading'}
               <strong>正在查询</strong>
               <span>
@@ -3591,6 +3606,44 @@
 
   .primary-assist-action:not(:disabled):hover {
     background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+  }
+
+  .assist-translation-status {
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .assist-translation-status strong {
+    color: var(--text-primary);
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .assist-translation-status > span,
+  .assist-translation-status-row > span {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .assist-translation-status-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  .assist-translation-status-row {
+    display: grid;
+    gap: 2px;
+    padding-left: 2px;
+  }
+
+  .assist-translation-status-row.missing-key > span:last-child {
+    color: #9a5e1d;
   }
 
   .assist-result {

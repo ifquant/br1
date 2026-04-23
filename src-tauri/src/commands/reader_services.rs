@@ -2,6 +2,8 @@ use crate::util::now_millis;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 const WIKIPEDIA_PROJECT_ALLOWLIST: &[&str] = &[
@@ -12,6 +14,7 @@ const WIKIPEDIA_LOOKUP_TERM_LIMIT: usize = 120;
 const WIKIPEDIA_LOOKUP_BODY_LIMIT: usize = 1500;
 const WIKIPEDIA_LOOKUP_TIMEOUT: Duration = Duration::from_secs(8);
 const DICTIONARY_LOOKUP_BODY_LIMIT: usize = 1500;
+const TRANSLATION_PROVIDER_NAMES: &[&str] = &["deepl", "yandex"];
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,6 +42,40 @@ pub(crate) struct ReaderAssistanceLookupResponse {
     pub status: ReaderAssistanceLookupStatus,
     pub result: Option<ReaderAssistanceLookupResult>,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderTranslationProviderSettingsInput {
+    pub provider: String,
+    pub configured: bool,
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderTranslationProviderStatus {
+    pub provider: String,
+    pub status: ReaderTranslationProviderStatusKind,
+    pub configured: bool,
+    pub label: String,
+    pub updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredReaderTranslationProviderSettings {
+    provider: String,
+    configured: bool,
+    label: String,
+    updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ReaderTranslationProviderStatusKind {
+    Configured,
+    MissingKey,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -244,6 +281,150 @@ fn build_error_response(message: impl Into<String>) -> ReaderAssistanceLookupRes
         result: None,
         error: Some(message.into()),
     }
+}
+
+fn normalize_translation_provider(provider: &str) -> Option<&'static str> {
+    TRANSLATION_PROVIDER_NAMES
+        .iter()
+        .copied()
+        .find(|candidate| *candidate == provider.trim())
+}
+
+fn translation_provider_settings_path() -> PathBuf {
+    if let Ok(path) = std::env::var("BR1_READER_TRANSLATION_PROVIDERS_PATH") {
+        return PathBuf::from(path);
+    }
+
+    if let Ok(home) = std::env::var("HOME") {
+        return PathBuf::from(home)
+            .join("Library")
+            .join("Application Support")
+            .join("br1")
+            .join("reader-translation-providers.json");
+    }
+
+    std::env::temp_dir()
+        .join("br1")
+        .join("reader-translation-providers.json")
+}
+
+fn default_translation_provider_label(provider: &str, configured: bool) -> String {
+    let provider_label = if provider == "deepl" { "DeepL" } else { "Yandex" };
+    if configured {
+        format!("{provider_label} translation is configured in the desktop app.")
+    } else {
+        format!("{provider_label} API key is not configured yet.")
+    }
+}
+
+fn translation_provider_status_from_stored(
+    stored: &StoredReaderTranslationProviderSettings,
+) -> ReaderTranslationProviderStatus {
+    ReaderTranslationProviderStatus {
+        provider: stored.provider.clone(),
+        status: if stored.configured {
+            ReaderTranslationProviderStatusKind::Configured
+        } else {
+            ReaderTranslationProviderStatusKind::MissingKey
+        },
+        configured: stored.configured,
+        label: stored.label.clone(),
+        updated_at: stored.updated_at,
+    }
+}
+
+fn default_translation_provider_statuses() -> Vec<ReaderTranslationProviderStatus> {
+    TRANSLATION_PROVIDER_NAMES
+        .iter()
+        .map(|provider| ReaderTranslationProviderStatus {
+            provider: (*provider).to_string(),
+            status: ReaderTranslationProviderStatusKind::MissingKey,
+            configured: false,
+            label: default_translation_provider_label(provider, false),
+            updated_at: 0,
+        })
+        .collect()
+}
+
+fn default_translation_provider_settings() -> Vec<StoredReaderTranslationProviderSettings> {
+    TRANSLATION_PROVIDER_NAMES
+        .iter()
+        .map(|provider| StoredReaderTranslationProviderSettings {
+            provider: (*provider).to_string(),
+            configured: false,
+            label: default_translation_provider_label(provider, false),
+            updated_at: 0,
+        })
+        .collect()
+}
+
+fn read_translation_provider_settings(
+    path: &Path,
+) -> Result<Vec<StoredReaderTranslationProviderSettings>, String> {
+    if !path.exists() {
+        return Ok(default_translation_provider_settings());
+    }
+
+    let raw = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    let stored: Vec<StoredReaderTranslationProviderSettings> =
+        serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+
+    Ok(TRANSLATION_PROVIDER_NAMES
+        .iter()
+        .map(|provider| {
+            stored
+                .iter()
+                .find(|entry| entry.provider == *provider)
+                .cloned()
+                .unwrap_or_else(|| StoredReaderTranslationProviderSettings {
+                    provider: (*provider).to_string(),
+                    configured: false,
+                    label: default_translation_provider_label(provider, false),
+                    updated_at: 0,
+                })
+        })
+        .collect())
+}
+
+fn write_translation_provider_settings(
+    path: &Path,
+    settings: &[StoredReaderTranslationProviderSettings],
+) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+
+    let raw = serde_json::to_string_pretty(settings).map_err(|error| error.to_string())?;
+    fs::write(path, raw).map_err(|error| error.to_string())
+}
+
+fn save_translation_provider_setting(
+    mut settings: Vec<StoredReaderTranslationProviderSettings>,
+    input: ReaderTranslationProviderSettingsInput,
+) -> Result<Vec<StoredReaderTranslationProviderSettings>, String> {
+    let provider = normalize_translation_provider(&input.provider)
+        .ok_or_else(|| format!("Reader translation provider is not implemented: {}", input.provider))?;
+    let updated_at = now_millis().unwrap_or_default();
+    let label = input
+        .label
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| default_translation_provider_label(provider, input.configured));
+    let next = StoredReaderTranslationProviderSettings {
+        provider: provider.to_string(),
+        configured: input.configured,
+        label,
+        updated_at,
+    };
+
+    if let Some(existing) = settings.iter_mut().find(|entry| entry.provider == provider) {
+        *existing = next;
+    } else {
+        settings.push(next);
+    }
+
+    settings.sort_by(|left, right| left.provider.cmp(&right.provider));
+    Ok(settings)
 }
 
 fn classify_network_error(provider_label: &str, error: &reqwest::Error) -> ReaderAssistanceLookupResponse {
@@ -528,13 +709,66 @@ pub(crate) async fn lookup_reader_assistance(
     }
 }
 
+#[tauri::command]
+pub(crate) async fn get_reader_translation_provider_statuses() -> Vec<ReaderTranslationProviderStatus> {
+    let path = translation_provider_settings_path();
+    match read_translation_provider_settings(&path) {
+        Ok(settings) => settings
+            .into_iter()
+            .map(|setting| translation_provider_status_from_stored(&setting))
+            .collect(),
+        Err(_) => default_translation_provider_statuses(),
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn save_reader_translation_provider_settings(
+    input: ReaderTranslationProviderSettingsInput,
+) -> Result<ReaderTranslationProviderStatus, String> {
+    let path = translation_provider_settings_path();
+    let provider = normalize_translation_provider(&input.provider)
+        .ok_or_else(|| format!("Reader translation provider is not implemented: {}", input.provider))?;
+    let settings = read_translation_provider_settings(&path)?;
+    let updated = save_translation_provider_setting(settings, input)?;
+    write_translation_provider_settings(&path, &updated)?;
+
+    let status = updated
+        .into_iter()
+        .find(|setting| setting.provider == provider)
+        .map(|setting| translation_provider_status_from_stored(&setting))
+        .unwrap_or_else(|| ReaderTranslationProviderStatus {
+            provider: provider.to_string(),
+            status: ReaderTranslationProviderStatusKind::MissingKey,
+            configured: false,
+            label: default_translation_provider_label(provider, false),
+            updated_at: 0,
+        });
+
+    Ok(status)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
+        default_translation_provider_statuses, default_translation_provider_settings,
         format_dictionary_entry_body, normalize_dictionary_language, normalize_lookup_term,
-        normalize_wikipedia_project, DictionaryDefinition, DictionaryEntryResponse,
-        DictionaryMeaning, DictionaryPhonetic,
+        normalize_wikipedia_project, read_translation_provider_settings,
+        save_translation_provider_setting, translation_provider_status_from_stored,
+        write_translation_provider_settings,
+        DictionaryDefinition, DictionaryEntryResponse, DictionaryMeaning, DictionaryPhonetic,
+        ReaderTranslationProviderSettingsInput, ReaderTranslationProviderStatusKind,
     };
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_translation_provider_settings_path(name: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("br1-{name}-{nonce}.json"))
+    }
 
     #[test]
     fn normalizes_wikipedia_project_from_language_tag() {
@@ -584,5 +818,49 @@ mod tests {
         assert!(body.contains("词源"));
         assert!(body.contains("exclamation"));
         assert!(body.contains("used as a greeting"));
+    }
+
+    #[test]
+    fn defaults_translation_provider_statuses_to_missing_keys() {
+        let statuses = default_translation_provider_statuses();
+
+        assert_eq!(statuses.len(), 2);
+        assert!(statuses
+            .iter()
+            .all(|status| matches!(status.status, ReaderTranslationProviderStatusKind::MissingKey)));
+        assert!(statuses.iter().all(|status| !status.configured));
+    }
+
+    #[test]
+    fn persists_translation_provider_settings_without_renderer_secrets() {
+        let path = temp_translation_provider_settings_path("reader-translation-settings");
+        let settings = save_translation_provider_setting(
+            default_translation_provider_settings(),
+            ReaderTranslationProviderSettingsInput {
+                provider: "deepl".to_string(),
+                configured: true,
+                label: Some("  DeepL translation is configured locally  ".to_string()),
+            },
+        )
+        .unwrap();
+        write_translation_provider_settings(&path, &settings).unwrap();
+
+        let loaded = read_translation_provider_settings(&path).unwrap();
+        let deepl = loaded
+            .iter()
+            .find(|entry| entry.provider == "deepl")
+            .expect("deepl settings");
+        let status = translation_provider_status_from_stored(deepl);
+
+        assert_eq!(loaded.len(), 2);
+        assert!(loaded.iter().any(|entry| entry.provider == "yandex"));
+        assert!(matches!(status.status, ReaderTranslationProviderStatusKind::Configured));
+        assert!(status.configured);
+        assert_eq!(
+            status.label,
+            "DeepL translation is configured locally"
+        );
+        assert!(!serde_json::to_string(&loaded).unwrap().contains("secret"));
+        let _ = fs::remove_file(path);
     }
 }

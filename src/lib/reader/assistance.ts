@@ -2,6 +2,7 @@ export type ReaderAssistanceProvider = 'wikipedia' | 'dictionary' | 'deepl' | 'y
 
 export type ReaderLookupProvider = 'wikipedia' | 'dictionary';
 export type ReaderTranslationProvider = 'deepl' | 'yandex';
+export type ReaderTranslationProviderStatusKind = 'configured' | 'missingKey';
 
 export type ReaderLookupRequest = {
   kind: 'lookup';
@@ -21,6 +22,14 @@ export type ReaderTranslationRequest = {
   targetLanguage: string;
   bookKey: string;
   cfi?: string;
+};
+
+export type ReaderTranslationProviderStatus = {
+  provider: ReaderTranslationProvider;
+  status: ReaderTranslationProviderStatusKind;
+  configured: boolean;
+  label: string;
+  updatedAt: number;
 };
 
 export type ReaderAssistanceRequest = ReaderLookupRequest | ReaderTranslationRequest;
@@ -49,6 +58,10 @@ export const normalizeAssistanceTerm = (value: string): string =>
 
 export const normalizeAssistanceText = (value: string): string =>
   value.replace(/\s+/g, ' ').trim().slice(0, 8000);
+
+export const getReaderTranslationProviderDisplayLabel = (
+  provider: ReaderTranslationProvider
+): string => (provider === 'deepl' ? 'DeepL' : 'Yandex');
 
 export const canRequestAssistanceForText = (value: string): boolean =>
   normalizeAssistanceTerm(value).length > 0;
