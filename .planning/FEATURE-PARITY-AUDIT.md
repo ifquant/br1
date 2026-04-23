@@ -253,6 +253,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the library page now also builds the desktop coordinator itself from current page state and env through a shared desktopPage helper, so `+page.svelte` no longer manually orchestrate the coordinator's intermediate binding layers
 - the library page now also builds library-surface runtime bindings from host dependencies through a shared runtime helper, so `+page.svelte` no longer manually assemble the mount-time runtime host args inline
 - the library page now also routes its remaining filter/browse/projection orchestration through a shared page-projection builder, so `+page.svelte` no longer manually chain filter-state, browse-state, filter-projection, and current-browse-state assembly inline
+- the library page now also routes surface-input threading through a shared page-to-surface projection, so `+page.svelte` no longer hand-build the large `buildLibraryPageSurfaceSetFromState(...)` argument block inline
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

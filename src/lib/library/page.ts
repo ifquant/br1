@@ -8,6 +8,7 @@ import type {
   LibraryActiveFilterChip,
   LibraryBrowseState,
   ContinueReadingBook,
+  LibraryFilterControlsState,
   LibraryShelfBook
 } from './types';
 import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
@@ -89,6 +90,66 @@ export type LibraryPageProjectionState = {
   currentBrowseState: LibraryBrowseState;
   activeFilterDetail: string;
   activeFilterChips: LibraryActiveFilterChip[];
+};
+
+export type LibraryPageSurfaceProjectionState = {
+  totalBooks: number;
+  query: string;
+  viewMode: 'grid' | 'list';
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  groupBy: 'none' | 'author' | 'collection' | 'format';
+  browseState: LibraryBrowseState;
+  activeGroupVisibleCount: number;
+  activeFilter: LibraryFilter;
+  statusOptionCounts: Record<LibraryFilter, number>;
+  activeFormatFilter: string;
+  formatOptions: string[];
+  formatOptionCounts: Record<string, number>;
+  activeCollectionFilter: string;
+  collectionOptions: string[];
+  collectionOptionCounts: Record<string, number>;
+  activeTagFilter: string;
+  tagOptions: string[];
+  tagOptionCounts: Record<string, number>;
+  statusSummary: string;
+  activeFilterDetail: string;
+  activeFilterChips: LibraryActiveFilterChip[];
+  formatSummary: string;
+  collectionSummary: string;
+  tagSummary: string;
+  coverSummary: string;
+  filterSummary: string;
+  importDisabled: boolean;
+  notice: {
+    kind: 'info' | 'error';
+    message: string;
+    actionLabel?: string;
+  } | null;
+  showReadestMigration: boolean;
+  readestLibraryCount: number;
+  readestCompatibleCount: number;
+  migrationBusy: boolean;
+  groupedBrowseMode: boolean;
+  desktopBrowseBooks: LibraryShelfBook[];
+  desktopShelfBooks: LibraryShelfBook[];
+  desktopWorkflowNotice: DesktopLibraryBrowseDerivations['workflowNotice'];
+  recoveryQueueSummaryText: string;
+  recoveryQueueReviewBooks: ContinueReadingBook[];
+  bulkRepairEligibleCount: number;
+  bulkRepairBusy: boolean;
+  bulkRepairSummary: string;
+  filteredContinueReadingBooks: LibraryShelfBook[];
+  filteredRecentReadingBooks: LibraryShelfBook[];
+  importedBooksCount: number;
+  libraryQuery: string;
+  visibleLibraryBooksCount: number;
+  starterBrowseBooks: LibraryShelfBook[];
+  starterShelfBooks: LibraryShelfBook[];
+  starterWorkflowNotice: LibraryBrowseDerivations['workflowNotice'];
+  filteredStarterContinueReadingBooks: LibraryShelfBook[];
+  filteredStarterRecentReadingBooks: LibraryShelfBook[];
+  visibleStarterLibraryBooksCount: number;
+  desktopLibraryMode: boolean;
 };
 
 export type LibraryPageViewState = {
@@ -1118,3 +1179,92 @@ export const buildLibraryPageProjectionState = ({
     activeFilterChips: browseState.activeFilterState.activeFilterChips
   };
 };
+
+export const buildLibraryPageSurfaceProjectionState = ({
+  projectionState,
+  filterControlsState,
+  viewMode,
+  sortBy,
+  importedBooksCount,
+  starterBooksCount,
+  notice,
+  showReadestMigration,
+  readestLibraryCount,
+  readestCompatibleCount,
+  migrationBusy,
+  bulkRepairBusy,
+  bulkRepairSummary,
+  desktopLibraryMode
+}: {
+  projectionState: LibraryPageProjectionState;
+  filterControlsState: LibraryFilterControlsState;
+  viewMode: 'grid' | 'list';
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  importedBooksCount: number;
+  starterBooksCount: number;
+  notice: LibraryPageSurfaceProjectionState['notice'];
+  showReadestMigration: boolean;
+  readestLibraryCount: number;
+  readestCompatibleCount: number;
+  migrationBusy: boolean;
+  bulkRepairBusy: boolean;
+  bulkRepairSummary: string;
+  desktopLibraryMode: boolean;
+}): LibraryPageSurfaceProjectionState => ({
+  totalBooks: importedBooksCount || starterBooksCount,
+  query: filterControlsState.query,
+  viewMode,
+  sortBy,
+  groupBy: projectionState.currentBrowseState.groupBy,
+  browseState: projectionState.currentBrowseState,
+  activeGroupVisibleCount:
+    projectionState.browseState.filteredLibraryShelfBooks.length ||
+    projectionState.browseState.filteredStarterShelfBooks.length,
+  activeFilter: filterControlsState.filterBy,
+  statusOptionCounts: projectionState.filterProjectionState.statusOptionCounts,
+  activeFormatFilter: filterControlsState.formatFilter,
+  formatOptions: projectionState.filterProjectionState.formatOptions,
+  formatOptionCounts: projectionState.filterProjectionState.formatOptionCounts,
+  activeCollectionFilter: filterControlsState.collectionFilter,
+  collectionOptions: projectionState.filterProjectionState.collectionOptions,
+  collectionOptionCounts: projectionState.filterProjectionState.collectionOptionCounts,
+  activeTagFilter: filterControlsState.tagFilter,
+  tagOptions: projectionState.filterProjectionState.tagOptions,
+  tagOptionCounts: projectionState.filterProjectionState.tagOptionCounts,
+  statusSummary: projectionState.browseState.libraryStatusSummary,
+  activeFilterDetail: projectionState.activeFilterDetail,
+  activeFilterChips: projectionState.activeFilterChips,
+  formatSummary: projectionState.filterProjectionState.formatSummary,
+  collectionSummary: projectionState.filterProjectionState.collectionSummary,
+  tagSummary: projectionState.filterProjectionState.tagSummary,
+  coverSummary: projectionState.filterProjectionState.coverSummary,
+  filterSummary: projectionState.browseState.filterSummary,
+  importDisabled: migrationBusy,
+  notice,
+  showReadestMigration,
+  readestLibraryCount,
+  readestCompatibleCount,
+  migrationBusy,
+  groupedBrowseMode: projectionState.browseState.libraryGroupedBrowseMode,
+  desktopBrowseBooks: projectionState.browseState.filteredLibraryBrowseBooks,
+  desktopShelfBooks: projectionState.browseState.filteredLibraryShelfBooks,
+  desktopWorkflowNotice: projectionState.browseState.readingWorkflowNotice,
+  recoveryQueueSummaryText: projectionState.browseState.recoveryQueueSummaryText,
+  recoveryQueueReviewBooks: projectionState.browseState.recoveryQueueReviewBooks,
+  bulkRepairEligibleCount: projectionState.browseState.bulkRepairEligibleQueueBooks.length,
+  bulkRepairBusy,
+  bulkRepairSummary,
+  filteredContinueReadingBooks: projectionState.browseState.filteredContinueReadingBooks,
+  filteredRecentReadingBooks: projectionState.browseState.filteredRecentReadingBooks,
+  importedBooksCount,
+  libraryQuery: filterControlsState.query,
+  visibleLibraryBooksCount: projectionState.browseState.visibleLibraryBooksCount,
+  starterBrowseBooks: projectionState.browseState.filteredStarterBrowseBooks,
+  starterShelfBooks: projectionState.browseState.filteredStarterShelfBooks,
+  starterWorkflowNotice: projectionState.browseState.starterReadingWorkflowNotice,
+  filteredStarterContinueReadingBooks:
+    projectionState.browseState.filteredStarterContinueReadingBooks,
+  filteredStarterRecentReadingBooks: projectionState.browseState.filteredStarterRecentReadingBooks,
+  visibleStarterLibraryBooksCount: projectionState.browseState.visibleStarterLibraryBooksCount,
+  desktopLibraryMode
+});

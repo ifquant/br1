@@ -31,7 +31,7 @@
     buildDesktopLibraryPageCoordinatorFromPageStateAndEnv
   } from '$lib/library/desktopPage';
   import {
-    buildLibraryPageSurfaceSetFromState,
+    buildLibraryPageSurfaceSetFromProjectionState,
     createEmptyLibraryPageSurfaceModel,
   } from '$lib/library/surface';
   import {
@@ -43,12 +43,14 @@
   } from '$lib/library/runtime';
   import {
     buildLibraryPageProjectionState,
-    getLibraryEmptyFilterTitle,
+    buildLibraryPageSurfaceProjectionState,
     type DesktopLibraryBrowseDerivations,
     type LibraryBrowseDerivations,
     type LibraryFilter,
     type LibraryActiveFilterState,
-    type LibraryFilterState
+    type LibraryFilterState,
+    type LibraryPageProjectionState,
+    type LibraryPageSurfaceProjectionState as LibraryPageSurfaceProjectionModel
   } from '$lib/library/page';
   import {
     buildLibraryBrowseHref,
@@ -345,6 +347,8 @@
     }
   });
   let activeLibraryPageActions: LibraryPageActions;
+  let currentLibraryPageProjectionState: LibraryPageProjectionState;
+  let activeLibraryPageSurfaceProjectionState: LibraryPageSurfaceProjectionModel;
   let desktopLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(true);
   let starterLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
   let activeLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
@@ -441,6 +445,21 @@
       goto
     });
   }
+  $: currentLibraryPageProjectionState = buildLibraryPageProjectionState({
+    importedBooks,
+    starterLibraryBooks,
+    query: libraryQuery,
+    sortBy: librarySortBy,
+    filterBy: libraryFilterBy,
+    formatFilter: libraryFormatFilter,
+    collectionFilter: libraryCollectionFilter,
+    tagFilter: libraryTagFilter,
+    groupBy: libraryGroupBy,
+    groupScope: libraryGroupScope,
+    trail: libraryBrowseTrail,
+    persistedLibraryRecords,
+    desktopLibraryMode
+  });
   $: ({
     filterStateSet: {
       summaryBooks: librarySummaryBooks,
@@ -495,21 +514,7 @@
     currentBrowseState: currentLibraryBrowseState,
     activeFilterDetail: libraryActiveFilterDetail,
     activeFilterChips: libraryActiveFilterChips
-  } = buildLibraryPageProjectionState({
-    importedBooks,
-    starterLibraryBooks,
-    query: libraryQuery,
-    sortBy: librarySortBy,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter,
-    groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope,
-    trail: libraryBrowseTrail,
-    persistedLibraryRecords,
-    desktopLibraryMode
-  }));
+  } = currentLibraryPageProjectionState);
   $: {
     const currentFilterControlsState =
       activeLibraryFilterControlsBindings.getCurrentFilterControlsState();
@@ -524,77 +529,6 @@
       activeLibraryFilterControlsBindings.applyFilterControlsState(normalizedFilterControlsState);
     }
   }
-  $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
-    buildLibraryPageSurfaceSetFromState({
-      totalBooks: importedBooks.length || starterLibraryBooks.length,
-      query: libraryQuery,
-      viewMode: libraryViewMode,
-      sortBy: librarySortBy,
-      groupBy: libraryGroupBy,
-      browseState: currentLibraryBrowseState,
-      activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
-      activeFilter: libraryFilterBy,
-      statusOptionCounts: libraryStatusOptionCounts,
-      activeFormatFilter: libraryFormatFilter,
-      formatOptions: libraryFormatOptions,
-      formatOptionCounts: libraryFormatOptionCounts,
-      activeCollectionFilter: libraryCollectionFilter,
-      collectionOptions: libraryCollectionOptions,
-      collectionOptionCounts: libraryCollectionOptionCounts,
-      activeTagFilter: libraryTagFilter,
-      tagOptions: libraryTagOptions,
-      tagOptionCounts: libraryTagOptionCounts,
-      statusSummary: libraryStatusSummary,
-      activeFilterDetail: libraryActiveFilterDetail,
-      activeFilterChips: libraryActiveFilterChips,
-      formatSummary: libraryFormatSummary,
-      collectionSummary: libraryCollectionSummary,
-      tagSummary: libraryTagSummary,
-      coverSummary: libraryCoverSummary,
-      filterSummary: libraryFilterSummary,
-      importDisabled: migrationBusy,
-      notice: libraryNotice
-        ? {
-            kind: libraryNotice.kind,
-            message: libraryNotice.message,
-            actionLabel: libraryNotice.actionLabel
-          }
-        : null,
-      showReadestMigration,
-      readestLibraryCount,
-      readestCompatibleCount,
-      migrationBusy,
-      groupedBrowseMode: libraryGroupedBrowseMode,
-      desktopBrowseBooks: filteredLibraryBrowseBooks,
-      desktopShelfBooks: filteredLibraryShelfBooks,
-      desktopWorkflowNotice: readingWorkflowNotice,
-      recoveryQueueSummaryText,
-      recoveryQueueReviewBooks,
-      bulkRepairEligibleCount: bulkRepairEligibleQueueBooks.length,
-      bulkRepairBusy,
-      bulkRepairSummary,
-      filteredContinueReadingBooks,
-      filteredRecentReadingBooks,
-      importedBooksCount: importedBooks.length,
-      libraryQuery,
-      visibleLibraryBooksCount,
-      onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
-      onImportBooks: desktopLibraryPageCoordinator.triggerImportPicker,
-      onRepairBook: desktopLibraryPageCoordinator.handleRepairLibraryBook,
-      onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
-      onBulkRepairBooks: desktopLibraryPageCoordinator.handleBulkRepairLibraryBooks,
-      onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
-      onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
-      onClearFilters: activeLibraryPageActions.onClearFilters!,
-      getEmptyFilterTitle: getLibraryEmptyFilterTitle,
-      starterBrowseBooks: filteredStarterBrowseBooks,
-      starterShelfBooks: filteredStarterShelfBooks,
-      starterWorkflowNotice: starterReadingWorkflowNotice,
-      filteredStarterContinueReadingBooks,
-      filteredStarterRecentReadingBooks,
-      visibleStarterLibraryBooksCount,
-      desktopLibraryMode
-    }));
   $: if (typeof window !== 'undefined') {
     void syncLibraryViewportScrollContextFromPageState({
       currentKey: libraryScrollContextKey,
@@ -619,6 +553,42 @@
       ...buildDesktopLibraryPageActionEnvironmentBindings(desktopLibraryPageCoordinator),
       ...activeLibraryPageActionStateBindings
     });
+  $: activeLibraryPageSurfaceProjectionState = buildLibraryPageSurfaceProjectionState({
+    projectionState: currentLibraryPageProjectionState,
+    filterControlsState: activeLibraryFilterControlsBindings.getCurrentFilterControlsState(),
+    viewMode: libraryViewMode,
+    sortBy: librarySortBy,
+    importedBooksCount: importedBooks.length,
+    starterBooksCount: starterLibraryBooks.length,
+    notice: libraryNotice
+      ? {
+          kind: libraryNotice.kind,
+          message: libraryNotice.message,
+          actionLabel: libraryNotice.actionLabel
+        }
+      : null,
+    showReadestMigration,
+    readestLibraryCount,
+    readestCompatibleCount,
+    migrationBusy,
+    bulkRepairBusy,
+    bulkRepairSummary,
+    desktopLibraryMode
+  });
+  $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
+    buildLibraryPageSurfaceSetFromProjectionState({
+      projectionState: activeLibraryPageSurfaceProjectionState,
+      actions: {
+        onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
+        onImportBooks: desktopLibraryPageCoordinator.triggerImportPicker,
+        onRepairBook: desktopLibraryPageCoordinator.handleRepairLibraryBook,
+        onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
+        onBulkRepairBooks: desktopLibraryPageCoordinator.handleBulkRepairLibraryBooks,
+        onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
+        onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
+        onClearFilters: activeLibraryPageActions.onClearFilters!
+      }
+    }));
 
 </script>
 

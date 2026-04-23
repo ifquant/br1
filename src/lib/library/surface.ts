@@ -1,6 +1,7 @@
 import { buildDesktopLibraryBrowseBodySurfaceModel, buildStarterLibraryBrowseBodySurfaceModel } from './body';
 import { buildLibraryPageChromeModel } from './chrome';
 import type { LibraryPageSurfaceModel } from './types';
+import { getLibraryEmptyFilterTitle, type LibraryPageSurfaceProjectionState } from './page';
 
 type BuildDesktopLibraryPageSurfaceModelArgs = {
   chrome: Parameters<typeof buildLibraryPageChromeModel>[0];
@@ -17,6 +18,17 @@ type BuildLibraryPageSurfaceSetArgs = {
   desktopBody: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0];
   starterBody: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0];
   desktopLibraryMode: boolean;
+};
+
+type LibraryPageSurfaceActionBindings = {
+  onOpenSourcePath: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onOpenSourcePath'];
+  onImportBooks: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onImportBooks'];
+  onRepairBook: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onRepairBook'];
+  onRemoveBook: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onRemoveBook'];
+  onBulkRepairBooks: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onBulkRepairBooks'];
+  onReadestMigration: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onReadestMigration'];
+  onClearFilterById: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onClearFilterById'];
+  onClearFilters: Parameters<typeof buildLibraryPageSurfaceSetFromState>[0]['onClearFilters'];
 };
 
 type BuildLibraryPageSurfaceSetFromStateArgs = {
@@ -339,5 +351,18 @@ export const buildLibraryPageSurfaceSetFromState = ({
       onClearFilters,
       getEmptyFilterTitle
     },
-    desktopLibraryMode
+      desktopLibraryMode
+    });
+
+export const buildLibraryPageSurfaceSetFromProjectionState = ({
+  projectionState,
+  actions
+}: {
+  projectionState: LibraryPageSurfaceProjectionState;
+  actions: LibraryPageSurfaceActionBindings;
+}) =>
+  buildLibraryPageSurfaceSetFromState({
+    ...projectionState,
+    ...actions,
+    getEmptyFilterTitle: getLibraryEmptyFilterTitle
   });
