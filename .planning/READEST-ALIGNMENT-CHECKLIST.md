@@ -81,7 +81,7 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Outcome: every P0 row is marked `PASS`, `BLOCKED`, or `SHIPPABLE_WITH_CAVEAT` inside this checklist.
   - Touches: planning docs only unless the audit exposes a blocking correctness bug.
   - Verify: `pnpm check` (PASS); `git diff --check` (PASS).
-  - Done commit: pending
+  - Done commit: c14966a
   - Notes: P0 has no `BLOCKED` row. The local reader core is shippable for the Phase 1 baseline, with one documented layout caveat: P0-2.2 is source/static certified but not screenshot-regression certified.
 
   | Row | Verdict | Evidence | Blocking Gap | Follow-up Item |
