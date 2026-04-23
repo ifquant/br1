@@ -219,6 +219,51 @@ export type LibraryFilterControlsState = {
   tagFilter: string;
 };
 
+export type LibraryBookMetadataUpdate = {
+  title: string;
+  author: string;
+  description?: string;
+  language?: string;
+  publisher?: string;
+  collection?: string;
+  tags?: string[];
+};
+
+export type LibraryPageActions = {
+  onImportChange?: ((event: Event) => void | Promise<void>) | null;
+  onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
+  onRunNoticeAction?: (() => void | Promise<void>) | null;
+  onClearNotice?: (() => void | Promise<void>) | null;
+  onReadestMigration?: (() => void | Promise<void>) | null;
+  onOpenLink: (href: string) => void | Promise<void>;
+  onImportBooks?: (() => void | Promise<void>) | null;
+  onOpenSourcePath?: ((filePath: string) => void | Promise<void>) | null;
+  onUpdateBookMetadata?:
+    | ((book: LibraryShelfBook, metadata: LibraryBookMetadataUpdate) => void | Promise<void>)
+    | null;
+  onRemoveBook?: ((book: LibraryShelfBook) => void | Promise<void>) | null;
+  onFilterStatus?:
+    | ((status: 'reading' | 'unstarted' | 'finished') => void | Promise<void>)
+    | null;
+  onFilterFormat?: ((format: string) => void | Promise<void>) | null;
+  onFilterCollection?: ((collection: string) => void | Promise<void>) | null;
+  onFilterTag?: ((tag: string) => void | Promise<void>) | null;
+  onQueryChange?: ((query: string) => void | Promise<void>) | null;
+  onFilterChange?:
+    | ((filterBy: 'all' | 'reading' | 'unstarted' | 'finished') => void | Promise<void>)
+    | null;
+  onFormatFilterChange?: ((format: string) => void | Promise<void>) | null;
+  onCollectionFilterChange?: ((collection: string) => void | Promise<void>) | null;
+  onTagFilterChange?: ((tag: string) => void | Promise<void>) | null;
+  onClearFilterChip?: ((id: LibraryActiveFilterChip['id']) => void | Promise<void>) | null;
+  onClearFilters?: (() => void | Promise<void>) | null;
+  onJumpTrail?: ((index: number) => void | Promise<void>) | null;
+  onSortChange?:
+    | ((sortBy: 'recent' | 'added' | 'title' | 'author' | 'format') => void | Promise<void>)
+    | null;
+  onViewModeChange?: ((viewMode: 'grid' | 'list') => void | Promise<void>) | null;
+};
+
 export type LibraryHeaderModel = {
   totalBooks: number;
   query: string;

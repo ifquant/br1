@@ -224,6 +224,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - desktop library ingress now also routes through a shared module, so load/init, desktop picker import, and Readest migration flows are no longer implemented inline in `+page.svelte` just to coordinate reloads, notices, migration visibility, and first-book opening
 - the remaining desktop record-domain helpers now also live in a shared module, so persisted-record lookup, broken/bulk-repair eligibility, recovery-queue selection, and manual-relink review generation are no longer defined inline in `+page.svelte`
 - desktop persisted-record projection now also routes through a shared catalog module, so shelf sorting, Readest-compatible counting, record-to-shelf mapping, and the time/progress/availability/compatibility presentation labels are no longer assembled inline in `+page.svelte`
+- the library page host/surface layers now also consume a shared page-action model, so `+page.svelte` no longer pushes a long callback prop matrix through every page shell layer just to wire query, filter, browse, notice, import, and desktop book actions
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

@@ -5,127 +5,81 @@
   import LibraryPageChrome from './LibraryPageChrome.svelte';
   import type {
     LibraryActiveFilterChip,
-    LibraryBrowseAction,
+    LibraryPageActions,
     LibraryPageSurfaceModel,
-    LibraryShelfBook
   } from '$lib/library/types';
 
   export let model: LibraryPageSurfaceModel;
+  export let actions: LibraryPageActions;
   export let scrollRef: OverlayScrollbarsComponentRef<'div'> | null = null;
-  export let onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
-  export let onRunNoticeAction: (() => void | Promise<void>) | null = null;
-  export let onClearNotice: (() => void | Promise<void>) | null = null;
-  export let onReadestMigration: (() => void | Promise<void>) | null = null;
-  export let onOpenLink: (href: string) => void | Promise<void>;
-  export let onImportBooks: (() => void | Promise<void>) | null = null;
-  export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
-  export let onUpdateBookMetadata:
-    | ((
-        book: LibraryShelfBook,
-        metadata: {
-          title: string;
-          author: string;
-          description?: string;
-          language?: string;
-          publisher?: string;
-          collection?: string;
-          tags?: string[];
-        }
-      ) => void | Promise<void>)
-    | null = null;
-  export let onRemoveBook: ((book: LibraryShelfBook) => void | Promise<void>) | null = null;
-  export let onFilterStatus:
-    | ((status: 'reading' | 'unstarted' | 'finished') => void | Promise<void>)
-    | null = null;
-  export let onFilterFormat: ((format: string) => void | Promise<void>) | null = null;
-  export let onFilterCollection: ((collection: string) => void | Promise<void>) | null = null;
-  export let onFilterTag: ((tag: string) => void | Promise<void>) | null = null;
-  export let onQueryChange: ((query: string) => void | Promise<void>) | null = null;
-  export let onFilterChange:
-    | ((filterBy: 'all' | 'reading' | 'unstarted' | 'finished') => void | Promise<void>)
-    | null = null;
-  export let onFormatFilterChange: ((format: string) => void | Promise<void>) | null = null;
-  export let onCollectionFilterChange: ((collection: string) => void | Promise<void>) | null = null;
-  export let onTagFilterChange: ((tag: string) => void | Promise<void>) | null = null;
-  export let onClearFilterChip:
-    | ((id: LibraryActiveFilterChip['id']) => void | Promise<void>)
-    | null = null;
-  export let onClearFilters: (() => void | Promise<void>) | null = null;
-  export let onJumpTrail: ((index: number) => void | Promise<void>) | null = null;
-  export let onSortChange:
-    | ((
-        sortBy: 'recent' | 'added' | 'title' | 'author' | 'format'
-      ) => void | Promise<void>)
-    | null = null;
-  export let onViewModeChange: ((viewMode: 'grid' | 'list') => void | Promise<void>) | null = null;
 
   const handleQueryChange = (event: CustomEvent<{ query: string }>) => {
-    if (!onQueryChange) return;
-    void onQueryChange(event.detail.query);
+    if (!actions.onQueryChange) return;
+    void actions.onQueryChange(event.detail.query);
   };
 
   const handleImportBooks = () => {
-    if (!onImportBooks) return;
-    void onImportBooks();
+    if (!actions.onImportBooks) return;
+    void actions.onImportBooks();
   };
 
   const handleFilterChange = (
     event: CustomEvent<{ filterBy: 'all' | 'reading' | 'unstarted' | 'finished' }>
   ) => {
-    if (!onFilterChange) return;
-    void onFilterChange(event.detail.filterBy);
+    if (!actions.onFilterChange) return;
+    void actions.onFilterChange(event.detail.filterBy);
   };
 
   const handleFormatFilterChange = (event: CustomEvent<{ format: string }>) => {
-    if (!onFormatFilterChange) return;
-    void onFormatFilterChange(event.detail.format);
+    if (!actions.onFormatFilterChange) return;
+    void actions.onFormatFilterChange(event.detail.format);
   };
 
   const handleCollectionFilterChange = (event: CustomEvent<{ collection: string }>) => {
-    if (!onCollectionFilterChange) return;
-    void onCollectionFilterChange(event.detail.collection);
+    if (!actions.onCollectionFilterChange) return;
+    void actions.onCollectionFilterChange(event.detail.collection);
   };
 
   const handleTagFilterChange = (event: CustomEvent<{ tag: string }>) => {
-    if (!onTagFilterChange) return;
-    void onTagFilterChange(event.detail.tag);
+    if (!actions.onTagFilterChange) return;
+    void actions.onTagFilterChange(event.detail.tag);
   };
 
   const handleClearFilterChip = (event: CustomEvent<{ id: LibraryActiveFilterChip['id'] }>) => {
-    if (!onClearFilterChip) return;
-    void onClearFilterChip(event.detail.id);
+    if (!actions.onClearFilterChip) return;
+    void actions.onClearFilterChip(event.detail.id);
   };
 
   const handleClearFilters = () => {
-    if (!onClearFilters) return;
-    void onClearFilters();
+    if (!actions.onClearFilters) return;
+    void actions.onClearFilters();
   };
 
   const handleJumpTrail = (event: CustomEvent<{ index: number }>) => {
-    if (!onJumpTrail) return;
-    void onJumpTrail(event.detail.index);
+    if (!actions.onJumpTrail) return;
+    void actions.onJumpTrail(event.detail.index);
   };
 
   const handleSortChange = (
     event: CustomEvent<{ sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' }>
   ) => {
-    if (!onSortChange) return;
-    void onSortChange(event.detail.sortBy);
+    if (!actions.onSortChange) return;
+    void actions.onSortChange(event.detail.sortBy);
   };
 
   const handleViewModeChange = (event: CustomEvent<{ viewMode: 'grid' | 'list' }>) => {
-    if (!onViewModeChange) return;
-    void onViewModeChange(event.detail.viewMode);
+    if (!actions.onViewModeChange) return;
+    void actions.onViewModeChange(event.detail.viewMode);
   };
 </script>
 
 <div class="library-surface">
   <LibraryPageChrome
     model={model.chrome}
-    {onDispatchBrowseAction}
-    {onRunNoticeAction}
-    {onClearNotice}
-    {onReadestMigration}
+    onDispatchBrowseAction={actions.onDispatchBrowseAction}
+    onRunNoticeAction={actions.onRunNoticeAction}
+    onClearNotice={actions.onClearNotice}
+    onReadestMigration={actions.onReadestMigration}
     on:querychange={handleQueryChange}
     on:importbooks={handleImportBooks}
     on:filterchange={handleFilterChange}
@@ -153,16 +107,16 @@
         viewMode={model.body.viewMode}
         shelfBooks={model.body.shelfBooks}
         shelfSectionTitle={model.body.shelfSectionTitle}
-        {onDispatchBrowseAction}
-        onOpenLink={onOpenLink}
-        onImportBooks={onImportBooks}
-        onOpenSourcePath={model.supportsDesktopBookActions ? onOpenSourcePath : null}
-        onUpdateBookMetadata={model.supportsDesktopBookActions ? onUpdateBookMetadata : null}
-        onRemoveBook={model.supportsDesktopBookActions ? onRemoveBook : null}
-        onFilterStatus={onFilterStatus}
-        onFilterFormat={onFilterFormat}
-        onFilterCollection={onFilterCollection}
-        onFilterTag={onFilterTag}
+        onDispatchBrowseAction={actions.onDispatchBrowseAction}
+        onOpenLink={actions.onOpenLink}
+        onImportBooks={actions.onImportBooks}
+        onOpenSourcePath={model.supportsDesktopBookActions ? actions.onOpenSourcePath : null}
+        onUpdateBookMetadata={model.supportsDesktopBookActions ? actions.onUpdateBookMetadata : null}
+        onRemoveBook={model.supportsDesktopBookActions ? actions.onRemoveBook : null}
+        onFilterStatus={actions.onFilterStatus}
+        onFilterFormat={actions.onFilterFormat}
+        onFilterCollection={actions.onFilterCollection}
+        onFilterTag={actions.onFilterTag}
       />
     </OverlayScrollbarsComponent>
   </LibraryPageChrome>

@@ -9,6 +9,7 @@
     LibraryFilterControlsState,
     LibraryNoticeState,
     LibraryPageSurfaceModel,
+    LibraryPageActions,
     LibraryBrowseAction,
     ContinueReadingBook,
     LibraryGroupBy,
@@ -324,6 +325,7 @@
     groupScope: '',
     trail: []
   };
+  let activeLibraryPageActions: LibraryPageActions;
   let desktopLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(true);
   let starterLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
   let activeLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
@@ -1001,82 +1003,86 @@
     );
   };
 
-</script>
-
-<section class="library-page">
-  <LibraryPageHost
-    model={activeLibraryPageSurfaceModel}
-    bind:fileInput={importInput}
-    bind:scrollRef={libraryScrollRef}
-    fileAccept={READER_FILE_INPUT_ACCEPT}
-    onImportChange={handleImportChange}
-    onDispatchBrowseAction={dispatchLibraryBrowseAction}
-    onRunNoticeAction={runLibraryNoticeAction}
-    onClearNotice={clearLibraryNotice}
-    onReadestMigration={handleReadestMigrationClick}
-    onQueryChange={(query) => {
+  $: activeLibraryPageActions = {
+    onImportChange: handleImportChange,
+    onDispatchBrowseAction: dispatchLibraryBrowseAction,
+    onRunNoticeAction: runLibraryNoticeAction,
+    onClearNotice: clearLibraryNotice,
+    onReadestMigration: handleReadestMigrationClick,
+    onOpenLink: handleOpenReaderTarget,
+    onImportBooks: triggerImportPicker,
+    onOpenSourcePath: handleOpenSourcePath,
+    onUpdateBookMetadata: handleUpdateLibraryBookMetadata,
+    onRemoveBook: handleRemoveLibraryBook,
+    onFilterStatus: handleFilterByShelfStatus,
+    onFilterFormat: handleFilterByShelfFormat,
+    onFilterCollection: handleFilterByShelfCollection,
+    onFilterTag: handleFilterByShelfTag,
+    onQueryChange: (query) => {
       applyLibraryFilterControlsState(
         getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
           type: 'set-query',
           query
         })
       );
-    }}
-    onImportBooks={triggerImportPicker}
-    onFilterChange={(filterBy) => {
+    },
+    onFilterChange: (filterBy) => {
       applyLibraryFilterControlsState(
         getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
           type: 'set-status',
           filterBy
         })
       );
-    }}
-    onFormatFilterChange={(format) => {
+    },
+    onFormatFilterChange: (format) => {
       applyLibraryFilterControlsState(
         getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
           type: 'set-format',
           format
         })
       );
-    }}
-    onCollectionFilterChange={(collection) => {
+    },
+    onCollectionFilterChange: (collection) => {
       applyLibraryFilterControlsState(
         getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
           type: 'set-collection',
           collection
         })
       );
-    }}
-    onTagFilterChange={(tag) => {
+    },
+    onTagFilterChange: (tag) => {
       applyLibraryFilterControlsState(
         getNextLibraryFilterControlsState(getCurrentLibraryFilterControlsState(), {
           type: 'set-tag',
           tag
         })
       );
-    }}
-    onClearFilterChip={clearLibraryFilterById}
-    onClearFilters={handleClearLibraryFilters}
-    onJumpTrail={(index) => {
+    },
+    onClearFilterChip: clearLibraryFilterById,
+    onClearFilters: handleClearLibraryFilters,
+    onJumpTrail: (index) => {
       void dispatchLibraryBrowseAction({
         type: 'jump-trail',
         index
       });
-    }}
-    onSortChange={(sortBy) => {
+    },
+    onSortChange: (sortBy) => {
       librarySortBy = sortBy;
-    }}
-    onViewModeChange={(viewMode) => {
+    },
+    onViewModeChange: (viewMode) => {
       libraryViewMode = viewMode;
-    }}
-    onOpenLink={handleOpenReaderTarget}
-    onOpenSourcePath={handleOpenSourcePath}
-    onUpdateBookMetadata={handleUpdateLibraryBookMetadata}
-    onRemoveBook={handleRemoveLibraryBook}
-    onFilterStatus={handleFilterByShelfStatus}
-    onFilterFormat={handleFilterByShelfFormat}
-    onFilterCollection={handleFilterByShelfCollection}
-    onFilterTag={handleFilterByShelfTag}
+    }
+  };
+
+</script>
+
+<section class="library-page">
+  <LibraryPageHost
+    model={activeLibraryPageSurfaceModel}
+    actions={activeLibraryPageActions}
+    bind:fileInput={importInput}
+    bind:scrollRef={libraryScrollRef}
+    fileAccept={READER_FILE_INPUT_ACCEPT}
   />
 </section>
 
