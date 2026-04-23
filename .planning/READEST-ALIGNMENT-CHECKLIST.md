@@ -136,8 +136,8 @@ Goal: prove the local reader core is shippable before moving the main execution 
 - [x] P0-4.2 Certify library repair, remove, restore, cover, and metadata workflows
   - Outcome: destructive and recovery flows preserve user data, respect trusted paths, and surface clear recovery states.
   - Touches: Tauri library commands, library maintenance modules, desktop tests.
-  - Verify: `pnpm check`; targeted repair/remove/restore regressions; `git diff --check`.
-  - Done commit: pending
+  - Verify: `pnpm check` (PASS); `bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "P0 library repair remove restore cover and metadata"` (PASS); `git diff --check` (PASS).
+  - Done commit: add8f96
   - Notes: `e2e/app.e2e.ts` now has `P0 library repair remove restore cover and metadata`, which consolidates trusted cover loading and repair-preview safety into one grep-friendly certification anchor while reusing the existing dedicated repair, undo, remove/restore, and metadata-edit coverage for the remaining legs.
 
 ## P1 Advanced Reading Experience

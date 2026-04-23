@@ -15,9 +15,9 @@
 
 验证结果：
 
-- `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`，已运行
-- `bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "P0 library repair remove restore cover and metadata"`，已运行但当前回归仍在收敛中
-- `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`，未运行
+- `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`，PASS
+- `bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "P0 library repair remove restore cover and metadata"`，PASS
+- `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`，PASS
 
 没做的事：
 
