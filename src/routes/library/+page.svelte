@@ -23,6 +23,11 @@
     runLibraryNoticeAction as runSharedLibraryNoticeAction
   } from '$lib/library/controller';
   import {
+    importDesktopLibraryBooks,
+    loadDesktopLibrarySurface,
+    migrateDesktopReadestLibrary
+  } from '$lib/library/desktopIngress';
+  import {
     bulkRepairDesktopLibraryBooks,
     removeLibraryBookFromDesktop,
     repairDesktopLibraryBook,
@@ -666,22 +671,21 @@
 
   const loadLibrary = async () => {
     if (!canPersistLibrary()) return;
-    desktopLibraryMode = true;
-
-    const records = await loadPersistedLibraryBooks();
-    const readestSummary = await detectReadestLibrary();
-    readestLibraryCount = readestSummary.count;
-
-    if (records.length === 0 && readestSummary.available) {
-      await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });
-      const migratedRecords = await loadPersistedLibraryBooks();
-      await applyPersistedLibraryRecords(migratedRecords);
-      showReadestMigration = readestSummary.available;
-      return;
-    }
-
-    await applyPersistedLibraryRecords(records);
-    showReadestMigration = readestSummary.available;
+    await loadDesktopLibrarySurface({
+      detectReadestLibrary,
+      loadPersistedLibraryBooks,
+      applyPersistedLibraryRecords,
+      triggerReadestMigration,
+      setDesktopLibraryMode: (value) => {
+        desktopLibraryMode = value;
+      },
+      setReadestLibraryCount: (count) => {
+        readestLibraryCount = count;
+      },
+      setShowReadestMigration: (value) => {
+        showReadestMigration = value;
+      }
+    });
   };
 
   onMount(() => {
@@ -992,31 +996,6 @@
     runSharedLibraryNoticeAction(libraryNotice);
   };
 
-  const describeReadestMigrationResult = (result: Awaited<ReturnType<typeof importBooksFromReadest>>) => {
-    const totalDetected = result.totalDetected ?? 0;
-    const importedCount = result.importedCount ?? result.records.length;
-    const replacedCount = result.replacedCount ?? 0;
-    const skippedMissingFiles = result.skippedMissingFiles ?? 0;
-    const syncedCount = importedCount;
-
-    if (result.kind === 'empty') {
-      if (totalDetected > 0 && skippedMissingFiles > 0) {
-        return `发现 ${totalDetected} 本 Readest 藏书，但有 ${skippedMissingFiles} 本缺少本地文件，暂时无法兼容。`;
-      }
-      return '没有从 Readest 迁移到可用书籍，请确认本机 Readest 书库仍然完整。';
-    }
-
-    const messageParts = [`已同步 ${syncedCount} 本 Readest 藏书`];
-    if (replacedCount > 0) {
-      messageParts.push(`刷新了 ${replacedCount} 本已有兼容记录`);
-    }
-    if (skippedMissingFiles > 0) {
-      messageParts.push(`跳过了 ${skippedMissingFiles} 本缺少本地文件的条目`);
-    }
-
-    return `${messageParts.join('，')}。`;
-  };
-
   const handleOpenReaderTarget = async (target: string | LibraryReaderTarget) => {
     clearLibraryNotice();
     const href = typeof target === 'string' ? target : target.href;
@@ -1038,23 +1017,16 @@
 
   const triggerImportPicker = async () => {
     if (canPersistLibrary()) {
-      try {
-        clearLibraryNotice();
-        const result = await importBooksFromDesktopPicker();
-        if (result.kind === 'cancelled') return;
-        if (result.kind === 'empty') {
-          setLibraryNotice('info', '没有导入到可用书籍，请确认所选文件仍然存在且格式受支持。');
-          return;
-        }
-        await loadLibrary();
-        showReadestMigration = false;
-        if (result.firstReaderTarget) {
-          await handleOpenReaderTarget(result.firstReaderTarget);
-        }
-      } catch (error) {
-        console.error('Failed to open the desktop import picker', error);
-        setLibraryNotice('error', '无法完成桌面导入，请确认文件选择器和导入权限正常。');
-      }
+      await importDesktopLibraryBooks({
+        clearLibraryNotice,
+        setLibraryNotice,
+        importBooksFromDesktopPicker,
+        reloadLibrary: loadLibrary,
+        setShowReadestMigration: (value) => {
+          showReadestMigration = value;
+        },
+        onOpenReaderTarget: handleOpenReaderTarget
+      });
       return;
     }
 
@@ -1091,36 +1063,24 @@
   } = {}) => {
     if (!canPersistLibrary() || migrationBusy) return;
 
-    migrationBusy = true;
-    try {
-      clearLibraryNotice();
-      const result = await importBooksFromReadest();
-      const migrationMessage = describeReadestMigrationResult(result);
-      if (result.kind === 'empty') {
-        showReadestMigration = true;
-        setLibraryNotice('info', migrationMessage);
-        return;
-      }
-      if (reloadAfterImport) {
-        await loadLibrary();
-      } else {
-        const currentRecords = await loadPersistedLibraryBooks();
-        await applyPersistedLibraryRecords(currentRecords);
-      }
-      showReadestMigration = true;
-
-      if (autoOpenFirstBook && result.kind === 'imported') {
-        if (result.firstReaderTarget) {
-          await handleOpenReaderTarget(result.firstReaderTarget);
-        }
-      }
-      setLibraryNotice('info', migrationMessage);
-    } catch (error) {
-      console.error('Failed to import books from Readest', error);
-      setLibraryNotice('error', '从 Readest 导入失败，请确认本机书库路径和权限可用。');
-    } finally {
-      migrationBusy = false;
-    }
+    await migrateDesktopReadestLibrary({
+      migrationBusy,
+      setMigrationBusy: (value) => {
+        migrationBusy = value;
+      },
+      clearLibraryNotice,
+      setLibraryNotice,
+      importBooksFromReadest,
+      reloadLibrary: loadLibrary,
+      loadPersistedLibraryBooks,
+      applyPersistedLibraryRecords,
+      setShowReadestMigration: (value) => {
+        showReadestMigration = value;
+      },
+      onOpenReaderTarget: handleOpenReaderTarget,
+      autoOpenFirstBook,
+      reloadAfterImport
+    });
   };
 
   const handleReadestMigrationClick = () => {
