@@ -31,7 +31,7 @@ import type {
 
 type SetLibraryNoticeState = (notice: LibraryNoticeState | null) => void;
 
-export const buildDesktopLibraryPageCoordinator = (options: {
+export type DesktopLibraryPageCoordinatorOptions = {
   getLibraryNoticeState: () => LibraryNoticeState | null;
   setLibraryNoticeState: SetLibraryNoticeState;
   setPersistedLibraryRecords: (records: PersistedLibraryBook[]) => void;
@@ -90,7 +90,9 @@ export const buildDesktopLibraryPageCoordinator = (options: {
   confirmRemoval: (message: string) => boolean;
   createObjectUrl: (file: File) => string;
   setImportInputValue: (value: string) => void;
-}) => {
+};
+
+export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCoordinatorOptions) => {
   const clearLibraryNotice = () => {
     options.setLibraryNoticeState(null);
   };
@@ -321,3 +323,7 @@ export const buildDesktopLibraryPageCoordinator = (options: {
     handleBulkRepairLibraryBooks
   };
 };
+
+export const buildDesktopLibraryPageCoordinatorFromState = (
+  options: DesktopLibraryPageCoordinatorOptions
+) => buildDesktopLibraryPageCoordinator(options);

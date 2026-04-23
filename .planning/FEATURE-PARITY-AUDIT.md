@@ -237,6 +237,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the library page now also routes browse-location normalization through shared navigation helpers, so `+page.svelte` no longer hard-codes the invalid-group and stale-trail correction rules inline before syncing URL state
 - the library page now also routes viewport scroll persistence through shared runtime helpers, so `+page.svelte` no longer implements local save/restore/sync scroll host helpers inline
 - the library page now also routes page-surface input assembly through the shared surface layer, so `+page.svelte` no longer hand-builds the long chrome/desktopBody/starterBody input object literals inline
+- the desktop library page now also exposes a shared coordinator-builder entrypoint, so route-side coordinator wiring is anchored in `desktopPage.ts` instead of calling the lower-level factory directly from `+page.svelte`
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

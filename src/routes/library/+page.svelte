@@ -24,7 +24,7 @@
     buildLibraryPageActionSet,
     getAppliedLibraryBrowseState
   } from '$lib/library/controller';
-  import { buildDesktopLibraryPageCoordinator } from '$lib/library/desktopPage';
+  import { buildDesktopLibraryPageCoordinatorFromState } from '$lib/library/desktopPage';
   import {
     buildLibraryPageSurfaceSetFromState,
     createEmptyLibraryPageSurfaceModel,
@@ -338,7 +338,7 @@
       searchActive: librarySearchActive
     });
 
-  const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinator({
+  const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromState({
     getLibraryNoticeState: () => libraryNotice,
     setLibraryNoticeState: (notice) => {
       libraryNotice = notice;
