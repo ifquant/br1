@@ -174,6 +174,7 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Touches: provider abstraction, lookup UI, tests.
   - Verify: `pnpm check`; provider fallback test; `git diff --check`.
   - Done commit: 0494
+  - Follow-up: 0495 keeps the Wikipedia/dictionary provider chips visibly selected and exposes pressed state to assistive technology.
   - Notes: dictionary lookup now goes through the shared assistance facade and the same assist panel term input, with server-side `dictionaryapi.dev` URL construction and Rust coverage for the English-only normalization/formatting path.
 
 - [ ] P1-2.1 Replace the TTS placeholder with a real session model

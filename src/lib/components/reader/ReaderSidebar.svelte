@@ -1834,6 +1834,7 @@
               type="button"
               class:active={assistLookupProvider === 'wikipedia'}
               class="assist-chip"
+              aria-pressed={assistLookupProvider === 'wikipedia'}
               on:click={() => {
                 assistLookupProvider = 'wikipedia';
               }}
@@ -1844,6 +1845,7 @@
               type="button"
               class:active={assistLookupProvider === 'dictionary'}
               class="assist-chip"
+              aria-pressed={assistLookupProvider === 'dictionary'}
               on:click={() => {
                 assistLookupProvider = 'dictionary';
               }}
@@ -3563,6 +3565,11 @@
 
   .assist-chip:disabled {
     opacity: 0.55;
+  }
+
+  .assist-chip.active {
+    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
+    color: var(--text-primary);
   }
 
   .primary-assist-action {
