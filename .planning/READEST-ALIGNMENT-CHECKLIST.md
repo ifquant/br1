@@ -133,12 +133,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Done commit: 83d5932
   - Notes: `e2e/app.e2e.ts` now has `P0 library import migration grouping filtering and sorting`, which drives the persisted sample records through format sorting, format grouping, and metadata-driven filtering. The Readest migration evidence still comes from `reports Readest migration outcomes through the library banner and notice flow`.
 
-- [ ] P0-4.2 Certify library repair, remove, restore, cover, and metadata workflows
+- [x] P0-4.2 Certify library repair, remove, restore, cover, and metadata workflows
   - Outcome: destructive and recovery flows preserve user data, respect trusted paths, and surface clear recovery states.
   - Touches: Tauri library commands, library maintenance modules, desktop tests.
   - Verify: `pnpm check`; targeted repair/remove/restore regressions; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: pending
+  - Notes: `e2e/app.e2e.ts` now has `P0 library repair remove restore cover and metadata`, which consolidates trusted cover loading and repair-preview safety into one grep-friendly certification anchor while reusing the existing dedicated repair, undo, remove/restore, and metadata-edit coverage for the remaining legs.
 
 ## P1 Advanced Reading Experience
 

@@ -620,6 +620,8 @@ describe('br1 desktop app', () => {
       description?: string | null;
       language?: string | null;
       publisher?: string | null;
+      collection?: string | null;
+      tags?: string[] | null;
     }
   ) => {
     const result = await browser.executeAsync(([id, nextMetadata], done) => {
@@ -642,11 +644,11 @@ describe('br1 desktop app', () => {
           recordId: id,
           title: nextMetadata.title,
           author: nextMetadata.author,
-          description: nextMetadata.description ?? '',
-          language: nextMetadata.language ?? '',
-          publisher: nextMetadata.publisher ?? '',
-          collection: nextMetadata.collection ?? '',
-          tags: nextMetadata.tags ?? []
+          description: nextMetadata.description,
+          language: nextMetadata.language,
+          publisher: nextMetadata.publisher,
+          collection: nextMetadata.collection,
+          tags: nextMetadata.tags
         })
         .then(() => {
           done({ ok: true });
@@ -3030,6 +3032,53 @@ describe('br1 desktop app', () => {
           tags: originalTags
         });
       }
+    }
+  });
+
+  it('P0 library repair remove restore cover and metadata', async function () {
+    this.timeout(120000);
+    const trustedSourcePath = join(staticSamplesRoot, 'sample-comic.cbz');
+    const untrustedBook = join(appDataRoot, `br1-p0-4-2-untrusted-${Date.now()}.txt`);
+    const untrustedCover = join(appDataRoot, `br1-p0-4-2-cover-${Date.now()}.png`);
+    await writeFile(untrustedBook, 'renderer-controlled path must not be trusted', 'utf8');
+    await writeFile(untrustedCover, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+
+    const [importedBook] = await importDesktopLibraryBooks([trustedSourcePath]);
+    expect(importedBook?.filePath).toBeTruthy();
+    expect(importedBook?.id).toBeTruthy();
+
+    const originalRecord = await loadLibraryRecordOnDisk(importedBook!.filePath);
+    expect(originalRecord).toBeTruthy();
+
+    const coverPath = originalRecord!.coverPath ?? originalRecord!.cover_path ?? null;
+
+    try {
+      expect(coverPath).toBeTruthy();
+      const coverDataUrl = await loadLibraryCoverDataUrl(coverPath!);
+      expect(coverDataUrl.startsWith('data:image/')).toBe(true);
+
+      const repairPreview = await previewDesktopLibraryRepairCandidate(trustedSourcePath, importedBook!.id);
+      expect(repairPreview.fileExists).toBe(true);
+      expect(repairPreview.formatMatches).toBe(true);
+      expect(repairPreview.titleMatches).toBe(true);
+      expect(repairPreview.authorMatches).toBe(true);
+      expect(repairPreview.sourcePathMatches).toBe(true);
+
+      const probe = await invokeDesktopCommand<{
+        coverError?: string | null;
+        repairPreviewError?: string | null;
+      }>('probe_untrusted_library_paths_for_webdriver', {
+        bookPath: untrustedBook,
+        coverPath: untrustedCover,
+        recordId: importedBook!.id
+      });
+      expect(probe.ok).toBe(true);
+      if (!probe.ok) throw new Error(probe.error);
+      expect(probe.result.coverError).toContain('not a br1 library asset');
+      expect(probe.result.repairPreviewError).toContain('not an approved picker or library source');
+    } finally {
+      await rm(untrustedBook, { force: true });
+      await rm(untrustedCover, { force: true });
     }
   });
 
