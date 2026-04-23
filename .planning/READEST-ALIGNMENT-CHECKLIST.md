@@ -91,12 +91,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Done commit: 6a71dd4
   - Notes: `tests/e2e/library-smoke.spec.ts` now loops all seven sample fixtures, including `sample-book.epub` and `sample-outline.pdf`, and confirms open/reopen state through reload.
 
-- [ ] P0-1.2 Close file-association and trusted-open evidence gaps
+- [x] P0-1.2 Close file-association and trusted-open evidence gaps
   - Outcome: packaged-style open-with intake, associated-open queue normalization, unsupported input rejection, and managed library-file trust boundaries are verified together.
   - Touches: Tauri open events, associated-open queue, reader route intake, desktop tests.
   - Verify: `pnpm check`; targeted associated-open regression; `git diff --check`.
-  - Done commit:
-  - Notes: candidate evidence exists in `e2e/app.e2e.ts`, but this item still needs a dedicated targeted associated-open verification slice before it is checked off.
+  - Done commit: 26e74db
+  - Notes: `e2e/app.e2e.ts` now has a targeted `certifies associated-open queue normalization and trusted-open boundaries` regression, and the startup associated-open desktop test continues to cover packaged-style intake.
 
 - [ ] P0-2.1 Certify scroll/paginated and reader settings persistence
   - Outcome: flow, typography, margins, theme, width mode, and chrome mode persist across reload/reopen for primary supported surfaces.
