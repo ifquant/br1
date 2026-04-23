@@ -53,11 +53,14 @@ export type DesktopLibraryBrowseDerivations = LibraryBrowseDerivations & {
 };
 
 export type LibraryPageDerivations = {
+  searchActive: boolean;
   activeFilterState: LibraryActiveFilterState;
   desktopBrowse: DesktopLibraryBrowseDerivations;
   starterBrowse: LibraryBrowseDerivations;
   filterSummary: string;
 };
+
+export type LibraryPageBrowseState = LibraryPageDerivations & LibraryPageViewState;
 
 export type LibraryPageViewState = {
   recoveryQueueBooks: LibraryShelfBook[];
@@ -857,6 +860,7 @@ export const buildLibraryPageDerivations = ({
     : '';
 
   return {
+    searchActive,
     activeFilterState,
     desktopBrowse,
     starterBrowse,
@@ -929,5 +933,58 @@ export const buildLibraryPageViewState = ({
     filteredStarterShelfBooks: starterBrowse.filteredShelfBooks,
     visibleStarterLibraryBooksCount: starterBrowse.visibleBooksCount,
     starterReadingWorkflowNotice: starterBrowse.workflowNotice
+  };
+};
+
+export const buildLibraryPageBrowseState = ({
+  importedBooks,
+  starterLibraryBooks,
+  query,
+  sortBy,
+  filterBy,
+  formatFilter,
+  collectionFilter,
+  tagFilter,
+  groupBy,
+  groupScope,
+  persistedLibraryRecords,
+  desktopLibraryMode
+}: {
+  importedBooks: LibraryShelfBook[];
+  starterLibraryBooks: LibraryShelfBook[];
+  query: string;
+  sortBy: 'recent' | 'added' | 'title' | 'author' | 'format';
+  filterBy: LibraryFilter;
+  formatFilter: string;
+  collectionFilter: string;
+  tagFilter: string;
+  groupBy: 'none' | 'author' | 'collection' | 'format';
+  groupScope: string;
+  persistedLibraryRecords: PersistedLibraryBook[];
+  desktopLibraryMode: boolean;
+}): LibraryPageBrowseState => {
+  const derivations = buildLibraryPageDerivations({
+    importedBooks,
+    starterLibraryBooks,
+    query,
+    sortBy,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter,
+    groupBy,
+    groupScope,
+    desktopLibraryMode
+  });
+  const viewState = buildLibraryPageViewState({
+    desktopBrowse: derivations.desktopBrowse,
+    starterBrowse: derivations.starterBrowse,
+    persistedLibraryRecords,
+    desktopLibraryMode
+  });
+
+  return {
+    ...derivations,
+    ...viewState
   };
 };

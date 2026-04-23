@@ -33,14 +33,10 @@
     syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation
   } from '$lib/library/runtime';
   import {
-    buildLibraryActiveFilterState,
+    buildLibraryPageBrowseState,
     buildLibraryFilterState,
-    buildLibraryPageViewState,
-    buildDesktopLibraryBrowseDerivations,
     getLibraryEmptyFilterTitle,
-    isLibraryViewFiltered,
     normalizeLibrarySearchText,
-    buildStarterLibraryBrowseDerivations,
     type DesktopLibraryBrowseDerivations,
     type LibraryBrowseDerivations,
     type LibraryFilter,
@@ -460,16 +456,41 @@
   $: libraryFilterState = buildLibraryFilterState({
     summaryBooks: librarySummaryBooks
   });
-  $: libraryActiveFilterState = buildLibraryActiveFilterState({
+  $: ({
     searchActive: librarySearchActive,
-    query: libraryQuery,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter
-  });
-  $: desktopLibraryBrowse = buildDesktopLibraryBrowseDerivations({
-    books: importedBooks,
+    activeFilterState: libraryActiveFilterState,
+    desktopBrowse: desktopLibraryBrowse,
+    starterBrowse: starterLibraryBrowse,
+    filterSummary: libraryFilterSummary,
+    recoveryQueueBooks,
+    continueReadingBooks,
+    recentReadingBooks,
+    libraryShelfBooks,
+    filteredRecoveryQueueBooks,
+    recoveryQueueReviewBooks,
+    bulkRepairEligibleQueueBooks,
+    manualRepairQueueCount,
+    recoveryQueueSummaryText,
+    libraryStatusSummary,
+    filteredContinueReadingBooks,
+    filteredRecentReadingBooks,
+    filteredLibraryBrowseBooks,
+    filteredLibraryShelfBooks,
+    libraryGroupedBrowseMode,
+    visibleLibraryBooksCount,
+    readingWorkflowNotice,
+    starterContinueReadingBooks,
+    starterRecentReadingBooks,
+    starterShelfBooks,
+    filteredStarterContinueReadingBooks,
+    filteredStarterRecentReadingBooks,
+    filteredStarterBrowseBooks,
+    filteredStarterShelfBooks,
+    visibleStarterLibraryBooksCount,
+    starterReadingWorkflowNotice
+  } = buildLibraryPageBrowseState({
+    importedBooks,
+    starterLibraryBooks,
     query: libraryQuery,
     sortBy: librarySortBy,
     filterBy: libraryFilterBy,
@@ -477,30 +498,10 @@
     collectionFilter: libraryCollectionFilter,
     tagFilter: libraryTagFilter,
     groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope
-  });
-  $: starterLibraryBrowse = buildStarterLibraryBrowseDerivations({
-    books: starterLibraryBooks,
-    query: libraryQuery,
-    sortBy: librarySortBy,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter,
-    groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope
-  });
-  $: libraryFilterSummary = isLibraryViewFiltered({
-    searchActive: librarySearchActive,
-    filterBy: libraryFilterBy,
-    formatFilter: libraryFormatFilter,
-    collectionFilter: libraryCollectionFilter,
-    tagFilter: libraryTagFilter
-  })
-    ? `筛选命中 ${
-        desktopLibraryMode ? desktopLibraryBrowse.visibleBooksCount : starterLibraryBrowse.visibleBooksCount
-      } / ${librarySummaryBooks.length} 本`
-    : '';
+    groupScope: libraryGroupScope,
+    persistedLibraryRecords,
+    desktopLibraryMode
+  }));
   $: ({ groupBy: libraryGroupBy, groupScope: libraryGroupScope, trail: libraryBrowseTrail } =
     getLibraryBrowseStateFromUrl($page.url));
   $: if (libraryFormatFilter !== 'all' && !libraryFormatOptions.includes(libraryFormatFilter)) {
@@ -540,39 +541,6 @@
   $: libraryCollectionSummary = libraryFilterState.collectionSummary;
   $: libraryTagSummary = libraryFilterState.tagSummary;
   $: libraryCoverSummary = libraryFilterState.coverSummary;
-  $: ({
-    recoveryQueueBooks,
-    continueReadingBooks,
-    recentReadingBooks,
-    libraryShelfBooks,
-    filteredRecoveryQueueBooks,
-    recoveryQueueReviewBooks,
-    bulkRepairEligibleQueueBooks,
-    manualRepairQueueCount,
-    recoveryQueueSummaryText,
-    libraryStatusSummary,
-    filteredContinueReadingBooks,
-    filteredRecentReadingBooks,
-    filteredLibraryBrowseBooks,
-    filteredLibraryShelfBooks,
-    libraryGroupedBrowseMode,
-    visibleLibraryBooksCount,
-    readingWorkflowNotice,
-    starterContinueReadingBooks,
-    starterRecentReadingBooks,
-    starterShelfBooks,
-    filteredStarterContinueReadingBooks,
-    filteredStarterRecentReadingBooks,
-    filteredStarterBrowseBooks,
-    filteredStarterShelfBooks,
-    visibleStarterLibraryBooksCount,
-    starterReadingWorkflowNotice
-  } = buildLibraryPageViewState({
-    desktopBrowse: desktopLibraryBrowse,
-    starterBrowse: starterLibraryBrowse,
-    persistedLibraryRecords,
-    desktopLibraryMode
-  }));
   $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
   $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
   $: currentLibraryBrowseState = getCurrentLibraryBrowseState();
