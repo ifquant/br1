@@ -14,6 +14,9 @@
   } from '$lib/reader';
   import {
     createEmptyReaderPreviewState,
+    createEmptyReaderAssistanceState,
+    createEmptyReaderAssistanceResultState,
+    createLoadingReaderAssistanceState,
     createReaderBookmarksController,
     createReaderNotesController,
     createReaderSearchController,
@@ -21,6 +24,8 @@
     parseReaderRouteOpenState,
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
+    canRequestAssistanceForText,
+    normalizeAssistanceTerm,
     toReaderOpenControlRequest
   } from '$lib/reader';
   import { supportsTextAnnotationsForFormat } from '$lib/reader/formats';
@@ -37,6 +42,7 @@
     saveReaderBookmarks,
     saveReaderNotes,
     startCurrentWindowDrag,
+    requestReaderAssistance,
     toLibraryCoverUrl,
     updateLibraryReadingState
   } from '$lib/services';
@@ -52,6 +58,9 @@
   let currentCoverUrl = '';
   let bridgePanelOpen = false;
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
+  let assistanceState = createEmptyReaderAssistanceState();
+  let assistanceRequestNonce = 0;
+  let lastAssistanceBookKey = '';
 
   $: routeOpenState = parseReaderRouteOpenState($page.url) satisfies ReaderRouteOpenState;
   $: isWindowMode = routeOpenState.isWindowMode;
@@ -171,6 +180,10 @@
   $: {
     readerBookKey;
     searchController.refreshHistory();
+  }
+  $: if (readerBookKey !== lastAssistanceBookKey) {
+    assistanceState = createEmptyReaderAssistanceState();
+    lastAssistanceBookKey = readerBookKey;
   }
   $: searchController.persist($searchState);
   $: sidebarController.persist($sidebarState);
@@ -316,6 +329,39 @@
     }
   };
 
+  const requestWikipediaLookup = async (term: string) => {
+    const normalizedTerm = normalizeAssistanceTerm(term);
+    const request = {
+      kind: 'lookup' as const,
+      provider: 'wikipedia' as const,
+      term: normalizedTerm,
+      language: typeof navigator !== 'undefined' ? navigator.language : 'en',
+      bookKey: readerBookKey
+    };
+
+    if (!canRequestAssistanceForText(normalizedTerm)) {
+      assistanceState = createEmptyReaderAssistanceResultState(request);
+      sidebarController.openTab('assist');
+      return;
+    }
+
+    const token = ++assistanceRequestNonce;
+    assistanceState = createLoadingReaderAssistanceState(request);
+    sidebarController.openTab('assist');
+
+    try {
+      const nextState = await requestReaderAssistance(request);
+      if (token !== assistanceRequestNonce) return;
+      assistanceState = nextState;
+    } catch (error) {
+      if (token !== assistanceRequestNonce) return;
+      assistanceState = createEmptyReaderAssistanceState({
+        activeRequest: request,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  };
+
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
     onToggleCurrentBookmark: handleToggleBookmark,
@@ -339,7 +385,8 @@
     onSearchHistory: rerunSearchHistoryEntry,
     onClearSearchHistory: searchController.clearHistory,
     onDeleteSearchHistoryEntry: searchController.deleteHistoryEntry,
-    onClearSearchCache: searchController.clearCurrentBookCache
+    onClearSearchCache: searchController.clearCurrentBookCache,
+    onRequestWikipediaLookup: requestWikipediaLookup
   } satisfies ReaderSidebarCallbacks;
 </script>
 
@@ -383,6 +430,7 @@
         search={$searchState}
         bookmarksState={$bookmarksState}
         notesState={$notesState}
+        assistance={assistanceState}
         callbacks={sidebarCallbacks}
       />
     {/if}

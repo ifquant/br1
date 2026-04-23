@@ -130,7 +130,7 @@ export type ReaderHighlightsWorkspaceState = {
   savedSelections: ReaderHighlightSelectionSet[];
 };
 
-export type SidebarTab = 'toc' | 'search' | 'bookmarks' | 'highlights' | 'notes';
+export type SidebarTab = 'toc' | 'search' | 'assist' | 'bookmarks' | 'highlights' | 'notes';
 
 export type ReaderTocItem = {
   label: string;
@@ -292,6 +292,7 @@ export type ReaderSidebarCallbacks = {
   onClearSearchHistory: (() => void) | null;
   onDeleteSearchHistoryEntry: ((entryId: string) => void) | null;
   onClearSearchCache: (() => void) | null;
+  onRequestWikipediaLookup: ((term: string) => void) | null;
   onAddHighlight: (() => void) | null;
   onAddNote: (() => void) | null;
   onOpenNote: ((cfi: string) => void) | null;

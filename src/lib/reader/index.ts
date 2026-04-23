@@ -7,6 +7,7 @@ export {
   createEmptyReaderAssistanceState,
   createErrorReaderAssistanceState,
   createLoadingReaderAssistanceState,
+  createOfflineReaderAssistanceState,
   createReadyReaderAssistanceState,
   isLookupReaderAssistanceRequest,
   isTranslationReaderAssistanceRequest,

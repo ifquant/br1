@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type {
+    ReaderAssistanceState,
     ReaderHighlightSelectionSet,
     ReaderHighlightSelectionSetExport,
     ReaderHighlightSelectionSetExportHighlight,
@@ -21,10 +22,12 @@
   } from '$lib/reader';
   import {
     READER_EMPTY_TITLE,
+    createEmptyReaderAssistanceState,
     createEmptyReaderPreviewState,
     getReaderFormatDisplayLabel,
     getReaderLayoutDisplayLabel,
-    getReaderLocationDisplayLabel
+    getReaderLocationDisplayLabel,
+    normalizeAssistanceTerm
   } from '$lib/reader';
   import { getTextAnnotationSupportMessage, supportsTextAnnotationsForFormat } from '$lib/reader/formats';
   import {
@@ -41,6 +44,7 @@
   export let bookKey = '';
   export let coverUrl = '';
   export let preview: ReaderPreviewState = createEmptyReaderPreviewState();
+  export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
   export let search: ReaderSidebarSearchState = {
     term: '',
     status: 'idle',
@@ -86,6 +90,7 @@
     onClearSearchHistory: null,
     onDeleteSearchHistoryEntry: null,
     onClearSearchCache: null,
+    onRequestWikipediaLookup: null,
     onAddHighlight: null,
     onAddNote: null,
     onOpenNote: null,
@@ -110,6 +115,8 @@
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
   let exportHighlightSelectionNotice = '';
   let savedHighlightSelectionImportNotice = '';
+  let wikipediaLookupTerm = '';
+  let wikipediaLookupTermSeededForBookKey = '';
   let savedHighlightSelectionRefreshSummary:
     | {
         refreshedCount: number;
@@ -426,6 +433,16 @@
     callbacks.onTabChange?.(tab);
   };
 
+  const fillWikipediaLookupTerm = (term: string) => {
+    wikipediaLookupTerm = normalizeAssistanceTerm(term);
+  };
+
+  const requestWikipediaLookup = () => {
+    const term = normalizeAssistanceTerm(wikipediaLookupTerm || notesState.selection?.text || preview.chapterLabel);
+    if (!term) return;
+    callbacks.onRequestWikipediaLookup?.(term);
+  };
+
   const updateSearchConfig = <K extends keyof ReaderSearchConfig>(key: K, value: ReaderSearchConfig[K]) => {
     callbacks.onSearchConfigChange?.({
       ...search.config,
@@ -476,6 +493,10 @@
     search.cacheKey.length > 52
       ? `${search.cacheKey.slice(0, 24)}…${search.cacheKey.slice(-20)}`
       : search.cacheKey;
+  $: if (activeTab === 'assist' && wikipediaLookupTermSeededForBookKey !== bookKey) {
+    wikipediaLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);
+    wikipediaLookupTermSeededForBookKey = bookKey;
+  }
   $: recentSearchResultIndex = search.results.findIndex((item) => item.cfi === search.recentResultCfi);
   $: activeSearchResultIndex = search.results.findIndex((item) => item.cfi === search.activeResultCfi);
   $: currentSearchResultIndex = Math.max(
@@ -1397,6 +1418,16 @@
     <button
       type="button"
       role="tab"
+      class:active={activeTab === 'assist'}
+      class="tab"
+      aria-selected={activeTab === 'assist'}
+      on:click={() => setActiveTab('assist')}
+    >
+      百科
+    </button>
+    <button
+      type="button"
+      role="tab"
       class:active={activeTab === 'bookmarks'}
       class="tab"
       aria-selected={activeTab === 'bookmarks'}
@@ -1737,6 +1768,93 @@
             <p class="empty">打开书后，这里会显示真正的正文搜索结果。</p>
           {/if}
         </div>
+        </section>
+      {:else if activeTab === 'assist'}
+        <section class="sidebar-panel" aria-label="百科面板">
+          <div class="assist-summary">
+            <strong>维基百科</strong>
+            <span>从当前选区或手动输入的词条里查找百科摘要。</span>
+          </div>
+
+          <div class="assist-context">
+            <span>
+              {#if notesState.selection?.text?.trim()}
+                当前选区：{normalizeAssistanceTerm(notesState.selection.text)}
+              {:else}
+                先在正文里选中一段文本，或直接输入词条。
+              {/if}
+            </span>
+            <span>当前章节：{preview.chapterLabel}</span>
+          </div>
+
+          <label class="assist-field">
+            <span class="sr-only">维基百科词条</span>
+            <input
+              type="search"
+              maxlength="120"
+              placeholder="输入词条，或先选中文本"
+              value={wikipediaLookupTerm}
+              on:input={(event) => fillWikipediaLookupTerm((event.currentTarget as HTMLInputElement).value)}
+              on:keydown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  requestWikipediaLookup();
+                }
+              }}
+            />
+          </label>
+
+          <div class="assist-actions">
+            <button
+              type="button"
+              class="assist-chip"
+              disabled={!notesState.selection?.text?.trim()}
+              on:click={() => fillWikipediaLookupTerm(notesState.selection?.text || '')}
+            >
+              填入选区
+            </button>
+            <button
+              type="button"
+              class="assist-chip"
+              on:click={() => fillWikipediaLookupTerm(preview.chapterLabel)}
+            >
+              填入章节
+            </button>
+            <button
+              type="button"
+              class="primary-assist-action"
+              disabled={!normalizeAssistanceTerm(wikipediaLookupTerm || notesState.selection?.text || preview.chapterLabel)}
+              on:click={requestWikipediaLookup}
+            >
+              查维基百科
+            </button>
+          </div>
+
+          <div class="assist-result" aria-label="百科结果">
+            {#if assistance.status === 'loading'}
+              <strong>正在查询</strong>
+              <span>正在向维基百科请求摘要。</span>
+            {:else if assistance.status === 'ready' && assistance.result}
+              <strong>{assistance.result.title}</strong>
+              <span>{assistance.result.sourceLabel || 'Wikipedia'}</span>
+              <p>{assistance.result.body}</p>
+              {#if assistance.result.url}
+                <a href={assistance.result.url} target="_blank" rel="noreferrer">打开词条</a>
+              {/if}
+            {:else if assistance.status === 'empty'}
+              <strong>没有找到结果</strong>
+              <span>维基百科没有返回对应词条。</span>
+            {:else if assistance.status === 'offline'}
+              <strong>当前不可用</strong>
+              <span>{assistance.error || '桌面运行时或网络不可用。'}</span>
+            {:else if assistance.status === 'error'}
+              <strong>查询失败</strong>
+              <span>{assistance.error || '维基百科查询失败。'}</span>
+            {:else}
+              <strong>等待查询</strong>
+              <span>输入词条后可以直接发起维基百科查找。</span>
+            {/if}
+          </div>
         </section>
       {:else if activeTab === 'bookmarks'}
         <section class="sidebar-panel" aria-label="书签面板">
@@ -3343,9 +3461,16 @@
     padding: 0 2px;
   }
 
+  .assist-summary {
+    display: grid;
+    gap: 2px;
+    padding: 0 2px;
+  }
+
   .search-summary strong,
   .notes-summary strong,
-  .bookmarks-summary strong {
+  .bookmarks-summary strong,
+  .assist-summary strong {
     font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.3;
@@ -3353,10 +3478,112 @@
 
   .search-summary span,
   .notes-summary span,
-  .bookmarks-summary span {
+  .bookmarks-summary span,
+  .assist-summary span,
+  .assist-context span {
     color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
+  }
+
+  .assist-context {
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .assist-field input {
+    width: 100%;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .assist-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .assist-chip {
+    min-height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .assist-chip:disabled {
+    opacity: 0.55;
+  }
+
+  .primary-assist-action {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .primary-assist-action:disabled {
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .primary-assist-action:not(:disabled):hover {
+    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
+  }
+
+  .assist-result {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+  }
+
+  .assist-result strong {
+    color: var(--text-primary);
+    font-family: var(--font-chrome);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .assist-result p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .assist-result a {
+    color: #8a5b1d;
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    text-decoration: none;
+  }
+
+  .assist-result a:hover {
+    text-decoration: underline;
   }
 
   .search-results,

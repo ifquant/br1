@@ -248,6 +248,7 @@ pub fn run() {
             commands::library::load_library_file_fingerprint,
             commands::library::load_library_cover_data_urls,
             commands::library::consume_associated_book_open_requests,
+            commands::reader_services::lookup_reader_assistance,
             commands::search_cache::load_reader_search_cache,
             commands::notes::load_reader_notes,
             commands::search_cache::clear_reader_search_cache,

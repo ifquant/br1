@@ -127,6 +127,15 @@
       >
         ✎
       </button>
+      <button
+        type="button"
+        class:active={activeSidebarTab === 'assist' && sidebarVisible}
+        aria-label="显示百科面板"
+        title="显示百科面板"
+        on:click={() => onOpenSidebarTab?.('assist')}
+      >
+        W
+      </button>
       <div class="menu-anchor">
         <button
           type="button"

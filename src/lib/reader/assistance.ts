@@ -35,7 +35,7 @@ export type ReaderAssistanceResult = {
   createdAt: number;
 };
 
-export type ReaderAssistanceStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
+export type ReaderAssistanceStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'offline' | 'error';
 
 export type ReaderAssistanceState = {
   status: ReaderAssistanceStatus;
@@ -118,6 +118,18 @@ export const createEmptyReaderAssistanceResultState = (
   activeRequest: normalizeReaderAssistanceRequest(activeRequest),
   result: null,
   error: '',
+  ...overrides
+});
+
+export const createOfflineReaderAssistanceState = (
+  activeRequest: ReaderAssistanceRequest | null,
+  error: string,
+  overrides: Partial<ReaderAssistanceState> = {}
+): ReaderAssistanceState => ({
+  status: 'offline',
+  activeRequest: activeRequest ? normalizeReaderAssistanceRequest(activeRequest) : null,
+  result: null,
+  error: error.trim(),
   ...overrides
 });
 
