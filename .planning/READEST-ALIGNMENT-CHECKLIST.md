@@ -102,7 +102,7 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Outcome: flow, typography, margins, theme, width mode, and chrome mode persist across reload/reopen for primary supported surfaces.
   - Touches: reader settings, stage/header/viewport wiring, e2e coverage.
   - Verify: `pnpm check`; targeted settings persistence regressions; `git diff --check`.
-  - Done commit: 0486-certify-p0-reader-settings-and-search-cache
+  - Done commit: 38a05da
   - Notes: `e2e/app.e2e.ts` now has `P0 settings persist across reopen`, which reopens a sample EPUB after changing flow/font/layout settings and confirms the settings still drive the real reader state.
 
 - [ ] P0-2.2 Close remaining layout polish for reader chrome and sidebar
@@ -116,14 +116,14 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Outcome: whole-book search has reliable query execution, result navigation, history replay, cache identity, cache ledger, and cache clear semantics.
   - Touches: search controller, reader sidebar, search cache service, e2e tests.
   - Verify: `pnpm check`; targeted search/cache regressions; `git diff --check`.
-  - Done commit: 0486-certify-p0-reader-settings-and-search-cache
+  - Done commit: 38a05da
   - Notes: `e2e/app.e2e.ts` now has `P0 search cache can replay and clear current-book search`, which replays a seeded current-book cache entry, restores the query, and confirms the cache file is removed after clear.
 
 - [x] P0-3.2 Certify annotations, notes, bookmarks, and progress restore
   - Outcome: create, edit, delete, locate, persist, reopen, selection-set, and format-capability behavior are covered for the supported reader surfaces.
   - Touches: reader sidebar, reader viewport, notes/bookmarks/highlights services, e2e tests.
   - Verify: `pnpm check`; targeted annotation/bookmark/progress regressions; `git diff --check`.
-  - Done commit: 0487-certify-p0-annotations-bookmarks-progress
+  - Done commit: a6e6285
   - Notes: `e2e/app.e2e.ts` now has `P0 annotations notes bookmarks and progress restore`, which creates TXT highlights and a note, persists a bookmark, proves bookmark locate behavior, and reopens with restored progress plus the saved notes/bookmarks still present.
 
 - [ ] P0-4.1 Certify library import, migration, grouping, filtering, and sorting

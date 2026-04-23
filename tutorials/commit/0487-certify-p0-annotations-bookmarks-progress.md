@@ -35,7 +35,7 @@ P0-3.2 的关键不是再堆一堆 UI 截图，而是把 Readest 风格的 reade
 ## 验证
 
 - `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`
-- `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec exec wdio run wdio.conf.ts --mochaOpts.grep "P0 annotations notes bookmarks and progress restore"`
+- `bash /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec/scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "P0 annotations notes bookmarks and progress restore"`
 - `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`
 
 ## 没有包含
