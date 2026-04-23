@@ -68,6 +68,44 @@ export const applyLibraryFilterControlsState = ({
   setTagFilter(next.tagFilter);
 };
 
+export const getNormalizedLibraryFilterControlsState = ({
+  current,
+  formatOptions,
+  collectionOptions,
+  tagOptions
+}: {
+  current: LibraryFilterControlsState;
+  formatOptions: string[];
+  collectionOptions: string[];
+  tagOptions: string[];
+}): LibraryFilterControlsState => {
+  const formatFilter =
+    current.formatFilter === 'all' || formatOptions.includes(current.formatFilter)
+      ? current.formatFilter
+      : 'all';
+  const collectionFilter =
+    current.collectionFilter === 'all' || collectionOptions.includes(current.collectionFilter)
+      ? current.collectionFilter
+      : 'all';
+  const tagFilter =
+    current.tagFilter === 'all' || tagOptions.includes(current.tagFilter) ? current.tagFilter : 'all';
+
+  if (
+    formatFilter === current.formatFilter &&
+    collectionFilter === current.collectionFilter &&
+    tagFilter === current.tagFilter
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    formatFilter,
+    collectionFilter,
+    tagFilter
+  };
+};
+
 type LibraryFilterControlsAction =
   | {
       type: 'set-query';

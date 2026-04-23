@@ -22,6 +22,7 @@
     buildLibraryFilterControlsState,
     buildLibraryPageActions,
     buildLibraryPageActionSet,
+    getNormalizedLibraryFilterControlsState,
     getAppliedLibraryBrowseState
   } from '$lib/library/controller';
   import {
@@ -453,18 +454,6 @@
   }));
   $: ({ groupBy: libraryGroupBy, groupScope: libraryGroupScope, trail: libraryBrowseTrail } =
     getLibraryBrowseStateFromUrl($page.url));
-  $: if (libraryFormatFilter !== 'all' && !libraryFormatOptions.includes(libraryFormatFilter)) {
-    libraryFormatFilter = 'all';
-  }
-  $: if (
-    libraryCollectionFilter !== 'all' &&
-    !libraryCollectionOptions.includes(libraryCollectionFilter)
-  ) {
-    libraryCollectionFilter = 'all';
-  }
-  $: if (libraryTagFilter !== 'all' && !libraryTagOptions.includes(libraryTagFilter)) {
-    libraryTagFilter = 'all';
-  }
   $: {
     const normalizedBrowseState = getNormalizedLibraryBrowseState(
       {
@@ -506,6 +495,42 @@
   }));
   $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
   $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
+  $: {
+    const currentFilterControlsState = buildLibraryFilterControlsState({
+      query: libraryQuery,
+      filterBy: libraryFilterBy,
+      formatFilter: libraryFormatFilter,
+      collectionFilter: libraryCollectionFilter,
+      tagFilter: libraryTagFilter
+    });
+    const normalizedFilterControlsState = getNormalizedLibraryFilterControlsState({
+      current: currentFilterControlsState,
+      formatOptions: libraryFormatOptions,
+      collectionOptions: libraryCollectionOptions,
+      tagOptions: libraryTagOptions
+    });
+
+    if (normalizedFilterControlsState !== currentFilterControlsState) {
+      applySharedLibraryFilterControlsState({
+        next: normalizedFilterControlsState,
+        setQuery: (query) => {
+          libraryQuery = query;
+        },
+        setFilterBy: (filterBy) => {
+          libraryFilterBy = filterBy;
+        },
+        setFormatFilter: (formatFilter) => {
+          libraryFormatFilter = formatFilter;
+        },
+        setCollectionFilter: (collectionFilter) => {
+          libraryCollectionFilter = collectionFilter;
+        },
+        setTagFilter: (tagFilter) => {
+          libraryTagFilter = tagFilter;
+        }
+      });
+    }
+  }
   $: currentLibraryBrowseState = buildCurrentLibraryBrowseState({
     groupBy: libraryGroupBy,
     groupScope: libraryGroupScope,
