@@ -1,3 +1,5 @@
+import type { ReaderLookupProvider } from './assistance';
+
 export type ReaderEngineMountState = 'idle' | 'loading' | 'ready' | 'error';
 
 export type ReaderMountBoundary = {
@@ -292,7 +294,7 @@ export type ReaderSidebarCallbacks = {
   onClearSearchHistory: (() => void) | null;
   onDeleteSearchHistoryEntry: ((entryId: string) => void) | null;
   onClearSearchCache: (() => void) | null;
-  onRequestWikipediaLookup: ((term: string) => void) | null;
+  onRequestLookup: ((provider: ReaderLookupProvider, term: string) => void) | null;
   onAddHighlight: (() => void) | null;
   onAddNote: (() => void) | null;
   onOpenNote: ((cfi: string) => void) | null;

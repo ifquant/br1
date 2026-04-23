@@ -169,12 +169,12 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Done commit: 2ac7972
   - Notes: Wikipedia lookup now goes through a Tauri MediaWiki Action API bridge with server-side allowlisted URL construction, and the reader sidebar has an `assist` tab plus header shortcut that seeds from the current selection or chapter title. No desktop e2e lookup run was added in this slice; live lookup still depends on desktop runtime and network availability.
 
-- [ ] P1-1.3 Add dictionary lookup through the same assistance interface
+- [x] P1-1.3 Add dictionary lookup through the same assistance interface
   - Outcome: dictionary lookup uses the same reader assistance workflow instead of a separate UI path.
   - Touches: provider abstraction, lookup UI, tests.
   - Verify: `pnpm check`; provider fallback test; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0494
+  - Notes: dictionary lookup now goes through the shared assistance facade and the same assist panel term input, with server-side `dictionaryapi.dev` URL construction and Rust coverage for the English-only normalization/formatting path.
 
 - [ ] P1-2.1 Replace the TTS placeholder with a real session model
   - Outcome: reader tracks unavailable, idle, speaking, paused, and error states with start, pause, resume, and stop actions.

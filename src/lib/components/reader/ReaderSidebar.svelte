@@ -12,6 +12,7 @@
     ReaderHighlightsWorkspaceState,
     ReaderBookmarksState,
     ReaderPreviewState,
+    ReaderLookupProvider,
     ReaderSearchConfig,
     ReaderSearchHistoryEntry,
     ReaderSidebarCallbacks,
@@ -90,7 +91,7 @@
     onClearSearchHistory: null,
     onDeleteSearchHistoryEntry: null,
     onClearSearchCache: null,
-    onRequestWikipediaLookup: null,
+    onRequestLookup: null,
     onAddHighlight: null,
     onAddNote: null,
     onOpenNote: null,
@@ -115,8 +116,9 @@
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
   let exportHighlightSelectionNotice = '';
   let savedHighlightSelectionImportNotice = '';
-  let wikipediaLookupTerm = '';
-  let wikipediaLookupTermSeededForBookKey = '';
+  let assistLookupTerm = '';
+  let assistLookupTermSeededForBookKey = '';
+  let assistLookupProvider: ReaderLookupProvider = 'wikipedia';
   let savedHighlightSelectionRefreshSummary:
     | {
         refreshedCount: number;
@@ -433,14 +435,14 @@
     callbacks.onTabChange?.(tab);
   };
 
-  const fillWikipediaLookupTerm = (term: string) => {
-    wikipediaLookupTerm = normalizeAssistanceTerm(term);
+  const fillAssistLookupTerm = (term: string) => {
+    assistLookupTerm = normalizeAssistanceTerm(term);
   };
 
-  const requestWikipediaLookup = () => {
-    const term = normalizeAssistanceTerm(wikipediaLookupTerm || notesState.selection?.text || preview.chapterLabel);
+  const requestAssistLookup = () => {
+    const term = normalizeAssistanceTerm(assistLookupTerm || notesState.selection?.text || preview.chapterLabel);
     if (!term) return;
-    callbacks.onRequestWikipediaLookup?.(term);
+    callbacks.onRequestLookup?.(assistLookupProvider, term);
   };
 
   const updateSearchConfig = <K extends keyof ReaderSearchConfig>(key: K, value: ReaderSearchConfig[K]) => {
@@ -493,9 +495,10 @@
     search.cacheKey.length > 52
       ? `${search.cacheKey.slice(0, 24)}…${search.cacheKey.slice(-20)}`
       : search.cacheKey;
-  $: if (activeTab === 'assist' && wikipediaLookupTermSeededForBookKey !== bookKey) {
-    wikipediaLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);
-    wikipediaLookupTermSeededForBookKey = bookKey;
+  $: if (activeTab === 'assist' && assistLookupTermSeededForBookKey !== bookKey) {
+    assistLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);
+    assistLookupProvider = 'wikipedia';
+    assistLookupTermSeededForBookKey = bookKey;
   }
   $: recentSearchResultIndex = search.results.findIndex((item) => item.cfi === search.recentResultCfi);
   $: activeSearchResultIndex = search.results.findIndex((item) => item.cfi === search.activeResultCfi);
@@ -1423,7 +1426,7 @@
       aria-selected={activeTab === 'assist'}
       on:click={() => setActiveTab('assist')}
     >
-      百科
+      查找
     </button>
     <button
       type="button"
@@ -1770,10 +1773,14 @@
         </div>
         </section>
       {:else if activeTab === 'assist'}
-        <section class="sidebar-panel" aria-label="百科面板">
+        <section class="sidebar-panel" aria-label="查找面板">
           <div class="assist-summary">
-            <strong>维基百科</strong>
-            <span>从当前选区或手动输入的词条里查找百科摘要。</span>
+            <strong>{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}</strong>
+            <span>
+              {assistLookupProvider === 'dictionary'
+                ? '从当前选区或手动输入的英文词条里查找释义。'
+                : '从当前选区或手动输入的词条里查找百科摘要。'}
+            </span>
           </div>
 
           <div class="assist-context">
@@ -1785,20 +1792,23 @@
               {/if}
             </span>
             <span>当前章节：{preview.chapterLabel}</span>
+            {#if assistLookupProvider === 'dictionary'}
+              <span>词典目前仅支持英文词条。</span>
+            {/if}
           </div>
 
           <label class="assist-field">
-            <span class="sr-only">维基百科词条</span>
+            <span class="sr-only">{assistLookupProvider === 'dictionary' ? '词典词条' : '维基百科词条'}</span>
             <input
               type="search"
               maxlength="120"
-              placeholder="输入词条，或先选中文本"
-              value={wikipediaLookupTerm}
-              on:input={(event) => fillWikipediaLookupTerm((event.currentTarget as HTMLInputElement).value)}
+              placeholder={assistLookupProvider === 'dictionary' ? '输入英文词条，或先选中文本' : '输入词条，或先选中文本'}
+              value={assistLookupTerm}
+              on:input={(event) => fillAssistLookupTerm((event.currentTarget as HTMLInputElement).value)}
               on:keydown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
-                  requestWikipediaLookup();
+                  requestAssistLookup();
                 }
               }}
             />
@@ -1809,50 +1819,74 @@
               type="button"
               class="assist-chip"
               disabled={!notesState.selection?.text?.trim()}
-              on:click={() => fillWikipediaLookupTerm(notesState.selection?.text || '')}
+              on:click={() => fillAssistLookupTerm(notesState.selection?.text || '')}
             >
               填入选区
             </button>
             <button
               type="button"
               class="assist-chip"
-              on:click={() => fillWikipediaLookupTerm(preview.chapterLabel)}
+              on:click={() => fillAssistLookupTerm(preview.chapterLabel)}
             >
               填入章节
             </button>
             <button
               type="button"
-              class="primary-assist-action"
-              disabled={!normalizeAssistanceTerm(wikipediaLookupTerm || notesState.selection?.text || preview.chapterLabel)}
-              on:click={requestWikipediaLookup}
+              class:active={assistLookupProvider === 'wikipedia'}
+              class="assist-chip"
+              on:click={() => {
+                assistLookupProvider = 'wikipedia';
+              }}
             >
-              查维基百科
+              维基百科
+            </button>
+            <button
+              type="button"
+              class:active={assistLookupProvider === 'dictionary'}
+              class="assist-chip"
+              on:click={() => {
+                assistLookupProvider = 'dictionary';
+              }}
+            >
+              词典
+            </button>
+            <button
+              type="button"
+              class="primary-assist-action"
+              disabled={!normalizeAssistanceTerm(assistLookupTerm || notesState.selection?.text || preview.chapterLabel)}
+              on:click={requestAssistLookup}
+            >
+              {assistLookupProvider === 'dictionary' ? '查词典' : '查维基百科'}
             </button>
           </div>
 
-          <div class="assist-result" aria-label="百科结果">
+          <div class="assist-result" aria-label="查找结果">
             {#if assistance.status === 'loading'}
               <strong>正在查询</strong>
-              <span>正在向维基百科请求摘要。</span>
+              <span>
+                正在向{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}请求结果。
+              </span>
             {:else if assistance.status === 'ready' && assistance.result}
               <strong>{assistance.result.title}</strong>
-              <span>{assistance.result.sourceLabel || 'Wikipedia'}</span>
+              <span>{assistance.result.sourceLabel || (assistLookupProvider === 'dictionary' ? 'Dictionary' : 'Wikipedia')}</span>
               <p>{assistance.result.body}</p>
               {#if assistance.result.url}
                 <a href={assistance.result.url} target="_blank" rel="noreferrer">打开词条</a>
               {/if}
             {:else if assistance.status === 'empty'}
               <strong>没有找到结果</strong>
-              <span>维基百科没有返回对应词条。</span>
+              <span>{assistLookupProvider === 'dictionary' ? '词典没有返回对应词条。' : '维基百科没有返回对应词条。'}</span>
             {:else if assistance.status === 'offline'}
               <strong>当前不可用</strong>
               <span>{assistance.error || '桌面运行时或网络不可用。'}</span>
             {:else if assistance.status === 'error'}
               <strong>查询失败</strong>
-              <span>{assistance.error || '维基百科查询失败。'}</span>
+              <span>
+                {assistance.error || (assistLookupProvider === 'dictionary' ? '词典查询失败。' : '维基百科查询失败。')}
+              </span>
             {:else}
               <strong>等待查询</strong>
-              <span>输入词条后可以直接发起维基百科查找。</span>
+              <span>输入词条后可以直接发起{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。</span>
             {/if}
           </div>
         </section>

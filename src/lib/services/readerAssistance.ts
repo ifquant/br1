@@ -1,7 +1,8 @@
 import type {
   ReaderAssistanceRequest,
   ReaderAssistanceResult,
-  ReaderAssistanceState
+  ReaderAssistanceState,
+  ReaderLookupProvider
 } from '$lib/reader';
 import {
   createEmptyReaderAssistanceResultState,
@@ -18,29 +19,20 @@ type WikipediaLookupCommandResponse = {
   error?: string;
 };
 
-const getUnsupportedReaderAssistanceProviderMessage = (
-  provider: ReaderAssistanceRequest['provider']
+const getLookupLanguage = (
+  provider: ReaderLookupProvider,
+  requestLanguage: string | undefined
 ): string => {
-  switch (provider) {
-    case 'wikipedia':
-      return '';
-    case 'dictionary':
-      return 'Dictionary lookup is not implemented yet.';
-    case 'deepl':
-    case 'yandex':
-      return `Reader translation provider is not implemented: ${provider}`;
-    default:
-      return 'Reader assistance provider is not implemented';
-  }
-};
-
-const getWikipediaLookupLanguage = (requestLanguage: string | undefined): string => {
   const browserLanguage =
     typeof document !== 'undefined' && document.documentElement.lang.trim()
       ? document.documentElement.lang
       : typeof navigator !== 'undefined'
         ? navigator.language
         : '';
+  if (provider === 'dictionary') {
+    return 'en';
+  }
+
   return requestLanguage?.trim() || browserLanguage || 'en';
 };
 
@@ -53,16 +45,10 @@ export const requestReaderAssistance = async (
   request: ReaderAssistanceRequest
 ): Promise<ReaderAssistanceState> => {
   const normalizedRequest = normalizeReaderAssistanceRequest(request);
-  const providerMessage = getUnsupportedReaderAssistanceProviderMessage(normalizedRequest.provider);
-
-  if (providerMessage) {
-    return createRejectedReaderAssistanceState(normalizedRequest, providerMessage);
-  }
-
-  if (normalizedRequest.kind !== 'lookup' || normalizedRequest.provider !== 'wikipedia') {
+  if (normalizedRequest.kind !== 'lookup') {
     return createRejectedReaderAssistanceState(
       normalizedRequest,
-      'Reader assistance provider is not implemented'
+      `Reader translation provider is not implemented: ${normalizedRequest.provider}`
     );
   }
 
@@ -73,7 +59,7 @@ export const requestReaderAssistance = async (
   if (!isTauriDesktop()) {
     return createOfflineReaderAssistanceState(
       normalizedRequest,
-      'Wikipedia lookup requires the desktop runtime.'
+      `${normalizedRequest.provider === 'dictionary' ? 'Dictionary' : 'Wikipedia'} lookup requires the desktop runtime.`
     );
   }
 
@@ -81,7 +67,7 @@ export const requestReaderAssistance = async (
     const response = await invokeTauri<WikipediaLookupCommandResponse>('lookup_reader_assistance', {
       provider: normalizedRequest.provider,
       term: normalizedRequest.term,
-      language: getWikipediaLookupLanguage(normalizedRequest.language)
+      language: getLookupLanguage(normalizedRequest.provider, normalizedRequest.language)
     });
 
     if (response.status === 'ready' && response.result) {
@@ -95,13 +81,15 @@ export const requestReaderAssistance = async (
     if (response.status === 'offline') {
       return createOfflineReaderAssistanceState(
         normalizedRequest,
-        response.error || 'Wikipedia lookup is unavailable right now.'
+        response.error ||
+          `${normalizedRequest.provider === 'dictionary' ? 'Dictionary' : 'Wikipedia'} lookup is unavailable right now.`
       );
     }
 
     return createErrorReaderAssistanceState(
       normalizedRequest,
-      response.error || 'Wikipedia lookup failed.'
+      response.error ||
+        `${normalizedRequest.provider === 'dictionary' ? 'Dictionary' : 'Wikipedia'} lookup failed.`
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -6,6 +6,7 @@
   import type {
     ReaderControlRequest,
     ReaderPreviewState,
+    ReaderLookupProvider,
     ReaderRouteOpenState,
     ReaderSidebarCallbacks,
     ReaderSearchHistoryEntry,
@@ -330,14 +331,23 @@
     }
   };
 
-  const requestWikipediaLookup = async (term: string) => {
+  const getAssistanceLookupLanguage = (provider: ReaderLookupProvider) =>
+    provider === 'dictionary'
+      ? 'en'
+      : typeof navigator !== 'undefined'
+        ? navigator.language
+        : 'en';
+
+  const requestAssistanceLookup = async (provider: ReaderLookupProvider, term: string) => {
     const normalizedTerm = normalizeAssistanceTerm(term);
     const request = {
       kind: 'lookup' as const,
-      provider: 'wikipedia' as const,
+      provider,
       term: normalizedTerm,
-      language: typeof navigator !== 'undefined' ? navigator.language : 'en',
-      bookKey: readerBookKey
+      language: getAssistanceLookupLanguage(provider),
+      bookKey: readerBookKey,
+      cfi: $notesState.selection?.cfi,
+      chapterLabel: currentPreview.chapterLabel
     };
 
     if (!canRequestAssistanceForText(normalizedTerm)) {
@@ -387,7 +397,7 @@
     onClearSearchHistory: searchController.clearHistory,
     onDeleteSearchHistoryEntry: searchController.deleteHistoryEntry,
     onClearSearchCache: searchController.clearCurrentBookCache,
-    onRequestWikipediaLookup: requestWikipediaLookup
+    onRequestLookup: requestAssistanceLookup
   } satisfies ReaderSidebarCallbacks;
 </script>
 
