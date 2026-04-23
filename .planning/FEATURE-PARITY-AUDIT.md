@@ -220,6 +220,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the library page shell now also lives in a dedicated component, so `+page.svelte` no longer inlines the `LibraryPageChrome + OverlayScrollbars + LibraryBrowseBody` composition or its scroll-surface styling just to host the active page surface
 - the top-level library page host now also lives in a shared component, so the route no longer keeps the hidden import input and page-shell mounting template around the active page surface just to connect file input and scroll bindings
 - the route’s mechanical controller mutations now also route through a shared library controller helper, so notice creation/running and the repeated query/filter/shelf-filter state rewrites are no longer hand-coded one branch at a time inside `+page.svelte`
+- the desktop library maintenance workflows now also route through a shared module, so remove/update/repair/bulk-repair flows are no longer spelled out inline in `+page.svelte` just to look up records, confirm replacement/removal, and wire service calls back into notice/reload behavior
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

@@ -23,6 +23,13 @@
     runLibraryNoticeAction as runSharedLibraryNoticeAction
   } from '$lib/library/controller';
   import {
+    bulkRepairDesktopLibraryBooks,
+    removeLibraryBookFromDesktop,
+    repairDesktopLibraryBook,
+    restoreRemovedLibraryRecord as restoreRemovedLibraryRecordFromDesktop,
+    updateDesktopLibraryBookMetadata
+  } from '$lib/library/desktopMaintenance';
+  import {
     createEmptyLibraryPageSurfaceModel,
     buildDesktopLibraryPageSurfaceModel,
     buildStarterLibraryPageSurfaceModel
@@ -1126,55 +1133,29 @@
   };
 
   const restoreRemovedLibraryRecord = async (record: PersistedLibraryBook) => {
-    try {
-      clearLibraryNotice();
-      const restoredRecords = await restoreRemovedLibraryBook(record.id || record.filePath);
-      await applyPersistedLibraryRecords(restoredRecords);
-      setLibraryNotice('info', `已恢复“${record.title}”到书库，并保留原有阅读状态。`);
-    } catch (error) {
-      console.error('Failed to restore removed library book', error);
-      setLibraryNotice('error', `无法恢复“${record.title}”；请确认原文件仍然存在后重新导入。`);
-    }
+    await restoreRemovedLibraryRecordFromDesktop({
+      record,
+      clearLibraryNotice,
+      setLibraryNotice,
+      restoreRemovedLibraryBook,
+      applyPersistedLibraryRecords
+    });
   };
 
   const handleRemoveLibraryBook = async (book: LibraryShelfBook) => {
     if (!canPersistLibrary()) return;
 
-    const persistedRecord = lookupPersistedRecordForBook(book);
-    if (!persistedRecord) {
-      setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
-      return;
-    }
-
-    const confirmed =
-      typeof window === 'undefined' ||
-      window.confirm(
-        `从书库移除“${book.title}”？这只会删除 br1 的书库副本和记录，不会删除原文件。`
-      );
-    if (!confirmed) return;
-
-    try {
-      clearLibraryNotice();
-      const updatedRecords = await removeLibraryBook(persistedRecord.filePath);
-      await applyPersistedLibraryRecords(updatedRecords);
-      const canRestoreFromSource =
-        !!persistedRecord.sourcePath && persistedRecord.sourceFileExists !== false;
-      setLibraryNotice(
-        'info',
-        canRestoreFromSource
-          ? `已从书库移除“${book.title}”；原文件不会被删除，可从原文件撤销恢复。`
-          : `已从书库移除“${book.title}”；原文件不会被删除。`,
-        canRestoreFromSource
-          ? {
-              label: '撤销移除',
-              run: () => restoreRemovedLibraryRecord(persistedRecord)
-            }
-          : undefined
-      );
-    } catch (error) {
-      console.error('Failed to remove library book', error);
-      setLibraryNotice('error', '无法从书库移除这本书，请确认书库记录仍然有效后重试。');
-    }
+    await removeLibraryBookFromDesktop({
+      book,
+      persistedRecord: lookupPersistedRecordForBook(book),
+      clearLibraryNotice,
+      setLibraryNotice,
+      confirmRemoval: (message) =>
+        typeof window === 'undefined' || window.confirm(message),
+      removeLibraryBook,
+      applyPersistedLibraryRecords,
+      onRestoreRemovedRecord: restoreRemovedLibraryRecord
+    });
   };
 
   const handleUpdateLibraryBookMetadata = async (
@@ -1191,136 +1172,32 @@
   ) => {
     if (!canPersistLibrary()) return;
 
-    const persistedRecord = lookupPersistedRecordForBook(book);
-    if (!persistedRecord) {
-      setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
-      return;
-    }
-
-    const nextTitle = metadata.title.trim();
-    const nextAuthor = metadata.author.trim();
-    if (!nextTitle || !nextAuthor) {
-      setLibraryNotice('error', '标题和作者不能为空。');
-      return;
-    }
-
-    try {
-      clearLibraryNotice();
-      const updatedRecords = await updateLibraryBookMetadata({
-        recordId: persistedRecord.id || persistedRecord.filePath,
-        title: nextTitle,
-        author: nextAuthor,
-        description: metadata.description ?? '',
-        language: metadata.language ?? '',
-        publisher: metadata.publisher ?? '',
-        collection: metadata.collection ?? '',
-        tags: metadata.tags ?? []
-      });
-      await applyPersistedLibraryRecords(updatedRecords);
-      setLibraryNotice('info', `已更新“${nextTitle}”的书库元数据。`);
-    } catch (error) {
-      console.error('Failed to update library book metadata', error);
-      setLibraryNotice('error', '无法更新这本书的元数据，请确认书库记录仍然有效后重试。');
-    }
+    await updateDesktopLibraryBookMetadata({
+      book,
+      persistedRecord: lookupPersistedRecordForBook(book),
+      metadata,
+      clearLibraryNotice,
+      setLibraryNotice,
+      updateLibraryBookMetadata,
+      applyPersistedLibraryRecords
+    });
   };
 
   const handleRepairLibraryBook = async (book: LibraryShelfBook) => {
     if (!canPersistLibrary()) return;
 
-    const persistedRecord = lookupPersistedRecordForBook(book);
-    if (!persistedRecord) {
-      setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
-      return;
-    }
-
-    const libraryCopyMissing = persistedRecord.libraryFileExists === false;
-    const sourcePathAvailable =
-      !!persistedRecord.sourcePath && persistedRecord.sourceFileExists !== false;
-
-    try {
-      clearLibraryNotice();
-
-      let result: Awaited<ReturnType<typeof importBooksFromDesktopPicker>> | null = null;
-
-      if (libraryCopyMissing && sourcePathAvailable && persistedRecord.sourcePath) {
-        result = {
-          kind: 'imported',
-          records: await importLibraryBooks([persistedRecord.sourcePath]),
-          firstRecord: null,
-          firstReaderTarget: null,
-          firstReaderHref: ''
-        };
-      } else {
-        const selectedPath = await selectSingleSystemBookPath();
-        if (!selectedPath) return;
-        const candidatePreview = await previewLibraryRepairCandidate({
-          filePath: selectedPath,
-          recordId: persistedRecord.id || persistedRecord.filePath
-        });
-        if (!candidatePreview.fileExists) {
-          setLibraryNotice('error', '所选文件当前不可读，请确认文件仍然存在后再重试。');
-          return;
-        }
-        if (
-          !candidatePreview.formatMatches &&
-          typeof window !== 'undefined' &&
-          !window.confirm(
-            `所选文件格式是 ${candidatePreview.format}，当前记录格式是 ${persistedRecord.format}。仍要用“${candidatePreview.fileName}”重关联这条记录吗？`
-          )
-        ) {
-          setLibraryNotice('info', '已取消重关联；请选择与当前记录格式一致的替换文件。');
-          return;
-        }
-        if (
-          candidatePreview.formatMatches &&
-          (!candidatePreview.titleMatches || !candidatePreview.authorMatches) &&
-          typeof window !== 'undefined' &&
-          !window.confirm(
-            `所选文件识别为“${candidatePreview.title} / ${candidatePreview.author}”，当前记录是“${persistedRecord.title} / ${persistedRecord.author}”。仍要重关联吗？`
-          )
-        ) {
-          setLibraryNotice('info', '已取消重关联；请选择与当前记录标题和作者更匹配的替换文件。');
-          return;
-        }
-        if (
-          candidatePreview.sourcePathMatches &&
-          !candidatePreview.sourceHashMatches &&
-          typeof window !== 'undefined' &&
-          !window.confirm(
-            `所选文件路径与原记录一致，但文件内容指纹不同。仍要用“${candidatePreview.fileName}”重建这条记录吗？`
-          )
-        ) {
-          setLibraryNotice('info', '已取消重关联；请确认替换文件内容与当前记录一致后再继续。');
-          return;
-        }
-        result = {
-          kind: 'imported',
-          records: await importLibraryBooks([selectedPath]),
-          firstRecord: null,
-          firstReaderTarget: null,
-          firstReaderHref: ''
-        };
-      }
-
-      if (!result || result.records.length === 0) {
-        setLibraryNotice('info', `没有修复到“${book.title}”的可用文件，请确认所选文件仍然存在且格式受支持。`);
-        return;
-      }
-
-      await reloadLibraryAfterRepair();
-      setLibraryNotice(
-        'info',
-        libraryCopyMissing && sourcePathAvailable
-          ? `已从原文件重建“${book.title}”的书库副本，原有阅读进度已保留。`
-          : `已将“${book.title}”按原位修复方式重新关联到新文件；如果它仍显示缺失，请确认选择的是同一本书。`
-      );
-    } catch (error) {
-      console.error('Failed to repair the library book', error);
-      setLibraryNotice(
-        'error',
-        `无法修复“${book.title}”，请确认当前运行在桌面环境且所选文件可访问。`
-      );
-    }
+    await repairDesktopLibraryBook({
+      book,
+      persistedRecord: lookupPersistedRecordForBook(book),
+      clearLibraryNotice,
+      setLibraryNotice,
+      importLibraryBooks,
+      selectSingleSystemBookPath,
+      previewLibraryRepairCandidate,
+      confirmReplacement: (message) =>
+        typeof window === 'undefined' || window.confirm(message),
+      reloadLibraryAfterRepair
+    });
   };
 
   const handleBulkRepairLibraryBooks = async () => {
@@ -1330,70 +1207,23 @@
       .map((book) => lookupPersistedRecordForBook(book))
       .filter((record): record is PersistedLibraryBook => !!record && !!record.sourcePath);
 
-    if (eligibleRecords.length === 0) {
-      bulkRepairSummary = '当前没有可自动批量修复的书库副本；这些条目需要逐本复核。';
-      setLibraryNotice('info', '当前没有可自动批量修复的书库副本；其余条目仍需手动重新关联或重新选择文件。');
-      return;
-    }
-
-    bulkRepairBusy = true;
-    bulkRepairSummary = '';
-    clearLibraryNotice();
-
-    let repairedCount = 0;
-    let failedCount = 0;
-
-    try {
-      for (const record of eligibleRecords) {
-        try {
-          const repairedRecords = await importLibraryBooks([record.sourcePath!]);
-          if (repairedRecords.length > 0) {
-            repairedCount += 1;
-          } else {
-            failedCount += 1;
-          }
-        } catch (error) {
-          failedCount += 1;
-          console.error('Failed to bulk repair the library book', error);
-        }
-      }
-
-      const currentRecords = await loadPersistedLibraryBooks();
-      await applyPersistedLibraryRecords(currentRecords);
-
-      const manualRepairCount = getRecoveryQueuePersistedRecords(currentRecords).filter(
-        isPersistedRecordManualRepairOnly
-      ).length;
-
-      if (repairedCount === 0) {
-        setLibraryNotice(
-          failedCount > 0 ? 'error' : 'info',
-          manualRepairCount > 0
-            ? `没有自动修复成功；当前仍有 ${manualRepairCount} 本需要手动重新关联或重新选择文件。`
-            : '没有自动修复成功，请刷新书库后重试。'
-        );
-        bulkRepairSummary =
-          failedCount > 0
-            ? `批量修复失败：${failedCount} 本未能自动修复，仍需复核当前待修复队列。`
-            : '批量修复没有恢复任何书库副本；请复核当前待修复队列。';
-        return;
-      }
-
-      const summaryParts = [`已批量重建 ${repairedCount} 本书的书库副本`];
-      if (manualRepairCount > 0) {
-        summaryParts.push(`仍有 ${manualRepairCount} 本需要手动重新关联或重新选择文件`);
-      } else {
-        summaryParts.push('当前待修复队列里没有必须手动处理的条目了');
-      }
-      if (failedCount > 0) {
-        summaryParts.push(`${failedCount} 本未能自动修复`);
-      }
-      const summary = `${summaryParts.join('，')}。`;
-      bulkRepairSummary = summary;
-      setLibraryNotice('info', summary);
-    } finally {
-      bulkRepairBusy = false;
-    }
+    await bulkRepairDesktopLibraryBooks({
+      eligibleRecords,
+      bulkRepairBusy,
+      setBulkRepairBusy: (busy) => {
+        bulkRepairBusy = busy;
+      },
+      setBulkRepairSummary: (summary) => {
+        bulkRepairSummary = summary;
+      },
+      clearLibraryNotice,
+      setLibraryNotice,
+      importLibraryBooks,
+      loadPersistedLibraryBooks,
+      applyPersistedLibraryRecords,
+      getManualRepairCount: (records) =>
+        getRecoveryQueuePersistedRecords(records).filter(isPersistedRecordManualRepairOnly).length
+    });
   };
 
   const getCurrentLibraryBrowseState = () => ({
