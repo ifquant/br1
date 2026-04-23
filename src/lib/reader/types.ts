@@ -71,6 +71,8 @@ export type ReaderFontScale = 'sm' | 'md' | 'lg';
 export type ReaderLineHeight = 'tight' | 'standard' | 'relaxed';
 export type ReaderPageMargins = 'narrow' | 'standard' | 'wide';
 export type ReaderThemePreset = ReaderAtmosphereMode;
+export type ReaderReadingRulerMode = 'off' | 'on';
+export type ReaderFocusAidMode = 'off' | 'line' | 'paragraph';
 export type ReaderSettings = {
   flowMode: ReaderFlowMode;
   fontFamily: ReaderFontFamily;
@@ -80,6 +82,8 @@ export type ReaderSettings = {
   themePreset: ReaderThemePreset;
   viewWidthMode: ReaderViewWidthMode;
   chromeMode: ReaderChromeMode;
+  readingRulerMode: ReaderReadingRulerMode;
+  focusAidMode: ReaderFocusAidMode;
 };
 export type ReaderHighlightsFilter = 'all' | 'chapter' | 'selected';
 export type ReaderHighlightsSort = 'recent' | 'oldest';

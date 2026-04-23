@@ -244,7 +244,8 @@ test('reader persists epub layout settings through reload in web mode', async ({
       | '阅读字体'
       | '字号'
       | '行距'
-      | '页边距',
+      | '页边距'
+      | '阅读辅助',
     optionLabel: string
   ) => {
     await page.getByRole('button', { name: '更多操作' }).click();
@@ -298,6 +299,25 @@ test('reader persists epub layout settings through reload in web mode', async ({
       };
     });
 
+  const readFocusAidState = async () =>
+    page.evaluate(() => {
+      const host = document.querySelector('.engine-host') as HTMLElement | null;
+      const overlay = document.querySelector('.focus-aid-overlay') as HTMLElement | null;
+      const ruler = document.querySelector('.focus-aid-ruler') as HTMLElement | null;
+      const hostStyles = host ? getComputedStyle(host) : null;
+      const overlayStyles = overlay ? getComputedStyle(overlay) : null;
+      const rulerStyles = ruler ? getComputedStyle(ruler) : null;
+
+      return {
+        readingRulerMode: host?.dataset.readingRulerMode ?? '',
+        focusAidMode: host?.dataset.focusAidMode ?? '',
+        overlayDisplay: overlayStyles?.display ?? '',
+        rulerOpacity: rulerStyles?.opacity ?? '',
+        bandHeight: hostStyles?.getPropertyValue('--reader-focus-band-height').trim() ?? '',
+        bandOpacity: hostStyles?.getPropertyValue('--reader-focus-band-opacity').trim() ?? ''
+      };
+    });
+
   await page.goto(readerUrl);
   await expect(page.locator('.stage-error')).toHaveCount(0);
   await expect(page.getByLabel('阅读页脚控制')).toContainText('分页');
@@ -307,6 +327,8 @@ test('reader persists epub layout settings through reload in web mode', async ({
   await pickReaderSetting('字号', '大');
   await pickReaderSetting('行距', '舒展');
   await pickReaderSetting('页边距', '宽');
+  await pickReaderSetting('阅读辅助', '开启阅读尺');
+  await pickReaderSetting('阅读辅助', '行聚焦');
   await page.reload();
 
   await expect(page.locator('.stage-error')).toHaveCount(0);
@@ -367,6 +389,17 @@ test('reader persists epub layout settings through reload in web mode', async ({
       message: 'expected the viewport shell chrome to retain themed border styling after reload'
     })
     .not.toBe('rgba(0, 0, 0, 0)');
+  await expect
+    .poll(readFocusAidState, { message: 'expected focus aid settings and overlay styling to survive reload' })
+    .toMatchObject({
+      readingRulerMode: 'on',
+      focusAidMode: 'line',
+      overlayDisplay: 'grid',
+      bandHeight: '3.4em',
+      bandOpacity: '0.09'
+    });
+  await expect(page.locator('.focus-aid-overlay')).toBeVisible();
+  await expect(page.locator('.focus-aid-ruler')).toBeVisible();
 });
 
 test('reader manages structured search history through reload in web mode', async ({ page }) => {

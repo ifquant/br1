@@ -454,6 +454,68 @@
                     </button>
                   </div>
                 </div>
+                <div class="menu-subsection" role="presentation">
+                  <span class="menu-subsection-label">阅读辅助</span>
+                  <div class="menu-option-stack" role="presentation">
+                    <div class="menu-option-group" role="group" aria-label="阅读尺">
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={settings.readingRulerMode === 'off'}
+                        class:active-option={settings.readingRulerMode === 'off'}
+                        on:click={() =>
+                          runMenuAction(() => onUpdateSettings?.({ readingRulerMode: 'off' }))
+                        }
+                      >
+                        关闭阅读尺
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={settings.readingRulerMode === 'on'}
+                        class:active-option={settings.readingRulerMode === 'on'}
+                        on:click={() =>
+                          runMenuAction(() => onUpdateSettings?.({ readingRulerMode: 'on' }))
+                        }
+                      >
+                        开启阅读尺
+                      </button>
+                    </div>
+                    <div class="menu-option-group" role="group" aria-label="聚焦模式">
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={settings.focusAidMode === 'off'}
+                        class:active-option={settings.focusAidMode === 'off'}
+                        on:click={() => runMenuAction(() => onUpdateSettings?.({ focusAidMode: 'off' }))}
+                      >
+                        关闭聚焦
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={settings.focusAidMode === 'line'}
+                        class:active-option={settings.focusAidMode === 'line'}
+                        on:click={() =>
+                          runMenuAction(() => onUpdateSettings?.({ focusAidMode: 'line' }))
+                        }
+                      >
+                        行聚焦
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={settings.focusAidMode === 'paragraph'}
+                        class:active-option={settings.focusAidMode === 'paragraph'}
+                        on:click={() =>
+                          runMenuAction(() => onUpdateSettings?.({ focusAidMode: 'paragraph' }))
+                        }
+                      >
+                        段落聚焦
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

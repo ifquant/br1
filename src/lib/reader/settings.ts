@@ -1,11 +1,13 @@
 import type {
   ReaderChromeMode,
+  ReaderFocusAidMode,
   ReaderFlowMode,
   ReaderFontFamily,
   ReaderFontScale,
   ReaderLineHeight,
   ReaderPageMargins,
   ReaderSettings,
+  ReaderReadingRulerMode,
   ReaderThemePreset,
   ReaderViewWidthMode
 } from './types';
@@ -26,6 +28,10 @@ const isViewWidthMode = (value: unknown): value is ReaderViewWidthMode =>
   value === 'focus' || value === 'standard' || value === 'wide';
 const isChromeMode = (value: unknown): value is ReaderChromeMode =>
   value === 'auto' || value === 'always';
+const isReadingRulerMode = (value: unknown): value is ReaderReadingRulerMode =>
+  value === 'off' || value === 'on';
+const isFocusAidMode = (value: unknown): value is ReaderFocusAidMode =>
+  value === 'off' || value === 'line' || value === 'paragraph';
 
 export const READER_SETTINGS_STORAGE_KEY = 'br1.reader.settings';
 
@@ -58,7 +64,9 @@ export const createDefaultReaderSettings = (): ReaderSettings => ({
   pageMargins: 'standard',
   themePreset: 'paper',
   viewWidthMode: 'standard',
-  chromeMode: 'auto'
+  chromeMode: 'auto',
+  readingRulerMode: 'off',
+  focusAidMode: 'off'
 });
 
 export const getReaderThemePalette = (
@@ -152,7 +160,11 @@ export const normalizeReaderSettings = (value: unknown): ReaderSettings => {
     pageMargins: isPageMargins(candidate.pageMargins) ? candidate.pageMargins : defaults.pageMargins,
     themePreset: isThemePreset(candidate.themePreset) ? candidate.themePreset : defaults.themePreset,
     viewWidthMode: isViewWidthMode(candidate.viewWidthMode) ? candidate.viewWidthMode : defaults.viewWidthMode,
-    chromeMode: isChromeMode(candidate.chromeMode) ? candidate.chromeMode : defaults.chromeMode
+    chromeMode: isChromeMode(candidate.chromeMode) ? candidate.chromeMode : defaults.chromeMode,
+    readingRulerMode: isReadingRulerMode(candidate.readingRulerMode)
+      ? candidate.readingRulerMode
+      : defaults.readingRulerMode,
+    focusAidMode: isFocusAidMode(candidate.focusAidMode) ? candidate.focusAidMode : defaults.focusAidMode
   };
 };
 

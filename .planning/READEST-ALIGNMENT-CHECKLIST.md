@@ -189,15 +189,15 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Outcome: supported platforms can read selected text or current passage aloud, and unsupported platforms get an explicit disabled state.
   - Touches: TTS service, reader controls, e2e-safe fallback tests.
   - Verify: `pnpm check`; targeted TTS state regression; `git diff --check`.
-  - Done commit: pending
+  - Done commit: 0497
   - Notes: selected text now speaks through `speechSynthesis` first; if no selection exists, the reader falls back to a conservative chapter title or book title seed and labels that path as a safe fallback instead of pretending to extract full passage text.
 
-- [ ] P1-2.3 Add visual and focus aids
+- [x] P1-2.3 Add visual and focus aids
   - Outcome: reading ruler, paragraph or line focus, and persisted focus-aid settings exist as real reader features.
   - Touches: reader settings, viewport overlay, header/sidebar controls.
   - Verify: `pnpm check`; visual/source review; targeted persistence regression; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0498
+  - Notes: this v1 adds a persisted reading ruler plus a line/paragraph focus band in the viewport overlay, with no paragraph detection or foliate DOM rewriting.
 
 - [ ] P1-2.4 Run an accessibility hardening pass
   - Outcome: keyboard navigation, focus states, ARIA labels, reduced-motion behavior, and screen-reader basics are explicitly audited and fixed.

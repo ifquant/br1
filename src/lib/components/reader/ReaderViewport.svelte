@@ -285,7 +285,12 @@
       `--reader-inline-width:${inlineWidth}`,
       `--reader-surface-padding:${getPlainTextSurfacePadding()}`,
       `--reader-chrome-top-inset:${getReaderChromeInset('top')}px`,
-      `--reader-chrome-bottom-inset:${getReaderChromeInset('bottom')}px`
+      `--reader-chrome-bottom-inset:${getReaderChromeInset('bottom')}px`,
+      `--reader-focus-ruler-color:${theme.primary}`,
+      `--reader-focus-shade-color:color-mix(in srgb, ${theme.primary} 12%, transparent)`,
+      `--reader-focus-band-border-color:color-mix(in srgb, ${theme.primary} 18%, transparent)`,
+      `--reader-focus-band-opacity:${settings.focusAidMode === 'paragraph' ? '0.14' : settings.focusAidMode === 'line' ? '0.09' : '0'}`,
+      `--reader-focus-band-height:${settings.focusAidMode === 'paragraph' ? '7.2em' : settings.focusAidMode === 'line' ? '3.4em' : '0px'}`
     ].join(';');
   };
 
@@ -1076,6 +1081,8 @@
       data-chrome-mode={settings.chromeMode}
       data-theme-preset={settings.themePreset}
       data-view-width-mode={settings.viewWidthMode}
+      data-reading-ruler-mode={settings.readingRulerMode}
+      data-focus-aid-mode={settings.focusAidMode}
       data-role={READER_ENGINE_HOST_ATTR}
       data-engine-status={READER_ENGINE_STATUS_ATTR}
       style={readerViewportVars}
@@ -1093,6 +1100,18 @@
               <article class="plain-text-paper">
                 <pre>{plainTextContent}</pre>
               </article>
+            </div>
+          {/if}
+          {#if settings.readingRulerMode === 'on' || settings.focusAidMode !== 'off'}
+            <div class="focus-aid-overlay" aria-hidden="true">
+              {#if settings.focusAidMode !== 'off'}
+                <div class="focus-aid-shade focus-aid-shade-top"></div>
+                <div class="focus-aid-band"></div>
+                <div class="focus-aid-shade focus-aid-shade-bottom"></div>
+              {/if}
+              {#if settings.readingRulerMode === 'on'}
+                <div class="focus-aid-ruler"></div>
+              {/if}
             </div>
           {/if}
           {#if openStatus !== 'open'}
@@ -1125,19 +1144,32 @@
             <small>{openStatus === 'open' ? '书籍已打开' : '等待打开书籍'}</small>
           </div>
 
-          <div class="engine-stage" bind:this={stageElement}></div>
-          {#if openStatus === 'open' && openEngineMode === 'plain-text'}
-            <div
-              class="plain-text-surface inline-surface"
-              bind:this={plainTextScroller}
-              on:scroll={() => emitPlainTextReaderState()}
-              aria-label="plain text reading surface"
-            >
-              <article class="plain-text-paper">
-                <pre>{plainTextContent}</pre>
-              </article>
-            </div>
-          {/if}
+          <div class="engine-stage" bind:this={stageElement}>
+            {#if openStatus === 'open' && openEngineMode === 'plain-text'}
+              <div
+                class="plain-text-surface inline-surface"
+                bind:this={plainTextScroller}
+                on:scroll={() => emitPlainTextReaderState()}
+                aria-label="plain text reading surface"
+              >
+                <article class="plain-text-paper">
+                  <pre>{plainTextContent}</pre>
+                </article>
+              </div>
+            {/if}
+            {#if settings.readingRulerMode === 'on' || settings.focusAidMode !== 'off'}
+              <div class="focus-aid-overlay" aria-hidden="true">
+                {#if settings.focusAidMode !== 'off'}
+                  <div class="focus-aid-shade focus-aid-shade-top"></div>
+                  <div class="focus-aid-band"></div>
+                  <div class="focus-aid-shade focus-aid-shade-bottom"></div>
+                {/if}
+                {#if settings.readingRulerMode === 'on'}
+                  <div class="focus-aid-ruler"></div>
+                {/if}
+              </div>
+            {/if}
+          </div>
 
           {#if openStatus !== 'open'}
             <div class="paper-copy" aria-hidden="true">
@@ -1329,6 +1361,62 @@
 
   .window-stage {
     overflow: hidden;
+  }
+
+  .focus-aid-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: 1fr var(--reader-focus-band-height, 0px) 1fr;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .focus-aid-shade {
+    opacity: var(--reader-focus-band-opacity, 0);
+  }
+
+  .focus-aid-shade-top {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--reader-focus-shade-color, rgba(140, 106, 59, 0.12)) 92%, transparent),
+      transparent 84%
+    );
+  }
+
+  .focus-aid-band {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--reader-focus-shade-color, rgba(140, 106, 59, 0.12)) 18%, transparent),
+        color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 96%, transparent)
+      );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--reader-focus-band-border-color, rgba(140, 106, 59, 0.18)) 68%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--reader-focus-band-border-color, rgba(140, 106, 59, 0.18)) 68%, transparent);
+    opacity: var(--reader-focus-band-opacity, 0);
+  }
+
+  .focus-aid-shade-bottom {
+    background: linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--reader-focus-shade-color, rgba(140, 106, 59, 0.12)) 92%, transparent),
+      transparent 84%
+    );
+  }
+
+  .focus-aid-ruler {
+    position: absolute;
+    left: clamp(12px, 6vw, 72px);
+    right: clamp(12px, 6vw, 72px);
+    top: 50%;
+    height: 1px;
+    transform: translateY(-0.5px);
+    background: color-mix(in srgb, var(--reader-focus-ruler-color, var(--reader-shell-accent, #8c6a3b)) 78%, white 22%);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--reader-focus-ruler-color, var(--reader-shell-accent, #8c6a3b)) 16%, transparent),
+      0 0 14px color-mix(in srgb, var(--reader-focus-ruler-color, var(--reader-shell-accent, #8c6a3b)) 22%, transparent);
+    opacity: 0.85;
   }
 
   .stage-overlay {
