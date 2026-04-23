@@ -11,6 +11,20 @@ export type CatalogSourceAuthState = {
   required: boolean;
 };
 
+export type CatalogSourceConnectivityStatus =
+  | 'available'
+  | 'offline'
+  | 'authRequired'
+  | 'unsupported'
+  | 'invalid';
+
+export type CatalogSourceConnectivityState = {
+  status: CatalogSourceConnectivityStatus;
+  label: string;
+  checkedAt?: number;
+  retryable: boolean;
+};
+
 export type CatalogSource = {
   id: string;
   kind: CatalogConnectorKind;
@@ -18,6 +32,7 @@ export type CatalogSource = {
   baseUrl: string;
   description?: string;
   auth: CatalogSourceAuthState;
+  connectivity: CatalogSourceConnectivityState;
   tags: string[];
   createdAt: number;
   updatedAt: number;
@@ -100,6 +115,19 @@ export type CatalogImportIntentRequest = {
   pageHref?: string;
 };
 
+export type CatalogSourceSettingsInput = {
+  id?: string;
+  kind: CatalogConnectorKind;
+  title: string;
+  baseUrl: string;
+  description?: string;
+  authKind: CatalogSourceAuthKind;
+  authLabel?: string;
+  authConfigured: boolean;
+  authRequired: boolean;
+  tags: string[];
+};
+
 export type CatalogAuthChallenge = {
   sourceId: string;
   kind: Exclude<CatalogSourceAuthKind, 'none'>;
@@ -165,6 +193,10 @@ export type CatalogConnectorStatusResponse = CatalogConnectorStatus;
 export type CatalogSourceListResponse = CatalogSource[];
 export type CatalogPageResponse = CatalogPage;
 export type CatalogImportIntentResponse = CatalogImportIntent;
+export type CatalogSourceSettingsResponse = {
+  source?: CatalogSource;
+  error?: CatalogErrorState;
+};
 
 export const createUnavailableCatalogConnectorStatus = (
   message = 'Catalog connectors require the desktop runtime.'
@@ -192,7 +224,26 @@ export const normalizeCatalogSource = (source: CatalogSource): CatalogSource => 
   auth: {
     ...source.auth,
     label: source.auth.label.trim()
+  },
+  connectivity: {
+    ...source.connectivity,
+    label: source.connectivity.label.trim()
   }
+});
+
+export const normalizeCatalogSourceSettingsInput = (
+  input: CatalogSourceSettingsInput
+): CatalogSourceSettingsInput => ({
+  id: input.id?.trim() || undefined,
+  kind: input.kind,
+  title: input.title.replace(/\s+/g, ' ').trim(),
+  baseUrl: input.baseUrl.trim(),
+  description: input.description?.trim() || undefined,
+  authKind: input.authKind,
+  authLabel: input.authLabel?.trim() || undefined,
+  authConfigured: input.authKind === 'none' ? true : input.authConfigured,
+  authRequired: input.authKind === 'none' ? false : input.authRequired,
+  tags: input.tags.map((tag) => tag.trim()).filter(Boolean)
 });
 
 export const normalizeCatalogSearchRequest = (
@@ -226,6 +277,11 @@ const createUnavailableCatalogSource = (sourceId: string): CatalogSource => ({
     label: 'Catalog connectors require the desktop runtime.',
     configured: false,
     required: false
+  },
+  connectivity: {
+    status: 'offline',
+    label: 'Catalog connectors require the desktop runtime.',
+    retryable: false
   },
   tags: [],
   createdAt: 0,
@@ -343,6 +399,70 @@ export const listCatalogSources = async (): Promise<CatalogSource[]> => {
     return await invokeTauri<CatalogSourceListResponse>('list_catalog_sources');
   } catch {
     return [];
+  }
+};
+
+export const saveCatalogSourceSettings = async (
+  input: CatalogSourceSettingsInput
+): Promise<CatalogSourceSettingsResponse> => {
+  const normalized = normalizeCatalogSourceSettingsInput(input);
+  if (!isTauriDesktop()) {
+    return {
+      error: {
+        code: 'unavailable',
+        message: 'Catalog source settings require the desktop runtime.',
+        sourceId: normalized.id,
+        retryable: false
+      }
+    };
+  }
+
+  try {
+    return await invokeTauri<CatalogSourceSettingsResponse>('save_catalog_source_settings', {
+      input: normalized
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      error: {
+        code: 'unknown',
+        message,
+        sourceId: normalized.id,
+        retryable: true
+      }
+    };
+  }
+};
+
+export const removeCatalogSourceSettings = async (
+  sourceId: string
+): Promise<CatalogSourceSettingsResponse> => {
+  const normalized = sourceId.trim();
+  if (!isTauriDesktop()) {
+    return {
+      error: {
+        code: 'unavailable',
+        message: 'Catalog source settings require the desktop runtime.',
+        sourceId: normalized || undefined,
+        retryable: false
+      }
+    };
+  }
+
+  try {
+    return await invokeTauri<CatalogSourceSettingsResponse>('remove_catalog_source_settings', {
+      sourceId: normalized
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      error: {
+        code: 'unknown',
+        message,
+        sourceId: normalized || undefined,
+        retryable: true
+      }
+    };
   }
 };
 

@@ -8,7 +8,10 @@ export {
   normalizeCatalogImportIntentRequest,
   normalizeCatalogSearchRequest,
   normalizeCatalogSource,
+  normalizeCatalogSourceSettingsInput,
+  removeCatalogSourceSettings,
   requestCatalogImportIntent,
+  saveCatalogSourceSettings,
   searchCatalogSource
 } from './catalogs';
 export type {
@@ -37,7 +40,11 @@ export type {
   CatalogSource,
   CatalogSourceAuthKind,
   CatalogSourceAuthState,
-  CatalogSourceListResponse
+  CatalogSourceConnectivityState,
+  CatalogSourceConnectivityStatus,
+  CatalogSourceListResponse,
+  CatalogSourceSettingsInput,
+  CatalogSourceSettingsResponse
 } from './catalogs';
 export {
   goToLibrarySurface,

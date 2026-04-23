@@ -245,12 +245,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 0504
   - Notes: added bundled OPDS fixture sources, allowlisted page browsing, local search filtering, import-intent conversion, parser tests, and renderer-safe service functions; renderer input cannot trigger arbitrary URL fetching. Tutorial: `tutorials/commit/0504-implement-fixture-backed-opds-and-calibre-catalogs.md`.
 
-- [ ] P2-1.3 Add Calibre-compatible catalog flow
+- [x] P2-1.3 Add Calibre-compatible catalog flow
   - Outcome: Calibre OPDS or compatible catalog sources can be configured and browsed through the same catalog surface.
   - Touches: catalog source settings, auth/connectivity states, tests.
-  - Verify: `pnpm check`; fixture/manual catalog regression; `git diff --check`.
-  - Done commit:
-  - Notes: 0504 added a Calibre-compatible allowlisted fixture source through the same parser and import-intent flow, but user-managed source settings, credentials, and live connectivity are still missing; keep this item open until that configuration flow exists.
+  - Verify: `pnpm check` (PASS); `cargo test --manifest-path src-tauri/Cargo.toml catalogs` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
+  - Done commit: 0505
+  - Notes: added Tauri-owned user catalog source settings, normalized/persisted OPDS and Calibre-compatible source metadata, auth-required connectivity states, configured fixture browsing through the same catalog parser/search/import flow, and explicit unsupported states for live URLs without adding arbitrary network fetch/proxy behavior. Tutorial: `tutorials/commit/0505-complete-calibre-compatible-catalog-settings.md`.
 
 - [ ] P2-2.1 Add translation provider configuration
   - Outcome: DeepL/Yandex provider settings are stored locally and missing-key states are visible; no service key is bundled.
@@ -312,21 +312,21 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
 
 These checks apply to every P2 service slice.
 
-- [ ] S-1 Renderer cannot turn catalog or translation commands into arbitrary network proxying
-  - Done commit:
-  - Notes:
+- [x] S-1 Renderer cannot turn catalog or translation commands into arbitrary network proxying
+  - Done commit: 0505
+  - Notes: catalog commands only; user-configured http/https OPDS URLs are persisted as source metadata but browsing returns an explicit unsupported product state unless the source maps to an allowlisted bundled fixture page, so renderer input still cannot trigger live arbitrary URL fetching.
 
 - [ ] S-2 Renderer cannot use service flows to read arbitrary local files
   - Done commit:
   - Notes:
 
-- [ ] S-3 Long-lived provider credentials are not stored in renderer-only state
-  - Done commit:
-  - Notes:
+- [x] S-3 Long-lived provider credentials are not stored in renderer-only state
+  - Done commit: 0505
+  - Notes: catalog commands only; the renderer-facing catalog settings input stores only auth kind, required/configured booleans, and labels/redacted presence metadata. No password/token/cookie secret value is accepted or persisted by the catalog source settings command.
 
-- [ ] S-4 Network and filesystem failures produce product-level error states, not silent failures
-  - Done commit:
-  - Notes:
+- [x] S-4 Network and filesystem failures produce product-level error states, not silent failures
+  - Done commit: 0505
+  - Notes: catalog commands only; invalid settings files, source settings write failures, unsupported live URLs, auth-required sources, and non-allowlisted page hrefs return `CatalogErrorState` or source connectivity states instead of silently dropping failures.
 
 ## Completion Log
 

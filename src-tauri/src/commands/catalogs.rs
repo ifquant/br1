@@ -7,6 +7,8 @@ use quick_xml::name::QName;
 use quick_xml::Reader;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 const OPDS_FIXTURE_ROOT: &str = include_str!("../../tests/fixtures/catalogs/opds-root.xml");
 const OPDS_FIXTURE_NEXT: &str = include_str!("../../tests/fixtures/catalogs/opds-next.xml");
@@ -30,9 +32,19 @@ pub(crate) struct CatalogSource {
     pub base_url: String,
     pub description: Option<String>,
     pub auth: CatalogSourceAuthState,
+    pub connectivity: CatalogSourceConnectivityState,
     pub tags: Vec<String>,
     pub created_at: u64,
     pub updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CatalogSourceConnectivityState {
+    pub status: CatalogSourceConnectivityStatus,
+    pub label: String,
+    pub checked_at: Option<u64>,
+    pub retryable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +128,28 @@ pub(crate) struct CatalogImportIntentRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct CatalogSourceSettingsInput {
+    pub id: Option<String>,
+    pub kind: CatalogConnectorKind,
+    pub title: String,
+    pub base_url: String,
+    pub description: Option<String>,
+    pub auth_kind: CatalogSourceAuthKind,
+    pub auth_label: Option<String>,
+    pub auth_configured: bool,
+    pub auth_required: bool,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CatalogSourceSettingsResult {
+    pub source: Option<CatalogSource>,
+    pub error: Option<CatalogErrorState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct CatalogAuthChallenge {
     pub source_id: String,
     pub kind: CatalogCredentialKind,
@@ -177,13 +211,23 @@ pub(crate) enum CatalogConnectorKind {
     CalibreOpds,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum CatalogSourceAuthKind {
     None,
     Basic,
     Bearer,
     Cookie,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum CatalogSourceConnectivityStatus {
+    Available,
+    Offline,
+    AuthRequired,
+    Unsupported,
+    Invalid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,7 +264,7 @@ pub(crate) enum CatalogEntryAvailability {
     Unavailable,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum CatalogErrorCode {
     Unavailable,
@@ -231,6 +275,26 @@ pub(crate) enum CatalogErrorCode {
     InvalidFeed,
     Network,
     Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredCatalogSource {
+    id: String,
+    kind: CatalogConnectorKind,
+    title: String,
+    base_url: String,
+    description: Option<String>,
+    auth: CatalogSourceAuthState,
+    tags: Vec<String>,
+    created_at: u64,
+    updated_at: u64,
+}
+
+#[derive(Debug, Clone)]
+enum ResolvedCatalogSource {
+    Fixture(CatalogSourceDefinition),
+    User(StoredCatalogSource),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -364,16 +428,32 @@ fn source_from_definition(definition: &CatalogSourceDefinition) -> CatalogSource
             configured: true,
             required: false,
         },
+        connectivity: CatalogSourceConnectivityState {
+            status: CatalogSourceConnectivityStatus::Available,
+            label: "Bundled fixture is available offline.".to_string(),
+            checked_at: None,
+            retryable: false,
+        },
         tags: definition.tags.iter().map(|tag| tag.to_string()).collect(),
         created_at: 0,
         updated_at: 0,
     }
 }
 
-fn find_source(source_id: &str) -> Option<CatalogSourceDefinition> {
+fn find_fixture_source(source_id: &str) -> Option<CatalogSourceDefinition> {
     catalog_sources()
         .into_iter()
         .find(|source| source.id == source_id.trim())
+}
+
+fn find_source(source_id: &str) -> Result<Option<ResolvedCatalogSource>, CatalogErrorState> {
+    if let Some(source) = find_fixture_source(source_id) {
+        return Ok(Some(ResolvedCatalogSource::Fixture(source)));
+    }
+    Ok(read_user_catalog_sources(&catalog_sources_path())?
+        .into_iter()
+        .find(|source| source.id == source_id.trim())
+        .map(ResolvedCatalogSource::User))
 }
 
 fn find_page<'a>(
@@ -385,6 +465,253 @@ fn find_page<'a>(
         .filter(|value| !value.is_empty())
         .unwrap_or(definition.root_href);
     definition.pages.iter().find(|page| page.href == href)
+}
+
+fn catalog_sources_path() -> PathBuf {
+    if let Ok(path) = std::env::var("BR1_CATALOG_SOURCES_PATH") {
+        return PathBuf::from(path);
+    }
+
+    if let Ok(home) = std::env::var("HOME") {
+        return PathBuf::from(home)
+            .join("Library")
+            .join("Application Support")
+            .join("br1")
+            .join("catalog-sources.json");
+    }
+
+    std::env::temp_dir()
+        .join("br1")
+        .join("catalog-sources.json")
+}
+
+fn read_user_catalog_sources(path: &Path) -> Result<Vec<StoredCatalogSource>, CatalogErrorState> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let raw = fs::read_to_string(path).map_err(|error| {
+        error_state(
+            CatalogErrorCode::Offline,
+            format!("Could not read catalog source settings: {error}"),
+            None,
+            true,
+        )
+    })?;
+    serde_json::from_str(&raw).map_err(|error| {
+        error_state(
+            CatalogErrorCode::InvalidSource,
+            format!("Catalog source settings are not valid JSON: {error}"),
+            None,
+            false,
+        )
+    })
+}
+
+fn write_user_catalog_sources(
+    path: &Path,
+    sources: &[StoredCatalogSource],
+) -> Result<(), CatalogErrorState> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            error_state(
+                CatalogErrorCode::Offline,
+                format!("Could not create catalog source settings directory: {error}"),
+                None,
+                true,
+            )
+        })?;
+    }
+    let raw = serde_json::to_string_pretty(sources).map_err(|error| {
+        error_state(
+            CatalogErrorCode::Unknown,
+            format!("Could not serialize catalog source settings: {error}"),
+            None,
+            false,
+        )
+    })?;
+    fs::write(path, raw).map_err(|error| {
+        error_state(
+            CatalogErrorCode::Offline,
+            format!("Could not persist catalog source settings: {error}"),
+            None,
+            true,
+        )
+    })
+}
+
+fn normalize_source_id(id: Option<&str>, title: &str) -> String {
+    let seed = id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(title);
+    let mut normalized = String::new();
+    let mut previous_dash = false;
+    for character in seed.chars().flat_map(char::to_lowercase) {
+        if character.is_ascii_alphanumeric() {
+            normalized.push(character);
+            previous_dash = false;
+        } else if !previous_dash {
+            normalized.push('-');
+            previous_dash = true;
+        }
+    }
+    let normalized = normalized.trim_matches('-');
+    if normalized.is_empty() {
+        "user-catalog".to_string()
+    } else if normalized.starts_with("fixture-") {
+        format!("user-{normalized}")
+    } else {
+        normalized.to_string()
+    }
+}
+
+fn clean_tags(tags: &[String]) -> Vec<String> {
+    let mut cleaned = Vec::new();
+    for tag in tags {
+        let value = tag.trim();
+        if !value.is_empty() && !cleaned.iter().any(|existing| existing == value) {
+            cleaned.push(value.to_string());
+        }
+    }
+    cleaned
+}
+
+fn auth_label(kind: &CatalogSourceAuthKind, label: Option<&str>, configured: bool) -> String {
+    if *kind == CatalogSourceAuthKind::None {
+        if let Some(label) = label.map(str::trim).filter(|value| !value.is_empty()) {
+            return label.to_string();
+        }
+    }
+    if configured && *kind != CatalogSourceAuthKind::None {
+        return "Credentials are configured outside renderer state.".to_string();
+    }
+    match kind {
+        CatalogSourceAuthKind::None => "No authentication configured.".to_string(),
+        CatalogSourceAuthKind::Basic => "Basic authentication metadata is configured.".to_string(),
+        CatalogSourceAuthKind::Bearer => "Bearer token metadata is configured.".to_string(),
+        CatalogSourceAuthKind::Cookie => {
+            "Cookie authentication metadata is configured.".to_string()
+        }
+    }
+}
+
+fn fixture_for_root_href(href: &str) -> Option<CatalogSourceDefinition> {
+    catalog_sources()
+        .into_iter()
+        .find(|source| source.root_href == href.trim())
+}
+
+fn is_supported_catalog_url(value: &str) -> bool {
+    let url = value.trim();
+    url.starts_with("https://") || url.starts_with("http://") || url.starts_with("fixture://")
+}
+
+fn connectivity_for_stored_source(source: &StoredCatalogSource) -> CatalogSourceConnectivityState {
+    if source.auth.required && !source.auth.configured {
+        return CatalogSourceConnectivityState {
+            status: CatalogSourceConnectivityStatus::AuthRequired,
+            label: "Authentication is required before this catalog can be browsed.".to_string(),
+            checked_at: Some(source.updated_at),
+            retryable: false,
+        };
+    }
+
+    if fixture_for_root_href(&source.base_url).is_some() {
+        return CatalogSourceConnectivityState {
+            status: CatalogSourceConnectivityStatus::Available,
+            label: "Configured source points at an allowlisted local catalog fixture.".to_string(),
+            checked_at: Some(source.updated_at),
+            retryable: false,
+        };
+    }
+
+    if is_supported_catalog_url(&source.base_url) {
+        return CatalogSourceConnectivityState {
+            status: CatalogSourceConnectivityStatus::Unsupported,
+            label: "Live OPDS network fetching is not enabled for configured catalog sources yet."
+                .to_string(),
+            checked_at: Some(source.updated_at),
+            retryable: false,
+        };
+    }
+
+    CatalogSourceConnectivityState {
+        status: CatalogSourceConnectivityStatus::Invalid,
+        label: "Catalog source URL must use http, https, or a bundled fixture URL.".to_string(),
+        checked_at: Some(source.updated_at),
+        retryable: false,
+    }
+}
+
+fn source_from_stored(source: StoredCatalogSource) -> CatalogSource {
+    let connectivity = connectivity_for_stored_source(&source);
+    CatalogSource {
+        id: source.id,
+        kind: source.kind,
+        title: source.title,
+        base_url: source.base_url,
+        description: source.description,
+        connectivity,
+        auth: source.auth,
+        tags: source.tags,
+        created_at: source.created_at,
+        updated_at: source.updated_at,
+    }
+}
+
+fn normalize_source_settings_input(
+    input: CatalogSourceSettingsInput,
+    existing: Option<&StoredCatalogSource>,
+    now: u64,
+) -> Result<StoredCatalogSource, CatalogErrorState> {
+    let title = input.title.trim();
+    let base_url = input.base_url.trim();
+    if title.is_empty() {
+        return Err(error_state(
+            CatalogErrorCode::InvalidSource,
+            "Catalog source title is required.",
+            None,
+            false,
+        ));
+    }
+    if base_url.is_empty() || !is_supported_catalog_url(base_url) {
+        return Err(error_state(
+            CatalogErrorCode::InvalidSource,
+            "Catalog source URL must use http, https, or a bundled fixture URL.",
+            input.id.map(|id| id.trim().to_string()),
+            false,
+        ));
+    }
+
+    let auth_configured =
+        matches!(input.auth_kind, CatalogSourceAuthKind::None) || input.auth_configured;
+    let id = normalize_source_id(input.id.as_deref(), title);
+    let created_at = existing.map(|source| source.created_at).unwrap_or(now);
+    Ok(StoredCatalogSource {
+        id,
+        kind: input.kind,
+        title: title.to_string(),
+        base_url: base_url.to_string(),
+        description: input
+            .description
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
+        auth: CatalogSourceAuthState {
+            kind: input.auth_kind.clone(),
+            label: auth_label(
+                &input.auth_kind,
+                input.auth_label.as_deref(),
+                auth_configured,
+            ),
+            configured: auth_configured,
+            required: input.auth_required
+                && !matches!(input.auth_kind, CatalogSourceAuthKind::None),
+        },
+        tags: clean_tags(&input.tags),
+        created_at,
+        updated_at: now,
+    })
 }
 
 fn error_state(
@@ -437,6 +764,12 @@ fn invalid_source_page(source_id: &str) -> CatalogPage {
             label: "Unknown source".to_string(),
             configured: false,
             required: false,
+        },
+        connectivity: CatalogSourceConnectivityState {
+            status: CatalogSourceConnectivityStatus::Invalid,
+            label: "Unknown source".to_string(),
+            checked_at: None,
+            retryable: false,
         },
         tags: Vec::new(),
         created_at: 0,
@@ -820,6 +1153,83 @@ fn browse_definition(definition: CatalogSourceDefinition, page_href: Option<&str
         .unwrap_or_else(|error| empty_error_page(source, page.href, error))
 }
 
+fn credential_kind(kind: &CatalogSourceAuthKind) -> Option<CatalogCredentialKind> {
+    match kind {
+        CatalogSourceAuthKind::None => None,
+        CatalogSourceAuthKind::Basic => Some(CatalogCredentialKind::Basic),
+        CatalogSourceAuthKind::Bearer => Some(CatalogCredentialKind::Bearer),
+        CatalogSourceAuthKind::Cookie => Some(CatalogCredentialKind::Cookie),
+    }
+}
+
+fn browse_user_source(source: StoredCatalogSource, page_href: Option<&str>) -> CatalogPage {
+    let catalog_source = source_from_stored(source.clone());
+    let requested_href = page_href
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(&source.base_url);
+    let connectivity = connectivity_for_stored_source(&source);
+
+    if connectivity.status == CatalogSourceConnectivityStatus::AuthRequired {
+        let mut page = empty_error_page(
+            catalog_source,
+            requested_href,
+            error_state(
+                CatalogErrorCode::AuthRequired,
+                "Authentication is required before this catalog source can be browsed.",
+                Some(source.id.clone()),
+                false,
+            ),
+        );
+        page.auth_challenge = credential_kind(&source.auth.kind).map(|kind| CatalogAuthChallenge {
+            source_id: source.id,
+            kind,
+            realm: None,
+            message: "Catalog credentials must be configured through a Tauri-owned persistence boundary before browsing.".to_string(),
+        });
+        return page;
+    }
+
+    let Some(definition) = fixture_for_root_href(&source.base_url) else {
+        return empty_error_page(
+            catalog_source,
+            requested_href,
+            error_state(
+                match connectivity.status {
+                    CatalogSourceConnectivityStatus::Invalid => CatalogErrorCode::InvalidSource,
+                    CatalogSourceConnectivityStatus::Offline => CatalogErrorCode::Offline,
+                    _ => CatalogErrorCode::Unsupported,
+                },
+                connectivity.label,
+                Some(source.id),
+                connectivity.retryable,
+            ),
+        );
+    };
+
+    let Some(page) = find_page(&definition, page_href.or(Some(source.base_url.as_str()))) else {
+        return empty_error_page(
+            catalog_source,
+            requested_href,
+            error_state(
+                CatalogErrorCode::InvalidSource,
+                "Catalog page href is not part of the configured allowlisted fixture source.",
+                Some(source.id),
+                false,
+            ),
+        );
+    };
+    parse_opds_feed(catalog_source.clone(), page.href, page.xml)
+        .unwrap_or_else(|error| empty_error_page(catalog_source, page.href, error))
+}
+
+fn browse_resolved_source(source: ResolvedCatalogSource, page_href: Option<&str>) -> CatalogPage {
+    match source {
+        ResolvedCatalogSource::Fixture(definition) => browse_definition(definition, page_href),
+        ResolvedCatalogSource::User(source) => browse_user_source(source, page_href),
+    }
+}
+
 fn searchable_text(entry: &CatalogEntry) -> String {
     [
         Some(entry.title.as_str()),
@@ -847,6 +1257,39 @@ fn search_definition(
         .join(" ")
         .to_lowercase();
     let mut page = browse_definition(definition, page_href);
+    if normalized_query.is_empty() || page.error.is_some() {
+        return page;
+    }
+    page.entries = page
+        .entries
+        .into_iter()
+        .filter(|entry| searchable_text(entry).contains(&normalized_query))
+        .collect();
+    page.pagination.page_id = format!("{}?search={}", page.pagination.page_id, normalized_query);
+    page.pagination.title = Some(format!("Search: {normalized_query}"));
+    page.pagination.total_results = Some(page.entries.len() as u64);
+    page.pagination.items_per_page = Some(page.entries.len() as u64);
+    page.pagination.next_href = None;
+    page.pagination.previous_href = None;
+    page
+}
+
+fn search_resolved_source(
+    source: ResolvedCatalogSource,
+    query: &str,
+    page_href: Option<&str>,
+) -> CatalogPage {
+    let normalized_query = query
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    let mut page = match source {
+        ResolvedCatalogSource::Fixture(definition) => {
+            search_definition(definition, query, page_href)
+        }
+        ResolvedCatalogSource::User(source) => browse_user_source(source, page_href),
+    };
     if normalized_query.is_empty() || page.error.is_some() {
         return page;
     }
@@ -923,14 +1366,39 @@ fn blocked_import_intent(
     }
 }
 
+fn settings_error_source(error: CatalogErrorState) -> CatalogSource {
+    CatalogSource {
+        id: "catalog-settings-error".to_string(),
+        kind: CatalogConnectorKind::Opds,
+        title: "Catalog settings unavailable".to_string(),
+        base_url: String::new(),
+        description: Some(error.message.clone()),
+        auth: CatalogSourceAuthState {
+            kind: CatalogSourceAuthKind::None,
+            label: "No credentials read from unavailable settings.".to_string(),
+            configured: false,
+            required: false,
+        },
+        connectivity: CatalogSourceConnectivityState {
+            status: CatalogSourceConnectivityStatus::Offline,
+            label: error.message,
+            checked_at: now_millis().ok(),
+            retryable: error.retryable,
+        },
+        tags: vec!["settings-error".to_string()],
+        created_at: 0,
+        updated_at: 0,
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn get_catalog_connector_status() -> CatalogConnectorStatus {
     CatalogConnectorStatus {
         status: CatalogConnectorStatusKind::Available,
         capabilities: vec![CatalogConnectorKind::Opds, CatalogConnectorKind::CalibreOpds],
-        message: "Fixture-backed OPDS and Calibre OPDS catalog browsing is available without network proxying.".to_string(),
+        message: "Fixture-backed and user-configured OPDS/Calibre catalog sources are available without renderer-controlled network proxying.".to_string(),
         supports_search: true,
-        supports_authentication: false,
+        supports_authentication: true,
         supports_import_intent: true,
         error: None,
     }
@@ -938,40 +1406,141 @@ pub(crate) async fn get_catalog_connector_status() -> CatalogConnectorStatus {
 
 #[tauri::command]
 pub(crate) async fn list_catalog_sources() -> Vec<CatalogSource> {
-    catalog_sources()
+    let mut sources: Vec<CatalogSource> = catalog_sources()
         .iter()
         .map(source_from_definition)
-        .collect()
+        .collect();
+    match read_user_catalog_sources(&catalog_sources_path()) {
+        Ok(user_sources) => sources.extend(user_sources.into_iter().map(source_from_stored)),
+        Err(error) => sources.push(settings_error_source(error)),
+    }
+    sources
+}
+
+#[tauri::command]
+pub(crate) async fn save_catalog_source_settings(
+    input: CatalogSourceSettingsInput,
+) -> CatalogSourceSettingsResult {
+    let path = catalog_sources_path();
+    let now = now_millis().unwrap_or_default();
+    let mut sources = match read_user_catalog_sources(&path) {
+        Ok(sources) => sources,
+        Err(error) => {
+            return CatalogSourceSettingsResult {
+                source: None,
+                error: Some(error),
+            }
+        }
+    };
+    let normalized_id = normalize_source_id(input.id.as_deref(), &input.title);
+    let existing = sources.iter().find(|source| source.id == normalized_id);
+    let source = match normalize_source_settings_input(input, existing, now) {
+        Ok(source) => source,
+        Err(error) => {
+            return CatalogSourceSettingsResult {
+                source: None,
+                error: Some(error),
+            }
+        }
+    };
+    sources.retain(|existing| existing.id != source.id);
+    sources.push(source.clone());
+    sources.sort_by(|left, right| left.title.cmp(&right.title));
+    if let Err(error) = write_user_catalog_sources(&path, &sources) {
+        return CatalogSourceSettingsResult {
+            source: None,
+            error: Some(error),
+        };
+    }
+    CatalogSourceSettingsResult {
+        source: Some(source_from_stored(source)),
+        error: None,
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn remove_catalog_source_settings(
+    source_id: String,
+) -> CatalogSourceSettingsResult {
+    let path = catalog_sources_path();
+    let mut sources = match read_user_catalog_sources(&path) {
+        Ok(sources) => sources,
+        Err(error) => {
+            return CatalogSourceSettingsResult {
+                source: None,
+                error: Some(error),
+            }
+        }
+    };
+    let source_id = source_id.trim();
+    let removed = sources
+        .iter()
+        .find(|source| source.id == source_id)
+        .cloned()
+        .map(source_from_stored);
+    sources.retain(|source| source.id != source_id);
+    if let Err(error) = write_user_catalog_sources(&path, &sources) {
+        return CatalogSourceSettingsResult {
+            source: removed,
+            error: Some(error),
+        };
+    }
+    CatalogSourceSettingsResult {
+        source: removed,
+        error: None,
+    }
 }
 
 #[tauri::command]
 pub(crate) async fn browse_catalog_source(request: CatalogBrowseRequest) -> CatalogPage {
-    let Some(definition) = find_source(&request.source_id) else {
-        return invalid_source_page(&request.source_id);
+    let source = match find_source(&request.source_id) {
+        Ok(Some(source)) => source,
+        Ok(None) => return invalid_source_page(&request.source_id),
+        Err(error) => {
+            return empty_error_page(
+                invalid_source_page(&request.source_id).source,
+                request.page_href.as_deref().unwrap_or("settings-error"),
+                error,
+            )
+        }
     };
-    browse_definition(definition, request.page_href.as_deref())
+    browse_resolved_source(source, request.page_href.as_deref())
 }
 
 #[tauri::command]
 pub(crate) async fn search_catalog_source(request: CatalogSearchRequest) -> CatalogPage {
-    let Some(definition) = find_source(&request.source_id) else {
-        return invalid_source_page(&request.source_id);
+    let source = match find_source(&request.source_id) {
+        Ok(Some(source)) => source,
+        Ok(None) => return invalid_source_page(&request.source_id),
+        Err(error) => {
+            return empty_error_page(
+                invalid_source_page(&request.source_id).source,
+                request.page_href.as_deref().unwrap_or("settings-error"),
+                error,
+            )
+        }
     };
-    search_definition(definition, &request.query, request.page_href.as_deref())
+    search_resolved_source(source, &request.query, request.page_href.as_deref())
 }
 
 #[tauri::command]
 pub(crate) async fn create_catalog_import_intent(
     request: CatalogImportIntentRequest,
 ) -> CatalogImportIntent {
-    let Some(definition) = find_source(&request.source_id) else {
-        return blocked_import_intent(
-            &request.source_id,
-            &request.entry_id,
-            "Catalog source is not allowlisted for this desktop build.",
-        );
+    let source = match find_source(&request.source_id) {
+        Ok(Some(source)) => source,
+        Ok(None) => {
+            return blocked_import_intent(
+                &request.source_id,
+                &request.entry_id,
+                "Catalog source is not allowlisted for this desktop build.",
+            )
+        }
+        Err(error) => {
+            return blocked_import_intent(&request.source_id, &request.entry_id, error.message)
+        }
     };
-    let page = browse_definition(definition, request.page_href.as_deref());
+    let page = browse_resolved_source(source, request.page_href.as_deref());
     if page.error.is_some() {
         return blocked_import_intent(
             &request.source_id,
@@ -995,10 +1564,19 @@ pub(crate) async fn create_catalog_import_intent(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_catalog_settings_path(name: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("br1-{name}-{nonce}.json"))
+    }
 
     #[test]
     fn parses_opds_fixture_feed_with_pagination_and_search() {
-        let source = source_from_definition(&find_source("fixture-opds").unwrap());
+        let source = source_from_definition(&find_fixture_source("fixture-opds").unwrap());
         let page = parse_opds_feed(source, "fixture://opds/root.xml", OPDS_FIXTURE_ROOT).unwrap();
 
         assert_eq!(page.source.kind, CatalogConnectorKind::Opds);
@@ -1026,7 +1604,7 @@ mod tests {
 
     #[test]
     fn searches_fixture_entries_without_network_fetching() {
-        let definition = find_source("fixture-opds").unwrap();
+        let definition = find_fixture_source("fixture-opds").unwrap();
         let page = search_definition(definition, "rust", None);
 
         assert_eq!(page.entries.len(), 1);
@@ -1036,7 +1614,7 @@ mod tests {
 
     #[test]
     fn parses_calibre_compatible_source_through_same_flow() {
-        let page = browse_definition(find_source("fixture-calibre").unwrap(), None);
+        let page = browse_definition(find_fixture_source("fixture-calibre").unwrap(), None);
 
         assert_eq!(page.source.kind, CatalogConnectorKind::CalibreOpds);
         assert_eq!(page.entries.len(), 2);
@@ -1049,7 +1627,7 @@ mod tests {
 
     #[test]
     fn converts_catalog_entry_to_import_intent() {
-        let page = browse_definition(find_source("fixture-calibre").unwrap(), None);
+        let page = browse_definition(find_fixture_source("fixture-calibre").unwrap(), None);
         let intent = create_import_intent_from_entry(&page.entries[0], 42);
 
         assert_eq!(intent.status, CatalogImportIntentStatus::Ready);
@@ -1065,11 +1643,163 @@ mod tests {
     #[test]
     fn rejects_non_allowlisted_page_href() {
         let page = browse_definition(
-            find_source("fixture-opds").unwrap(),
+            find_fixture_source("fixture-opds").unwrap(),
             Some("https://example.invalid/catalog.xml"),
         );
 
         assert!(page.error.is_some());
         assert!(page.entries.is_empty());
+    }
+
+    #[test]
+    fn normalizes_and_persists_user_catalog_source_without_secrets() {
+        let path = temp_catalog_settings_path("catalog-persist");
+        let input = CatalogSourceSettingsInput {
+            id: Some(" My Calibre Shelf ".to_string()),
+            kind: CatalogConnectorKind::CalibreOpds,
+            title: "  My Calibre Shelf  ".to_string(),
+            base_url: " fixture://calibre/root.xml ".to_string(),
+            description: Some("  local test shelf  ".to_string()),
+            auth_kind: CatalogSourceAuthKind::Basic,
+            auth_label: Some("  password saved in keychain  ".to_string()),
+            auth_configured: true,
+            auth_required: true,
+            tags: vec![
+                " calibre ".to_string(),
+                "opds".to_string(),
+                "calibre".to_string(),
+            ],
+        };
+        let source = normalize_source_settings_input(input, None, 505).unwrap();
+        write_user_catalog_sources(&path, &[source.clone()]).unwrap();
+
+        let persisted = read_user_catalog_sources(&path).unwrap();
+        assert_eq!(persisted.len(), 1);
+        assert_eq!(persisted[0].id, "my-calibre-shelf");
+        assert_eq!(persisted[0].title, "My Calibre Shelf");
+        assert_eq!(persisted[0].base_url, "fixture://calibre/root.xml");
+        assert_eq!(persisted[0].auth.kind, CatalogSourceAuthKind::Basic);
+        assert!(persisted[0].auth.configured);
+        assert_eq!(
+            persisted[0].auth.label,
+            "Credentials are configured outside renderer state."
+        );
+        assert_eq!(persisted[0].tags, vec!["calibre", "opds"]);
+        assert!(!serde_json::to_string(&persisted)
+            .unwrap()
+            .contains("secret"));
+
+        let catalog_source = source_from_stored(source);
+        assert_eq!(
+            catalog_source.connectivity.status,
+            CatalogSourceConnectivityStatus::Available
+        );
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn configured_calibre_fixture_browses_through_same_catalog_flow() {
+        let source = StoredCatalogSource {
+            id: "custom-calibre".to_string(),
+            kind: CatalogConnectorKind::CalibreOpds,
+            title: "Custom Calibre".to_string(),
+            base_url: "fixture://calibre/root.xml".to_string(),
+            description: None,
+            auth: CatalogSourceAuthState {
+                kind: CatalogSourceAuthKind::None,
+                label: "No authentication configured.".to_string(),
+                configured: true,
+                required: false,
+            },
+            tags: vec!["calibre".to_string()],
+            created_at: 1,
+            updated_at: 2,
+        };
+
+        let page = browse_user_source(source, None);
+        assert!(page.error.is_none());
+        assert_eq!(page.source.id, "custom-calibre");
+        assert_eq!(page.entries.len(), 2);
+        assert!(page
+            .entries
+            .iter()
+            .all(|entry| entry.source_id == "custom-calibre"));
+    }
+
+    #[test]
+    fn live_catalog_url_returns_unsupported_without_proxying() {
+        let source = StoredCatalogSource {
+            id: "live-calibre".to_string(),
+            kind: CatalogConnectorKind::CalibreOpds,
+            title: "Live Calibre".to_string(),
+            base_url: "https://calibre.example.invalid/opds".to_string(),
+            description: None,
+            auth: CatalogSourceAuthState {
+                kind: CatalogSourceAuthKind::None,
+                label: "No authentication configured.".to_string(),
+                configured: true,
+                required: false,
+            },
+            tags: Vec::new(),
+            created_at: 1,
+            updated_at: 2,
+        };
+
+        let page = browse_user_source(source, None);
+        let error = page.error.unwrap();
+        assert_eq!(error.code, CatalogErrorCode::Unsupported);
+        assert!(page.entries.is_empty());
+        assert_eq!(
+            page.source.connectivity.status,
+            CatalogSourceConnectivityStatus::Unsupported
+        );
+    }
+
+    #[test]
+    fn corrupted_source_settings_return_product_error_state() {
+        let path = temp_catalog_settings_path("catalog-corrupt");
+        fs::write(&path, "{not-json").unwrap();
+
+        let error = read_user_catalog_sources(&path).unwrap_err();
+        assert_eq!(error.code, CatalogErrorCode::InvalidSource);
+        assert!(!error.retryable);
+
+        let listed = settings_error_source(error);
+        assert_eq!(
+            listed.connectivity.status,
+            CatalogSourceConnectivityStatus::Offline
+        );
+        assert!(listed.description.unwrap().contains("not valid JSON"));
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn auth_required_catalog_source_returns_challenge_state() {
+        let source = StoredCatalogSource {
+            id: "locked-calibre".to_string(),
+            kind: CatalogConnectorKind::CalibreOpds,
+            title: "Locked Calibre".to_string(),
+            base_url: "fixture://calibre/root.xml".to_string(),
+            description: None,
+            auth: CatalogSourceAuthState {
+                kind: CatalogSourceAuthKind::Basic,
+                label: "Basic authentication metadata is configured.".to_string(),
+                configured: false,
+                required: true,
+            },
+            tags: Vec::new(),
+            created_at: 1,
+            updated_at: 2,
+        };
+
+        let page = browse_user_source(source, None);
+        let error = page.error.unwrap();
+        assert_eq!(error.code, CatalogErrorCode::AuthRequired);
+        assert!(page.entries.is_empty());
+        assert!(page.auth_challenge.is_some());
+        assert_eq!(
+            page.source.connectivity.status,
+            CatalogSourceConnectivityStatus::AuthRequired
+        );
     }
 }
