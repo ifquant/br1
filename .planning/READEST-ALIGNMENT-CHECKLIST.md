@@ -109,7 +109,7 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Outcome: header, footer, viewport, sidebar, PDF host, TXT paper, and foliate surfaces share consistent layout tokens and no obvious Readest-parity shell mismatch remains.
   - Touches: reader components and styles.
   - Verify: `pnpm check`; visual/source review; `git diff --check`.
-  - Done commit: pending
+  - Done commit: e3f5b83
   - Notes: normalized window-shell width and edge tokens across header, footer, viewport, and sidebar; removed the sidebar's extra window-mode vertical margin so pinned/overlay chrome lines up with the reader stage. Inspected PDF/TXT/foliate window surfaces and found no remaining shell-token drift after the sidebar margin fix.
 
 - [x] P0-3.1 Certify search cache, history, replay, and clearing behavior
