@@ -80,6 +80,9 @@
 
 - `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`
 - `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`
+- `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec exec playwright test tests/e2e/library-smoke.spec.ts -g "reader persists epub layout settings through reload in web mode"`
+
+这里有一个很具体的测试细节：菜单视觉上属于“阅读辅助”小节，但可访问的 radio group 是“阅读尺”和“聚焦模式”。测试应该按真正的 `aria-label` 找 group，否则会找不到按钮。
 
 ## 没有包含
 

@@ -245,7 +245,8 @@ test('reader persists epub layout settings through reload in web mode', async ({
       | '字号'
       | '行距'
       | '页边距'
-      | '阅读辅助',
+      | '阅读尺'
+      | '聚焦模式',
     optionLabel: string
   ) => {
     await page.getByRole('button', { name: '更多操作' }).click();
@@ -327,8 +328,8 @@ test('reader persists epub layout settings through reload in web mode', async ({
   await pickReaderSetting('字号', '大');
   await pickReaderSetting('行距', '舒展');
   await pickReaderSetting('页边距', '宽');
-  await pickReaderSetting('阅读辅助', '开启阅读尺');
-  await pickReaderSetting('阅读辅助', '行聚焦');
+  await pickReaderSetting('阅读尺', '开启阅读尺');
+  await pickReaderSetting('聚焦模式', '行聚焦');
   await page.reload();
 
   await expect(page.locator('.stage-error')).toHaveCount(0);
