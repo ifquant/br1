@@ -1,6 +1,6 @@
 # Readest Alignment Checklist
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Purpose
 
@@ -287,12 +287,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 0511
   - Notes: added Tauri-owned save/open dialog commands plus snapshot file parsing and apply helpers under `src-tauri/src/commands/sync_snapshot.rs`; wired minimal export/import actions into the existing library header menu instead of adding a new page; export builds a versioned sync snapshot from library metadata, reading state, bookmarks, notes, highlights workspace, and reader settings; import restores the persisted library/bookmark/note/highlight shapes and applies reader settings back into local storage with explicit success/error notices.
 
-- [ ] P2-3.3 Add the first remote sync provider
+- [x] P2-3.3 Add the first remote sync provider
   - Outcome: a provider-backed sync path exists with explicit offline, conflict, and retry semantics.
-  - Touches: sync provider abstraction, Tauri network/service boundary, tests.
-  - Verify: `pnpm check`; mocked provider sync regression; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Touches: sync provider abstraction, Tauri network/service boundary, tests, library sync actions.
+  - Verify: `pnpm check` (PASS); `pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/sync/model.test.js .tmp-sync-tests/src/lib/sync/remote.test.js` (PASS); `cargo test --manifest-path src-tauri/Cargo.toml remote_sync` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: added a first `readestCloud` remote provider on top of the snapshot substrate through a Tauri-owned `run_remote_sync` HTTP bridge. Renderer never supplies the remote URL; Tauri derives `BR1_READEST_CLOUD_SYNC_BASE_URL`, `BR1_READEST_CLOUD_SYNC_LIBRARY_ID`, and `BR1_READEST_CLOUD_SYNC_TOKEN` from local desktop env only, then talks to one provider-owned endpoint family. The library header now exposes minimal `Push` / `Pull` actions. Push refuses to overwrite a diverged remote snapshot and returns an explicit conflict state; pull restores the remote snapshot through the existing local apply path. Missing-config, offline, retryable failure, conflict, success, and empty-remote states all surface as product notices instead of getting collapsed into generic thrown errors.
 
 - [ ] P2-4.1 Add KOReader import/export mapping
   - Outcome: KOReader-compatible progress and annotation data can map into and out of the sync substrate without becoming the core model.
@@ -313,20 +313,20 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
 These checks apply to every P2 service slice.
 
 - [x] S-1 Renderer cannot turn catalog or translation commands into arbitrary network proxying
-  - Done commit: 0505
-  - Notes: catalog commands only; user-configured http/https OPDS URLs are persisted as source metadata but browsing returns an explicit unsupported product state unless the source maps to an allowlisted bundled fixture page, so renderer input still cannot trigger live arbitrary URL fetching.
+  - Done commit: 0505, this commit
+  - Notes: catalog commands only originally; now remote sync too. User-configured http/https OPDS URLs are still persisted only as source metadata, browsing still returns an explicit unsupported product state unless the source maps to an allowlisted bundled fixture page, and the new `readestCloud` sync path does not accept renderer-supplied URLs at all. Tauri derives the sync base URL and library id from local desktop env, constructs the endpoint family itself, and keeps auth/header use inside the desktop boundary.
 
 - [x] S-2 Renderer cannot use service flows to read arbitrary local files
   - Done commit: 0511
   - Notes: sync snapshot import/export now keeps file selection and save-path ownership inside Tauri dialogs. The renderer never supplies arbitrary snapshot filesystem paths; it only receives parsed snapshot content or file-name summaries, while restore writes go through Tauri-owned app-data paths and existing hashed storage roots.
 
 - [x] S-3 Long-lived provider credentials are not stored in renderer-only state
-  - Done commit: 0505
-  - Notes: catalog commands only; the renderer-facing catalog settings input stores only auth kind, required/configured booleans, and labels/redacted presence metadata. No password/token/cookie secret value is accepted or persisted by the catalog source settings command.
+  - Done commit: 0505, this commit
+  - Notes: catalog commands only originally; now remote sync too. The renderer-facing catalog settings input still stores only auth kind, required/configured booleans, and labels/redacted presence metadata, and the remote sync token is read from local desktop env only. No long-lived password/token/cookie secret is accepted from renderer state for either path.
 
 - [x] S-4 Network and filesystem failures produce product-level error states, not silent failures
-  - Done commit: 0505
-  - Notes: catalog commands only; invalid settings files, source settings write failures, unsupported live URLs, auth-required sources, and non-allowlisted page hrefs return `CatalogErrorState` or source connectivity states instead of silently dropping failures.
+  - Done commit: 0505, this commit
+  - Notes: catalog commands only originally; now remote sync too. Invalid settings files, source settings write failures, unsupported live URLs, auth-required sources, and non-allowlisted page hrefs still return `CatalogErrorState` or source connectivity states, and remote sync now returns explicit missing-config, offline, retryable-failure, conflict, success, and empty states instead of silently dropping network/file boundary failures.
 
 ## Completion Log
 

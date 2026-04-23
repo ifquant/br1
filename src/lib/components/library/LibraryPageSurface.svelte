@@ -33,6 +33,16 @@
     void actions.onImportSyncSnapshot();
   };
 
+  const handlePushRemoteSync = () => {
+    if (!actions.onPushRemoteSync) return;
+    void actions.onPushRemoteSync();
+  };
+
+  const handlePullRemoteSync = () => {
+    if (!actions.onPullRemoteSync) return;
+    void actions.onPullRemoteSync();
+  };
+
   const handleFilterChange = (
     event: CustomEvent<{ filterBy: 'all' | 'reading' | 'unstarted' | 'finished' }>
   ) => {
@@ -94,6 +104,8 @@
     on:importbooks={handleImportBooks}
     on:exportsyncsnapshot={handleExportSyncSnapshot}
     on:importsyncsnapshot={handleImportSyncSnapshot}
+    on:pushremotesync={handlePushRemoteSync}
+    on:pullremotesync={handlePullRemoteSync}
     on:filterchange={handleFilterChange}
     on:formatfilterchange={handleFormatFilterChange}
     on:collectionfilterchange={handleCollectionFilterChange}

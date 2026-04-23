@@ -47,6 +47,8 @@
     importDisabled: false,
     showSyncSnapshotActions: false,
     syncSnapshotBusy: false,
+    showRemoteSyncActions: false,
+    remoteSyncBusy: false,
     statusSummary: '',
     activeFilterDetail: '',
     activeFilterChips: [],
@@ -89,6 +91,8 @@
   let importDisabled = false;
   let showSyncSnapshotActions = false;
   let syncSnapshotBusy = false;
+  let showRemoteSyncActions = false;
+  let remoteSyncBusy = false;
   let statusSummary = '';
   let activeFilterDetail = '';
   let activeFilterChips: LibraryHeaderModel['activeFilterChips'] = [];
@@ -120,6 +124,8 @@
     importDisabled,
     showSyncSnapshotActions,
     syncSnapshotBusy,
+    showRemoteSyncActions,
+    remoteSyncBusy,
     statusSummary,
     activeFilterDetail,
     activeFilterChips,
@@ -139,6 +145,8 @@
     importbooks: void;
     exportsyncsnapshot: void;
     importsyncsnapshot: void;
+    pushremotesync: void;
+    pullremotesync: void;
     viewmodechange: { viewMode: 'grid' | 'list' };
     sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
     groupbychange: { groupBy: 'none' | 'author' | 'collection' | 'format' };
@@ -247,6 +255,16 @@
 
   const handleImportSyncSnapshot = () => {
     dispatch('importsyncsnapshot');
+    sortMenuOpen = false;
+  };
+
+  const handlePushRemoteSync = () => {
+    dispatch('pushremotesync');
+    sortMenuOpen = false;
+  };
+
+  const handlePullRemoteSync = () => {
+    dispatch('pullremotesync');
     sortMenuOpen = false;
   };
 
@@ -462,6 +480,30 @@
                 >
                   <span>恢复本地快照</span>
                   <small>{syncSnapshotBusy ? '进行中…' : '覆盖恢复当前持久化状态'}</small>
+                </button>
+              {/if}
+
+              {#if showRemoteSyncActions}
+                <span class="sort-menu-label secondary-label">云同步</span>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={remoteSyncBusy}
+                  on:click={handlePushRemoteSync}
+                >
+                  <span>推送到 Readest Cloud</span>
+                  <small>{remoteSyncBusy ? '进行中…' : '仅在云端未分叉时推送当前快照'}</small>
+                </button>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={remoteSyncBusy}
+                  on:click={handlePullRemoteSync}
+                >
+                  <span>从 Readest Cloud 拉取</span>
+                  <small>{remoteSyncBusy ? '进行中…' : '用云端快照覆盖当前本地状态'}</small>
                 </button>
               {/if}
             </div>

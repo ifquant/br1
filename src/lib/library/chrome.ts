@@ -34,6 +34,8 @@ type BuildLibraryPageChromeModelArgs = {
   importDisabled: boolean;
   showSyncSnapshotActions: boolean;
   syncSnapshotBusy: boolean;
+  showRemoteSyncActions: boolean;
+  remoteSyncBusy: boolean;
   notice: LibraryNoticeModel | null;
   showReadestMigration: boolean;
   readestLibraryCount: number;
@@ -71,6 +73,8 @@ export const buildLibraryPageChromeModel = ({
   importDisabled,
   showSyncSnapshotActions,
   syncSnapshotBusy,
+  showRemoteSyncActions,
+  remoteSyncBusy,
   notice,
   showReadestMigration,
   readestLibraryCount,
@@ -99,6 +103,8 @@ export const buildLibraryPageChromeModel = ({
     importDisabled,
     showSyncSnapshotActions,
     syncSnapshotBusy,
+    showRemoteSyncActions,
+    remoteSyncBusy,
     statusSummary,
     activeFilterDetail,
     activeFilterChips,

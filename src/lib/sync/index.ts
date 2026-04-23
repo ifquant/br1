@@ -40,3 +40,14 @@ export {
   type ReadingStateSyncPayload,
   type ReadingStateSyncRecord
 } from './types.js';
+export {
+  remoteSyncResultIsConflict,
+  remoteSyncResultNeedsRetry
+} from './remote.js';
+export type {
+  Br1RemoteSyncOperation,
+  Br1RemoteSyncProvider,
+  Br1RemoteSyncRequest,
+  Br1RemoteSyncResult,
+  Br1RemoteSyncStatus
+} from './remote.js';

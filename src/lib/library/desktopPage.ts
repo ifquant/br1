@@ -26,6 +26,8 @@ import type {
   LibraryShelfBook
 } from './types';
 import type {
+  Br1RemoteSyncRequest,
+  Br1RemoteSyncResult,
   LibraryImportActionResult,
   LibraryReaderTarget,
   PreparedSyncSnapshotRestore,
@@ -54,6 +56,8 @@ export type DesktopLibraryPageCoordinatorOptions = {
   setMigrationBusy: (busy: boolean) => void;
   getSyncSnapshotBusy: () => boolean;
   setSyncSnapshotBusy: (busy: boolean) => void;
+  getRemoteSyncBusy: () => boolean;
+  setRemoteSyncBusy: (busy: boolean) => void;
   setDesktopLibraryMode: (value: boolean) => void;
   setReadestLibraryCount: (count: number) => void;
   setShowReadestMigration: (value: boolean) => void;
@@ -79,6 +83,7 @@ export type DesktopLibraryPageCoordinatorOptions = {
   loadSyncSnapshotDialog: () => Promise<SyncSnapshotImportDialogResult>;
   prepareSyncSnapshotRestore: (snapshot: any) => PreparedSyncSnapshotRestore;
   applySyncSnapshot: (request: PreparedSyncSnapshotRestore['request']) => Promise<SyncSnapshotApplyResult>;
+  runRemoteSync: (request: Br1RemoteSyncRequest) => Promise<Br1RemoteSyncResult>;
   persistImportedReaderSettings: (
     storage: Storage | undefined,
     settings: PreparedSyncSnapshotRestore['readerSettings']
@@ -138,6 +143,8 @@ export type DesktopLibraryPageCoordinatorStateBindings = Pick<
   | 'setMigrationBusy'
   | 'getSyncSnapshotBusy'
   | 'setSyncSnapshotBusy'
+  | 'getRemoteSyncBusy'
+  | 'setRemoteSyncBusy'
   | 'setDesktopLibraryMode'
   | 'setReadestLibraryCount'
   | 'setShowReadestMigration'
@@ -169,6 +176,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   setMigrationBusy,
   syncSnapshotBusy,
   setSyncSnapshotBusy,
+  remoteSyncBusy,
+  setRemoteSyncBusy,
   setDesktopLibraryMode,
   setReadestLibraryCount,
   setShowReadestMigration,
@@ -189,6 +198,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   setMigrationBusy: (busy: boolean) => void;
   syncSnapshotBusy: boolean;
   setSyncSnapshotBusy: (busy: boolean) => void;
+  remoteSyncBusy: boolean;
+  setRemoteSyncBusy: (busy: boolean) => void;
   setDesktopLibraryMode: (value: boolean) => void;
   setReadestLibraryCount: (count: number) => void;
   setShowReadestMigration: (value: boolean) => void;
@@ -209,6 +220,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   setMigrationBusy,
   getSyncSnapshotBusy: () => syncSnapshotBusy,
   setSyncSnapshotBusy,
+  getRemoteSyncBusy: () => remoteSyncBusy,
+  setRemoteSyncBusy,
   setDesktopLibraryMode,
   setReadestLibraryCount,
   setShowReadestMigration,
@@ -232,6 +245,7 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   loadSyncSnapshotDialog,
   prepareSyncSnapshotRestore,
   applySyncSnapshot,
+  runRemoteSync,
   persistImportedReaderSettings,
   getStorage,
   detectReadestLibrary,
@@ -261,6 +275,7 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   loadSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['loadSyncSnapshotDialog'];
   prepareSyncSnapshotRestore: DesktopLibraryPageCoordinatorEnvironment['prepareSyncSnapshotRestore'];
   applySyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['applySyncSnapshot'];
+  runRemoteSync: DesktopLibraryPageCoordinatorEnvironment['runRemoteSync'];
   persistImportedReaderSettings: DesktopLibraryPageCoordinatorEnvironment['persistImportedReaderSettings'];
   getStorage: () => Storage | undefined;
   detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
@@ -290,6 +305,7 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   loadSyncSnapshotDialog,
   prepareSyncSnapshotRestore,
   applySyncSnapshot,
+  runRemoteSync,
   persistImportedReaderSettings,
   getStorage,
   detectReadestLibrary,
@@ -528,41 +544,51 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     });
   };
 
+  const buildCurrentSyncSnapshot = async () => {
+    const libraryBooks = await options.loadPersistedLibraryBooks();
+    const bookmarkStates = await Promise.all(
+      libraryBooks.map(async (book) => ({
+        bookKey: book.filePath,
+        bookmarks: await options.loadReaderBookmarks(book.filePath)
+      }))
+    );
+    const noteStates = await Promise.all(
+      libraryBooks.map(async (book) => ({
+        bookKey: book.filePath,
+        notes: await options.loadReaderNotes(book.filePath)
+      }))
+    );
+    const highlightsWorkspaceStates = (
+      await Promise.all(
+        libraryBooks.map(async (book) => ({
+          bookKey: book.filePath,
+          state: await options.loadReaderHighlightsWorkspaceState(book.filePath)
+        }))
+      )
+    ).flatMap((entry) => (entry.state ? [{ bookKey: entry.bookKey, state: entry.state }] : []));
+
+    return options.createLocalSyncSnapshot({
+      libraryBooks,
+      bookmarkStates,
+      noteStates,
+      highlightsWorkspaceStates,
+      readerSettings: options.readReaderSettings()
+    });
+  };
+
   const handleExportSyncSnapshot = async () => {
-    if (!options.canPersistLibrary() || options.getSyncSnapshotBusy()) return;
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
 
     options.setSyncSnapshotBusy(true);
     clearLibraryNotice();
     try {
-      const libraryBooks = await options.loadPersistedLibraryBooks();
-      const bookmarkStates = await Promise.all(
-        libraryBooks.map(async (book) => ({
-          bookKey: book.filePath,
-          bookmarks: await options.loadReaderBookmarks(book.filePath)
-        }))
-      );
-      const noteStates = await Promise.all(
-        libraryBooks.map(async (book) => ({
-          bookKey: book.filePath,
-          notes: await options.loadReaderNotes(book.filePath)
-        }))
-      );
-      const highlightsWorkspaceStates = (
-        await Promise.all(
-          libraryBooks.map(async (book) => ({
-            bookKey: book.filePath,
-            state: await options.loadReaderHighlightsWorkspaceState(book.filePath)
-          }))
-        )
-      ).flatMap((entry) => (entry.state ? [{ bookKey: entry.bookKey, state: entry.state }] : []));
-
-      const snapshot = options.createLocalSyncSnapshot({
-        libraryBooks,
-        bookmarkStates,
-        noteStates,
-        highlightsWorkspaceStates,
-        readerSettings: options.readReaderSettings()
-      });
+      const snapshot = await buildCurrentSyncSnapshot();
       const result = await options.saveSyncSnapshotDialog(snapshot);
 
       if (result.cancelled) {
@@ -583,7 +609,13 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   };
 
   const handleImportSyncSnapshot = async () => {
-    if (!options.canPersistLibrary() || options.getSyncSnapshotBusy()) return;
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
 
     options.setSyncSnapshotBusy(true);
     clearLibraryNotice();
@@ -615,6 +647,148 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     }
   };
 
+  const applyPulledRemoteSnapshot = async (result: Br1RemoteSyncResult) => {
+    if (!result.snapshot) {
+      setLibraryNotice('info', result.message);
+      return;
+    }
+
+    const prepared = options.prepareSyncSnapshotRestore(result.snapshot);
+    const applyResult = await options.applySyncSnapshot(prepared.request);
+    const restoredReaderSettings = options.persistImportedReaderSettings(
+      options.getStorage(),
+      prepared.readerSettings
+    );
+    await loadLibrary();
+
+    setLibraryNotice(
+      'info',
+      `${result.message} 书库 ${applyResult.libraryBookCount} 本，书签 ${applyResult.bookmarkBookCount} 本，笔记 ${applyResult.noteBookCount} 本，高亮工作区 ${applyResult.highlightsWorkspaceBookCount} 本${restoredReaderSettings ? '，阅读设置已更新。' : '。'}`
+    );
+  };
+
+  const handleRemoteSyncResult = ({
+    result,
+    retry,
+    conflictFallback
+  }: {
+    result: Br1RemoteSyncResult;
+    retry: () => void | Promise<void>;
+    conflictFallback?: (() => void | Promise<void>) | null;
+  }) => {
+    if (result.status === 'success') {
+      return;
+    }
+
+    if (result.status === 'empty') {
+      setLibraryNotice('info', result.message);
+      return;
+    }
+
+    if (result.status === 'conflict') {
+      setLibraryNotice(
+        'error',
+        result.message,
+        conflictFallback
+          ? {
+              label: '改为拉取云端',
+              run: conflictFallback
+            }
+          : undefined
+      );
+      return;
+    }
+
+    if (result.status === 'offline' || result.status === 'retryable-failure') {
+      setLibraryNotice('error', result.message, {
+        label: '重试',
+        run: retry
+      });
+      return;
+    }
+
+    setLibraryNotice('error', result.message);
+  };
+
+  const handlePushRemoteSync = async () => {
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
+
+    options.setRemoteSyncBusy(true);
+    clearLibraryNotice();
+    try {
+      const snapshot = await buildCurrentSyncSnapshot();
+      const result = await options.runRemoteSync({
+        provider: 'readestCloud',
+        operation: 'push',
+        snapshot
+      });
+
+      if (result.status === 'success') {
+        setLibraryNotice('info', result.message);
+        return;
+      }
+
+      handleRemoteSyncResult({
+        result,
+        retry: handlePushRemoteSync,
+        conflictFallback: handlePullRemoteSync
+      });
+    } catch (error) {
+      console.error('Failed to push the remote sync snapshot', error);
+      setLibraryNotice('error', '推送 Readest Cloud 失败，请稍后重试。', {
+        label: '重试',
+        run: handlePushRemoteSync
+      });
+    } finally {
+      options.setRemoteSyncBusy(false);
+    }
+  };
+
+  const handlePullRemoteSync = async () => {
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
+
+    options.setRemoteSyncBusy(true);
+    clearLibraryNotice();
+    try {
+      const snapshot = await buildCurrentSyncSnapshot();
+      const result = await options.runRemoteSync({
+        provider: 'readestCloud',
+        operation: 'pull',
+        snapshot
+      });
+
+      if (result.status === 'success') {
+        await applyPulledRemoteSnapshot(result);
+        return;
+      }
+
+      handleRemoteSyncResult({
+        result,
+        retry: handlePullRemoteSync
+      });
+    } catch (error) {
+      console.error('Failed to pull the remote sync snapshot', error);
+      setLibraryNotice('error', '拉取 Readest Cloud 失败，请稍后重试。', {
+        label: '重试',
+        run: handlePullRemoteSync
+      });
+    } finally {
+      options.setRemoteSyncBusy(false);
+    }
+  };
+
   return {
     clearLibraryNotice,
     setLibraryNotice,
@@ -634,7 +808,9 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     handleRepairLibraryBook,
     handleBulkRepairLibraryBooks,
     handleExportSyncSnapshot,
-    handleImportSyncSnapshot
+    handleImportSyncSnapshot,
+    handlePushRemoteSync,
+    handlePullRemoteSync
   };
 };
 
@@ -663,6 +839,8 @@ export const buildDesktopLibraryPageActionEnvironmentBindings = (
   onReadestMigration: coordinator.handleReadestMigrationClick,
   onExportSyncSnapshot: coordinator.handleExportSyncSnapshot,
   onImportSyncSnapshot: coordinator.handleImportSyncSnapshot,
+  onPushRemoteSync: coordinator.handlePushRemoteSync,
+  onPullRemoteSync: coordinator.handlePullRemoteSync,
   onOpenLink: coordinator.handleOpenReaderTarget,
   onImportBooks: coordinator.triggerImportPicker,
   onOpenSourcePath: coordinator.handleOpenSourcePath,

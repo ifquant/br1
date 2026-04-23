@@ -85,6 +85,7 @@
     previewLibraryRepairCandidate,
     removeLibraryBook,
     restoreRemovedLibraryBook,
+    runRemoteSync,
     saveSyncSnapshotDialog,
     updateLibraryBookMetadata,
     applySyncSnapshot,
@@ -196,6 +197,7 @@
   let showReadestMigration = false;
   let migrationBusy = false;
   let syncSnapshotBusy = false;
+  let remoteSyncBusy = false;
   let desktopLibraryMode = false;
   let bulkRepairBusy = false;
   let bulkRepairSummary = '';
@@ -397,6 +399,10 @@
       setSyncSnapshotBusy: (busy) => {
         syncSnapshotBusy = busy;
       },
+      remoteSyncBusy,
+      setRemoteSyncBusy: (busy) => {
+        remoteSyncBusy = busy;
+      },
       setDesktopLibraryMode: (value) => {
         desktopLibraryMode = value;
       },
@@ -428,6 +434,7 @@
       loadSyncSnapshotDialog,
       prepareSyncSnapshotRestore,
       applySyncSnapshot,
+      runRemoteSync,
       persistImportedReaderSettings,
       getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
       detectReadestLibrary,
@@ -601,7 +608,9 @@
     bulkRepairSummary,
     desktopLibraryMode,
     showSyncSnapshotActions: desktopLibraryMode,
-    syncSnapshotBusy
+    syncSnapshotBusy,
+    showRemoteSyncActions: desktopLibraryMode,
+    remoteSyncBusy
   });
   $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
     buildLibraryPageSurfaceSetFromProjectionState({

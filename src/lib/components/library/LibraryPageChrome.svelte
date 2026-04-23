@@ -34,6 +34,8 @@
       importDisabled: false,
       showSyncSnapshotActions: false,
       syncSnapshotBusy: false,
+      showRemoteSyncActions: false,
+      remoteSyncBusy: false,
       statusSummary: '',
       activeFilterDetail: '',
       activeFilterChips: [],
@@ -78,6 +80,8 @@
   on:importbooks
   on:exportsyncsnapshot
   on:importsyncsnapshot
+  on:pushremotesync
+  on:pullremotesync
   on:filterchange
   on:formatfilterchange
   on:collectionfilterchange

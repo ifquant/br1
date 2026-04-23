@@ -237,6 +237,8 @@ export type LibraryPageActions = {
   onReadestMigration?: (() => void | Promise<void>) | null;
   onExportSyncSnapshot?: (() => void | Promise<void>) | null;
   onImportSyncSnapshot?: (() => void | Promise<void>) | null;
+  onPushRemoteSync?: (() => void | Promise<void>) | null;
+  onPullRemoteSync?: (() => void | Promise<void>) | null;
   onOpenLink: (href: string) => void | Promise<void>;
   onImportBooks?: (() => void | Promise<void>) | null;
   onOpenSourcePath?: ((filePath: string) => void | Promise<void>) | null;
@@ -288,6 +290,8 @@ export type LibraryHeaderModel = {
   importDisabled: boolean;
   showSyncSnapshotActions: boolean;
   syncSnapshotBusy: boolean;
+  showRemoteSyncActions: boolean;
+  remoteSyncBusy: boolean;
   statusSummary: string;
   activeFilterDetail: string;
   activeFilterChips: LibraryActiveFilterChip[];

@@ -322,6 +322,8 @@ export const buildLibraryPageActions = (options: {
   onReadestMigration: () => void | Promise<void>;
   onExportSyncSnapshot: () => void | Promise<void>;
   onImportSyncSnapshot: () => void | Promise<void>;
+  onPushRemoteSync: () => void | Promise<void>;
+  onPullRemoteSync: () => void | Promise<void>;
   onOpenLink: (href: string) => void | Promise<void>;
   onImportBooks: () => void | Promise<void>;
   onOpenSourcePath: (filePath: string) => void | Promise<void>;
@@ -342,6 +344,8 @@ export const buildLibraryPageActions = (options: {
   onReadestMigration: options.onReadestMigration,
   onExportSyncSnapshot: options.onExportSyncSnapshot,
   onImportSyncSnapshot: options.onImportSyncSnapshot,
+  onPushRemoteSync: options.onPushRemoteSync,
+  onPullRemoteSync: options.onPullRemoteSync,
   onOpenLink: options.onOpenLink,
   onImportBooks: options.onImportBooks,
   onOpenSourcePath: options.onOpenSourcePath,
@@ -451,6 +455,8 @@ export const buildLibraryPageActionSet = (options: {
   onReadestMigration: () => void | Promise<void>;
   onExportSyncSnapshot: () => void | Promise<void>;
   onImportSyncSnapshot: () => void | Promise<void>;
+  onPushRemoteSync: () => void | Promise<void>;
+  onPullRemoteSync: () => void | Promise<void>;
   onOpenLink: (href: string) => void | Promise<void>;
   onImportBooks: () => void | Promise<void>;
   onOpenSourcePath: (filePath: string) => void | Promise<void>;
@@ -477,6 +483,8 @@ export const buildLibraryPageActionSet = (options: {
     onReadestMigration: options.onReadestMigration,
     onExportSyncSnapshot: options.onExportSyncSnapshot,
     onImportSyncSnapshot: options.onImportSyncSnapshot,
+    onPushRemoteSync: options.onPushRemoteSync,
+    onPullRemoteSync: options.onPullRemoteSync,
     onOpenLink: options.onOpenLink,
     onImportBooks: options.onImportBooks,
     onOpenSourcePath: options.onOpenSourcePath,

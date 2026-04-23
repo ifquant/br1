@@ -366,3 +366,29 @@ pub(crate) struct ApplySyncSnapshotResult {
     pub(crate) highlights_workspace_book_count: usize,
     pub(crate) restored_reader_settings: bool,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RemoteSyncRequest {
+    pub(crate) provider: String,
+    pub(crate) operation: String,
+    pub(crate) snapshot: SyncSnapshotDocument,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RemoteSyncResult {
+    pub(crate) provider: String,
+    pub(crate) operation: String,
+    pub(crate) status: String,
+    pub(crate) message: String,
+    pub(crate) retryable: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) local_fingerprint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) remote_fingerprint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) remote_exported_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) snapshot: Option<SyncSnapshotDocument>,
+}

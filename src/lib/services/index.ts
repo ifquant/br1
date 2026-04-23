@@ -120,3 +120,5 @@ export type {
   SyncSnapshotImportDialogResult,
   SyncSnapshotNoteState
 } from './syncSnapshot';
+export { runRemoteSync } from './remoteSync';
+export type { Br1RemoteSyncRequest, Br1RemoteSyncResult } from '$lib/sync';

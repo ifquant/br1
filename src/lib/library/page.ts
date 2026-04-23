@@ -122,6 +122,8 @@ export type LibraryPageSurfaceProjectionState = {
   importDisabled: boolean;
   showSyncSnapshotActions: boolean;
   syncSnapshotBusy: boolean;
+  showRemoteSyncActions: boolean;
+  remoteSyncBusy: boolean;
   notice: {
     kind: 'info' | 'error';
     message: string;
@@ -1198,7 +1200,9 @@ export const buildLibraryPageSurfaceProjectionState = ({
   bulkRepairSummary,
   desktopLibraryMode,
   showSyncSnapshotActions,
-  syncSnapshotBusy
+  syncSnapshotBusy,
+  showRemoteSyncActions,
+  remoteSyncBusy
 }: {
   projectionState: LibraryPageProjectionState;
   filterControlsState: LibraryFilterControlsState;
@@ -1216,6 +1220,8 @@ export const buildLibraryPageSurfaceProjectionState = ({
   desktopLibraryMode: boolean;
   showSyncSnapshotActions: boolean;
   syncSnapshotBusy: boolean;
+  showRemoteSyncActions: boolean;
+  remoteSyncBusy: boolean;
 }): LibraryPageSurfaceProjectionState => ({
   totalBooks: importedBooksCount || starterBooksCount,
   query: filterControlsState.query,
@@ -1240,6 +1246,8 @@ export const buildLibraryPageSurfaceProjectionState = ({
   statusSummary: projectionState.browseState.libraryStatusSummary,
   showSyncSnapshotActions,
   syncSnapshotBusy,
+  showRemoteSyncActions,
+  remoteSyncBusy,
   activeFilterDetail: projectionState.activeFilterDetail,
   activeFilterChips: projectionState.activeFilterChips,
   formatSummary: projectionState.filterProjectionState.formatSummary,

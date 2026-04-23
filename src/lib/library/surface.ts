@@ -61,6 +61,8 @@ type BuildLibraryPageSurfaceSetFromStateArgs = {
   importDisabled: boolean;
   showSyncSnapshotActions: boolean;
   syncSnapshotBusy: boolean;
+  showRemoteSyncActions: boolean;
+  remoteSyncBusy: boolean;
   notice: Parameters<typeof buildLibraryPageChromeModel>[0]['notice'];
   showReadestMigration: boolean;
   readestLibraryCount: number;
@@ -133,6 +135,8 @@ export const createEmptyLibraryPageSurfaceModel = (
       importDisabled: false,
       showSyncSnapshotActions: false,
       syncSnapshotBusy: false,
+      showRemoteSyncActions: false,
+      remoteSyncBusy: false,
       statusSummary: '',
       activeFilterDetail: '',
       activeFilterChips: [],
@@ -234,6 +238,8 @@ export const buildLibraryPageSurfaceSetFromState = ({
   importDisabled,
   showSyncSnapshotActions,
   syncSnapshotBusy,
+  showRemoteSyncActions,
+  remoteSyncBusy,
   notice,
   showReadestMigration,
   readestLibraryCount,
@@ -301,6 +307,8 @@ export const buildLibraryPageSurfaceSetFromState = ({
       importDisabled,
       showSyncSnapshotActions,
       syncSnapshotBusy,
+      showRemoteSyncActions,
+      remoteSyncBusy,
       notice,
       showReadestMigration,
       readestLibraryCount,
