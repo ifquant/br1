@@ -45,13 +45,15 @@ const getLookupLanguage = (
   return requestLanguage?.trim() || browserLanguage || 'en';
 };
 
-const createMissingTranslationKeyState = (
+const createMissingTranslationConfigState = (
   request: ReaderAssistanceRequest,
-  provider: ReaderTranslationProvider
+  provider: ReaderTranslationProvider,
+  label?: string
 ): ReaderAssistanceState =>
   createErrorReaderAssistanceState(
     request,
-    `${getReaderTranslationProviderDisplayLabel(provider)} translation has no API key configured yet.`
+    label?.trim() ||
+      `${getReaderTranslationProviderDisplayLabel(provider)} translation has no desktop configuration yet.`
   );
 
 export const createDefaultReaderTranslationProviderStatuses = (): ReaderTranslationProviderStatus[] =>
@@ -106,7 +108,11 @@ export const requestReaderAssistance = async (
       (status) => status.provider === normalizedRequest.provider
     );
     if (!providerStatus || !providerStatus.configured) {
-      return createMissingTranslationKeyState(normalizedRequest, normalizedRequest.provider);
+      return createMissingTranslationConfigState(
+        normalizedRequest,
+        normalizedRequest.provider,
+        providerStatus?.label
+      );
     }
 
     try {

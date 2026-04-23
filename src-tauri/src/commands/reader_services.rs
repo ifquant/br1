@@ -20,6 +20,8 @@ const TRANSLATION_TIMEOUT: Duration = Duration::from_secs(12);
 const TRANSLATION_PROVIDER_NAMES: &[&str] = &["deepl", "yandex"];
 const DEEPL_TRANSLATE_API_ENDPOINT: &str = "https://api.deepl.com/v2/translate";
 const DEEPL_TRANSLATE_API_FREE_ENDPOINT: &str = "https://api-free.deepl.com/v2/translate";
+const YANDEX_TRANSLATE_API_ENDPOINT: &str =
+    "https://translate.api.cloud.yandex.net/translate/v2/translate";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -171,6 +173,58 @@ struct DeepLTranslationEntry {
 struct DeepLErrorResponse {
     message: Option<String>,
     detail: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct YandexTranslationResponse {
+    #[serde(default)]
+    translations: Vec<YandexTranslationEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct YandexTranslationEntry {
+    text: String,
+    detected_language_code: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct YandexErrorResponse {
+    message: Option<String>,
+    details: Option<Vec<YandexErrorDetail>>,
+    error: Option<String>,
+    description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct YandexErrorDetail {
+    message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum YandexAuthMode {
+    ApiKey,
+    Bearer,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct YandexTranslationConfig {
+    auth_mode: YandexAuthMode,
+    auth_token: String,
+    folder_id: String,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct YandexTranslateRequestBody {
+    folder_id: String,
+    texts: Vec<String>,
+    target_language_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_language_code: Option<String>,
 }
 
 fn normalize_wikipedia_project(language: Option<&str>) -> String {
@@ -376,13 +430,152 @@ fn translation_provider_key_env_names(provider: &str) -> &'static [&'static str]
 }
 
 fn translation_provider_has_local_key(provider: &str) -> bool {
-    translation_provider_key_env_names(provider)
-        .iter()
-        .any(|name| {
-            std::env::var(name)
-                .map(|value| !value.trim().is_empty())
-                .unwrap_or(false)
+    match provider {
+        "yandex" => yandex_translation_config().is_ok(),
+        _ => translation_provider_key_env_names(provider)
+            .iter()
+            .any(|name| {
+                std::env::var(name)
+                    .map(|value| !value.trim().is_empty())
+                    .unwrap_or(false)
+            }),
+    }
+}
+
+fn env_value(names: &[&str]) -> Option<String> {
+    names.iter()
+        .find_map(|name| std::env::var(name).ok())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn yandex_folder_id() -> Option<String> {
+    env_value(&[
+        "BR1_YANDEX_TRANSLATE_FOLDER_ID",
+        "YANDEX_TRANSLATE_FOLDER_ID",
+        "BR1_YANDEX_FOLDER_ID",
+        "YANDEX_FOLDER_ID",
+    ])
+}
+
+fn yandex_iam_token() -> Option<String> {
+    env_value(&["BR1_YANDEX_TRANSLATE_IAM_TOKEN", "YANDEX_TRANSLATE_IAM_TOKEN"])
+}
+
+fn yandex_translation_config() -> Result<YandexTranslationConfig, String> {
+    let auth = if let Some(api_key) = env_value(translation_provider_key_env_names("yandex")) {
+        (YandexAuthMode::ApiKey, api_key)
+    } else if let Some(iam_token) = yandex_iam_token() {
+        (YandexAuthMode::Bearer, iam_token)
+    } else {
+        return Err(
+            "Yandex translation requires a local API key or IAM token in the desktop environment."
+                .to_string(),
+        );
+    };
+
+    let Some(folder_id) = yandex_folder_id() else {
+        return Err(
+            "Yandex translation requires a local folderId in the desktop environment."
+                .to_string(),
+        );
+    };
+
+    Ok(YandexTranslationConfig {
+        auth_mode: auth.0,
+        auth_token: auth.1,
+        folder_id,
+    })
+}
+
+fn yandex_provider_label() -> String {
+    match yandex_translation_config() {
+        Ok(config) => match config.auth_mode {
+            YandexAuthMode::ApiKey => {
+                "Yandex translation is configured in the desktop app via local API key and folderId."
+                    .to_string()
+            }
+            YandexAuthMode::Bearer => {
+                "Yandex translation is configured in the desktop app via local IAM token and folderId."
+                    .to_string()
+            }
+        },
+        Err(error) => error,
+    }
+}
+
+fn build_yandex_translate_url() -> Result<Url, String> {
+    Url::parse(YANDEX_TRANSLATE_API_ENDPOINT).map_err(|error| error.to_string())
+}
+
+fn build_yandex_translate_request_body(
+    text: &str,
+    source_language: Option<&str>,
+    target_language: &str,
+    folder_id: &str,
+) -> YandexTranslateRequestBody {
+    YandexTranslateRequestBody {
+        folder_id: folder_id.to_string(),
+        texts: vec![text.to_string()],
+        target_language_code: target_language.to_ascii_uppercase(),
+        source_language_code: source_language.map(|value| value.to_ascii_uppercase()),
+    }
+}
+
+fn extract_yandex_error_detail(payload: &str) -> Option<String> {
+    serde_json::from_str::<YandexErrorResponse>(payload)
+        .ok()
+        .and_then(|error| {
+            error
+                .message
+                .or_else(|| {
+                    error
+                        .details
+                        .as_ref()
+                        .and_then(|details| details.iter().find_map(|detail| detail.message.clone()))
+                })
+                .or(error.error)
+                .or(error.description)
         })
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn classify_yandex_http_error(
+    status: reqwest::StatusCode,
+    payload: &str,
+) -> ReaderAssistanceLookupResponse {
+    let detail = extract_yandex_error_detail(payload);
+    let lowered_detail = detail
+        .as_deref()
+        .map(|value| value.to_ascii_lowercase())
+        .unwrap_or_default();
+    let message = match status {
+        reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN => {
+            "Yandex translation credentials or folder configuration are invalid.".to_string()
+        }
+        reqwest::StatusCode::TOO_MANY_REQUESTS => {
+            "Yandex translation is rate limited right now.".to_string()
+        }
+        reqwest::StatusCode::BAD_REQUEST => {
+            if lowered_detail.contains("quota") || lowered_detail.contains("limit") {
+                "Yandex translation quota has been exceeded.".to_string()
+            } else {
+                "Yandex translation request is invalid. Check the local language or folder configuration."
+                    .to_string()
+            }
+        }
+        _ if lowered_detail.contains("quota") || lowered_detail.contains("limit") => {
+            "Yandex translation quota has been exceeded.".to_string()
+        }
+        _ => format!("Yandex translation failed with HTTP {}", status),
+    };
+
+    if let Some(detail) = detail {
+        build_error_response(format!("{message} ({detail})"))
+    } else {
+        build_error_response(message)
+    }
 }
 
 fn translation_provider_status_from_stored(
@@ -398,9 +591,17 @@ fn translation_provider_status_from_stored(
         },
         configured,
         label: if configured {
-            stored.label.clone()
+            if stored.provider == "yandex" {
+                yandex_provider_label()
+            } else {
+                stored.label.clone()
+            }
         } else {
-            default_translation_provider_label(&stored.provider, false)
+            if stored.provider == "yandex" {
+                yandex_provider_label()
+            } else {
+                default_translation_provider_label(&stored.provider, false)
+            }
         },
         updated_at: stored.updated_at,
     }
@@ -487,7 +688,13 @@ fn save_translation_provider_setting(
         .label
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| default_translation_provider_label(provider, configured));
+        .unwrap_or_else(|| {
+            if provider == "yandex" {
+                yandex_provider_label()
+            } else {
+                default_translation_provider_label(provider, configured)
+            }
+        });
     let next = StoredReaderTranslationProviderSettings {
         provider: provider.to_string(),
         configured,
@@ -952,6 +1159,82 @@ async fn fetch_deepl_translation(
     )
 }
 
+async fn fetch_yandex_translation(
+    client: &reqwest::Client,
+    text: &str,
+    source_language: Option<&str>,
+    target_language: &str,
+) -> ReaderAssistanceLookupResponse {
+    let config = match yandex_translation_config() {
+        Ok(config) => config,
+        Err(error) => return build_error_response(error),
+    };
+
+    let url = match build_yandex_translate_url() {
+        Ok(url) => url,
+        Err(error) => return build_error_response(error),
+    };
+
+    let body = build_yandex_translate_request_body(
+        text,
+        source_language,
+        target_language,
+        &config.folder_id,
+    );
+    let auth_header = match config.auth_mode {
+        YandexAuthMode::ApiKey => format!("Api-Key {}", config.auth_token),
+        YandexAuthMode::Bearer => format!("Bearer {}", config.auth_token),
+    };
+
+    let response = match client
+        .post(url)
+        .header("Authorization", auth_header)
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            if error.is_connect() || error.is_timeout() {
+                return build_offline_response("Yandex translation is unavailable right now.");
+            }
+
+            return build_error_response(error.to_string());
+        }
+    };
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let payload = response.text().await.unwrap_or_default();
+        return classify_yandex_http_error(status, &payload);
+    }
+
+    let payload: YandexTranslationResponse = match response.json().await {
+        Ok(payload) => payload,
+        Err(error) => return build_error_response(error.to_string()),
+    };
+
+    let Some(translation) = payload.translations.first() else {
+        return build_empty_response();
+    };
+
+    let translated_text = normalize_lookup_text(&translation.text, TRANSLATION_RESULT_BODY_LIMIT);
+    if translated_text.is_empty() {
+        return build_empty_response();
+    }
+
+    build_translation_response(
+        "yandex",
+        translation
+            .detected_language_code
+            .as_deref()
+            .or(source_language),
+        target_language,
+        text,
+        &translated_text,
+    )
+}
+
 #[tauri::command]
 pub(crate) async fn lookup_reader_assistance(
     request: ReaderAssistanceLookupRequest,
@@ -1021,6 +1304,10 @@ pub(crate) async fn translate_reader_assistance(
             fetch_deepl_translation(&client, &text, source_language.as_deref(), &target_language)
                 .await
         }
+        "yandex" => {
+            fetch_yandex_translation(&client, &text, source_language.as_deref(), &target_language)
+                .await
+        }
         other => build_error_response(format!(
             "{} translation bridge is not implemented yet.",
             translate_provider_label(other)
@@ -1074,16 +1361,17 @@ pub(crate) async fn save_reader_translation_provider_settings(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_deepl_translate_url, classify_deepl_http_error,
+        build_deepl_translate_url, build_yandex_translate_request_body, build_yandex_translate_url,
+        classify_deepl_http_error, classify_yandex_http_error,
         default_translation_provider_settings, default_translation_provider_statuses,
         format_dictionary_entry_body, normalize_dictionary_language, normalize_lookup_term,
         normalize_translation_language, normalize_translation_text, normalize_wikipedia_project,
         read_translation_provider_settings, save_translation_provider_setting,
         translation_provider_status_from_stored, write_translation_provider_settings,
         DictionaryDefinition, DictionaryEntryResponse, DictionaryMeaning, DictionaryPhonetic,
-        ReaderAssistanceLookupStatus, ReaderTranslationProviderSettingsInput,
+        ReaderAssistanceLookupStatus, ReaderTranslationProviderSettingsInput, YANDEX_TRANSLATE_API_ENDPOINT,
         ReaderTranslationProviderStatusKind, DEEPL_TRANSLATE_API_ENDPOINT,
-        DEEPL_TRANSLATE_API_FREE_ENDPOINT, TRANSLATION_TEXT_LIMIT,
+        DEEPL_TRANSLATE_API_FREE_ENDPOINT, TRANSLATION_TEXT_LIMIT, YandexTranslateRequestBody,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -1214,6 +1502,56 @@ mod tests {
         assert_eq!(
             auth.error.as_deref(),
             Some("DeepL API key is invalid or not authorized. (Authorization failed)")
+        );
+    }
+
+    #[test]
+    fn builds_yandex_request_body_and_endpoint_without_renderer_input() {
+        let url = build_yandex_translate_url().unwrap();
+        assert_eq!(url.as_str(), YANDEX_TRANSLATE_API_ENDPOINT);
+
+        let body = build_yandex_translate_request_body("Hello world", Some("en"), "zh", "folder-123");
+        assert_eq!(
+            body,
+            YandexTranslateRequestBody {
+                folder_id: "folder-123".to_string(),
+                texts: vec!["Hello world".to_string()],
+                target_language_code: "ZH".to_string(),
+                source_language_code: Some("EN".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn classifies_yandex_rate_quota_and_auth_failures_without_network() {
+        let rate = classify_yandex_http_error(
+            reqwest::StatusCode::TOO_MANY_REQUESTS,
+            r#"{"message":"Too many requests"}"#,
+        );
+        assert!(matches!(rate.status, ReaderAssistanceLookupStatus::Error));
+        assert_eq!(
+            rate.error.as_deref(),
+            Some("Yandex translation is rate limited right now. (Too many requests)")
+        );
+
+        let quota = classify_yandex_http_error(
+            reqwest::StatusCode::BAD_REQUEST,
+            r#"{"message":"Quota exceeded for folder"}"#,
+        );
+        assert!(matches!(quota.status, ReaderAssistanceLookupStatus::Error));
+        assert_eq!(
+            quota.error.as_deref(),
+            Some("Yandex translation quota has been exceeded. (Quota exceeded for folder)")
+        );
+
+        let auth = classify_yandex_http_error(
+            reqwest::StatusCode::FORBIDDEN,
+            r#"{"message":"Permission denied"}"#,
+        );
+        assert!(matches!(auth.status, ReaderAssistanceLookupStatus::Error));
+        assert_eq!(
+            auth.error.as_deref(),
+            Some("Yandex translation credentials or folder configuration are invalid. (Permission denied)")
         );
     }
 

@@ -266,12 +266,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 0508
   - Notes: reader assistance now routes translation requests through a Tauri-owned `translate_reader_assistance` command, DeepL endpoint selection is server-side allowlisted (`api.deepl.com` / `api-free.deepl.com`) based on the local key, missing-key/offline/quota-auth-config-success states are mapped explicitly, and the assist sidebar can translate the current selection or fall back to the current chapter/title text without exposing a renderer-controlled proxy URL. Tutorial: `tutorials/commit/0508-implement-reader-deepl-translation-bridge.md`.
 
-- [ ] P2-2.3 Implement Yandex translation bridge
+- [x] P2-2.3 Implement Yandex translation bridge
   - Outcome: Yandex uses the same translation request/result workflow as DeepL.
   - Touches: translation provider, config UI, tests.
-  - Verify: `pnpm check`; mocked provider test; `git diff --check`.
-  - Done commit:
-  - Notes: same groundwork as P2-2.2; the provider split is modeled, but the actual translation response path remains open.
+  - Verify: `node --test --experimental-strip-types src/lib/reader/assistance.test.mjs`; `pnpm check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo check --manifest-path src-tauri/Cargo.toml`; `git diff --check`.
+  - Done commit: 0509
+  - Notes: Yandex now rides the same `translate_reader_assistance` Tauri command and reader assist result state as DeepL, the sidebar translation mode exposes both providers through the same existing chip row, and Tauri derives Yandex auth (`Api-Key` or `Bearer`) plus required `folderId` from local env only. Missing local auth/folder config, offline failures, auth/config failures, and rate/quota-style failures are surfaced as explicit states without adding a generic proxy or renderer-controlled URL. Tutorial: `tutorials/commit/0509-implement-reader-yandex-translation-bridge.md`.
 
 - [ ] P2-3.1 Add the sync substrate data model
   - Outcome: library metadata, reading state, bookmarks, notes, highlights, and settings have exportable/importable sync records and stable ids.

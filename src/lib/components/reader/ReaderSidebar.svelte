@@ -41,6 +41,8 @@
     saveReaderHighlightsWorkspaceState
   } from '$lib/services';
 
+  const TRANSLATION_PROVIDER_OPTIONS: ReaderTranslationProvider[] = ['deepl', 'yandex'];
+
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
   export let isWindowMode = false;
@@ -1818,7 +1820,7 @@
             <strong>{assistMode === 'translation' ? '翻译' : assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}</strong>
             <span>
               {#if assistMode === 'translation'}
-                使用桌面端托管的 DeepL key 翻译当前选区；没有选区时回退到当前章节标题。
+                使用桌面端托管的翻译配置翻译当前选区；没有选区时回退到当前章节标题。
               {:else if assistLookupProvider === 'dictionary'}
                 从当前选区或手动输入的英文词条里查找释义。
               {:else}
@@ -1844,7 +1846,7 @@
               <span>
                 目标语言：{assistTranslationTargetLanguage.toUpperCase()}。
                 {#if activeTranslationProviderStatus && !activeTranslationProviderStatus.configured}
-                  当前没有本地 DeepL key。
+                  {activeTranslationProviderStatus.label}
                 {:else}
                   当前 provider：{getReaderTranslationProviderDisplayLabel(assistTranslationProvider)}。
                 {/if}
@@ -1961,17 +1963,19 @@
               >
                 English
               </button>
-              <button
-                type="button"
-                class:active={assistTranslationProvider === 'deepl'}
-                class="assist-chip"
-                aria-pressed={assistTranslationProvider === 'deepl'}
-                on:click={() => {
-                  assistTranslationProvider = 'deepl';
-                }}
-              >
-                DeepL
-              </button>
+              {#each TRANSLATION_PROVIDER_OPTIONS as provider}
+                <button
+                  type="button"
+                  class:active={assistTranslationProvider === provider}
+                  class="assist-chip"
+                  aria-pressed={assistTranslationProvider === provider}
+                  on:click={() => {
+                    assistTranslationProvider = provider;
+                  }}
+                >
+                  {getReaderTranslationProviderDisplayLabel(provider)}
+                </button>
+              {/each}
             {:else}
               <button
                 type="button"
