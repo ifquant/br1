@@ -16,6 +16,12 @@ Older Readest planning documents were consolidated into this checklist so the re
 
 When a checklist item ships, update that item from `- [ ]` to `- [x]`, fill in its done commit and verification notes, then commit the checklist update with the implementation slice.
 
+Detailed worker handoff:
+
+- `docs/superpowers/plans/2026-04-23-readest-alignment-phase-1.md`
+
+That handoff explains files, task order, and test commands. This checklist remains the only status ledger.
+
 ## Sources
 
 - Current `br1` codebase and prior planning docs as of 2026-04-23
