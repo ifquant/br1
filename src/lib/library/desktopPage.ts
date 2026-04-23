@@ -125,6 +125,62 @@ export const buildDesktopLibraryPageCoordinatorStateBindings = (
   bindings: DesktopLibraryPageCoordinatorStateBindings
 ) => bindings;
 
+export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
+  libraryNotice,
+  setLibraryNotice,
+  persistedLibraryRecords,
+  setPersistedLibraryRecords,
+  setReadestCompatibleCount,
+  setImportedBooks,
+  bulkRepairBusy,
+  setBulkRepairBusy,
+  setBulkRepairSummary,
+  bulkRepairEligibleQueueBooks,
+  migrationBusy,
+  setMigrationBusy,
+  setDesktopLibraryMode,
+  setReadestLibraryCount,
+  setShowReadestMigration,
+  getImportInput,
+  setImportInputValue
+}: {
+  libraryNotice: LibraryNoticeState | null;
+  setLibraryNotice: SetLibraryNoticeState;
+  persistedLibraryRecords: PersistedLibraryBook[];
+  setPersistedLibraryRecords: (records: PersistedLibraryBook[]) => void;
+  setReadestCompatibleCount: (count: number) => void;
+  setImportedBooks: (books: LibraryShelfBook[]) => void;
+  bulkRepairBusy: boolean;
+  setBulkRepairBusy: (busy: boolean) => void;
+  setBulkRepairSummary: (summary: string) => void;
+  bulkRepairEligibleQueueBooks: LibraryShelfBook[];
+  migrationBusy: boolean;
+  setMigrationBusy: (busy: boolean) => void;
+  setDesktopLibraryMode: (value: boolean) => void;
+  setReadestLibraryCount: (count: number) => void;
+  setShowReadestMigration: (value: boolean) => void;
+  getImportInput: () => HTMLInputElement | null;
+  setImportInputValue: (value: string) => void;
+}): DesktopLibraryPageCoordinatorStateBindings => ({
+  getLibraryNoticeState: () => libraryNotice,
+  setLibraryNoticeState: setLibraryNotice,
+  setPersistedLibraryRecords,
+  setReadestCompatibleCount,
+  setImportedBooks,
+  getPersistedLibraryRecords: () => persistedLibraryRecords,
+  getBulkRepairBusy: () => bulkRepairBusy,
+  setBulkRepairBusy,
+  setBulkRepairSummary,
+  getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
+  getMigrationBusy: () => migrationBusy,
+  setMigrationBusy,
+  setDesktopLibraryMode,
+  setReadestLibraryCount,
+  setShowReadestMigration,
+  getImportInput,
+  setImportInputValue
+});
+
 export const buildDesktopLibraryPageCoordinatorEnvironment = (
   env: DesktopLibraryPageCoordinatorEnvironment
 ) => env;

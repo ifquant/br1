@@ -248,6 +248,7 @@ The current codebase is strongest on local desktop reading foundations. It is st
 - the library page now also routes page-action state adapter composition through a shared controller binding, so `+page.svelte` no longer has to reassemble filter controls, browse location, and sort/view setters before building the page action set
 - the library page now also routes scroll-context key comparison and viewport-sync orchestration through a shared runtime helper, so `+page.svelte` no longer manually compute, compare, assign, and sync scroll keys inline
 - the library page now also routes desktop coordinator to page-action environment mapping through a shared desktopPage helper, so `+page.svelte` no longer manually spread coordinator methods into the page action set
+- the library page now also builds desktop coordinator state bindings from current page state through a shared desktopPage helper, so `+page.svelte` no longer manually wrap a large set of current values into getter-shaped coordinator state inputs
 
 But measured against the full feature list, the project is still **core-reader strong, service/ecosystem weak**.
 

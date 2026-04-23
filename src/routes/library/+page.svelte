@@ -30,7 +30,7 @@
     buildDesktopLibraryPageActionEnvironmentBindings,
     buildDesktopLibraryPageCoordinatorEnvironment,
     buildDesktopLibraryPageCoordinatorFromBindings,
-    buildDesktopLibraryPageCoordinatorStateBindings
+    buildDesktopLibraryPageCoordinatorStateBindingsFromPageState
   } from '$lib/library/desktopPage';
   import {
     buildLibraryPageSurfaceSetFromState,
@@ -357,11 +357,12 @@
   const getLibraryViewport = () => libraryScrollRef?.osInstance()?.elements().viewport ?? null;
 
   const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromBindings({
-    state: buildDesktopLibraryPageCoordinatorStateBindings({
-      getLibraryNoticeState: () => libraryNotice,
-      setLibraryNoticeState: (notice) => {
+    state: buildDesktopLibraryPageCoordinatorStateBindingsFromPageState({
+      libraryNotice,
+      setLibraryNotice: (notice) => {
         libraryNotice = notice;
       },
+      persistedLibraryRecords,
       setPersistedLibraryRecords: (records) => {
         persistedLibraryRecords = records;
       },
@@ -371,16 +372,15 @@
       setImportedBooks: (books) => {
         importedBooks = books;
       },
-      getPersistedLibraryRecords: () => persistedLibraryRecords,
-      getBulkRepairBusy: () => bulkRepairBusy,
+      bulkRepairBusy,
       setBulkRepairBusy: (busy) => {
         bulkRepairBusy = busy;
       },
       setBulkRepairSummary: (summary) => {
         bulkRepairSummary = summary;
       },
-      getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
-      getMigrationBusy: () => migrationBusy,
+      bulkRepairEligibleQueueBooks,
+      migrationBusy,
       setMigrationBusy: (busy) => {
         migrationBusy = busy;
       },
