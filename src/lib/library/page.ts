@@ -1,8 +1,15 @@
 import { filterBooksByLibraryGroupScope } from './navigation';
+import {
+  buildManualRelinkReview,
+  isPersistedRecordBulkRepairEligible,
+  lookupPersistedRecordForBook
+} from './desktopRecords';
 import type {
   LibraryActiveFilterChip,
+  ContinueReadingBook,
   LibraryShelfBook
 } from './types';
+import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
 
 export type LibraryFilter = 'all' | 'reading' | 'unstarted' | 'finished';
 
@@ -46,11 +53,39 @@ export type DesktopLibraryBrowseDerivations = LibraryBrowseDerivations & {
 };
 
 export type LibraryPageDerivations = {
-  searchActive: boolean;
   activeFilterState: LibraryActiveFilterState;
   desktopBrowse: DesktopLibraryBrowseDerivations;
   starterBrowse: LibraryBrowseDerivations;
   filterSummary: string;
+};
+
+export type LibraryPageViewState = {
+  recoveryQueueBooks: LibraryShelfBook[];
+  continueReadingBooks: LibraryShelfBook[];
+  recentReadingBooks: LibraryShelfBook[];
+  libraryShelfBooks: LibraryShelfBook[];
+  filteredRecoveryQueueBooks: LibraryShelfBook[];
+  recoveryQueueReviewBooks: ContinueReadingBook[];
+  bulkRepairEligibleQueueBooks: LibraryShelfBook[];
+  manualRepairQueueCount: number;
+  recoveryQueueSummaryText: string;
+  libraryStatusSummary: string;
+  filteredContinueReadingBooks: LibraryShelfBook[];
+  filteredRecentReadingBooks: LibraryShelfBook[];
+  filteredLibraryBrowseBooks: LibraryShelfBook[];
+  filteredLibraryShelfBooks: LibraryShelfBook[];
+  libraryGroupedBrowseMode: boolean;
+  visibleLibraryBooksCount: number;
+  readingWorkflowNotice: DesktopLibraryBrowseDerivations['workflowNotice'];
+  starterContinueReadingBooks: LibraryShelfBook[];
+  starterRecentReadingBooks: LibraryShelfBook[];
+  starterShelfBooks: LibraryShelfBook[];
+  filteredStarterContinueReadingBooks: LibraryShelfBook[];
+  filteredStarterRecentReadingBooks: LibraryShelfBook[];
+  filteredStarterBrowseBooks: LibraryShelfBook[];
+  filteredStarterShelfBooks: LibraryShelfBook[];
+  visibleStarterLibraryBooksCount: number;
+  starterReadingWorkflowNotice: LibraryBrowseDerivations['workflowNotice'];
 };
 
 export const getLibraryBookKey = (book: LibraryShelfBook) =>
@@ -779,6 +814,14 @@ export const buildLibraryPageDerivations = ({
   desktopLibraryMode: boolean;
 }): LibraryPageDerivations => {
   const searchActive = normalizeLibrarySearchText(query).length > 0;
+  const activeFilterState = buildLibraryActiveFilterState({
+    searchActive,
+    query,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter
+  });
   const desktopBrowse = buildDesktopLibraryBrowseDerivations({
     books: importedBooks,
     query,
@@ -801,17 +844,9 @@ export const buildLibraryPageDerivations = ({
     groupBy,
     groupScope
   });
-  const activeFilterState = buildLibraryActiveFilterState({
-    searchActive,
-    query,
-    filterBy,
-    formatFilter,
-    collectionFilter,
-    tagFilter
-  });
   const filterSummary = isLibraryViewFiltered({
-      searchActive,
-      filterBy,
+    searchActive,
+    filterBy,
       formatFilter,
       collectionFilter,
       tagFilter
@@ -822,10 +857,77 @@ export const buildLibraryPageDerivations = ({
     : '';
 
   return {
-    searchActive,
     activeFilterState,
     desktopBrowse,
     starterBrowse,
     filterSummary
+  };
+};
+
+export const buildLibraryPageViewState = ({
+  desktopBrowse,
+  starterBrowse,
+  persistedLibraryRecords,
+  desktopLibraryMode
+}: {
+  desktopBrowse: DesktopLibraryBrowseDerivations;
+  starterBrowse: LibraryBrowseDerivations;
+  persistedLibraryRecords: PersistedLibraryBook[];
+  desktopLibraryMode: boolean;
+}): LibraryPageViewState => {
+  const filteredRecoveryQueueBooks = desktopBrowse.filteredRecoveryQueueBooks;
+  const recoveryQueueReviewBooks = filteredRecoveryQueueBooks.map(
+    (book): ContinueReadingBook => ({
+      ...book,
+      manualRelinkReview: buildManualRelinkReview({
+        book,
+        persistedRecords: persistedLibraryRecords,
+        persistedRecord: lookupPersistedRecordForBook(persistedLibraryRecords, book)
+      })
+    })
+  );
+  const bulkRepairEligibleQueueBooks = filteredRecoveryQueueBooks.filter((book) => {
+    const persistedRecord = lookupPersistedRecordForBook(persistedLibraryRecords, book);
+    return !!persistedRecord && isPersistedRecordBulkRepairEligible(persistedRecord);
+  });
+  const manualRepairQueueCount = Math.max(
+    0,
+    filteredRecoveryQueueBooks.length - bulkRepairEligibleQueueBooks.length
+  );
+  const recoveryQueueSummaryText =
+    filteredRecoveryQueueBooks.length > 0
+      ? `共 ${filteredRecoveryQueueBooks.length} 本待处理；${bulkRepairEligibleQueueBooks.length} 本可批量修复副本，${manualRepairQueueCount} 本需逐本复核重关联。`
+      : '这些书的原文件路径或书库副本已经失效。优先逐本修复，避免后续继续扩散为重复条目。';
+
+  return {
+    recoveryQueueBooks: desktopBrowse.recoveryQueueBooks,
+    continueReadingBooks: desktopBrowse.continueReadingBooks,
+    recentReadingBooks: desktopBrowse.recentReadingBooks,
+    libraryShelfBooks: desktopBrowse.shelfBooks,
+    filteredRecoveryQueueBooks,
+    recoveryQueueReviewBooks,
+    bulkRepairEligibleQueueBooks,
+    manualRepairQueueCount,
+    recoveryQueueSummaryText,
+    libraryStatusSummary:
+      desktopLibraryMode && filteredRecoveryQueueBooks.length > 0
+        ? `待修复 ${filteredRecoveryQueueBooks.length} · 可批量 ${bulkRepairEligibleQueueBooks.length} · 需复核 ${manualRepairQueueCount}`
+        : '',
+    filteredContinueReadingBooks: desktopBrowse.filteredContinueReadingBooks,
+    filteredRecentReadingBooks: desktopBrowse.filteredRecentReadingBooks,
+    filteredLibraryBrowseBooks: desktopBrowse.filteredBrowseBooks,
+    filteredLibraryShelfBooks: desktopBrowse.filteredShelfBooks,
+    libraryGroupedBrowseMode: desktopBrowse.groupedBrowseMode,
+    visibleLibraryBooksCount: desktopBrowse.visibleBooksCount,
+    readingWorkflowNotice: desktopBrowse.workflowNotice,
+    starterContinueReadingBooks: starterBrowse.continueReadingBooks,
+    starterRecentReadingBooks: starterBrowse.recentReadingBooks,
+    starterShelfBooks: starterBrowse.shelfBooks,
+    filteredStarterContinueReadingBooks: starterBrowse.filteredContinueReadingBooks,
+    filteredStarterRecentReadingBooks: starterBrowse.filteredRecentReadingBooks,
+    filteredStarterBrowseBooks: starterBrowse.filteredBrowseBooks,
+    filteredStarterShelfBooks: starterBrowse.filteredShelfBooks,
+    visibleStarterLibraryBooksCount: starterBrowse.visibleBooksCount,
+    starterReadingWorkflowNotice: starterBrowse.workflowNotice
   };
 };

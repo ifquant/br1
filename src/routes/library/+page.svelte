@@ -22,11 +22,6 @@
   } from '$lib/library/controller';
   import { buildDesktopLibraryPageCoordinator } from '$lib/library/desktopPage';
   import {
-    buildManualRelinkReview as buildDesktopManualRelinkReview,
-    isPersistedRecordBulkRepairEligible,
-    lookupPersistedRecordForBook
-  } from '$lib/library/desktopRecords';
-  import {
     createEmptyLibraryPageSurfaceModel,
     buildLibraryPageSurfaceSet
   } from '$lib/library/surface';
@@ -38,10 +33,14 @@
     syncLibraryBrowseLocation as syncSharedLibraryBrowseLocation
   } from '$lib/library/runtime';
   import {
+    buildLibraryActiveFilterState,
     buildLibraryFilterState,
-    buildLibraryPageDerivations,
+    buildLibraryPageViewState,
+    buildDesktopLibraryBrowseDerivations,
     getLibraryEmptyFilterTitle,
+    isLibraryViewFiltered,
     normalizeLibrarySearchText,
+    buildStarterLibraryBrowseDerivations,
     type DesktopLibraryBrowseDerivations,
     type LibraryBrowseDerivations,
     type LibraryFilter,
@@ -456,15 +455,21 @@
     });
   });
 
-  $: ({
+  $: librarySearchActive = normalizeLibrarySearchText(libraryQuery).length > 0;
+  $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
+  $: libraryFilterState = buildLibraryFilterState({
+    summaryBooks: librarySummaryBooks
+  });
+  $: libraryActiveFilterState = buildLibraryActiveFilterState({
     searchActive: librarySearchActive,
-    activeFilterState: libraryActiveFilterState,
-    desktopBrowse: desktopLibraryBrowse,
-    starterBrowse: starterLibraryBrowse,
-    filterSummary: libraryFilterSummary
-  } = buildLibraryPageDerivations({
-    importedBooks,
-    starterLibraryBooks,
+    query: libraryQuery,
+    filterBy: libraryFilterBy,
+    formatFilter: libraryFormatFilter,
+    collectionFilter: libraryCollectionFilter,
+    tagFilter: libraryTagFilter
+  });
+  $: desktopLibraryBrowse = buildDesktopLibraryBrowseDerivations({
+    books: importedBooks,
     query: libraryQuery,
     sortBy: librarySortBy,
     filterBy: libraryFilterBy,
@@ -472,32 +477,32 @@
     collectionFilter: libraryCollectionFilter,
     tagFilter: libraryTagFilter,
     groupBy: libraryGroupBy,
-    groupScope: libraryGroupScope,
-    desktopLibraryMode
-  }));
-  $: librarySummaryBooks = importedBooks.length ? importedBooks : starterLibraryBooks;
-  $: libraryFilterState = buildLibraryFilterState({
-    summaryBooks: librarySummaryBooks
+    groupScope: libraryGroupScope
   });
-  $: recoveryQueueBooks = desktopLibraryBrowse.recoveryQueueBooks;
-  $: continueReadingBooks = desktopLibraryBrowse.continueReadingBooks;
-  $: recentReadingBooks = desktopLibraryBrowse.recentReadingBooks;
-  $: libraryShelfBooks = desktopLibraryBrowse.shelfBooks;
-  $: libraryStatusOptionCounts = libraryFilterState.statusOptionCounts;
-  $: libraryFormatOptions = libraryFilterState.formatOptions;
-  $: libraryCollectionOptions = libraryFilterState.collectionOptions;
-  $: libraryTagOptions = libraryFilterState.tagOptions;
-  $: libraryFormatOptionCounts = libraryFilterState.formatOptionCounts;
-  $: libraryCollectionOptionCounts = libraryFilterState.collectionOptionCounts;
-  $: libraryTagOptionCounts = libraryFilterState.tagOptionCounts;
-  $: libraryFormatSummary = libraryFilterState.formatSummary;
-  $: libraryCollectionSummary = libraryFilterState.collectionSummary;
-  $: libraryTagSummary = libraryFilterState.tagSummary;
-  $: libraryCoverSummary = libraryFilterState.coverSummary;
+  $: starterLibraryBrowse = buildStarterLibraryBrowseDerivations({
+    books: starterLibraryBooks,
+    query: libraryQuery,
+    sortBy: librarySortBy,
+    filterBy: libraryFilterBy,
+    formatFilter: libraryFormatFilter,
+    collectionFilter: libraryCollectionFilter,
+    tagFilter: libraryTagFilter,
+    groupBy: libraryGroupBy,
+    groupScope: libraryGroupScope
+  });
+  $: libraryFilterSummary = isLibraryViewFiltered({
+    searchActive: librarySearchActive,
+    filterBy: libraryFilterBy,
+    formatFilter: libraryFormatFilter,
+    collectionFilter: libraryCollectionFilter,
+    tagFilter: libraryTagFilter
+  })
+    ? `筛选命中 ${
+        desktopLibraryMode ? desktopLibraryBrowse.visibleBooksCount : starterLibraryBrowse.visibleBooksCount
+      } / ${librarySummaryBooks.length} 本`
+    : '';
   $: ({ groupBy: libraryGroupBy, groupScope: libraryGroupScope, trail: libraryBrowseTrail } =
     getLibraryBrowseStateFromUrl($page.url));
-  $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
-  $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
   $: if (libraryFormatFilter !== 'all' && !libraryFormatOptions.includes(libraryFormatFilter)) {
     libraryFormatFilter = 'all';
   }
@@ -524,49 +529,52 @@
   ) {
     void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
   }
-  $: filteredRecoveryQueueBooks = desktopLibraryBrowse.filteredRecoveryQueueBooks;
-  $: recoveryQueueReviewBooks = filteredRecoveryQueueBooks.map(
-    (book): ContinueReadingBook => ({
-      ...book,
-      manualRelinkReview: buildDesktopManualRelinkReview({
-        book,
-        persistedRecords: persistedLibraryRecords,
-        persistedRecord: lookupPersistedRecordForBook(persistedLibraryRecords, book)
-      })
-    })
-  );
-  $: bulkRepairEligibleQueueBooks = filteredRecoveryQueueBooks.filter((book) => {
-    const persistedRecord = lookupPersistedRecordForBook(persistedLibraryRecords, book);
-    return !!persistedRecord && isPersistedRecordBulkRepairEligible(persistedRecord);
-  });
-  $: manualRepairQueueCount = Math.max(
-    0,
-    filteredRecoveryQueueBooks.length - bulkRepairEligibleQueueBooks.length
-  );
-  $: recoveryQueueSummaryText =
-    filteredRecoveryQueueBooks.length > 0
-      ? `共 ${filteredRecoveryQueueBooks.length} 本待处理；${bulkRepairEligibleQueueBooks.length} 本可批量修复副本，${manualRepairQueueCount} 本需逐本复核重关联。`
-      : '这些书的原文件路径或书库副本已经失效。优先逐本修复，避免后续继续扩散为重复条目。';
-  $: libraryStatusSummary =
-    desktopLibraryMode && filteredRecoveryQueueBooks.length > 0
-      ? `待修复 ${filteredRecoveryQueueBooks.length} · 可批量 ${bulkRepairEligibleQueueBooks.length} · 需复核 ${manualRepairQueueCount}`
-      : '';
-  $: filteredContinueReadingBooks = desktopLibraryBrowse.filteredContinueReadingBooks;
-  $: filteredRecentReadingBooks = desktopLibraryBrowse.filteredRecentReadingBooks;
-  $: filteredLibraryBrowseBooks = desktopLibraryBrowse.filteredBrowseBooks;
-  $: filteredLibraryShelfBooks = desktopLibraryBrowse.filteredShelfBooks;
-  $: libraryGroupedBrowseMode = desktopLibraryBrowse.groupedBrowseMode;
-  $: visibleLibraryBooksCount = desktopLibraryBrowse.visibleBooksCount;
-  $: readingWorkflowNotice = desktopLibraryBrowse.workflowNotice;
-  $: starterContinueReadingBooks = starterLibraryBrowse.continueReadingBooks;
-  $: starterRecentReadingBooks = starterLibraryBrowse.recentReadingBooks;
-  $: starterShelfBooks = starterLibraryBrowse.shelfBooks;
-  $: filteredStarterContinueReadingBooks = starterLibraryBrowse.filteredContinueReadingBooks;
-  $: filteredStarterRecentReadingBooks = starterLibraryBrowse.filteredRecentReadingBooks;
-  $: filteredStarterBrowseBooks = starterLibraryBrowse.filteredBrowseBooks;
-  $: filteredStarterShelfBooks = starterLibraryBrowse.filteredShelfBooks;
-  $: visibleStarterLibraryBooksCount = starterLibraryBrowse.visibleBooksCount;
-  $: starterReadingWorkflowNotice = starterLibraryBrowse.workflowNotice;
+  $: libraryStatusOptionCounts = libraryFilterState.statusOptionCounts;
+  $: libraryFormatOptions = libraryFilterState.formatOptions;
+  $: libraryCollectionOptions = libraryFilterState.collectionOptions;
+  $: libraryTagOptions = libraryFilterState.tagOptions;
+  $: libraryFormatOptionCounts = libraryFilterState.formatOptionCounts;
+  $: libraryCollectionOptionCounts = libraryFilterState.collectionOptionCounts;
+  $: libraryTagOptionCounts = libraryFilterState.tagOptionCounts;
+  $: libraryFormatSummary = libraryFilterState.formatSummary;
+  $: libraryCollectionSummary = libraryFilterState.collectionSummary;
+  $: libraryTagSummary = libraryFilterState.tagSummary;
+  $: libraryCoverSummary = libraryFilterState.coverSummary;
+  $: ({
+    recoveryQueueBooks,
+    continueReadingBooks,
+    recentReadingBooks,
+    libraryShelfBooks,
+    filteredRecoveryQueueBooks,
+    recoveryQueueReviewBooks,
+    bulkRepairEligibleQueueBooks,
+    manualRepairQueueCount,
+    recoveryQueueSummaryText,
+    libraryStatusSummary,
+    filteredContinueReadingBooks,
+    filteredRecentReadingBooks,
+    filteredLibraryBrowseBooks,
+    filteredLibraryShelfBooks,
+    libraryGroupedBrowseMode,
+    visibleLibraryBooksCount,
+    readingWorkflowNotice,
+    starterContinueReadingBooks,
+    starterRecentReadingBooks,
+    starterShelfBooks,
+    filteredStarterContinueReadingBooks,
+    filteredStarterRecentReadingBooks,
+    filteredStarterBrowseBooks,
+    filteredStarterShelfBooks,
+    visibleStarterLibraryBooksCount,
+    starterReadingWorkflowNotice
+  } = buildLibraryPageViewState({
+    desktopBrowse: desktopLibraryBrowse,
+    starterBrowse: starterLibraryBrowse,
+    persistedLibraryRecords,
+    desktopLibraryMode
+  }));
+  $: libraryActiveFilterDetail = libraryActiveFilterState.activeFilterDetail;
+  $: libraryActiveFilterChips = libraryActiveFilterState.activeFilterChips;
   $: currentLibraryBrowseState = getCurrentLibraryBrowseState();
   $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
     buildLibraryPageSurfaceSet({
