@@ -20,15 +20,19 @@
     createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
     createReaderBookmarksController,
+    createReaderParallelSessionFromRoute,
     createReaderNotesController,
     createReaderSearchController,
     createReaderSidebarController,
     createReaderTtsController,
+    activateReaderParallelPane,
     READER_EMPTY_TITLE,
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
     parseReaderRouteOpenState,
     canRequestAssistanceForText,
+    updateReaderParallelPaneControlRequest,
+    updateReaderParallelPanePreview,
     type ReaderTtsSpeechTarget,
     normalizeAssistanceTerm,
     toReaderOpenControlRequest
@@ -62,6 +66,9 @@
   let lastPersistPromise: Promise<void> = Promise.resolve();
   let currentCoverUrl = '';
   let bridgePanelOpen = false;
+  let parallelSession = createReaderParallelSessionFromRoute(
+    parseReaderRouteOpenState($page.url)
+  );
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceRequestNonce = 0;
@@ -79,22 +86,38 @@
   $: sourcePath = autoOpenTarget?.kind === 'library-file' ? autoOpenTarget.path : '';
   $: sourceLabel = autoOpenTarget?.label ?? '';
   $: readerBookKey = routeOpenState.bookKey;
+  $: if (routeOpenState.autoOpenKey !== parallelSession.panes.primary.source.sourceKey) {
+    parallelSession = createReaderParallelSessionFromRoute(routeOpenState);
+  }
   $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
   $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
     controlRequest = toReaderOpenControlRequest(autoOpenTarget, controlNonce);
+    parallelSession = updateReaderParallelPaneControlRequest(
+      parallelSession,
+      'primary',
+      controlRequest
+    );
+    parallelSession = activateReaderParallelPane(parallelSession, 'primary');
     lastAutoKey = routeOpenState.autoOpenKey;
   }
 
   $: if (!autoOpenTarget) {
     lastAutoKey = '';
+    parallelSession = createReaderParallelSessionFromRoute(routeOpenState);
   }
 
   const issueHrefControl = (href: string) => {
     controlNonce += 1;
     controlRequest = { type: 'href', href, nonce: controlNonce };
+    parallelSession = updateReaderParallelPaneControlRequest(
+      parallelSession,
+      'primary',
+      controlRequest
+    );
+    parallelSession = activateReaderParallelPane(parallelSession, 'primary');
   };
 
   const searchController = createReaderSearchController({
@@ -533,6 +556,12 @@
       }}
       on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
         controlRequest = detail;
+        parallelSession = updateReaderParallelPaneControlRequest(
+          parallelSession,
+          'primary',
+          detail
+        );
+        parallelSession = activateReaderParallelPane(parallelSession, 'primary');
       }}
       on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {
         currentPreview = detail;
@@ -540,6 +569,7 @@
         searchController.setActiveResultCfi(detail.progressLocation);
         bookmarksController.syncPreview(detail);
         queueLibraryReadingStatePersist(detail);
+        parallelSession = updateReaderParallelPanePreview(parallelSession, 'primary', detail);
       }}
       on:notefocus={({ detail }: CustomEvent<string>) => {
         notesController.setActiveCfi(detail);

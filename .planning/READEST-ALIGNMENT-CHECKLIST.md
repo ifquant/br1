@@ -206,12 +206,12 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Done commit: 0499
   - Notes: added explicit focus-visible rings for reader chrome, sidebar controls, the route-level resize/bridge buttons, reduced-motion fallbacks for window-mode chrome, and live-region status output for TTS plus reader open/error status.
 
-- [ ] P1-3.1 Add the parallel-read session model
+- [x] P1-3.1 Add the parallel-read session model
   - Outcome: two reader panes can be represented with independent source, navigation, progress, and loading state.
   - Touches: reader types, route/control model, reader workspace shell.
   - Verify: `pnpm check`; source-level model review; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 8d22695
+  - Notes: added `src/lib/reader/parallel.ts` with primary/secondary pane state, route-derived session creation, pane preview/control updates, and active-pane switching; the route now keeps a single-pane session anchor in sync without rendering a second viewport. Tutorial: `tutorials/commit/0500-add-the-parallel-read-session-model.md`.
 
 - [ ] P1-3.2 Implement the first parallel-read surface
   - Outcome: users can open two panes side by side without breaking existing single-reader workflows.

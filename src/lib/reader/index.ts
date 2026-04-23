@@ -54,6 +54,21 @@ export { createReaderNotesController } from './notesController';
 export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export {
+  READER_PARALLEL_PRIMARY_PANE_ID,
+  READER_PARALLEL_SECONDARY_PANE_ID,
+  activateReaderParallelPane,
+  createReaderParallelSessionFromRoute,
+  updateReaderParallelPaneControlRequest,
+  updateReaderParallelPanePreview
+} from './parallel';
+export type {
+  ReaderParallelPaneId,
+  ReaderParallelPaneProgressState,
+  ReaderParallelPaneSourceState,
+  ReaderParallelPaneState,
+  ReaderParallelSessionState
+} from './parallel';
+export {
   READER_TTS_UNAVAILABLE_REASON,
   createEmptyReaderTtsSessionState,
   createErrorReaderTtsSessionState,
