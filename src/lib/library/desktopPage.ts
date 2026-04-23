@@ -118,6 +118,14 @@ export type DesktopLibraryPageCoordinatorEnvironment = Omit<
   keyof DesktopLibraryPageCoordinatorStateBindings
 >;
 
+export const buildDesktopLibraryPageCoordinatorStateBindings = (
+  bindings: DesktopLibraryPageCoordinatorStateBindings
+) => bindings;
+
+export const buildDesktopLibraryPageCoordinatorEnvironment = (
+  env: DesktopLibraryPageCoordinatorEnvironment
+) => env;
+
 export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCoordinatorOptions) => {
   const clearLibraryNotice = () => {
     options.setLibraryNoticeState(null);

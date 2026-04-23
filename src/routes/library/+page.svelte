@@ -24,7 +24,11 @@
     buildLibraryPageActionSet,
     getAppliedLibraryBrowseState
   } from '$lib/library/controller';
-  import { buildDesktopLibraryPageCoordinatorFromBindings } from '$lib/library/desktopPage';
+  import {
+    buildDesktopLibraryPageCoordinatorEnvironment,
+    buildDesktopLibraryPageCoordinatorFromBindings,
+    buildDesktopLibraryPageCoordinatorStateBindings
+  } from '$lib/library/desktopPage';
   import {
     buildLibraryPageSurfaceSetFromState,
     createEmptyLibraryPageSurfaceModel,
@@ -339,7 +343,7 @@
     });
 
   const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromBindings({
-    state: {
+    state: buildDesktopLibraryPageCoordinatorStateBindings({
       getLibraryNoticeState: () => libraryNotice,
       setLibraryNoticeState: (notice) => {
         libraryNotice = notice;
@@ -379,8 +383,8 @@
       setImportInputValue: (value) => {
         if (importInput) importInput.value = value;
       }
-    },
-    env: {
+    }),
+    env: buildDesktopLibraryPageCoordinatorEnvironment({
       canPersistLibrary,
       toAssetReaderTarget: (url, label) => toAssetReaderTarget(url, label ?? ''),
       openReaderTarget,
@@ -400,7 +404,7 @@
       confirmRemoval: (message) =>
         typeof window === 'undefined' || window.confirm(message),
       createObjectUrl: (file) => URL.createObjectURL(file)
-    }
+    })
   });
 
   onMount(() => {
