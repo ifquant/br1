@@ -74,6 +74,31 @@ const PAGE_PROGRESS_PATTERN = /^\[(\d+),(\d+)\]$/;
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
+const hashIdentityPart = (value: string) => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+};
+
+export const deriveKoReaderBookIdentity = (book: {
+  id: string;
+  title: string;
+  author: string;
+  format: string;
+  filePath: string;
+  sourcePath?: string | null;
+}): KoReaderBookIdentity => ({
+  bookHash: hashIdentityPart(book.sourcePath || book.filePath || book.id),
+  metaHash: hashIdentityPart(
+    [book.title.trim(), book.author.trim(), book.format.trim(), book.sourcePath?.trim() || '']
+      .join('|')
+      .toLowerCase()
+  )
+});
+
 export const normalizeKoReaderProgressValue = (value: KoReaderProgressValue) => {
   if (Array.isArray(value) && value.length === 2) {
     const [current, total] = value;

@@ -120,5 +120,20 @@ export type {
   SyncSnapshotImportDialogResult,
   SyncSnapshotNoteState
 } from './syncSnapshot';
+export {
+  BR1_KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION,
+  createKoReaderSyncExchangeFromSnapshot,
+  loadKoReaderSyncExchangeDialog,
+  mergeKoReaderSyncExchangeIntoSnapshot,
+  saveKoReaderSyncExchangeDialog
+} from './koreaderSync';
+export type {
+  Br1KoReaderSyncExchangeBook,
+  Br1KoReaderSyncExchangeDocument,
+  KoReaderSyncConflict,
+  KoReaderSyncExchangeExportDialogResult,
+  KoReaderSyncExchangeImportDialogResult,
+  KoReaderSyncImportPlan
+} from './koreaderSync';
 export { runRemoteSync } from './remoteSync';
 export type { Br1RemoteSyncRequest, Br1RemoteSyncResult } from '$lib/sync';

@@ -47,6 +47,7 @@ export {
 export {
   createKoReaderAnnotationSyncRecords,
   createKoReaderReadingStateSyncRecord,
+  deriveKoReaderBookIdentity,
   normalizeKoReaderProgressValue,
   parseKoReaderPageProgress,
   restoreKoReaderAnnotationsFromSync,

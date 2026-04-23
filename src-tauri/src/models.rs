@@ -325,6 +325,24 @@ pub(crate) struct SyncSnapshotImportDialogResult {
     pub(crate) snapshot: Option<SyncSnapshotDocument>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KoReaderSyncExchangeExportDialogResult {
+    pub(crate) cancelled: bool,
+    pub(crate) file_name: Option<String>,
+    pub(crate) book_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KoReaderSyncExchangeImportDialogResult {
+    pub(crate) cancelled: bool,
+    pub(crate) file_name: Option<String>,
+    pub(crate) book_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) document: Option<serde_json::Value>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SyncSnapshotBookmarksStateRecord {

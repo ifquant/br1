@@ -1,5 +1,6 @@
 use crate::models::{
     ApplySyncSnapshotRequest, ApplySyncSnapshotResult, ReaderBookmarksEntry,
+    KoReaderSyncExchangeExportDialogResult, KoReaderSyncExchangeImportDialogResult,
     ReaderHighlightsWorkspaceEntry, ReaderNotesEntry, SyncSnapshotDocument,
     SyncSnapshotExportDialogResult, SyncSnapshotImportDialogResult, BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
     READER_BOOKMARKS_SCHEMA_VERSION, READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION,
@@ -16,9 +17,14 @@ use std::path::{Path, PathBuf};
 use tauri_plugin_dialog::DialogExt;
 
 const SYNC_SNAPSHOT_DIALOG_EXTENSIONS: &[&str] = &["json"];
+const KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION: u64 = 1;
 
 fn sync_snapshot_file_name(exported_at: u64) -> String {
     format!("br1-sync-snapshot-{exported_at}.json")
+}
+
+fn koreader_sync_exchange_file_name(exported_at: u64) -> String {
+    format!("br1-koreader-sync-{exported_at}.json")
 }
 
 fn resolve_dialog_file_path(file_path: tauri_plugin_dialog::FilePath) -> Result<PathBuf, String> {
@@ -63,12 +69,57 @@ fn parse_sync_snapshot_document(raw: &str) -> Result<SyncSnapshotDocument, Strin
     Ok(snapshot)
 }
 
+fn validate_koreader_sync_exchange(document: &serde_json::Value) -> Result<usize, String> {
+    let object = document
+        .as_object()
+        .ok_or_else(|| "KOReader exchange document must be a JSON object.".to_string())?;
+    let schema_version = object
+        .get("schemaVersion")
+        .and_then(|value| value.as_u64())
+        .ok_or_else(|| "KOReader exchange document is missing schemaVersion.".to_string())?;
+    if schema_version != KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION {
+        return Err(format!(
+            "Unsupported KOReader exchange schema version: {schema_version}"
+        ));
+    }
+
+    let books = object
+        .get("books")
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| "KOReader exchange document is missing a books array.".to_string())?;
+
+    for (index, book) in books.iter().enumerate() {
+        let Some(book) = book.as_object() else {
+            return Err(format!("KOReader exchange book {} must be an object.", index + 1));
+        };
+        let title = book.get("title").and_then(|value| value.as_str()).unwrap_or("").trim();
+        let author = book.get("author").and_then(|value| value.as_str()).unwrap_or("").trim();
+        let format = book.get("format").and_then(|value| value.as_str()).unwrap_or("").trim();
+        if title.is_empty() || author.is_empty() || format.is_empty() {
+            return Err(format!(
+                "KOReader exchange book {} is missing title, author, or format.",
+                index + 1
+            ));
+        }
+    }
+
+    Ok(books.len())
+}
+
 fn write_sync_snapshot_document(path: &Path, snapshot: &SyncSnapshotDocument) -> Result<(), String> {
     validate_sync_snapshot(snapshot)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
     let raw = serde_json::to_string_pretty(snapshot).map_err(|error| error.to_string())?;
+    fs::write(path, raw).map_err(|error| error.to_string())
+}
+
+fn write_json_document(path: &Path, document: &serde_json::Value) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let raw = serde_json::to_string_pretty(document).map_err(|error| error.to_string())?;
     fs::write(path, raw).map_err(|error| error.to_string())
 }
 
@@ -211,6 +262,87 @@ pub(crate) async fn load_sync_snapshot_dialog(
         file_name: path.file_name().and_then(|value| value.to_str()).map(str::to_string),
         record_count: snapshot.records.len(),
         snapshot: Some(snapshot),
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn save_koreader_sync_exchange_dialog(
+    app: tauri::AppHandle,
+    document: serde_json::Value,
+) -> Result<KoReaderSyncExchangeExportDialogResult, String> {
+    let book_count = validate_koreader_sync_exchange(&document)?;
+    let snapshots_root = sync_snapshots_root(&app)?;
+    let exported_at = document
+        .get("exportedAt")
+        .and_then(|value| value.as_u64())
+        .unwrap_or_else(|| now_millis().unwrap_or_default());
+    let default_file_name = koreader_sync_exchange_file_name(exported_at.max(now_millis()?));
+    let picker_app = app.clone();
+    let selected = tauri::async_runtime::spawn_blocking(move || {
+        picker_app
+            .dialog()
+            .file()
+            .add_filter("br1 KOReader Exchange", SYNC_SNAPSHOT_DIALOG_EXTENSIONS)
+            .set_directory(&snapshots_root)
+            .set_file_name(default_file_name)
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+
+    let Some(selected) = selected else {
+        return Ok(KoReaderSyncExchangeExportDialogResult {
+            cancelled: true,
+            file_name: None,
+            book_count,
+        });
+    };
+
+    let path = resolve_dialog_file_path(selected)?;
+    write_json_document(&path, &document)?;
+    Ok(KoReaderSyncExchangeExportDialogResult {
+        cancelled: false,
+        file_name: path.file_name().and_then(|value| value.to_str()).map(str::to_string),
+        book_count,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn load_koreader_sync_exchange_dialog(
+    app: tauri::AppHandle,
+) -> Result<KoReaderSyncExchangeImportDialogResult, String> {
+    let snapshots_root = sync_snapshots_root(&app)?;
+    let picker_app = app.clone();
+    let selected = tauri::async_runtime::spawn_blocking(move || {
+        picker_app
+            .dialog()
+            .file()
+            .add_filter("br1 KOReader Exchange", SYNC_SNAPSHOT_DIALOG_EXTENSIONS)
+            .set_directory(&snapshots_root)
+            .blocking_pick_file()
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+
+    let Some(selected) = selected else {
+        return Ok(KoReaderSyncExchangeImportDialogResult {
+            cancelled: true,
+            file_name: None,
+            book_count: 0,
+            document: None,
+        });
+    };
+
+    let path = resolve_dialog_file_path(selected)?;
+    let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    let document: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|error| format!("Exchange file is not valid JSON: {error}"))?;
+    let book_count = validate_koreader_sync_exchange(&document)?;
+    Ok(KoReaderSyncExchangeImportDialogResult {
+        cancelled: false,
+        file_name: path.file_name().and_then(|value| value.to_str()).map(str::to_string),
+        book_count,
+        document: Some(document),
     })
 }
 

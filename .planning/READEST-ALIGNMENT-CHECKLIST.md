@@ -301,12 +301,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: added a pure `src/lib/sync/koreader.ts` adapter that keeps KOReader-only hashes, xpointers, page numbers, and annotation style/color metadata inside the ecosystem edge instead of introducing new core sync record kinds. The first slice covers KOReader book-config progress mapping through `reading-state` plus annotation/bookmark round-trips through the existing `notes` and `bookmarks` records, with fixture coverage that explicitly drops deleted KOReader entries and keeps page-progress handling best-effort until the visible workflow slice.
 
-- [ ] P2-4.2 Add KOReader sync workflow
+- [x] P2-4.2 Add KOReader sync workflow
   - Outcome: users can run a visible KOReader sync/import/export flow with conflict reporting.
   - Touches: adapter UI, sync services, tests.
-  - Verify: `pnpm check`; adapter workflow regression; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/sync/koreader.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: added a visible library-menu KOReader exchange workflow on top of the adapter slice instead of jumping straight to remote KOReader protocol wiring. Export now writes a Tauri-owned `br1-koreader-sync-*.json` exchange document built from the current sync snapshot; import opens the same kind of document through a Tauri dialog, merges only uniquely matched books back into the current snapshot, and skips missing, ambiguous, or locally newer books with explicit conflict counts in the resulting notice instead of hard-stopping the whole import.
 
 ## Service Security Gate
 

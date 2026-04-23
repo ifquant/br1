@@ -26,8 +26,12 @@ import type {
   LibraryShelfBook
 } from './types';
 import type {
+  Br1KoReaderSyncExchangeDocument,
   Br1RemoteSyncRequest,
   Br1RemoteSyncResult,
+  KoReaderSyncExchangeExportDialogResult,
+  KoReaderSyncExchangeImportDialogResult,
+  KoReaderSyncImportPlan,
   LibraryImportActionResult,
   LibraryReaderTarget,
   PreparedSyncSnapshotRestore,
@@ -81,6 +85,15 @@ export type DesktopLibraryPageCoordinatorOptions = {
   }) => any;
   saveSyncSnapshotDialog: (snapshot: any) => Promise<SyncSnapshotExportDialogResult>;
   loadSyncSnapshotDialog: () => Promise<SyncSnapshotImportDialogResult>;
+  createKoReaderSyncExchangeFromSnapshot: (snapshot: any) => Br1KoReaderSyncExchangeDocument;
+  saveKoReaderSyncExchangeDialog: (
+    document: Br1KoReaderSyncExchangeDocument
+  ) => Promise<KoReaderSyncExchangeExportDialogResult>;
+  loadKoReaderSyncExchangeDialog: () => Promise<KoReaderSyncExchangeImportDialogResult>;
+  mergeKoReaderSyncExchangeIntoSnapshot: (
+    currentSnapshot: any,
+    document: Br1KoReaderSyncExchangeDocument
+  ) => KoReaderSyncImportPlan;
   prepareSyncSnapshotRestore: (snapshot: any) => PreparedSyncSnapshotRestore;
   applySyncSnapshot: (request: PreparedSyncSnapshotRestore['request']) => Promise<SyncSnapshotApplyResult>;
   runRemoteSync: (request: Br1RemoteSyncRequest) => Promise<Br1RemoteSyncResult>;
@@ -243,6 +256,10 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createLocalSyncSnapshot,
   saveSyncSnapshotDialog,
   loadSyncSnapshotDialog,
+  createKoReaderSyncExchangeFromSnapshot,
+  saveKoReaderSyncExchangeDialog,
+  loadKoReaderSyncExchangeDialog,
+  mergeKoReaderSyncExchangeIntoSnapshot,
   prepareSyncSnapshotRestore,
   applySyncSnapshot,
   runRemoteSync,
@@ -273,6 +290,10 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createLocalSyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['createLocalSyncSnapshot'];
   saveSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['saveSyncSnapshotDialog'];
   loadSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['loadSyncSnapshotDialog'];
+  createKoReaderSyncExchangeFromSnapshot: DesktopLibraryPageCoordinatorEnvironment['createKoReaderSyncExchangeFromSnapshot'];
+  saveKoReaderSyncExchangeDialog: DesktopLibraryPageCoordinatorEnvironment['saveKoReaderSyncExchangeDialog'];
+  loadKoReaderSyncExchangeDialog: DesktopLibraryPageCoordinatorEnvironment['loadKoReaderSyncExchangeDialog'];
+  mergeKoReaderSyncExchangeIntoSnapshot: DesktopLibraryPageCoordinatorEnvironment['mergeKoReaderSyncExchangeIntoSnapshot'];
   prepareSyncSnapshotRestore: DesktopLibraryPageCoordinatorEnvironment['prepareSyncSnapshotRestore'];
   applySyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['applySyncSnapshot'];
   runRemoteSync: DesktopLibraryPageCoordinatorEnvironment['runRemoteSync'];
@@ -303,6 +324,10 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createLocalSyncSnapshot,
   saveSyncSnapshotDialog,
   loadSyncSnapshotDialog,
+  createKoReaderSyncExchangeFromSnapshot,
+  saveKoReaderSyncExchangeDialog,
+  loadKoReaderSyncExchangeDialog,
+  mergeKoReaderSyncExchangeIntoSnapshot,
   prepareSyncSnapshotRestore,
   applySyncSnapshot,
   runRemoteSync,
@@ -647,6 +672,95 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     }
   };
 
+  const formatKoReaderConflictSummary = (plan: KoReaderSyncImportPlan) => {
+    const missingCount = plan.conflicts.filter((conflict) => conflict.kind === 'missing-local-book').length;
+    const ambiguousCount = plan.conflicts.filter((conflict) => conflict.kind === 'ambiguous-local-book').length;
+    const localNewerCount = plan.conflicts.filter((conflict) => conflict.kind === 'local-newer').length;
+    const detailParts = [
+      missingCount > 0 ? `未匹配 ${missingCount} 本` : null,
+      ambiguousCount > 0 ? `歧义 ${ambiguousCount} 本` : null,
+      localNewerCount > 0 ? `本地更新 ${localNewerCount} 本` : null
+    ].filter((value): value is string => Boolean(value));
+    return detailParts.length > 0 ? `（${detailParts.join('，')}）` : '';
+  };
+
+  const handleExportKoReaderSync = async () => {
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
+
+    options.setSyncSnapshotBusy(true);
+    clearLibraryNotice();
+    try {
+      const snapshot = await buildCurrentSyncSnapshot();
+      const document = options.createKoReaderSyncExchangeFromSnapshot(snapshot);
+      const result = await options.saveKoReaderSyncExchangeDialog(document);
+
+      if (result.cancelled) {
+        setLibraryNotice('info', '已取消 KOReader 交换文件导出。');
+        return;
+      }
+
+      setLibraryNotice(
+        'info',
+        `已导出 KOReader 交换文件${result.fileName ? `：${result.fileName}` : ''}，共 ${result.bookCount} 本。`
+      );
+    } catch (error) {
+      console.error('Failed to export the KOReader sync exchange', error);
+      setLibraryNotice('error', '导出 KOReader 交换文件失败，请确认桌面权限和书库数据后重试。');
+    } finally {
+      options.setSyncSnapshotBusy(false);
+    }
+  };
+
+  const handleImportKoReaderSync = async () => {
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
+
+    options.setSyncSnapshotBusy(true);
+    clearLibraryNotice();
+    try {
+      const imported = await options.loadKoReaderSyncExchangeDialog();
+      if (imported.cancelled || !imported.document) {
+        setLibraryNotice('info', '已取消 KOReader 交换文件导入。');
+        return;
+      }
+
+      const currentSnapshot = await buildCurrentSyncSnapshot();
+      const plan = options.mergeKoReaderSyncExchangeIntoSnapshot(currentSnapshot, imported.document);
+
+      if (plan.appliedBookCount <= 0) {
+        setLibraryNotice(
+          'error',
+          `KOReader 导入没有应用任何图书${formatKoReaderConflictSummary(plan)}。`
+        );
+        return;
+      }
+
+      const prepared = options.prepareSyncSnapshotRestore(plan.snapshot);
+      await options.applySyncSnapshot(prepared.request);
+      await loadLibrary();
+
+      const message = `已导入 KOReader 交换文件${imported.fileName ? `：${imported.fileName}` : ''}。应用 ${plan.appliedBookCount} 本，跳过 ${plan.skippedBookCount} 本${formatKoReaderConflictSummary(plan)}。`;
+      setLibraryNotice(plan.conflicts.length > 0 ? 'error' : 'info', message);
+    } catch (error) {
+      console.error('Failed to import the KOReader sync exchange', error);
+      const detail = error instanceof Error ? error.message : '请检查交换文件是否完整有效。';
+      setLibraryNotice('error', `导入 KOReader 交换文件失败：${detail}`);
+    } finally {
+      options.setSyncSnapshotBusy(false);
+    }
+  };
+
   const applyPulledRemoteSnapshot = async (result: Br1RemoteSyncResult) => {
     if (!result.snapshot) {
       setLibraryNotice('info', result.message);
@@ -809,6 +923,8 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     handleBulkRepairLibraryBooks,
     handleExportSyncSnapshot,
     handleImportSyncSnapshot,
+    handleExportKoReaderSync,
+    handleImportKoReaderSync,
     handlePushRemoteSync,
     handlePullRemoteSync
   };
@@ -839,6 +955,8 @@ export const buildDesktopLibraryPageActionEnvironmentBindings = (
   onReadestMigration: coordinator.handleReadestMigrationClick,
   onExportSyncSnapshot: coordinator.handleExportSyncSnapshot,
   onImportSyncSnapshot: coordinator.handleImportSyncSnapshot,
+  onExportKoReaderSync: coordinator.handleExportKoReaderSync,
+  onImportKoReaderSync: coordinator.handleImportKoReaderSync,
   onPushRemoteSync: coordinator.handlePushRemoteSync,
   onPullRemoteSync: coordinator.handlePullRemoteSync,
   onOpenLink: coordinator.handleOpenReaderTarget,

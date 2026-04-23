@@ -145,6 +145,8 @@
     importbooks: void;
     exportsyncsnapshot: void;
     importsyncsnapshot: void;
+    exportkoreadersync: void;
+    importkoreadersync: void;
     pushremotesync: void;
     pullremotesync: void;
     viewmodechange: { viewMode: 'grid' | 'list' };
@@ -255,6 +257,16 @@
 
   const handleImportSyncSnapshot = () => {
     dispatch('importsyncsnapshot');
+    sortMenuOpen = false;
+  };
+
+  const handleExportKoReaderSync = () => {
+    dispatch('exportkoreadersync');
+    sortMenuOpen = false;
+  };
+
+  const handleImportKoReaderSync = () => {
+    dispatch('importkoreadersync');
     sortMenuOpen = false;
   };
 
@@ -480,6 +492,28 @@
                 >
                   <span>恢复本地快照</span>
                   <small>{syncSnapshotBusy ? '进行中…' : '覆盖恢复当前持久化状态'}</small>
+                </button>
+
+                <span class="sort-menu-label secondary-label">KOReader 交换</span>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={syncSnapshotBusy}
+                  on:click={handleExportKoReaderSync}
+                >
+                  <span>导出 KOReader 交换文件</span>
+                  <small>{syncSnapshotBusy ? '进行中…' : '导出当前书库的 KOReader 兼容进度与批注'}</small>
+                </button>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={syncSnapshotBusy}
+                  on:click={handleImportKoReaderSync}
+                >
+                  <span>导入 KOReader 交换文件</span>
+                  <small>{syncSnapshotBusy ? '进行中…' : '只应用可唯一匹配且无冲突的图书记录'}</small>
                 </button>
               {/if}
 

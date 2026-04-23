@@ -80,6 +80,8 @@
   on:importbooks
   on:exportsyncsnapshot
   on:importsyncsnapshot
+  on:exportkoreadersync
+  on:importkoreadersync
   on:pushremotesync
   on:pullremotesync
   on:filterchange
