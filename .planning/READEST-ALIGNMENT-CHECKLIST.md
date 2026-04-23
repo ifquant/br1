@@ -231,12 +231,12 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
 
 Goal: turn Readest service and ecosystem features into concrete `br1` capabilities without weakening desktop trust boundaries.
 
-- [ ] P2-1.1 Add the catalog connector domain model
+- [x] P2-1.1 Add the catalog connector domain model
   - Outcome: catalog sources, entries, pagination, search, auth/error states, and import intents are typed before any UI expansion.
   - Touches: service types, Tauri command model, library service facade.
-  - Verify: `pnpm check`; Rust check if dependencies change; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Verify: `pnpm check` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
+  - Done commit: 0503
+  - Notes: added renderer-safe catalog status and import-intent model/facade plus matching Tauri command model stubs; OPDS/Calibre parsing, browsing, auth handling, and network fetching remain deferred to P2-1.2/P2-1.3. Tutorial: `tutorials/commit/0503-add-the-catalog-connector-domain-model.md`.
 
 - [ ] P2-1.2 Implement OPDS parsing and browsing
   - Outcome: OPDS fixture feeds can be listed, paged, searched, and converted into safe import intents.

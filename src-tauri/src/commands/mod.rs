@@ -1,4 +1,5 @@
 pub(crate) mod bookmarks;
+pub(crate) mod catalogs;
 pub(crate) mod highlights_workspace;
 pub(crate) mod library;
 pub(crate) mod reader_services;

@@ -1,4 +1,34 @@
 export {
+  createCatalogImportIntent,
+  createUnavailableCatalogConnectorStatus,
+  getCatalogConnectorStatus,
+  normalizeCatalogSearchRequest,
+  normalizeCatalogSource
+} from './catalogs';
+export type {
+  CatalogAuthChallenge,
+  CatalogConnectorKind,
+  CatalogConnectorStatus,
+  CatalogConnectorStatusKind,
+  CatalogConnectorStatusResponse,
+  CatalogEntry,
+  CatalogEntryAuthor,
+  CatalogEntryAvailability,
+  CatalogEntryLink,
+  CatalogEntryLinkRel,
+  CatalogErrorCode,
+  CatalogErrorState,
+  CatalogImportIntent,
+  CatalogImportIntentStatus,
+  CatalogPage,
+  CatalogPagination,
+  CatalogSearchRequest,
+  CatalogSearchTemplate,
+  CatalogSource,
+  CatalogSourceAuthKind,
+  CatalogSourceAuthState
+} from './catalogs';
+export {
   goToLibrarySurface,
   LIBRARY_SURFACE_RELOAD_EVENT,
   notifyLibrarySurfaceReadingStateChanged,
