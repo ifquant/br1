@@ -11,13 +11,14 @@
     ReaderHighlightsSort,
     ReaderHighlightsWorkspaceState,
     ReaderBookmarksState,
-    ReaderPreviewState,
     ReaderLookupProvider,
+    ReaderPreviewState,
     ReaderSearchConfig,
     ReaderSearchHistoryEntry,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
     ReaderSidebarSearchState,
+    ReaderTranslationProvider,
     ReaderTranslationProviderStatus,
     ReaderTocItem,
     SidebarTab
@@ -30,7 +31,8 @@
     getReaderFormatDisplayLabel,
     getReaderLayoutDisplayLabel,
     getReaderLocationDisplayLabel,
-    normalizeAssistanceTerm
+    normalizeAssistanceTerm,
+    normalizeAssistanceText
   } from '$lib/reader';
   import { getTextAnnotationSupportMessage, supportsTextAnnotationsForFormat } from '$lib/reader/formats';
   import {
@@ -95,6 +97,7 @@
     onDeleteSearchHistoryEntry: null,
     onClearSearchCache: null,
     onRequestLookup: null,
+    onRequestTranslation: null,
     onAddHighlight: null,
     onAddNote: null,
     onOpenNote: null,
@@ -121,7 +124,11 @@
   let savedHighlightSelectionImportNotice = '';
   let assistLookupTerm = '';
   let assistLookupTermSeededForBookKey = '';
+  let assistMode: 'lookup' | 'translation' = 'lookup';
   let assistLookupProvider: ReaderLookupProvider = 'wikipedia';
+  let assistTranslationProvider: ReaderTranslationProvider = 'deepl';
+  let assistTranslationText = '';
+  let assistTranslationTargetLanguage = 'zh';
   let savedHighlightSelectionRefreshSummary:
     | {
         refreshedCount: number;
@@ -442,10 +449,26 @@
     assistLookupTerm = normalizeAssistanceTerm(term);
   };
 
+  const fillAssistTranslationText = (text: string) => {
+    assistTranslationText = normalizeAssistanceText(text);
+  };
+
   const requestAssistLookup = () => {
     const term = normalizeAssistanceTerm(assistLookupTerm || notesState.selection?.text || preview.chapterLabel);
     if (!term) return;
     callbacks.onRequestLookup?.(assistLookupProvider, term);
+  };
+
+  const requestAssistTranslation = () => {
+    const text = normalizeAssistanceText(
+      assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
+    );
+    if (!text) return;
+    callbacks.onRequestTranslation?.(
+      assistTranslationProvider,
+      text,
+      assistTranslationTargetLanguage.trim() || 'zh'
+    );
   };
 
   const updateSearchConfig = <K extends keyof ReaderSearchConfig>(key: K, value: ReaderSearchConfig[K]) => {
@@ -500,9 +523,23 @@
       : search.cacheKey;
   $: if (activeTab === 'assist' && assistLookupTermSeededForBookKey !== bookKey) {
     assistLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);
+    assistTranslationText = normalizeAssistanceText(
+      notesState.selection?.text || preview.chapterLabel || preview.title
+    );
+    assistMode = 'lookup';
     assistLookupProvider = 'wikipedia';
+    assistTranslationProvider = 'deepl';
+    assistTranslationTargetLanguage = 'zh';
     assistLookupTermSeededForBookKey = bookKey;
   }
+  $: activeTranslationProviderStatus =
+    translationProviderStatuses.find((status) => status.provider === assistTranslationProvider) || null;
+  $: activeAssistanceRequest = assistance.activeRequest;
+  $: assistanceResultProvider =
+    assistance.result?.provider ||
+    (activeAssistanceRequest?.kind === 'translation'
+      ? activeAssistanceRequest.provider
+      : assistLookupProvider);
   $: recentSearchResultIndex = search.results.findIndex((item) => item.cfi === search.recentResultCfi);
   $: activeSearchResultIndex = search.results.findIndex((item) => item.cfi === search.activeResultCfi);
   $: currentSearchResultIndex = Math.max(
@@ -1778,90 +1815,206 @@
       {:else if activeTab === 'assist'}
         <section class="sidebar-panel" aria-label="查找面板">
           <div class="assist-summary">
-            <strong>{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}</strong>
+            <strong>{assistMode === 'translation' ? '翻译' : assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}</strong>
             <span>
-              {assistLookupProvider === 'dictionary'
-                ? '从当前选区或手动输入的英文词条里查找释义。'
-                : '从当前选区或手动输入的词条里查找百科摘要。'}
+              {#if assistMode === 'translation'}
+                使用桌面端托管的 DeepL key 翻译当前选区；没有选区时回退到当前章节标题。
+              {:else if assistLookupProvider === 'dictionary'}
+                从当前选区或手动输入的英文词条里查找释义。
+              {:else}
+                从当前选区或手动输入的词条里查找百科摘要。
+              {/if}
             </span>
           </div>
 
           <div class="assist-context">
             <span>
-              {#if notesState.selection?.text?.trim()}
+              {#if notesState.selection?.text?.trim() && assistMode === 'translation'}
+                当前选区：{normalizeAssistanceText(notesState.selection.text)}
+              {:else if notesState.selection?.text?.trim()}
                 当前选区：{normalizeAssistanceTerm(notesState.selection.text)}
               {:else}
-                先在正文里选中一段文本，或直接输入词条。
+                {assistMode === 'translation'
+                  ? '先在正文里选中一段文本，或直接输入要翻译的内容。'
+                  : '先在正文里选中一段文本，或直接输入词条。'}
               {/if}
             </span>
             <span>当前章节：{preview.chapterLabel}</span>
-            {#if assistLookupProvider === 'dictionary'}
+            {#if assistMode === 'translation'}
+              <span>
+                目标语言：{assistTranslationTargetLanguage.toUpperCase()}。
+                {#if activeTranslationProviderStatus && !activeTranslationProviderStatus.configured}
+                  当前没有本地 DeepL key。
+                {:else}
+                  当前 provider：{getReaderTranslationProviderDisplayLabel(assistTranslationProvider)}。
+                {/if}
+              </span>
+            {:else if assistLookupProvider === 'dictionary'}
               <span>词典目前仅支持英文词条。</span>
             {/if}
           </div>
 
-          <label class="assist-field">
-            <span class="sr-only">{assistLookupProvider === 'dictionary' ? '词典词条' : '维基百科词条'}</span>
-            <input
-              type="search"
-              maxlength="120"
-              placeholder={assistLookupProvider === 'dictionary' ? '输入英文词条，或先选中文本' : '输入词条，或先选中文本'}
-              value={assistLookupTerm}
-              on:input={(event) => fillAssistLookupTerm((event.currentTarget as HTMLInputElement).value)}
-              on:keydown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  requestAssistLookup();
-                }
+          <div class="assist-actions">
+            <button
+              type="button"
+              class:active={assistMode === 'lookup'}
+              class="assist-chip"
+              aria-pressed={assistMode === 'lookup'}
+              on:click={() => {
+                assistMode = 'lookup';
               }}
-            />
-          </label>
+            >
+              查找
+            </button>
+            <button
+              type="button"
+              class:active={assistMode === 'translation'}
+              class="assist-chip"
+              aria-pressed={assistMode === 'translation'}
+              on:click={() => {
+                assistMode = 'translation';
+              }}
+            >
+              翻译
+            </button>
+          </div>
+
+          {#if assistMode === 'translation'}
+            <label class="assist-field">
+              <span class="sr-only">翻译文本</span>
+              <textarea
+                rows="5"
+                maxlength="8000"
+                placeholder="输入要翻译的文本，或先在正文里选中一段内容"
+                value={assistTranslationText}
+                on:input={(event) =>
+                  fillAssistTranslationText((event.currentTarget as HTMLTextAreaElement).value)}
+              ></textarea>
+            </label>
+          {:else}
+            <label class="assist-field">
+              <span class="sr-only">{assistLookupProvider === 'dictionary' ? '词典词条' : '维基百科词条'}</span>
+              <input
+                type="search"
+                maxlength="120"
+                placeholder={assistLookupProvider === 'dictionary' ? '输入英文词条，或先选中文本' : '输入词条，或先选中文本'}
+                value={assistLookupTerm}
+                on:input={(event) => fillAssistLookupTerm((event.currentTarget as HTMLInputElement).value)}
+                on:keydown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    requestAssistLookup();
+                  }
+                }}
+              />
+            </label>
+          {/if}
 
           <div class="assist-actions">
             <button
               type="button"
               class="assist-chip"
               disabled={!notesState.selection?.text?.trim()}
-              on:click={() => fillAssistLookupTerm(notesState.selection?.text || '')}
+              on:click={() => {
+                if (assistMode === 'translation') {
+                  fillAssistTranslationText(notesState.selection?.text || '');
+                } else {
+                  fillAssistLookupTerm(notesState.selection?.text || '');
+                }
+              }}
             >
               填入选区
             </button>
             <button
               type="button"
               class="assist-chip"
-              on:click={() => fillAssistLookupTerm(preview.chapterLabel)}
+              on:click={() => {
+                if (assistMode === 'translation') {
+                  fillAssistTranslationText(preview.chapterLabel || preview.title);
+                } else {
+                  fillAssistLookupTerm(preview.chapterLabel);
+                }
+              }}
             >
               填入章节
             </button>
-            <button
-              type="button"
-              class:active={assistLookupProvider === 'wikipedia'}
-              class="assist-chip"
-              aria-pressed={assistLookupProvider === 'wikipedia'}
-              on:click={() => {
-                assistLookupProvider = 'wikipedia';
-              }}
-            >
-              维基百科
-            </button>
-            <button
-              type="button"
-              class:active={assistLookupProvider === 'dictionary'}
-              class="assist-chip"
-              aria-pressed={assistLookupProvider === 'dictionary'}
-              on:click={() => {
-                assistLookupProvider = 'dictionary';
-              }}
-            >
-              词典
-            </button>
+            {#if assistMode === 'translation'}
+              <button
+                type="button"
+                class:active={assistTranslationTargetLanguage === 'zh'}
+                class="assist-chip"
+                aria-pressed={assistTranslationTargetLanguage === 'zh'}
+                on:click={() => {
+                  assistTranslationTargetLanguage = 'zh';
+                }}
+              >
+                中文
+              </button>
+              <button
+                type="button"
+                class:active={assistTranslationTargetLanguage === 'en'}
+                class="assist-chip"
+                aria-pressed={assistTranslationTargetLanguage === 'en'}
+                on:click={() => {
+                  assistTranslationTargetLanguage = 'en';
+                }}
+              >
+                English
+              </button>
+              <button
+                type="button"
+                class:active={assistTranslationProvider === 'deepl'}
+                class="assist-chip"
+                aria-pressed={assistTranslationProvider === 'deepl'}
+                on:click={() => {
+                  assistTranslationProvider = 'deepl';
+                }}
+              >
+                DeepL
+              </button>
+            {:else}
+              <button
+                type="button"
+                class:active={assistLookupProvider === 'wikipedia'}
+                class="assist-chip"
+                aria-pressed={assistLookupProvider === 'wikipedia'}
+                on:click={() => {
+                  assistLookupProvider = 'wikipedia';
+                }}
+              >
+                维基百科
+              </button>
+              <button
+                type="button"
+                class:active={assistLookupProvider === 'dictionary'}
+                class="assist-chip"
+                aria-pressed={assistLookupProvider === 'dictionary'}
+                on:click={() => {
+                  assistLookupProvider = 'dictionary';
+                }}
+              >
+                词典
+              </button>
+            {/if}
             <button
               type="button"
               class="primary-assist-action"
-              disabled={!normalizeAssistanceTerm(assistLookupTerm || notesState.selection?.text || preview.chapterLabel)}
-              on:click={requestAssistLookup}
+              disabled={
+                assistMode === 'translation'
+                  ? !normalizeAssistanceText(
+                      assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
+                    )
+                  : !normalizeAssistanceTerm(
+                      assistLookupTerm || notesState.selection?.text || preview.chapterLabel
+                    )
+              }
+              on:click={assistMode === 'translation' ? requestAssistTranslation : requestAssistLookup}
             >
-              {assistLookupProvider === 'dictionary' ? '查词典' : '查维基百科'}
+              {assistMode === 'translation'
+                ? `翻译为 ${assistTranslationTargetLanguage.toUpperCase()}`
+                : assistLookupProvider === 'dictionary'
+                  ? '查词典'
+                  : '查维基百科'}
             </button>
           </div>
 
@@ -1881,29 +2034,55 @@
             {#if assistance.status === 'loading'}
               <strong>正在查询</strong>
               <span>
-                正在向{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}请求结果。
+                {#if activeAssistanceRequest?.kind === 'translation'}
+                  正在向{getReaderTranslationProviderDisplayLabel(activeAssistanceRequest.provider)}请求翻译结果。
+                {:else}
+                  正在向{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}请求结果。
+                {/if}
               </span>
             {:else if assistance.status === 'ready' && assistance.result}
               <strong>{assistance.result.title}</strong>
-              <span>{assistance.result.sourceLabel || (assistLookupProvider === 'dictionary' ? 'Dictionary' : 'Wikipedia')}</span>
+              <span>
+                {assistance.result.sourceLabel ||
+                  (assistanceResultProvider === 'dictionary'
+                    ? 'Dictionary'
+                    : assistanceResultProvider === 'wikipedia'
+                      ? 'Wikipedia'
+                      : getReaderTranslationProviderDisplayLabel(assistanceResultProvider))}
+              </span>
               <p>{assistance.result.body}</p>
               {#if assistance.result.url}
                 <a href={assistance.result.url} target="_blank" rel="noreferrer">打开词条</a>
               {/if}
             {:else if assistance.status === 'empty'}
               <strong>没有找到结果</strong>
-              <span>{assistLookupProvider === 'dictionary' ? '词典没有返回对应词条。' : '维基百科没有返回对应词条。'}</span>
+              <span>
+                {activeAssistanceRequest?.kind === 'translation'
+                  ? '没有可翻译的内容。'
+                  : assistLookupProvider === 'dictionary'
+                    ? '词典没有返回对应词条。'
+                    : '维基百科没有返回对应词条。'}
+              </span>
             {:else if assistance.status === 'offline'}
               <strong>当前不可用</strong>
               <span>{assistance.error || '桌面运行时或网络不可用。'}</span>
             {:else if assistance.status === 'error'}
               <strong>查询失败</strong>
               <span>
-                {assistance.error || (assistLookupProvider === 'dictionary' ? '词典查询失败。' : '维基百科查询失败。')}
+                {assistance.error ||
+                  (activeAssistanceRequest?.kind === 'translation'
+                    ? '翻译请求失败。'
+                    : assistLookupProvider === 'dictionary'
+                      ? '词典查询失败。'
+                      : '维基百科查询失败。')}
               </span>
             {:else}
               <strong>等待查询</strong>
-              <span>输入词条后可以直接发起{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。</span>
+              <span>
+                {assistMode === 'translation'
+                  ? '输入文本后可以直接发起 DeepL 翻译；如果没有选区，会回退到当前章节标题。'
+                  : `输入词条后可以直接发起${assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。`}
+              </span>
             {/if}
           </div>
         </section>
@@ -3557,6 +3736,21 @@
     color: var(--text-primary);
     font: inherit;
     font-size: 13px;
+  }
+
+  .assist-field textarea {
+    width: 100%;
+    min-height: 112px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 16px;
+    resize: vertical;
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+    box-shadow: inset 0 0 0 1px var(--border-light);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.55;
   }
 
   .assist-actions {

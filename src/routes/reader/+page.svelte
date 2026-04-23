@@ -5,12 +5,13 @@
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import type {
     ReaderControlRequest,
-    ReaderPreviewState,
     ReaderLookupProvider,
+    ReaderPreviewState,
     ReaderRouteOpenState,
     ReaderSidebarCallbacks,
     ReaderSearchHistoryEntry,
     ReaderSearchResult,
+    ReaderTranslationProvider,
     ReaderTranslationProviderStatus,
     ReaderTocItem
   } from '$lib/reader';
@@ -31,13 +32,14 @@
     READER_EMPTY_TITLE,
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
-    parseReaderRouteOpenState,
     canRequestAssistanceForText,
+    normalizeAssistanceText,
+    normalizeAssistanceTerm,
     openReaderParallelSecondaryPaneFromPrimary,
+    parseReaderRouteOpenState,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
     type ReaderTtsSpeechTarget,
-    normalizeAssistanceTerm,
     toReaderOpenControlRequest
   } from '$lib/reader';
   import { supportsTextAnnotationsForFormat } from '$lib/reader/formats';
@@ -455,6 +457,42 @@
         ? navigator.language
         : 'en';
 
+  const resolveReaderTranslationFallback = () => {
+    const selectedText = normalizeAssistanceText($notesState.selection?.text || '');
+    if (selectedText) {
+      return {
+        text: selectedText,
+        chapterLabel: $notesState.selection?.chapterLabel || currentPreview.chapterLabel
+      };
+    }
+
+    const chapterLabel = currentPreview.chapterLabel.trim();
+    if (
+      chapterLabel &&
+      chapterLabel !== READER_NOT_OPENED_LOCATION_LABEL &&
+      chapterLabel !== READER_OPENING_LOCATION_LABEL &&
+      chapterLabel !== '等待打开书籍'
+    ) {
+      return {
+        text: chapterLabel,
+        chapterLabel
+      };
+    }
+
+    const title = currentPreview.title.trim();
+    if (title && title !== READER_EMPTY_TITLE) {
+      return {
+        text: title,
+        chapterLabel: currentPreview.chapterLabel
+      };
+    }
+
+    return {
+      text: '',
+      chapterLabel: currentPreview.chapterLabel
+    };
+  };
+
   const requestAssistanceLookup = async (provider: ReaderLookupProvider, term: string) => {
     const normalizedTerm = normalizeAssistanceTerm(term);
     const request = {
@@ -468,6 +506,47 @@
     };
 
     if (!canRequestAssistanceForText(normalizedTerm)) {
+      assistanceState = createEmptyReaderAssistanceResultState(request);
+      sidebarController.openTab('assist');
+      return;
+    }
+
+    const token = ++assistanceRequestNonce;
+    assistanceState = createLoadingReaderAssistanceState(request);
+    sidebarController.openTab('assist');
+
+    try {
+      const nextState = await requestReaderAssistance(request);
+      if (token !== assistanceRequestNonce) return;
+      assistanceState = nextState;
+    } catch (error) {
+      if (token !== assistanceRequestNonce) return;
+      assistanceState = createErrorReaderAssistanceState(
+        request,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  };
+
+  const requestAssistanceTranslation = async (
+    provider: ReaderTranslationProvider,
+    text: string,
+    targetLanguage: string
+  ) => {
+    const fallback = resolveReaderTranslationFallback();
+    const normalizedText = normalizeAssistanceText(text || fallback.text);
+    const request = {
+      kind: 'translation' as const,
+      provider,
+      text: normalizedText,
+      sourceLanguage: undefined,
+      targetLanguage: targetLanguage.trim() || 'zh',
+      bookKey: readerBookKey,
+      cfi: $notesState.selection?.cfi,
+      chapterLabel: fallback.chapterLabel
+    };
+
+    if (!normalizedText) {
       assistanceState = createEmptyReaderAssistanceResultState(request);
       sidebarController.openTab('assist');
       return;
@@ -514,7 +593,8 @@
     onClearSearchHistory: searchController.clearHistory,
     onDeleteSearchHistoryEntry: searchController.deleteHistoryEntry,
     onClearSearchCache: searchController.clearCurrentBookCache,
-    onRequestLookup: requestAssistanceLookup
+    onRequestLookup: requestAssistanceLookup,
+    onRequestTranslation: requestAssistanceTranslation
   } satisfies ReaderSidebarCallbacks;
 </script>
 

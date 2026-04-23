@@ -22,6 +22,8 @@ type WikipediaLookupCommandResponse = {
   error?: string;
 };
 
+type ReaderAssistanceCommandResponse = WikipediaLookupCommandResponse;
+
 type ReaderTranslationProviderStatusResponse = ReaderTranslationProviderStatus[];
 
 const TRANSLATION_PROVIDERS: ReaderTranslationProvider[] = ['deepl', 'yandex'];
@@ -42,11 +44,6 @@ const getLookupLanguage = (
 
   return requestLanguage?.trim() || browserLanguage || 'en';
 };
-
-const createRejectedReaderAssistanceState = (
-  request: ReaderAssistanceRequest,
-  message: string
-): ReaderAssistanceState => createErrorReaderAssistanceState(request, message);
 
 const createMissingTranslationKeyState = (
   request: ReaderAssistanceRequest,
@@ -92,7 +89,11 @@ export const requestReaderAssistance = async (
   request: ReaderAssistanceRequest
 ): Promise<ReaderAssistanceState> => {
   const normalizedRequest = normalizeReaderAssistanceRequest(request);
-  if (normalizedRequest.kind !== 'lookup') {
+  if (normalizedRequest.kind === 'translation') {
+    if (!normalizedRequest.text) {
+      return createEmptyReaderAssistanceResultState(normalizedRequest);
+    }
+
     if (!isTauriDesktop()) {
       return createOfflineReaderAssistanceState(
         normalizedRequest,
@@ -108,10 +109,39 @@ export const requestReaderAssistance = async (
       return createMissingTranslationKeyState(normalizedRequest, normalizedRequest.provider);
     }
 
-    return createRejectedReaderAssistanceState(
-      normalizedRequest,
-      `${getReaderTranslationProviderDisplayLabel(normalizedRequest.provider)} translation bridge is not implemented yet.`
-    );
+    try {
+      const response = await invokeTauri<ReaderAssistanceCommandResponse>('translate_reader_assistance', {
+        provider: normalizedRequest.provider,
+        text: normalizedRequest.text,
+        sourceLanguage: normalizedRequest.sourceLanguage,
+        targetLanguage: normalizedRequest.targetLanguage
+      });
+
+      if (response.status === 'ready' && response.result) {
+        return createReadyReaderAssistanceState(normalizedRequest, response.result);
+      }
+
+      if (response.status === 'empty') {
+        return createEmptyReaderAssistanceResultState(normalizedRequest);
+      }
+
+      if (response.status === 'offline') {
+        return createOfflineReaderAssistanceState(
+          normalizedRequest,
+          response.error ||
+            `${getReaderTranslationProviderDisplayLabel(normalizedRequest.provider)} translation is unavailable right now.`
+        );
+      }
+
+      return createErrorReaderAssistanceState(
+        normalizedRequest,
+        response.error ||
+          `${getReaderTranslationProviderDisplayLabel(normalizedRequest.provider)} translation failed.`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return createErrorReaderAssistanceState(normalizedRequest, message);
+    }
   }
 
   if (!normalizedRequest.term) {
@@ -126,7 +156,7 @@ export const requestReaderAssistance = async (
   }
 
   try {
-    const response = await invokeTauri<WikipediaLookupCommandResponse>('lookup_reader_assistance', {
+    const response = await invokeTauri<ReaderAssistanceCommandResponse>('lookup_reader_assistance', {
       provider: normalizedRequest.provider,
       term: normalizedRequest.term,
       language: getLookupLanguage(normalizedRequest.provider, normalizedRequest.language)

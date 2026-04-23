@@ -22,6 +22,7 @@ export type ReaderTranslationRequest = {
   targetLanguage: string;
   bookKey: string;
   cfi?: string;
+  chapterLabel?: string;
 };
 
 export type ReaderTranslationProviderStatus = {
@@ -86,7 +87,8 @@ export const normalizeReaderAssistanceRequest = (
     sourceLanguage: request.sourceLanguage?.trim() || undefined,
     targetLanguage: request.targetLanguage.trim(),
     bookKey: request.bookKey.trim(),
-    cfi: request.cfi?.trim() || undefined
+    cfi: request.cfi?.trim() || undefined,
+    chapterLabel: request.chapterLabel?.trim() || undefined
   };
 };
 

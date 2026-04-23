@@ -1,4 +1,4 @@
-import type { ReaderLookupProvider } from './assistance';
+import type { ReaderLookupProvider, ReaderTranslationProvider } from './assistance';
 
 export type ReaderEngineMountState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -299,6 +299,11 @@ export type ReaderSidebarCallbacks = {
   onDeleteSearchHistoryEntry: ((entryId: string) => void) | null;
   onClearSearchCache: (() => void) | null;
   onRequestLookup: ((provider: ReaderLookupProvider, term: string) => void) | null;
+  onRequestTranslation: ((
+    provider: ReaderTranslationProvider,
+    text: string,
+    targetLanguage: string
+  ) => void) | null;
   onAddHighlight: (() => void) | null;
   onAddNote: (() => void) | null;
   onOpenNote: ((cfi: string) => void) | null;

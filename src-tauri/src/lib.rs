@@ -256,6 +256,7 @@ pub fn run() {
             commands::library::load_library_cover_data_urls,
             commands::library::consume_associated_book_open_requests,
             commands::reader_services::lookup_reader_assistance,
+            commands::reader_services::translate_reader_assistance,
             commands::reader_services::get_reader_translation_provider_statuses,
             commands::reader_services::save_reader_translation_provider_settings,
             commands::search_cache::load_reader_search_cache,

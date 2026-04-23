@@ -14,7 +14,12 @@ const WIKIPEDIA_LOOKUP_TERM_LIMIT: usize = 120;
 const WIKIPEDIA_LOOKUP_BODY_LIMIT: usize = 1500;
 const WIKIPEDIA_LOOKUP_TIMEOUT: Duration = Duration::from_secs(8);
 const DICTIONARY_LOOKUP_BODY_LIMIT: usize = 1500;
+const TRANSLATION_TEXT_LIMIT: usize = 8_000;
+const TRANSLATION_RESULT_BODY_LIMIT: usize = 4_000;
+const TRANSLATION_TIMEOUT: Duration = Duration::from_secs(12);
 const TRANSLATION_PROVIDER_NAMES: &[&str] = &["deepl", "yandex"];
+const DEEPL_TRANSLATE_API_ENDPOINT: &str = "https://api.deepl.com/v2/translate";
+const DEEPL_TRANSLATE_API_FREE_ENDPOINT: &str = "https://api-free.deepl.com/v2/translate";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,6 +54,15 @@ pub(crate) struct ReaderAssistanceLookupResponse {
 pub(crate) struct ReaderTranslationProviderSettingsInput {
     pub provider: String,
     pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderAssistanceTranslationRequest {
+    pub provider: String,
+    pub text: String,
+    pub source_language: Option<String>,
+    pub target_language: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -139,6 +153,26 @@ struct DictionaryDefinition {
     example: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeepLTranslationResponse {
+    #[serde(default)]
+    translations: Vec<DeepLTranslationEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeepLTranslationEntry {
+    text: String,
+    detected_source_language: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeepLErrorResponse {
+    message: Option<String>,
+    detail: Option<String>,
+}
+
 fn normalize_wikipedia_project(language: Option<&str>) -> String {
     let candidate = language
         .unwrap_or("en")
@@ -165,6 +199,25 @@ fn normalize_lookup_term(term: &str) -> String {
         .chars()
         .take(WIKIPEDIA_LOOKUP_TERM_LIMIT)
         .collect()
+}
+
+fn normalize_translation_text(text: &str) -> String {
+    text.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(TRANSLATION_TEXT_LIMIT)
+        .collect()
+}
+
+fn normalize_translation_language(language: Option<&str>) -> Option<String> {
+    let normalized = language?.trim().replace('_', "-").to_ascii_uppercase();
+
+    if normalized.is_empty() {
+        return None;
+    }
+
+    Some(normalized)
 }
 
 fn normalize_dictionary_language(language: Option<&str>) -> String {
@@ -473,6 +526,108 @@ fn normalize_lookup_text(value: &str, limit: usize) -> String {
         .collect()
 }
 
+fn translate_provider_label(provider: &str) -> &'static str {
+    if provider == "deepl" {
+        "DeepL"
+    } else {
+        "Yandex"
+    }
+}
+
+fn deepl_api_key() -> Option<String> {
+    translation_provider_key_env_names("deepl")
+        .iter()
+        .find_map(|name| std::env::var(name).ok())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn build_deepl_translate_url(api_key: &str) -> Result<Url, String> {
+    let base = if api_key.ends_with(":fx") {
+        DEEPL_TRANSLATE_API_FREE_ENDPOINT
+    } else {
+        DEEPL_TRANSLATE_API_ENDPOINT
+    };
+
+    Url::parse(base).map_err(|error| error.to_string())
+}
+
+fn extract_deepl_error_detail(payload: &str) -> Option<String> {
+    serde_json::from_str::<DeepLErrorResponse>(payload)
+        .ok()
+        .and_then(|error| error.message.or(error.detail))
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn build_translation_result_title(text: &str) -> String {
+    let excerpt = normalize_lookup_text(text, 48);
+    if excerpt.is_empty() {
+        "Translation".to_string()
+    } else {
+        format!("翻译：{excerpt}")
+    }
+}
+
+fn build_translation_response(
+    provider: &str,
+    source_language: Option<&str>,
+    target_language: &str,
+    source_text: &str,
+    translated_text: &str,
+) -> ReaderAssistanceLookupResponse {
+    let created_at = now_millis().unwrap_or_default();
+    let slug = normalize_lookup_text(source_text, 24).replace(' ', "-");
+    let provider_label = translate_provider_label(provider);
+    let detected_source = source_language.unwrap_or("AUTO");
+
+    ReaderAssistanceLookupResponse {
+        status: ReaderAssistanceLookupStatus::Ready,
+        result: Some(ReaderAssistanceLookupResult {
+            id: format!("translation:{provider}:{target_language}:{slug}:{created_at}"),
+            provider: provider.to_string(),
+            title: build_translation_result_title(source_text),
+            body: normalize_lookup_text(translated_text, TRANSLATION_RESULT_BODY_LIMIT),
+            url: None,
+            source_label: Some(format!(
+                "{provider_label} · {} -> {}",
+                detected_source,
+                target_language.to_ascii_uppercase()
+            )),
+            created_at,
+        }),
+        error: None,
+    }
+}
+
+fn classify_deepl_http_error(
+    status: reqwest::StatusCode,
+    payload: &str,
+) -> ReaderAssistanceLookupResponse {
+    let detail = extract_deepl_error_detail(payload);
+    let message = match status {
+        reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN => {
+            "DeepL API key is invalid or not authorized.".to_string()
+        }
+        reqwest::StatusCode::TOO_MANY_REQUESTS => {
+            "DeepL translation is rate limited right now.".to_string()
+        }
+        status if status.as_u16() == 456 => {
+            "DeepL translation quota has been exceeded.".to_string()
+        }
+        reqwest::StatusCode::BAD_REQUEST => {
+            "DeepL translation request is invalid. Check the language configuration.".to_string()
+        }
+        _ => format!("DeepL translation failed with HTTP {}", status),
+    };
+
+    if let Some(detail) = detail {
+        build_error_response(format!("{message} ({detail})"))
+    } else {
+        build_error_response(message)
+    }
+}
+
 fn format_dictionary_entry_body(entry: &DictionaryEntryResponse) -> String {
     let mut sections = Vec::new();
     let phonetic = entry
@@ -719,6 +874,84 @@ async fn fetch_dictionary_entry(
     build_dictionary_lookup_response(language, term, entry)
 }
 
+async fn fetch_deepl_translation(
+    client: &reqwest::Client,
+    text: &str,
+    source_language: Option<&str>,
+    target_language: &str,
+) -> ReaderAssistanceLookupResponse {
+    let Some(api_key) = deepl_api_key() else {
+        return build_error_response("DeepL translation has no API key configured yet.");
+    };
+
+    let url = match build_deepl_translate_url(&api_key) {
+        Ok(url) => url,
+        Err(error) => return build_error_response(error),
+    };
+
+    let mut params = vec![
+        ("text".to_string(), text.to_string()),
+        (
+            "target_lang".to_string(),
+            target_language.to_ascii_uppercase(),
+        ),
+    ];
+    if let Some(source_language) = source_language {
+        params.push((
+            "source_lang".to_string(),
+            source_language.to_ascii_uppercase(),
+        ));
+    }
+
+    let response = match client
+        .post(url)
+        .header("Authorization", format!("DeepL-Auth-Key {api_key}"))
+        .form(&params)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            if error.is_connect() || error.is_timeout() {
+                return build_offline_response("DeepL translation is unavailable right now.");
+            }
+
+            return build_error_response(error.to_string());
+        }
+    };
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let payload = response.text().await.unwrap_or_default();
+        return classify_deepl_http_error(status, &payload);
+    }
+
+    let payload: DeepLTranslationResponse = match response.json().await {
+        Ok(payload) => payload,
+        Err(error) => return build_error_response(error.to_string()),
+    };
+
+    let Some(translation) = payload.translations.first() else {
+        return build_empty_response();
+    };
+
+    let translated_text = normalize_lookup_text(&translation.text, TRANSLATION_RESULT_BODY_LIMIT);
+    if translated_text.is_empty() {
+        return build_empty_response();
+    }
+
+    build_translation_response(
+        "deepl",
+        translation
+            .detected_source_language
+            .as_deref()
+            .or(source_language),
+        target_language,
+        text,
+        &translated_text,
+    )
+}
+
 #[tauri::command]
 pub(crate) async fn lookup_reader_assistance(
     request: ReaderAssistanceLookupRequest,
@@ -749,6 +982,48 @@ pub(crate) async fn lookup_reader_assistance(
         provider => build_error_response(format!(
             "Reader assistance provider is not implemented: {}",
             provider
+        )),
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn translate_reader_assistance(
+    request: ReaderAssistanceTranslationRequest,
+) -> ReaderAssistanceLookupResponse {
+    let provider = match normalize_translation_provider(&request.provider) {
+        Some(provider) => provider,
+        None => {
+            return build_error_response(format!(
+                "Reader translation provider is not implemented: {}",
+                request.provider
+            ))
+        }
+    };
+    let text = normalize_translation_text(&request.text);
+    if text.is_empty() {
+        return build_empty_response();
+    }
+
+    let target_language = normalize_translation_language(Some(&request.target_language))
+        .unwrap_or_else(|| "ZH".to_string());
+    let source_language = normalize_translation_language(request.source_language.as_deref());
+    let client = match reqwest::Client::builder()
+        .timeout(TRANSLATION_TIMEOUT)
+        .user_agent("br1-readest-alignment-exec/1.0")
+        .build()
+    {
+        Ok(client) => client,
+        Err(error) => return build_error_response(error.to_string()),
+    };
+
+    match provider {
+        "deepl" => {
+            fetch_deepl_translation(&client, &text, source_language.as_deref(), &target_language)
+                .await
+        }
+        other => build_error_response(format!(
+            "{} translation bridge is not implemented yet.",
+            translate_provider_label(other)
         )),
     }
 }
@@ -799,13 +1074,16 @@ pub(crate) async fn save_reader_translation_provider_settings(
 #[cfg(test)]
 mod tests {
     use super::{
+        build_deepl_translate_url, classify_deepl_http_error,
         default_translation_provider_settings, default_translation_provider_statuses,
         format_dictionary_entry_body, normalize_dictionary_language, normalize_lookup_term,
-        normalize_wikipedia_project, read_translation_provider_settings,
-        save_translation_provider_setting, translation_provider_status_from_stored,
-        write_translation_provider_settings, DictionaryDefinition, DictionaryEntryResponse,
-        DictionaryMeaning, DictionaryPhonetic, ReaderTranslationProviderSettingsInput,
-        ReaderTranslationProviderStatusKind,
+        normalize_translation_language, normalize_translation_text, normalize_wikipedia_project,
+        read_translation_provider_settings, save_translation_provider_setting,
+        translation_provider_status_from_stored, write_translation_provider_settings,
+        DictionaryDefinition, DictionaryEntryResponse, DictionaryMeaning, DictionaryPhonetic,
+        ReaderAssistanceLookupStatus, ReaderTranslationProviderSettingsInput,
+        ReaderTranslationProviderStatusKind, DEEPL_TRANSLATE_API_ENDPOINT,
+        DEEPL_TRANSLATE_API_FREE_ENDPOINT, TRANSLATION_TEXT_LIMIT,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -834,6 +1112,32 @@ mod tests {
 
         let long_term = "x".repeat(200);
         assert_eq!(normalize_lookup_term(&long_term).chars().count(), 120);
+    }
+
+    #[test]
+    fn trims_and_limits_translation_text() {
+        let normalized = normalize_translation_text("  alpha \n\n beta   gamma  ");
+        assert_eq!(normalized, "alpha beta gamma");
+
+        let long_text = "x".repeat(TRANSLATION_TEXT_LIMIT + 200);
+        assert_eq!(
+            normalize_translation_text(&long_text).chars().count(),
+            TRANSLATION_TEXT_LIMIT
+        );
+    }
+
+    #[test]
+    fn normalizes_translation_languages_for_deepl() {
+        assert_eq!(
+            normalize_translation_language(Some(" zh-cn ")).as_deref(),
+            Some("ZH-CN")
+        );
+        assert_eq!(
+            normalize_translation_language(Some("en_us")).as_deref(),
+            Some("EN-US")
+        );
+        assert_eq!(normalize_translation_language(Some("   ")), None);
+        assert_eq!(normalize_translation_language(None), None);
     }
 
     #[test]
@@ -879,6 +1183,38 @@ mod tests {
             ReaderTranslationProviderStatusKind::MissingKey
         )));
         assert!(statuses.iter().all(|status| !status.configured));
+    }
+
+    #[test]
+    fn picks_free_deepl_endpoint_for_free_keys() {
+        let free = build_deepl_translate_url("demo-key:fx").unwrap();
+        let paid = build_deepl_translate_url("demo-key").unwrap();
+
+        assert_eq!(free.as_str(), DEEPL_TRANSLATE_API_FREE_ENDPOINT);
+        assert_eq!(paid.as_str(), DEEPL_TRANSLATE_API_ENDPOINT);
+    }
+
+    #[test]
+    fn classifies_deepl_quota_and_auth_failures_without_network() {
+        let quota = classify_deepl_http_error(
+            reqwest::StatusCode::from_u16(456).unwrap(),
+            r#"{"message":"Quota exceeded"}"#,
+        );
+        assert!(matches!(quota.status, ReaderAssistanceLookupStatus::Error));
+        assert_eq!(
+            quota.error.as_deref(),
+            Some("DeepL translation quota has been exceeded. (Quota exceeded)")
+        );
+
+        let auth = classify_deepl_http_error(
+            reqwest::StatusCode::UNAUTHORIZED,
+            r#"{"message":"Authorization failed"}"#,
+        );
+        assert!(matches!(auth.status, ReaderAssistanceLookupStatus::Error));
+        assert_eq!(
+            auth.error.as_deref(),
+            Some("DeepL API key is invalid or not authorized. (Authorization failed)")
+        );
     }
 
     #[test]

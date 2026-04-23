@@ -259,12 +259,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 0506, 0507
   - Notes: Tauri now owns reader translation provider status storage for DeepL/Yandex, renderer reads only redacted configuration/status summaries, configured state is derived from local provider key presence rather than renderer input, and the assist sidebar shows missing-key states without bundling or exposing service keys. Translation requests still short-circuit because the actual bridge is not wired yet. Tutorial: `tutorials/commit/0506-add-tauri-owned-reader-translation-provider-status.md`; hardening follow-up: `tutorials/commit/0507-derive-reader-translation-config-from-local-keys.md`.
 
-- [ ] P2-2.2 Implement DeepL translation bridge
+- [x] P2-2.2 Implement DeepL translation bridge
   - Outcome: selected text or paragraph translation works through a provider abstraction with quota/key/network failure states.
   - Touches: translation service, reader assistance UI, tests.
-  - Verify: `pnpm check`; mocked provider test; `git diff --check`.
-  - Done commit:
-  - Notes: groundwork now exists in the provider-status/config boundary, but actual translation still needs the bridge and result mapping.
+  - Verify: `node --test --experimental-strip-types src/lib/reader/assistance.test.mjs`; `pnpm check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo check --manifest-path src-tauri/Cargo.toml`; `git diff --check`.
+  - Done commit: 0508
+  - Notes: reader assistance now routes translation requests through a Tauri-owned `translate_reader_assistance` command, DeepL endpoint selection is server-side allowlisted (`api.deepl.com` / `api-free.deepl.com`) based on the local key, missing-key/offline/quota-auth-config-success states are mapped explicitly, and the assist sidebar can translate the current selection or fall back to the current chapter/title text without exposing a renderer-controlled proxy URL. Tutorial: `tutorials/commit/0508-implement-reader-deepl-translation-bridge.md`.
 
 - [ ] P2-2.3 Implement Yandex translation bridge
   - Outcome: Yandex uses the same translation request/result workflow as DeepL.
