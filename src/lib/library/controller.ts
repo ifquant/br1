@@ -296,6 +296,24 @@ export const buildLibraryBrowseActionDispatcher = (options: {
   };
 };
 
+export const buildLibraryPageActionStateBindings = (options: {
+  filterControlsBindings: Pick<
+    Parameters<typeof buildLibraryPageActionSet>[0],
+    'getCurrentFilterControlsState' | 'applyFilterControlsState'
+  >;
+  browseLocationBindings: Pick<
+    Parameters<typeof buildLibraryPageActionSet>[0],
+    'getCurrentBrowseState' | 'syncBrowseState'
+  >;
+  setSortBy: (sortBy: 'recent' | 'added' | 'title' | 'author' | 'format') => void | Promise<void>;
+  setViewMode: (viewMode: 'grid' | 'list') => void | Promise<void>;
+}) => ({
+  ...options.filterControlsBindings,
+  ...options.browseLocationBindings,
+  setSortBy: options.setSortBy,
+  setViewMode: options.setViewMode
+});
+
 export const buildLibraryPageActions = (options: {
   onImportChange: (event: Event) => void | Promise<void>;
   onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;

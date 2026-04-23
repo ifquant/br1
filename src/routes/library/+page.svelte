@@ -20,6 +20,7 @@
     buildCurrentLibraryFilterControlsState,
     buildCurrentLibraryBrowseState,
     buildLibraryFilterControlsBindings,
+    buildLibraryPageActionStateBindings,
     buildLibraryPageActions,
     buildLibraryPageActionSet,
     getNormalizedLibraryFilterControlsState,
@@ -338,6 +339,16 @@
       libraryTagFilter = tagFilter;
     }
   });
+  let activeLibraryPageActionStateBindings = buildLibraryPageActionStateBindings({
+    filterControlsBindings: activeLibraryFilterControlsBindings,
+    browseLocationBindings: activeLibraryBrowseLocationBindings,
+    setSortBy: (sortBy) => {
+      librarySortBy = sortBy;
+    },
+    setViewMode: (viewMode) => {
+      libraryViewMode = viewMode;
+    }
+  });
   let activeLibraryPageActions: LibraryPageActions;
   let desktopLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(true);
   let starterLibraryPageSurfaceModel: LibraryPageSurfaceModel = createEmptyLibraryPageSurfaceModel(false);
@@ -636,14 +647,7 @@
       onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
       onUpdateBookMetadata: desktopLibraryPageCoordinator.handleUpdateLibraryBookMetadata,
       onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
-      ...activeLibraryFilterControlsBindings,
-      ...activeLibraryBrowseLocationBindings,
-      setSortBy: (sortBy) => {
-        librarySortBy = sortBy;
-      },
-      setViewMode: (viewMode) => {
-        libraryViewMode = viewMode;
-      }
+      ...activeLibraryPageActionStateBindings
     });
 
 </script>
