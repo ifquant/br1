@@ -23,6 +23,16 @@
     void actions.onImportBooks();
   };
 
+  const handleExportSyncSnapshot = () => {
+    if (!actions.onExportSyncSnapshot) return;
+    void actions.onExportSyncSnapshot();
+  };
+
+  const handleImportSyncSnapshot = () => {
+    if (!actions.onImportSyncSnapshot) return;
+    void actions.onImportSyncSnapshot();
+  };
+
   const handleFilterChange = (
     event: CustomEvent<{ filterBy: 'all' | 'reading' | 'unstarted' | 'finished' }>
   ) => {
@@ -82,6 +92,8 @@
     onReadestMigration={actions.onReadestMigration}
     on:querychange={handleQueryChange}
     on:importbooks={handleImportBooks}
+    on:exportsyncsnapshot={handleExportSyncSnapshot}
+    on:importsyncsnapshot={handleImportSyncSnapshot}
     on:filterchange={handleFilterChange}
     on:formatfilterchange={handleFormatFilterChange}
     on:collectionfilterchange={handleCollectionFilterChange}

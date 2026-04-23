@@ -95,3 +95,28 @@ export {
   updateLibraryBookMetadata,
   updateLibraryReadingState
 } from './libraryPersistence';
+export type {
+  LibraryImportActionResult,
+  LibraryReaderTarget,
+  PersistedLibraryBook,
+  ReadestImportSummary,
+  ReadestLibrarySummary
+} from './libraryPersistence';
+export {
+  applySyncSnapshot,
+  createLocalSyncSnapshot,
+  loadSyncSnapshotDialog,
+  persistImportedReaderSettings,
+  prepareSyncSnapshotRestore,
+  saveSyncSnapshotDialog
+} from './syncSnapshot';
+export type {
+  PreparedSyncSnapshotRestore,
+  SyncSnapshotApplyRequest,
+  SyncSnapshotApplyResult,
+  SyncSnapshotBookmarkState,
+  SyncSnapshotExportDialogResult,
+  SyncSnapshotHighlightsWorkspaceRecord,
+  SyncSnapshotImportDialogResult,
+  SyncSnapshotNoteState
+} from './syncSnapshot';

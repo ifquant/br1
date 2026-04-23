@@ -158,6 +158,8 @@ pub(crate) struct ReaderSearchCacheEntry {
 pub(crate) struct ReaderBookmarkRecord {
     pub(crate) id: String,
     pub(crate) locator: String,
+    #[serde(default)]
+    pub(crate) target_href: String,
     pub(crate) chapter_label: String,
     pub(crate) chapter_href: String,
     pub(crate) progress_label: String,
@@ -217,6 +219,22 @@ pub(crate) const READER_SEARCH_CACHE_MAX_FILES_TOTAL: usize = 512;
 pub(crate) const READER_BOOKMARKS_SCHEMA_VERSION: u8 = 1;
 pub(crate) const READER_NOTES_SCHEMA_VERSION: u8 = 1;
 pub(crate) const READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION: u8 = 3;
+pub(crate) const BR1_SYNC_SNAPSHOT_SCHEMA_VERSION: u8 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderHighlightsSelectionImportRecord {
+    pub(crate) book_key: String,
+    pub(crate) book_title: String,
+    pub(crate) format_label: String,
+    pub(crate) selection_name: String,
+    pub(crate) matched_count: u64,
+    pub(crate) total_count: u64,
+    pub(crate) unmatched_count: u64,
+    pub(crate) imported_at: u64,
+    #[serde(default)]
+    pub(crate) highlights: Vec<ReaderNoteRecord>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -225,6 +243,8 @@ pub(crate) struct ReaderHighlightsSelectionSetRecord {
     pub(crate) name: String,
     pub(crate) selected_ids: Vec<String>,
     pub(crate) created_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) import_source: Option<ReaderHighlightsSelectionImportRecord>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,6 +256,8 @@ pub(crate) struct ReaderHighlightsWorkspaceStateRecord {
     pub(crate) sort: String,
     #[serde(default = "default_reader_highlights_saved_selections_sort")]
     pub(crate) saved_selections_sort: String,
+    #[serde(default = "default_reader_highlights_saved_selections_refresh_filter")]
+    pub(crate) saved_selections_refresh_filter: String,
     #[serde(default)]
     pub(crate) selected_ids: Vec<String>,
     #[serde(default)]
@@ -254,9 +276,93 @@ fn default_reader_highlights_saved_selections_sort() -> String {
     "recent".to_string()
 }
 
+fn default_reader_highlights_saved_selections_refresh_filter() -> String {
+    "all".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReaderHighlightsWorkspaceEntry {
     pub(crate) schema_version: u8,
     pub(crate) state: ReaderHighlightsWorkspaceStateRecord,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SyncSnapshotRecord {
+    pub(crate) schema_version: u8,
+    pub(crate) kind: String,
+    pub(crate) id: String,
+    pub(crate) updated_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) scope: Option<serde_json::Value>,
+    pub(crate) payload: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SyncSnapshotDocument {
+    pub(crate) schema_version: u8,
+    pub(crate) exported_at: u64,
+    pub(crate) records: Vec<SyncSnapshotRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SyncSnapshotExportDialogResult {
+    pub(crate) cancelled: bool,
+    pub(crate) file_name: Option<String>,
+    pub(crate) record_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SyncSnapshotImportDialogResult {
+    pub(crate) cancelled: bool,
+    pub(crate) file_name: Option<String>,
+    pub(crate) record_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) snapshot: Option<SyncSnapshotDocument>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SyncSnapshotBookmarksStateRecord {
+    pub(crate) book_key: String,
+    pub(crate) bookmarks: Vec<ReaderBookmarkRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SyncSnapshotNotesStateRecord {
+    pub(crate) book_key: String,
+    pub(crate) notes: Vec<ReaderNoteRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SyncSnapshotHighlightsWorkspaceRecord {
+    pub(crate) book_key: String,
+    pub(crate) state: ReaderHighlightsWorkspaceStateRecord,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ApplySyncSnapshotRequest {
+    pub(crate) library_books: Vec<LibraryBookRecord>,
+    pub(crate) bookmarks: Vec<SyncSnapshotBookmarksStateRecord>,
+    pub(crate) notes: Vec<SyncSnapshotNotesStateRecord>,
+    pub(crate) highlights_workspace: Vec<SyncSnapshotHighlightsWorkspaceRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) reader_settings: Option<SyncSnapshotRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ApplySyncSnapshotResult {
+    pub(crate) library_book_count: usize,
+    pub(crate) bookmark_book_count: usize,
+    pub(crate) note_book_count: usize,
+    pub(crate) highlights_workspace_book_count: usize,
+    pub(crate) restored_reader_settings: bool,
 }

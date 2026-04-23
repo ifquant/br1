@@ -45,6 +45,8 @@
     tagOptions: [],
     tagOptionCounts: {},
     importDisabled: false,
+    showSyncSnapshotActions: false,
+    syncSnapshotBusy: false,
     statusSummary: '',
     activeFilterDetail: '',
     activeFilterChips: [],
@@ -85,6 +87,8 @@
   let tagOptions: string[] = [];
   let tagOptionCounts: Record<string, number> = {};
   let importDisabled = false;
+  let showSyncSnapshotActions = false;
+  let syncSnapshotBusy = false;
   let statusSummary = '';
   let activeFilterDetail = '';
   let activeFilterChips: LibraryHeaderModel['activeFilterChips'] = [];
@@ -114,6 +118,8 @@
     tagOptions,
     tagOptionCounts,
     importDisabled,
+    showSyncSnapshotActions,
+    syncSnapshotBusy,
     statusSummary,
     activeFilterDetail,
     activeFilterChips,
@@ -131,6 +137,8 @@
   const dispatch = createEventDispatcher<{
     querychange: { query: string };
     importbooks: void;
+    exportsyncsnapshot: void;
+    importsyncsnapshot: void;
     viewmodechange: { viewMode: 'grid' | 'list' };
     sortchange: { sortBy: 'recent' | 'added' | 'title' | 'author' | 'format' };
     groupbychange: { groupBy: 'none' | 'author' | 'collection' | 'format' };
@@ -230,6 +238,16 @@
 
   const handleImportBooks = () => {
     dispatch('importbooks');
+  };
+
+  const handleExportSyncSnapshot = () => {
+    dispatch('exportsyncsnapshot');
+    sortMenuOpen = false;
+  };
+
+  const handleImportSyncSnapshot = () => {
+    dispatch('importsyncsnapshot');
+    sortMenuOpen = false;
   };
 
   const handleFilterChange = (nextFilterBy: 'all' | 'reading' | 'unstarted' | 'finished') => {
@@ -422,6 +440,30 @@
                   <small>{groupBy === option.value ? '当前' : option.detail}</small>
                 </button>
               {/each}
+
+              {#if showSyncSnapshotActions}
+                <span class="sort-menu-label secondary-label">本地快照</span>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={syncSnapshotBusy}
+                  on:click={handleExportSyncSnapshot}
+                >
+                  <span>导出本地快照</span>
+                  <small>{syncSnapshotBusy ? '进行中…' : '保存当前书库与阅读状态'}</small>
+                </button>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={syncSnapshotBusy}
+                  on:click={handleImportSyncSnapshot}
+                >
+                  <span>恢复本地快照</span>
+                  <small>{syncSnapshotBusy ? '进行中…' : '覆盖恢复当前持久化状态'}</small>
+                </button>
+              {/if}
             </div>
           {/if}
         </div>

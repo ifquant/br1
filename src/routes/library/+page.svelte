@@ -63,22 +63,31 @@
     LibraryPageHost
   } from '$lib/components';
   import { selectSingleSystemBookPath } from '$lib/services/libraryPersistence';
-  import { READER_FILE_INPUT_ACCEPT } from '$lib/reader';
+  import { loadReaderSettings, READER_FILE_INPUT_ACCEPT } from '$lib/reader';
   import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
   import {
     canPersistLibrary,
+    createLocalSyncSnapshot,
     detectReadestLibrary,
     importBooksFromDesktopPicker,
     importLibraryBooks,
     importBooksFromReadest,
     LIBRARY_SURFACE_RELOAD_EVENT,
+    loadReaderBookmarks,
+    loadReaderHighlightsWorkspaceState,
+    loadReaderNotes,
+    loadSyncSnapshotDialog,
     loadPersistedLibraryBooks,
     openLibraryBookPath,
     openReaderTarget,
+    persistImportedReaderSettings,
+    prepareSyncSnapshotRestore,
     previewLibraryRepairCandidate,
     removeLibraryBook,
     restoreRemovedLibraryBook,
+    saveSyncSnapshotDialog,
     updateLibraryBookMetadata,
+    applySyncSnapshot,
     toAssetReaderHref,
     toAssetReaderTarget,
     toLibraryReaderTarget
@@ -186,6 +195,7 @@
   let readestCompatibleCount = 0;
   let showReadestMigration = false;
   let migrationBusy = false;
+  let syncSnapshotBusy = false;
   let desktopLibraryMode = false;
   let bulkRepairBusy = false;
   let bulkRepairSummary = '';
@@ -383,6 +393,10 @@
       setMigrationBusy: (busy) => {
         migrationBusy = busy;
       },
+      syncSnapshotBusy,
+      setSyncSnapshotBusy: (busy) => {
+        syncSnapshotBusy = busy;
+      },
       setDesktopLibraryMode: (value) => {
         desktopLibraryMode = value;
       },
@@ -404,6 +418,18 @@
       openLibraryBookPath,
       importBooksFromDesktopPicker,
       loadPersistedLibraryBooks,
+      loadReaderBookmarks,
+      loadReaderNotes,
+      loadReaderHighlightsWorkspaceState,
+      readReaderSettings: () =>
+        typeof localStorage === 'undefined' ? null : loadReaderSettings(localStorage),
+      createLocalSyncSnapshot,
+      saveSyncSnapshotDialog,
+      loadSyncSnapshotDialog,
+      prepareSyncSnapshotRestore,
+      applySyncSnapshot,
+      persistImportedReaderSettings,
+      getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
       detectReadestLibrary,
       importBooksFromReadest,
       importLibraryBooks,
@@ -573,7 +599,9 @@
     migrationBusy,
     bulkRepairBusy,
     bulkRepairSummary,
-    desktopLibraryMode
+    desktopLibraryMode,
+    showSyncSnapshotActions: desktopLibraryMode,
+    syncSnapshotBusy
   });
   $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
     buildLibraryPageSurfaceSetFromProjectionState({

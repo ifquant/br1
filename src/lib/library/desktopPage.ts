@@ -28,9 +28,13 @@ import type {
 import type {
   LibraryImportActionResult,
   LibraryReaderTarget,
+  PreparedSyncSnapshotRestore,
   PersistedLibraryBook,
-  ReadestLibrarySummary
-} from '$lib/services/libraryPersistence';
+  ReadestLibrarySummary,
+  SyncSnapshotApplyResult,
+  SyncSnapshotExportDialogResult,
+  SyncSnapshotImportDialogResult
+} from '$lib/services';
 
 type SetLibraryNoticeState = (notice: LibraryNoticeState | null) => void;
 
@@ -48,6 +52,8 @@ export type DesktopLibraryPageCoordinatorOptions = {
   getBulkRepairEligibleQueueBooks: () => LibraryShelfBook[];
   getMigrationBusy: () => boolean;
   setMigrationBusy: (busy: boolean) => void;
+  getSyncSnapshotBusy: () => boolean;
+  setSyncSnapshotBusy: (busy: boolean) => void;
   setDesktopLibraryMode: (value: boolean) => void;
   setReadestLibraryCount: (count: number) => void;
   setShowReadestMigration: (value: boolean) => void;
@@ -57,6 +63,27 @@ export type DesktopLibraryPageCoordinatorOptions = {
   openLibraryBookPath: (filePath: string) => Promise<void>;
   importBooksFromDesktopPicker: () => Promise<LibraryImportActionResult>;
   loadPersistedLibraryBooks: () => Promise<PersistedLibraryBook[]>;
+  loadReaderBookmarks: (bookKey: string) => Promise<any[]>;
+  loadReaderNotes: (bookKey: string) => Promise<any[]>;
+  loadReaderHighlightsWorkspaceState: (bookKey: string) => Promise<any | null>;
+  readReaderSettings: () => any | null;
+  createLocalSyncSnapshot: (args: {
+    libraryBooks: PersistedLibraryBook[];
+    bookmarkStates: Array<{ bookKey: string; bookmarks: any[] }>;
+    noteStates: Array<{ bookKey: string; notes: any[] }>;
+    highlightsWorkspaceStates: Array<{ bookKey: string; state: any }>;
+    readerSettings?: any | null;
+    exportedAt?: number;
+  }) => any;
+  saveSyncSnapshotDialog: (snapshot: any) => Promise<SyncSnapshotExportDialogResult>;
+  loadSyncSnapshotDialog: () => Promise<SyncSnapshotImportDialogResult>;
+  prepareSyncSnapshotRestore: (snapshot: any) => PreparedSyncSnapshotRestore;
+  applySyncSnapshot: (request: PreparedSyncSnapshotRestore['request']) => Promise<SyncSnapshotApplyResult>;
+  persistImportedReaderSettings: (
+    storage: Storage | undefined,
+    settings: PreparedSyncSnapshotRestore['readerSettings']
+  ) => boolean;
+  getStorage: () => Storage | undefined;
   detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
   importBooksFromReadest: () => Promise<LibraryImportActionResult>;
   importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>;
@@ -109,6 +136,8 @@ export type DesktopLibraryPageCoordinatorStateBindings = Pick<
   | 'getBulkRepairEligibleQueueBooks'
   | 'getMigrationBusy'
   | 'setMigrationBusy'
+  | 'getSyncSnapshotBusy'
+  | 'setSyncSnapshotBusy'
   | 'setDesktopLibraryMode'
   | 'setReadestLibraryCount'
   | 'setShowReadestMigration'
@@ -138,6 +167,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   bulkRepairEligibleQueueBooks,
   migrationBusy,
   setMigrationBusy,
+  syncSnapshotBusy,
+  setSyncSnapshotBusy,
   setDesktopLibraryMode,
   setReadestLibraryCount,
   setShowReadestMigration,
@@ -156,6 +187,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   bulkRepairEligibleQueueBooks: LibraryShelfBook[];
   migrationBusy: boolean;
   setMigrationBusy: (busy: boolean) => void;
+  syncSnapshotBusy: boolean;
+  setSyncSnapshotBusy: (busy: boolean) => void;
   setDesktopLibraryMode: (value: boolean) => void;
   setReadestLibraryCount: (count: number) => void;
   setShowReadestMigration: (value: boolean) => void;
@@ -174,6 +207,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
   getMigrationBusy: () => migrationBusy,
   setMigrationBusy,
+  getSyncSnapshotBusy: () => syncSnapshotBusy,
+  setSyncSnapshotBusy,
   setDesktopLibraryMode,
   setReadestLibraryCount,
   setShowReadestMigration,
@@ -188,6 +223,17 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   openLibraryBookPath,
   importBooksFromDesktopPicker,
   loadPersistedLibraryBooks,
+  loadReaderBookmarks,
+  loadReaderNotes,
+  loadReaderHighlightsWorkspaceState,
+  readReaderSettings,
+  createLocalSyncSnapshot,
+  saveSyncSnapshotDialog,
+  loadSyncSnapshotDialog,
+  prepareSyncSnapshotRestore,
+  applySyncSnapshot,
+  persistImportedReaderSettings,
+  getStorage,
   detectReadestLibrary,
   importBooksFromReadest,
   importLibraryBooks,
@@ -206,6 +252,17 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   openLibraryBookPath: (filePath: string) => Promise<void>;
   importBooksFromDesktopPicker: () => Promise<LibraryImportActionResult>;
   loadPersistedLibraryBooks: () => Promise<PersistedLibraryBook[]>;
+  loadReaderBookmarks: DesktopLibraryPageCoordinatorEnvironment['loadReaderBookmarks'];
+  loadReaderNotes: DesktopLibraryPageCoordinatorEnvironment['loadReaderNotes'];
+  loadReaderHighlightsWorkspaceState: DesktopLibraryPageCoordinatorEnvironment['loadReaderHighlightsWorkspaceState'];
+  readReaderSettings: DesktopLibraryPageCoordinatorEnvironment['readReaderSettings'];
+  createLocalSyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['createLocalSyncSnapshot'];
+  saveSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['saveSyncSnapshotDialog'];
+  loadSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['loadSyncSnapshotDialog'];
+  prepareSyncSnapshotRestore: DesktopLibraryPageCoordinatorEnvironment['prepareSyncSnapshotRestore'];
+  applySyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['applySyncSnapshot'];
+  persistImportedReaderSettings: DesktopLibraryPageCoordinatorEnvironment['persistImportedReaderSettings'];
+  getStorage: () => Storage | undefined;
   detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
   importBooksFromReadest: () => Promise<LibraryImportActionResult>;
   importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>;
@@ -224,6 +281,17 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   openLibraryBookPath,
   importBooksFromDesktopPicker,
   loadPersistedLibraryBooks,
+  loadReaderBookmarks,
+  loadReaderNotes,
+  loadReaderHighlightsWorkspaceState,
+  readReaderSettings,
+  createLocalSyncSnapshot,
+  saveSyncSnapshotDialog,
+  loadSyncSnapshotDialog,
+  prepareSyncSnapshotRestore,
+  applySyncSnapshot,
+  persistImportedReaderSettings,
+  getStorage,
   detectReadestLibrary,
   importBooksFromReadest,
   importLibraryBooks,
@@ -460,6 +528,93 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     });
   };
 
+  const handleExportSyncSnapshot = async () => {
+    if (!options.canPersistLibrary() || options.getSyncSnapshotBusy()) return;
+
+    options.setSyncSnapshotBusy(true);
+    clearLibraryNotice();
+    try {
+      const libraryBooks = await options.loadPersistedLibraryBooks();
+      const bookmarkStates = await Promise.all(
+        libraryBooks.map(async (book) => ({
+          bookKey: book.filePath,
+          bookmarks: await options.loadReaderBookmarks(book.filePath)
+        }))
+      );
+      const noteStates = await Promise.all(
+        libraryBooks.map(async (book) => ({
+          bookKey: book.filePath,
+          notes: await options.loadReaderNotes(book.filePath)
+        }))
+      );
+      const highlightsWorkspaceStates = (
+        await Promise.all(
+          libraryBooks.map(async (book) => ({
+            bookKey: book.filePath,
+            state: await options.loadReaderHighlightsWorkspaceState(book.filePath)
+          }))
+        )
+      ).flatMap((entry) => (entry.state ? [{ bookKey: entry.bookKey, state: entry.state }] : []));
+
+      const snapshot = options.createLocalSyncSnapshot({
+        libraryBooks,
+        bookmarkStates,
+        noteStates,
+        highlightsWorkspaceStates,
+        readerSettings: options.readReaderSettings()
+      });
+      const result = await options.saveSyncSnapshotDialog(snapshot);
+
+      if (result.cancelled) {
+        setLibraryNotice('info', '已取消本地快照导出。');
+        return;
+      }
+
+      setLibraryNotice(
+        'info',
+        `已导出本地快照${result.fileName ? `：${result.fileName}` : ''}，共 ${result.recordCount} 条记录。`
+      );
+    } catch (error) {
+      console.error('Failed to export local sync snapshot', error);
+      setLibraryNotice('error', '导出本地快照失败，请确认桌面权限和书库数据后重试。');
+    } finally {
+      options.setSyncSnapshotBusy(false);
+    }
+  };
+
+  const handleImportSyncSnapshot = async () => {
+    if (!options.canPersistLibrary() || options.getSyncSnapshotBusy()) return;
+
+    options.setSyncSnapshotBusy(true);
+    clearLibraryNotice();
+    try {
+      const imported = await options.loadSyncSnapshotDialog();
+      if (imported.cancelled || !imported.snapshot) {
+        setLibraryNotice('info', '已取消本地快照恢复。');
+        return;
+      }
+
+      const prepared = options.prepareSyncSnapshotRestore(imported.snapshot);
+      const applyResult = await options.applySyncSnapshot(prepared.request);
+      const restoredReaderSettings = options.persistImportedReaderSettings(
+        options.getStorage(),
+        prepared.readerSettings
+      );
+      await loadLibrary();
+
+      setLibraryNotice(
+        'info',
+        `已恢复本地快照${imported.fileName ? `：${imported.fileName}` : ''}。书库 ${applyResult.libraryBookCount} 本，书签 ${applyResult.bookmarkBookCount} 本，笔记 ${applyResult.noteBookCount} 本，高亮工作区 ${applyResult.highlightsWorkspaceBookCount} 本${restoredReaderSettings ? '，阅读设置已更新。' : '。'}`
+      );
+    } catch (error) {
+      console.error('Failed to import local sync snapshot', error);
+      const detail = error instanceof Error ? error.message : '请检查快照文件是否完整有效。';
+      setLibraryNotice('error', `恢复本地快照失败：${detail}`);
+    } finally {
+      options.setSyncSnapshotBusy(false);
+    }
+  };
+
   return {
     clearLibraryNotice,
     setLibraryNotice,
@@ -477,7 +632,9 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     handleRemoveLibraryBook,
     handleUpdateLibraryBookMetadata,
     handleRepairLibraryBook,
-    handleBulkRepairLibraryBooks
+    handleBulkRepairLibraryBooks,
+    handleExportSyncSnapshot,
+    handleImportSyncSnapshot
   };
 };
 
@@ -504,6 +661,8 @@ export const buildDesktopLibraryPageActionEnvironmentBindings = (
   onRunNoticeAction: coordinator.runLibraryNoticeAction,
   onClearNotice: coordinator.clearLibraryNotice,
   onReadestMigration: coordinator.handleReadestMigrationClick,
+  onExportSyncSnapshot: coordinator.handleExportSyncSnapshot,
+  onImportSyncSnapshot: coordinator.handleImportSyncSnapshot,
   onOpenLink: coordinator.handleOpenReaderTarget,
   onImportBooks: coordinator.triggerImportPicker,
   onOpenSourcePath: coordinator.handleOpenSourcePath,

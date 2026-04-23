@@ -74,6 +74,16 @@ pub(crate) fn reader_highlights_workspace_root(app: &tauri::AppHandle) -> Result
         .join("reader-highlights-workspace"))
 }
 
+pub(crate) fn sync_snapshots_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("sync-snapshots");
+    fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+    Ok(root)
+}
+
 pub(crate) fn reader_search_cache_component_key(value: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(value.as_bytes());

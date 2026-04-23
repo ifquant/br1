@@ -280,12 +280,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: added `src/lib/sync` with explicit record envelopes for library metadata, reading state, bookmarks, notes, highlights workspace, and persisted reader settings; stable record ids are derived from durable book ids or hashed persisted store keys without changing existing product writes. Import/export UI, snapshot file commands, conflict resolution flow, and any migration of timestamp-based per-item annotation ids remain deferred to P2-3.2+.
 
-- [ ] P2-3.2 Implement local sync snapshot import/export
+- [x] P2-3.2 Implement local sync snapshot import/export
   - Outcome: users can create and restore a local sync snapshot before remote providers exist.
   - Touches: Tauri sync commands, service facade, library/settings UI.
-  - Verify: `pnpm check`; snapshot round-trip regression; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Verify: `pnpm check` (PASS); `cargo check` (PASS); `cargo test` (PASS, includes sync snapshot round-trip/apply regression); `git diff --check` (PASS).
+  - Done commit: 0511
+  - Notes: added Tauri-owned save/open dialog commands plus snapshot file parsing and apply helpers under `src-tauri/src/commands/sync_snapshot.rs`; wired minimal export/import actions into the existing library header menu instead of adding a new page; export builds a versioned sync snapshot from library metadata, reading state, bookmarks, notes, highlights workspace, and reader settings; import restores the persisted library/bookmark/note/highlight shapes and applies reader settings back into local storage with explicit success/error notices.
 
 - [ ] P2-3.3 Add the first remote sync provider
   - Outcome: a provider-backed sync path exists with explicit offline, conflict, and retry semantics.
@@ -316,9 +316,9 @@ These checks apply to every P2 service slice.
   - Done commit: 0505
   - Notes: catalog commands only; user-configured http/https OPDS URLs are persisted as source metadata but browsing returns an explicit unsupported product state unless the source maps to an allowlisted bundled fixture page, so renderer input still cannot trigger live arbitrary URL fetching.
 
-- [ ] S-2 Renderer cannot use service flows to read arbitrary local files
-  - Done commit:
-  - Notes:
+- [x] S-2 Renderer cannot use service flows to read arbitrary local files
+  - Done commit: 0511
+  - Notes: sync snapshot import/export now keeps file selection and save-path ownership inside Tauri dialogs. The renderer never supplies arbitrary snapshot filesystem paths; it only receives parsed snapshot content or file-name summaries, while restore writes go through Tauri-owned app-data paths and existing hashed storage roots.
 
 - [x] S-3 Long-lived provider credentials are not stored in renderer-only state
   - Done commit: 0505

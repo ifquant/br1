@@ -235,6 +235,8 @@ export type LibraryPageActions = {
   onRunNoticeAction?: (() => void | Promise<void>) | null;
   onClearNotice?: (() => void | Promise<void>) | null;
   onReadestMigration?: (() => void | Promise<void>) | null;
+  onExportSyncSnapshot?: (() => void | Promise<void>) | null;
+  onImportSyncSnapshot?: (() => void | Promise<void>) | null;
   onOpenLink: (href: string) => void | Promise<void>;
   onImportBooks?: (() => void | Promise<void>) | null;
   onOpenSourcePath?: ((filePath: string) => void | Promise<void>) | null;
@@ -284,6 +286,8 @@ export type LibraryHeaderModel = {
   tagOptions: string[];
   tagOptionCounts: Record<string, number>;
   importDisabled: boolean;
+  showSyncSnapshotActions: boolean;
+  syncSnapshotBusy: boolean;
   statusSummary: string;
   activeFilterDetail: string;
   activeFilterChips: LibraryActiveFilterChip[];

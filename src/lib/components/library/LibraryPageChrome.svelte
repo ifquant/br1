@@ -32,6 +32,8 @@
       tagOptions: [],
       tagOptionCounts: {},
       importDisabled: false,
+      showSyncSnapshotActions: false,
+      syncSnapshotBusy: false,
       statusSummary: '',
       activeFilterDetail: '',
       activeFilterChips: [],
@@ -74,6 +76,8 @@
   {onDispatchBrowseAction}
   on:querychange
   on:importbooks
+  on:exportsyncsnapshot
+  on:importsyncsnapshot
   on:filterchange
   on:formatfilterchange
   on:collectionfilterchange

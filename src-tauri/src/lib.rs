@@ -242,6 +242,7 @@ pub fn run() {
     let app = builder
         .invoke_handler(tauri::generate_handler![
             commands::bookmarks::load_reader_bookmarks,
+            commands::sync_snapshot::load_sync_snapshot_dialog,
             commands::catalogs::browse_catalog_source,
             commands::catalogs::create_catalog_import_intent,
             commands::catalogs::get_catalog_connector_status,
@@ -285,7 +286,9 @@ pub fn run() {
             commands::highlights_workspace::save_reader_highlights_workspace_state,
             commands::notes::save_reader_notes,
             commands::search_cache::save_reader_search_cache,
-            commands::library::update_library_reading_state
+            commands::library::update_library_reading_state,
+            commands::sync_snapshot::save_sync_snapshot_dialog,
+            commands::sync_snapshot::apply_sync_snapshot
         ])
         .setup(|app| {
             append_associated_book_open_diagnostic(
