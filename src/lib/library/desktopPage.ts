@@ -1,4 +1,7 @@
-import { createLibraryNotice, runLibraryNoticeAction as runSharedLibraryNoticeAction } from './controller';
+import {
+  createLibraryNotice,
+  runLibraryNoticeAction as runSharedLibraryNoticeAction
+} from './controller';
 import { buildDesktopCatalogProjection, sortRecordsForLibraryShelf } from './desktopCatalog';
 import {
   importDesktopLibraryBooks,
@@ -373,3 +376,17 @@ export const buildDesktopLibraryPageCoordinatorFromBindings = ({
     ...state,
     ...env
   });
+
+export const buildDesktopLibraryPageActionEnvironmentBindings = (
+  coordinator: ReturnType<typeof buildDesktopLibraryPageCoordinator>
+) => ({
+  onImportChange: coordinator.handleImportChange,
+  onRunNoticeAction: coordinator.runLibraryNoticeAction,
+  onClearNotice: coordinator.clearLibraryNotice,
+  onReadestMigration: coordinator.handleReadestMigrationClick,
+  onOpenLink: coordinator.handleOpenReaderTarget,
+  onImportBooks: coordinator.triggerImportPicker,
+  onOpenSourcePath: coordinator.handleOpenSourcePath,
+  onUpdateBookMetadata: coordinator.handleUpdateLibraryBookMetadata,
+  onRemoveBook: coordinator.handleRemoveLibraryBook
+});

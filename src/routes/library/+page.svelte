@@ -27,6 +27,7 @@
     getAppliedLibraryBrowseState
   } from '$lib/library/controller';
   import {
+    buildDesktopLibraryPageActionEnvironmentBindings,
     buildDesktopLibraryPageCoordinatorEnvironment,
     buildDesktopLibraryPageCoordinatorFromBindings,
     buildDesktopLibraryPageCoordinatorStateBindings
@@ -635,15 +636,7 @@
   }
 
   $: activeLibraryPageActions = buildLibraryPageActionSet({
-      onImportChange: desktopLibraryPageCoordinator.handleImportChange,
-      onRunNoticeAction: desktopLibraryPageCoordinator.runLibraryNoticeAction,
-      onClearNotice: desktopLibraryPageCoordinator.clearLibraryNotice,
-      onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
-      onOpenLink: desktopLibraryPageCoordinator.handleOpenReaderTarget,
-      onImportBooks: desktopLibraryPageCoordinator.triggerImportPicker,
-      onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
-      onUpdateBookMetadata: desktopLibraryPageCoordinator.handleUpdateLibraryBookMetadata,
-      onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
+      ...buildDesktopLibraryPageActionEnvironmentBindings(desktopLibraryPageCoordinator),
       ...activeLibraryPageActionStateBindings
     });
 
