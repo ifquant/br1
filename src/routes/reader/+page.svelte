@@ -23,6 +23,7 @@
     createReaderNotesController,
     createReaderSearchController,
     createReaderSidebarController,
+    createReaderTtsController,
     parseReaderRouteOpenState,
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
@@ -63,6 +64,8 @@
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceRequestNonce = 0;
   let lastAssistanceBookKey = '';
+  const ttsController = createReaderTtsController();
+  const ttsState = ttsController.state;
 
   $: routeOpenState = parseReaderRouteOpenState($page.url) satisfies ReaderRouteOpenState;
   $: isWindowMode = routeOpenState.isWindowMode;
@@ -308,6 +311,22 @@
     }
   };
 
+  const handleTtsStart = () => {
+    ttsController.start();
+  };
+
+  const handleTtsPause = () => {
+    ttsController.pause();
+  };
+
+  const handleTtsResume = () => {
+    ttsController.resume();
+  };
+
+  const handleTtsStop = () => {
+    ttsController.stop();
+  };
+
   const openBookmark = (href: string) => {
     if (!href) return;
     sidebarController.openTab('bookmarks');
@@ -461,6 +480,7 @@
       isCurrentLocationBookmarked={$bookmarksState.bookmarks.some(
         (bookmark) => bookmark.locator === $bookmarksState.activeLocator
       )}
+      ttsSession={$ttsState}
       notes={$notesState.notes}
       activeSidebarTab={$sidebarState.tab}
       on:gotolibrary={handleGoToLibrary}
@@ -496,6 +516,10 @@
       on:tocchange={({ detail }: CustomEvent<ReaderTocItem[]>) => {
         toc = detail;
       }}
+      onTtsStart={handleTtsStart}
+      onTtsPause={handleTtsPause}
+      onTtsResume={handleTtsResume}
+      onTtsStop={handleTtsStop}
     />
 
     {#if !isWindowMode}

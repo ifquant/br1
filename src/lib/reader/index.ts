@@ -54,6 +54,25 @@ export { createReaderNotesController } from './notesController';
 export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export {
+  READER_TTS_UNAVAILABLE_REASON,
+  createEmptyReaderTtsSessionState,
+  createErrorReaderTtsSessionState,
+  createIdleReaderTtsSessionState,
+  createPausedReaderTtsSessionState,
+  createReaderTtsController,
+  createSpeakingReaderTtsSessionState,
+  createUnavailableReaderTtsSessionState,
+  getReaderTtsPrimaryActionLabel,
+  getReaderTtsSessionStatusLabel,
+  getReaderTtsStatusDetail
+} from './tts';
+export type {
+  ReaderTtsControllerOptions,
+  ReaderTtsSessionAction,
+  ReaderTtsSessionState,
+  ReaderTtsSessionStatus
+} from './tts';
+export {
   createDefaultReaderSettings,
   getReaderShellPalette,
   getReaderThemePalette,

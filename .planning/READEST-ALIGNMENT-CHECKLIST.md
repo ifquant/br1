@@ -177,9 +177,10 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Follow-up: 0495 keeps the Wikipedia/dictionary provider chips visibly selected and exposes pressed state to assistive technology.
   - Notes: dictionary lookup now goes through the shared assistance facade and the same assist panel term input, with server-side `dictionaryapi.dev` URL construction and Rust coverage for the English-only normalization/formatting path.
 
-- [ ] P1-2.1 Replace the TTS placeholder with a real session model
+- [x] P1-2.1 Replace the TTS placeholder with a real session model
   - Outcome: reader tracks unavailable, idle, speaking, paused, and error states with start, pause, resume, and stop actions.
   - Touches: reader types, reader workspace/stage controls, TTS controller.
+  - Notes: the model/control split now exists in `src/lib/reader/tts.ts`; the header button reflects the current session state, but the controller still treats the engine as unavailable and surfaces that explicitly instead of faking speech. Tutorial: `tutorials/commit/0496-replace-the-reader-tts-placeholder-with-a-session-model.md`.
   - Verify: `pnpm check`; source-level availability review; `git diff --check`.
   - Done commit:
   - Notes:

@@ -3,7 +3,13 @@
   import type {
     ReaderPreviewState,
     ReaderSettings,
-    SidebarTab
+    SidebarTab,
+    ReaderTtsSessionState
+  } from '$lib/reader';
+  import {
+    getReaderTtsPrimaryActionLabel,
+    getReaderTtsSessionStatusLabel,
+    getReaderTtsStatusDetail
   } from '$lib/reader';
 
   export let preview: ReaderPreviewState;
@@ -13,6 +19,7 @@
   export let activeSidebarTab: SidebarTab = 'toc';
   export let isCurrentLocationBookmarked = false;
   export let settings: ReaderSettings;
+  export let ttsSession: ReaderTtsSessionState;
   export let onGoToLibrary: (() => void) | null = null;
   export let onToggleBookmark: (() => void) | null = null;
   export let onOpenPicker: (() => void) | null = null;
@@ -21,8 +28,17 @@
   export let onOpenSidebarTab: ((tab: SidebarTab) => void) | null = null;
   export let onUpdateSettings: ((patch: Partial<ReaderSettings>) => void) | null = null;
   export let onSetChromeMode: ((mode: ReaderSettings['chromeMode']) => void) | null = null;
+  export let onTtsStart: (() => void) | null = null;
+  export let onTtsPause: (() => void) | null = null;
+  export let onTtsResume: (() => void) | null = null;
+  export let onTtsStop: (() => void) | null = null;
 
   let menuOpen = false;
+  $: ttsStatusLabel = getReaderTtsSessionStatusLabel(ttsSession);
+  $: ttsStatusDetail = getReaderTtsStatusDetail(ttsSession);
+  $: ttsPrimaryActionLabel = getReaderTtsPrimaryActionLabel(ttsSession);
+  $: ttsPrimaryAriaLabel =
+    ttsSession.status === 'unavailable' ? ttsStatusDetail : ttsPrimaryActionLabel;
 
   const toggleMenu = () => {
     menuOpen = !menuOpen;
@@ -35,6 +51,24 @@
   const runMenuAction = (action: (() => void) | null | undefined) => {
     closeMenu();
     action?.();
+  };
+
+  const handleTtsPrimaryAction = () => {
+    if (ttsSession.status === 'speaking') {
+      onTtsPause?.();
+      return;
+    }
+
+    if (ttsSession.status === 'paused') {
+      onTtsResume?.();
+      return;
+    }
+
+    onTtsStart?.();
+  };
+
+  const handleTtsStopAction = () => {
+    onTtsStop?.();
   };
 
   const handleWindowPointerDown = (event: MouseEvent) => {
@@ -136,6 +170,39 @@
       >
         W
       </button>
+      <div class="tts-group" aria-label="朗读控制">
+        <button
+          type="button"
+          class:active={ttsSession.status === 'speaking'}
+          class:error={ttsSession.status === 'error'}
+          aria-label={ttsPrimaryAriaLabel}
+          title={ttsPrimaryAriaLabel}
+          on:click={handleTtsPrimaryAction}
+        >
+          {ttsSession.status === 'unavailable'
+            ? '🔇'
+            : ttsSession.status === 'idle'
+              ? '🔊'
+              : ttsSession.status === 'speaking'
+                ? '⏸'
+                : ttsSession.status === 'paused'
+                  ? '▶'
+                  : '⚠'}
+        </button>
+        {#if ttsSession.status === 'speaking' || ttsSession.status === 'paused'}
+          <button
+            type="button"
+            aria-label="停止朗读"
+            title="停止朗读"
+            on:click={handleTtsStopAction}
+          >
+            ⏹
+          </button>
+        {/if}
+        <span class:error={ttsSession.status === 'error'} class="tts-status" title={ttsStatusDetail}>
+          {ttsStatusLabel}
+        </span>
+      </div>
       <div class="menu-anchor">
         <button
           type="button"
@@ -598,6 +665,32 @@
     background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 92%, white 8%);
     color: var(--reader-shell-accent, var(--text-primary));
     box-shadow: inset 0 0 0 1px var(--reader-shell-border, var(--border-light));
+  }
+
+  .tts-group {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1px solid color-mix(in srgb, var(--reader-shell-border, var(--border-light)) 76%, transparent 24%);
+  }
+
+  .tts-group .tts-status {
+    color: var(--reader-shell-muted, var(--text-muted));
+    font-family: var(--font-chrome);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .tts-group .tts-status.error {
+    color: #9c4a2f;
+  }
+
+  .tts-group button.error {
+    color: #9c4a2f;
   }
 
   .header-menu {

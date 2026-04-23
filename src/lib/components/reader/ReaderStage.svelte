@@ -18,6 +18,7 @@
     READER_FILE_INPUT_ACCEPT,
     saveReaderSettings
   } from '$lib/reader';
+  import type { ReaderTtsSessionState } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
@@ -42,7 +43,12 @@
   export let sidebarVisible = true;
   export let activeSidebarTab: SidebarTab = 'toc';
   export let isCurrentLocationBookmarked = false;
+  export let ttsSession: ReaderTtsSessionState;
   export let notes: ReaderNote[] = [];
+  export let onTtsStart: (() => void) | null = null;
+  export let onTtsPause: (() => void) | null = null;
+  export let onTtsResume: (() => void) | null = null;
+  export let onTtsStop: (() => void) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
@@ -234,6 +240,7 @@
     {activeSidebarTab}
     {isCurrentLocationBookmarked}
     {settings}
+    {ttsSession}
     onGoToLibrary={goToLibrary}
     onToggleBookmark={toggleBookmark}
     onOpenPicker={triggerImportPicker}
@@ -242,6 +249,10 @@
     onOpenSidebarTab={openSidebarTab}
     onUpdateSettings={updateSettings}
     onSetChromeMode={setChromeMode}
+    {onTtsStart}
+    {onTtsPause}
+    {onTtsResume}
+    {onTtsStop}
   />
 
   <article
