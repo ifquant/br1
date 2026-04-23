@@ -12,6 +12,13 @@ type BuildStarterLibraryPageSurfaceModelArgs = {
   body: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0];
 };
 
+type BuildLibraryPageSurfaceSetArgs = {
+  chrome: Parameters<typeof buildLibraryPageChromeModel>[0];
+  desktopBody: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0];
+  starterBody: Parameters<typeof buildStarterLibraryBrowseBodySurfaceModel>[0];
+  desktopLibraryMode: boolean;
+};
+
 export const createEmptyLibraryPageSurfaceModel = (
   supportsDesktopBookActions: boolean
 ): LibraryPageSurfaceModel => ({
@@ -93,3 +100,25 @@ export const buildStarterLibraryPageSurfaceModel = ({
   body: buildStarterLibraryBrowseBodySurfaceModel(body),
   supportsDesktopBookActions: false
 });
+
+export const buildLibraryPageSurfaceSet = ({
+  chrome,
+  desktopBody,
+  starterBody,
+  desktopLibraryMode
+}: BuildLibraryPageSurfaceSetArgs) => {
+  const desktop = buildDesktopLibraryPageSurfaceModel({
+    chrome,
+    body: desktopBody
+  });
+  const starter = buildStarterLibraryPageSurfaceModel({
+    chrome,
+    body: starterBody
+  });
+
+  return {
+    desktop,
+    starter,
+    active: desktopLibraryMode ? desktop : starter
+  };
+};

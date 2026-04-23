@@ -28,8 +28,7 @@
   } from '$lib/library/desktopRecords';
   import {
     createEmptyLibraryPageSurfaceModel,
-    buildDesktopLibraryPageSurfaceModel,
-    buildStarterLibraryPageSurfaceModel
+    buildLibraryPageSurfaceSet
   } from '$lib/library/surface';
   import {
     buildLibraryScrollContextKey as buildSharedLibraryScrollContextKey,
@@ -596,145 +595,102 @@
     : '';
   $: starterReadingWorkflowNotice = starterLibraryBrowse.workflowNotice;
   $: currentLibraryBrowseState = getCurrentLibraryBrowseState();
-  $: desktopLibraryPageSurfaceModel = buildDesktopLibraryPageSurfaceModel({
-    chrome: {
-      totalBooks: importedBooks.length || starterLibraryBooks.length,
-      query: libraryQuery,
-      viewMode: libraryViewMode,
-      sortBy: librarySortBy,
-      groupBy: libraryGroupBy,
-      browseState: currentLibraryBrowseState,
-      activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
-      activeFilter: libraryFilterBy,
-      statusOptionCounts: libraryStatusOptionCounts,
-      activeFormatFilter: libraryFormatFilter,
-      formatOptions: libraryFormatOptions,
-      formatOptionCounts: libraryFormatOptionCounts,
-      activeCollectionFilter: libraryCollectionFilter,
-      collectionOptions: libraryCollectionOptions,
-      collectionOptionCounts: libraryCollectionOptionCounts,
-      activeTagFilter: libraryTagFilter,
-      tagOptions: libraryTagOptions,
-      tagOptionCounts: libraryTagOptionCounts,
-      statusSummary: libraryStatusSummary,
-      activeFilterDetail: libraryActiveFilterDetail,
-      activeFilterChips: libraryActiveFilterChips,
-      formatSummary: libraryFormatSummary,
-      collectionSummary: libraryCollectionSummary,
-      tagSummary: libraryTagSummary,
-      coverSummary: libraryCoverSummary,
-      filterSummary: libraryFilterSummary,
-      importDisabled: migrationBusy,
-      notice: libraryNotice
-        ? {
-            kind: libraryNotice.kind,
-            message: libraryNotice.message,
-            actionLabel: libraryNotice.actionLabel
-          }
-        : null,
-      showReadestMigration,
-      readestLibraryCount,
-      readestCompatibleCount,
-      migrationBusy
-    },
-    body: {
-      browseState: currentLibraryBrowseState,
-      groupedBrowseMode: libraryGroupedBrowseMode,
-      browseBooks: filteredLibraryBrowseBooks,
-      viewMode: libraryViewMode,
-      shelfBooks: filteredLibraryShelfBooks,
-      searchActive: librarySearchActive,
-      groupBy: libraryGroupBy,
-      workflowNotice: readingWorkflowNotice,
-      recoveryQueueSummaryText,
-      recoveryQueueReviewBooks,
-      bulkRepairEligibleCount: bulkRepairEligibleQueueBooks.length,
-      bulkRepairBusy,
-      bulkRepairSummary,
-      filteredContinueReadingBooks,
-      filteredRecentReadingBooks,
-      importedBooksCount: importedBooks.length,
-      readestLibraryCount,
-      migrationBusy,
-      libraryQuery,
-      visibleLibraryBooksCount,
-      activeFilterDetail: libraryActiveFilterDetail,
-      activeFilterChips: libraryActiveFilterChips,
-      onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
-      onImportBooks: desktopLibraryPageCoordinator.triggerImportPicker,
-      onRepairBook: desktopLibraryPageCoordinator.handleRepairLibraryBook,
-      onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
-      onBulkRepairBooks: desktopLibraryPageCoordinator.handleBulkRepairLibraryBooks,
-      onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
-      onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
-      onClearFilters: activeLibraryPageActions.onClearFilters!,
-      getEmptyFilterTitle: getLibraryEmptyFilterTitle
-    }
-  });
-  $: starterLibraryPageSurfaceModel = buildStarterLibraryPageSurfaceModel({
-    chrome: {
-      totalBooks: importedBooks.length || starterLibraryBooks.length,
-      query: libraryQuery,
-      viewMode: libraryViewMode,
-      sortBy: librarySortBy,
-      groupBy: libraryGroupBy,
-      browseState: currentLibraryBrowseState,
-      activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
-      activeFilter: libraryFilterBy,
-      statusOptionCounts: libraryStatusOptionCounts,
-      activeFormatFilter: libraryFormatFilter,
-      formatOptions: libraryFormatOptions,
-      formatOptionCounts: libraryFormatOptionCounts,
-      activeCollectionFilter: libraryCollectionFilter,
-      collectionOptions: libraryCollectionOptions,
-      collectionOptionCounts: libraryCollectionOptionCounts,
-      activeTagFilter: libraryTagFilter,
-      tagOptions: libraryTagOptions,
-      tagOptionCounts: libraryTagOptionCounts,
-      statusSummary: libraryStatusSummary,
-      activeFilterDetail: libraryActiveFilterDetail,
-      activeFilterChips: libraryActiveFilterChips,
-      formatSummary: libraryFormatSummary,
-      collectionSummary: libraryCollectionSummary,
-      tagSummary: libraryTagSummary,
-      coverSummary: libraryCoverSummary,
-      filterSummary: libraryFilterSummary,
-      importDisabled: migrationBusy,
-      notice: libraryNotice
-        ? {
-            kind: libraryNotice.kind,
-            message: libraryNotice.message,
-            actionLabel: libraryNotice.actionLabel
-          }
-        : null,
-      showReadestMigration,
-      readestLibraryCount,
-      readestCompatibleCount,
-      migrationBusy
-    },
-    body: {
-      browseState: currentLibraryBrowseState,
-      groupedBrowseMode: libraryGroupedBrowseMode,
-      browseBooks: filteredStarterBrowseBooks,
-      viewMode: libraryViewMode,
-      shelfBooks: filteredStarterShelfBooks,
-      searchActive: librarySearchActive,
-      groupBy: libraryGroupBy,
-      workflowNotice: starterReadingWorkflowNotice,
-      filteredContinueReadingBooks: filteredStarterContinueReadingBooks,
-      filteredRecentReadingBooks: filteredStarterRecentReadingBooks,
-      libraryQuery,
-      visibleStarterLibraryBooksCount,
-      activeFilterDetail: libraryActiveFilterDetail,
-      activeFilterChips: libraryActiveFilterChips,
-      onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
-      onClearFilters: activeLibraryPageActions.onClearFilters!,
-      getEmptyFilterTitle: getLibraryEmptyFilterTitle
-    }
-  });
-  $: activeLibraryPageSurfaceModel = desktopLibraryMode
-    ? desktopLibraryPageSurfaceModel
-    : starterLibraryPageSurfaceModel;
+  $: ({ desktop: desktopLibraryPageSurfaceModel, starter: starterLibraryPageSurfaceModel, active: activeLibraryPageSurfaceModel } =
+    buildLibraryPageSurfaceSet({
+      chrome: {
+        totalBooks: importedBooks.length || starterLibraryBooks.length,
+        query: libraryQuery,
+        viewMode: libraryViewMode,
+        sortBy: librarySortBy,
+        groupBy: libraryGroupBy,
+        browseState: currentLibraryBrowseState,
+        activeGroupVisibleCount: filteredLibraryShelfBooks.length || filteredStarterShelfBooks.length,
+        activeFilter: libraryFilterBy,
+        statusOptionCounts: libraryStatusOptionCounts,
+        activeFormatFilter: libraryFormatFilter,
+        formatOptions: libraryFormatOptions,
+        formatOptionCounts: libraryFormatOptionCounts,
+        activeCollectionFilter: libraryCollectionFilter,
+        collectionOptions: libraryCollectionOptions,
+        collectionOptionCounts: libraryCollectionOptionCounts,
+        activeTagFilter: libraryTagFilter,
+        tagOptions: libraryTagOptions,
+        tagOptionCounts: libraryTagOptionCounts,
+        statusSummary: libraryStatusSummary,
+        activeFilterDetail: libraryActiveFilterDetail,
+        activeFilterChips: libraryActiveFilterChips,
+        formatSummary: libraryFormatSummary,
+        collectionSummary: libraryCollectionSummary,
+        tagSummary: libraryTagSummary,
+        coverSummary: libraryCoverSummary,
+        filterSummary: libraryFilterSummary,
+        importDisabled: migrationBusy,
+        notice: libraryNotice
+          ? {
+              kind: libraryNotice.kind,
+              message: libraryNotice.message,
+              actionLabel: libraryNotice.actionLabel
+            }
+          : null,
+        showReadestMigration,
+        readestLibraryCount,
+        readestCompatibleCount,
+        migrationBusy
+      },
+      desktopBody: {
+        browseState: currentLibraryBrowseState,
+        groupedBrowseMode: libraryGroupedBrowseMode,
+        browseBooks: filteredLibraryBrowseBooks,
+        viewMode: libraryViewMode,
+        shelfBooks: filteredLibraryShelfBooks,
+        searchActive: librarySearchActive,
+        groupBy: libraryGroupBy,
+        workflowNotice: readingWorkflowNotice,
+        recoveryQueueSummaryText,
+        recoveryQueueReviewBooks,
+        bulkRepairEligibleCount: bulkRepairEligibleQueueBooks.length,
+        bulkRepairBusy,
+        bulkRepairSummary,
+        filteredContinueReadingBooks,
+        filteredRecentReadingBooks,
+        importedBooksCount: importedBooks.length,
+        readestLibraryCount,
+        migrationBusy,
+        libraryQuery,
+        visibleLibraryBooksCount,
+        activeFilterDetail: libraryActiveFilterDetail,
+        activeFilterChips: libraryActiveFilterChips,
+        onOpenSourcePath: desktopLibraryPageCoordinator.handleOpenSourcePath,
+        onImportBooks: desktopLibraryPageCoordinator.triggerImportPicker,
+        onRepairBook: desktopLibraryPageCoordinator.handleRepairLibraryBook,
+        onRemoveBook: desktopLibraryPageCoordinator.handleRemoveLibraryBook,
+        onBulkRepairBooks: desktopLibraryPageCoordinator.handleBulkRepairLibraryBooks,
+        onReadestMigration: desktopLibraryPageCoordinator.handleReadestMigrationClick,
+        onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
+        onClearFilters: activeLibraryPageActions.onClearFilters!,
+        getEmptyFilterTitle: getLibraryEmptyFilterTitle
+      },
+      starterBody: {
+        browseState: currentLibraryBrowseState,
+        groupedBrowseMode: libraryGroupedBrowseMode,
+        browseBooks: filteredStarterBrowseBooks,
+        viewMode: libraryViewMode,
+        shelfBooks: filteredStarterShelfBooks,
+        searchActive: librarySearchActive,
+        groupBy: libraryGroupBy,
+        workflowNotice: starterReadingWorkflowNotice,
+        filteredContinueReadingBooks: filteredStarterContinueReadingBooks,
+        filteredRecentReadingBooks: filteredStarterRecentReadingBooks,
+        libraryQuery,
+        visibleStarterLibraryBooksCount,
+        activeFilterDetail: libraryActiveFilterDetail,
+        activeFilterChips: libraryActiveFilterChips,
+        onClearFilterById: activeLibraryPageActions.onClearFilterChip!,
+        onClearFilters: activeLibraryPageActions.onClearFilters!,
+        getEmptyFilterTitle: getLibraryEmptyFilterTitle
+      },
+      desktopLibraryMode
+    }));
   $: nextLibraryScrollContextKey = buildLibraryScrollContextKey();
   $: if (typeof window !== 'undefined' && nextLibraryScrollContextKey !== libraryScrollContextKey) {
     const previousKey = libraryScrollContextKey;
