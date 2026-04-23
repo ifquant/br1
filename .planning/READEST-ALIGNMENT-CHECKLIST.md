@@ -203,7 +203,7 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Outcome: keyboard navigation, focus states, ARIA labels, reduced-motion behavior, and screen-reader basics are explicitly audited and fixed.
   - Touches: reader chrome, sidebar, library actions where needed.
   - Verify: `pnpm check`; keyboard/manual audit notes; `git diff --check`.
-  - Done commit: e808de3
+  - Done commit: 0499
   - Notes: added explicit focus-visible rings for reader chrome, sidebar controls, the route-level resize/bridge buttons, reduced-motion fallbacks for window-mode chrome, and live-region status output for TTS plus reader open/error status.
 
 - [ ] P1-3.1 Add the parallel-read session model
