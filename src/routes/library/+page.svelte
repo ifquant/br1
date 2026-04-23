@@ -28,9 +28,7 @@
   } from '$lib/library/controller';
   import {
     buildDesktopLibraryPageActionEnvironmentBindings,
-    buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv,
-    buildDesktopLibraryPageCoordinatorFromBindings,
-    buildDesktopLibraryPageCoordinatorStateBindingsFromPageState
+    buildDesktopLibraryPageCoordinatorFromPageStateAndEnv
   } from '$lib/library/desktopPage';
   import {
     buildLibraryPageSurfaceSetFromState,
@@ -356,8 +354,8 @@
 
   const getLibraryViewport = () => libraryScrollRef?.osInstance()?.elements().viewport ?? null;
 
-  const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromBindings({
-    state: buildDesktopLibraryPageCoordinatorStateBindingsFromPageState({
+  const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromPageStateAndEnv({
+    state: {
       libraryNotice,
       setLibraryNotice: (notice) => {
         libraryNotice = notice;
@@ -397,8 +395,8 @@
       setImportInputValue: (value) => {
         if (importInput) importInput.value = value;
       }
-    }),
-    env: buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv({
+    },
+    env: {
       canPersistLibrary,
       toAssetReaderTarget: (url, label) => toAssetReaderTarget(url, label ?? ''),
       openReaderTarget,
@@ -416,7 +414,7 @@
       confirmReplacement: (message) => typeof window === 'undefined' || window.confirm(message),
       confirmRemoval: (message) => typeof window === 'undefined' || window.confirm(message),
       createObjectUrl: (file) => URL.createObjectURL(file)
-    })
+    }
   });
 
   onMount(() => {

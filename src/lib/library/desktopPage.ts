@@ -237,6 +237,18 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createObjectUrl
 });
 
+export const buildDesktopLibraryPageCoordinatorFromPageStateAndEnv = ({
+  state,
+  env
+}: {
+  state: Parameters<typeof buildDesktopLibraryPageCoordinatorStateBindingsFromPageState>[0];
+  env: Parameters<typeof buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv>[0];
+}) =>
+  buildDesktopLibraryPageCoordinatorFromBindings({
+    state: buildDesktopLibraryPageCoordinatorStateBindingsFromPageState(state),
+    env: buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv(env)
+  });
+
 export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCoordinatorOptions) => {
   const clearLibraryNotice = () => {
     options.setLibraryNoticeState(null);
