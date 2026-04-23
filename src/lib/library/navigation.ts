@@ -75,6 +75,11 @@ const isSameLibraryBrowseState = (left: LibraryBrowseState, right: LibraryBrowse
       segment.groupBy === right.trail[index]?.groupBy && segment.label === right.trail[index]?.label
   );
 
+export const isSameLibraryBrowseStateShape = (
+  left: LibraryBrowseState,
+  right: LibraryBrowseState
+) => isSameLibraryBrowseState(left, right);
+
 const toLibraryBrowseTransitionResult = (
   current: LibraryBrowseState,
   next: LibraryBrowseState
@@ -359,6 +364,45 @@ export const getLibraryBrowseStateFromUrl = (url: URL): LibraryBrowseState => ({
   groupScope: url.searchParams.get('group')?.trim() ?? '',
   trail: parseLibraryBrowseTrailParam(url.searchParams.get('trail'))
 });
+
+export const getNormalizedLibraryBrowseState = (
+  current: LibraryBrowseState,
+  desktopShelfBooks: LibraryShelfBook[],
+  starterShelfBooks: LibraryShelfBook[]
+): LibraryBrowseState => {
+  if (current.groupBy === 'none') {
+    return current.groupScope || current.trail.length > 0
+      ? {
+          groupBy: 'none',
+          groupScope: '',
+          trail: []
+        }
+      : current;
+  }
+
+  if (!current.groupScope) {
+    return current.trail.length > 0
+      ? {
+          groupBy: current.groupBy,
+          groupScope: '',
+          trail: []
+        }
+      : current;
+  }
+
+  const groupExists = (books: LibraryShelfBook[]) =>
+    books.some((book) => getLibraryGroupLabel(book, current.groupBy) === current.groupScope);
+
+  if (groupExists(desktopShelfBooks) || groupExists(starterShelfBooks)) {
+    return current;
+  }
+
+  return {
+    groupBy: current.groupBy,
+    groupScope: '',
+    trail: []
+  };
+};
 
 export const buildLibraryBrowseHref = (url: URL, state: LibraryBrowseState) => {
   const nextUrl = new URL(url);

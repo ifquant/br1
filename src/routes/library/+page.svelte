@@ -53,7 +53,8 @@
     getLibraryBrowseStateFromUrl,
     getLibraryEnterFromTrailExplanation,
     getLibraryEnterGroupExplanation,
-    getLibraryGroupLabel,
+    getNormalizedLibraryBrowseState,
+    isSameLibraryBrowseStateShape,
     getLibrarySiblingExplanation
   } from '$lib/library/navigation';
   import {
@@ -508,19 +509,25 @@
   $: if (libraryTagFilter !== 'all' && !libraryTagOptions.includes(libraryTagFilter)) {
     libraryTagFilter = 'all';
   }
-  $: if (libraryGroupBy === 'none' && libraryGroupScope) {
-    void syncLibraryBrowseLocation({ groupBy: 'none', groupScope: '', trail: [] });
-  }
-  $: if (!libraryGroupScope && libraryBrowseTrail.length > 0) {
-    void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
-  }
-  $: if (
-    libraryGroupBy !== 'none' &&
-    libraryGroupScope &&
-    !libraryShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope) &&
-    !starterShelfBooks.some((book) => getLibraryGroupLabel(book, libraryGroupBy) === libraryGroupScope)
-  ) {
-    void syncLibraryBrowseLocation({ groupBy: libraryGroupBy, groupScope: '', trail: [] });
+  $: {
+    const normalizedBrowseState = getNormalizedLibraryBrowseState(
+      {
+        groupBy: libraryGroupBy,
+        groupScope: libraryGroupScope,
+        trail: libraryBrowseTrail
+      },
+      libraryShelfBooks,
+      starterShelfBooks
+    );
+    if (
+      !isSameLibraryBrowseStateShape(normalizedBrowseState, {
+        groupBy: libraryGroupBy,
+        groupScope: libraryGroupScope,
+        trail: libraryBrowseTrail
+      })
+    ) {
+      void syncLibraryBrowseLocation(normalizedBrowseState);
+    }
   }
   $: ({
     statusOptionCounts: libraryStatusOptionCounts,
