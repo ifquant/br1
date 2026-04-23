@@ -24,4 +24,5 @@
 
 - 没有实现 dictionary lookup
 - 没有实现 DeepL / Yandex translation
+- 没有补桌面 e2e lookup 回归，当前只靠 `pnpm check`、Rust check/test 和 source review 收口
 - 没有把 Wikipedia 结果做成可收藏的独立阅读历史

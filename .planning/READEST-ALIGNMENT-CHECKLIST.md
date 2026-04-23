@@ -165,9 +165,9 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
 - [x] P1-1.2 Implement Wikipedia lookup
   - Outcome: selected text or current term can trigger a Wikipedia lookup with success, empty, offline, and error states.
   - Touches: assistance service, reader sidebar or bridge panel, reader selection wiring.
-  - Verify: `pnpm check`; mocked/fixture provider test; targeted reader UI regression; `git diff --check`.
+  - Verify: `pnpm check` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `cargo test --manifest-path src-tauri/Cargo.toml --lib` (PASS); `git diff --check` (PASS).
   - Done commit: 2ac7972
-  - Notes: Wikipedia lookup now goes through a Tauri MediaWiki Action API bridge with server-side allowlisted URL construction, and the reader sidebar has an `assist` tab plus header shortcut that seeds from the current selection or chapter title. Verified with `pnpm -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec check`, `cargo check --manifest-path /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec/src-tauri/Cargo.toml`, `cargo test --manifest-path /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec/src-tauri/Cargo.toml --lib`, and `git -C /Users/dev/workspace2/hc_apps/br1-readest-alignment-exec diff --check`.
+  - Notes: Wikipedia lookup now goes through a Tauri MediaWiki Action API bridge with server-side allowlisted URL construction, and the reader sidebar has an `assist` tab plus header shortcut that seeds from the current selection or chapter title. No desktop e2e lookup run was added in this slice; live lookup still depends on desktop runtime and network availability.
 
 - [ ] P1-1.3 Add dictionary lookup through the same assistance interface
   - Outcome: dictionary lookup uses the same reader assistance workflow instead of a separate UI path.

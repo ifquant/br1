@@ -16,6 +16,7 @@
     createEmptyReaderPreviewState,
     createEmptyReaderAssistanceState,
     createEmptyReaderAssistanceResultState,
+    createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
     createReaderBookmarksController,
     createReaderNotesController,
@@ -355,10 +356,10 @@
       assistanceState = nextState;
     } catch (error) {
       if (token !== assistanceRequestNonce) return;
-      assistanceState = createEmptyReaderAssistanceState({
-        activeRequest: request,
-        error: error instanceof Error ? error.message : String(error)
-      });
+      assistanceState = createErrorReaderAssistanceState(
+        request,
+        error instanceof Error ? error.message : String(error)
+      );
     }
   };
 
