@@ -19,6 +19,7 @@ When a checklist item ships, update that item from `- [ ]` to `- [x]`, fill in i
 Detailed worker handoff:
 
 - `docs/superpowers/plans/2026-04-23-readest-alignment-phase-1.md`
+- `docs/superpowers/plans/p0-exit-audit-template.md`
 
 That handoff explains files, task order, and test commands. This checklist remains the only status ledger.
 

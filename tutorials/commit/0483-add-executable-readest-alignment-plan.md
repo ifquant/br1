@@ -42,3 +42,11 @@
 
 - `pnpm check`
 - `git diff --check`
+
+## 后续执行补充
+
+执行计划 Task 1 已把 P0 exit audit 的固定模板单独落到：
+
+- [`/docs/superpowers/plans/p0-exit-audit-template.md`](/Users/dev/workspace2/hc_apps/br1-readest-alignment-exec/docs/superpowers/plans/p0-exit-audit-template.md)
+
+这样后续做 `P0-0.1` 时不需要重新从 checklist 推导审计表头、verdict 标签和必跑验证命令。
