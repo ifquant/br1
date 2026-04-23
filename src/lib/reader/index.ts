@@ -2,6 +2,30 @@ import type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 
 export type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 export {
+  canRequestAssistanceForText,
+  createEmptyReaderAssistanceResultState,
+  createEmptyReaderAssistanceState,
+  createErrorReaderAssistanceState,
+  createLoadingReaderAssistanceState,
+  createReadyReaderAssistanceState,
+  isLookupReaderAssistanceRequest,
+  isTranslationReaderAssistanceRequest,
+  normalizeAssistanceTerm,
+  normalizeAssistanceText,
+  normalizeReaderAssistanceRequest
+} from './assistance';
+export type {
+  ReaderAssistanceProvider,
+  ReaderAssistanceRequest,
+  ReaderAssistanceResult,
+  ReaderAssistanceState,
+  ReaderAssistanceStatus,
+  ReaderLookupProvider,
+  ReaderLookupRequest,
+  ReaderTranslationProvider,
+  ReaderTranslationRequest
+} from './assistance';
+export {
   READER_EMPTY_TITLE,
   READER_NOT_OPENED_LOCATION_LABEL,
   READER_OPENING_LOCATION_LABEL,

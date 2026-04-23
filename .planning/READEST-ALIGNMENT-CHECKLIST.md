@@ -155,12 +155,12 @@ Goal: prove the local reader core is shippable before moving the main execution 
 
 Goal: close the user-visible Readest gaps that live inside the reading experience.
 
-- [ ] P1-1.1 Add the reader assistance domain model
+- [x] P1-1.1 Add the reader assistance domain model
   - Outcome: typed lookup/assistance request, result, provider, loading, empty, and error states exist outside route files.
   - Touches: reader types, reader services facade, assistance controller.
   - Verify: `pnpm check`; unit/source review; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: pending
+  - Notes: domain model and renderer-safe facade stub added; lookup and translation UI wiring remain for P1-1.2+
 
 - [ ] P1-1.2 Implement Wikipedia lookup
   - Outcome: selected text or current term can trigger a Wikipedia lookup with success, empty, offline, and error states.

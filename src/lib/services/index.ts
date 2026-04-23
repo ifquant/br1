@@ -17,6 +17,7 @@ export {
   loadReaderSearchCache,
   saveReaderSearchCache
 } from './readerSearchCache';
+export { requestReaderAssistance } from './readerAssistance';
 export { startCurrentWindowDrag } from './windowDrag';
 export {
   canPersistLibrary,
