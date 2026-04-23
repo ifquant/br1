@@ -8,7 +8,7 @@
 
 - 共享类型层：`src/lib/reader/assistance.ts` 里新增了 `ReaderTranslationProviderStatus`，并补了 DeepL / Yandex 的显示名 helper。
 - 前端服务层：`src/lib/services/readerAssistance.ts` 现在可以读取桌面端保存的 provider 状态，非桌面环境会回退到默认的 missing-key 状态。
-- Tauri 层：`src-tauri/src/commands/reader_services.rs` 新增了本地 provider 状态文件读写逻辑，并导出 `get_reader_translation_provider_statuses` 和 `save_reader_translation_provider_settings` 两个 command。
+- Tauri 层：`src-tauri/src/commands/reader_services.rs` 新增了本地 provider 元数据读写逻辑，并导出 `get_reader_translation_provider_statuses` 和 `save_reader_translation_provider_settings` 两个 command。
 
 reader sidebar 也补了一个很小的只读状态块，直接把 DeepL / Yandex 的状态显示出来。这样用户能看见“缺少 API key”这种状态，但 renderer 本身并不持有长期密钥。
 
@@ -22,14 +22,20 @@ Tauri 侧会把 provider 状态写到桌面应用支持目录里的 JSON 文件�
 ~/Library/Application Support/br1/reader-translation-providers.json
 ```
 
-每个 provider 只保存这些信息：
+每个 provider 只保存这些非敏感元数据：
 
 - provider 名称：`deepl` 或 `yandex`
-- 是否已配置：`configured`
 - 给 UI 展示的 label
 - 更新时间：`updatedAt`
 
 这里没有保存可直接用于网络调用的 secret，所以 renderer 也拿不到它。UI 里看到的只是状态摘要。
+
+更重要的是，`configured` 不是 renderer 传什么就信什么。Tauri 会根据本机环境里是否存在 provider key 来推导是否 configured，例如：
+
+- `BR1_DEEPL_API_KEY` 或 `DEEPL_API_KEY`
+- `BR1_YANDEX_TRANSLATE_API_KEY` 或 `YANDEX_TRANSLATE_API_KEY`
+
+这样即使 renderer 调用了保存 command，也只能保存 label 这类展示元数据，不能伪造“已经有 key”。
 
 ## 为什么翻译请求还没有接通
 

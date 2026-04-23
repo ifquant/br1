@@ -256,8 +256,8 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Outcome: DeepL/Yandex provider settings are stored locally and missing-key states are visible; no service key is bundled.
   - Touches: settings service, Tauri/service boundary, reader UI.
   - Verify: `pnpm check`; provider-config regression; `git diff --check`.
-  - Done commit: 0506
-  - Notes: Tauri now owns reader translation provider status storage for DeepL/Yandex, renderer reads only redacted configuration/status summaries, and the assist sidebar shows missing-key states without bundling or exposing service keys. Translation requests still short-circuit because the actual bridge is not wired yet.
+  - Done commit: 0506, 0507
+  - Notes: Tauri now owns reader translation provider status storage for DeepL/Yandex, renderer reads only redacted configuration/status summaries, configured state is derived from local provider key presence rather than renderer input, and the assist sidebar shows missing-key states without bundling or exposing service keys. Translation requests still short-circuit because the actual bridge is not wired yet. Tutorial: `tutorials/commit/0506-add-tauri-owned-reader-translation-provider-status.md`; hardening follow-up: `tutorials/commit/0507-derive-reader-translation-config-from-local-keys.md`.
 
 - [ ] P2-2.2 Implement DeepL translation bridge
   - Outcome: selected text or paragraph translation works through a provider abstraction with quota/key/network failure states.

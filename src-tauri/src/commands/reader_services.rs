@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 const WIKIPEDIA_PROJECT_ALLOWLIST: &[&str] = &[
-    "ar", "cs", "de", "en", "es", "fa", "fi", "fr", "he", "hu", "id", "it", "ja", "ko", "nl",
-    "no", "pl", "pt", "ru", "sv", "tr", "uk", "vi", "zh",
+    "ar", "cs", "de", "en", "es", "fa", "fi", "fr", "he", "hu", "id", "it", "ja", "ko", "nl", "no",
+    "pl", "pt", "ru", "sv", "tr", "uk", "vi", "zh",
 ];
 const WIKIPEDIA_LOOKUP_TERM_LIMIT: usize = 120;
 const WIKIPEDIA_LOOKUP_BODY_LIMIT: usize = 1500;
@@ -48,7 +48,6 @@ pub(crate) struct ReaderAssistanceLookupResponse {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReaderTranslationProviderSettingsInput {
     pub provider: String,
-    pub configured: bool,
     pub label: Option<String>,
 }
 
@@ -89,12 +88,7 @@ pub(crate) enum ReaderAssistanceLookupStatus {
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
-struct WikipediaOpenSearchResponse(
-    String,
-    Vec<String>,
-    Vec<String>,
-    Vec<String>,
-);
+struct WikipediaOpenSearchResponse(String, Vec<String>, Vec<String>, Vec<String>);
 
 #[derive(Debug, Deserialize)]
 struct WikipediaQueryResponse {
@@ -198,10 +192,7 @@ fn normalize_wikipedia_text(value: &str, limit: usize) -> String {
         .collect()
 }
 
-fn build_wikipedia_api_url(
-    project: &str,
-    query: &[(&str, &str)],
-) -> Result<Url, String> {
+fn build_wikipedia_api_url(project: &str, query: &[(&str, &str)]) -> Result<Url, String> {
     let base = format!("https://{project}.wikipedia.org/w/api.php");
     Url::parse_with_params(&base, query).map_err(|error| error.to_string())
 }
@@ -212,7 +203,9 @@ fn build_dictionary_api_url(language: &str, term: &str) -> Result<Url, String> {
     ))
     .map_err(|error| error.to_string())?;
     {
-        let mut segments = url.path_segments_mut().map_err(|_| "invalid dictionary endpoint".to_string())?;
+        let mut segments = url
+            .path_segments_mut()
+            .map_err(|_| "invalid dictionary endpoint".to_string())?;
         segments.pop_if_empty();
         segments.push(term);
     }
@@ -309,7 +302,11 @@ fn translation_provider_settings_path() -> PathBuf {
 }
 
 fn default_translation_provider_label(provider: &str, configured: bool) -> String {
-    let provider_label = if provider == "deepl" { "DeepL" } else { "Yandex" };
+    let provider_label = if provider == "deepl" {
+        "DeepL"
+    } else {
+        "Yandex"
+    };
     if configured {
         format!("{provider_label} translation is configured in the desktop app.")
     } else {
@@ -317,18 +314,41 @@ fn default_translation_provider_label(provider: &str, configured: bool) -> Strin
     }
 }
 
+fn translation_provider_key_env_names(provider: &str) -> &'static [&'static str] {
+    match provider {
+        "deepl" => &["BR1_DEEPL_API_KEY", "DEEPL_API_KEY"],
+        "yandex" => &["BR1_YANDEX_TRANSLATE_API_KEY", "YANDEX_TRANSLATE_API_KEY"],
+        _ => &[],
+    }
+}
+
+fn translation_provider_has_local_key(provider: &str) -> bool {
+    translation_provider_key_env_names(provider)
+        .iter()
+        .any(|name| {
+            std::env::var(name)
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false)
+        })
+}
+
 fn translation_provider_status_from_stored(
     stored: &StoredReaderTranslationProviderSettings,
 ) -> ReaderTranslationProviderStatus {
+    let configured = translation_provider_has_local_key(&stored.provider);
     ReaderTranslationProviderStatus {
         provider: stored.provider.clone(),
-        status: if stored.configured {
+        status: if configured {
             ReaderTranslationProviderStatusKind::Configured
         } else {
             ReaderTranslationProviderStatusKind::MissingKey
         },
-        configured: stored.configured,
-        label: stored.label.clone(),
+        configured,
+        label: if configured {
+            stored.label.clone()
+        } else {
+            default_translation_provider_label(&stored.provider, false)
+        },
         updated_at: stored.updated_at,
     }
 }
@@ -402,17 +422,22 @@ fn save_translation_provider_setting(
     mut settings: Vec<StoredReaderTranslationProviderSettings>,
     input: ReaderTranslationProviderSettingsInput,
 ) -> Result<Vec<StoredReaderTranslationProviderSettings>, String> {
-    let provider = normalize_translation_provider(&input.provider)
-        .ok_or_else(|| format!("Reader translation provider is not implemented: {}", input.provider))?;
+    let provider = normalize_translation_provider(&input.provider).ok_or_else(|| {
+        format!(
+            "Reader translation provider is not implemented: {}",
+            input.provider
+        )
+    })?;
     let updated_at = now_millis().unwrap_or_default();
+    let configured = translation_provider_has_local_key(provider);
     let label = input
         .label
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| default_translation_provider_label(provider, input.configured));
+        .unwrap_or_else(|| default_translation_provider_label(provider, configured));
     let next = StoredReaderTranslationProviderSettings {
         provider: provider.to_string(),
-        configured: input.configured,
+        configured,
         label,
         updated_at,
     };
@@ -427,7 +452,10 @@ fn save_translation_provider_setting(
     Ok(settings)
 }
 
-fn classify_network_error(provider_label: &str, error: &reqwest::Error) -> ReaderAssistanceLookupResponse {
+fn classify_network_error(
+    provider_label: &str,
+    error: &reqwest::Error,
+) -> ReaderAssistanceLookupResponse {
     if error.is_connect() || error.is_timeout() {
         build_offline_response(format!("{provider_label} lookup is unavailable right now."))
     } else {
@@ -465,7 +493,11 @@ fn format_dictionary_entry_body(entry: &DictionaryEntryResponse) -> String {
         sections.push(format!("音标：{}", normalize_lookup_text(phonetic, 120)));
     }
 
-    if let Some(origin) = entry.origin.as_deref().filter(|value| !value.trim().is_empty()) {
+    if let Some(origin) = entry
+        .origin
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    {
         sections.push(format!("词源：{}", normalize_lookup_text(origin, 240)));
     }
 
@@ -481,7 +513,11 @@ fn format_dictionary_entry_body(entry: &DictionaryEntryResponse) -> String {
             .take(2)
             .map(|definition| {
                 let mut line = normalize_lookup_text(&definition.definition, 240);
-                if let Some(example) = definition.example.as_deref().filter(|value| !value.trim().is_empty()) {
+                if let Some(example) = definition
+                    .example
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                {
                     line.push_str("（");
                     line.push_str(&normalize_lookup_text(example, 120));
                     line.push('）');
@@ -564,7 +600,15 @@ async fn fetch_wikipedia_opensearch(
 
     let fallback_body = descriptions.first().map(String::as_str).unwrap_or("");
     let fallback_url = urls.first().cloned();
-    fetch_wikipedia_extract(client, project, first_title, term, fallback_body, fallback_url).await
+    fetch_wikipedia_extract(
+        client,
+        project,
+        first_title,
+        term,
+        fallback_body,
+        fallback_url,
+    )
+    .await
 }
 
 async fn fetch_wikipedia_extract(
@@ -710,7 +754,8 @@ pub(crate) async fn lookup_reader_assistance(
 }
 
 #[tauri::command]
-pub(crate) async fn get_reader_translation_provider_statuses() -> Vec<ReaderTranslationProviderStatus> {
+pub(crate) async fn get_reader_translation_provider_statuses(
+) -> Vec<ReaderTranslationProviderStatus> {
     let path = translation_provider_settings_path();
     match read_translation_provider_settings(&path) {
         Ok(settings) => settings
@@ -726,8 +771,12 @@ pub(crate) async fn save_reader_translation_provider_settings(
     input: ReaderTranslationProviderSettingsInput,
 ) -> Result<ReaderTranslationProviderStatus, String> {
     let path = translation_provider_settings_path();
-    let provider = normalize_translation_provider(&input.provider)
-        .ok_or_else(|| format!("Reader translation provider is not implemented: {}", input.provider))?;
+    let provider = normalize_translation_provider(&input.provider).ok_or_else(|| {
+        format!(
+            "Reader translation provider is not implemented: {}",
+            input.provider
+        )
+    })?;
     let settings = read_translation_provider_settings(&path)?;
     let updated = save_translation_provider_setting(settings, input)?;
     write_translation_provider_settings(&path, &updated)?;
@@ -750,13 +799,13 @@ pub(crate) async fn save_reader_translation_provider_settings(
 #[cfg(test)]
 mod tests {
     use super::{
-        default_translation_provider_statuses, default_translation_provider_settings,
+        default_translation_provider_settings, default_translation_provider_statuses,
         format_dictionary_entry_body, normalize_dictionary_language, normalize_lookup_term,
         normalize_wikipedia_project, read_translation_provider_settings,
         save_translation_provider_setting, translation_provider_status_from_stored,
-        write_translation_provider_settings,
-        DictionaryDefinition, DictionaryEntryResponse, DictionaryMeaning, DictionaryPhonetic,
-        ReaderTranslationProviderSettingsInput, ReaderTranslationProviderStatusKind,
+        write_translation_provider_settings, DictionaryDefinition, DictionaryEntryResponse,
+        DictionaryMeaning, DictionaryPhonetic, ReaderTranslationProviderSettingsInput,
+        ReaderTranslationProviderStatusKind,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -825,21 +874,21 @@ mod tests {
         let statuses = default_translation_provider_statuses();
 
         assert_eq!(statuses.len(), 2);
-        assert!(statuses
-            .iter()
-            .all(|status| matches!(status.status, ReaderTranslationProviderStatusKind::MissingKey)));
+        assert!(statuses.iter().all(|status| matches!(
+            status.status,
+            ReaderTranslationProviderStatusKind::MissingKey
+        )));
         assert!(statuses.iter().all(|status| !status.configured));
     }
 
     #[test]
-    fn persists_translation_provider_settings_without_renderer_secrets() {
+    fn persists_translation_provider_metadata_without_trusting_renderer_configured_state() {
         let path = temp_translation_provider_settings_path("reader-translation-settings");
         let settings = save_translation_provider_setting(
             default_translation_provider_settings(),
             ReaderTranslationProviderSettingsInput {
                 provider: "deepl".to_string(),
-                configured: true,
-                label: Some("  DeepL translation is configured locally  ".to_string()),
+                label: Some("  DeepL translation metadata saved locally  ".to_string()),
             },
         )
         .unwrap();
@@ -854,12 +903,12 @@ mod tests {
 
         assert_eq!(loaded.len(), 2);
         assert!(loaded.iter().any(|entry| entry.provider == "yandex"));
-        assert!(matches!(status.status, ReaderTranslationProviderStatusKind::Configured));
-        assert!(status.configured);
-        assert_eq!(
-            status.label,
-            "DeepL translation is configured locally"
-        );
+        assert!(matches!(
+            status.status,
+            ReaderTranslationProviderStatusKind::MissingKey
+        ));
+        assert!(!status.configured);
+        assert_eq!(status.label, "DeepL API key is not configured yet.");
         assert!(!serde_json::to_string(&loaded).unwrap().contains("secret"));
         let _ = fs::remove_file(path);
     }
