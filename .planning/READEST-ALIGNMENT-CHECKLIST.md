@@ -88,15 +88,15 @@ Goal: prove the local reader core is shippable before moving the main execution 
   - Outcome: EPUB, PDF, FB2, MOBI, AZW3, CBZ, and TXT each have fixture-backed import, open, return, and reopen evidence.
   - Touches: reader format contract, library import/open flow, e2e fixtures/tests.
   - Verify: `pnpm check`; targeted desktop/web format regressions; `git diff --check`.
-  - Done commit: 0484-certify-p0-format-and-trusted-open-coverage
+  - Done commit: 6a71dd4
   - Notes: `tests/e2e/library-smoke.spec.ts` now loops all seven sample fixtures, including `sample-book.epub` and `sample-outline.pdf`, and confirms open/reopen state through reload.
 
-- [x] P0-1.2 Close file-association and trusted-open evidence gaps
+- [ ] P0-1.2 Close file-association and trusted-open evidence gaps
   - Outcome: packaged-style open-with intake, associated-open queue normalization, unsupported input rejection, and managed library-file trust boundaries are verified together.
   - Touches: Tauri open events, associated-open queue, reader route intake, desktop tests.
   - Verify: `pnpm check`; targeted associated-open regression; `git diff --check`.
-  - Done commit: 0484-certify-p0-format-and-trusted-open-coverage
-  - Notes: the existing desktop regressions in `e2e/app.e2e.ts` already cover trusted imported-library open and associated-open normalization, so this slice only needed the web smoke-side format certification.
+  - Done commit:
+  - Notes: candidate evidence exists in `e2e/app.e2e.ts`, but this item still needs a dedicated targeted associated-open verification slice before it is checked off.
 
 - [ ] P0-2.1 Certify scroll/paginated and reader settings persistence
   - Outcome: flow, typography, margins, theme, width mode, and chrome mode persist across reload/reopen for primary supported surfaces.
