@@ -64,13 +64,15 @@ export {
   createUnavailableReaderTtsSessionState,
   getReaderTtsPrimaryActionLabel,
   getReaderTtsSessionStatusLabel,
-  getReaderTtsStatusDetail
+  getReaderTtsStatusDetail,
+  READER_TTS_NO_TEXT_REASON
 } from './tts';
 export type {
   ReaderTtsControllerOptions,
   ReaderTtsSessionAction,
   ReaderTtsSessionState,
-  ReaderTtsSessionStatus
+  ReaderTtsSessionStatus,
+  ReaderTtsSpeechTarget
 } from './tts';
 export {
   createDefaultReaderSettings,

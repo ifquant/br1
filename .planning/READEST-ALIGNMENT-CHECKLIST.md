@@ -182,15 +182,15 @@ Goal: close the user-visible Readest gaps that live inside the reading experienc
   - Touches: reader types, reader workspace/stage controls, TTS controller.
   - Notes: the model/control split now exists in `src/lib/reader/tts.ts`; the header button reflects the current session state, but the controller still treats the engine as unavailable and surfaces that explicitly instead of faking speech. Tutorial: `tutorials/commit/0496-replace-the-reader-tts-placeholder-with-a-session-model.md`.
   - Verify: `pnpm check`; source-level availability review; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: 0496
+  - Notes: this was the model-only slice; P1-2.2 now wires it to a browser speech runtime.
 
-- [ ] P1-2.2 Implement system/Web Speech TTS v1
+- [x] P1-2.2 Implement system/Web Speech TTS v1
   - Outcome: supported platforms can read selected text or current passage aloud, and unsupported platforms get an explicit disabled state.
   - Touches: TTS service, reader controls, e2e-safe fallback tests.
   - Verify: `pnpm check`; targeted TTS state regression; `git diff --check`.
-  - Done commit:
-  - Notes:
+  - Done commit: pending
+  - Notes: selected text now speaks through `speechSynthesis` first; if no selection exists, the reader falls back to a conservative chapter title or book title seed and labels that path as a safe fallback instead of pretending to extract full passage text.
 
 - [ ] P1-2.3 Add visual and focus aids
   - Outcome: reading ruler, paragraph or line focus, and persisted focus-aid settings exist as real reader features.

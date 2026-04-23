@@ -24,10 +24,12 @@
     createReaderSearchController,
     createReaderSidebarController,
     createReaderTtsController,
-    parseReaderRouteOpenState,
+    READER_EMPTY_TITLE,
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
+    parseReaderRouteOpenState,
     canRequestAssistanceForText,
+    type ReaderTtsSpeechTarget,
     normalizeAssistanceTerm,
     toReaderOpenControlRequest
   } from '$lib/reader';
@@ -175,6 +177,39 @@
     notesController.removeMany(ids);
   };
 
+  function resolveReaderTtsSpeechTarget(): ReaderTtsSpeechTarget | null {
+    const selectedText = $notesState.selection?.text.trim();
+    if (selectedText) {
+      return {
+        text: selectedText,
+        label: '选中文本'
+      };
+    }
+
+    const chapterLabel = currentPreview.chapterLabel.trim();
+    if (
+      chapterLabel &&
+      chapterLabel !== READER_NOT_OPENED_LOCATION_LABEL &&
+      chapterLabel !== READER_OPENING_LOCATION_LABEL &&
+      chapterLabel !== '等待打开书籍'
+    ) {
+      return {
+        text: chapterLabel,
+        label: '安全回退：章节标题'
+      };
+    }
+
+    const title = currentPreview.title.trim();
+    if (title && title !== READER_EMPTY_TITLE) {
+      return {
+        text: title,
+        label: '安全回退：书名'
+      };
+    }
+
+    return null;
+  }
+
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
     searchController.restoreConfig();
@@ -189,6 +224,9 @@
   $: if (readerBookKey !== lastAssistanceBookKey) {
     assistanceState = createEmptyReaderAssistanceState();
     lastAssistanceBookKey = readerBookKey;
+  }
+  $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
+    ttsController.setSpeechTarget(resolveReaderTtsSpeechTarget());
   }
   $: searchController.persist($searchState);
   $: sidebarController.persist($sidebarState);
@@ -285,6 +323,8 @@
     };
 
     window.addEventListener('pagehide', handlePageHide);
+    ttsController.refreshAvailability();
+    ttsController.setSpeechTarget(resolveReaderTtsSpeechTarget());
 
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
@@ -293,6 +333,7 @@
 
   onDestroy(() => {
     flushLibraryReadingStatePersist();
+    ttsController.stop();
     searchController.destroy();
   });
 
@@ -312,7 +353,7 @@
   };
 
   const handleTtsStart = () => {
-    ttsController.start();
+    ttsController.start(resolveReaderTtsSpeechTarget());
   };
 
   const handleTtsPause = () => {

@@ -39,6 +39,10 @@
   $: ttsPrimaryActionLabel = getReaderTtsPrimaryActionLabel(ttsSession);
   $: ttsPrimaryAriaLabel =
     ttsSession.status === 'unavailable' ? ttsStatusDetail : ttsPrimaryActionLabel;
+  $: ttsPrimaryDisabled =
+    ttsSession.status === 'unavailable' ||
+    (ttsSession.status === 'idle' && !ttsSession.speechLabel) ||
+    (ttsSession.status === 'error' && !ttsSession.speechLabel);
 
   const toggleMenu = () => {
     menuOpen = !menuOpen;
@@ -175,6 +179,7 @@
           type="button"
           class:active={ttsSession.status === 'speaking'}
           class:error={ttsSession.status === 'error'}
+          disabled={ttsPrimaryDisabled}
           aria-label={ttsPrimaryAriaLabel}
           title={ttsPrimaryAriaLabel}
           on:click={handleTtsPrimaryAction}
