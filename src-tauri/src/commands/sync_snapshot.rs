@@ -127,6 +127,8 @@ struct KoReaderExchangeBookPayload {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct KoReaderExchangeBookStatePayload {
+    #[serde(flatten)]
+    identity: KoReaderExchangeIdentityPayload,
     config: KoReaderExchangeConfigPayload,
     #[serde(default)]
     annotations: Vec<KoReaderExchangeAnnotationPayload>,
@@ -547,6 +549,44 @@ fn has_koreader_identity(
     matches!((book_hash, meta_hash), (Some(book_hash), Some(meta_hash)) if !book_hash.is_empty() && !meta_hash.is_empty())
 }
 
+fn hash_koreader_identity_part(value: &str) -> String {
+    let mut hash = 0x811c9dc5u32;
+    for byte in value.bytes() {
+        hash ^= byte as u32;
+        hash = hash.wrapping_mul(0x01000193);
+    }
+    format!("{hash:08x}")
+}
+
+fn derive_koreader_book_identity(book: &LibraryBookRecord) -> (String, String) {
+    let book_hash = hash_koreader_identity_part(
+        book.source_path
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| {
+                if book.file_path.trim().is_empty() {
+                    book.id.as_str()
+                } else {
+                    book.file_path.as_str()
+                }
+            }),
+    );
+    let meta_source = format!(
+        "{}|{}|{}|{}",
+        book.title.trim(),
+        book.author.trim(),
+        book.format.trim(),
+        book.source_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("")
+    )
+    .to_ascii_lowercase();
+    let meta_hash = hash_koreader_identity_part(&meta_source);
+    (book_hash, meta_hash)
+}
+
 fn matches_imported_koreader_bookmark(
     existing: &ReaderBookmarkRecord,
     imported: &ReaderBookmarkRecord,
@@ -823,6 +863,21 @@ fn imported_book_updated_at(book: &KoReaderExchangeBookPayload) -> u64 {
         .unwrap_or(book.koreader.config.updated_at)
 }
 
+fn bookmark_updated_at(bookmark: &ReaderBookmarkRecord) -> u64 {
+    bookmark
+        .koreader
+        .as_ref()
+        .and_then(|metadata| metadata.annotation.updated_at)
+        .unwrap_or(bookmark.created_at)
+}
+
+fn note_updated_at(note: &ReaderNoteRecord) -> u64 {
+    note.koreader
+        .as_ref()
+        .and_then(|metadata| metadata.updated_at)
+        .unwrap_or(note.created_at)
+}
+
 fn current_book_updated_at(
     current_book: &LibraryBookRecord,
     current_bookmarks: &[ReaderBookmarkRecord],
@@ -830,8 +885,8 @@ fn current_book_updated_at(
 ) -> u64 {
     current_bookmarks
         .iter()
-        .map(|bookmark| bookmark.created_at)
-        .chain(current_notes.iter().map(|note| note.created_at))
+        .map(bookmark_updated_at)
+        .chain(current_notes.iter().map(note_updated_at))
         .chain(std::iter::once(
             current_book
                 .last_opened_at
@@ -882,18 +937,26 @@ fn resolve_matched_library_book<'a>(
                 && record.format == exchange_book.format
         })
         .collect::<Vec<_>>();
-    if fallback_matches.len() == 1 {
-        return Ok(fallback_matches[0]);
+    let identity_matches = fallback_matches
+        .into_iter()
+        .filter(|record| {
+            let (book_hash, meta_hash) = derive_koreader_book_identity(record);
+            book_hash == exchange_book.koreader.identity.book_hash
+                && meta_hash == exchange_book.koreader.identity.meta_hash
+        })
+        .collect::<Vec<_>>();
+    if identity_matches.len() == 1 {
+        return Ok(identity_matches[0]);
     }
-    if fallback_matches.len() > 1 {
+    if identity_matches.len() > 1 {
         return Err(KoReaderExchangeConflict {
             kind: "ambiguous-local-book".to_string(),
             book_title: exchange_book.title.clone(),
             book_author: exchange_book.author.clone(),
             book_format: exchange_book.format.clone(),
             detail: format!(
-                "找到 {} 本同名同作者同格式图书，无法安全决定要覆盖哪一本。",
-                fallback_matches.len()
+                "找到 {} 本同名同作者同格式且 KOReader 标识一致的图书，无法安全决定要覆盖哪一本。",
+                identity_matches.len()
             ),
         });
     }
@@ -907,6 +970,41 @@ fn resolve_matched_library_book<'a>(
     })
 }
 
+fn write_files_with_rollback(entries: &[(PathBuf, Vec<u8>)]) -> Result<(), String> {
+    let mut backups = Vec::with_capacity(entries.len());
+    for (path, _) in entries {
+        let original = if path.exists() {
+            Some(fs::read(path).map_err(|error| error.to_string())?)
+        } else {
+            None
+        };
+        backups.push((path.clone(), original));
+    }
+
+    for (path, bytes) in entries {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        }
+        if let Err(error) = fs::write(path, bytes) {
+            for (restore_path, original) in backups.iter() {
+                match original {
+                    Some(bytes) => {
+                        let _ = fs::write(restore_path, bytes);
+                    }
+                    None => {
+                        if restore_path.exists() {
+                            let _ = fs::remove_file(restore_path);
+                        }
+                    }
+                }
+            }
+            return Err(error.to_string());
+        }
+    }
+
+    Ok(())
+}
+
 fn apply_koreader_sync_exchange_document(
     app: &tauri::AppHandle,
     document: &KoReaderExchangeDocumentPayload,
@@ -914,6 +1012,7 @@ fn apply_koreader_sync_exchange_document(
     ensure_library_root(app)?;
     let library_json = library_json_path(app)?;
     let mut library_books = load_library_records(&library_json)?;
+    let mut file_writes = Vec::<(PathBuf, Vec<u8>)>::new();
     let book_index_by_id = library_books
         .iter()
         .enumerate()
@@ -999,16 +1098,27 @@ fn apply_koreader_sync_exchange_document(
         if let Some(index) = book_index_by_id.get(&matched.id).copied() {
             library_books[index] = imported_book;
         }
-        crate::commands::bookmarks::save_reader_bookmarks(
-            app.clone(),
-            matched.file_path.clone(),
-            merged_bookmarks,
-        )?;
-        crate::commands::notes::save_reader_notes(app.clone(), matched.file_path.clone(), merged_notes)?;
+        let bookmarks_path = crate::util::reader_bookmarks_file(app, &matched.file_path)?;
+        let bookmarks_raw = serde_json::to_vec_pretty(&ReaderBookmarksEntry {
+            schema_version: READER_BOOKMARKS_SCHEMA_VERSION,
+            bookmarks: merged_bookmarks,
+        })
+        .map_err(|error| error.to_string())?;
+        file_writes.push((bookmarks_path, bookmarks_raw));
+
+        let notes_path = crate::util::reader_notes_file(app, &matched.file_path)?;
+        let notes_raw = serde_json::to_vec_pretty(&ReaderNotesEntry {
+            schema_version: READER_NOTES_SCHEMA_VERSION,
+            notes: merged_notes,
+        })
+        .map_err(|error| error.to_string())?;
+        file_writes.push((notes_path, notes_raw));
         applied_book_count += 1;
     }
 
-    save_library_records(&library_json, &library_books)?;
+    let library_raw = serde_json::to_vec_pretty(&library_books).map_err(|error| error.to_string())?;
+    file_writes.push((library_json.clone(), library_raw));
+    write_files_with_rollback(&file_writes)?;
 
     Ok(ApplyKoReaderSyncExchangeResult {
         applied_book_count,
@@ -1298,6 +1408,10 @@ fn prepare_sync_snapshot_restore(
     prepare_apply_sync_snapshot_request(snapshot)
 }
 
+pub(crate) fn validate_sync_snapshot_restore(snapshot: &SyncSnapshotDocument) -> Result<(), String> {
+    prepare_sync_snapshot_restore(snapshot).map(|_| ())
+}
+
 pub(crate) fn apply_sync_snapshot_document(
     app: &tauri::AppHandle,
     snapshot: &SyncSnapshotDocument,
@@ -1505,13 +1619,18 @@ pub(crate) async fn restore_koreader_sync_exchange_dialog(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_sync_snapshot_roots, bookmarks_sync_record, build_scoped_record_id,
-        highlights_sync_record, library_metadata_sync_record, notes_sync_record,
-        parse_sync_snapshot_document, prepare_sync_snapshot_restore, reading_state_sync_record,
-        write_sync_snapshot_document, READER_SETTINGS_STORAGE_KEY,
+        apply_sync_snapshot_roots, bookmark_updated_at, bookmarks_sync_record,
+        build_scoped_record_id, current_book_updated_at, derive_koreader_book_identity,
+        highlights_sync_record, library_metadata_sync_record, note_updated_at,
+        notes_sync_record, parse_sync_snapshot_document, prepare_sync_snapshot_restore,
+        reading_state_sync_record, resolve_matched_library_book, write_files_with_rollback,
+        write_sync_snapshot_document, KoReaderExchangeBookPayload,
+        KoReaderExchangeBookStatePayload, KoReaderExchangeConfigPayload,
+        KoReaderExchangeIdentityPayload, READER_SETTINGS_STORAGE_KEY,
     };
     use crate::models::{
-        ApplySyncSnapshotRequest, LibraryBookRecord, ReaderBookmarkRecord,
+        ApplySyncSnapshotRequest, LibraryBookRecord, ReaderAnnotationKoReaderMetadataRecord,
+        ReaderBookmarkKoReaderMetadataRecord, ReaderBookmarkRecord,
         ReaderHighlightsSelectionImportRecord, ReaderHighlightsSelectionSetRecord,
         ReaderHighlightsWorkspaceStateRecord, ReaderNoteRecord, SyncSnapshotBookmarksStateRecord,
         SyncSnapshotDocument, SyncSnapshotHighlightsWorkspaceRecord, SyncSnapshotNotesStateRecord,
@@ -1876,5 +1995,172 @@ mod tests {
 
         let error = prepare_sync_snapshot_restore(&snapshot).unwrap_err();
         assert!(error.contains("does not match any imported library book"));
+    }
+
+    #[test]
+    fn current_book_updated_at_prefers_koreader_metadata_updated_at() {
+        let current = LibraryBookRecord {
+            id: "book-1".to_string(),
+            title: "Alpha".to_string(),
+            author: "Author".to_string(),
+            format: "EPUB".to_string(),
+            description: None,
+            language: None,
+            publisher: None,
+            collection: None,
+            tags: vec![],
+            progress: "10%".to_string(),
+            status: "阅读中".to_string(),
+            file_path: "/library/alpha.epub".to_string(),
+            cover_path: None,
+            source_path: Some("/imports/alpha.epub".to_string()),
+            imported_at: 100,
+            progress_fraction: Some(0.1),
+            progress_location: Some("epubcfi(/6/2)".to_string()),
+            koreader_progress_location: Some("/body/DocFragment[1]/body/p[2]".to_string()),
+            last_opened_at: Some(150),
+            library_file_exists: Some(true),
+            source_file_exists: Some(true),
+        };
+        let bookmark = ReaderBookmarkRecord {
+            id: "bookmark-1".to_string(),
+            locator: "epubcfi(/6/2)".to_string(),
+            target_href: "epubcfi(/6/2)".to_string(),
+            chapter_label: "Chapter".to_string(),
+            chapter_href: "#chapter".to_string(),
+            progress_label: "10%".to_string(),
+            location_label: "Location".to_string(),
+            created_at: 110,
+            koreader: Some(ReaderBookmarkKoReaderMetadataRecord {
+                annotation: ReaderAnnotationKoReaderMetadataRecord {
+                    book_hash: Some("hash".to_string()),
+                    meta_hash: Some("meta".to_string()),
+                    xpointer0: "/body/DocFragment[1]/body/p[2]".to_string(),
+                    xpointer1: None,
+                    page: None,
+                    style: None,
+                    color: None,
+                    updated_at: Some(900),
+                    deleted_at: None,
+                },
+                text: Some("Chapter".to_string()),
+                note: Some(String::new()),
+            }),
+        };
+        let note = ReaderNoteRecord {
+            id: "note-1".to_string(),
+            kind: "note".to_string(),
+            cfi: "epubcfi(/6/2)".to_string(),
+            text: "Text".to_string(),
+            note: "Note".to_string(),
+            chapter_label: "Chapter".to_string(),
+            chapter_href: "#chapter".to_string(),
+            created_at: 120,
+            koreader: Some(ReaderAnnotationKoReaderMetadataRecord {
+                book_hash: Some("hash".to_string()),
+                meta_hash: Some("meta".to_string()),
+                xpointer0: "/body/DocFragment[1]/body/p[2].text().1".to_string(),
+                xpointer1: None,
+                page: None,
+                style: Some("highlight".to_string()),
+                color: Some("yellow".to_string()),
+                updated_at: Some(950),
+                deleted_at: None,
+            }),
+        };
+
+        assert_eq!(bookmark_updated_at(&bookmark), 900);
+        assert_eq!(note_updated_at(&note), 950);
+        assert_eq!(current_book_updated_at(&current, &[bookmark], &[note]), 950);
+    }
+
+    #[test]
+    fn fallback_match_requires_koreader_identity_hashes() {
+        let alpha = LibraryBookRecord {
+            id: "book-1".to_string(),
+            title: "Shared".to_string(),
+            author: "Author".to_string(),
+            format: "EPUB".to_string(),
+            description: None,
+            language: None,
+            publisher: None,
+            collection: None,
+            tags: vec![],
+            progress: "10%".to_string(),
+            status: "阅读中".to_string(),
+            file_path: "/library/shared.epub".to_string(),
+            cover_path: None,
+            source_path: Some("/imports/shared.epub".to_string()),
+            imported_at: 100,
+            progress_fraction: Some(0.1),
+            progress_location: Some("epubcfi(/6/2)".to_string()),
+            koreader_progress_location: Some("/body/DocFragment[1]/body/p[2]".to_string()),
+            last_opened_at: Some(150),
+            library_file_exists: Some(true),
+            source_file_exists: Some(true),
+        };
+        let (book_hash, meta_hash) = derive_koreader_book_identity(&alpha);
+        let exchange = KoReaderExchangeBookPayload {
+            book_id: "missing".to_string(),
+            file_path: "/missing.epub".to_string(),
+            source_path: Some("/missing.epub".to_string()),
+            title: alpha.title.clone(),
+            author: alpha.author.clone(),
+            format: alpha.format.clone(),
+            koreader: KoReaderExchangeBookStatePayload {
+                identity: KoReaderExchangeIdentityPayload {
+                    book_hash: "other-book-hash".to_string(),
+                    meta_hash: "other-meta-hash".to_string(),
+                },
+                config: KoReaderExchangeConfigPayload {
+                    progress: serde_json::json!("[1,2]"),
+                    xpointer: "/body/DocFragment[9]".to_string(),
+                    updated_at: 200,
+                },
+                annotations: vec![],
+            },
+        };
+        let err = resolve_matched_library_book(&exchange, std::slice::from_ref(&alpha)).unwrap_err();
+        assert_eq!(err.kind, "missing-local-book");
+
+        let exchange = KoReaderExchangeBookPayload {
+            book_id: "missing".to_string(),
+            file_path: "/missing.epub".to_string(),
+            source_path: Some("/missing.epub".to_string()),
+            title: alpha.title.clone(),
+            author: alpha.author.clone(),
+            format: alpha.format.clone(),
+            koreader: KoReaderExchangeBookStatePayload {
+                identity: KoReaderExchangeIdentityPayload { book_hash, meta_hash },
+                config: KoReaderExchangeConfigPayload {
+                    progress: serde_json::json!("[1,2]"),
+                    xpointer: "/body/DocFragment[9]".to_string(),
+                    updated_at: 200,
+                },
+                annotations: vec![],
+            },
+        };
+        let matched = resolve_matched_library_book(&exchange, std::slice::from_ref(&alpha)).unwrap();
+        assert_eq!(matched.id, alpha.id);
+    }
+
+    #[test]
+    fn write_files_with_rollback_restores_previous_files_on_failure() {
+        let root = temp_root("rollback");
+        let ok_path = root.join("ok.json");
+        let bad_path = root.join("bad.json");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&ok_path, "before").unwrap();
+        fs::create_dir_all(&bad_path).unwrap();
+
+        let error = write_files_with_rollback(&[
+            (ok_path.clone(), br#"after"#.to_vec()),
+            (bad_path.clone(), br#"cannot-write-directory"#.to_vec()),
+        ])
+        .unwrap_err();
+
+        assert!(!error.is_empty());
+        assert_eq!(fs::read_to_string(&ok_path).unwrap(), "before");
+        assert!(bad_path.is_dir());
     }
 }

@@ -904,7 +904,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       return;
     }
 
-    if (result.status === 'offline' || result.status === 'retryable-failure') {
+    if (result.status === 'offline' || result.retryable) {
       setLibraryNotice('error', result.message, {
         label: '重试',
         run: retry

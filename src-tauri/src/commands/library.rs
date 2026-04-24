@@ -1995,7 +1995,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             imported_at,
             progress_fraction: readest_progress_fraction(readest_record.progress.as_deref()),
             progress_location: readest_location.clone(),
-            koreader_progress_location: readest_location,
+            koreader_progress_location: None,
             last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
             library_file_exists: None,
             source_file_exists: None,

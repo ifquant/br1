@@ -1,5 +1,7 @@
 use crate::models::{RemoteSyncRequest, RemoteSyncResult, SyncSnapshotDocument};
-use crate::commands::sync_snapshot::{apply_sync_snapshot_document, load_current_sync_snapshot};
+use crate::commands::sync_snapshot::{
+    apply_sync_snapshot_document, load_current_sync_snapshot, validate_sync_snapshot_restore,
+};
 use reqwest::{Client, StatusCode, Url};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -24,13 +26,6 @@ struct ReadestCloudConfig {
 #[serde(rename_all = "camelCase")]
 struct RemoteSnapshotEnvelope {
     snapshot: SyncSnapshotDocument,
-}
-
-fn validate_sync_snapshot(snapshot: &SyncSnapshotDocument) -> Result<(), String> {
-    if snapshot.records.iter().any(|record| record.id.trim().is_empty()) {
-        return Err("Sync snapshot contains a record without an id.".to_string());
-    }
-    Ok(())
 }
 
 fn snapshot_fingerprint(snapshot: &SyncSnapshotDocument) -> Result<String, String> {
@@ -199,13 +194,13 @@ async fn fetch_remote_snapshot(
                     None,
                 )
             })?;
-            validate_sync_snapshot(&envelope.snapshot).map_err(|detail| {
+            validate_sync_snapshot_restore(&envelope.snapshot).map_err(|detail| {
                 result_with_status(
                     READEST_CLOUD_PROVIDER,
                     operation,
                     "retryable-failure",
-                    format!("Readest Cloud returned an unusable sync snapshot: {detail}"),
-                    true,
+                    format!("Readest Cloud returned an unusable restore snapshot: {detail}"),
+                    false,
                     local_fingerprint.clone(),
                     None,
                     Some(envelope.snapshot.exported_at),
@@ -426,7 +421,7 @@ async fn run_remote_sync_with_config(
         );
     }
 
-    if let Err(detail) = validate_sync_snapshot(&snapshot) {
+    if let Err(detail) = validate_sync_snapshot_restore(&snapshot) {
         return result_with_status(
             READEST_CLOUD_PROVIDER,
             &operation,
