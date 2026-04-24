@@ -94,7 +94,6 @@ Goal: prove the local reader core is shippable before moving the main execution 
   | Annotations/notes/bookmarks/progress | PASS | `a6e6285`; `P0 annotations notes bookmarks and progress restore` creates TXT highlights/notes/bookmarks, locates via bookmark, and reopens with restored progress. | None. | P0-3.2 |
   | Library import/migration/group/filter/sort | PASS | `83d5932`; `P0 library import migration grouping filtering and sorting` covers sample import, format sorting, format grouping, format filtering, and reuses the existing Readest migration banner/notice regression. | None. | P0-4.1 |
   | Library repair/remove/restore/cover/metadata | PASS | `add8f96`; `P0 library repair remove restore cover and metadata` anchors cover/repair trust safety and reuses existing remove/undo, row repair, bulk repair, and metadata persistence regressions. | None. | P0-4.2 |
-
 - [x] P0-1.1 Certify multi-format open/import/reopen coverage
   - Outcome: EPUB, PDF, FB2, MOBI, AZW3, CBZ, and TXT each have fixture-backed import, open, return, and reopen evidence.
   - Touches: reader format contract, library import/open flow, e2e fixtures/tests.
