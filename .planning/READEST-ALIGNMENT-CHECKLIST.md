@@ -393,14 +393,15 @@ Goal: close the remaining user-visible Readest gaps that now mainly live in the 
   - Outcome: grid/list cards, import tile, and section cards use a more intentional Readest-style hierarchy for cover ratio, title/author line breaks, progress/state chips, and action affordances.
   - Touches: `src/lib/components/library/BookshelfPreview.svelte`, `src/lib/components/library/ContinueReadingShelf.svelte`, any shared library card model/types needed for visual cleanup.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test /Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` (PASS).
-  - Done commit: this commit
+  - Done commit: 3c3eca8
   - Notes: the main shelf cards and continue/recent rows now share a denser book-first hierarchy: slightly tighter cover ratio, stronger title/author emphasis, progress/status labels that read as product state instead of debug text, and less weight on secondary metadata. This slice is intentionally visual-only; metadata detail actions and grouped-browse navigation semantics are unchanged.
 
-- [ ] P3-1.3 Align library sort, filter, section, and scroll behavior
-  - Outcome: search, shelf sections, view-mode changes, and library scrolling follow explicit product rules instead of implementation-convenient defaults.
-  - Touches: `src/routes/library/+page.svelte`, library projection/controller helpers, section composition, scroll container wiring, focused library behavior tests.
-  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused library workflow regression if section semantics move.
-  - Notes: this slice should settle how search affects sections, how view-mode switches preserve context, and whether current scroll behavior still exposes obvious Readest drift.
+- [x] P3-1.3 Align library sort, filter, section, and scroll behavior
+  - Outcome: search and filter states now collapse the library into a single result shelf with explicit `搜索结果` / `筛选结果` semantics, while the existing scroll runtime remains the shared host for that contract instead of competing with workflow shelves.
+  - Touches: `src/routes/library/+page.svelte`, `src/lib/library/page.ts`, `src/lib/library/body.ts`, `src/lib/library/surface.ts`, focused library smoke coverage.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test /Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` (PASS).
+  - Done commit: this commit
+  - Notes: this slice intentionally settles search/filter section rules first. It does not change grouped-browse navigation or invent a new scroll model; the existing scroll host stays in place, but the page state now decides much more clearly when workflow shelves should disappear and when the main result shelf should take over.
 
 - [ ] P3-2.1 Productize continue reading and recent reading
   - Outcome: homepage sections for `continue reading` and `recent reading` have stable inclusion, ordering, limits, empty-state, and completed-book rules that users can predict.

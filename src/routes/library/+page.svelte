@@ -283,6 +283,7 @@
   let desktopLibraryBrowse: DesktopLibraryBrowseDerivations = {
     searchActive: false,
     groupedBrowseMode: false,
+    workflowSectionsVisible: true,
     recoveryQueueBooks: [],
     filteredRecoveryQueueBooks: [],
     continueReadingBooks: [],
@@ -301,6 +302,7 @@
   let starterLibraryBrowse: LibraryBrowseDerivations = {
     searchActive: false,
     groupedBrowseMode: false,
+    workflowSectionsVisible: true,
     continueReadingBooks: [],
     recentReadingBooks: [],
     shelfBooks: [],

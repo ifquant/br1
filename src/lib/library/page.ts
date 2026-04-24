@@ -38,6 +38,7 @@ export type LibraryActiveFilterState = {
 export type LibraryBrowseDerivations = {
   searchActive: boolean;
   groupedBrowseMode: boolean;
+  workflowSectionsVisible: boolean;
   continueReadingBooks: LibraryShelfBook[];
   recentReadingBooks: LibraryShelfBook[];
   shelfBooks: LibraryShelfBook[];
@@ -134,6 +135,7 @@ export type LibraryPageSurfaceProjectionState = {
   readestCompatibleCount: number;
   migrationBusy: boolean;
   groupedBrowseMode: boolean;
+  desktopWorkflowSectionsVisible: boolean;
   desktopBrowseBooks: LibraryShelfBook[];
   desktopShelfBooks: LibraryShelfBook[];
   desktopWorkflowNotice: DesktopLibraryBrowseDerivations['workflowNotice'];
@@ -147,6 +149,7 @@ export type LibraryPageSurfaceProjectionState = {
   importedBooksCount: number;
   libraryQuery: string;
   visibleLibraryBooksCount: number;
+  starterWorkflowSectionsVisible: boolean;
   starterBrowseBooks: LibraryShelfBook[];
   starterShelfBooks: LibraryShelfBook[];
   starterWorkflowNotice: LibraryBrowseDerivations['workflowNotice'];
@@ -460,9 +463,11 @@ export const getLibraryFilterLabel = (filterBy: LibraryFilter) => {
 
 export const getLibraryBrowseSectionTitle = (
   searchActive: boolean,
+  filterActive: boolean,
   groupBy: 'none' | 'author' | 'collection' | 'format'
 ) => {
   if (searchActive) return '搜索结果';
+  if (filterActive) return '筛选结果';
   if (groupBy === 'author') return '作者书架';
   if (groupBy === 'collection') return '归类书架';
   if (groupBy === 'format') return '格式书架';
@@ -717,6 +722,13 @@ export const buildDesktopLibraryBrowseDerivations = ({
   groupScope: string;
 }): DesktopLibraryBrowseDerivations => {
   const searchActive = normalizeLibrarySearchText(query).length > 0;
+  const viewFiltered = isLibraryViewFiltered({
+    searchActive,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter
+  });
   const sortedByRecent = sortBooksForDisplay(books, 'recent');
   const sortedByCurrent = sortBooksForDisplay(books, sortBy);
   const recoveryQueueBooks = searchActive ? [] : getRecoveryQueueBooks(sortedByRecent);
@@ -773,16 +785,18 @@ export const buildDesktopLibraryBrowseDerivations = ({
     groupScope
   );
   const groupedBrowseMode = groupBy !== 'none';
-  const visibleBooksCount = groupedBrowseMode
-    ? filteredShelfBooks.length
-    : filteredRecoveryQueueBooks.length +
+  const workflowSectionsVisible = !groupedBrowseMode && !viewFiltered;
+  const visibleBooksCount = workflowSectionsVisible
+    ? filteredRecoveryQueueBooks.length +
       filteredContinueReadingBooks.length +
       filteredRecentReadingBooks.length +
-      filteredShelfBooks.length;
+      filteredShelfBooks.length
+    : filteredShelfBooks.length;
 
   return {
     searchActive,
     groupedBrowseMode,
+    workflowSectionsVisible,
     recoveryQueueBooks,
     filteredRecoveryQueueBooks,
     continueReadingBooks,
@@ -828,6 +842,13 @@ export const buildStarterLibraryBrowseDerivations = ({
   groupScope: string;
 }): LibraryBrowseDerivations => {
   const searchActive = normalizeLibrarySearchText(query).length > 0;
+  const viewFiltered = isLibraryViewFiltered({
+    searchActive,
+    filterBy,
+    formatFilter,
+    collectionFilter,
+    tagFilter
+  });
   const sortedByRecent = sortBooksForDisplay(books, 'recent');
   const sortedByCurrent = sortBooksForDisplay(books, sortBy);
   const continueReadingBooks = searchActive ? [] : getContinueReadingBooks(books);
@@ -874,15 +895,17 @@ export const buildStarterLibraryBrowseDerivations = ({
     groupScope
   );
   const groupedBrowseMode = groupBy !== 'none';
-  const visibleBooksCount = groupedBrowseMode
-    ? filteredShelfBooks.length
-    : filteredContinueReadingBooks.length +
+  const workflowSectionsVisible = !groupedBrowseMode && !viewFiltered;
+  const visibleBooksCount = workflowSectionsVisible
+    ? filteredContinueReadingBooks.length +
       filteredRecentReadingBooks.length +
-      filteredShelfBooks.length;
+      filteredShelfBooks.length
+    : filteredShelfBooks.length;
 
   return {
     searchActive,
     groupedBrowseMode,
+    workflowSectionsVisible,
     continueReadingBooks,
     recentReadingBooks,
     shelfBooks,
@@ -1026,7 +1049,9 @@ export const buildLibraryPageViewState = ({
     manualRepairQueueCount,
     recoveryQueueSummaryText,
     libraryStatusSummary:
-      desktopLibraryMode && filteredRecoveryQueueBooks.length > 0
+      desktopLibraryMode &&
+      desktopBrowse.workflowSectionsVisible &&
+      filteredRecoveryQueueBooks.length > 0
         ? `待修复 ${filteredRecoveryQueueBooks.length} · 可批量 ${bulkRepairEligibleQueueBooks.length} · 需复核 ${manualRepairQueueCount}`
         : '',
     filteredContinueReadingBooks: desktopBrowse.filteredContinueReadingBooks,
@@ -1035,7 +1060,7 @@ export const buildLibraryPageViewState = ({
     filteredLibraryShelfBooks: desktopBrowse.filteredShelfBooks,
     libraryGroupedBrowseMode: desktopBrowse.groupedBrowseMode,
     visibleLibraryBooksCount: desktopBrowse.visibleBooksCount,
-    readingWorkflowNotice: desktopBrowse.workflowNotice,
+    readingWorkflowNotice: desktopBrowse.workflowSectionsVisible ? desktopBrowse.workflowNotice : null,
     starterContinueReadingBooks: starterBrowse.continueReadingBooks,
     starterRecentReadingBooks: starterBrowse.recentReadingBooks,
     starterShelfBooks: starterBrowse.shelfBooks,
@@ -1044,7 +1069,8 @@ export const buildLibraryPageViewState = ({
     filteredStarterBrowseBooks: starterBrowse.filteredBrowseBooks,
     filteredStarterShelfBooks: starterBrowse.filteredShelfBooks,
     visibleStarterLibraryBooksCount: starterBrowse.visibleBooksCount,
-    starterReadingWorkflowNotice: starterBrowse.workflowNotice
+    starterReadingWorkflowNotice:
+      starterBrowse.workflowSectionsVisible ? starterBrowse.workflowNotice : null
   };
 };
 
@@ -1262,6 +1288,7 @@ export const buildLibraryPageSurfaceProjectionState = ({
   readestCompatibleCount,
   migrationBusy,
   groupedBrowseMode: projectionState.browseState.libraryGroupedBrowseMode,
+  desktopWorkflowSectionsVisible: projectionState.browseState.desktopBrowse.workflowSectionsVisible,
   desktopBrowseBooks: projectionState.browseState.filteredLibraryBrowseBooks,
   desktopShelfBooks: projectionState.browseState.filteredLibraryShelfBooks,
   desktopWorkflowNotice: projectionState.browseState.readingWorkflowNotice,
@@ -1275,6 +1302,7 @@ export const buildLibraryPageSurfaceProjectionState = ({
   importedBooksCount,
   libraryQuery: filterControlsState.query,
   visibleLibraryBooksCount: projectionState.browseState.visibleLibraryBooksCount,
+  starterWorkflowSectionsVisible: projectionState.browseState.starterBrowse.workflowSectionsVisible,
   starterBrowseBooks: projectionState.browseState.filteredStarterBrowseBooks,
   starterShelfBooks: projectionState.browseState.filteredStarterShelfBooks,
   starterWorkflowNotice: projectionState.browseState.starterReadingWorkflowNotice,

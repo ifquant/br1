@@ -62,6 +62,7 @@ type BuildStarterLibraryBrowseBodyModelArgs = {
 type BuildDesktopLibraryBrowseBodySurfaceModelArgs = BuildDesktopLibraryBrowseBodyModelArgs & {
   browseState: LibraryBrowseState;
   groupedBrowseMode: boolean;
+  workflowSectionsVisible: boolean;
   browseBooks: LibraryShelfBook[];
   viewMode: 'grid' | 'list';
   shelfBooks: LibraryShelfBook[];
@@ -72,6 +73,7 @@ type BuildDesktopLibraryBrowseBodySurfaceModelArgs = BuildDesktopLibraryBrowseBo
 type BuildStarterLibraryBrowseBodySurfaceModelArgs = BuildStarterLibraryBrowseBodyModelArgs & {
   browseState: LibraryBrowseState;
   groupedBrowseMode: boolean;
+  workflowSectionsVisible: boolean;
   browseBooks: LibraryShelfBook[];
   viewMode: 'grid' | 'list';
   shelfBooks: LibraryShelfBook[];
@@ -110,6 +112,7 @@ export const buildLibraryFilterEmptyState = ({
 
 export const buildDesktopLibraryBrowseBodyModel = ({
   workflowNotice,
+  workflowSectionsVisible,
   recoveryQueueSummaryText,
   recoveryQueueReviewBooks,
   bulkRepairEligibleCount,
@@ -133,47 +136,55 @@ export const buildDesktopLibraryBrowseBodyModel = ({
   onClearFilterById,
   onClearFilters,
   getEmptyFilterTitle
-}: BuildDesktopLibraryBrowseBodyModelArgs): LibraryBrowseBodyModel => ({
+}: BuildDesktopLibraryBrowseBodyModelArgs & {
+  workflowSectionsVisible: boolean;
+}): LibraryBrowseBodyModel => ({
   workflowNotice,
-  recoveryShelf: {
-    sectionTitle: '待修复书籍',
-    sectionDescription: recoveryQueueSummaryText,
-    primaryActionLabel: '修复',
-    books: recoveryQueueReviewBooks,
-    onOpenSourcePath,
-    onImportBooks,
-    onRepairBook,
-    onRemoveBook,
-    bulkActionLabel:
-      bulkRepairEligibleCount > 0
-        ? bulkRepairBusy
-          ? '批量修复中…'
-          : `批量修复副本（${bulkRepairEligibleCount}）`
-        : '',
-    bulkActionDisabled: bulkRepairBusy,
-    operationSummary: bulkRepairSummary,
-    onBulkAction: onBulkRepairBooks
-  },
-  continueShelf: {
-    sectionTitle: '继续阅读',
-    sectionDescription: '回到当前正在读的书。',
-    primaryActionLabel: '继续',
-    books: filteredContinueReadingBooks,
-    onOpenSourcePath,
-    onImportBooks,
-    onRepairBook,
-    onRemoveBook
-  },
-  recentShelf: {
-    sectionTitle: '最近阅读',
-    sectionDescription: '重新打开你最近看过，但当前不在继续阅读队列中的书。',
-    primaryActionLabel: '重开',
-    books: filteredRecentReadingBooks,
-    onOpenSourcePath,
-    onImportBooks,
-    onRepairBook,
-    onRemoveBook
-  },
+  recoveryShelf: workflowSectionsVisible
+    ? {
+        sectionTitle: '待修复书籍',
+        sectionDescription: recoveryQueueSummaryText,
+        primaryActionLabel: '修复',
+        books: recoveryQueueReviewBooks,
+        onOpenSourcePath,
+        onImportBooks,
+        onRepairBook,
+        onRemoveBook,
+        bulkActionLabel:
+          bulkRepairEligibleCount > 0
+            ? bulkRepairBusy
+              ? '批量修复中…'
+              : `批量修复副本（${bulkRepairEligibleCount}）`
+            : '',
+        bulkActionDisabled: bulkRepairBusy,
+        operationSummary: bulkRepairSummary,
+        onBulkAction: onBulkRepairBooks
+      }
+    : null,
+  continueShelf: workflowSectionsVisible
+    ? {
+        sectionTitle: '继续阅读',
+        sectionDescription: '回到当前正在读的书。',
+        primaryActionLabel: '继续',
+        books: filteredContinueReadingBooks,
+        onOpenSourcePath,
+        onImportBooks,
+        onRepairBook,
+        onRemoveBook
+      }
+    : null,
+  recentShelf: workflowSectionsVisible
+    ? {
+        sectionTitle: '最近阅读',
+        sectionDescription: '重新打开你最近看过，但当前不在继续阅读队列中的书。',
+        primaryActionLabel: '重开',
+        books: filteredRecentReadingBooks,
+        onOpenSourcePath,
+        onImportBooks,
+        onRepairBook,
+        onRemoveBook
+      }
+    : null,
   initialEmptyState:
     importedBooksCount === 0
       ? {
@@ -226,6 +237,7 @@ export const buildDesktopLibraryBrowseBodyModel = ({
 
 export const buildStarterLibraryBrowseBodyModel = ({
   workflowNotice,
+  workflowSectionsVisible,
   filteredContinueReadingBooks,
   filteredRecentReadingBooks,
   libraryQuery,
@@ -235,20 +247,26 @@ export const buildStarterLibraryBrowseBodyModel = ({
   onClearFilterById,
   onClearFilters,
   getEmptyFilterTitle
-}: BuildStarterLibraryBrowseBodyModelArgs): LibraryBrowseBodyModel => ({
+}: BuildStarterLibraryBrowseBodyModelArgs & {
+  workflowSectionsVisible: boolean;
+}): LibraryBrowseBodyModel => ({
   workflowNotice,
-  continueShelf: {
-    sectionTitle: '继续阅读',
-    sectionDescription: '回到当前正在读的样例书。',
-    primaryActionLabel: '继续',
-    books: filteredContinueReadingBooks
-  },
-  recentShelf: {
-    sectionTitle: '最近阅读',
-    sectionDescription: '重新打开你最近看过的样例书。',
-    primaryActionLabel: '重开',
-    books: filteredRecentReadingBooks
-  },
+  continueShelf: workflowSectionsVisible
+    ? {
+        sectionTitle: '继续阅读',
+        sectionDescription: '回到当前正在读的样例书。',
+        primaryActionLabel: '继续',
+        books: filteredContinueReadingBooks
+      }
+    : null,
+  recentShelf: workflowSectionsVisible
+    ? {
+        sectionTitle: '最近阅读',
+        sectionDescription: '重新打开你最近看过的样例书。',
+        primaryActionLabel: '重开',
+        books: filteredRecentReadingBooks
+      }
+    : null,
   beforePanelEmptyStates: [
     ...(libraryQuery && visibleStarterLibraryBooksCount === 0
       ? [
@@ -279,6 +297,7 @@ export const buildStarterLibraryBrowseBodyModel = ({
 export const buildDesktopLibraryBrowseBodySurfaceModel = ({
   browseState,
   groupedBrowseMode,
+  workflowSectionsVisible,
   browseBooks,
   viewMode,
   shelfBooks,
@@ -286,18 +305,26 @@ export const buildDesktopLibraryBrowseBodySurfaceModel = ({
   groupBy,
   ...bodyArgs
 }: BuildDesktopLibraryBrowseBodySurfaceModelArgs): LibraryBrowseBodySurfaceModel => ({
-  body: buildDesktopLibraryBrowseBodyModel(bodyArgs),
+  body: buildDesktopLibraryBrowseBodyModel({
+    workflowSectionsVisible,
+    ...bodyArgs
+  }),
   groupedBrowseMode,
   browseState,
   browseBooks,
   viewMode,
   shelfBooks,
-  shelfSectionTitle: getLibraryBrowseSectionTitle(searchActive, groupBy)
+  shelfSectionTitle: getLibraryBrowseSectionTitle(
+    searchActive,
+    !workflowSectionsVisible && !groupedBrowseMode,
+    groupBy
+  )
 });
 
 export const buildStarterLibraryBrowseBodySurfaceModel = ({
   browseState,
   groupedBrowseMode,
+  workflowSectionsVisible,
   browseBooks,
   viewMode,
   shelfBooks,
@@ -305,11 +332,18 @@ export const buildStarterLibraryBrowseBodySurfaceModel = ({
   groupBy,
   ...bodyArgs
 }: BuildStarterLibraryBrowseBodySurfaceModelArgs): LibraryBrowseBodySurfaceModel => ({
-  body: buildStarterLibraryBrowseBodyModel(bodyArgs),
+  body: buildStarterLibraryBrowseBodyModel({
+    workflowSectionsVisible,
+    ...bodyArgs
+  }),
   groupedBrowseMode,
   browseState,
   browseBooks,
   viewMode,
   shelfBooks,
-  shelfSectionTitle: getLibraryBrowseSectionTitle(searchActive, groupBy)
+  shelfSectionTitle: getLibraryBrowseSectionTitle(
+    searchActive,
+    !workflowSectionsVisible && !groupedBrowseMode,
+    groupBy
+  )
 });

@@ -69,6 +69,7 @@ type BuildLibraryPageSurfaceSetFromStateArgs = {
   readestCompatibleCount: number;
   migrationBusy: boolean;
   groupedBrowseMode: boolean;
+  desktopWorkflowSectionsVisible: boolean;
   desktopBrowseBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['browseBooks'];
   desktopShelfBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['shelfBooks'];
   desktopWorkflowNotice: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['workflowNotice'];
@@ -82,6 +83,7 @@ type BuildLibraryPageSurfaceSetFromStateArgs = {
   importedBooksCount: number;
   libraryQuery: string;
   visibleLibraryBooksCount: number;
+  starterWorkflowSectionsVisible: boolean;
   onOpenSourcePath: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onOpenSourcePath'];
   onImportBooks: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onImportBooks'];
   onRepairBook: Parameters<typeof buildDesktopLibraryBrowseBodySurfaceModel>[0]['onRepairBook'];
@@ -246,6 +248,7 @@ export const buildLibraryPageSurfaceSetFromState = ({
   readestCompatibleCount,
   migrationBusy,
   groupedBrowseMode,
+  desktopWorkflowSectionsVisible,
   desktopBrowseBooks,
   desktopShelfBooks,
   desktopWorkflowNotice,
@@ -259,6 +262,7 @@ export const buildLibraryPageSurfaceSetFromState = ({
   importedBooksCount,
   libraryQuery,
   visibleLibraryBooksCount,
+  starterWorkflowSectionsVisible,
   onOpenSourcePath,
   onImportBooks,
   onRepairBook,
@@ -318,6 +322,7 @@ export const buildLibraryPageSurfaceSetFromState = ({
     desktopBody: {
       browseState,
       groupedBrowseMode,
+      workflowSectionsVisible: desktopWorkflowSectionsVisible,
       browseBooks: desktopBrowseBooks,
       viewMode,
       shelfBooks: desktopShelfBooks,
@@ -351,6 +356,7 @@ export const buildLibraryPageSurfaceSetFromState = ({
     starterBody: {
       browseState,
       groupedBrowseMode,
+      workflowSectionsVisible: starterWorkflowSectionsVisible,
       browseBooks: starterBrowseBooks,
       viewMode,
       shelfBooks: starterShelfBooks,
@@ -367,8 +373,8 @@ export const buildLibraryPageSurfaceSetFromState = ({
       onClearFilters,
       getEmptyFilterTitle
     },
-      desktopLibraryMode
-    });
+    desktopLibraryMode
+  });
 
 export const buildLibraryPageSurfaceSetFromProjectionState = ({
   projectionState,

@@ -74,6 +74,11 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
 
   await page.getByRole('button', { name: '未开始' }).click();
   await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：状态 未开始');
+  await expect(page.getByRole('heading', { name: '继续阅读' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '最近阅读' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '筛选结果' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '你的书库' })).toHaveCount(0);
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 2 / 5 本');
   await page.getByRole('button', { name: '移除书库筛选：状态 未开始' }).click();
   await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
@@ -83,7 +88,7 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /继续阅读《胡雪岩》/ })).toHaveCount(0);
   await page
-    .getByLabel('你的书库')
+    .getByLabel('筛选结果')
     .locator('.book-card', { hasText: 'A Theory of Justice' })
     .getByRole('button', { name: '详情' })
     .click();
@@ -112,7 +117,7 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：格式 EPUB');
   await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toHaveCount(0);
-  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 4 / 5 本');
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 1 / 5 本');
   await page.getByRole('button', { name: '移除书库筛选：格式 EPUB' }).click();
   await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 
@@ -151,7 +156,8 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
 
   await page.getByRole('button', { name: '已读完' }).click();
-  await expect(page.getByRole('link', { name: /继续阅读《胡雪岩》/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '继续阅读' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '筛选结果' })).toBeVisible();
   await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: '在读' }).click();
@@ -191,7 +197,8 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
     .getByRole('button', { name: '移除空态筛选：搜索 does-not-exist' })
     .click();
   await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：状态 在读');
-  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '继续阅读' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '筛选结果' })).toBeVisible();
 
   await page.getByLabel('书库格式筛选').getByRole('button', { name: 'PDF 1 本' }).click();
   await expect(page.getByLabel('书库当前筛选详情')).toContainText(
@@ -213,8 +220,8 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
     .getByRole('button', { name: '移除空态筛选：格式 PDF' })
     .click();
   await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：状态 在读');
-  await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '继续阅读' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '筛选结果' })).toBeVisible();
   await page.getByRole('button', { name: '清除书库筛选' }).click();
   await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 });
