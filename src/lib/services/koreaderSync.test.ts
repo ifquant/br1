@@ -165,7 +165,7 @@ test('KOReader remote progress export keeps one progress entry per reading-state
   assert.equal(entries.length, 2);
   assert.equal(entries[0]?.bookId, 'book-alpha');
   assert.equal(entries[0]?.document.length > 0, true);
-  assert.equal(entries[0]?.progress, '10%');
+  assert.equal(entries[0]?.progress, 'epubcfi(/6/2!/4/2)');
   assert.equal(entries[0]?.percentage, 10);
 });
 
@@ -174,7 +174,7 @@ test('KOReader remote progress pull merges newer remote progress into the snapsh
   const entries = createKoReaderRemoteProgressEntriesFromSnapshot(current);
   const remoteAlpha = {
     ...entries[0],
-    progress: '[44,100]',
+    progress: 'epubcfi(/6/18!/4/2)',
     percentage: 44,
     timestamp: 1700000030000
   };
@@ -185,7 +185,15 @@ test('KOReader remote progress pull merges newer remote progress into the snapsh
   assert.equal(plan.appliedBookCount, 1);
   assert.equal(plan.skippedBookCount, 0);
   assert.equal(alphaReading?.kind, 'reading-state');
-  assert.equal((alphaReading as { payload: { progress: string } }).payload.progress, '[44,100]');
+  assert.equal((alphaReading as { payload: { progress: string } }).payload.progress, '44%');
+  assert.equal(
+    (alphaReading as { payload: { progressLocation: string | null } }).payload.progressLocation,
+    'epubcfi(/6/18!/4/2)'
+  );
+  assert.equal(
+    (alphaReading as { payload: { progressFraction: number | null } }).payload.progressFraction,
+    0.44
+  );
 });
 
 test('KOReader remote progress pull skips older remote progress when local state is newer', () => {
@@ -202,4 +210,38 @@ test('KOReader remote progress pull skips older remote progress when local state
 
   assert.equal(plan.appliedBookCount, 0);
   assert.equal(plan.conflicts[0]?.kind, 'local-newer');
+});
+
+test('KOReader remote progress export skips books without a KOReader-compatible locator or page value', () => {
+  const snapshot = createBr1SyncSnapshot(
+    [
+      createLibraryBookMetadataSyncRecord({
+        ...alpha,
+        id: 'book-txt',
+        title: 'Plain text',
+        format: 'TXT',
+        filePath: '/library/plain.txt',
+        sourcePath: '/imports/plain.txt',
+        progressLocation: 'txt:0.250000',
+        progress: '25%',
+        progressFraction: 0.25
+      }),
+      createReadingStateSyncRecord({
+        ...alpha,
+        id: 'book-txt',
+        title: 'Plain text',
+        format: 'TXT',
+        filePath: '/library/plain.txt',
+        sourcePath: '/imports/plain.txt',
+        progressLocation: 'txt:0.250000',
+        progress: '25%',
+        progressFraction: 0.25
+      })
+    ],
+    1700000020000
+  );
+
+  const entries = createKoReaderRemoteProgressEntriesFromSnapshot(snapshot);
+
+  assert.equal(entries.length, 0);
 });

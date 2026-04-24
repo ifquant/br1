@@ -315,6 +315,13 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: added a dedicated Tauri-owned `run_koreader_remote_sync` command that authenticates with fixed KOReader endpoint families and env-owned credentials, then wires manual push/pull actions into the existing library menu. Push only emits reading progress payloads; pull only merges reading-state records, skips ambiguous hashes and locally newer records, and leaves annotation remote sync explicitly out of scope for this slice.
 
+- [x] P2-4.4 Normalize KOReader remote progress semantics
+  - Outcome: KOReader remote progress sync now speaks locator/page semantics instead of leaking `br1` UI progress labels into the protocol.
+  - Touches: KOReader progress projection/merge helpers, desktop sync notices, tests.
+  - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: corrected the first remote-progress slice so push now prefers KOReader-compatible locators or page values and skips unsupported local-only positions like `txt:` pseudo-locators, while pull maps remote locator values back into `progressLocation` and keeps `br1` display progress as a percentage/page label. This keeps the KOReader wire contract closer to Readest instead of serializing raw UI text.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

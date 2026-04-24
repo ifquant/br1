@@ -818,6 +818,10 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     try {
       const snapshot = await buildKoReaderRemoteSyncSnapshot();
       const entries = options.createKoReaderRemoteProgressEntriesFromSnapshot(snapshot);
+      if (entries.length === 0) {
+        setLibraryNotice('info', '当前书库里没有可安全推送到 KOReader 的阅读进度。');
+        return;
+      }
       const result = await options.runKoReaderRemoteSync({
         operation: 'push',
         entries
@@ -862,6 +866,10 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     try {
       const snapshot = await buildKoReaderRemoteSyncSnapshot();
       const entries = options.createKoReaderRemoteProgressEntriesFromSnapshot(snapshot);
+      if (entries.length === 0) {
+        setLibraryNotice('info', '当前书库里没有可用来匹配 KOReader 远端进度的本地定位信息。');
+        return;
+      }
       const result = await options.runKoReaderRemoteSync({
         operation: 'pull',
         entries

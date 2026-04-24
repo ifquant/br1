@@ -1,7 +1,10 @@
 import {
   createKoReaderAnnotationSyncRecords,
   createKoReaderReadingStateSyncRecord,
+  createReadingStateSyncRecord,
   deriveKoReaderBookIdentity,
+  normalizeKoReaderProgressValue,
+  parseKoReaderPageProgress,
   restoreKoReaderAnnotationsFromSync,
   restoreKoReaderBookConfigFromSync,
   type Br1SyncSnapshot,
@@ -147,6 +150,68 @@ const toPercent = (value: number | null | undefined) => {
   return Math.max(0, Math.min(100, Number((value * 100).toFixed(2))));
 };
 
+const KO_READER_XPOINTER_PREFIX = '/body/DocFragment[';
+const EPUB_CFI_PREFIX = 'epubcfi(';
+const PLAIN_TEXT_PROGRESS_PREFIX = 'txt:';
+
+const isKoReaderLocator = (value: string | null | undefined) => {
+  const normalized = value?.trim() ?? '';
+  return normalized.startsWith(KO_READER_XPOINTER_PREFIX) || normalized.startsWith(EPUB_CFI_PREFIX);
+};
+
+const toKoReaderRemoteProgressValue = (book: PersistedLibraryBook) => {
+  const location = book.progressLocation?.trim() ?? '';
+  if (isKoReaderLocator(location)) {
+    return location;
+  }
+
+  if (location.startsWith(PLAIN_TEXT_PROGRESS_PREFIX)) {
+    return '';
+  }
+
+  const normalizedLabel = normalizeKoReaderProgressValue(book.progress);
+  const parsedPageProgress = parseKoReaderPageProgress(normalizedLabel);
+  if (parsedPageProgress) {
+    return normalizedLabel;
+  }
+
+  if (/^\d+$/.test(normalizedLabel)) {
+    return normalizedLabel;
+  }
+
+  return '';
+};
+
+const toKoReaderRemoteReadingStateBook = (
+  book: PersistedLibraryBook,
+  remoteEntry: Br1KoReaderRemoteProgressEntry
+): PersistedLibraryBook => {
+  const remoteProgress = remoteEntry.progress.trim();
+  const hasLocator = isKoReaderLocator(remoteProgress);
+  const parsedPageProgress = parseKoReaderPageProgress(remoteProgress);
+  const progressFraction =
+    typeof remoteEntry.percentage === 'number' && Number.isFinite(remoteEntry.percentage)
+      ? Math.max(0, Math.min(1, remoteEntry.percentage / 100))
+      : parsedPageProgress && parsedPageProgress.total > 0
+        ? parsedPageProgress.current / parsedPageProgress.total
+        : book.progressFraction ?? null;
+
+  const progressLabel =
+    typeof remoteEntry.percentage === 'number' && Number.isFinite(remoteEntry.percentage)
+      ? `${Math.max(0, Math.round(remoteEntry.percentage))}%`
+      : parsedPageProgress
+        ? `[${parsedPageProgress.current},${parsedPageProgress.total}]`
+        : remoteProgress || book.progress;
+
+  return {
+    ...book,
+    progress: progressLabel,
+    progressFraction,
+    progressLocation: hasLocator ? remoteProgress : book.progressLocation ?? null,
+    lastOpenedAt: remoteEntry.timestamp
+  };
+};
+
 const getMetadataRecordMap = (snapshot: Br1SyncSnapshot) =>
   new Map(
     snapshot.records
@@ -201,11 +266,11 @@ export const createKoReaderRemoteProgressEntriesFromSnapshot = (
 
     const book = toPersistedLibraryBook(metadataRecord, readingStateRecord);
     const identity = deriveKoReaderBookIdentity(book);
-    const progress = String(readingStateRecord.payload.progress ?? '').trim();
+    const progress = toKoReaderRemoteProgressValue(book);
     const timestamp =
       readingStateRecord.payload.lastOpenedAt ?? readingStateRecord.updatedAt ?? snapshot.exportedAt;
 
-    if (!progress && !timestamp) {
+    if (!progress || !timestamp) {
       return [];
     }
 
@@ -490,11 +555,25 @@ export const mergeKoReaderRemoteProgressIntoSnapshot = (
       {
         ...deriveKoReaderBookIdentity(metadataRecord.payload),
         progress: remoteEntry.progress,
-        xpointer: currentReadingState?.payload.progressLocation ?? '',
+        xpointer: isKoReaderLocator(remoteEntry.progress)
+          ? remoteEntry.progress
+          : currentReadingState?.payload.progressLocation ?? '',
         updatedAt: remoteEntry.timestamp
       }
     );
-    replaceRecord(replacement.id, replacement);
+    const normalizedReplacement = createReadingStateSyncRecord(
+      toKoReaderRemoteReadingStateBook(
+        {
+          ...toPersistedLibraryBook(metadataRecord, currentReadingState),
+          progressLocation:
+            replacement.payload.progressLocation ??
+            currentReadingState?.payload.progressLocation ??
+            null
+        },
+        remoteEntry
+      )
+    );
+    replaceRecord(normalizedReplacement.id, normalizedReplacement);
     appliedBookCount += 1;
   }
 
