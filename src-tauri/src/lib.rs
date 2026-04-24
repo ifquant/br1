@@ -292,7 +292,7 @@ pub fn run() {
             commands::sync_snapshot::load_koreader_sync_exchange_dialog,
             commands::sync_snapshot::save_koreader_sync_exchange_dialog,
             commands::sync_snapshot::save_sync_snapshot_dialog,
-            commands::sync_snapshot::apply_sync_snapshot
+            commands::sync_snapshot::restore_sync_snapshot_dialog
         ])
         .setup(|app| {
             append_associated_book_open_diagnostic(

@@ -27,6 +27,14 @@ export type Br1RemoteSyncResult = {
   remoteFingerprint: string | null;
   remoteExportedAt: number | null;
   snapshot: Br1SyncSnapshot | null;
+  applyResult: {
+    libraryBookCount: number;
+    bookmarkBookCount: number;
+    noteBookCount: number;
+    highlightsWorkspaceBookCount: number;
+    restoredReaderSettings: boolean;
+  } | null;
+  readerSettingsRecord: Br1SyncSnapshot['records'][number] | null;
 };
 
 export const remoteSyncResultNeedsRetry = (result: Br1RemoteSyncResult) =>

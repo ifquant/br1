@@ -366,6 +366,18 @@ pub(crate) struct SyncSnapshotImportDialogResult {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct RestoreSyncSnapshotDialogResult {
+    pub(crate) cancelled: bool,
+    pub(crate) file_name: Option<String>,
+    pub(crate) record_count: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) apply_result: Option<ApplySyncSnapshotResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) reader_settings_record: Option<SyncSnapshotRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct KoReaderSyncExchangeExportDialogResult {
     pub(crate) cancelled: bool,
     pub(crate) file_name: Option<String>,
@@ -447,6 +459,10 @@ pub(crate) struct RemoteSyncResult {
     pub(crate) remote_exported_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) snapshot: Option<SyncSnapshotDocument>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) apply_result: Option<ApplySyncSnapshotResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) reader_settings_record: Option<SyncSnapshotRecord>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

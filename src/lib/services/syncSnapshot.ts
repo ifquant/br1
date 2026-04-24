@@ -74,9 +74,12 @@ export type SyncSnapshotImportDialogResult = {
   snapshot: Br1SyncSnapshot | null;
 };
 
-export type PreparedSyncSnapshotRestore = {
-  request: SyncSnapshotApplyRequest;
-  readerSettings: ReaderSettings | null;
+export type RestoreSyncSnapshotDialogResult = {
+  cancelled: boolean;
+  fileName: string | null;
+  recordCount: number;
+  applyResult: SyncSnapshotApplyResult | null;
+  readerSettingsRecord: ReaderSettingsSyncRecord | null;
 };
 
 const requireTauriSyncSnapshotRuntime = (action: string) => {
@@ -135,9 +138,7 @@ const getBookIdFromMetadataRecord = (record: LibraryBookMetadataSyncRecord) =>
 const getBookIdFromReadingStateRecord = (record: ReadingStateSyncRecord) =>
   record.scope?.bookId || record.payload.id;
 
-export const prepareSyncSnapshotRestore = (
-  snapshot: Br1SyncSnapshot
-): PreparedSyncSnapshotRestore => {
+export const prepareSyncSnapshotRestore = (snapshot: Br1SyncSnapshot) => {
   const metadataRecords: LibraryBookMetadataSyncRecord[] = [];
   const metadataByBookId = new Map<string, LibraryBookMetadataSyncRecord>();
   const readingStateByBookId = new Map<string, ReadingStateSyncRecord>();
@@ -236,11 +237,7 @@ export const loadSyncSnapshotDialog = async (): Promise<SyncSnapshotImportDialog
   return invokeTauri<SyncSnapshotImportDialogResult>('load_sync_snapshot_dialog');
 };
 
-export const applySyncSnapshot = async (
-  request: SyncSnapshotApplyRequest
-): Promise<SyncSnapshotApplyResult> => {
-  requireTauriSyncSnapshotRuntime('applySyncSnapshot');
-  return invokeTauri<SyncSnapshotApplyResult>('apply_sync_snapshot', {
-    request
-  });
+export const restoreSyncSnapshotDialog = async (): Promise<RestoreSyncSnapshotDialogResult> => {
+  requireTauriSyncSnapshotRuntime('restoreSyncSnapshotDialog');
+  return invokeTauri<RestoreSyncSnapshotDialogResult>('restore_sync_snapshot_dialog');
 };

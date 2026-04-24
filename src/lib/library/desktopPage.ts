@@ -37,9 +37,9 @@ import type {
   KoReaderSyncImportPlan,
   LibraryImportActionResult,
   LibraryReaderTarget,
-  PreparedSyncSnapshotRestore,
   PersistedLibraryBook,
   ReadestLibrarySummary,
+  RestoreSyncSnapshotDialogResult,
   SyncSnapshotApplyResult,
   SyncSnapshotExportDialogResult,
   SyncSnapshotImportDialogResult
@@ -88,6 +88,7 @@ export type DesktopLibraryPageCoordinatorOptions = {
   }) => any;
   saveSyncSnapshotDialog: (snapshot: any) => Promise<SyncSnapshotExportDialogResult>;
   loadSyncSnapshotDialog: () => Promise<SyncSnapshotImportDialogResult>;
+  restoreSyncSnapshotDialog: () => Promise<RestoreSyncSnapshotDialogResult>;
   createKoReaderSyncExchangeFromSnapshot: (snapshot: any) => Br1KoReaderSyncExchangeDocument;
   saveKoReaderSyncExchangeDialog: (
     document: Br1KoReaderSyncExchangeDocument
@@ -102,15 +103,13 @@ export type DesktopLibraryPageCoordinatorOptions = {
     currentSnapshot: any,
     remoteEntries: any[]
   ) => KoReaderRemoteSyncPullPlan;
-  prepareSyncSnapshotRestore: (snapshot: any) => PreparedSyncSnapshotRestore;
-  applySyncSnapshot: (request: PreparedSyncSnapshotRestore['request']) => Promise<SyncSnapshotApplyResult>;
   runKoReaderRemoteSync: (
     request: Br1KoReaderRemoteSyncRequest
   ) => Promise<Br1KoReaderRemoteSyncResult>;
   runRemoteSync: (request: Br1RemoteSyncRequest) => Promise<Br1RemoteSyncResult>;
   persistImportedReaderSettings: (
     storage: Storage | undefined,
-    settings: PreparedSyncSnapshotRestore['readerSettings']
+    settings: any | null
   ) => boolean;
   getStorage: () => Storage | undefined;
   detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
@@ -267,14 +266,13 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createLocalSyncSnapshot,
   saveSyncSnapshotDialog,
   loadSyncSnapshotDialog,
+  restoreSyncSnapshotDialog,
   createKoReaderSyncExchangeFromSnapshot,
   saveKoReaderSyncExchangeDialog,
   loadKoReaderSyncExchangeDialog,
   createKoReaderRemoteProgressEntriesFromSnapshot,
   mergeKoReaderSyncExchangeIntoSnapshot,
   mergeKoReaderRemoteProgressIntoSnapshot,
-  prepareSyncSnapshotRestore,
-  applySyncSnapshot,
   runKoReaderRemoteSync,
   runRemoteSync,
   persistImportedReaderSettings,
@@ -304,14 +302,13 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createLocalSyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['createLocalSyncSnapshot'];
   saveSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['saveSyncSnapshotDialog'];
   loadSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['loadSyncSnapshotDialog'];
+  restoreSyncSnapshotDialog: DesktopLibraryPageCoordinatorEnvironment['restoreSyncSnapshotDialog'];
   createKoReaderSyncExchangeFromSnapshot: DesktopLibraryPageCoordinatorEnvironment['createKoReaderSyncExchangeFromSnapshot'];
   saveKoReaderSyncExchangeDialog: DesktopLibraryPageCoordinatorEnvironment['saveKoReaderSyncExchangeDialog'];
   loadKoReaderSyncExchangeDialog: DesktopLibraryPageCoordinatorEnvironment['loadKoReaderSyncExchangeDialog'];
   createKoReaderRemoteProgressEntriesFromSnapshot: DesktopLibraryPageCoordinatorEnvironment['createKoReaderRemoteProgressEntriesFromSnapshot'];
   mergeKoReaderSyncExchangeIntoSnapshot: DesktopLibraryPageCoordinatorEnvironment['mergeKoReaderSyncExchangeIntoSnapshot'];
   mergeKoReaderRemoteProgressIntoSnapshot: DesktopLibraryPageCoordinatorEnvironment['mergeKoReaderRemoteProgressIntoSnapshot'];
-  prepareSyncSnapshotRestore: DesktopLibraryPageCoordinatorEnvironment['prepareSyncSnapshotRestore'];
-  applySyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['applySyncSnapshot'];
   runKoReaderRemoteSync: DesktopLibraryPageCoordinatorEnvironment['runKoReaderRemoteSync'];
   runRemoteSync: DesktopLibraryPageCoordinatorEnvironment['runRemoteSync'];
   persistImportedReaderSettings: DesktopLibraryPageCoordinatorEnvironment['persistImportedReaderSettings'];
@@ -341,14 +338,13 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createLocalSyncSnapshot,
   saveSyncSnapshotDialog,
   loadSyncSnapshotDialog,
+  restoreSyncSnapshotDialog,
   createKoReaderSyncExchangeFromSnapshot,
   saveKoReaderSyncExchangeDialog,
   loadKoReaderSyncExchangeDialog,
   createKoReaderRemoteProgressEntriesFromSnapshot,
   mergeKoReaderSyncExchangeIntoSnapshot,
   mergeKoReaderRemoteProgressIntoSnapshot,
-  prepareSyncSnapshotRestore,
-  applySyncSnapshot,
   runKoReaderRemoteSync,
   runRemoteSync,
   persistImportedReaderSettings,
@@ -665,23 +661,21 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     options.setSyncSnapshotBusy(true);
     clearLibraryNotice();
     try {
-      const imported = await options.loadSyncSnapshotDialog();
-      if (imported.cancelled || !imported.snapshot) {
+      const imported = await options.restoreSyncSnapshotDialog();
+      if (imported.cancelled || !imported.applyResult) {
         setLibraryNotice('info', '已取消本地快照恢复。');
         return;
       }
 
-      const prepared = options.prepareSyncSnapshotRestore(imported.snapshot);
-      const applyResult = await options.applySyncSnapshot(prepared.request);
       const restoredReaderSettings = options.persistImportedReaderSettings(
         options.getStorage(),
-        prepared.readerSettings
+        (imported.readerSettingsRecord as { payload?: { settings?: any } } | null)?.payload?.settings ?? null
       );
       await loadLibrary();
 
       setLibraryNotice(
         'info',
-        `已恢复本地快照${imported.fileName ? `：${imported.fileName}` : ''}。书库 ${applyResult.libraryBookCount} 本，书签 ${applyResult.bookmarkBookCount} 本，笔记 ${applyResult.noteBookCount} 本，高亮工作区 ${applyResult.highlightsWorkspaceBookCount} 本${restoredReaderSettings ? '，阅读设置已更新。' : '。'}`
+        `已恢复本地快照${imported.fileName ? `：${imported.fileName}` : ''}。书库 ${imported.applyResult.libraryBookCount} 本，书签 ${imported.applyResult.bookmarkBookCount} 本，笔记 ${imported.applyResult.noteBookCount} 本，高亮工作区 ${imported.applyResult.highlightsWorkspaceBookCount} 本${restoredReaderSettings ? '，阅读设置已更新。' : '。'}`
       );
     } catch (error) {
       console.error('Failed to import local sync snapshot', error);
@@ -765,13 +759,10 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
         );
         return;
       }
-
-      const prepared = options.prepareSyncSnapshotRestore(plan.snapshot);
-      await options.applySyncSnapshot(prepared.request);
-      await loadLibrary();
-
-      const message = `已导入 KOReader 交换文件${imported.fileName ? `：${imported.fileName}` : ''}。应用 ${plan.appliedBookCount} 本，跳过 ${plan.skippedBookCount} 本${formatKoReaderConflictSummary(plan)}。`;
-      setLibraryNotice(plan.conflicts.length > 0 ? 'error' : 'info', message);
+      setLibraryNotice(
+        'error',
+        'KOReader 交换文件导入的安全收口还未完成：本轮已经移除了 renderer 直写 sync snapshot 的入口，KOReader merge/apply 会在下一刀搬进 Tauri 后再恢复。'
+      );
     } catch (error) {
       console.error('Failed to import the KOReader sync exchange', error);
       const detail = error instanceof Error ? error.message : '请检查交换文件是否完整有效。';
@@ -882,13 +873,9 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       });
 
       if (result.status === 'success') {
-        const plan = options.mergeKoReaderRemoteProgressIntoSnapshot(snapshot, result.entries);
-        const prepared = options.prepareSyncSnapshotRestore(plan.snapshot);
-        await options.applySyncSnapshot(prepared.request);
-        await loadLibrary();
         setLibraryNotice(
-          'info',
-          `${result.message} 已应用 ${plan.appliedBookCount} 本。${summarizeKoReaderRemotePullConflicts(plan)} 书签和批注不会通过官方 KOSync 回填。`
+          'error',
+          'KOReader 远端进度回填的安全收口还未完成：本轮已经移除了 renderer 直写 sync snapshot 的入口，KOReader merge/apply 会在下一刀搬进 Tauri 后再恢复。'
         );
         return;
       }
@@ -919,22 +906,19 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   };
 
   const applyPulledRemoteSnapshot = async (result: Br1RemoteSyncResult) => {
-    if (!result.snapshot) {
+    if (!result.applyResult) {
       setLibraryNotice('info', result.message);
       return;
     }
-
-    const prepared = options.prepareSyncSnapshotRestore(result.snapshot);
-    const applyResult = await options.applySyncSnapshot(prepared.request);
     const restoredReaderSettings = options.persistImportedReaderSettings(
       options.getStorage(),
-      prepared.readerSettings
+      (result.readerSettingsRecord as { payload?: { settings?: any } } | null)?.payload?.settings ?? null
     );
     await loadLibrary();
 
     setLibraryNotice(
       'info',
-      `${result.message} 书库 ${applyResult.libraryBookCount} 本，书签 ${applyResult.bookmarkBookCount} 本，笔记 ${applyResult.noteBookCount} 本，高亮工作区 ${applyResult.highlightsWorkspaceBookCount} 本${restoredReaderSettings ? '，阅读设置已更新。' : '。'}`
+      `${result.message} 书库 ${result.applyResult.libraryBookCount} 本，书签 ${result.applyResult.bookmarkBookCount} 本，笔记 ${result.applyResult.noteBookCount} 本，高亮工作区 ${result.applyResult.highlightsWorkspaceBookCount} 本${restoredReaderSettings ? '，阅读设置已更新。' : '。'}`
     );
   };
 

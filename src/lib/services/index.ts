@@ -103,18 +103,18 @@ export type {
   ReadestLibrarySummary
 } from './libraryPersistence';
 export {
-  applySyncSnapshot,
   createLocalSyncSnapshot,
   loadSyncSnapshotDialog,
   persistImportedReaderSettings,
   prepareSyncSnapshotRestore,
+  restoreSyncSnapshotDialog,
   saveSyncSnapshotDialog
 } from './syncSnapshot';
 export type {
-  PreparedSyncSnapshotRestore,
   SyncSnapshotApplyRequest,
   SyncSnapshotApplyResult,
   SyncSnapshotBookmarkState,
+  RestoreSyncSnapshotDialogResult,
   SyncSnapshotExportDialogResult,
   SyncSnapshotHighlightsWorkspaceRecord,
   SyncSnapshotImportDialogResult,

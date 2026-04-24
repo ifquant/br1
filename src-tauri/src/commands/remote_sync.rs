@@ -1,5 +1,5 @@
 use crate::models::{RemoteSyncRequest, RemoteSyncResult, SyncSnapshotDocument};
-use crate::commands::sync_snapshot::load_current_sync_snapshot;
+use crate::commands::sync_snapshot::{apply_sync_snapshot_document, load_current_sync_snapshot};
 use reqwest::{Client, StatusCode, Url};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -63,6 +63,8 @@ fn result_with_status(
         remote_fingerprint,
         remote_exported_at,
         snapshot,
+        apply_result: None,
+        reader_settings_record: None,
     }
 }
 
@@ -588,7 +590,16 @@ pub(crate) async fn run_remote_sync(
         return Ok(missing_config_result(&operation));
     };
     let snapshot = load_current_sync_snapshot(&app)?;
-    Ok(run_remote_sync_with_config(request, config, snapshot).await)
+    let mut result = run_remote_sync_with_config(request, config, snapshot).await;
+    if operation == RemoteSyncOperation::Pull && result.status == "success" {
+        if let Some(snapshot) = result.snapshot.clone() {
+            let (apply_result, reader_settings_record) = apply_sync_snapshot_document(&app, &snapshot)?;
+            result.apply_result = Some(apply_result);
+            result.reader_settings_record = reader_settings_record;
+            result.snapshot = None;
+        }
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

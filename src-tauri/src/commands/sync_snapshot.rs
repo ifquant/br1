@@ -3,8 +3,10 @@ use crate::models::{
     ReaderBookmarkRecord,
     KoReaderSyncExchangeExportDialogResult, KoReaderSyncExchangeImportDialogResult,
     ReaderHighlightsWorkspaceEntry, ReaderHighlightsWorkspaceStateRecord, ReaderNoteRecord,
-    ReaderNotesEntry, SyncSnapshotDocument, SyncSnapshotExportDialogResult,
-    SyncSnapshotImportDialogResult, SyncSnapshotRecord, BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+    ReaderNotesEntry, RestoreSyncSnapshotDialogResult, SyncSnapshotBookmarksStateRecord,
+    SyncSnapshotDocument, SyncSnapshotExportDialogResult, SyncSnapshotHighlightsWorkspaceRecord,
+    SyncSnapshotImportDialogResult, SyncSnapshotNotesStateRecord, SyncSnapshotRecord,
+    BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
     READER_BOOKMARKS_SCHEMA_VERSION, READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION, READER_NOTES_SCHEMA_VERSION,
 };
 use crate::util::{
@@ -12,6 +14,7 @@ use crate::util::{
     reader_highlights_workspace_root, reader_notes_root, reader_storage_component_key,
     save_library_records, sync_snapshots_root,
 };
+use serde::de::DeserializeOwned;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,6 +22,52 @@ use tauri_plugin_dialog::DialogExt;
 
 const SYNC_SNAPSHOT_DIALOG_EXTENSIONS: &[&str] = &["json"];
 const KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION: u64 = 1;
+const READER_SETTINGS_STORAGE_KEY: &str = "br1.reader.settings";
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncSnapshotLibraryMetadataPayload {
+    id: String,
+    title: String,
+    author: String,
+    format: String,
+    description: Option<String>,
+    language: Option<String>,
+    publisher: Option<String>,
+    #[serde(default)]
+    collection: Option<String>,
+    #[serde(default)]
+    tags: Vec<String>,
+    file_path: String,
+    cover_path: Option<String>,
+    source_path: Option<String>,
+    imported_at: u64,
+    #[serde(default)]
+    library_file_exists: Option<bool>,
+    #[serde(default)]
+    source_file_exists: Option<bool>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncSnapshotReadingStatePayload {
+    id: String,
+    file_path: String,
+    progress: String,
+    status: String,
+    progress_fraction: Option<f64>,
+    progress_location: Option<String>,
+    #[serde(default)]
+    koreader_progress_location: Option<String>,
+    last_opened_at: Option<u64>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncSnapshotReaderSettingsPayload {
+    storage_key: String,
+    settings: serde_json::Value,
+}
 
 fn sync_snapshot_file_name(exported_at: u64) -> String {
     format!("br1-sync-snapshot-{exported_at}.json")
@@ -68,6 +117,312 @@ fn parse_sync_snapshot_document(raw: &str) -> Result<SyncSnapshotDocument, Strin
         serde_json::from_str(raw).map_err(|error| format!("Snapshot is not valid JSON: {error}"))?;
     validate_sync_snapshot(&snapshot)?;
     Ok(snapshot)
+}
+
+fn deserialize_record_payload<T: DeserializeOwned>(
+    record: &SyncSnapshotRecord,
+    label: &str,
+) -> Result<T, String> {
+    serde_json::from_value(record.payload.clone())
+        .map_err(|error| format!("Snapshot {label} record {} has invalid payload: {error}", record.id))
+}
+
+fn scope_string<'a>(record: &'a SyncSnapshotRecord, key: &str) -> Option<&'a str> {
+    record
+        .scope
+        .as_ref()
+        .and_then(|scope| scope.get(key))
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn prepare_apply_sync_snapshot_request(
+    snapshot: &SyncSnapshotDocument,
+) -> Result<(ApplySyncSnapshotRequest, Option<SyncSnapshotRecord>), String> {
+    validate_sync_snapshot(snapshot)?;
+
+    let mut metadata_records = Vec::new();
+    let mut metadata_book_ids = HashSet::new();
+    let mut metadata_file_paths = HashSet::new();
+    let mut metadata_by_book_id = std::collections::HashMap::new();
+    let mut reading_state_by_book_id = std::collections::HashMap::new();
+    let mut bookmark_records = Vec::new();
+    let mut bookmark_keys = HashSet::new();
+    let mut note_records = Vec::new();
+    let mut note_keys = HashSet::new();
+    let mut highlights_records = Vec::new();
+    let mut highlights_keys = HashSet::new();
+    let mut reader_settings = None;
+
+    for record in &snapshot.records {
+        match record.kind.as_str() {
+            "library-book" => {
+                let payload: SyncSnapshotLibraryMetadataPayload =
+                    deserialize_record_payload(record, "library-book")?;
+                if record.id != format!("library-book:{}", payload.id) {
+                    return Err(format!(
+                        "Snapshot library-book record {} does not match payload id {}.",
+                        record.id, payload.id
+                    ));
+                }
+                if let Some(scope_book_id) = scope_string(record, "bookId") {
+                    if scope_book_id != payload.id {
+                        return Err(format!(
+                            "Snapshot library-book record {} has mismatched scope bookId {}.",
+                            record.id, scope_book_id
+                        ));
+                    }
+                }
+                if !metadata_book_ids.insert(payload.id.clone()) {
+                    return Err(format!(
+                        "Snapshot contains duplicate library metadata for book {}.",
+                        payload.id
+                    ));
+                }
+                if !metadata_file_paths.insert(payload.file_path.clone()) {
+                    return Err(format!(
+                        "Snapshot contains duplicate library filePath {}.",
+                        payload.file_path
+                    ));
+                }
+                metadata_records.push(payload.id.clone());
+                metadata_by_book_id.insert(payload.id.clone(), payload);
+            }
+            "reading-state" => {
+                let payload: SyncSnapshotReadingStatePayload =
+                    deserialize_record_payload(record, "reading-state")?;
+                if record.id != format!("reading-state:{}", payload.id) {
+                    return Err(format!(
+                        "Snapshot reading-state record {} does not match payload id {}.",
+                        record.id, payload.id
+                    ));
+                }
+                if let Some(scope_book_id) = scope_string(record, "bookId") {
+                    if scope_book_id != payload.id {
+                        return Err(format!(
+                            "Snapshot reading-state record {} has mismatched scope bookId {}.",
+                            record.id, scope_book_id
+                        ));
+                    }
+                }
+                if let Some(scope_file_path) = scope_string(record, "filePath") {
+                    if scope_file_path != payload.file_path {
+                        return Err(format!(
+                            "Snapshot reading-state record {} has mismatched scope filePath {}.",
+                            record.id, scope_file_path
+                        ));
+                    }
+                }
+                if reading_state_by_book_id
+                    .insert(payload.id.clone(), payload)
+                    .is_some()
+                {
+                    return Err(format!(
+                        "Snapshot contains duplicate reading state for book {}.",
+                        record.id.trim_start_matches("reading-state:")
+                    ));
+                }
+            }
+            "bookmarks" => {
+                let payload: SyncSnapshotBookmarksStateRecord =
+                    deserialize_record_payload(record, "bookmarks")?;
+                let expected_id = build_scoped_record_id("bookmarks", &payload.book_key);
+                if record.id != expected_id {
+                    return Err(format!(
+                        "Snapshot bookmarks record {} does not match book key {}.",
+                        record.id, payload.book_key
+                    ));
+                }
+                if let Some(scope_book_key) = scope_string(record, "bookKey") {
+                    if scope_book_key != payload.book_key {
+                        return Err(format!(
+                            "Snapshot bookmarks record {} has mismatched scope bookKey {}.",
+                            record.id, scope_book_key
+                        ));
+                    }
+                }
+                if !bookmark_keys.insert(payload.book_key.clone()) {
+                    return Err(format!(
+                        "Snapshot contains duplicate bookmarks state for {}.",
+                        payload.book_key
+                    ));
+                }
+                bookmark_records.push(payload);
+            }
+            "notes" => {
+                let payload: SyncSnapshotNotesStateRecord =
+                    deserialize_record_payload(record, "notes")?;
+                let expected_id = build_scoped_record_id("notes", &payload.book_key);
+                if record.id != expected_id {
+                    return Err(format!(
+                        "Snapshot notes record {} does not match book key {}.",
+                        record.id, payload.book_key
+                    ));
+                }
+                if let Some(scope_book_key) = scope_string(record, "bookKey") {
+                    if scope_book_key != payload.book_key {
+                        return Err(format!(
+                            "Snapshot notes record {} has mismatched scope bookKey {}.",
+                            record.id, scope_book_key
+                        ));
+                    }
+                }
+                if !note_keys.insert(payload.book_key.clone()) {
+                    return Err(format!(
+                        "Snapshot contains duplicate notes state for {}.",
+                        payload.book_key
+                    ));
+                }
+                note_records.push(payload);
+            }
+            "highlights-workspace" => {
+                let payload: SyncSnapshotHighlightsWorkspaceRecord =
+                    deserialize_record_payload(record, "highlights-workspace")?;
+                let expected_id =
+                    build_scoped_record_id("highlights-workspace", &payload.book_key);
+                if record.id != expected_id {
+                    return Err(format!(
+                        "Snapshot highlights-workspace record {} does not match book key {}.",
+                        record.id, payload.book_key
+                    ));
+                }
+                if let Some(scope_book_key) = scope_string(record, "bookKey") {
+                    if scope_book_key != payload.book_key {
+                        return Err(format!(
+                            "Snapshot highlights-workspace record {} has mismatched scope bookKey {}.",
+                            record.id, scope_book_key
+                        ));
+                    }
+                }
+                if !highlights_keys.insert(payload.book_key.clone()) {
+                    return Err(format!(
+                        "Snapshot contains duplicate highlights workspace for {}.",
+                        payload.book_key
+                    ));
+                }
+                highlights_records.push(payload);
+            }
+            "reader-settings" => {
+                let payload: SyncSnapshotReaderSettingsPayload =
+                    deserialize_record_payload(record, "reader-settings")?;
+                if payload.storage_key != READER_SETTINGS_STORAGE_KEY {
+                    return Err(format!(
+                        "Snapshot reader-settings record {} targets unsupported storage key {}.",
+                        record.id, payload.storage_key
+                    ));
+                }
+                let expected_id = build_scoped_record_id("reader-settings", &payload.storage_key);
+                if record.id != expected_id {
+                    return Err(format!(
+                        "Snapshot reader-settings record {} does not match storage key {}.",
+                        record.id, payload.storage_key
+                    ));
+                }
+                if let Some(scope_storage_key) = scope_string(record, "storageKey") {
+                    if scope_storage_key != payload.storage_key {
+                        return Err(format!(
+                            "Snapshot reader-settings record {} has mismatched scope storageKey {}.",
+                            record.id, scope_storage_key
+                        ));
+                    }
+                }
+                if !payload.settings.is_object() {
+                    return Err(format!(
+                        "Snapshot reader-settings record {} must contain a settings object.",
+                        record.id
+                    ));
+                }
+                if reader_settings.replace(record.clone()).is_some() {
+                    return Err("Snapshot contains more than one reader settings record.".to_string());
+                }
+            }
+            other => {
+                return Err(format!("Snapshot contains an unsupported record kind: {other}"));
+            }
+        }
+    }
+
+    let library_file_paths = metadata_by_book_id
+        .values()
+        .map(|payload| payload.file_path.clone())
+        .collect::<HashSet<_>>();
+
+    for (book_id, reading_state) in &reading_state_by_book_id {
+        let Some(metadata) = metadata_by_book_id.get(book_id) else {
+            return Err(format!(
+                "Snapshot reading state for {book_id} is missing its library metadata record."
+            ));
+        };
+        if reading_state.file_path != metadata.file_path {
+            return Err(format!(
+                "Snapshot reading state for {book_id} targets filePath {} instead of {}.",
+                reading_state.file_path, metadata.file_path
+            ));
+        }
+    }
+
+    for book_key in bookmark_records
+        .iter()
+        .map(|record| record.book_key.as_str())
+        .chain(note_records.iter().map(|record| record.book_key.as_str()))
+        .chain(highlights_records.iter().map(|record| record.book_key.as_str()))
+    {
+        if !library_file_paths.contains(book_key) {
+            return Err(format!(
+                "Snapshot state for {} does not match any imported library book.",
+                book_key
+            ));
+        }
+    }
+
+    Ok((
+        ApplySyncSnapshotRequest {
+            library_books: metadata_records
+                .into_iter()
+                .map(|book_id| {
+                    let metadata = metadata_by_book_id
+                        .get(&book_id)
+                        .expect("metadata id should exist while building apply request");
+                    let reading_state = reading_state_by_book_id.get(&book_id);
+                    LibraryBookRecord {
+                        id: metadata.id.clone(),
+                        title: metadata.title.clone(),
+                        author: metadata.author.clone(),
+                        format: metadata.format.clone(),
+                        description: metadata.description.clone(),
+                        language: metadata.language.clone(),
+                        publisher: metadata.publisher.clone(),
+                        collection: metadata.collection.clone(),
+                        tags: metadata.tags.clone(),
+                        progress: reading_state
+                            .map(|state| state.progress.clone())
+                            .unwrap_or_else(|| "尚未开始".to_string()),
+                        status: reading_state
+                            .map(|state| state.status.clone())
+                            .unwrap_or_else(|| "未开始".to_string()),
+                        file_path: metadata.file_path.clone(),
+                        cover_path: metadata.cover_path.clone(),
+                        source_path: metadata.source_path.clone(),
+                        imported_at: metadata.imported_at,
+                        progress_fraction: reading_state.and_then(|state| state.progress_fraction),
+                        progress_location: reading_state
+                            .and_then(|state| state.progress_location.clone()),
+                        koreader_progress_location: reading_state
+                            .and_then(|state| state.koreader_progress_location.clone()),
+                        last_opened_at: reading_state.and_then(|state| state.last_opened_at),
+                        library_file_exists: metadata.library_file_exists,
+                        source_file_exists: metadata.source_file_exists,
+                    }
+                })
+                .collect(),
+            bookmarks: bookmark_records,
+            notes: note_records,
+            highlights_workspace: highlights_records,
+            reader_settings: reader_settings.clone(),
+        },
+        reader_settings,
+    ))
 }
 
 fn validate_koreader_sync_exchange(document: &serde_json::Value) -> Result<usize, String> {
@@ -373,6 +728,33 @@ pub(crate) fn load_current_sync_snapshot(
     })
 }
 
+fn prepare_sync_snapshot_restore(
+    snapshot: &SyncSnapshotDocument,
+) -> Result<(ApplySyncSnapshotRequest, Option<SyncSnapshotRecord>), String> {
+    prepare_apply_sync_snapshot_request(snapshot)
+}
+
+pub(crate) fn apply_sync_snapshot_document(
+    app: &tauri::AppHandle,
+    snapshot: &SyncSnapshotDocument,
+) -> Result<(ApplySyncSnapshotResult, Option<SyncSnapshotRecord>), String> {
+    validate_sync_snapshot(snapshot)?;
+    ensure_library_root(app)?;
+    let library_json = library_json_path(app)?;
+    let bookmarks_root = reader_bookmarks_root(app)?;
+    let notes_root = reader_notes_root(app)?;
+    let highlights_root = reader_highlights_workspace_root(app)?;
+    let (request, reader_settings_record) = prepare_sync_snapshot_restore(snapshot)?;
+    let apply_result = apply_sync_snapshot_roots(
+        &library_json,
+        &bookmarks_root,
+        &notes_root,
+        &highlights_root,
+        &request,
+    )?;
+    Ok((apply_result, reader_settings_record))
+}
+
 #[tauri::command]
 pub(crate) async fn save_sync_snapshot_dialog(
     app: tauri::AppHandle,
@@ -445,6 +827,34 @@ pub(crate) async fn load_sync_snapshot_dialog(
         file_name: path.file_name().and_then(|value| value.to_str()).map(str::to_string),
         record_count: snapshot.records.len(),
         snapshot: Some(snapshot),
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn restore_sync_snapshot_dialog(
+    app: tauri::AppHandle,
+) -> Result<RestoreSyncSnapshotDialogResult, String> {
+    let imported = load_sync_snapshot_dialog(app.clone()).await?;
+    if imported.cancelled {
+        return Ok(RestoreSyncSnapshotDialogResult {
+            cancelled: true,
+            file_name: None,
+            record_count: 0,
+            apply_result: None,
+            reader_settings_record: None,
+        });
+    }
+
+    let Some(snapshot) = imported.snapshot else {
+        return Err("Snapshot import did not return a parsed document.".to_string());
+    };
+    let (apply_result, reader_settings_record) = apply_sync_snapshot_document(&app, &snapshot)?;
+    Ok(RestoreSyncSnapshotDialogResult {
+        cancelled: false,
+        file_name: imported.file_name,
+        record_count: imported.record_count,
+        apply_result: Some(apply_result),
+        reader_settings_record,
     })
 }
 
@@ -529,29 +939,14 @@ pub(crate) async fn load_koreader_sync_exchange_dialog(
     })
 }
 
-#[tauri::command]
-pub(crate) fn apply_sync_snapshot(
-    app: tauri::AppHandle,
-    request: ApplySyncSnapshotRequest,
-) -> Result<ApplySyncSnapshotResult, String> {
-    ensure_library_root(&app)?;
-    let library_json = library_json_path(&app)?;
-    let bookmarks_root = reader_bookmarks_root(&app)?;
-    let notes_root = reader_notes_root(&app)?;
-    let highlights_root = reader_highlights_workspace_root(&app)?;
-
-    apply_sync_snapshot_roots(
-        &library_json,
-        &bookmarks_root,
-        &notes_root,
-        &highlights_root,
-        &request,
-    )
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{apply_sync_snapshot_roots, parse_sync_snapshot_document, write_sync_snapshot_document};
+    use super::{
+        apply_sync_snapshot_roots, bookmarks_sync_record, build_scoped_record_id,
+        highlights_sync_record, library_metadata_sync_record, notes_sync_record,
+        parse_sync_snapshot_document, prepare_sync_snapshot_restore, reading_state_sync_record,
+        write_sync_snapshot_document, READER_SETTINGS_STORAGE_KEY,
+    };
     use crate::models::{
         ApplySyncSnapshotRequest, LibraryBookRecord, ReaderBookmarkRecord,
         ReaderHighlightsSelectionImportRecord, ReaderHighlightsSelectionSetRecord,
@@ -762,5 +1157,161 @@ mod tests {
         )))
         .unwrap()
         .contains("savedSelectionsRefreshFilter"));
+    }
+
+    #[test]
+    fn prepare_sync_snapshot_restore_rebuilds_validated_apply_request() {
+        let book = LibraryBookRecord {
+            id: "book-1".to_string(),
+            title: "Snapshot Book".to_string(),
+            author: "Reader".to_string(),
+            format: "EPUB".to_string(),
+            description: None,
+            language: None,
+            publisher: None,
+            collection: Some("Sync".to_string()),
+            tags: vec!["snapshot".to_string()],
+            progress: "上次读到 10%".to_string(),
+            status: "阅读中".to_string(),
+            file_path: "/library/book-1.epub".to_string(),
+            cover_path: None,
+            source_path: Some("/imports/book-1.epub".to_string()),
+            imported_at: 100,
+            progress_fraction: Some(0.1),
+            progress_location: Some("epubcfi(/6/2)".to_string()),
+            koreader_progress_location: Some("/body/DocFragment[1]/body/p".to_string()),
+            last_opened_at: Some(120),
+            library_file_exists: Some(true),
+            source_file_exists: Some(true),
+        };
+        let snapshot = SyncSnapshotDocument {
+            schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+            exported_at: 200,
+            records: vec![
+                library_metadata_sync_record(&book, 200),
+                reading_state_sync_record(&book, 200),
+                bookmarks_sync_record(
+                    &book.file_path,
+                    vec![ReaderBookmarkRecord {
+                        id: "bookmark-1".to_string(),
+                        locator: "epubcfi(/6/2)".to_string(),
+                        target_href: "epubcfi(/6/2)".to_string(),
+                        chapter_label: "Chapter 1".to_string(),
+                        chapter_href: "#chapter-1".to_string(),
+                        progress_label: "10%".to_string(),
+                        location_label: "Chapter 1".to_string(),
+                        created_at: 111,
+                        koreader: None,
+                    }],
+                    200,
+                ),
+                notes_sync_record(
+                    &book.file_path,
+                    vec![ReaderNoteRecord {
+                        id: "note-1".to_string(),
+                        kind: "highlight".to_string(),
+                        cfi: "epubcfi(/6/2)".to_string(),
+                        text: "line".to_string(),
+                        note: "margin".to_string(),
+                        chapter_label: "Chapter 1".to_string(),
+                        chapter_href: "#chapter-1".to_string(),
+                        created_at: 112,
+                        koreader: None,
+                    }],
+                    200,
+                ),
+                highlights_sync_record(
+                    &book.file_path,
+                    ReaderHighlightsWorkspaceStateRecord {
+                        filter: "selected".to_string(),
+                        sort: "recent".to_string(),
+                        saved_selections_sort: "oldest".to_string(),
+                        saved_selections_refresh_filter: "partial".to_string(),
+                        selected_ids: vec!["note-1".to_string()],
+                        saved_selections: vec![],
+                    },
+                    200,
+                ),
+                SyncSnapshotRecord {
+                    schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+                    kind: "reader-settings".to_string(),
+                    id: build_scoped_record_id("reader-settings", READER_SETTINGS_STORAGE_KEY),
+                    updated_at: 200,
+                    scope: Some(serde_json::json!({
+                        "storageKey": READER_SETTINGS_STORAGE_KEY
+                    })),
+                    payload: serde_json::json!({
+                        "storageKey": READER_SETTINGS_STORAGE_KEY,
+                        "settings": { "flowMode": "paginated" }
+                    }),
+                },
+            ],
+        };
+
+        let (request, reader_settings_record) = prepare_sync_snapshot_restore(&snapshot).unwrap();
+
+        assert_eq!(request.library_books.len(), 1);
+        assert_eq!(request.library_books[0].file_path, book.file_path);
+        assert_eq!(request.library_books[0].progress, book.progress);
+        assert_eq!(request.bookmarks.len(), 1);
+        assert_eq!(request.notes.len(), 1);
+        assert_eq!(request.highlights_workspace.len(), 1);
+        assert_eq!(
+            reader_settings_record
+                .as_ref()
+                .and_then(|record| record.payload.get("storageKey"))
+                .and_then(|value| value.as_str()),
+            Some(READER_SETTINGS_STORAGE_KEY)
+        );
+    }
+
+    #[test]
+    fn prepare_sync_snapshot_restore_rejects_state_for_unknown_book() {
+        let book = LibraryBookRecord {
+            id: "book-1".to_string(),
+            title: "Snapshot Book".to_string(),
+            author: "Reader".to_string(),
+            format: "EPUB".to_string(),
+            description: None,
+            language: None,
+            publisher: None,
+            collection: None,
+            tags: vec![],
+            progress: "尚未开始".to_string(),
+            status: "未开始".to_string(),
+            file_path: "/library/book-1.epub".to_string(),
+            cover_path: None,
+            source_path: None,
+            imported_at: 100,
+            progress_fraction: None,
+            progress_location: None,
+            koreader_progress_location: None,
+            last_opened_at: None,
+            library_file_exists: Some(true),
+            source_file_exists: Some(true),
+        };
+        let snapshot = SyncSnapshotDocument {
+            schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+            exported_at: 200,
+            records: vec![
+                library_metadata_sync_record(&book, 200),
+                SyncSnapshotRecord {
+                    schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+                    kind: "bookmarks".to_string(),
+                    id: build_scoped_record_id("bookmarks", "/library/missing.epub"),
+                    updated_at: 200,
+                    scope: Some(serde_json::json!({
+                        "bookKey": "/library/missing.epub"
+                    })),
+                    payload: serde_json::json!({
+                        "bookKey": "/library/missing.epub",
+                        "bookmarks": []
+                    }),
+                },
+            ],
+        };
+
+        let error = prepare_sync_snapshot_restore(&snapshot).unwrap_err();
+        assert!(error.contains("does not match any imported library book"));
     }
 }

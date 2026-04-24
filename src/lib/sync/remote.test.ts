@@ -16,6 +16,8 @@ const baseResult = (overrides: Partial<Br1RemoteSyncResult> = {}): Br1RemoteSync
   remoteFingerprint: null,
   remoteExportedAt: null,
   snapshot: null,
+  applyResult: null,
+  readerSettingsRecord: null,
   ...overrides
 });
 
