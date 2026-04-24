@@ -104,6 +104,7 @@ test('KOReader exchange export keeps one book document per library book', () => 
 
   assert.equal(exchange.books.length, 2);
   assert.equal(exchange.books[0]?.bookId, 'book-alpha');
+  assert.equal(exchange.books[0]?.koreader.config.xpointer, '/body/DocFragment[1]/body/div/p[2]');
   assert.equal(exchange.books[0]?.koreader.annotations.length, 2);
   assert.equal(exchange.books[0]?.koreader.annotations[0]?.xpointer0, '/body/DocFragment[1]/body/div/p[2]');
   assert.equal(
@@ -124,7 +125,7 @@ test('KOReader exchange import merges matched books and reports missing ones', (
         config: {
           ...exchange.books[0].koreader.config,
           progress: '[33,100]',
-          xpointer: 'epubcfi(/6/8!/4/2)',
+          xpointer: '/body/DocFragment[9]/body/div/p[8]',
           updatedAt: 1700000030000
         }
       }
@@ -148,6 +149,14 @@ test('KOReader exchange import merges matched books and reports missing ones', (
   assert.equal(plan.conflicts[0]?.kind, 'missing-local-book');
   assert.equal(alphaReading?.kind, 'reading-state');
   assert.equal((alphaReading as { payload: { progress: string } }).payload.progress, '[33,100]');
+  assert.equal(
+    (alphaReading as { payload: { progressLocation: string | null } }).payload.progressLocation,
+    'epubcfi(/6/2!/4/2)'
+  );
+  assert.equal(
+    (alphaReading as { payload: { koreaderProgressLocation: string | null } }).payload.koreaderProgressLocation,
+    '/body/DocFragment[9]/body/div/p[8]'
+  );
 });
 
 test('KOReader exchange import skips older data when current local state is newer', () => {
@@ -193,7 +202,7 @@ test('KOReader remote progress pull merges newer remote progress into the snapsh
   const entries = createKoReaderRemoteProgressEntriesFromSnapshot(current);
   const remoteAlpha = {
     ...entries[0],
-    progress: 'epubcfi(/6/18!/4/2)',
+    progress: '/body/DocFragment[7]/body/div/p[18]',
     percentage: 44,
     timestamp: 1700000030000
   };
@@ -207,11 +216,11 @@ test('KOReader remote progress pull merges newer remote progress into the snapsh
   assert.equal((alphaReading as { payload: { progress: string } }).payload.progress, '44%');
   assert.equal(
     (alphaReading as { payload: { progressLocation: string | null } }).payload.progressLocation,
-    'epubcfi(/6/18!/4/2)'
+    'epubcfi(/6/2!/4/2)'
   );
   assert.equal(
     (alphaReading as { payload: { koreaderProgressLocation: string | null } }).payload.koreaderProgressLocation,
-    'epubcfi(/6/18!/4/2)'
+    '/body/DocFragment[7]/body/div/p[18]'
   );
   assert.equal(
     (alphaReading as { payload: { progressFraction: number | null } }).payload.progressFraction,

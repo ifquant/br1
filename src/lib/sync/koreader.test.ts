@@ -31,6 +31,7 @@ const fixtureBook: PersistedLibraryBook = {
   importedAt: 1700000000000,
   progressFraction: 0.4,
   progressLocation: 'epubcfi(/6/14!/4/2/8)',
+  koreaderProgressLocation: '/body/DocFragment[1]/body/div/p[14]',
   lastOpenedAt: 1700000005000,
   libraryFileExists: true,
   sourceFileExists: true
@@ -45,7 +46,7 @@ test('KOReader reading config round-trips through reading-state records', () => 
   const config: KoReaderBookConfig = {
     ...identity,
     progress: [45, 300],
-    xpointer: 'epubcfi(/6/22!/4/2/10)',
+    xpointer: '/body/DocFragment[1]/body/div/p[22]',
     updatedAt: 1700000030000
   };
 
@@ -56,11 +57,12 @@ test('KOReader reading config round-trips through reading-state records', () => 
 
   assert.equal(record.payload.progress, '[45,300]');
   assert.equal(record.payload.progressFraction, 0.15);
-  assert.equal(record.payload.progressLocation, 'epubcfi(/6/22!/4/2/10)');
+  assert.equal(record.payload.progressLocation, 'epubcfi(/6/14!/4/2/8)');
+  assert.equal(record.payload.koreaderProgressLocation, '/body/DocFragment[1]/body/div/p[22]');
   assert.deepEqual(restored, {
     ...identity,
     progress: '[45,300]',
-    xpointer: 'epubcfi(/6/22!/4/2/10)',
+    xpointer: '/body/DocFragment[1]/body/div/p[22]',
     updatedAt: 1700000030000
   });
 });

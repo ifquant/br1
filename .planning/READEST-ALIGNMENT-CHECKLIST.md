@@ -350,6 +350,13 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: 121d6f8
   - Notes: after re-checking the official KOSync server boundary, this slice intentionally stops short of inventing a non-standard annotation protocol. The KOReader remote actions are now labeled as reading-progress actions, and the UI points users to KOReader exchange files for bookmark/annotation transfer until a different server/provider slice exists.
 
+- [x] P2-4.9 Repair the KOReader locator split across exchange and remote pull
+  - Outcome: KOReader-facing xpointer values now stay in `koreaderProgressLocation`, while `progressLocation` continues to serve local br1 reopen semantics.
+  - Touches: KOReader sync model helpers, exchange export/import, remote pull merge logic, targeted tests.
+  - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/reader/xcfi.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js .tmp-sync-tests/src/lib/sync/model.test.js` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: this slice closes the merge blocker found during final review: exchange export/import and KOReader remote pull were still routing KOReader locators back through `progressLocation`. The fix preserves a compatibility fallback for older records that only have `progressLocation`, but when both fields exist `koreaderProgressLocation` now wins and local resume CFI stays untouched.
+
 ### P2-4 Closeout
 
 - Status: `P2-4` is functionally closed for the official KOReader parity surface currently implemented in `br1`.

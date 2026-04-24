@@ -134,14 +134,15 @@ export const createKoReaderReadingStateSyncRecord = (
   options: SyncTimestampOptions = {}
 ): ReadingStateSyncRecord => {
   const normalizedProgress = normalizeKoReaderProgressValue(config.progress);
-  const progressLocation = config.xpointer.trim() || book.progressLocation || null;
+  const koreaderProgressLocation = config.xpointer.trim() || book.koreaderProgressLocation || null;
 
   return createReadingStateSyncRecord(
     {
       ...book,
       progress: normalizedProgress || book.progress,
       progressFraction: toBestEffortProgressFraction(config.progress, book.progressFraction),
-      progressLocation,
+      progressLocation: book.progressLocation ?? null,
+      koreaderProgressLocation,
       lastOpenedAt: config.updatedAt
     },
     options
@@ -154,7 +155,7 @@ export const restoreKoReaderBookConfigFromSync = (
 ): KoReaderBookConfig => ({
   ...identity,
   progress: normalizeKoReaderProgressValue(record.payload.progress),
-  xpointer: record.payload.progressLocation ?? '',
+  xpointer: record.payload.koreaderProgressLocation ?? record.payload.progressLocation ?? '',
   updatedAt: record.payload.lastOpenedAt ?? record.updatedAt
 });
 

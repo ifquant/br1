@@ -212,7 +212,7 @@ const toKoReaderRemoteReadingStateBook = (
     ...book,
     progress: progressLabel,
     progressFraction,
-    progressLocation: hasLocator ? remoteProgress : book.progressLocation ?? null,
+    progressLocation: book.progressLocation ?? null,
     koreaderProgressLocation: hasLocator ? remoteProgress : book.koreaderProgressLocation ?? null,
     lastOpenedAt: remoteEntry.timestamp
   };
@@ -330,7 +330,7 @@ export const createKoReaderSyncExchangeFromSnapshot = (
             createKoReaderReadingStateSyncRecord(book, {
               ...identity,
               progress: book.progress,
-              xpointer: book.progressLocation ?? '',
+              xpointer: book.koreaderProgressLocation ?? book.progressLocation ?? '',
               updatedAt: book.lastOpenedAt ?? snapshot.exportedAt
             }),
             identity
@@ -564,7 +564,9 @@ export const mergeKoReaderRemoteProgressIntoSnapshot = (
         progress: remoteEntry.progress,
         xpointer: isKoReaderLocator(remoteEntry.progress)
           ? remoteEntry.progress
-          : currentReadingState?.payload.progressLocation ?? '',
+          : currentReadingState?.payload.koreaderProgressLocation ??
+            currentReadingState?.payload.progressLocation ??
+            '',
         updatedAt: remoteEntry.timestamp
       }
     );
@@ -572,9 +574,10 @@ export const mergeKoReaderRemoteProgressIntoSnapshot = (
       toKoReaderRemoteReadingStateBook(
         {
           ...toPersistedLibraryBook(metadataRecord, currentReadingState),
-          progressLocation:
-            replacement.payload.progressLocation ??
-            currentReadingState?.payload.progressLocation ??
+          progressLocation: currentReadingState?.payload.progressLocation ?? null,
+          koreaderProgressLocation:
+            replacement.payload.koreaderProgressLocation ??
+            currentReadingState?.payload.koreaderProgressLocation ??
             null
         },
         remoteEntry
