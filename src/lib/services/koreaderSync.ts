@@ -246,6 +246,131 @@ const getNotesRecordMap = (snapshot: Br1SyncSnapshot) =>
       .map((record) => [record.payload.bookKey, record])
   );
 
+type SyncBookmark = ReaderBookmarksSyncRecord['payload']['bookmarks'][number];
+type SyncNote = ReaderNotesSyncRecord['payload']['notes'][number];
+
+const hasKoReaderIdentity = (
+  metadata:
+    | SyncBookmark['koreader']
+    | SyncNote['koreader']
+    | null
+    | undefined
+) => Boolean(metadata?.bookHash && metadata?.metaHash);
+
+const matchesImportedKoReaderBookmark = (existing: SyncBookmark, imported: SyncBookmark) => {
+  const existingMetadata = existing.koreader;
+  const importedMetadata = imported.koreader;
+  if (!existingMetadata || !importedMetadata) return false;
+  if (existing.id === imported.id) return true;
+
+  return (
+    hasKoReaderIdentity(existingMetadata) &&
+    hasKoReaderIdentity(importedMetadata) &&
+    existingMetadata.bookHash === importedMetadata.bookHash &&
+    existingMetadata.metaHash === importedMetadata.metaHash &&
+    (existingMetadata.xpointer0 ?? existing.locator) === (importedMetadata.xpointer0 ?? imported.locator)
+  );
+};
+
+const matchesImportedKoReaderNote = (existing: SyncNote, imported: SyncNote) => {
+  const existingMetadata = existing.koreader;
+  const importedMetadata = imported.koreader;
+  if (!existingMetadata || !importedMetadata) return false;
+  if (existing.id === imported.id) return true;
+
+  return (
+    hasKoReaderIdentity(existingMetadata) &&
+    hasKoReaderIdentity(importedMetadata) &&
+    existingMetadata.bookHash === importedMetadata.bookHash &&
+    existingMetadata.metaHash === importedMetadata.metaHash &&
+    (existingMetadata.xpointer0 ?? existing.cfi) === (importedMetadata.xpointer0 ?? imported.cfi)
+  );
+};
+
+const mergeImportedBookmarksRecord = ({
+  currentRecord,
+  importedRecord
+}: {
+  currentRecord?: ReaderBookmarksSyncRecord | null;
+  importedRecord: ReaderBookmarksSyncRecord;
+}) => {
+  const currentBookmarks = currentRecord?.payload.bookmarks ?? [];
+  const preservedLocalBookmarks = currentBookmarks.filter(
+    (bookmark) =>
+      !hasKoReaderIdentity(bookmark.koreader) &&
+      !importedRecord.payload.bookmarks.some((importedBookmark) =>
+        matchesImportedKoReaderBookmark(bookmark, importedBookmark)
+      )
+  );
+
+  return {
+    ...importedRecord,
+    payload: {
+      ...importedRecord.payload,
+      bookmarks: [
+        ...preservedLocalBookmarks,
+        ...importedRecord.payload.bookmarks.map((bookmark) => {
+          const existing = currentBookmarks.find((candidate) =>
+            matchesImportedKoReaderBookmark(candidate, bookmark)
+          );
+
+          return {
+            ...bookmark,
+            locator: existing?.locator || bookmark.locator,
+            targetHref: existing?.targetHref || bookmark.targetHref || bookmark.locator,
+            chapterHref:
+              existing?.chapterHref ||
+              bookmark.chapterHref ||
+              existing?.targetHref ||
+              bookmark.targetHref ||
+              bookmark.locator,
+            chapterLabel: bookmark.chapterLabel || existing?.chapterLabel || 'KOReader bookmark',
+            progressLabel: bookmark.progressLabel || existing?.progressLabel || '',
+            locationLabel: existing?.locationLabel || bookmark.locationLabel || bookmark.locator
+          };
+        })
+      ]
+    }
+  } satisfies ReaderBookmarksSyncRecord;
+};
+
+const mergeImportedNotesRecord = ({
+  currentRecord,
+  importedRecord
+}: {
+  currentRecord?: ReaderNotesSyncRecord | null;
+  importedRecord: ReaderNotesSyncRecord;
+}) => {
+  const currentNotes = currentRecord?.payload.notes ?? [];
+  const preservedLocalNotes = currentNotes.filter(
+    (note) =>
+      !hasKoReaderIdentity(note.koreader) &&
+      !importedRecord.payload.notes.some((importedNote) => matchesImportedKoReaderNote(note, importedNote))
+  );
+
+  return {
+    ...importedRecord,
+    payload: {
+      ...importedRecord.payload,
+      notes: [
+        ...preservedLocalNotes,
+        ...importedRecord.payload.notes.map((note) => {
+          const existing = currentNotes.find((candidate) =>
+            matchesImportedKoReaderNote(candidate, note)
+          );
+
+          return {
+            ...note,
+            cfi: existing?.cfi || note.cfi,
+            chapterHref: existing?.chapterHref || note.chapterHref,
+            chapterLabel: note.chapterLabel || existing?.chapterLabel || 'KOReader annotation'
+          };
+        })
+      ]
+    }
+  } satisfies ReaderNotesSyncRecord;
+};
+
 const toPersistedLibraryBook = (
   metadataRecord: LibraryBookMetadataSyncRecord,
   readingStateRecord?: ReadingStateSyncRecord | null
@@ -456,6 +581,14 @@ export const mergeKoReaderSyncExchangeIntoSnapshot = (
     const currentReadingState = readingStateById.get(metadataRecord.payload.id) ?? null;
     const currentBookmarks = bookmarksByKey.get(currentBook.filePath) ?? null;
     const currentNotes = notesByKey.get(currentBook.filePath) ?? null;
+    const mergedBookmarks = mergeImportedBookmarksRecord({
+      currentRecord: currentBookmarks,
+      importedRecord: importedAnnotations.bookmarksRecord
+    });
+    const mergedNotes = mergeImportedNotesRecord({
+      currentRecord: currentNotes,
+      importedRecord: importedAnnotations.notesRecord
+    });
     const currentUpdatedAt = Math.max(
       currentReadingState?.updatedAt ?? 0,
       currentBookmarks?.updatedAt ?? 0,
@@ -466,9 +599,9 @@ export const mergeKoReaderSyncExchangeIntoSnapshot = (
       stringifyComparable(currentReadingState?.payload) !==
         stringifyComparable(importedReadingState.payload) ||
       stringifyComparable(currentBookmarks?.payload) !==
-        stringifyComparable(importedAnnotations.bookmarksRecord.payload) ||
+        stringifyComparable(mergedBookmarks.payload) ||
       stringifyComparable(currentNotes?.payload) !==
-        stringifyComparable(importedAnnotations.notesRecord.payload);
+        stringifyComparable(mergedNotes.payload);
 
     if (payloadDiffers && currentUpdatedAt > importedUpdatedAt) {
       conflicts.push({
@@ -482,8 +615,8 @@ export const mergeKoReaderSyncExchangeIntoSnapshot = (
     }
 
     replaceRecord(importedReadingState.id, importedReadingState);
-    replaceRecord(importedAnnotations.bookmarksRecord.id, importedAnnotations.bookmarksRecord);
-    replaceRecord(importedAnnotations.notesRecord.id, importedAnnotations.notesRecord);
+    replaceRecord(mergedBookmarks.id, mergedBookmarks);
+    replaceRecord(mergedNotes.id, mergedNotes);
     appliedBookCount += 1;
   }
 

@@ -132,6 +132,9 @@ type ReaderHrefOptions = {
   location?: string;
 };
 
+const EPUB_CFI_PREFIX = 'epubcfi(';
+const PLAIN_TEXT_PROGRESS_PREFIX = 'txt:';
+
 const getBookLabelFromPath = (filePath: string) => {
   const normalized = filePath.split(/[\\/]/).at(-1) ?? filePath;
   return normalized.trim() || 'Associated book';
@@ -175,6 +178,26 @@ const toReaderHref = ({
   }
 
   return `/reader?${params.toString()}`;
+};
+
+const isReaderRestorableLocation = (value: string | null | undefined) => {
+  const normalized = value?.trim() ?? '';
+  return normalized.startsWith(EPUB_CFI_PREFIX) || normalized.startsWith(PLAIN_TEXT_PROGRESS_PREFIX);
+};
+
+const resolveLibraryRestoreLocation = (
+  book: PersistedLibraryBook,
+  supportsLocationRestore: boolean
+) => {
+  if (!supportsLocationRestore) return undefined;
+
+  const koreaderLocation = book.koreaderProgressLocation?.trim() ?? '';
+  if (koreaderLocation) {
+    return isReaderRestorableLocation(koreaderLocation) ? koreaderLocation : undefined;
+  }
+
+  const progressLocation = book.progressLocation?.trim() ?? '';
+  return progressLocation || undefined;
 };
 
 export const loadPersistedLibraryBooks = async (): Promise<PersistedLibraryBook[]> => {
@@ -358,8 +381,9 @@ export const toLibraryReaderTarget = (
   const restart = options.restart ?? false;
   const normalizedFormat = book.format.trim().toUpperCase();
   const supportsLocationRestore = !['PDF', 'MOBI', 'AZW3'].includes(normalizedFormat);
-  const restoreLocation =
-    !restart && supportsLocationRestore ? book.progressLocation ?? undefined : undefined;
+  const restoreLocation = restart
+    ? undefined
+    : resolveLibraryRestoreLocation(book, supportsLocationRestore);
   const href = toReaderHref({
     source: 'library-file',
     path: book.filePath,

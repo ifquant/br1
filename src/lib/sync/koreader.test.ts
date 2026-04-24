@@ -123,6 +123,8 @@ test('KOReader annotation fixtures round-trip through sync records without losin
 
   assert.equal(notesRecord.payload.notes.length, 1);
   assert.equal(bookmarksRecord.payload.bookmarks.length, 1);
+  assert.equal(bookmarksRecord.payload.bookmarks[0]?.targetHref, 'xpointer(/body/section[5])');
+  assert.equal(bookmarksRecord.payload.bookmarks[0]?.chapterHref, 'xpointer(/body/section[5])');
   assert.deepEqual(restored, [
     {
       ...identity,

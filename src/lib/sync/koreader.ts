@@ -184,9 +184,9 @@ const toKoReaderAdapterNote = (annotation: KoReaderAnnotation): KoReaderAdapterN
 const toKoReaderAdapterBookmark = (annotation: KoReaderAnnotation): KoReaderAdapterBookmark => ({
   id: annotation.id,
   locator: annotation.xpointer0,
-  targetHref: '',
+  targetHref: annotation.xpointer0,
   chapterLabel: annotation.text || 'KOReader bookmark',
-  chapterHref: '',
+  chapterHref: annotation.xpointer0,
   progressLabel: annotation.page ? `Page ${annotation.page}` : '',
   locationLabel: annotation.xpointer0,
   createdAt: annotation.createdAt,

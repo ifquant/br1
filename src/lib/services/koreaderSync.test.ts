@@ -159,6 +159,130 @@ test('KOReader exchange import merges matched books and reports missing ones', (
   );
 });
 
+test('KOReader exchange import preserves local br1-only annotations while updating matched KOReader entries', () => {
+  const current = createSnapshot();
+  const exchange = createKoReaderSyncExchangeFromSnapshot(createSnapshot());
+  const currentBookmarks = current.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  const currentNotes = current.records.find(
+    (record) => record.kind === 'notes' && record.payload.bookKey === alpha.filePath
+  );
+
+  assert.equal(currentBookmarks?.kind, 'bookmarks');
+  assert.equal(currentNotes?.kind, 'notes');
+  if (currentBookmarks?.kind !== 'bookmarks' || currentNotes?.kind !== 'notes') {
+    throw new Error('Expected existing bookmark and note records for alpha');
+  }
+
+  currentBookmarks.payload.bookmarks = [
+    {
+      ...currentBookmarks.payload.bookmarks[0],
+      targetHref: 'epubcfi(/6/20!/4/2)',
+      chapterHref: '#alpha-20'
+    },
+    {
+      id: 'bookmark-local-only',
+      locator: 'epubcfi(/6/22!/4/4)',
+      targetHref: 'epubcfi(/6/22!/4/4)',
+      chapterLabel: 'Reader bookmark',
+      chapterHref: '#alpha-local',
+      progressLabel: '22%',
+      locationLabel: 'Alpha local bookmark',
+      createdAt: 1700000024000
+    }
+  ];
+  currentNotes.payload.notes = [
+    ...currentNotes.payload.notes,
+    {
+      id: 'note-local-only',
+      kind: 'note',
+      cfi: 'epubcfi(/6/24!/4/2)',
+      text: 'Reader-only note',
+      note: 'Keep me',
+      chapterLabel: 'Alpha local note',
+      chapterHref: '#alpha-local-note',
+      createdAt: 1700000025000
+    },
+    {
+      id: 'highlight-local-only',
+      kind: 'highlight',
+      cfi: 'epubcfi(/6/26!/4/2)',
+      text: 'Reader-only highlight',
+      note: '',
+      chapterLabel: 'Alpha local highlight',
+      chapterHref: '#alpha-local-highlight',
+      createdAt: 1700000026000
+    }
+  ];
+
+  exchange.books = [
+    {
+      ...exchange.books[0],
+      koreader: {
+        ...exchange.books[0].koreader,
+        config: {
+          ...exchange.books[0].koreader.config,
+          progress: '[44,100]',
+          xpointer: '/body/DocFragment[6]/body/div/p[11]',
+          updatedAt: 1700000030000
+        },
+        annotations: exchange.books[0].koreader.annotations.map((annotation) =>
+          annotation.id === 'bookmark-alpha'
+            ? {
+                ...annotation,
+                xpointer0: '/body/DocFragment[6]/body/div/p[11]',
+                page: 44,
+                updatedAt: 1700000030100
+              }
+            : annotation.id === 'note-alpha'
+              ? {
+                  ...annotation,
+                  note: 'Imported KOReader note',
+                  updatedAt: 1700000030200
+                }
+              : annotation
+        )
+      }
+    }
+  ];
+
+  const plan = mergeKoReaderSyncExchangeIntoSnapshot(current, exchange);
+  const mergedBookmarks = plan.snapshot.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  const mergedNotes = plan.snapshot.records.find(
+    (record) => record.kind === 'notes' && record.payload.bookKey === alpha.filePath
+  );
+
+  assert.equal(plan.appliedBookCount, 1);
+  assert.equal(mergedBookmarks?.kind, 'bookmarks');
+  assert.equal(mergedNotes?.kind, 'notes');
+  if (mergedBookmarks?.kind !== 'bookmarks' || mergedNotes?.kind !== 'notes') {
+    throw new Error('Expected merged bookmark and note records for alpha');
+  }
+  assert.deepEqual(
+    mergedBookmarks.payload.bookmarks.map((bookmark) => bookmark.id).sort(),
+    ['bookmark-alpha', 'bookmark-local-only']
+  );
+  assert.deepEqual(
+    mergedNotes.payload.notes.map((note) => note.id).sort(),
+    ['highlight-local-only', 'note-alpha', 'note-local-only']
+  );
+  assert.equal(
+    mergedBookmarks.payload.bookmarks.find((bookmark) => bookmark.id === 'bookmark-alpha')?.targetHref,
+    'epubcfi(/6/20!/4/2)'
+  );
+  assert.equal(
+    mergedBookmarks.payload.bookmarks.find((bookmark) => bookmark.id === 'bookmark-alpha')?.chapterHref,
+    '#alpha-20'
+  );
+  assert.equal(
+    mergedNotes.payload.notes.find((note) => note.id === 'note-alpha')?.note,
+    'Imported KOReader note'
+  );
+});
+
 test('KOReader exchange import skips older data when current local state is newer', () => {
   const current = createSnapshot();
   const exchange = createKoReaderSyncExchangeFromSnapshot(current);
