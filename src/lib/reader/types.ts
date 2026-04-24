@@ -186,9 +186,27 @@ export type ReaderSelectionState = {
   text: string;
   chapterLabel: string;
   chapterHref: string;
+  koreaderXPointer?: string;
 };
 
 export type ReaderAnnotationKind = 'note' | 'highlight';
+
+export type ReaderKoReaderAnnotationMetadata = {
+  bookHash?: string;
+  metaHash?: string;
+  xpointer0: string;
+  xpointer1?: string | null;
+  page?: number | null;
+  style?: 'highlight' | 'underline' | 'squiggly' | null;
+  color?: string | null;
+  updatedAt?: number;
+  deletedAt?: number | null;
+};
+
+export type ReaderKoReaderBookmarkMetadata = ReaderKoReaderAnnotationMetadata & {
+  text?: string;
+  note?: string;
+};
 
 export type ReaderNote = {
   id: string;
@@ -199,6 +217,7 @@ export type ReaderNote = {
   chapterLabel: string;
   chapterHref: string;
   createdAt: number;
+  koreader?: ReaderKoReaderAnnotationMetadata;
 };
 
 export type ReaderBookmark = {
@@ -210,6 +229,7 @@ export type ReaderBookmark = {
   progressLabel: string;
   locationLabel: string;
   createdAt: number;
+  koreader?: ReaderKoReaderBookmarkMetadata;
 };
 
 export type ReaderControlRequest =

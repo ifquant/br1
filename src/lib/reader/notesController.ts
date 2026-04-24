@@ -23,6 +23,21 @@ const normalizeReaderNotes = (notes: ReaderNote[]): ReaderNote[] =>
     kind: note.kind === 'highlight' ? 'highlight' : 'note'
   }));
 
+const buildSelectionKoReaderMetadata = (
+  selection: ReaderSelectionState,
+  kind: ReaderAnnotationKind,
+  updatedAt: number
+) => {
+  const xpointer0 = selection.koreaderXPointer?.trim() ?? '';
+  if (!xpointer0) return undefined;
+
+  return {
+    xpointer0,
+    updatedAt,
+    style: kind === 'highlight' ? ('highlight' as const) : null
+  };
+};
+
 export const createReaderNotesController = ({
   getStorage,
   getStorageKey,
@@ -136,16 +151,18 @@ export const createReaderNotesController = ({
       kind === 'note' ? (promptNoteDraft('为当前选中的文本添加笔记：', '') ?? '') : '';
     const selectedText = selection.text.trim();
     if (!selectedText) return false;
+    const createdAt = Date.now();
 
     const note: ReaderNote = {
-      id: `${selection.cfi}:${Date.now()}`,
+      id: `${selection.cfi}:${createdAt}`,
       kind,
       cfi: selection.cfi,
       text: selectedText,
       note: draft.trim(),
       chapterLabel: selection.chapterLabel,
       chapterHref: selection.chapterHref,
-      createdAt: Date.now()
+      createdAt,
+      koreader: buildSelectionKoReaderMetadata(selection, kind, createdAt)
     };
 
     const nextNotes = [note, ...current.notes];

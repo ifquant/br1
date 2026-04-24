@@ -66,7 +66,13 @@ const createSnapshot = () =>
           chapterHref: '',
           progressLabel: '10%',
           locationLabel: 'Alpha location',
-          createdAt: 1700000006000
+          createdAt: 1700000006000,
+          koreader: {
+            xpointer0: '/body/DocFragment[1]/body/div/p[2]',
+            updatedAt: 1700000006100,
+            text: 'Alpha chapter',
+            note: ''
+          }
         }
       ]),
       createReaderNotesSyncRecord(alpha.filePath, [
@@ -78,7 +84,13 @@ const createSnapshot = () =>
           note: 'Alpha note',
           chapterLabel: 'Alpha chapter',
           chapterHref: '',
-          createdAt: 1700000007000
+          createdAt: 1700000007000,
+          koreader: {
+            xpointer0: '/body/DocFragment[1]/body/div/p[2].text().1',
+            updatedAt: 1700000007100,
+            style: 'highlight' as const,
+            color: 'yellow'
+          }
         }
       ]),
       createLibraryBookMetadataSyncRecord(beta),
@@ -93,6 +105,11 @@ test('KOReader exchange export keeps one book document per library book', () => 
   assert.equal(exchange.books.length, 2);
   assert.equal(exchange.books[0]?.bookId, 'book-alpha');
   assert.equal(exchange.books[0]?.koreader.annotations.length, 2);
+  assert.equal(exchange.books[0]?.koreader.annotations[0]?.xpointer0, '/body/DocFragment[1]/body/div/p[2]');
+  assert.equal(
+    exchange.books[0]?.koreader.annotations[1]?.xpointer0,
+    '/body/DocFragment[1]/body/div/p[2].text().1'
+  );
   assert.equal(exchange.books[1]?.bookId, 'book-beta');
 });
 

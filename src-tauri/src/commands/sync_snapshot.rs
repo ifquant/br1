@@ -487,6 +487,7 @@ mod tests {
                         progress_label: "10%".to_string(),
                         location_label: "Chapter 1".to_string(),
                         created_at: 111,
+                        koreader: None,
                     }],
                 }],
                 notes: vec![SyncSnapshotNotesStateRecord {
@@ -500,6 +501,7 @@ mod tests {
                         chapter_label: "Chapter 1".to_string(),
                         chapter_href: "#chapter-1".to_string(),
                         created_at: 112,
+                        koreader: None,
                     }],
                 }],
                 highlights_workspace: vec![SyncSnapshotHighlightsWorkspaceRecord {
@@ -533,6 +535,7 @@ mod tests {
                                     chapter_label: "Chapter 2".to_string(),
                                     chapter_href: "#chapter-2".to_string(),
                                     created_at: 115,
+                                    koreader: None,
                                 }],
                             }),
                         }],

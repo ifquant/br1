@@ -69,7 +69,13 @@ test('collection sync records preserve per-book shapes and stable record ids', (
       chapterHref: '#chapter-1',
       progressLabel: '40%',
       locationLabel: 'Chapter 1',
-      createdAt: 1700000006000
+      createdAt: 1700000006000,
+      koreader: {
+        xpointer0: '/body/DocFragment[3]/body/div/section/p[8]',
+        updatedAt: 1700000006100,
+        text: 'Chapter 1',
+        note: ''
+      }
     }
   ];
   const notes = [
@@ -81,7 +87,12 @@ test('collection sync records preserve per-book shapes and stable record ids', (
       note: 'Margin note',
       chapterLabel: 'Chapter 1',
       chapterHref: '#chapter-1',
-      createdAt: 1700000007000
+      createdAt: 1700000007000,
+      koreader: {
+        xpointer0: '/body/DocFragment[3]/body/div/section/p[8].text().1',
+        updatedAt: 1700000007100,
+        style: 'highlight' as const
+      }
     }
   ];
   const workspaceState = {

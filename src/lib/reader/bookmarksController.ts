@@ -44,6 +44,18 @@ const buildBookmarkTargetHref = (preview: ReaderPreviewState): string => {
   return preview.chapterHref.trim();
 };
 
+const buildBookmarkKoReaderMetadata = (preview: ReaderPreviewState, updatedAt: number) => {
+  const xpointer0 = preview.koreaderProgressLocation.trim();
+  if (!xpointer0) return undefined;
+
+  return {
+    xpointer0,
+    updatedAt,
+    text: preview.chapterLabel,
+    note: ''
+  };
+};
+
 export const createReaderBookmarksController = ({
   getStorage,
   getStorageKey,
@@ -117,6 +129,7 @@ export const createReaderBookmarksController = ({
     const locator = buildBookmarkLocator(preview);
     const targetHref = buildBookmarkTargetHref(preview);
     if (!locator || !targetHref) return false;
+    const createdAt = Date.now();
 
     const current = get(state);
     const existing = current.bookmarks.find((bookmark) => bookmark.locator === locator);
@@ -131,7 +144,8 @@ export const createReaderBookmarksController = ({
             chapterHref: preview.chapterHref,
             progressLabel: preview.progressLabel,
             locationLabel: preview.locationLabel,
-            createdAt: Date.now()
+            createdAt,
+            koreader: buildBookmarkKoReaderMetadata(preview, createdAt)
           },
           ...current.bookmarks
         ];

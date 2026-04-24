@@ -93,6 +93,7 @@
   let plainTextScroller: HTMLDivElement | null = null;
   let readerViewportVars = '';
   let readerStateDispatchNonce = 0;
+  let selectionDispatchNonce = 0;
 
   type ResolvedReaderOpenSource = {
     source: string | File;
@@ -433,14 +434,47 @@
     return { cfi, text, chapterLabel, chapterHref };
   };
 
+  const resolveKoReaderSelectionLocation = async (
+    book: ReaderBookDocument | undefined,
+    currentLocation: string,
+    doc: Document,
+    index: number
+  ) => {
+    if (!book || !currentLocation.startsWith('epubcfi(') || currentFormatLabel === 'PDF') {
+      return '';
+    }
+
+    try {
+      const xpointer = await getXPointerFromCFI(currentLocation, doc, index, book);
+      return xpointer.xpointer.trim();
+    } catch (error) {
+      console.warn('Failed to convert reader selection CFI to KOReader XPointer', error);
+      return '';
+    }
+  };
+
   const bindSelectionTracking = (doc: Document, index: number) => {
     if (boundSelectionDocs.has(doc)) return;
     boundSelectionDocs.add(doc);
     doc.addEventListener('selectionchange', () => {
       const nextSelection = getSelectionState(doc, index);
-      if (nextSelection) {
-        emitSelectionState(nextSelection);
+      const dispatchNonce = ++selectionDispatchNonce;
+      emitSelectionState(nextSelection);
+      if (!nextSelection) {
+        return;
       }
+
+      const book = foliateViewElement?.book;
+      void resolveKoReaderSelectionLocation(book, nextSelection.cfi, doc, index).then((koreaderXPointer) => {
+        if (!koreaderXPointer || dispatchNonce !== selectionDispatchNonce) {
+          return;
+        }
+
+        emitSelectionState({
+          ...nextSelection,
+          koreaderXPointer
+        });
+      });
     });
   };
 

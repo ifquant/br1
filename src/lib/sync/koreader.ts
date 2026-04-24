@@ -1,5 +1,10 @@
 import type { PersistedLibraryBook } from '../services/libraryPersistence.js';
-import type { ReaderBookmark, ReaderNote } from '../reader/types.js';
+import type {
+  ReaderBookmark,
+  ReaderKoReaderAnnotationMetadata,
+  ReaderKoReaderBookmarkMetadata,
+  ReaderNote
+} from '../reader/types.js';
 import {
   createReaderBookmarksSyncRecord,
   createReaderNotesSyncRecord,
@@ -45,30 +50,10 @@ export type KoReaderAnnotation = KoReaderBookIdentity & {
   deletedAt?: number | null;
 };
 
-type KoReaderAnnotationMetadata = {
-  bookHash: string;
-  metaHash: string;
-  xpointer0: string;
-  xpointer1?: string | null;
-  page?: number | null;
-  style?: KoReaderAnnotationStyle | null;
-  color?: string | null;
-  updatedAt: number;
-  deletedAt?: number | null;
-};
-
-type KoReaderBookmarkMetadata = KoReaderAnnotationMetadata & {
-  text: string;
-  note: string;
-};
-
-type KoReaderAdapterNote = ReaderNote & {
-  koreader?: KoReaderAnnotationMetadata;
-};
-
-type KoReaderAdapterBookmark = ReaderBookmark & {
-  koreader?: KoReaderBookmarkMetadata;
-};
+type KoReaderAnnotationMetadata = ReaderKoReaderAnnotationMetadata;
+type KoReaderBookmarkMetadata = ReaderKoReaderBookmarkMetadata;
+type KoReaderAdapterNote = ReaderNote;
+type KoReaderAdapterBookmark = ReaderBookmark;
 
 const PAGE_PROGRESS_PATTERN = /^\[(\d+),(\d+)\]$/;
 

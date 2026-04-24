@@ -167,6 +167,8 @@ pub(crate) struct ReaderBookmarkRecord {
     pub(crate) progress_label: String,
     pub(crate) location_label: String,
     pub(crate) created_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) koreader: Option<ReaderBookmarkKoReaderMetadataRecord>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,10 +190,45 @@ pub(crate) struct ReaderNoteRecord {
     pub(crate) chapter_label: String,
     pub(crate) chapter_href: String,
     pub(crate) created_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) koreader: Option<ReaderAnnotationKoReaderMetadataRecord>,
 }
 
 fn default_reader_note_kind() -> String {
     "note".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderAnnotationKoReaderMetadataRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) book_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) meta_hash: Option<String>,
+    pub(crate) xpointer0: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) xpointer1: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) page: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) style: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) updated_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) deleted_at: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ReaderBookmarkKoReaderMetadataRecord {
+    #[serde(flatten)]
+    pub(crate) annotation: ReaderAnnotationKoReaderMetadataRecord,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) note: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
