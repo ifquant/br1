@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
-use crate::util::now_millis;
+use crate::commands::library::{import_library_books, register_trusted_library_import_path};
+use crate::models::LibraryBookRecord;
+use crate::util::{now_millis, reader_storage_component_key, sanitize_filename};
 use quick_xml::events::BytesStart;
 use quick_xml::events::Event;
 use quick_xml::name::QName;
@@ -9,10 +11,13 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tauri::Manager;
 
 const OPDS_FIXTURE_ROOT: &str = include_str!("../../tests/fixtures/catalogs/opds-root.xml");
 const OPDS_FIXTURE_NEXT: &str = include_str!("../../tests/fixtures/catalogs/opds-next.xml");
 const CALIBRE_FIXTURE_ROOT: &str = include_str!("../../tests/fixtures/catalogs/calibre-root.xml");
+const SAMPLE_FIXTURE_EPUB: &[u8] = include_bytes!("../../../static/samples/sample-book.epub");
+const SAMPLE_FIXTURE_PDF: &[u8] = include_bytes!("../../../static/samples/sample-outline.pdf");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1527,6 +1532,10 @@ pub(crate) async fn search_catalog_source(request: CatalogSearchRequest) -> Cata
 pub(crate) async fn create_catalog_import_intent(
     request: CatalogImportIntentRequest,
 ) -> CatalogImportIntent {
+    resolve_catalog_import_intent(&request)
+}
+
+fn resolve_catalog_import_intent(request: &CatalogImportIntentRequest) -> CatalogImportIntent {
     let source = match find_source(&request.source_id) {
         Ok(Some(source)) => source,
         Ok(None) => {
@@ -1559,6 +1568,75 @@ pub(crate) async fn create_catalog_import_intent(
                 "Catalog entry was not found in the requested safe catalog page.",
             )
         })
+}
+
+fn catalog_acquisitions_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("catalog-acquisitions");
+    fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+    Ok(root)
+}
+
+fn catalog_acquisition_file_name(intent: &CatalogImportIntent) -> String {
+    let raw_name = intent
+        .file_name_hint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            intent
+                .acquisition_href
+                .split('/')
+                .next_back()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+        })
+        .unwrap_or("catalog-book");
+    let safe_name = sanitize_filename(raw_name);
+    let storage_key = reader_storage_component_key(&intent.acquisition_href);
+    format!("{storage_key}-{safe_name}")
+}
+
+fn fixture_catalog_acquisition_payload(intent: &CatalogImportIntent) -> Option<&'static [u8]> {
+    match intent.acquisition_href.trim() {
+        "fixture://opds/files/fixture-one.epub" => Some(SAMPLE_FIXTURE_EPUB),
+        "fixture://opds/files/fixture-three.pdf" => Some(SAMPLE_FIXTURE_PDF),
+        "fixture://calibre/files/calibre-fixture.epub" => Some(SAMPLE_FIXTURE_EPUB),
+        "fixture://calibre/files/calibre-fixture.pdf" => Some(SAMPLE_FIXTURE_PDF),
+        _ => None,
+    }
+}
+
+fn materialize_catalog_acquisition_source(
+    app: &tauri::AppHandle,
+    intent: &CatalogImportIntent,
+) -> Result<PathBuf, String> {
+    let payload = fixture_catalog_acquisition_payload(intent).ok_or_else(|| {
+        "Catalog acquisition is not allowlisted for desktop import execution.".to_string()
+    })?;
+    let path = catalog_acquisitions_root(app)?.join(catalog_acquisition_file_name(intent));
+    fs::write(&path, payload).map_err(|error| error.to_string())?;
+    fs::canonicalize(&path).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub(crate) fn import_catalog_entry_to_library(
+    app: tauri::AppHandle,
+    request: CatalogImportIntentRequest,
+) -> Result<Vec<LibraryBookRecord>, String> {
+    let intent = resolve_catalog_import_intent(&request);
+    if intent.status == CatalogImportIntentStatus::Blocked {
+        return Err(intent
+            .blocked_reason
+            .unwrap_or_else(|| "Catalog entry is not importable.".to_string()));
+    }
+
+    let source_path = materialize_catalog_acquisition_source(&app, &intent)?;
+    register_trusted_library_import_path(&app, &source_path)?;
+    import_library_books(app, vec![source_path.to_string_lossy().to_string()])
 }
 
 #[cfg(test)]
@@ -1801,5 +1879,53 @@ mod tests {
             page.source.connectivity.status,
             CatalogSourceConnectivityStatus::AuthRequired
         );
+    }
+
+    #[test]
+    fn fixture_catalog_import_payloads_cover_allowlisted_acquisitions() {
+        for href in [
+            "fixture://opds/files/fixture-one.epub",
+            "fixture://opds/files/fixture-three.pdf",
+            "fixture://calibre/files/calibre-fixture.epub",
+            "fixture://calibre/files/calibre-fixture.pdf",
+        ] {
+            let intent = CatalogImportIntent {
+                id: "catalog:test".to_string(),
+                source_id: "fixture".to_string(),
+                entry_id: "entry".to_string(),
+                title: "Fixture".to_string(),
+                acquisition_href: href.to_string(),
+                media_type: None,
+                file_name_hint: Some(
+                    href.split('/').next_back().unwrap_or("fixture-book").to_string(),
+                ),
+                status: CatalogImportIntentStatus::Ready,
+                blocked_reason: None,
+                created_at: 0,
+            };
+
+            let payload = fixture_catalog_acquisition_payload(&intent);
+            assert!(payload.is_some());
+            assert!(!payload.unwrap().is_empty());
+            assert!(catalog_acquisition_file_name(&intent).contains('-'));
+        }
+    }
+
+    #[test]
+    fn unsupported_catalog_acquisition_payload_is_rejected() {
+        let intent = CatalogImportIntent {
+            id: "catalog:test".to_string(),
+            source_id: "fixture".to_string(),
+            entry_id: "entry".to_string(),
+            title: "Fixture".to_string(),
+            acquisition_href: "https://example.invalid/book.epub".to_string(),
+            media_type: Some("application/epub+zip".to_string()),
+            file_name_hint: Some("book.epub".to_string()),
+            status: CatalogImportIntentStatus::Ready,
+            blocked_reason: None,
+            created_at: 0,
+        };
+
+        assert!(fixture_catalog_acquisition_payload(&intent).is_none());
     }
 }

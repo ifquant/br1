@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   createCatalogImportIntent,
+  importCatalogEntryToLibrary,
   normalizeCatalogSourceSettingsInput,
   type CatalogEntry,
   type CatalogSource
@@ -109,4 +110,16 @@ test('createCatalogImportIntent returns blocked intent when entry has no importa
   assert.equal(intent.entryId, 'entry-2');
   assert.match(intent.blockedReason || '', /does not expose an importable acquisition link/i);
   assert.equal(intent.createdAt, 456);
+});
+
+test('importCatalogEntryToLibrary returns blocked result outside desktop runtime', async () => {
+  const result = await importCatalogEntryToLibrary({
+    sourceId: 'fixture-opds',
+    entryId: 'entry-1',
+    pageHref: 'fixture://opds/root.xml'
+  });
+
+  assert.equal(result.status, 'blocked');
+  assert.match(result.message, /desktop runtime/i);
+  assert.equal(result.firstReaderHref, '');
 });

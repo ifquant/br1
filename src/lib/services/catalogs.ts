@@ -1,4 +1,6 @@
 import { isTauriDesktop, invokeTauri } from './platform';
+import type { LibraryReaderTarget, PersistedLibraryBook } from './libraryPersistence';
+import { toLibraryReaderTarget } from './libraryPersistence';
 
 export type CatalogConnectorKind = 'opds' | 'calibreOpds';
 
@@ -193,6 +195,23 @@ export type CatalogConnectorStatusResponse = CatalogConnectorStatus;
 export type CatalogSourceListResponse = CatalogSource[];
 export type CatalogPageResponse = CatalogPage;
 export type CatalogImportIntentResponse = CatalogImportIntent;
+export type CatalogImportExecutionResult =
+  | {
+      status: 'imported';
+      message: string;
+      records: PersistedLibraryBook[];
+      firstRecord: PersistedLibraryBook | null;
+      firstReaderTarget: LibraryReaderTarget | null;
+      firstReaderHref: string;
+    }
+  | {
+      status: 'blocked';
+      message: string;
+      records: [];
+      firstRecord: null;
+      firstReaderTarget: null;
+      firstReaderHref: '';
+    };
 export type CatalogSourceSettingsResponse = {
   source?: CatalogSource;
   error?: CatalogErrorState;
@@ -512,5 +531,65 @@ export const requestCatalogImportIntent = async (
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return createBlockedCatalogImportIntent(normalized, message);
+  }
+};
+
+const toCatalogImportExecutionResult = (
+  records: PersistedLibraryBook[],
+  message: string
+): CatalogImportExecutionResult => {
+  const [firstRecord] = records;
+  if (!firstRecord) {
+    return {
+      status: 'blocked',
+      message,
+      records: [],
+      firstRecord: null,
+      firstReaderTarget: null,
+      firstReaderHref: ''
+    };
+  }
+
+  const firstReaderTarget = toLibraryReaderTarget(firstRecord);
+  return {
+    status: 'imported',
+    message,
+    records,
+    firstRecord,
+    firstReaderTarget,
+    firstReaderHref: firstReaderTarget.href
+  };
+};
+
+export const importCatalogEntryToLibrary = async (
+  request: CatalogImportIntentRequest
+): Promise<CatalogImportExecutionResult> => {
+  const normalized = normalizeCatalogImportIntentRequest(request);
+  if (!isTauriDesktop()) {
+    return {
+      status: 'blocked',
+      message: 'Catalog imports require the desktop runtime.',
+      records: [],
+      firstRecord: null,
+      firstReaderTarget: null,
+      firstReaderHref: ''
+    };
+  }
+
+  try {
+    const records = await invokeTauri<PersistedLibraryBook[]>('import_catalog_entry_to_library', {
+      request: normalized
+    });
+    return toCatalogImportExecutionResult(records, '目录图书已导入受管书库。');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      status: 'blocked',
+      message,
+      records: [],
+      firstRecord: null,
+      firstReaderTarget: null,
+      firstReaderHref: ''
+    };
   }
 };

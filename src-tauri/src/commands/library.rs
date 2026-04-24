@@ -135,7 +135,10 @@ fn trusted_library_import_path_key_contains(
     Ok(trusted.contains(path_key))
 }
 
-fn register_trusted_library_import_path(app: &tauri::AppHandle, path: &Path) -> Result<(), String> {
+pub(crate) fn register_trusted_library_import_path(
+    app: &tauri::AppHandle,
+    path: &Path,
+) -> Result<(), String> {
     let trusted = app.state::<TrustedLibraryImportPaths>();
     let mut trusted = trusted
         .0

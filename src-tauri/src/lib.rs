@@ -246,6 +246,7 @@ pub fn run() {
             commands::catalogs::browse_catalog_source,
             commands::catalogs::create_catalog_import_intent,
             commands::catalogs::get_catalog_connector_status,
+            commands::catalogs::import_catalog_entry_to_library,
             commands::catalogs::list_catalog_sources,
             commands::catalogs::remove_catalog_source_settings,
             commands::catalogs::save_catalog_source_settings,

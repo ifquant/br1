@@ -2,9 +2,11 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import type {
+    CatalogImportExecutionResult,
     CatalogConnectorKind,
     CatalogConnectorStatus,
     CatalogImportIntent,
+    CatalogImportIntentRequest,
     CatalogPage,
     CatalogSource,
     CatalogSourceAuthKind,
@@ -13,6 +15,7 @@
   import {
     createUnavailableCatalogConnectorStatus,
     getCatalogConnectorStatus,
+    importCatalogEntryToLibrary,
     listCatalogSources,
     browseCatalogSource,
     searchCatalogSource,
@@ -39,9 +42,12 @@
   let currentPage: CatalogPage | null = null;
   let currentQuery = '';
   let currentImportIntent: CatalogImportIntent | null = null;
+  let currentImportRequest: CatalogImportIntentRequest | null = null;
+  let currentImportResult: CatalogImportExecutionResult | null = null;
   let pageBusy = false;
   let saveBusy = false;
   let removeBusy = false;
+  let importBusy = false;
   let notice = '';
   let draft: CatalogSourceSettingsInput = createEmptyCatalogDraft();
 
@@ -65,6 +71,15 @@
     : currentPage
       ? `${pageEntries.length} 条结果 · 当前浏览是安全快照，不是 live 网络抓取。`
       : '选择书源后会在这里显示目录页面、搜索结果和导入意图。';
+  $: browserStateHint = currentPage?.authChallenge
+    ? '先在桌面端配置凭据，再回到这里执行浏览和导入。'
+    : currentPage?.error?.code === 'unsupported'
+      ? '这个书源的元数据可以保存，但当前版本不会对 live URL 发起抓取或导入。'
+      : currentPage?.error?.code === 'invalidSource'
+        ? '当前书源配置无效，请回到左侧设置面板修正书源元数据。'
+        : currentPage?.error
+          ? '当前书源返回了产品级错误状态；修正桌面端配置后可以重新浏览。'
+          : '';
 
   const refreshSources = async (preferredSourceId?: string) => {
     sources = await listCatalogSources();
@@ -100,6 +115,8 @@
     if (!selectedSourceId) return;
     pageBusy = true;
     currentImportIntent = null;
+    currentImportRequest = null;
+    currentImportResult = null;
     try {
       currentPage = await browseCatalogSource({
         sourceId: selectedSourceId,
@@ -118,6 +135,8 @@
     }
     pageBusy = true;
     currentImportIntent = null;
+    currentImportRequest = null;
+    currentImportResult = null;
     try {
       currentPage = await searchCatalogSource({
         sourceId: selectedSourceId,
@@ -131,11 +150,42 @@
 
   const prepareImportIntent = async (entryId: string) => {
     if (!selectedSourceId) return;
-    currentImportIntent = await requestCatalogImportIntent({
+    currentImportRequest = {
       sourceId: selectedSourceId,
       entryId,
       pageHref: currentPage?.pagination.selfHref
-    });
+    };
+    currentImportResult = null;
+    currentImportIntent = await requestCatalogImportIntent(currentImportRequest);
+  };
+
+  const entryImportableCount = (entry: CatalogPage['entries'][number]) =>
+    entry.links.filter((link) => link.supportsImport).length;
+
+  const entryImportabilityLabel = (entry: CatalogPage['entries'][number]) => {
+    const importableLinks = entry.links.filter((link) => link.supportsImport);
+    if (importableLinks.length === 0) {
+      return '只有浏览链接';
+    }
+
+    const [firstLink] = importableLinks;
+    const mediaType = firstLink.mediaType?.trim() || '';
+    if (mediaType.includes('epub')) return '可导入 EPUB';
+    if (mediaType.includes('pdf')) return '可导入 PDF';
+    return '可导入条目';
+  };
+
+  const importCurrentCatalogEntry = async () => {
+    if (!currentImportRequest || currentImportIntent?.status !== 'ready') return;
+    importBusy = true;
+    notice = '';
+    try {
+      const result = await importCatalogEntryToLibrary(currentImportRequest);
+      currentImportResult = result;
+      notice = result.message;
+    } finally {
+      importBusy = false;
+    }
   };
 
   const saveDraft = async () => {
@@ -171,6 +221,8 @@
       }
       currentPage = null;
       currentImportIntent = null;
+      currentImportRequest = null;
+      currentImportResult = null;
       await refreshSources();
       if (selectedSourceId) {
         await browseSelectedSource();
@@ -192,6 +244,8 @@
     syncDraftFromSelectedSource();
     currentQuery = '';
     currentImportIntent = null;
+    currentImportRequest = null;
+    currentImportResult = null;
     await browseSelectedSource();
   };
 
@@ -216,7 +270,7 @@
       <span class="catalog-kicker">Catalogs</span>
       <h1>书源目录</h1>
       <p>
-        把现有 OPDS / Calibre substrate 收成真正的产品面。当前支持安全快照浏览、搜索和导入意图，不把 renderer 变成任意网络代理。
+        把现有 OPDS / Calibre substrate 收成真正的产品面。当前支持安全快照浏览、搜索，以及桌面侧受管导入，不把 renderer 变成任意网络代理。
       </p>
     </div>
     <div class="catalog-hero-actions">
@@ -230,11 +284,11 @@
   <section class="connector-status" aria-label="书源连接器状态">
     <strong>连接器状态</strong>
     <span>{connectorStatus.message}</span>
-    <small>
+      <small>
       {#if connectorStatus.status === 'available'}
-        当前能力：{connectorStatus.capabilities.join(' / ')} · 搜索：{connectorStatus.supportsSearch ? '支持' : '不支持'} · 导入意图：{connectorStatus.supportsImportIntent ? '支持' : '不支持'}
+        当前能力：{connectorStatus.capabilities.join(' / ')} · 搜索：{connectorStatus.supportsSearch ? '支持' : '不支持'} · 导入：{connectorStatus.supportsImportIntent ? '支持' : '不支持'}
       {:else}
-        当前环境不会直接发起 live catalog 抓取；桌面端负责所有安全 browse/search/import-intent 调用。
+        当前环境不会直接发起 live catalog 抓取；桌面端负责所有安全 browse/search/import 调用。
       {/if}
     </small>
   </section>
@@ -400,6 +454,9 @@
           <div class="catalog-state error">
             <strong>{currentPage.error.code}</strong>
             <span>{currentPage.error.message}</span>
+            {#if browserStateHint}
+              <small>{browserStateHint}</small>
+            {/if}
           </div>
         {/if}
 
@@ -427,14 +484,19 @@
                     <span>{entry.availability}</span>
                     {#if entry.language}<span>{entry.language}</span>{/if}
                     {#if entry.categories.length}<span>{entry.categories.join(' · ')}</span>{/if}
+                    <span>{entryImportabilityLabel(entry)}</span>
                   </div>
                 </div>
                 <div class="entry-actions">
-                  <button type="button" on:click={() => void prepareImportIntent(entry.id)}>
-                    生成导入意图
+                  <button
+                    type="button"
+                    disabled={entryImportableCount(entry) === 0}
+                    on:click={() => void prepareImportIntent(entry.id)}
+                  >
+                    {entryImportableCount(entry) > 0 ? '生成导入意图' : '当前不可导入'}
                   </button>
                   {#if entry.links.length}
-                    <small>{entry.links.filter((link) => link.supportsImport).length} 个 acquisition 链接</small>
+                    <small>{entryImportableCount(entry)} 个 acquisition 链接</small>
                   {/if}
                 </div>
               </article>
@@ -456,7 +518,7 @@
       <section class="catalog-panel" aria-label="导入意图">
         <div class="panel-head">
           <strong>导入意图</strong>
-          <span>当前只生成安全 handoff，不直接下载 acquisition 链接。</span>
+          <span>导入动作始终在桌面端完成，renderer 不直接下载 acquisition 链接。</span>
         </div>
         {#if currentImportIntent}
           <div class:blocked={currentImportIntent.status === 'blocked'} class="intent-card">
@@ -466,12 +528,48 @@
               <p>文件提示：{currentImportIntent.fileNameHint || '未提供'}</p>
               <p>媒体类型：{currentImportIntent.mediaType || '未知'}</p>
               <p>acquisition: {currentImportIntent.acquisitionHref}</p>
+              <div class="field-actions">
+                <button type="button" class="primary" disabled={importBusy} on:click={() => void importCurrentCatalogEntry()}>
+                  {importBusy ? '导入中…' : '导入到书库'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!currentImportRequest}
+                  on:click={() => currentImportRequest && void prepareImportIntent(currentImportRequest.entryId)}
+                >
+                  重新生成导入意图
+                </button>
+              </div>
             {:else}
               <p>{currentImportIntent.blockedReason}</p>
             {/if}
           </div>
         {:else}
           <p class="empty-copy">先从目录结果里选择一本书，生成导入意图。</p>
+        {/if}
+
+        {#if currentImportResult}
+          <div class:blocked={currentImportResult.status === 'blocked'} class="intent-card import-result">
+            <strong>{currentImportResult.status === 'imported' ? '导入结果' : '导入已阻止'}</strong>
+            <span>{currentImportResult.message}</span>
+            {#if currentImportResult.status === 'imported'}
+              <p>已导入 {currentImportResult.records.length} 本图书到受管书库。</p>
+              <div class="field-actions">
+                <button type="button" class="primary" on:click={() => goto('/library')}>
+                  打开书库
+                </button>
+                <button
+                  type="button"
+                  disabled={!currentImportResult?.firstReaderHref}
+                  on:click={() =>
+                    currentImportResult?.firstReaderHref &&
+                    goto(currentImportResult.firstReaderHref)}
+                >
+                  直接打开首本图书
+                </button>
+              </div>
+            {/if}
+          </div>
         {/if}
       </section>
     </section>
