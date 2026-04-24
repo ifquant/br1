@@ -424,22 +424,22 @@
           {#if viewMode === 'list'}
             <div class="meta list-meta">
               <div class="list-copy">
-                <strong>{book.title}</strong>
-                <span>{book.author}</span>
+                <strong class="book-title">{book.title}</strong>
+                <span class="book-author">{book.author}</span>
+                <p class="book-summary">{getSecondaryMeta(book)}</p>
                 <div class="meta-pills">
                   {#if book.format}
                     <span class="meta-pill strong">{book.format}</span>
                   {/if}
-                  <span class="meta-pill">{getPrimaryStatus(book)}</span>
-                  {#if book.sourceLabel}
-                    <span class="meta-pill">{book.sourceLabel}</span>
+                  {#if book.collection}
+                    <span class="meta-pill">{book.collection}</span>
                   {/if}
                 </div>
               </div>
               <div class="list-trailing">
-                <div class="trailing-copy">
-                  <small>{getPrimaryProgress(book)}</small>
-                  <em>{getSecondaryMeta(book)}</em>
+                <div class="trailing-copy book-trailing-copy">
+                  <small class="book-status-label">{getPrimaryStatus(book)}</small>
+                  <em class="book-progress-label">{getPrimaryProgress(book)}</em>
                 </div>
                 <div class="inline-actions" aria-hidden="true">
                   <span class="action-dot">⋯</span>
@@ -448,13 +448,23 @@
               </div>
             </div>
           {:else}
-            <div class="meta">
-              <strong>{book.title}</strong>
-              <span>{book.author}</span>
-              <p>{getSecondaryMeta(book)}</p>
-              <div class="status-row">
-                <small>{getPrimaryProgress(book)}</small>
-                <em>{getPrimaryStatus(book)}</em>
+            <div class="meta book-meta">
+              <div class="book-copy">
+                <strong class="book-title">{book.title}</strong>
+                <span class="book-author">{book.author}</span>
+              </div>
+              <div class="status-row book-status-row">
+                <small class="book-status-label">{getPrimaryStatus(book)}</small>
+                <em class="book-progress-label">{getPrimaryProgress(book)}</em>
+              </div>
+              <p class="book-summary">{getSecondaryMeta(book)}</p>
+              <div class="meta-pills compact-meta-pills">
+                {#if book.format}
+                  <span class="meta-pill strong">{book.format}</span>
+                {/if}
+                {#if book.collection}
+                  <span class="meta-pill">{book.collection}</span>
+                {/if}
               </div>
             </div>
           {/if}
@@ -653,6 +663,7 @@
     --cover-radius: 10px;
     --list-cover-width: 84px;
     --card-row-height: 122px;
+    --book-copy-gap: 4px;
     display: grid;
     gap: 10px;
   }
@@ -863,7 +874,7 @@
     display: grid;
     gap: 7px;
     width: 100%;
-    max-width: 176px;
+    max-width: 172px;
     font-family: var(--font-chrome);
     transition: transform 120ms ease;
   }
@@ -1094,7 +1105,7 @@
   .cover-shell {
     position: relative;
     width: 100%;
-    aspect-ratio: 28 / 41;
+    aspect-ratio: 21 / 31;
     border-radius: var(--cover-radius);
   }
 
@@ -1255,10 +1266,20 @@
 
   .meta {
     display: grid;
-    gap: 3px;
+    gap: var(--book-copy-gap);
     min-width: 0;
     align-self: stretch;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .book-meta {
+    align-content: start;
+  }
+
+  .book-copy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
   }
 
   .list-card .meta {
@@ -1283,6 +1304,15 @@
     font-size: 12px;
     line-clamp: 1;
     -webkit-line-clamp: 1;
+  }
+
+  .book-title {
+    color: var(--text-primary);
+  }
+
+  .book-author {
+    color: color-mix(in srgb, var(--text-secondary) 86%, white 14%);
+    font-weight: 560;
   }
 
   .meta span,
@@ -1314,6 +1344,17 @@
     color: color-mix(in srgb, var(--text-secondary) 84%, white 16%);
   }
 
+  .book-summary {
+    min-height: 2.5em;
+    color: color-mix(in srgb, var(--text-secondary) 74%, white 26%);
+    line-height: 1.25;
+  }
+
+  .list-card .book-summary {
+    min-height: 0;
+    white-space: nowrap;
+  }
+
   .list-meta {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1323,7 +1364,7 @@
 
   .list-copy {
     display: grid;
-    gap: 4px;
+    gap: 5px;
     min-width: 0;
   }
 
@@ -1352,11 +1393,21 @@
     background: color-mix(in srgb, var(--surface-reader) 74%, white 26%);
   }
 
+  .compact-meta-pills {
+    gap: 4px;
+  }
+
+  .compact-meta-pills .meta-pill {
+    min-height: 16px;
+    padding: 0 6px;
+    font-size: 8px;
+  }
+
   .list-trailing {
     display: grid;
     justify-items: end;
     gap: 5px;
-    min-width: 110px;
+    min-width: 98px;
     align-self: stretch;
     grid-template-rows: minmax(0, 1fr) auto;
     padding-block: 2px;
@@ -1368,6 +1419,31 @@
     align-content: start;
     justify-items: end;
     min-width: 0;
+  }
+
+  .book-trailing-copy {
+    gap: 2px;
+  }
+
+  .book-status-label {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: 18px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 74%, white 26%);
+    color: color-mix(in srgb, var(--text-primary) 88%, white 12%);
+    font-size: 9px;
+    font-weight: 560;
+    line-height: 1;
+  }
+
+  .book-progress-label {
+    color: color-mix(in srgb, var(--text-secondary) 88%, white 12%);
+    font-size: 11px;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
   }
 
   .list-trailing small {
@@ -1428,6 +1504,21 @@
     text-align: right;
   }
 
+  .book-status-row {
+    align-items: center;
+  }
+
+  .book-status-row small,
+  .book-status-row em {
+    white-space: nowrap;
+  }
+
+  .book-status-row .book-progress-label {
+    max-width: none;
+    margin-left: auto;
+    text-align: right;
+  }
+
   @media (max-width: 900px) {
     .grid {
       grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
@@ -1469,6 +1560,14 @@
 
     .cover-title {
       font-size: 13px;
+    }
+
+    .list-meta {
+      column-gap: 12px;
+    }
+
+    .list-trailing {
+      min-width: 82px;
     }
   }
 

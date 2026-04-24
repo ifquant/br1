@@ -159,6 +159,8 @@
           <div class="copy">
             <div class="title-row">
               <strong>{book.title}</strong>
+            </div>
+            <div class="pill-row">
               {#if book.readingStatusLabel}
                 <span class:finished={book.readingStatusLabel === '已读完'} class="status-pill">
                   {book.readingStatusLabel}
@@ -172,11 +174,17 @@
             <p>{book.lastOpenedLabel || book.status}</p>
           </div>
           <div class="trailing">
-            <small>{book.progress}</small>
-            {#if book.progressPercentLabel}
-              <span class="progress-pill">{book.progressPercentLabel}</span>
-            {/if}
+            <div class="progress-stack">
+              <strong>{book.progressPercentLabel || primaryActionLabel}</strong>
+              <small>{book.progress}</small>
+            </div>
             <div class="actions">
+              {#if book.progressPercentLabel}
+                <span class="progress-pill">{book.progressPercentLabel}</span>
+              {/if}
+              <span class:warning={libraryCopyMissing} class="resume-pill">
+                {getRepairPillLabel(book, libraryCopyMissing)}
+              </span>
               {#if book.restartHref}
                 <button
                   type="button"
@@ -218,9 +226,6 @@
                   {getRepairLabel(book, originalFileMissing, libraryCopyMissing)}
                 </button>
               {/if}
-              <span class:warning={libraryCopyMissing} class="resume-pill">
-                {getRepairPillLabel(book, libraryCopyMissing)}
-              </span>
             </div>
           </div>
           {#if book.progressPercentLabel}
@@ -476,8 +481,8 @@
   }
 
   .cover-shell {
-    width: 40px;
-    height: 58px;
+    width: 48px;
+    height: 70px;
     border-radius: 10px;
     overflow: hidden;
     box-shadow:
@@ -509,13 +514,10 @@
   .copy {
     min-width: 0;
     display: grid;
-    gap: 2px;
+    gap: 4px;
   }
 
   .title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     min-width: 0;
   }
 
@@ -531,10 +533,15 @@
 
   .copy strong {
     font-family: var(--font-chrome);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.22;
     color: var(--text-primary);
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
   }
 
   .copy span {
@@ -544,8 +551,16 @@
 
   .copy p {
     margin: 0;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
+  }
+
+  .pill-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex-wrap: wrap;
   }
 
   .status-pill {
@@ -583,13 +598,27 @@
   .trailing {
     display: grid;
     justify-items: end;
-    gap: 6px;
-    min-width: 160px;
+    gap: 8px;
+    min-width: 176px;
+    align-self: stretch;
+    align-content: center;
   }
 
   .trailing small {
-    font-size: 11px;
-    color: var(--text-secondary);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .progress-stack {
+    display: grid;
+    gap: 3px;
+    justify-items: end;
+    min-width: 0;
+  }
+
+  .progress-stack strong {
+    color: var(--text-primary);
+    font: 600 14px/1 var(--font-chrome);
   }
 
   .actions {
@@ -639,11 +668,11 @@
 
   .resume-pill {
     padding: 5px 9px;
-    background: color-mix(in srgb, var(--surface-reader) 82%, white 18%);
+    background: color-mix(in srgb, var(--accent-warm) 12%, var(--surface-reader) 88%);
     box-shadow:
-      inset 0 0 0 1px var(--border-light),
+      inset 0 0 0 1px color-mix(in srgb, var(--accent-warm) 24%, white 76%),
       0 6px 12px rgba(42, 30, 15, 0.04);
-    color: var(--text-primary);
+    color: color-mix(in srgb, var(--text-primary) 90%, #73481f 10%);
   }
 
   .resume-pill.warning {
@@ -840,6 +869,11 @@
   @media (max-width: 720px) {
     .row-link {
       grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .cover-shell {
+      width: 42px;
+      height: 62px;
     }
 
     .trailing {
