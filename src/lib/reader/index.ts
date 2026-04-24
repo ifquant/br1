@@ -70,6 +70,14 @@ export { createReaderNotesController } from './notesController';
 export { createReaderBookmarksController } from './bookmarksController';
 export { createReaderSidebarController } from './sidebarController';
 export {
+  XCFI,
+  getCFIFromXPointer,
+  getXPointerFromCFI,
+  isKoReaderXPointer,
+  normalizeProgressXPointer
+} from './xcfi';
+export type { ReaderXPointer } from './xcfi';
+export {
   READER_PARALLEL_PRIMARY_PANE_ID,
   READER_PARALLEL_SECONDARY_PANE_ID,
   activateReaderParallelPane,

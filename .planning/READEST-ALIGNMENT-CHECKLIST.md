@@ -322,6 +322,13 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: corrected the first remote-progress slice so push now prefers KOReader-compatible locators or page values and skips unsupported local-only positions like `txt:` pseudo-locators, while pull maps remote locator values back into `progressLocation` and keeps `br1` display progress as a percentage/page label. This keeps the KOReader wire contract closer to Readest instead of serializing raw UI text.
 
+- [x] P2-4.5 Add reader-side XCFI conversion substrate
+  - Outcome: `br1` now has a checked-in CFI/XPointer conversion utility layer that future KOReader reader-sync work can call directly.
+  - Touches: reader substrate utilities, exports, targeted tests.
+  - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/reader/xcfi.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: ported the Readest `XCFI` converter into `src/lib/reader/xcfi.ts` with `extractSpineIndex`, bidirectional conversion helpers, and XPointer normalization. This slice is intentionally substrate-only: it exposes the conversion layer to `br1` without yet wiring live reader progress or notes persistence through it.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
