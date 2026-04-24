@@ -873,10 +873,8 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       });
 
       if (result.status === 'success') {
-        setLibraryNotice(
-          'error',
-          'KOReader 远端进度回填的安全收口还未完成：本轮已经移除了 renderer 直写 sync snapshot 的入口，KOReader merge/apply 会在下一刀搬进 Tauri 后再恢复。'
-        );
+        await loadLibrary();
+        setLibraryNotice('info', `${result.message} 书签和批注不会通过官方 KOSync 回填。`);
         return;
       }
 

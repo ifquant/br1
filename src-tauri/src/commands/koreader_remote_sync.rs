@@ -2,7 +2,7 @@ use crate::models::{
     KoReaderRemoteProgressEntry, KoReaderRemoteSyncRequest, KoReaderRemoteSyncResult,
     LibraryBookRecord,
 };
-use crate::util::{ensure_library_root, library_json_path, load_library_records};
+use crate::util::{ensure_library_root, library_json_path, load_library_records, save_library_records};
 use reqwest::{Client, StatusCode, Url};
 use std::time::Duration;
 
@@ -281,6 +281,101 @@ fn load_current_progress_entries(
     }
 
     Ok(entries)
+}
+
+fn parse_page_progress(value: &str) -> Option<(u64, u64)> {
+    let inner = value.strip_prefix('[')?.strip_suffix(']')?;
+    let (current, total) = inner.split_once(',')?;
+    let current = current.trim().parse::<u64>().ok()?;
+    let total = total.trim().parse::<u64>().ok()?;
+    if total == 0 {
+        return None;
+    }
+    Some((current, total))
+}
+
+fn to_progress_fraction(entry: &KoReaderRemoteProgressEntry, fallback: Option<f64>) -> Option<f64> {
+    if let Some(percentage) = entry.percentage {
+        if percentage.is_finite() {
+            return Some((percentage / 100.0).clamp(0.0, 1.0));
+        }
+    }
+    if let Some((current, total)) = parse_page_progress(entry.progress.trim()) {
+        return Some((current as f64 / total as f64).clamp(0.0, 1.0));
+    }
+    fallback
+}
+
+fn to_progress_label(entry: &KoReaderRemoteProgressEntry, fallback: &str) -> String {
+    if let Some(percentage) = entry.percentage {
+        if percentage.is_finite() {
+            return format!("{}%", percentage.round().clamp(0.0, 100.0) as u64);
+        }
+    }
+    let normalized = entry.progress.trim();
+    if !normalized.is_empty() {
+        return normalized.to_string();
+    }
+    fallback.to_string()
+}
+
+fn merge_pulled_progress_entries(
+    library_books: &mut [LibraryBookRecord],
+    entries: &[KoReaderRemoteProgressEntry],
+) -> (usize, usize, usize) {
+    let mut applied_count = 0usize;
+    let mut ambiguous_count = 0usize;
+    let mut local_newer_count = 0usize;
+
+    for entry in entries {
+        let mut matched_indexes = Vec::new();
+        for (index, book) in library_books.iter().enumerate() {
+            if derive_document_hash(book) == entry.document {
+                matched_indexes.push(index);
+            }
+        }
+
+        if matched_indexes.len() != 1 {
+            ambiguous_count += 1;
+            continue;
+        }
+
+        let matched_index = matched_indexes[0];
+        let book = &mut library_books[matched_index];
+        let current_updated_at = book.last_opened_at.unwrap_or(book.imported_at);
+        if current_updated_at > entry.timestamp {
+            local_newer_count += 1;
+            continue;
+        }
+
+        book.progress = to_progress_label(entry, &book.progress);
+        book.progress_fraction = to_progress_fraction(entry, book.progress_fraction);
+        if is_koreader_locator(entry.progress.trim()) {
+            book.koreader_progress_location = Some(entry.progress.trim().to_string());
+        }
+        book.last_opened_at = Some(entry.timestamp);
+        applied_count += 1;
+    }
+
+    (applied_count, ambiguous_count, local_newer_count)
+}
+
+fn apply_pulled_progress_entries(
+    app: &tauri::AppHandle,
+    entries: &[KoReaderRemoteProgressEntry],
+) -> Result<(usize, usize, usize), String> {
+    ensure_library_root(app)?;
+    let library_json = library_json_path(app)?;
+    let mut library_books = load_library_records(&library_json)?;
+
+    let (applied_count, ambiguous_count, local_newer_count) =
+        merge_pulled_progress_entries(&mut library_books, entries);
+
+    if applied_count > 0 {
+        save_library_records(&library_json, &library_books)?;
+    }
+
+    Ok((applied_count, ambiguous_count, local_newer_count))
 }
 
 async fn authenticate(
@@ -645,8 +740,164 @@ pub(crate) async fn run_koreader_remote_sync(
         }
     };
 
-    Ok(match result {
+    let mut result = match result {
         Ok(result) => result,
         Err(result) => result,
-    })
+    };
+
+    if operation == KoReaderRemoteSyncOperation::Pull && result.status == "success" {
+        let (applied_count, ambiguous_count, local_newer_count) =
+            apply_pulled_progress_entries(&app, &result.entries)?;
+        result.message = format!(
+            "{} 已应用 {} 本，跳过 {} 本{}{}。",
+            result.message,
+            applied_count,
+            result.entries.len().saturating_sub(applied_count),
+            if ambiguous_count > 0 {
+                format!("，歧义匹配 {} 本", ambiguous_count)
+            } else {
+                String::new()
+            },
+            if local_newer_count > 0 {
+                format!("，本地更新 {} 本", local_newer_count)
+            } else {
+                String::new()
+            }
+        );
+    }
+
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{derive_document_hash, merge_pulled_progress_entries, KoReaderRemoteProgressEntry};
+    use crate::models::LibraryBookRecord;
+
+    fn sample_book(id: &str, file_path: &str) -> LibraryBookRecord {
+        LibraryBookRecord {
+            id: id.to_string(),
+            title: format!("Book {id}"),
+            author: "Reader".to_string(),
+            format: "EPUB".to_string(),
+            description: None,
+            language: None,
+            publisher: None,
+            collection: None,
+            tags: Vec::new(),
+            progress: "尚未开始".to_string(),
+            status: "未开始".to_string(),
+            file_path: file_path.to_string(),
+            cover_path: None,
+            source_path: None,
+            imported_at: 100,
+            progress_fraction: Some(0.1),
+            progress_location: Some("epubcfi(/6/2)".to_string()),
+            koreader_progress_location: None,
+            last_opened_at: Some(110),
+            library_file_exists: Some(true),
+            source_file_exists: Some(true),
+        }
+    }
+
+    #[test]
+    fn pulled_progress_updates_unique_match_and_preserves_local_cfi() {
+        let mut books = vec![sample_book("book-1", "/library/book-1.epub")];
+        let document = derive_document_hash(&books[0]);
+        let (applied, ambiguous, local_newer) = merge_pulled_progress_entries(
+            &mut books,
+            &[KoReaderRemoteProgressEntry {
+                schema_version: 1,
+                book_id: "book-1".to_string(),
+                file_path: "/library/book-1.epub".to_string(),
+                source_path: None,
+                title: "Book book-1".to_string(),
+                author: "Reader".to_string(),
+                format: "EPUB".to_string(),
+                document,
+                progress: "/body/DocFragment[6]/body/div/p[4]".to_string(),
+                percentage: Some(44.0),
+                timestamp: 200,
+                device: None,
+                device_id: None,
+            }],
+        );
+
+        assert_eq!((applied, ambiguous, local_newer), (1, 0, 0));
+        assert_eq!(books[0].progress, "44%");
+        assert_eq!(books[0].progress_fraction, Some(0.44));
+        assert_eq!(
+            books[0].koreader_progress_location.as_deref(),
+            Some("/body/DocFragment[6]/body/div/p[4]")
+        );
+        assert_eq!(books[0].progress_location.as_deref(), Some("epubcfi(/6/2)"));
+        assert_eq!(books[0].last_opened_at, Some(200));
+    }
+
+    #[test]
+    fn pulled_progress_skips_local_newer_and_ambiguous_matches() {
+        let mut first = sample_book("book-1", "/library/shared.epub");
+        first.source_path = Some("/imports/shared-source.epub".to_string());
+        first.last_opened_at = Some(500);
+        let mut second = sample_book("book-2", "/library/other.epub");
+        second.source_path = Some("/imports/shared-source.epub".to_string());
+        let mut third = sample_book("book-3", "/library/unique.epub");
+        third.last_opened_at = Some(600);
+        let shared_document = derive_document_hash(&first);
+        let unique_document = derive_document_hash(&third);
+        let missing_document = "deadbeef".to_string();
+
+        let (applied, ambiguous, local_newer) = merge_pulled_progress_entries(
+            &mut [first, second, third],
+            &[
+                KoReaderRemoteProgressEntry {
+                    schema_version: 1,
+                    book_id: "book-1".to_string(),
+                    file_path: "/library/shared.epub".to_string(),
+                    source_path: None,
+                    title: "Book book-1".to_string(),
+                    author: "Reader".to_string(),
+                    format: "EPUB".to_string(),
+                    document: shared_document,
+                    progress: "55".to_string(),
+                    percentage: Some(55.0),
+                    timestamp: 300,
+                    device: None,
+                    device_id: None,
+                },
+                KoReaderRemoteProgressEntry {
+                    schema_version: 1,
+                    book_id: "book-3".to_string(),
+                    file_path: "/library/unique.epub".to_string(),
+                    source_path: None,
+                    title: "Book book-3".to_string(),
+                    author: "Reader".to_string(),
+                    format: "EPUB".to_string(),
+                    document: unique_document,
+                    progress: "66".to_string(),
+                    percentage: Some(66.0),
+                    timestamp: 300,
+                    device: None,
+                    device_id: None,
+                },
+                KoReaderRemoteProgressEntry {
+                    schema_version: 1,
+                    book_id: "book-3".to_string(),
+                    file_path: "/library/missing.epub".to_string(),
+                    source_path: None,
+                    title: "Missing".to_string(),
+                    author: "Reader".to_string(),
+                    format: "EPUB".to_string(),
+                    document: missing_document,
+                    progress: "12".to_string(),
+                    percentage: Some(12.0),
+                    timestamp: 300,
+                    device: None,
+                    device_id: None,
+                },
+            ],
+        );
+
+        assert_eq!((applied, ambiguous, local_newer), (0, 2, 1));
+    }
 }
