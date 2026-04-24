@@ -95,6 +95,10 @@ export type {
   ReaderParallelSessionState
 } from './parallel';
 export {
+  READER_TTS_DEFAULT_SOURCE_LABEL,
+  READER_TTS_DEFAULT_TARGET_LABEL,
+  READER_TTS_FOLLOW_CURRENT_LABEL,
+  READER_TTS_LOCKED_TARGET_LABEL,
   READER_TTS_UNAVAILABLE_REASON,
   createEmptyReaderTtsSessionState,
   createErrorReaderTtsSessionState,
@@ -103,9 +107,13 @@ export {
   createReaderTtsController,
   createSpeakingReaderTtsSessionState,
   createUnavailableReaderTtsSessionState,
+  getReaderTtsFollowCurrentLabel,
   getReaderTtsPrimaryActionLabel,
+  getReaderTtsReadableSourceLabel,
+  getReaderTtsReadableTargetLabel,
   getReaderTtsSessionStatusLabel,
   getReaderTtsStatusDetail,
+  normalizeReaderTtsSpeechTarget,
   READER_TTS_NO_TEXT_REASON
 } from './tts';
 export type {

@@ -345,6 +345,29 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '译文' })).toBeVisible();
 });
 
+test('reader can open tts mode as a dedicated notebook tab', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '朗读模式测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible();
+
+  await page.getByRole('button', { name: '打开朗读模式' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(notebook.getByText('把朗读从 header 的瞬时按钮收成显式阅读模式，让目标、跟随状态和会话控制都可见。')).toBeVisible();
+  await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
+  await expect(page.getByRole('button', { name: '锁定当前朗读目标' })).toBeVisible();
+  await expect(notebook.locator('.tts-panel strong', { hasText: '当前朗读目标' })).toBeVisible();
+  await expect(notebook.locator('.tts-panel strong', { hasText: '会话状态' })).toBeVisible();
+});
+
 test('reader opens txt assets in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

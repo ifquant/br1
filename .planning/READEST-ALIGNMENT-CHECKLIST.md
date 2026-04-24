@@ -466,12 +466,13 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Done commit: ec949f1
   - Notes: this slice turns the old assist result area into a shared workspace component and mounts it into the notebook as an `AI 助手` tab. The old sidebar assist entry stays alive for compatibility, but it now reuses the same workspace contract instead of owning a second copy of the assistant UI.
 
-- [ ] P5-1.3 Turn translation and TTS into intentional reading modes
-  - Outcome: translation stops being only a request panel, and TTS gains more deliberate follow/media-session/reading-mode semantics.
+- [x] P5-1.3 Turn translation and TTS into intentional reading modes
+  - Outcome: translation stops being only a request panel, and TTS gains more deliberate follow-current/reading-mode semantics.
   - Touches: reader viewport, sidebar/workspace surfaces, TTS helpers, targeted reader regressions.
-  - Progress: the translation half is now productized as a dedicated `翻译模式` notebook tab with explicit source/translated panels and a focused reader smoke. TTS follow/media-session semantics are still pending, so this item stays open.
-  - Tutorial: `tutorials/commit/0543-turn-translation-into-a-dedicated-reader-mode.md`.
-  - Notes: do not reopen provider/network boundary work unless the slice exposes a concrete bug.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/reader/tts.test.ts` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commits: da15fca, this commit
+  - Tutorial: `tutorials/commit/0543-turn-translation-into-a-dedicated-reader-mode.md`, `tutorials/commit/0544-turn-tts-into-a-dedicated-reader-mode.md`.
+  - Notes: this phase now closes the dedicated translation/TTS reader-mode surface. It still does not introduce a new speech engine or full browser media-session integration, so later reader parity work should treat those as new slices instead of quietly expanding this one.
 
 ## P6 Library Operations And Desktop Support
 

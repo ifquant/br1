@@ -8,6 +8,9 @@ export type ReaderTtsSessionAction = 'start' | 'pause' | 'resume' | 'stop';
 export type ReaderTtsSpeechTarget = {
   text: string;
   label: string;
+  sourceLabel?: string;
+  targetLabel?: string;
+  followsCurrent?: boolean;
 };
 
 export type ReaderTtsSessionState = {
@@ -16,6 +19,9 @@ export type ReaderTtsSessionState = {
   lastAction: ReaderTtsSessionAction | null;
   lastActionAt: number | null;
   speechLabel: string;
+  speechSourceLabel: string;
+  speechTargetLabel: string;
+  followsCurrent: boolean;
 };
 
 export type ReaderTtsControllerOptions = {
@@ -26,6 +32,48 @@ export type ReaderTtsControllerOptions = {
 
 export const READER_TTS_UNAVAILABLE_REASON = '当前还没有接入朗读引擎';
 export const READER_TTS_NO_TEXT_REASON = '当前没有可朗读的文本';
+export const READER_TTS_DEFAULT_SOURCE_LABEL = '当前阅读内容';
+export const READER_TTS_DEFAULT_TARGET_LABEL = '朗读目标';
+export const READER_TTS_FOLLOW_CURRENT_LABEL = '跟随当前内容';
+export const READER_TTS_LOCKED_TARGET_LABEL = '固定朗读目标';
+
+const trimReaderTtsLabel = (value?: string | null): string => value?.trim() || '';
+
+const createReaderTtsSessionTargetState = (target: ReaderTtsSpeechTarget | null) => {
+  const normalizedTarget = target?.text.trim() ? target : null;
+  const speechTargetLabel = trimReaderTtsLabel(
+    normalizedTarget?.targetLabel || normalizedTarget?.label
+  );
+  const speechSourceLabel = trimReaderTtsLabel(normalizedTarget?.sourceLabel);
+
+  return {
+    speechLabel: speechTargetLabel,
+    speechSourceLabel,
+    speechTargetLabel,
+    followsCurrent: !!normalizedTarget?.followsCurrent
+  };
+};
+
+export const normalizeReaderTtsSpeechTarget = (
+  target: ReaderTtsSpeechTarget | null
+): ReaderTtsSpeechTarget | null => {
+  const normalizedTarget = target;
+  const text = normalizedTarget?.text.trim() || '';
+  if (!text) return null;
+
+  const label =
+    trimReaderTtsLabel(normalizedTarget?.label) || trimReaderTtsLabel(normalizedTarget?.targetLabel);
+  const sourceLabel = trimReaderTtsLabel(normalizedTarget?.sourceLabel);
+  const targetLabel = trimReaderTtsLabel(normalizedTarget?.targetLabel) || label;
+
+  return {
+    text,
+    label: label || targetLabel,
+    sourceLabel: sourceLabel || undefined,
+    targetLabel: targetLabel || undefined,
+    followsCurrent: !!normalizedTarget?.followsCurrent
+  };
+};
 
 export const createEmptyReaderTtsSessionState = (
   overrides: Partial<ReaderTtsSessionState> = {}
@@ -35,6 +83,9 @@ export const createEmptyReaderTtsSessionState = (
   lastAction: null,
   lastActionAt: null,
   speechLabel: '',
+  speechSourceLabel: '',
+  speechTargetLabel: '',
+  followsCurrent: false,
   ...overrides
 });
 
@@ -98,7 +149,8 @@ export const getReaderTtsSessionStatusLabel = (state: ReaderTtsSessionState): st
 };
 
 export const getReaderTtsPrimaryActionLabel = (state: ReaderTtsSessionState): string => {
-  const speechSuffix = state.speechLabel ? `（${state.speechLabel}）` : '';
+  const speechTargetLabel = getReaderTtsReadableTargetLabel(state);
+  const speechSuffix = state.speechLabel ? `（${speechTargetLabel}）` : '';
 
   switch (state.status) {
     case 'speaking':
@@ -120,10 +172,21 @@ export const getReaderTtsStatusDetail = (state: ReaderTtsSessionState): string =
   }
 
   const statusLabel = getReaderTtsSessionStatusLabel(state);
-  if (!state.speechLabel) return statusLabel;
+  const speechTargetLabel = getReaderTtsReadableTargetLabel(state);
+  if (!speechTargetLabel) return statusLabel;
 
-  return `${statusLabel} · ${state.speechLabel}`;
+  return `${statusLabel} · ${speechTargetLabel}`;
 };
+
+export const getReaderTtsReadableSourceLabel = (state: ReaderTtsSessionState): string =>
+  trimReaderTtsLabel(state.speechSourceLabel) ||
+  (state.followsCurrent ? READER_TTS_DEFAULT_SOURCE_LABEL : '');
+
+export const getReaderTtsReadableTargetLabel = (state: ReaderTtsSessionState): string =>
+  trimReaderTtsLabel(state.speechTargetLabel) || trimReaderTtsLabel(state.speechLabel);
+
+export const getReaderTtsFollowCurrentLabel = (state: ReaderTtsSessionState): string =>
+  state.followsCurrent ? READER_TTS_FOLLOW_CURRENT_LABEL : READER_TTS_LOCKED_TARGET_LABEL;
 
 const hasSameReaderTtsSessionState = (
   current: ReaderTtsSessionState,
@@ -133,7 +196,10 @@ const hasSameReaderTtsSessionState = (
   current.error === next.error &&
   current.lastAction === next.lastAction &&
   current.lastActionAt === next.lastActionAt &&
-  current.speechLabel === next.speechLabel;
+  current.speechLabel === next.speechLabel &&
+  current.speechSourceLabel === next.speechSourceLabel &&
+  current.speechTargetLabel === next.speechTargetLabel &&
+  current.followsCurrent === next.followsCurrent;
 
 export const createReaderTtsController = ({
   isAvailable = false,
@@ -161,11 +227,11 @@ export const createReaderTtsController = ({
   };
 
   const setSpeechTarget = (target: ReaderTtsSpeechTarget | null) => {
-    activeSpeechTarget = target;
+    activeSpeechTarget = normalizeReaderTtsSpeechTarget(target);
     state.update((current) => {
       const next = {
         ...current,
-        speechLabel: target?.label.trim() || ''
+        ...createReaderTtsSessionTargetState(activeSpeechTarget)
       };
 
       return hasSameReaderTtsSessionState(current, next) ? current : next;
@@ -176,7 +242,7 @@ export const createReaderTtsController = ({
     available = false;
     updateState(
       createUnavailableReaderTtsSessionState(reason, {
-        speechLabel: activeSpeechTarget?.label.trim() || ''
+        ...createReaderTtsSessionTargetState(activeSpeechTarget)
       })
     );
   };
@@ -185,7 +251,7 @@ export const createReaderTtsController = ({
     available = true;
     updateState(
       createIdleReaderTtsSessionState({
-        speechLabel: activeSpeechTarget?.label.trim() || ''
+        ...createReaderTtsSessionTargetState(activeSpeechTarget)
       })
     );
   };
@@ -193,7 +259,7 @@ export const createReaderTtsController = ({
   const setError = (error: string) => {
     updateState(
       createErrorReaderTtsSessionState(error, {
-        speechLabel: activeSpeechTarget?.label.trim() || ''
+        ...createReaderTtsSessionTargetState(activeSpeechTarget)
       })
     );
   };
@@ -218,7 +284,7 @@ export const createReaderTtsController = ({
 
     updateState(
       createIdleReaderTtsSessionState({
-        speechLabel: activeSpeechTarget?.label.trim() || ''
+        ...createReaderTtsSessionTargetState(activeSpeechTarget)
       })
     );
   };
@@ -235,7 +301,7 @@ export const createReaderTtsController = ({
       return;
     }
 
-    const nextTarget = target?.text.trim() ? target : activeSpeechTarget;
+    const nextTarget = normalizeReaderTtsSpeechTarget(target) || activeSpeechTarget;
     const targetText = nextTarget?.text.trim() || '';
 
     if (!nextTarget || !targetText) {
@@ -249,7 +315,7 @@ export const createReaderTtsController = ({
     updateState(
       stamp(
         createSpeakingReaderTtsSessionState({
-          speechLabel: nextTarget.label.trim()
+          ...createReaderTtsSessionTargetState(nextTarget)
         }),
         'start'
       )
@@ -287,7 +353,7 @@ export const createReaderTtsController = ({
 
       return stamp(
         createPausedReaderTtsSessionState({
-          speechLabel: current.speechLabel
+          ...createReaderTtsSessionTargetState(activeSpeechTarget)
         }),
         'pause'
       );
@@ -311,7 +377,7 @@ export const createReaderTtsController = ({
 
       return stamp(
         createSpeakingReaderTtsSessionState({
-          speechLabel: current.speechLabel
+          ...createReaderTtsSessionTargetState(activeSpeechTarget)
         }),
         'resume'
       );
@@ -329,7 +395,7 @@ export const createReaderTtsController = ({
     updateState(
       stamp(
         createIdleReaderTtsSessionState({
-          speechLabel: activeSpeechTarget?.label.trim() || ''
+          ...createReaderTtsSessionTargetState(activeSpeechTarget)
         }),
         'stop'
       )

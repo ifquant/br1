@@ -1,24 +1,18 @@
 <script lang="ts">
   import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
+  import ReaderTtsWorkspace from './ReaderTtsWorkspace.svelte';
   import type {
     ReaderAssistanceState,
     ReaderPreviewState,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
-    ReaderTranslationProviderStatus
+    ReaderTranslationProviderStatus,
+    ReaderTtsSessionState,
+    ReaderTtsSpeechTarget
   } from '$lib/reader';
-  import { createEmptyReaderAssistanceState } from '$lib/reader';
+  import { createEmptyReaderAssistanceState, createEmptyReaderTtsSessionState } from '$lib/reader';
 
-  export let visible = false;
-  export let pinned = false;
-  export let activeTab: 'notes' | 'highlights' | 'assistant' | 'translation' = 'notes';
-  export let preview: ReaderPreviewState;
-  export let notesState: ReaderSidebarNotesState;
-  export let supportsTextAnnotations = false;
-  export let textAnnotationSupportMessage = '';
-  export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
-  export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
-  export let callbacks: Pick<
+  type ReaderNotebookCallbacks = Pick<
     ReaderSidebarCallbacks,
     | 'onAddHighlight'
     | 'onAddNote'
@@ -27,19 +21,45 @@
     | 'onDeleteNote'
     | 'onRequestLookup'
     | 'onRequestTranslation'
-  > = {
+  > & {
+    onTtsStart: (() => void) | null;
+    onTtsPause: (() => void) | null;
+    onTtsResume: (() => void) | null;
+    onTtsStop: (() => void) | null;
+  };
+
+  export let visible = false;
+  export let pinned = false;
+  export let activeTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' = 'notes';
+  export let preview: ReaderPreviewState;
+  export let notesState: ReaderSidebarNotesState;
+  export let supportsTextAnnotations = false;
+  export let textAnnotationSupportMessage = '';
+  export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
+  export let ttsSession: ReaderTtsSessionState = createEmptyReaderTtsSessionState();
+  export let ttsTarget: ReaderTtsSpeechTarget | null = null;
+  export let ttsFollowsCurrentLocation = true;
+  export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
+  export let callbacks: ReaderNotebookCallbacks = {
     onAddHighlight: null,
     onAddNote: null,
     onOpenNote: null,
     onEditNote: null,
     onDeleteNote: null,
     onRequestLookup: null,
-    onRequestTranslation: null
+    onRequestTranslation: null,
+    onTtsStart: null,
+    onTtsPause: null,
+    onTtsResume: null,
+    onTtsStop: null
   };
   export let onClose: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
-  export let onTabChange: ((tab: 'notes' | 'highlights' | 'assistant' | 'translation') => void) | null =
-    null;
+  export let onTabChange:
+    | ((tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts') => void)
+    | null = null;
+  export let onPinCurrentTtsTarget: (() => void) | null = null;
+  export let onResumeFollowingCurrentTtsTarget: (() => void) | null = null;
 
   $: noteEntries = notesState.notes.filter((note) => note.kind !== 'highlight');
   $: highlightEntries = notesState.notes.filter((note) => note.kind === 'highlight');
@@ -53,7 +73,7 @@
       .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  const setTab = (tab: 'notes' | 'highlights' | 'assistant' | 'translation') => {
+  const setTab = (tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts') => {
     if (tab === activeTab) return;
     onTabChange?.(tab);
   };
@@ -127,6 +147,15 @@
         on:click={() => setTab('translation')}
       >
         翻译模式
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class:active={activeTab === 'tts'}
+        aria-selected={activeTab === 'tts'}
+        on:click={() => setTab('tts')}
+      >
+        朗读模式
       </button>
     </div>
 
@@ -212,7 +241,7 @@
             onRequestTranslation: callbacks.onRequestTranslation
           }}
         />
-      {:else}
+      {:else if activeTab === 'translation'}
         <ReaderAssistWorkspace
           title="翻译模式"
           summary="把原文和译文并排收进 reader 工作台，让翻译成为一种阅读模式，而不是助手里的临时请求。"
@@ -225,6 +254,18 @@
             onRequestLookup: callbacks.onRequestLookup,
             onRequestTranslation: callbacks.onRequestTranslation
           }}
+        />
+      {:else}
+        <ReaderTtsWorkspace
+          {ttsSession}
+          target={ttsTarget}
+          followsCurrentLocation={ttsFollowsCurrentLocation}
+          onStart={callbacks.onTtsStart}
+          onPause={callbacks.onTtsPause}
+          onResume={callbacks.onTtsResume}
+          onStop={callbacks.onTtsStop}
+          onPinCurrentTarget={onPinCurrentTtsTarget}
+          onResumeFollowingCurrent={onResumeFollowingCurrentTtsTarget}
         />
       {/if}
     </div>

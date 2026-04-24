@@ -74,7 +74,9 @@
   let currentCoverUrl = '';
   let notebookVisible = false;
   let notebookPinned = false;
-  let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' = 'notes';
+  let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' = 'notes';
+  let ttsFollowsCurrentLocation = true;
+  let pinnedTtsTarget: ReaderTtsSpeechTarget | null = null;
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -258,7 +260,10 @@
     if (selectedText) {
       return {
         text: selectedText,
-        label: '选中文本'
+        label: '选中文本',
+        sourceLabel: '正文选区',
+        targetLabel: '选中文本',
+        followsCurrent: true
       };
     }
 
@@ -271,7 +276,10 @@
     ) {
       return {
         text: chapterLabel,
-        label: '安全回退：章节标题'
+        label: '当前章节',
+        sourceLabel: '当前阅读位置',
+        targetLabel: '章节标题',
+        followsCurrent: true
       };
     }
 
@@ -279,7 +287,10 @@
     if (title && title !== READER_EMPTY_TITLE) {
       return {
         text: title,
-        label: '安全回退：书名'
+        label: '当前书名',
+        sourceLabel: '当前阅读位置',
+        targetLabel: '书名',
+        followsCurrent: true
       };
     }
 
@@ -297,7 +308,7 @@
       try {
         const persisted = JSON.parse(rawNotebookShell) as {
           pinned?: boolean;
-          activeTab?: 'notes' | 'highlights' | 'assistant' | 'translation';
+          activeTab?: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts';
         };
         notebookPinned = !!persisted.pinned;
         notebookVisible = !!persisted.pinned;
@@ -306,9 +317,11 @@
             ? 'highlights'
             : persisted.activeTab === 'translation'
               ? 'translation'
-            : persisted.activeTab === 'assistant'
-              ? 'assistant'
-              : 'notes';
+              : persisted.activeTab === 'tts'
+                ? 'tts'
+              : persisted.activeTab === 'assistant'
+                ? 'assistant'
+                : 'notes';
       } catch (error) {
         console.warn('Failed to restore reader notebook shell state', error);
       }
@@ -326,8 +339,12 @@
     assistanceState = createEmptyReaderAssistanceState();
     lastAssistanceBookKey = readerBookKey;
   }
+  $: resolvedTtsTarget = resolveReaderTtsSpeechTarget();
+  $: effectiveTtsTarget = ttsFollowsCurrentLocation
+    ? resolvedTtsTarget
+    : pinnedTtsTarget || resolvedTtsTarget;
   $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
-    ttsController.setSpeechTarget(resolveReaderTtsSpeechTarget());
+    ttsController.setSpeechTarget(effectiveTtsTarget);
   }
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
@@ -458,7 +475,7 @@
   };
 
   const handleTtsStart = () => {
-    ttsController.start(resolveReaderTtsSpeechTarget());
+    ttsController.start(effectiveTtsTarget);
   };
 
   const handleTtsPause = () => {
@@ -471,6 +488,27 @@
 
   const handleTtsStop = () => {
     ttsController.stop();
+  };
+
+  const pinCurrentTtsTarget = () => {
+    pinnedTtsTarget = resolvedTtsTarget
+      ? {
+          ...resolvedTtsTarget,
+          followsCurrent: false
+        }
+      : null;
+    ttsFollowsCurrentLocation = false;
+    if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
+      ttsController.setSpeechTarget(pinnedTtsTarget);
+    }
+  };
+
+  const resumeFollowingCurrentTtsTarget = () => {
+    ttsFollowsCurrentLocation = true;
+    pinnedTtsTarget = null;
+    if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
+      ttsController.setSpeechTarget(resolvedTtsTarget);
+    }
   };
 
   const openBookmark = (href: string) => {
@@ -751,6 +789,18 @@
         >
           AI 工作台
         </button>
+        <button
+          type="button"
+          class="parallel-toggle notebook-toggle"
+          aria-pressed={notebookVisible && notebookTab === 'tts'}
+          aria-label="打开朗读模式"
+          on:click={() => {
+            notebookVisible = true;
+            notebookTab = 'tts';
+          }}
+        >
+          朗读模式
+        </button>
       </div>
 
       <div class:parallel-enabled={parallelEnabled} class="reader-stage-stack">
@@ -840,6 +890,9 @@
         supportsTextAnnotations={supportsTextAnnotationsForFormat(currentPreview.formatLabel)}
         textAnnotationSupportMessage="当前格式暂不支持正文批注。"
         assistance={assistanceState}
+        ttsSession={$ttsState}
+        ttsTarget={effectiveTtsTarget}
+        ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}
         translationProviderStatuses={translationProviderStatuses}
         callbacks={{
           onAddHighlight: sidebarCallbacks.onAddHighlight,
@@ -848,8 +901,14 @@
           onEditNote: sidebarCallbacks.onEditNote,
           onDeleteNote: sidebarCallbacks.onDeleteNote,
           onRequestLookup: sidebarCallbacks.onRequestLookup,
-          onRequestTranslation: sidebarCallbacks.onRequestTranslation
+          onRequestTranslation: sidebarCallbacks.onRequestTranslation,
+          onTtsStart: handleTtsStart,
+          onTtsPause: handleTtsPause,
+          onTtsResume: handleTtsResume,
+          onTtsStop: handleTtsStop
         }}
+        onPinCurrentTtsTarget={pinCurrentTtsTarget}
+        onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
         onClose={() => {
           notebookVisible = false;
         }}
