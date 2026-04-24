@@ -400,22 +400,45 @@ Goal: close the remaining user-visible Readest gaps that now mainly live in the 
   - Outcome: search and filter states now collapse the library into a single result shelf with explicit `搜索结果` / `筛选结果` semantics, while the existing scroll runtime remains the shared host for that contract instead of competing with workflow shelves.
   - Touches: `src/routes/library/+page.svelte`, `src/lib/library/page.ts`, `src/lib/library/body.ts`, `src/lib/library/surface.ts`, focused library smoke coverage.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test /Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` (PASS).
-  - Done commit: this commit
+  - Done commit: 1b985ad
   - Notes: this slice intentionally settles search/filter section rules first. It does not change grouped-browse navigation or invent a new scroll model; the existing scroll host stays in place, but the page state now decides much more clearly when workflow shelves should disappear and when the main result shelf should take over.
 
 - [x] P3-2.1 Productize continue reading and recent reading
   - Outcome: homepage sections for `continue reading` and `recent reading` now have explicit inclusion and completed-book rules, stable section limits, and a reachable “最近没有在读书” workflow notice once only finished books remain.
   - Touches: `src/lib/library/page.ts`, `src/lib/components/library/ContinueReadingShelf.svelte`, focused library section tests.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/library/page.test.ts` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 260c6f1
   - Notes: `continue reading` remains the in-progress shelf, while `recent reading` now excludes finished books instead of acting as a generic “opened sometime” bucket. This slice keeps the existing visual layout, but it turns the homepage reading workflow into a clearer product contract and makes the “no active reading” notice path real instead of theoretical.
 
 - [x] P3-2.2 Tighten Readest local-library migration and compatibility semantics
   - Outcome: the library now distinguishes “detected Readest records”, “still importable from local files”, “already compatible inside br1”, and “records whose local files are gone”, so migration entry points stop implying that every detected Readest book can still be synchronized.
   - Touches: `src-tauri/src/commands/library.rs`, `src-tauri/src/models.rs`, `src/lib/services/libraryPersistence.ts`, `src/lib/library/desktopCatalog.ts`, migration banner/empty-state copy.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cargo check --manifest-path /Users/dev/workspace2/hc_apps/br1/src-tauri/Cargo.toml` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/library/page.test.ts ./src/lib/library/desktopCatalog.test.ts` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 1a3580d
   - Notes: this slice does not add more migration breadth. It makes the existing local Readest path honest: banner counts now separate importable books from missing-file records, and “compatible in br1” only counts usable local copies instead of every historical `readest-*` record.
+
+## P4 Reader Product Parity
+
+Goal: close the next set of user-visible Readest gaps that now mainly live in reader capability boundaries, search semantics, and non-EPUB/PDF format product behavior.
+
+- [x] P4-1.1 Centralize reader format capability boundaries for search and annotations
+  - Outcome: reader format support now exposes a single shared contract for text annotation and full-text search affordances, so capability copy stops drifting between the sidebar, the viewport, and format-specific special cases.
+  - Touches: `src/lib/reader/formats.ts`, `src/lib/components/reader/ReaderViewport.svelte`, focused reader smoke coverage.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: this slice is intentionally narrow. It does not add TXT search; it moves the existing unsupported behavior into the shared reader-format capability table so later reader parity work can reuse one source of truth instead of preserving per-component hardcoded messages.
+
+- [ ] P4-1.2 Productize reader search states across formats and sidebars
+  - Outcome: search idle, unsupported, empty, and result states should read like one product surface across EPUB, TXT, and other supported reader formats instead of a mix of generic defaults and format-specific leftovers.
+  - Notes: this should stay on messaging, state hierarchy, and affordance alignment first; it should not quietly expand format support.
+
+- [ ] P4-2.1 Align reader shell chrome, toolbar density, and progress hierarchy
+  - Outcome: header/footer controls, progress summaries, and parallel-reader affordances should feel like one intentional reading product instead of an accumulation of utility controls.
+  - Notes: this slice should favor user-visible hierarchy and reading feel over structural churn.
+
+- [ ] P4-2.2 Tighten notes, bookmarks, and highlights workspace product semantics
+  - Outcome: the sidebar should present notes/bookmarks/highlights as one coherent reading workspace with clearer unsupported states, counts, and action framing across formats.
+  - Notes: keep the current storage/sync substrate unless a product-semantic fix requires a bounded correctness repair.
 
 ## Service Security Gate
 
@@ -447,4 +470,8 @@ Use this log when completing each item.
 | 2026-04-25 | Harden post-merge sync validation and KOReader import semantics | 987ee43 | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | adds rollback-backed KOReader exchange writes, makes local-newer honor KOReader `updated_at`, requires KOReader identity for fallback matching, promotes Readest Cloud pull validation to restore-level checks, and stops Readest import from seeding `koreaderProgressLocation` |
 | 2026-04-25 | Make snapshot restore transactional across local and remote apply | d8695f8 | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | replaces the shared snapshot apply roots with a rollback-backed mutation plan so local snapshot restore and Readest Cloud pull no longer risk half-applied library/bookmark/note/highlights state |
 | 2026-04-25 | Align the library top toolbar and search behavior | 6cf2fd2 | `pnpm check`; `git diff --check`; `pnpm exec playwright test tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` | moves import/search status back into the header, removes the shelf import tile, and stops shelf headers from echoing top-level view semantics |
-| 2026-04-25 | Align library cards, covers, metadata, and status density | this commit | `pnpm check`; `git diff --check`; `pnpm exec playwright test tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` | tightens card and row hierarchy around cover/title/status/progress emphasis so grid/list and continue-reading surfaces feel like one product system |
+| 2026-04-25 | Align library cards, covers, metadata, and status density | 3c3eca8 | `pnpm check`; `git diff --check`; `pnpm exec playwright test tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` | tightens card and row hierarchy around cover/title/status/progress emphasis so grid/list and continue-reading surfaces feel like one product system |
+| 2026-04-25 | Align library sort, filter, section, and scroll behavior | 1b985ad | `pnpm check`; `git diff --check`; `pnpm exec playwright test tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` | collapses search/filter states into explicit result shelves and hides workflow sections once the page is in search/filter mode |
+| 2026-04-25 | Productize continue reading and recent reading | 260c6f1 | `pnpm check`; `pnpm dlx tsx --test ./src/lib/library/page.test.ts`; `git diff --check` | turns continue/recent shelves into explicit reading-workflow rules and excludes finished books from recent reading |
+| 2026-04-25 | Tighten Readest local-library migration and compatibility semantics | 1a3580d | `pnpm check`; `cargo check --manifest-path src-tauri/Cargo.toml`; `pnpm dlx tsx --test ./src/lib/library/page.test.ts ./src/lib/library/desktopCatalog.test.ts`; `git diff --check` | separates detected Readest records from importable local files and from already-compatible br1 copies so migration entry points stop overstating what can be synced |
+| 2026-04-25 | Centralize reader format capability boundaries for search and annotations | this commit | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"`; `git diff --check` | moves TXT search unsupported handling into the shared reader format capability contract so viewport and sidebar behavior can grow from one source of truth |

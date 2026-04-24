@@ -128,7 +128,9 @@ export {
 export type { ReaderShellPalette, ReaderThemePalette } from './settings';
 export {
   getDesktopBookDialogExtensions,
+  getSearchSupportMessage,
   getReaderFormatSupportStatus,
+  supportsSearchForFormat,
   inferReaderFormatLabelFromName,
   isPlannedReaderFormatLabel,
   isSupportedReaderFormatLabel,

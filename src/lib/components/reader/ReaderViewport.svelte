@@ -14,6 +14,7 @@
     createFoliateViewElement,
     ensureFoliateViewDefinition,
     flattenToc,
+    getSearchSupportMessage,
     getXPointerFromCFI,
     getReaderFormatSupportStatus,
     getReaderThemePalette,
@@ -26,6 +27,7 @@
     pickText,
     parsePlainTextCodeBlocks,
     renderPlainTextBlocksHtml,
+    supportsSearchForFormat,
     wrapFoliateViewElement,
     type ReaderControlRequest,
     type ReaderBookDocument,
@@ -812,35 +814,31 @@
     });
 
   const runSearch = async (query: string, config: ReaderSearchConfig) => {
-    if (openEngineMode === 'plain-text') {
-      const normalizedQuery = query.trim();
-      if (!normalizedQuery) {
-        emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
-        return;
-      }
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
+      return;
+    }
 
+    if (!supportsSearchForFormat(currentFormatLabel)) {
       emitSearchState({
         query: normalizedQuery,
         status: 'error',
         results: [],
         progress: 0,
-        error: 'TXT 书籍暂不支持全文搜索。'
+        error: getSearchSupportMessage(currentFormatLabel)
       });
       return;
     }
+
+    if (openEngineMode === 'plain-text') return;
 
     if (!foliateViewElement) return;
 
     lastSearchToken += 1;
     const token = lastSearchToken;
-    const normalizedQuery = query.trim();
 
     foliateViewElement.clearSearch();
-
-    if (!normalizedQuery) {
-      emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
-      return;
-    }
 
     const cacheKey = getSearchCacheKey(normalizedQuery, config);
     const cached = searchCache.get(cacheKey);

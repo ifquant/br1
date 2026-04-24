@@ -5,16 +5,17 @@ type ReaderFormatCapability = {
   supportStatus: ReaderFormatSupportStatus;
   packagedAssociated: boolean;
   textAnnotatable: boolean;
+  searchable: boolean;
 };
 
 const READER_FORMAT_CAPABILITIES: readonly ReaderFormatCapability[] = [
-  { extension: 'epub', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true },
-  { extension: 'pdf', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true },
-  { extension: 'mobi', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true },
-  { extension: 'azw3', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true },
-  { extension: 'fb2', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true },
-  { extension: 'cbz', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: false },
-  { extension: 'txt', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true }
+  { extension: 'epub', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: true },
+  { extension: 'pdf', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: true },
+  { extension: 'mobi', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: true },
+  { extension: 'azw3', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: true },
+  { extension: 'fb2', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: true },
+  { extension: 'cbz', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: false, searchable: true },
+  { extension: 'txt', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: false }
 ];
 
 const getReaderFormatCapability = (label: string) => {
@@ -64,4 +65,15 @@ export const getTextAnnotationSupportMessage = (label: string) => {
     return '当前 CBZ 只支持阅读进度和书签，还不支持正文文本批注。';
   }
   return '先在正文里选中一段文本，再把它存成当前书的笔记。';
+};
+
+export const supportsSearchForFormat = (label: string) => {
+  return getReaderFormatCapability(label)?.searchable ?? true;
+};
+
+export const getSearchSupportMessage = (label: string) => {
+  if (!supportsSearchForFormat(label)) {
+    return 'TXT 书籍暂不支持全文搜索。';
+  }
+  return '输入关键词后，阅读器会在当前书内查找匹配内容。';
 };

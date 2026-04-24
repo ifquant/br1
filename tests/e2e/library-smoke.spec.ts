@@ -278,6 +278,25 @@ test('reader opens txt assets in web mode', async ({ page }) => {
   await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
 
+test('reader shows txt search capability boundary messaging in web mode', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await page.getByRole('tab', { name: '搜索' }).click();
+  await expect(page.getByLabel('正文搜索面板')).toBeVisible();
+  await expect(page.locator('.search-summary')).toContainText('正文搜索');
+  await expect(page.locator('.search-summary')).toContainText(
+    '输入关键词后会在正文里搜索，而不只是过滤目录。'
+  );
+  await expect(page.getByLabel('搜索结果')).toContainText(
+    '打开书后，这里会显示真正的正文搜索结果。'
+  );
+
+  await page.getByRole('searchbox', { name: '搜索正文内容' }).fill('plain text');
+  await expect(page.getByLabel('搜索结果')).toContainText('TXT 书籍暂不支持全文搜索。');
+});
+
 test('reader persists epub layout settings through reload in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.epub&label=Sample%20EPUB%20Book';
