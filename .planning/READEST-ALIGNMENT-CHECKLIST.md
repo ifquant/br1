@@ -308,6 +308,13 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: added a visible library-menu KOReader exchange workflow on top of the adapter slice instead of jumping straight to remote KOReader protocol wiring. Export now writes a Tauri-owned `br1-koreader-sync-*.json` exchange document built from the current sync snapshot; import opens the same kind of document through a Tauri dialog, merges only uniquely matched books back into the current snapshot, and skips missing, ambiguous, or locally newer books with explicit conflict counts in the resulting notice instead of hard-stopping the whole import.
 
+- [x] P2-4.3 Add KOReader server-backed progress sync
+  - Outcome: users can manually push and pull KOReader reading progress against a configured KOReader server without turning the renderer into a generic network proxy.
+  - Touches: KOReader remote command, sync service merge helpers, library menu wiring, tests.
+  - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: added a dedicated Tauri-owned `run_koreader_remote_sync` command that authenticates with fixed KOReader endpoint families and env-owned credentials, then wires manual push/pull actions into the existing library menu. Push only emits reading progress payloads; pull only merges reading-state records, skips ambiguous hashes and locally newer records, and leaves annotation remote sync explicitly out of scope for this slice.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

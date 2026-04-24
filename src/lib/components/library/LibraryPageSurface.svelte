@@ -43,6 +43,16 @@
     void actions.onImportKoReaderSync();
   };
 
+  const handlePushKoReaderRemoteSync = () => {
+    if (!actions.onPushKoReaderRemoteSync) return;
+    void actions.onPushKoReaderRemoteSync();
+  };
+
+  const handlePullKoReaderRemoteSync = () => {
+    if (!actions.onPullKoReaderRemoteSync) return;
+    void actions.onPullKoReaderRemoteSync();
+  };
+
   const handlePushRemoteSync = () => {
     if (!actions.onPushRemoteSync) return;
     void actions.onPushRemoteSync();
@@ -116,6 +126,8 @@
     on:importsyncsnapshot={handleImportSyncSnapshot}
     on:exportkoreadersync={handleExportKoReaderSync}
     on:importkoreadersync={handleImportKoReaderSync}
+    on:pushkoreaderremotesync={handlePushKoReaderRemoteSync}
+    on:pullkoreaderremotesync={handlePullKoReaderRemoteSync}
     on:pushremotesync={handlePushRemoteSync}
     on:pullremotesync={handlePullRemoteSync}
     on:filterchange={handleFilterChange}

@@ -122,14 +122,24 @@ export type {
 } from './syncSnapshot';
 export {
   BR1_KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION,
+  BR1_KOREADER_REMOTE_PROGRESS_SCHEMA_VERSION,
+  createKoReaderRemoteProgressEntriesFromSnapshot,
   createKoReaderSyncExchangeFromSnapshot,
   loadKoReaderSyncExchangeDialog,
+  mergeKoReaderRemoteProgressIntoSnapshot,
   mergeKoReaderSyncExchangeIntoSnapshot,
+  runKoReaderRemoteSync,
   saveKoReaderSyncExchangeDialog
 } from './koreaderSync';
 export type {
+  Br1KoReaderRemoteProgressEntry,
+  Br1KoReaderRemoteSyncOperation,
+  Br1KoReaderRemoteSyncRequest,
+  Br1KoReaderRemoteSyncResult,
   Br1KoReaderSyncExchangeBook,
   Br1KoReaderSyncExchangeDocument,
+  KoReaderRemoteSyncConflict,
+  KoReaderRemoteSyncPullPlan,
   KoReaderSyncConflict,
   KoReaderSyncExchangeExportDialogResult,
   KoReaderSyncExchangeImportDialogResult,

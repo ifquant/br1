@@ -9,7 +9,9 @@ import {
   createReadingStateSyncRecord
 } from '../sync/index.js';
 import {
+  createKoReaderRemoteProgressEntriesFromSnapshot,
   createKoReaderSyncExchangeFromSnapshot,
+  mergeKoReaderRemoteProgressIntoSnapshot,
   mergeKoReaderSyncExchangeIntoSnapshot
 } from './koreaderSync.js';
 
@@ -152,6 +154,51 @@ test('KOReader exchange import skips older data when current local state is newe
   ];
 
   const plan = mergeKoReaderSyncExchangeIntoSnapshot(current, exchange);
+
+  assert.equal(plan.appliedBookCount, 0);
+  assert.equal(plan.conflicts[0]?.kind, 'local-newer');
+});
+
+test('KOReader remote progress export keeps one progress entry per reading-state book', () => {
+  const entries = createKoReaderRemoteProgressEntriesFromSnapshot(createSnapshot());
+
+  assert.equal(entries.length, 2);
+  assert.equal(entries[0]?.bookId, 'book-alpha');
+  assert.equal(entries[0]?.document.length > 0, true);
+  assert.equal(entries[0]?.progress, '10%');
+  assert.equal(entries[0]?.percentage, 10);
+});
+
+test('KOReader remote progress pull merges newer remote progress into the snapshot', () => {
+  const current = createSnapshot();
+  const entries = createKoReaderRemoteProgressEntriesFromSnapshot(current);
+  const remoteAlpha = {
+    ...entries[0],
+    progress: '[44,100]',
+    percentage: 44,
+    timestamp: 1700000030000
+  };
+
+  const plan = mergeKoReaderRemoteProgressIntoSnapshot(current, [remoteAlpha]);
+  const alphaReading = plan.snapshot.records.find((record) => record.id === 'reading-state:book-alpha');
+
+  assert.equal(plan.appliedBookCount, 1);
+  assert.equal(plan.skippedBookCount, 0);
+  assert.equal(alphaReading?.kind, 'reading-state');
+  assert.equal((alphaReading as { payload: { progress: string } }).payload.progress, '[44,100]');
+});
+
+test('KOReader remote progress pull skips older remote progress when local state is newer', () => {
+  const current = createSnapshot();
+  const entries = createKoReaderRemoteProgressEntriesFromSnapshot(current);
+  const remoteAlpha = {
+    ...entries[0],
+    progress: '[4,100]',
+    percentage: 4,
+    timestamp: 1700000000001
+  };
+
+  const plan = mergeKoReaderRemoteProgressIntoSnapshot(current, [remoteAlpha]);
 
   assert.equal(plan.appliedBookCount, 0);
   assert.equal(plan.conflicts[0]?.kind, 'local-newer');

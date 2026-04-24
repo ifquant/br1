@@ -147,6 +147,8 @@
     importsyncsnapshot: void;
     exportkoreadersync: void;
     importkoreadersync: void;
+    pushkoreaderremotesync: void;
+    pullkoreaderremotesync: void;
     pushremotesync: void;
     pullremotesync: void;
     viewmodechange: { viewMode: 'grid' | 'list' };
@@ -267,6 +269,16 @@
 
   const handleImportKoReaderSync = () => {
     dispatch('importkoreadersync');
+    sortMenuOpen = false;
+  };
+
+  const handlePushKoReaderRemoteSync = () => {
+    dispatch('pushkoreaderremotesync');
+    sortMenuOpen = false;
+  };
+
+  const handlePullKoReaderRemoteSync = () => {
+    dispatch('pullkoreaderremotesync');
     sortMenuOpen = false;
   };
 
@@ -519,6 +531,26 @@
 
               {#if showRemoteSyncActions}
                 <span class="sort-menu-label secondary-label">云同步</span>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={remoteSyncBusy}
+                  on:click={handlePushKoReaderRemoteSync}
+                >
+                  <span>推送到 KOReader</span>
+                  <small>{remoteSyncBusy ? '进行中…' : '仅同步当前书库的阅读进度到 KOReader 服务端'}</small>
+                </button>
+                <button
+                  type="button"
+                  class="sort-option"
+                  role="menuitem"
+                  disabled={remoteSyncBusy}
+                  on:click={handlePullKoReaderRemoteSync}
+                >
+                  <span>从 KOReader 拉取</span>
+                  <small>{remoteSyncBusy ? '进行中…' : '只回填 KOReader 服务端较新的阅读进度'}</small>
+                </button>
                 <button
                   type="button"
                   class="sort-option"

@@ -14,6 +14,7 @@ import type { PersistedLibraryBook } from './libraryPersistence';
 import { invokeTauri, isTauriDesktop } from './platform.js';
 
 export const BR1_KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION = 1;
+export const BR1_KOREADER_REMOTE_PROGRESS_SCHEMA_VERSION = 1;
 
 export type Br1KoReaderSyncExchangeBook = {
   bookId: string;
@@ -74,6 +75,65 @@ export type KoReaderSyncImportPlan = {
   conflicts: KoReaderSyncConflict[];
 };
 
+export type Br1KoReaderRemoteProgressEntry = {
+  schemaVersion: typeof BR1_KOREADER_REMOTE_PROGRESS_SCHEMA_VERSION;
+  bookId: string;
+  filePath: string;
+  sourcePath: string | null;
+  title: string;
+  author: string;
+  format: string;
+  document: string;
+  progress: string;
+  percentage: number | null;
+  timestamp: number;
+  device: string | null;
+  deviceId: string | null;
+};
+
+export type Br1KoReaderRemoteSyncOperation = 'push' | 'pull';
+
+export type Br1KoReaderRemoteSyncStatus =
+  | 'success'
+  | 'missing-config'
+  | 'auth-failure'
+  | 'offline'
+  | 'retryable-failure'
+  | 'empty';
+
+export type Br1KoReaderRemoteSyncRequest = {
+  operation: Br1KoReaderRemoteSyncOperation;
+  entries: Br1KoReaderRemoteProgressEntry[];
+};
+
+export type Br1KoReaderRemoteSyncResult = {
+  operation: Br1KoReaderRemoteSyncOperation;
+  status: Br1KoReaderRemoteSyncStatus;
+  message: string;
+  retryable: boolean;
+  pushedCount: number;
+  pulledCount: number;
+  skippedCount: number;
+  entries: Br1KoReaderRemoteProgressEntry[];
+};
+
+export type KoReaderRemoteSyncConflictKind = 'ambiguous-local-book' | 'local-newer';
+
+export type KoReaderRemoteSyncConflict = {
+  kind: KoReaderRemoteSyncConflictKind;
+  bookTitle: string;
+  bookAuthor: string;
+  bookFormat: string;
+  detail: string;
+};
+
+export type KoReaderRemoteSyncPullPlan = {
+  snapshot: Br1SyncSnapshot;
+  appliedBookCount: number;
+  skippedBookCount: number;
+  conflicts: KoReaderRemoteSyncConflict[];
+};
+
 const requireTauriKoReaderSyncRuntime = (action: string) => {
   if (!isTauriDesktop()) {
     throw new Error(`${action} requires the Tauri desktop runtime`);
@@ -81,6 +141,11 @@ const requireTauriKoReaderSyncRuntime = (action: string) => {
 };
 
 const stringifyComparable = (value: unknown) => JSON.stringify(value ?? null);
+
+const toPercent = (value: number | null | undefined) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(100, Number((value * 100).toFixed(2))));
+};
 
 const getMetadataRecordMap = (snapshot: Br1SyncSnapshot) =>
   new Map(
@@ -121,6 +186,48 @@ const toPersistedLibraryBook = (
   progressLocation: readingStateRecord?.payload.progressLocation ?? null,
   lastOpenedAt: readingStateRecord?.payload.lastOpenedAt ?? null
 });
+
+export const createKoReaderRemoteProgressEntriesFromSnapshot = (
+  snapshot: Br1SyncSnapshot
+): Br1KoReaderRemoteProgressEntry[] => {
+  const metadataRecords = [...getMetadataRecordMap(snapshot).values()];
+  const readingStateById = getReadingStateRecordMap(snapshot);
+
+  return metadataRecords.flatMap((metadataRecord) => {
+    const readingStateRecord = readingStateById.get(metadataRecord.payload.id);
+    if (!readingStateRecord) {
+      return [];
+    }
+
+    const book = toPersistedLibraryBook(metadataRecord, readingStateRecord);
+    const identity = deriveKoReaderBookIdentity(book);
+    const progress = String(readingStateRecord.payload.progress ?? '').trim();
+    const timestamp =
+      readingStateRecord.payload.lastOpenedAt ?? readingStateRecord.updatedAt ?? snapshot.exportedAt;
+
+    if (!progress && !timestamp) {
+      return [];
+    }
+
+    return [
+      {
+        schemaVersion: BR1_KOREADER_REMOTE_PROGRESS_SCHEMA_VERSION,
+        bookId: book.id,
+        filePath: book.filePath,
+        sourcePath: book.sourcePath ?? null,
+        title: book.title,
+        author: book.author,
+        format: book.format,
+        document: identity.bookHash,
+        progress,
+        percentage: toPercent(readingStateRecord.payload.progressFraction),
+        timestamp,
+        device: null,
+        deviceId: null
+      }
+    ];
+  });
+};
 
 export const createKoReaderSyncExchangeFromSnapshot = (
   snapshot: Br1SyncSnapshot
@@ -320,6 +427,88 @@ export const mergeKoReaderSyncExchangeIntoSnapshot = (
   };
 };
 
+export const mergeKoReaderRemoteProgressIntoSnapshot = (
+  currentSnapshot: Br1SyncSnapshot,
+  remoteEntries: Br1KoReaderRemoteProgressEntry[]
+): KoReaderRemoteSyncPullPlan => {
+  const nextRecords = [...currentSnapshot.records];
+  const metadataRecords = [...getMetadataRecordMap(currentSnapshot).values()];
+  const metadataByDocument = new Map<string, LibraryBookMetadataSyncRecord[]>();
+  const readingStateById = getReadingStateRecordMap(currentSnapshot);
+  const conflicts: KoReaderRemoteSyncConflict[] = [];
+  let appliedBookCount = 0;
+
+  for (const metadataRecord of metadataRecords) {
+    const identity = deriveKoReaderBookIdentity(metadataRecord.payload);
+    const entries = metadataByDocument.get(identity.bookHash) ?? [];
+    entries.push(metadataRecord);
+    metadataByDocument.set(identity.bookHash, entries);
+  }
+
+  const replaceRecord = (recordId: string, replacement: unknown & { id: string }) => {
+    const index = nextRecords.findIndex((record) => record.id === recordId);
+    if (index >= 0) {
+      nextRecords[index] = replacement as (typeof nextRecords)[number];
+      return;
+    }
+    nextRecords.push(replacement as (typeof nextRecords)[number]);
+  };
+
+  for (const remoteEntry of remoteEntries) {
+    const matchedRecords = metadataByDocument.get(remoteEntry.document) ?? [];
+    if (matchedRecords.length !== 1) {
+      conflicts.push({
+        kind: 'ambiguous-local-book',
+        bookTitle: remoteEntry.title,
+        bookAuthor: remoteEntry.author,
+        bookFormat: remoteEntry.format,
+        detail:
+          matchedRecords.length === 0
+            ? '当前本地书库里没有可安全回填的匹配图书。'
+            : `当前本地书库里有 ${matchedRecords.length} 本图书共享同一个 KOReader 文档哈希，无法安全决定要覆盖哪一本。`
+      });
+      continue;
+    }
+
+    const metadataRecord = matchedRecords[0];
+    const currentReadingState = readingStateById.get(metadataRecord.payload.id) ?? null;
+    const currentUpdatedAt =
+      currentReadingState?.payload.lastOpenedAt ?? currentReadingState?.updatedAt ?? 0;
+    if (currentUpdatedAt > remoteEntry.timestamp) {
+      conflicts.push({
+        kind: 'local-newer',
+        bookTitle: metadataRecord.payload.title,
+        bookAuthor: metadataRecord.payload.author,
+        bookFormat: metadataRecord.payload.format,
+        detail: '本地阅读进度比 KOReader 服务端更新，已跳过覆盖。'
+      });
+      continue;
+    }
+
+    const replacement = createKoReaderReadingStateSyncRecord(
+      toPersistedLibraryBook(metadataRecord, currentReadingState),
+      {
+        ...deriveKoReaderBookIdentity(metadataRecord.payload),
+        progress: remoteEntry.progress,
+        xpointer: currentReadingState?.payload.progressLocation ?? '',
+        updatedAt: remoteEntry.timestamp
+      }
+    );
+    replaceRecord(replacement.id, replacement);
+    appliedBookCount += 1;
+  }
+
+  return {
+    snapshot: {
+      ...currentSnapshot,
+      records: nextRecords
+    },
+    appliedBookCount,
+    skippedBookCount: remoteEntries.length - appliedBookCount,
+    conflicts
+  };
+};
+
 export const saveKoReaderSyncExchangeDialog = async (
   document: Br1KoReaderSyncExchangeDocument
 ): Promise<KoReaderSyncExchangeExportDialogResult> => {
@@ -332,4 +521,13 @@ export const saveKoReaderSyncExchangeDialog = async (
 export const loadKoReaderSyncExchangeDialog = async (): Promise<KoReaderSyncExchangeImportDialogResult> => {
   requireTauriKoReaderSyncRuntime('loadKoReaderSyncExchangeDialog');
   return invokeTauri<KoReaderSyncExchangeImportDialogResult>('load_koreader_sync_exchange_dialog');
+};
+
+export const runKoReaderRemoteSync = async (
+  request: Br1KoReaderRemoteSyncRequest
+): Promise<Br1KoReaderRemoteSyncResult> => {
+  requireTauriKoReaderSyncRuntime('runKoReaderRemoteSync');
+  return invokeTauri<Br1KoReaderRemoteSyncResult>('run_koreader_remote_sync', {
+    request
+  });
 };

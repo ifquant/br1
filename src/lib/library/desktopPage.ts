@@ -26,9 +26,12 @@ import type {
   LibraryShelfBook
 } from './types';
 import type {
+  Br1KoReaderRemoteSyncRequest,
+  Br1KoReaderRemoteSyncResult,
   Br1KoReaderSyncExchangeDocument,
   Br1RemoteSyncRequest,
   Br1RemoteSyncResult,
+  KoReaderRemoteSyncPullPlan,
   KoReaderSyncExchangeExportDialogResult,
   KoReaderSyncExchangeImportDialogResult,
   KoReaderSyncImportPlan,
@@ -90,12 +93,20 @@ export type DesktopLibraryPageCoordinatorOptions = {
     document: Br1KoReaderSyncExchangeDocument
   ) => Promise<KoReaderSyncExchangeExportDialogResult>;
   loadKoReaderSyncExchangeDialog: () => Promise<KoReaderSyncExchangeImportDialogResult>;
+  createKoReaderRemoteProgressEntriesFromSnapshot: (snapshot: any) => any[];
   mergeKoReaderSyncExchangeIntoSnapshot: (
     currentSnapshot: any,
     document: Br1KoReaderSyncExchangeDocument
   ) => KoReaderSyncImportPlan;
+  mergeKoReaderRemoteProgressIntoSnapshot: (
+    currentSnapshot: any,
+    remoteEntries: any[]
+  ) => KoReaderRemoteSyncPullPlan;
   prepareSyncSnapshotRestore: (snapshot: any) => PreparedSyncSnapshotRestore;
   applySyncSnapshot: (request: PreparedSyncSnapshotRestore['request']) => Promise<SyncSnapshotApplyResult>;
+  runKoReaderRemoteSync: (
+    request: Br1KoReaderRemoteSyncRequest
+  ) => Promise<Br1KoReaderRemoteSyncResult>;
   runRemoteSync: (request: Br1RemoteSyncRequest) => Promise<Br1RemoteSyncResult>;
   persistImportedReaderSettings: (
     storage: Storage | undefined,
@@ -259,9 +270,12 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createKoReaderSyncExchangeFromSnapshot,
   saveKoReaderSyncExchangeDialog,
   loadKoReaderSyncExchangeDialog,
+  createKoReaderRemoteProgressEntriesFromSnapshot,
   mergeKoReaderSyncExchangeIntoSnapshot,
+  mergeKoReaderRemoteProgressIntoSnapshot,
   prepareSyncSnapshotRestore,
   applySyncSnapshot,
+  runKoReaderRemoteSync,
   runRemoteSync,
   persistImportedReaderSettings,
   getStorage,
@@ -293,9 +307,12 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createKoReaderSyncExchangeFromSnapshot: DesktopLibraryPageCoordinatorEnvironment['createKoReaderSyncExchangeFromSnapshot'];
   saveKoReaderSyncExchangeDialog: DesktopLibraryPageCoordinatorEnvironment['saveKoReaderSyncExchangeDialog'];
   loadKoReaderSyncExchangeDialog: DesktopLibraryPageCoordinatorEnvironment['loadKoReaderSyncExchangeDialog'];
+  createKoReaderRemoteProgressEntriesFromSnapshot: DesktopLibraryPageCoordinatorEnvironment['createKoReaderRemoteProgressEntriesFromSnapshot'];
   mergeKoReaderSyncExchangeIntoSnapshot: DesktopLibraryPageCoordinatorEnvironment['mergeKoReaderSyncExchangeIntoSnapshot'];
+  mergeKoReaderRemoteProgressIntoSnapshot: DesktopLibraryPageCoordinatorEnvironment['mergeKoReaderRemoteProgressIntoSnapshot'];
   prepareSyncSnapshotRestore: DesktopLibraryPageCoordinatorEnvironment['prepareSyncSnapshotRestore'];
   applySyncSnapshot: DesktopLibraryPageCoordinatorEnvironment['applySyncSnapshot'];
+  runKoReaderRemoteSync: DesktopLibraryPageCoordinatorEnvironment['runKoReaderRemoteSync'];
   runRemoteSync: DesktopLibraryPageCoordinatorEnvironment['runRemoteSync'];
   persistImportedReaderSettings: DesktopLibraryPageCoordinatorEnvironment['persistImportedReaderSettings'];
   getStorage: () => Storage | undefined;
@@ -327,9 +344,12 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   createKoReaderSyncExchangeFromSnapshot,
   saveKoReaderSyncExchangeDialog,
   loadKoReaderSyncExchangeDialog,
+  createKoReaderRemoteProgressEntriesFromSnapshot,
   mergeKoReaderSyncExchangeIntoSnapshot,
+  mergeKoReaderRemoteProgressIntoSnapshot,
   prepareSyncSnapshotRestore,
   applySyncSnapshot,
+  runKoReaderRemoteSync,
   runRemoteSync,
   persistImportedReaderSettings,
   getStorage,
@@ -761,6 +781,129 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     }
   };
 
+  const buildKoReaderRemoteSyncSnapshot = async () => buildCurrentSyncSnapshot();
+
+  const summarizeKoReaderRemotePullConflicts = (plan: KoReaderRemoteSyncPullPlan) => {
+    if (plan.conflicts.length === 0) {
+      return '';
+    }
+
+    const ambiguousCount = plan.conflicts.filter(
+      (conflict) => conflict.kind === 'ambiguous-local-book'
+    ).length;
+    const localNewerCount = plan.conflicts.filter(
+      (conflict) => conflict.kind === 'local-newer'
+    ).length;
+    const parts: string[] = [];
+    if (ambiguousCount > 0) {
+      parts.push(`${ambiguousCount} 本匹配不唯一`);
+    }
+    if (localNewerCount > 0) {
+      parts.push(`${localNewerCount} 本本地更新更晚`);
+    }
+    return parts.length > 0 ? ` 跳过 ${parts.join('，')}。` : '';
+  };
+
+  const handlePushKoReaderRemoteSync = async () => {
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
+
+    options.setRemoteSyncBusy(true);
+    clearLibraryNotice();
+    try {
+      const snapshot = await buildKoReaderRemoteSyncSnapshot();
+      const entries = options.createKoReaderRemoteProgressEntriesFromSnapshot(snapshot);
+      const result = await options.runKoReaderRemoteSync({
+        operation: 'push',
+        entries
+      });
+
+      if (result.status === 'success' || result.status === 'empty') {
+        setLibraryNotice('info', result.message);
+        return;
+      }
+
+      if (result.status === 'offline' || result.status === 'retryable-failure') {
+        setLibraryNotice('error', result.message, {
+          label: '重试',
+          run: handlePushKoReaderRemoteSync
+        });
+        return;
+      }
+
+      setLibraryNotice('error', result.message);
+    } catch (error) {
+      console.error('Failed to push KOReader remote progress', error);
+      setLibraryNotice('error', '推送 KOReader 阅读进度失败，请稍后重试。', {
+        label: '重试',
+        run: handlePushKoReaderRemoteSync
+      });
+    } finally {
+      options.setRemoteSyncBusy(false);
+    }
+  };
+
+  const handlePullKoReaderRemoteSync = async () => {
+    if (
+      !options.canPersistLibrary() ||
+      options.getSyncSnapshotBusy() ||
+      options.getRemoteSyncBusy()
+    ) {
+      return;
+    }
+
+    options.setRemoteSyncBusy(true);
+    clearLibraryNotice();
+    try {
+      const snapshot = await buildKoReaderRemoteSyncSnapshot();
+      const entries = options.createKoReaderRemoteProgressEntriesFromSnapshot(snapshot);
+      const result = await options.runKoReaderRemoteSync({
+        operation: 'pull',
+        entries
+      });
+
+      if (result.status === 'success') {
+        const plan = options.mergeKoReaderRemoteProgressIntoSnapshot(snapshot, result.entries);
+        const prepared = options.prepareSyncSnapshotRestore(plan.snapshot);
+        await options.applySyncSnapshot(prepared.request);
+        await loadLibrary();
+        setLibraryNotice(
+          'info',
+          `${result.message} 已应用 ${plan.appliedBookCount} 本。${summarizeKoReaderRemotePullConflicts(plan)}`
+        );
+        return;
+      }
+
+      if (result.status === 'empty') {
+        setLibraryNotice('info', result.message);
+        return;
+      }
+
+      if (result.status === 'offline' || result.status === 'retryable-failure') {
+        setLibraryNotice('error', result.message, {
+          label: '重试',
+          run: handlePullKoReaderRemoteSync
+        });
+        return;
+      }
+
+      setLibraryNotice('error', result.message);
+    } catch (error) {
+      console.error('Failed to pull KOReader remote progress', error);
+      setLibraryNotice('error', '拉取 KOReader 阅读进度失败，请稍后重试。', {
+        label: '重试',
+        run: handlePullKoReaderRemoteSync
+      });
+    } finally {
+      options.setRemoteSyncBusy(false);
+    }
+  };
+
   const applyPulledRemoteSnapshot = async (result: Br1RemoteSyncResult) => {
     if (!result.snapshot) {
       setLibraryNotice('info', result.message);
@@ -925,6 +1068,8 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     handleImportSyncSnapshot,
     handleExportKoReaderSync,
     handleImportKoReaderSync,
+    handlePushKoReaderRemoteSync,
+    handlePullKoReaderRemoteSync,
     handlePushRemoteSync,
     handlePullRemoteSync
   };
@@ -957,6 +1102,8 @@ export const buildDesktopLibraryPageActionEnvironmentBindings = (
   onImportSyncSnapshot: coordinator.handleImportSyncSnapshot,
   onExportKoReaderSync: coordinator.handleExportKoReaderSync,
   onImportKoReaderSync: coordinator.handleImportKoReaderSync,
+  onPushKoReaderRemoteSync: coordinator.handlePushKoReaderRemoteSync,
+  onPullKoReaderRemoteSync: coordinator.handlePullKoReaderRemoteSync,
   onPushRemoteSync: coordinator.handlePushRemoteSync,
   onPullRemoteSync: coordinator.handlePullRemoteSync,
   onOpenLink: coordinator.handleOpenReaderTarget,

@@ -82,6 +82,8 @@
   on:importsyncsnapshot
   on:exportkoreadersync
   on:importkoreadersync
+  on:pushkoreaderremotesync
+  on:pullkoreaderremotesync
   on:pushremotesync
   on:pullremotesync
   on:filterchange

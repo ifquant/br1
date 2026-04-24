@@ -93,9 +93,12 @@
     saveSyncSnapshotDialog,
     updateLibraryBookMetadata,
     applySyncSnapshot,
+    createKoReaderRemoteProgressEntriesFromSnapshot,
     toAssetReaderHref,
     toAssetReaderTarget,
-    toLibraryReaderTarget
+    toLibraryReaderTarget,
+    mergeKoReaderRemoteProgressIntoSnapshot,
+    runKoReaderRemoteSync
   } from '$lib/services';
 
   const sampleNow = Date.parse('2026-04-14T10:00:00+08:00');
@@ -439,9 +442,12 @@
       createKoReaderSyncExchangeFromSnapshot,
       saveKoReaderSyncExchangeDialog,
       loadKoReaderSyncExchangeDialog,
+      createKoReaderRemoteProgressEntriesFromSnapshot,
       mergeKoReaderSyncExchangeIntoSnapshot,
+      mergeKoReaderRemoteProgressIntoSnapshot,
       prepareSyncSnapshotRestore,
       applySyncSnapshot,
+      runKoReaderRemoteSync,
       runRemoteSync,
       persistImportedReaderSettings,
       getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),

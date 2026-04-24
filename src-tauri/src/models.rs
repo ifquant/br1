@@ -410,3 +410,47 @@ pub(crate) struct RemoteSyncResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) snapshot: Option<SyncSnapshotDocument>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KoReaderRemoteProgressEntry {
+    pub(crate) schema_version: u8,
+    pub(crate) book_id: String,
+    pub(crate) file_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) source_path: Option<String>,
+    pub(crate) title: String,
+    pub(crate) author: String,
+    pub(crate) format: String,
+    pub(crate) document: String,
+    pub(crate) progress: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) percentage: Option<f64>,
+    pub(crate) timestamp: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) device: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) device_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KoReaderRemoteSyncRequest {
+    pub(crate) operation: String,
+    #[serde(default)]
+    pub(crate) entries: Vec<KoReaderRemoteProgressEntry>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KoReaderRemoteSyncResult {
+    pub(crate) operation: String,
+    pub(crate) status: String,
+    pub(crate) message: String,
+    pub(crate) retryable: bool,
+    pub(crate) pushed_count: usize,
+    pub(crate) pulled_count: usize,
+    pub(crate) skipped_count: usize,
+    #[serde(default)]
+    pub(crate) entries: Vec<KoReaderRemoteProgressEntry>,
+}
