@@ -80,7 +80,6 @@
     loadKoReaderSyncExchangeDialog,
     loadSyncSnapshotDialog,
     loadPersistedLibraryBooks,
-    mergeKoReaderSyncExchangeIntoSnapshot,
     openLibraryBookPath,
     openReaderTarget,
     persistImportedReaderSettings,
@@ -92,11 +91,9 @@
     saveKoReaderSyncExchangeDialog,
     saveSyncSnapshotDialog,
     updateLibraryBookMetadata,
-    createKoReaderRemoteProgressEntriesFromSnapshot,
     toAssetReaderHref,
     toAssetReaderTarget,
     toLibraryReaderTarget,
-    mergeKoReaderRemoteProgressIntoSnapshot,
     runKoReaderRemoteSync
   } from '$lib/services';
 
@@ -442,9 +439,6 @@
       createKoReaderSyncExchangeFromSnapshot,
       saveKoReaderSyncExchangeDialog,
       loadKoReaderSyncExchangeDialog,
-      createKoReaderRemoteProgressEntriesFromSnapshot,
-      mergeKoReaderSyncExchangeIntoSnapshot,
-      mergeKoReaderRemoteProgressIntoSnapshot,
       runKoReaderRemoteSync,
       runRemoteSync,
       persistImportedReaderSettings,

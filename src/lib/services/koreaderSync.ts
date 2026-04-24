@@ -106,7 +106,6 @@ export type Br1KoReaderRemoteSyncStatus =
 
 export type Br1KoReaderRemoteSyncRequest = {
   operation: Br1KoReaderRemoteSyncOperation;
-  entries: Br1KoReaderRemoteProgressEntry[];
 };
 
 export type Br1KoReaderRemoteSyncResult = {
