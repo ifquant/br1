@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
+  import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
   import type {
     ReaderAssistanceState,
     ReaderHighlightSelectionSet,
@@ -11,14 +12,12 @@
     ReaderHighlightsSort,
     ReaderHighlightsWorkspaceState,
     ReaderBookmarksState,
-    ReaderLookupProvider,
     ReaderPreviewState,
     ReaderSearchConfig,
     ReaderSearchHistoryEntry,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
     ReaderSidebarSearchState,
-    ReaderTranslationProvider,
     ReaderTranslationProviderStatus,
     ReaderTocItem,
     SidebarTab
@@ -27,12 +26,9 @@
     READER_EMPTY_TITLE,
     createEmptyReaderAssistanceState,
     createEmptyReaderPreviewState,
-    getReaderTranslationProviderDisplayLabel,
     getReaderFormatDisplayLabel,
     getReaderLayoutDisplayLabel,
-    getReaderLocationDisplayLabel,
-    normalizeAssistanceTerm,
-    normalizeAssistanceText
+    getReaderLocationDisplayLabel
   } from '$lib/reader';
   import {
     getSearchSupportMessage,
@@ -46,8 +42,6 @@
     loadReaderHighlightsWorkspaceState,
     saveReaderHighlightsWorkspaceState
   } from '$lib/services';
-
-  const TRANSLATION_PROVIDER_OPTIONS: ReaderTranslationProvider[] = ['deepl', 'yandex'];
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
@@ -130,13 +124,6 @@
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
   let exportHighlightSelectionNotice = '';
   let savedHighlightSelectionImportNotice = '';
-  let assistLookupTerm = '';
-  let assistLookupTermSeededForBookKey = '';
-  let assistMode: 'lookup' | 'translation' = 'lookup';
-  let assistLookupProvider: ReaderLookupProvider = 'wikipedia';
-  let assistTranslationProvider: ReaderTranslationProvider = 'deepl';
-  let assistTranslationText = '';
-  let assistTranslationTargetLanguage = 'zh';
   let savedHighlightSelectionRefreshSummary:
     | {
         refreshedCount: number;
@@ -498,32 +485,6 @@
     callbacks.onTabChange?.(tab);
   };
 
-  const fillAssistLookupTerm = (term: string) => {
-    assistLookupTerm = normalizeAssistanceTerm(term);
-  };
-
-  const fillAssistTranslationText = (text: string) => {
-    assistTranslationText = normalizeAssistanceText(text);
-  };
-
-  const requestAssistLookup = () => {
-    const term = normalizeAssistanceTerm(assistLookupTerm || notesState.selection?.text || preview.chapterLabel);
-    if (!term) return;
-    callbacks.onRequestLookup?.(assistLookupProvider, term);
-  };
-
-  const requestAssistTranslation = () => {
-    const text = normalizeAssistanceText(
-      assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
-    );
-    if (!text) return;
-    callbacks.onRequestTranslation?.(
-      assistTranslationProvider,
-      text,
-      assistTranslationTargetLanguage.trim() || 'zh'
-    );
-  };
-
   const updateSearchConfig = <K extends keyof ReaderSearchConfig>(key: K, value: ReaderSearchConfig[K]) => {
     callbacks.onSearchConfigChange?.({
       ...search.config,
@@ -574,25 +535,6 @@
     search.cacheKey.length > 52
       ? `${search.cacheKey.slice(0, 24)}…${search.cacheKey.slice(-20)}`
       : search.cacheKey;
-  $: if (activeTab === 'assist' && assistLookupTermSeededForBookKey !== bookKey) {
-    assistLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);
-    assistTranslationText = normalizeAssistanceText(
-      notesState.selection?.text || preview.chapterLabel || preview.title
-    );
-    assistMode = 'lookup';
-    assistLookupProvider = 'wikipedia';
-    assistTranslationProvider = 'deepl';
-    assistTranslationTargetLanguage = 'zh';
-    assistLookupTermSeededForBookKey = bookKey;
-  }
-  $: activeTranslationProviderStatus =
-    translationProviderStatuses.find((status) => status.provider === assistTranslationProvider) || null;
-  $: activeAssistanceRequest = assistance.activeRequest;
-  $: assistanceResultProvider =
-    assistance.result?.provider ||
-    (activeAssistanceRequest?.kind === 'translation'
-      ? activeAssistanceRequest.provider
-      : assistLookupProvider);
   $: recentSearchResultIndex = search.results.findIndex((item) => item.cfi === search.recentResultCfi);
   $: activeSearchResultIndex = search.results.findIndex((item) => item.cfi === search.activeResultCfi);
   $: currentSearchResultIndex = Math.max(
@@ -1856,279 +1798,18 @@
         </section>
       {:else if activeTab === 'assist'}
         <section class="sidebar-panel" aria-label="查找面板">
-          <div class="assist-summary">
-            <strong>{assistMode === 'translation' ? '翻译' : assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}</strong>
-            <span>
-              {#if assistMode === 'translation'}
-                使用桌面端托管的翻译配置翻译当前选区；没有选区时回退到当前章节标题。
-              {:else if assistLookupProvider === 'dictionary'}
-                从当前选区或手动输入的英文词条里查找释义。
-              {:else}
-                从当前选区或手动输入的词条里查找百科摘要。
-              {/if}
-            </span>
-          </div>
-
-          <div class="assist-context">
-            <span>
-              {#if notesState.selection?.text?.trim() && assistMode === 'translation'}
-                当前选区：{normalizeAssistanceText(notesState.selection.text)}
-              {:else if notesState.selection?.text?.trim()}
-                当前选区：{normalizeAssistanceTerm(notesState.selection.text)}
-              {:else}
-                {assistMode === 'translation'
-                  ? '先在正文里选中一段文本，或直接输入要翻译的内容。'
-                  : '先在正文里选中一段文本，或直接输入词条。'}
-              {/if}
-            </span>
-            <span>当前章节：{preview.chapterLabel}</span>
-            {#if assistMode === 'translation'}
-              <span>
-                目标语言：{assistTranslationTargetLanguage.toUpperCase()}。
-                {#if activeTranslationProviderStatus && !activeTranslationProviderStatus.configured}
-                  {activeTranslationProviderStatus.label}
-                {:else}
-                  当前 provider：{getReaderTranslationProviderDisplayLabel(assistTranslationProvider)}。
-                {/if}
-              </span>
-            {:else if assistLookupProvider === 'dictionary'}
-              <span>词典目前仅支持英文词条。</span>
-            {/if}
-          </div>
-
-          <div class="assist-actions">
-            <button
-              type="button"
-              class:active={assistMode === 'lookup'}
-              class="assist-chip"
-              aria-pressed={assistMode === 'lookup'}
-              on:click={() => {
-                assistMode = 'lookup';
-              }}
-            >
-              查找
-            </button>
-            <button
-              type="button"
-              class:active={assistMode === 'translation'}
-              class="assist-chip"
-              aria-pressed={assistMode === 'translation'}
-              on:click={() => {
-                assistMode = 'translation';
-              }}
-            >
-              翻译
-            </button>
-          </div>
-
-          {#if assistMode === 'translation'}
-            <label class="assist-field">
-              <span class="sr-only">翻译文本</span>
-              <textarea
-                rows="5"
-                maxlength="8000"
-                placeholder="输入要翻译的文本，或先在正文里选中一段内容"
-                value={assistTranslationText}
-                on:input={(event) =>
-                  fillAssistTranslationText((event.currentTarget as HTMLTextAreaElement).value)}
-              ></textarea>
-            </label>
-          {:else}
-            <label class="assist-field">
-              <span class="sr-only">{assistLookupProvider === 'dictionary' ? '词典词条' : '维基百科词条'}</span>
-              <input
-                type="search"
-                maxlength="120"
-                placeholder={assistLookupProvider === 'dictionary' ? '输入英文词条，或先选中文本' : '输入词条，或先选中文本'}
-                value={assistLookupTerm}
-                on:input={(event) => fillAssistLookupTerm((event.currentTarget as HTMLInputElement).value)}
-                on:keydown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    requestAssistLookup();
-                  }
-                }}
-              />
-            </label>
-          {/if}
-
-          <div class="assist-actions">
-            <button
-              type="button"
-              class="assist-chip"
-              disabled={!notesState.selection?.text?.trim()}
-              on:click={() => {
-                if (assistMode === 'translation') {
-                  fillAssistTranslationText(notesState.selection?.text || '');
-                } else {
-                  fillAssistLookupTerm(notesState.selection?.text || '');
-                }
-              }}
-            >
-              填入选区
-            </button>
-            <button
-              type="button"
-              class="assist-chip"
-              on:click={() => {
-                if (assistMode === 'translation') {
-                  fillAssistTranslationText(preview.chapterLabel || preview.title);
-                } else {
-                  fillAssistLookupTerm(preview.chapterLabel);
-                }
-              }}
-            >
-              填入章节
-            </button>
-            {#if assistMode === 'translation'}
-              <button
-                type="button"
-                class:active={assistTranslationTargetLanguage === 'zh'}
-                class="assist-chip"
-                aria-pressed={assistTranslationTargetLanguage === 'zh'}
-                on:click={() => {
-                  assistTranslationTargetLanguage = 'zh';
-                }}
-              >
-                中文
-              </button>
-              <button
-                type="button"
-                class:active={assistTranslationTargetLanguage === 'en'}
-                class="assist-chip"
-                aria-pressed={assistTranslationTargetLanguage === 'en'}
-                on:click={() => {
-                  assistTranslationTargetLanguage = 'en';
-                }}
-              >
-                English
-              </button>
-              {#each TRANSLATION_PROVIDER_OPTIONS as provider}
-                <button
-                  type="button"
-                  class:active={assistTranslationProvider === provider}
-                  class="assist-chip"
-                  aria-pressed={assistTranslationProvider === provider}
-                  on:click={() => {
-                    assistTranslationProvider = provider;
-                  }}
-                >
-                  {getReaderTranslationProviderDisplayLabel(provider)}
-                </button>
-              {/each}
-            {:else}
-              <button
-                type="button"
-                class:active={assistLookupProvider === 'wikipedia'}
-                class="assist-chip"
-                aria-pressed={assistLookupProvider === 'wikipedia'}
-                on:click={() => {
-                  assistLookupProvider = 'wikipedia';
-                }}
-              >
-                维基百科
-              </button>
-              <button
-                type="button"
-                class:active={assistLookupProvider === 'dictionary'}
-                class="assist-chip"
-                aria-pressed={assistLookupProvider === 'dictionary'}
-                on:click={() => {
-                  assistLookupProvider = 'dictionary';
-                }}
-              >
-                词典
-              </button>
-            {/if}
-            <button
-              type="button"
-              class="primary-assist-action"
-              disabled={
-                assistMode === 'translation'
-                  ? !normalizeAssistanceText(
-                      assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
-                    )
-                  : !normalizeAssistanceTerm(
-                      assistLookupTerm || notesState.selection?.text || preview.chapterLabel
-                    )
-              }
-              on:click={assistMode === 'translation' ? requestAssistTranslation : requestAssistLookup}
-            >
-              {assistMode === 'translation'
-                ? `翻译为 ${assistTranslationTargetLanguage.toUpperCase()}`
-                : assistLookupProvider === 'dictionary'
-                  ? '查词典'
-                  : '查维基百科'}
-            </button>
-          </div>
-
-          <div class="assist-result" aria-label="查找结果">
-            <div class="assist-translation-status">
-              <strong>翻译提供方状态</strong>
-              <span>翻译配置由桌面端托管，renderer 只读取状态，不保存密钥。</span>
-              <div class="assist-translation-status-list">
-                {#each translationProviderStatuses as provider}
-                  <div class:missing-key={!provider.configured} class="assist-translation-status-row">
-                    <span>{getReaderTranslationProviderDisplayLabel(provider.provider)}</span>
-                    <span>{provider.label}</span>
-                  </div>
-                {/each}
-              </div>
-            </div>
-            {#if assistance.status === 'loading'}
-              <strong>正在查询</strong>
-              <span>
-                {#if activeAssistanceRequest?.kind === 'translation'}
-                  正在向{getReaderTranslationProviderDisplayLabel(activeAssistanceRequest.provider)}请求翻译结果。
-                {:else}
-                  正在向{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}请求结果。
-                {/if}
-              </span>
-            {:else if assistance.status === 'ready' && assistance.result}
-              <strong>{assistance.result.title}</strong>
-              <span>
-                {assistance.result.sourceLabel ||
-                  (assistanceResultProvider === 'dictionary'
-                    ? 'Dictionary'
-                    : assistanceResultProvider === 'wikipedia'
-                      ? 'Wikipedia'
-                      : getReaderTranslationProviderDisplayLabel(assistanceResultProvider))}
-              </span>
-              <p>{assistance.result.body}</p>
-              {#if assistance.result.url}
-                <a href={assistance.result.url} target="_blank" rel="noreferrer">打开词条</a>
-              {/if}
-            {:else if assistance.status === 'empty'}
-              <strong>没有找到结果</strong>
-              <span>
-                {activeAssistanceRequest?.kind === 'translation'
-                  ? '没有可翻译的内容。'
-                  : assistLookupProvider === 'dictionary'
-                    ? '词典没有返回对应词条。'
-                    : '维基百科没有返回对应词条。'}
-              </span>
-            {:else if assistance.status === 'offline'}
-              <strong>当前不可用</strong>
-              <span>{assistance.error || '桌面运行时或网络不可用。'}</span>
-            {:else if assistance.status === 'error'}
-              <strong>查询失败</strong>
-              <span>
-                {assistance.error ||
-                  (activeAssistanceRequest?.kind === 'translation'
-                    ? '翻译请求失败。'
-                    : assistLookupProvider === 'dictionary'
-                      ? '词典查询失败。'
-                      : '维基百科查询失败。')}
-              </span>
-            {:else}
-              <strong>等待查询</strong>
-              <span>
-                {assistMode === 'translation'
-                  ? '输入文本后可以直接发起 DeepL 翻译；如果没有选区，会回退到当前章节标题。'
-                  : `输入词条后可以直接发起${assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。`}
-              </span>
-            {/if}
-          </div>
+          <ReaderAssistWorkspace
+            title="AI 阅读助手"
+            summary="保留原有 assist 入口，但内部改成和 notebook 共用的助手工作台。"
+            {preview}
+            {notesState}
+            {assistance}
+            {translationProviderStatuses}
+            callbacks={{
+              onRequestLookup: callbacks.onRequestLookup,
+              onRequestTranslation: callbacks.onRequestTranslation
+            }}
+          />
         </section>
       {:else if activeTab === 'bookmarks'}
         <section class="sidebar-panel" aria-label="书签面板">
@@ -3735,16 +3416,9 @@
     padding: 0 2px;
   }
 
-  .assist-summary {
-    display: grid;
-    gap: 2px;
-    padding: 0 2px;
-  }
-
   .search-summary strong,
   .notes-summary strong,
-  .bookmarks-summary strong,
-  .assist-summary strong {
+  .bookmarks-summary strong {
     font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.3;
@@ -3752,170 +3426,10 @@
 
   .search-summary span,
   .notes-summary span,
-  .bookmarks-summary span,
-  .assist-summary span,
-  .assist-context span {
+  .bookmarks-summary span {
     color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
-  }
-
-  .assist-context {
-    display: grid;
-    gap: 4px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .assist-field input {
-    width: 100%;
-    height: 34px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 13px;
-  }
-
-  .assist-field textarea {
-    width: 100%;
-    min-height: 112px;
-    padding: 10px 12px;
-    border: 0;
-    border-radius: 16px;
-    resize: vertical;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 13px;
-    line-height: 1.55;
-  }
-
-  .assist-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .assist-chip {
-    min-height: 28px;
-    padding: 0 10px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .assist-chip:disabled {
-    opacity: 0.55;
-  }
-
-  .assist-chip.active {
-    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
-    color: var(--text-primary);
-  }
-
-  .primary-assist-action {
-    min-height: 34px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 12px;
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .primary-assist-action:disabled {
-    color: var(--text-muted);
-    opacity: 0.7;
-  }
-
-  .primary-assist-action:not(:disabled):hover {
-    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
-  }
-
-  .assist-translation-status {
-    display: grid;
-    gap: 4px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .assist-translation-status strong {
-    color: var(--text-primary);
-    font-family: var(--font-chrome);
-    font-size: 12px;
-    line-height: 1.3;
-  }
-
-  .assist-translation-status > span,
-  .assist-translation-status-row > span {
-    color: var(--text-muted);
-    font-size: 11px;
-    line-height: 1.45;
-  }
-
-  .assist-translation-status-list {
-    display: grid;
-    gap: 6px;
-  }
-
-  .assist-translation-status-row {
-    display: grid;
-    gap: 2px;
-    padding-left: 2px;
-  }
-
-  .assist-translation-status-row.missing-key > span:last-child {
-    color: #9a5e1d;
-  }
-
-  .assist-result {
-    display: grid;
-    gap: 4px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .assist-result strong {
-    color: var(--text-primary);
-    font-family: var(--font-chrome);
-    font-size: 12px;
-    line-height: 1.3;
-  }
-
-  .assist-result p {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.55;
-  }
-
-  .assist-result a {
-    color: #8a5b1d;
-    font-family: var(--font-chrome);
-    font-size: 11px;
-    text-decoration: none;
-  }
-
-  .assist-result a:hover {
-    text-decoration: underline;
   }
 
   .search-results,
@@ -4611,7 +4125,7 @@
     border-top: 1px solid rgba(64, 47, 24, 0.06);
   }
 
-  .reader-sidebar :is(button, input, a[href]):focus-visible {
+  .reader-sidebar :is(button, input):focus-visible {
     outline: 2px solid color-mix(in srgb, var(--reader-shell-accent, #8c6a3b) 72%, white 28%);
     outline-offset: 2px;
   }

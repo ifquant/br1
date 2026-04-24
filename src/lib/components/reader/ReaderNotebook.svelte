@@ -1,26 +1,44 @@
 <script lang="ts">
-  import type { ReaderPreviewState, ReaderSidebarCallbacks, ReaderSidebarNotesState } from '$lib/reader';
+  import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
+  import type {
+    ReaderAssistanceState,
+    ReaderPreviewState,
+    ReaderSidebarCallbacks,
+    ReaderSidebarNotesState,
+    ReaderTranslationProviderStatus
+  } from '$lib/reader';
+  import { createEmptyReaderAssistanceState } from '$lib/reader';
 
   export let visible = false;
   export let pinned = false;
-  export let activeTab: 'notes' | 'highlights' = 'notes';
+  export let activeTab: 'notes' | 'highlights' | 'assistant' = 'notes';
   export let preview: ReaderPreviewState;
   export let notesState: ReaderSidebarNotesState;
   export let supportsTextAnnotations = false;
   export let textAnnotationSupportMessage = '';
+  export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
+  export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let callbacks: Pick<
     ReaderSidebarCallbacks,
-    'onAddHighlight' | 'onAddNote' | 'onOpenNote' | 'onEditNote' | 'onDeleteNote'
+    | 'onAddHighlight'
+    | 'onAddNote'
+    | 'onOpenNote'
+    | 'onEditNote'
+    | 'onDeleteNote'
+    | 'onRequestLookup'
+    | 'onRequestTranslation'
   > = {
     onAddHighlight: null,
     onAddNote: null,
     onOpenNote: null,
     onEditNote: null,
-    onDeleteNote: null
+    onDeleteNote: null,
+    onRequestLookup: null,
+    onRequestTranslation: null
   };
   export let onClose: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
-  export let onTabChange: ((tab: 'notes' | 'highlights') => void) | null = null;
+  export let onTabChange: ((tab: 'notes' | 'highlights' | 'assistant') => void) | null = null;
 
   $: noteEntries = notesState.notes.filter((note) => note.kind !== 'highlight');
   $: highlightEntries = notesState.notes.filter((note) => note.kind === 'highlight');
@@ -34,7 +52,7 @@
       .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  const setTab = (tab: 'notes' | 'highlights') => {
+  const setTab = (tab: 'notes' | 'highlights' | 'assistant') => {
     if (tab === activeTab) return;
     onTabChange?.(tab);
   };
@@ -68,6 +86,7 @@
     <div class="notebook-summary" aria-label="笔记工作台摘要">
       <span>{highlightEntries.length} 高亮</span>
       <span>{noteEntries.length} 笔记</span>
+      <span>{assistance.status === 'ready' ? '助手已有结果' : assistance.status === 'loading' ? '助手查询中' : '助手待命'}</span>
       <span>{selectionText ? '已选中文本' : '未选中文本'}</span>
     </div>
 
@@ -89,6 +108,15 @@
         on:click={() => setTab('highlights')}
       >
         高亮
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class:active={activeTab === 'assistant'}
+        aria-selected={activeTab === 'assistant'}
+        on:click={() => setTab('assistant')}
+      >
+        AI 助手
       </button>
     </div>
 
@@ -140,7 +168,7 @@
             <p class="empty-state">还没有笔记。选中一段正文后，这里会成为持续整理的工作台。</p>
           {/if}
         </section>
-      {:else}
+      {:else if activeTab === 'highlights'}
         <section class="workspace-list" aria-label="高亮列表">
           {#if highlightEntries.length}
             {#each highlightEntries as note}
@@ -161,6 +189,19 @@
             <p class="empty-state">还没有高亮。先从选区里保存几条高亮，再回到这里做持续整理。</p>
           {/if}
         </section>
+      {:else}
+        <ReaderAssistWorkspace
+          title="AI 阅读助手"
+          summary="把查词、百科和翻译结果放到 notebook 里的独立工作台，而不是只做一个 sidebar 结果区。"
+          {preview}
+          {notesState}
+          {assistance}
+          {translationProviderStatuses}
+          callbacks={{
+            onRequestLookup: callbacks.onRequestLookup,
+            onRequestTranslation: callbacks.onRequestTranslation
+          }}
+        />
       {/if}
     </div>
   </aside>

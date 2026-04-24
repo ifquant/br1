@@ -459,10 +459,12 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Done commit: d3f1715
   - Notes: this first workspace slice replaces the old right-side bridge placeholder with a notebook shell, persists pin/tab state at the route level, and opens the notebook when note/highlight actions fire. It intentionally keeps the older sidebar notes/highlights path alive so the reader workspace can grow without rewriting the existing annotation substrate in the same commit.
 
-- [ ] P5-1.2 Add an AI assistant workspace on top of the notebook shell
+- [x] P5-1.2 Add an AI assistant workspace on top of the notebook shell
   - Outcome: AI reading help becomes a real workspace with its own framing instead of another provider-result panel.
   - Touches: notebook shell, assistance model, assistant workspace components.
-  - Notes: preserve the existing lookup/translation provider substrate; this is a workspace/productization slice, not a provider rewrite.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: recorded in workspace commit history for this slice.
+  - Notes: this slice turns the old assist result area into a shared workspace component and mounts it into the notebook as an `AI 助手` tab. The old sidebar assist entry stays alive for compatibility, but it now reuses the same workspace contract instead of owning a second copy of the assistant UI.
 
 - [ ] P5-1.3 Turn translation and TTS into intentional reading modes
   - Outcome: translation stops being only a request panel, and TTS gains more deliberate follow/media-session/reading-mode semantics.
@@ -536,4 +538,5 @@ Use this log when completing each item.
 | 2026-04-25 | Centralize reader format capability boundaries for search and annotations | b850cc5 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"`; `git diff --check` | moves TXT search unsupported handling into the shared reader format capability contract so viewport and sidebar behavior can grow from one source of truth |
 | 2026-04-25 | Productize reader search states across formats and sidebars | 735f1c7 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader search states read like one product surface across txt and epub"`; `git diff --check` | turns the sidebar search surface into one coherent product state machine across TXT unsupported search, EPUB empty results, and EPUB hit navigation |
 | 2026-04-25 | Add a notebook-grade reader workspace shell | d3f1715 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open a notebook workspace without collapsing navigation"`; `git diff --check` | replaces the old bridge placeholder with a real notebook workbench, persists pin/tab state at the route level, and keeps legacy sidebar notes/highlights reachable while the new reader workspace line grows |
+| 2026-04-25 | Add an AI assistant workspace on top of the notebook shell | recorded in workspace commit history for this slice | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell"`; `git diff --check` | turns the old assist panel into a shared workspace component and mounts it into the notebook so lookup and translation stop being only a sidebar result panel |
 | 2026-04-25 | Add a productized library operations surface | recorded in workspace commit history for this slice | `pnpm check`; `git diff --check` | promotes backup/restore into visible library header actions, groups snapshot/KOReader/Readest Cloud work under one desktop operations menu, and blocks Readest migration from starting while snapshot or remote sync work is already active |

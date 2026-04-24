@@ -294,6 +294,31 @@ test('reader can open a notebook workspace without collapsing navigation', async
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
 
+test('reader can open the ai workspace inside the notebook shell', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: 'AI 工作台测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: 'AI 工作台' })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'AI 工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'AI 助手', selected: true })).toBeVisible();
+  await expect(page.getByText('AI 阅读助手')).toBeVisible();
+  await expect(
+    page.getByText('把查词、百科和翻译结果放到 notebook 里的独立工作台，而不是只做一个 sidebar 结果区。')
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
+});
+
 test('reader opens txt assets in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

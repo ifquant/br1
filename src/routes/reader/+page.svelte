@@ -74,7 +74,7 @@
   let currentCoverUrl = '';
   let notebookVisible = false;
   let notebookPinned = false;
-  let notebookTab: 'notes' | 'highlights' = 'notes';
+  let notebookTab: 'notes' | 'highlights' | 'assistant' = 'notes';
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -297,11 +297,16 @@
       try {
         const persisted = JSON.parse(rawNotebookShell) as {
           pinned?: boolean;
-          activeTab?: 'notes' | 'highlights';
+          activeTab?: 'notes' | 'highlights' | 'assistant';
         };
         notebookPinned = !!persisted.pinned;
         notebookVisible = !!persisted.pinned;
-        notebookTab = persisted.activeTab === 'highlights' ? 'highlights' : 'notes';
+        notebookTab =
+          persisted.activeTab === 'highlights'
+            ? 'highlights'
+            : persisted.activeTab === 'assistant'
+              ? 'assistant'
+              : 'notes';
       } catch (error) {
         console.warn('Failed to restore reader notebook shell state', error);
       }
@@ -546,13 +551,15 @@
 
     if (!canRequestAssistanceForText(normalizedTerm)) {
       assistanceState = createEmptyReaderAssistanceResultState(request);
-      sidebarController.openTab('assist');
+      notebookTab = 'assistant';
+      notebookVisible = true;
       return;
     }
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
-    sidebarController.openTab('assist');
+    notebookTab = 'assistant';
+    notebookVisible = true;
 
     try {
       const nextState = await requestReaderAssistance(request);
@@ -587,13 +594,15 @@
 
     if (!normalizedText) {
       assistanceState = createEmptyReaderAssistanceResultState(request);
-      sidebarController.openTab('assist');
+      notebookTab = 'assistant';
+      notebookVisible = true;
       return;
     }
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
-    sidebarController.openTab('assist');
+    notebookTab = 'assistant';
+    notebookVisible = true;
 
     try {
       const nextState = await requestReaderAssistance(request);
@@ -716,6 +725,18 @@
         >
           {notebookVisible ? '关闭工作台' : '笔记工作台'}
         </button>
+        <button
+          type="button"
+          class="parallel-toggle notebook-toggle"
+          aria-pressed={notebookVisible && notebookTab === 'assistant'}
+          aria-label="打开 AI 工作台"
+          on:click={() => {
+            notebookVisible = true;
+            notebookTab = 'assistant';
+          }}
+        >
+          AI 工作台
+        </button>
       </div>
 
       <div class:parallel-enabled={parallelEnabled} class="reader-stage-stack">
@@ -804,12 +825,16 @@
         notesState={$notesState}
         supportsTextAnnotations={supportsTextAnnotationsForFormat(currentPreview.formatLabel)}
         textAnnotationSupportMessage="当前格式暂不支持正文批注。"
+        assistance={assistanceState}
+        translationProviderStatuses={translationProviderStatuses}
         callbacks={{
           onAddHighlight: sidebarCallbacks.onAddHighlight,
           onAddNote: sidebarCallbacks.onAddNote,
           onOpenNote: sidebarCallbacks.onOpenNote,
           onEditNote: sidebarCallbacks.onEditNote,
-          onDeleteNote: sidebarCallbacks.onDeleteNote
+          onDeleteNote: sidebarCallbacks.onDeleteNote,
+          onRequestLookup: sidebarCallbacks.onRequestLookup,
+          onRequestTranslation: sidebarCallbacks.onRequestTranslation
         }}
         onClose={() => {
           notebookVisible = false;
