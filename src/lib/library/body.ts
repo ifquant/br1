@@ -176,7 +176,7 @@ export const buildDesktopLibraryBrowseBodyModel = ({
   recentShelf: workflowSectionsVisible
     ? {
         sectionTitle: '最近阅读',
-        sectionDescription: '重新打开你最近看过，但当前不在继续阅读队列中的书。',
+        sectionDescription: '重新打开你最近看过，但当前没有在读中的书。',
         primaryActionLabel: '重开',
         books: filteredRecentReadingBooks,
         onOpenSourcePath,
@@ -262,7 +262,7 @@ export const buildStarterLibraryBrowseBodyModel = ({
   recentShelf: workflowSectionsVisible
     ? {
         sectionTitle: '最近阅读',
-        sectionDescription: '重新打开你最近看过的样例书。',
+        sectionDescription: '重新打开你最近看过，但当前没有在读中的样例书。',
         primaryActionLabel: '重开',
         books: filteredRecentReadingBooks
       }

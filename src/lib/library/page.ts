@@ -205,6 +205,9 @@ export const getBookProgressFraction = (book: LibraryShelfBook) => {
 export const hasBookBeenOpened = (book: LibraryShelfBook) =>
   typeof book.lastOpenedAt === 'number' && book.lastOpenedAt > 0;
 
+export const CONTINUE_READING_SECTION_LIMIT = 3;
+export const RECENT_READING_SECTION_LIMIT = 6;
+
 export const isBookFinished = (book: LibraryShelfBook) => {
   const progressFraction = getBookProgressFraction(book);
   return progressFraction !== null && progressFraction >= 1;
@@ -223,7 +226,7 @@ export const isBookUnstarted = (book: LibraryShelfBook) => {
 };
 
 export const getContinueReadingBooks = (books: LibraryShelfBook[]) =>
-  books.filter((book) => isBookInProgress(book)).slice(0, 3);
+  books.filter((book) => isBookInProgress(book)).slice(0, CONTINUE_READING_SECTION_LIMIT);
 
 export const getRecoveryQueueBooks = (books: LibraryShelfBook[]) =>
   books.filter((book) => book.availabilityLabel?.includes('缺失') ?? false).slice(0, 6);
@@ -236,8 +239,9 @@ export const getRecentReadingBooks = (
 
   return books
     .filter((book) => hasBookBeenOpened(book))
+    .filter((book) => !isBookFinished(book))
     .filter((book) => !continueKeys.has(getLibraryBookKey(book)))
-    .slice(0, 6);
+    .slice(0, RECENT_READING_SECTION_LIMIT);
 };
 
 export const sortBooksForDisplay = (

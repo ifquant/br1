@@ -403,11 +403,12 @@ Goal: close the remaining user-visible Readest gaps that now mainly live in the 
   - Done commit: this commit
   - Notes: this slice intentionally settles search/filter section rules first. It does not change grouped-browse navigation or invent a new scroll model; the existing scroll host stays in place, but the page state now decides much more clearly when workflow shelves should disappear and when the main result shelf should take over.
 
-- [ ] P3-2.1 Productize continue reading and recent reading
-  - Outcome: homepage sections for `continue reading` and `recent reading` have stable inclusion, ordering, limits, empty-state, and completed-book rules that users can predict.
-  - Touches: `src/lib/components/library/ContinueReadingShelf.svelte`, `src/routes/library/+page.svelte`, library state/projection helpers, focused library section tests.
-  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused section workflow regression or documented manual audit.
-  - Notes: this is intentionally after `P3-1.x` because section semantics depend on the main shelf/search contract. The output should read as a stable homepage workflow, not a temporary data projection.
+- [x] P3-2.1 Productize continue reading and recent reading
+  - Outcome: homepage sections for `continue reading` and `recent reading` now have explicit inclusion and completed-book rules, stable section limits, and a reachable “最近没有在读书” workflow notice once only finished books remain.
+  - Touches: `src/lib/library/page.ts`, `src/lib/components/library/ContinueReadingShelf.svelte`, focused library section tests.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/library/page.test.ts` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: `continue reading` remains the in-progress shelf, while `recent reading` now excludes finished books instead of acting as a generic “opened sometime” bucket. This slice keeps the existing visual layout, but it turns the homepage reading workflow into a clearer product contract and makes the “no active reading” notice path real instead of theoretical.
 
 - [ ] P3-2.2 Tighten Readest local-library migration and compatibility semantics
   - Outcome: users can tell which parts of a Readest local-library import are true compatibility, which are best-effort migration, and which still fall back to reimport-style behavior.
