@@ -31,7 +31,7 @@ That handoff explains files, task order, and test commands. This checklist remai
 
 ## Current Baseline
 
-`br1` is core-reader strong and advanced/service weak.
+`br1` has closed the first Readest alignment line for reader capabilities and service/ecosystem groundwork.
 
 Strong areas:
 
@@ -41,24 +41,26 @@ Strong areas:
 - growing FB2/MOBI/AZW3/CBZ/TXT support
 - reader settings, search, notes, bookmarks, highlights, saved sets
 - grouped library browse and library repair workflows
+- reader assistance: Wikipedia, dictionary, DeepL, and Yandex translation
+- reader TTS, visual/focus aids, parallel read, and code highlighting
+- OPDS / Calibre catalog integration through Tauri-owned boundaries
+- local snapshot sync, Readest Cloud sync substrate, and KOReader exchange/progress sync
+- transactional local/remote snapshot restore hardening
 
 Main gaps against Readest:
 
-- Dictionary / Wikipedia lookup is not implemented
-- Parallel Read is not implemented
-- Text-to-Speech is still a placeholder-level product signal
-- Visual and focus aids are shallow compared with a complete reading-assistance surface
-- OPDS / Calibre integration is not implemented
-- DeepL / Yandex translation is not implemented
-- cross-device sync is not implemented
-- KOReader sync is not implemented
+- library product parity is still uneven: header/search density, card hierarchy, section semantics, and overall shelf behavior are not yet intentionally aligned as one product surface
+- continue reading / recent reading are implemented but not yet closed as a stable Readest-style homepage workflow
+- Readest local library migration exists, but its “compatibility vs reimport” semantics are still not explicit enough as a product experience
+- official KOReader parity is closed only for exchange plus progress-only remote sync; bookmark/annotation remote sync remains intentionally out of scope
+- the service/security hardening line is strong, but it is no longer the main user-visible parity frontier
 
 Planning consequence:
 
 - route-closure is maintenance only
-- P0 must pass an exit audit before the plan treats the local reader as complete
-- P1 becomes the first product-facing main line after P0
-- P2 is a real service/ecosystem line, not a vague future bucket
+- P0, P1, and P2 are functionally closed as the first Readest alignment line
+- the next main execution line should shift back to user-visible library product parity
+- new parity work should prefer visible library workflow/visual slices over deeper sync/provider expansion unless a new correctness blocker appears
 
 ## Execution Rules
 
@@ -276,7 +278,7 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Outcome: library metadata, reading state, bookmarks, notes, highlights, and settings have exportable/importable sync records and stable ids.
   - Touches: sync types, persistence services, conflict model.
   - Verify: `pnpm check` (PASS); `pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/sync/model.test.js` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: f481f3a
   - Notes: added `src/lib/sync` with explicit record envelopes for library metadata, reading state, bookmarks, notes, highlights workspace, and persisted reader settings; stable record ids are derived from durable book ids or hashed persisted store keys without changing existing product writes. Import/export UI, snapshot file commands, conflict resolution flow, and any migration of timestamp-based per-item annotation ids remain deferred to P2-3.2+.
 
 - [x] P2-3.2 Implement local sync snapshot import/export
@@ -290,14 +292,14 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Outcome: a provider-backed sync path exists with explicit offline, conflict, and retry semantics.
   - Touches: sync provider abstraction, Tauri network/service boundary, tests, library sync actions.
   - Verify: `pnpm check` (PASS); `pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/sync/model.test.js .tmp-sync-tests/src/lib/sync/remote.test.js` (PASS); `cargo test --manifest-path src-tauri/Cargo.toml remote_sync` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 00d5fd1
   - Notes: added a first `readestCloud` remote provider on top of the snapshot substrate through a Tauri-owned `run_remote_sync` HTTP bridge. Renderer never supplies the remote URL; Tauri derives `BR1_READEST_CLOUD_SYNC_BASE_URL`, `BR1_READEST_CLOUD_SYNC_LIBRARY_ID`, and `BR1_READEST_CLOUD_SYNC_TOKEN` from local desktop env only, then talks to one provider-owned endpoint family. The library header now exposes minimal `Push` / `Pull` actions. Push refuses to overwrite a diverged remote snapshot and returns an explicit conflict state; pull restores the remote snapshot through the existing local apply path. Missing-config, offline, retryable failure, conflict, success, and empty-remote states all surface as product notices instead of getting collapsed into generic thrown errors.
 
 - [x] P2-3.4 Make snapshot restore transactional and keep remote pull on restore-level validation
   - Outcome: local snapshot restore and `readestCloud` pull now apply a whole restore set together or leave local state unchanged, and remote payload acceptance stays tied to the same restore-level validation gate as local restore instead of drifting back to a weaker JSON-only check.
   - Touches: shared restore/apply helpers under `src-tauri/src/commands/sync_snapshot.rs` and `src-tauri/src/commands/remote_sync.rs`, plus minimal library notice wiring.
   - Verify: `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot` (PASS); `cargo test --manifest-path src-tauri/Cargo.toml remote_sync` (PASS); `pnpm check` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: d8695f8
   - Notes: the shared snapshot apply roots now execute as a rollback-backed file mutation plan across `library.json`, bookmarks, notes, and highlights workspace files. That means local snapshot restore and Readest Cloud pull now share the same transactional write boundary instead of relying on partial directory clears and sequential writes.
 
 - [x] P2-4.1 Add KOReader import/export mapping
@@ -360,7 +362,7 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Outcome: KOReader-facing xpointer values now stay in `koreaderProgressLocation`, while `progressLocation` continues to serve local br1 reopen semantics.
   - Touches: KOReader sync model helpers, exchange export/import, remote pull merge logic, targeted tests.
   - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/reader/xcfi.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js .tmp-sync-tests/src/lib/sync/model.test.js` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 57424d5
   - Notes: this slice closes the merge blocker found during final review: exchange export/import and KOReader remote pull were still routing KOReader locators back through `progressLocation`. The fix preserves a compatibility fallback for older records that only have `progressLocation`, but when both fields exist `koreaderProgressLocation` now wins and local resume CFI stays untouched.
 
 ### P2-4 Closeout
@@ -375,6 +377,40 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - any invented non-standard remote annotation protocol layered on top of official KOSync
 - Merge implication:
   - this phase is now in a merge-reviewable state because the protocol boundary is explicit instead of half-implied.
+
+## P3 Library Product Parity
+
+Goal: close the remaining user-visible Readest gaps that now mainly live in the library homepage, shelf semantics, and local-library compatibility experience.
+
+- [ ] P3-1.1 Align the library top toolbar and search behavior
+  - Outcome: the library header becomes the single real control surface for search, import entry, view-mode switching, and overflow actions instead of sharing those responsibilities with shelf-local preview controls.
+  - Touches: `src/lib/components/library/LibraryHeader.svelte`, `src/lib/components/library/BookshelfPreview.svelte`, `src/routes/library/+page.svelte`, focused library smoke coverage.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused library search/action regression if behavior changes.
+  - Notes: this is the first P3 slice because it fixes product information architecture before visual polish. It should remove duplicated toolbar semantics rather than layering another control row on top.
+
+- [ ] P3-1.2 Align library cards, covers, metadata, and status density
+  - Outcome: grid/list cards, import tile, and section cards use a more intentional Readest-style hierarchy for cover ratio, title/author line breaks, progress/state chips, and action affordances.
+  - Touches: `src/lib/components/library/BookshelfPreview.svelte`, `src/lib/components/library/ContinueReadingShelf.svelte`, any shared library card model/types needed for visual cleanup.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; manual visual review against current Readest.
+  - Notes: do not treat this as generic CSS cleanup. The purpose is to tighten product hierarchy, remove bridge/debug feeling, and make grid/list semantics feel like one system.
+
+- [ ] P3-1.3 Align library sort, filter, section, and scroll behavior
+  - Outcome: search, shelf sections, view-mode changes, and library scrolling follow explicit product rules instead of implementation-convenient defaults.
+  - Touches: `src/routes/library/+page.svelte`, library projection/controller helpers, section composition, scroll container wiring, focused library behavior tests.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused library workflow regression if section semantics move.
+  - Notes: this slice should settle how search affects sections, how view-mode switches preserve context, and whether current scroll behavior still exposes obvious Readest drift.
+
+- [ ] P3-2.1 Productize continue reading and recent reading
+  - Outcome: homepage sections for `continue reading` and `recent reading` have stable inclusion, ordering, limits, empty-state, and completed-book rules that users can predict.
+  - Touches: `src/lib/components/library/ContinueReadingShelf.svelte`, `src/routes/library/+page.svelte`, library state/projection helpers, focused library section tests.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused section workflow regression or documented manual audit.
+  - Notes: this is intentionally after `P3-1.x` because section semantics depend on the main shelf/search contract. The output should read as a stable homepage workflow, not a temporary data projection.
+
+- [ ] P3-2.2 Tighten Readest local-library migration and compatibility semantics
+  - Outcome: users can tell which parts of a Readest local-library import are true compatibility, which are best-effort migration, and which still fall back to reimport-style behavior.
+  - Touches: `src-tauri/src/commands/library.rs`, `src-tauri/src/models.rs`, `src/lib/services/libraryPersistence.ts`, migration banner/notice copy and any library metadata projection that surfaces compatibility results.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cargo check --manifest-path /Users/dev/workspace2/hc_apps/br1/src-tauri/Cargo.toml`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused manual desktop migration review.
+  - Notes: the goal is not more migration surface area by default. The goal is to make current compatibility behavior explicit, fill the highest-value local metadata/state gaps, and stop the product from feeling like a blind file reimport with a Readest label.
 
 ## Service Security Gate
 
@@ -402,6 +438,6 @@ Use this log when completing each item.
 
 | Date | Item | Commit | Verification | Notes |
 |---|---|---|---|---|
-| 2026-04-25 | Move KOReader exchange import/apply into Tauri | this commit | `cargo check --manifest-path src-tauri/Cargo.toml`; `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `pnpm check`; `git diff --check` | closes the last renderer-owned KOReader exchange apply path by routing file pick, validation, merge/apply, and conflict summaries through `restore_koreader_sync_exchange_dialog` |
-| 2026-04-25 | Harden post-merge sync validation and KOReader import semantics | this commit | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | adds rollback-backed KOReader exchange writes, makes local-newer honor KOReader `updated_at`, requires KOReader identity for fallback matching, promotes Readest Cloud pull validation to restore-level checks, and stops Readest import from seeding `koreaderProgressLocation` |
-| 2026-04-25 | Make snapshot restore transactional across local and remote apply | this commit | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | replaces the shared snapshot apply roots with a rollback-backed mutation plan so local snapshot restore and Readest Cloud pull no longer risk half-applied library/bookmark/note/highlights state |
+| 2026-04-25 | Move KOReader exchange import/apply into Tauri | 9cdd6ba | `cargo check --manifest-path src-tauri/Cargo.toml`; `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `pnpm check`; `git diff --check` | closes the last renderer-owned KOReader exchange apply path by routing file pick, validation, merge/apply, and conflict summaries through `restore_koreader_sync_exchange_dialog` |
+| 2026-04-25 | Harden post-merge sync validation and KOReader import semantics | 987ee43 | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | adds rollback-backed KOReader exchange writes, makes local-newer honor KOReader `updated_at`, requires KOReader identity for fallback matching, promotes Readest Cloud pull validation to restore-level checks, and stops Readest import from seeding `koreaderProgressLocation` |
+| 2026-04-25 | Make snapshot restore transactional across local and remote apply | d8695f8 | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | replaces the shared snapshot apply roots with a rollback-backed mutation plan so local snapshot restore and Readest Cloud pull no longer risk half-applied library/bookmark/note/highlights state |
