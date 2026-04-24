@@ -149,7 +149,9 @@ export const mapDesktopLibraryRecord = async (
 };
 
 export const countReadestCompatibleRecords = (records: PersistedLibraryBook[]) =>
-  records.filter((record) => record.id.startsWith('readest-')).length;
+  records.filter(
+    (record) => record.id.startsWith('readest-') && record.libraryFileExists !== false
+  ).length;
 
 export const buildDesktopCatalogProjection = async (records: PersistedLibraryBook[]) => ({
   readestCompatibleCount: countReadestCompatibleRecords(records),

@@ -1416,13 +1416,29 @@ pub(crate) fn detect_readest_library(
         return Ok(ReadestLibrarySummary {
             available: false,
             count: 0,
+            importable_count: 0,
+            missing_file_count: 0,
         });
     }
 
+    let readest_books_root = readest_books_root(&app)?;
     let books = load_readest_records(&readest_library)?;
+    let mut importable_count = 0usize;
+    let mut missing_file_count = 0usize;
+
+    for record in &books {
+        if find_readest_book_file(&readest_books_root, record)?.is_some() {
+            importable_count += 1;
+        } else {
+            missing_file_count += 1;
+        }
+    }
+
     Ok(ReadestLibrarySummary {
         available: !books.is_empty(),
         count: books.len(),
+        importable_count,
+        missing_file_count,
     })
 }
 

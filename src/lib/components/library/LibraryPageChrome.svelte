@@ -48,6 +48,8 @@
     notice: null,
     showReadestMigration: false,
     readestLibraryCount: 0,
+    readestImportableCount: 0,
+    readestMissingFileCount: 0,
     readestCompatibleCount: 0,
     migrationBusy: false
   };
@@ -116,16 +118,28 @@
     <div class="migration-copy">
       <strong>发现 Readest 书库</strong>
       <span>
-        本机找到 {model.readestLibraryCount} 本 Readest 藏书；
+        本机检测到 {model.readestLibraryCount} 本 Readest 藏书；
+        {#if model.readestImportableCount > 0}
+          当前仍有 {model.readestImportableCount} 本保留本地文件，可兼容进 br1。
+        {/if}
+        {#if model.readestMissingFileCount > 0}
+          另有 {model.readestMissingFileCount} 本只剩记录，缺少本地文件，暂时无法兼容。
+        {/if}
         {#if model.readestCompatibleCount > 0}
-          当前已有 {model.readestCompatibleCount} 本以兼容方式进入 br1，可继续同步补齐新增内容。
+          br1 里当前已有 {model.readestCompatibleCount} 本可用兼容记录。
         {:else}
-          还没有兼容进 br1，可开始同步本地元数据、封面和阅读位置。
+          br1 里还没有可用兼容记录。
         {/if}
       </span>
     </div>
     <button type="button" class="migration-button" on:click={handleReadestMigration}>
-      {model.migrationBusy ? '兼容中…' : `同步 Readest 藏书`}
+      {#if model.migrationBusy}
+        兼容中…
+      {:else if model.readestImportableCount > 0}
+        {`同步 ${model.readestImportableCount} 本可兼容的 Readest 藏书`}
+      {:else}
+        重新检查 Readest 书库
+      {/if}
     </button>
   </section>
 {/if}

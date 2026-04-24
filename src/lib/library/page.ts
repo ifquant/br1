@@ -132,6 +132,8 @@ export type LibraryPageSurfaceProjectionState = {
   } | null;
   showReadestMigration: boolean;
   readestLibraryCount: number;
+  readestImportableCount: number;
+  readestMissingFileCount: number;
   readestCompatibleCount: number;
   migrationBusy: boolean;
   groupedBrowseMode: boolean;
@@ -1224,6 +1226,8 @@ export const buildLibraryPageSurfaceProjectionState = ({
   notice,
   showReadestMigration,
   readestLibraryCount,
+  readestImportableCount,
+  readestMissingFileCount,
   readestCompatibleCount,
   migrationBusy,
   bulkRepairBusy,
@@ -1243,6 +1247,8 @@ export const buildLibraryPageSurfaceProjectionState = ({
   notice: LibraryPageSurfaceProjectionState['notice'];
   showReadestMigration: boolean;
   readestLibraryCount: number;
+  readestImportableCount: number;
+  readestMissingFileCount: number;
   readestCompatibleCount: number;
   migrationBusy: boolean;
   bulkRepairBusy: boolean;
@@ -1289,6 +1295,8 @@ export const buildLibraryPageSurfaceProjectionState = ({
   notice,
   showReadestMigration,
   readestLibraryCount,
+  readestImportableCount,
+  readestMissingFileCount,
   readestCompatibleCount,
   migrationBusy,
   groupedBrowseMode: projectionState.browseState.libraryGroupedBrowseMode,

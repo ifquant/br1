@@ -30,6 +30,7 @@ type BuildDesktopLibraryBrowseBodyModelArgs = {
   filteredRecentReadingBooks: ContinueReadingBook[];
   importedBooksCount: number;
   readestLibraryCount: number;
+  readestImportableCount: number;
   migrationBusy: boolean;
   libraryQuery: string;
   visibleLibraryBooksCount: number;
@@ -122,6 +123,7 @@ export const buildDesktopLibraryBrowseBodyModel = ({
   filteredRecentReadingBooks,
   importedBooksCount,
   readestLibraryCount,
+  readestImportableCount,
   migrationBusy,
   libraryQuery,
   visibleLibraryBooksCount,
@@ -190,16 +192,24 @@ export const buildDesktopLibraryBrowseBodyModel = ({
       ? {
           ariaLabel: '空书库',
           title: '你的书库还是空的',
-          message: '可以从本机导入新书，或者先把已有的 Readest 书库迁进来。',
+          message:
+            readestLibraryCount > 0
+              ? readestImportableCount > 0
+                ? '可以从本机导入新书，或者先把当前仍保留本地文件的 Readest 藏书兼容进来。'
+                : '本机检测到了 Readest 记录，但对应本地文件已经缺失；当前只能先从本机重新导入。'
+              : '可以从本机导入新书，或者先把已有的 Readest 书库迁进来。',
           actions: [
             {
               label: '从本机导入',
               onClick: onImportBooks
             },
-            ...(readestLibraryCount > 0
+            ...(readestLibraryCount > 0 && readestImportableCount > 0
               ? [
                   {
-                    label: migrationBusy ? '兼容中…' : `同步 Readest 的 ${readestLibraryCount} 本书`,
+                    label:
+                      migrationBusy
+                        ? '兼容中…'
+                        : `同步 Readest 的 ${readestImportableCount} 本可兼容书籍`,
                     secondary: true,
                     onClick: onReadestMigration
                   }

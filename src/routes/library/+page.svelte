@@ -196,6 +196,8 @@
   let importInput: HTMLInputElement | null = null;
   let libraryScrollRef: OverlayScrollbarsComponentRef<'div'> | null = null;
   let readestLibraryCount = 0;
+  let readestImportableCount = 0;
+  let readestMissingFileCount = 0;
   let readestCompatibleCount = 0;
   let showReadestMigration = false;
   let migrationBusy = false;
@@ -384,6 +386,12 @@
       },
       setReadestCompatibleCount: (count) => {
         readestCompatibleCount = count;
+      },
+      setReadestImportableCount: (count) => {
+        readestImportableCount = count;
+      },
+      setReadestMissingFileCount: (count) => {
+        readestMissingFileCount = count;
       },
       setImportedBooks: (books) => {
         importedBooks = books;
@@ -610,6 +618,8 @@
       : null,
     showReadestMigration,
     readestLibraryCount,
+    readestImportableCount,
+    readestMissingFileCount,
     readestCompatibleCount,
     migrationBusy,
     bulkRepairBusy,

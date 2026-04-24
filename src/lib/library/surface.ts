@@ -66,6 +66,8 @@ type BuildLibraryPageSurfaceSetFromStateArgs = {
   notice: Parameters<typeof buildLibraryPageChromeModel>[0]['notice'];
   showReadestMigration: boolean;
   readestLibraryCount: number;
+  readestImportableCount: number;
+  readestMissingFileCount: number;
   readestCompatibleCount: number;
   migrationBusy: boolean;
   groupedBrowseMode: boolean;
@@ -151,6 +153,8 @@ export const createEmptyLibraryPageSurfaceModel = (
     notice: null,
     showReadestMigration: false,
     readestLibraryCount: 0,
+    readestImportableCount: 0,
+    readestMissingFileCount: 0,
     readestCompatibleCount: 0,
     migrationBusy: false
   },
@@ -245,6 +249,8 @@ export const buildLibraryPageSurfaceSetFromState = ({
   notice,
   showReadestMigration,
   readestLibraryCount,
+  readestImportableCount,
+  readestMissingFileCount,
   readestCompatibleCount,
   migrationBusy,
   groupedBrowseMode,
@@ -316,6 +322,8 @@ export const buildLibraryPageSurfaceSetFromState = ({
       notice,
       showReadestMigration,
       readestLibraryCount,
+      readestImportableCount,
+      readestMissingFileCount,
       readestCompatibleCount,
       migrationBusy
     },
@@ -337,6 +345,7 @@ export const buildLibraryPageSurfaceSetFromState = ({
       filteredContinueReadingBooks,
       filteredRecentReadingBooks,
       importedBooksCount,
+      readestImportableCount,
       readestLibraryCount,
       migrationBusy,
       libraryQuery,

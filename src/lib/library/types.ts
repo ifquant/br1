@@ -311,6 +311,8 @@ export type LibraryPageChromeModel = {
   notice?: LibraryNoticeModel | null;
   showReadestMigration: boolean;
   readestLibraryCount: number;
+  readestImportableCount: number;
+  readestMissingFileCount: number;
   readestCompatibleCount: number;
   migrationBusy: boolean;
 };

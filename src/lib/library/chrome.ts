@@ -39,6 +39,8 @@ type BuildLibraryPageChromeModelArgs = {
   notice: LibraryNoticeModel | null;
   showReadestMigration: boolean;
   readestLibraryCount: number;
+  readestImportableCount: number;
+  readestMissingFileCount: number;
   readestCompatibleCount: number;
   migrationBusy: boolean;
 };
@@ -78,6 +80,8 @@ export const buildLibraryPageChromeModel = ({
   notice,
   showReadestMigration,
   readestLibraryCount,
+  readestImportableCount,
+  readestMissingFileCount,
   readestCompatibleCount,
   migrationBusy
 }: BuildLibraryPageChromeModelArgs): LibraryPageChromeModel => ({
@@ -117,6 +121,8 @@ export const buildLibraryPageChromeModel = ({
   notice,
   showReadestMigration,
   readestLibraryCount,
+  readestImportableCount,
+  readestMissingFileCount,
   readestCompatibleCount,
   migrationBusy
 });

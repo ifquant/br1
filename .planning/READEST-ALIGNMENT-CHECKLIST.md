@@ -410,11 +410,12 @@ Goal: close the remaining user-visible Readest gaps that now mainly live in the 
   - Done commit: this commit
   - Notes: `continue reading` remains the in-progress shelf, while `recent reading` now excludes finished books instead of acting as a generic “opened sometime” bucket. This slice keeps the existing visual layout, but it turns the homepage reading workflow into a clearer product contract and makes the “no active reading” notice path real instead of theoretical.
 
-- [ ] P3-2.2 Tighten Readest local-library migration and compatibility semantics
-  - Outcome: users can tell which parts of a Readest local-library import are true compatibility, which are best-effort migration, and which still fall back to reimport-style behavior.
-  - Touches: `src-tauri/src/commands/library.rs`, `src-tauri/src/models.rs`, `src/lib/services/libraryPersistence.ts`, migration banner/notice copy and any library metadata projection that surfaces compatibility results.
-  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cargo check --manifest-path /Users/dev/workspace2/hc_apps/br1/src-tauri/Cargo.toml`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused manual desktop migration review.
-  - Notes: the goal is not more migration surface area by default. The goal is to make current compatibility behavior explicit, fill the highest-value local metadata/state gaps, and stop the product from feeling like a blind file reimport with a Readest label.
+- [x] P3-2.2 Tighten Readest local-library migration and compatibility semantics
+  - Outcome: the library now distinguishes “detected Readest records”, “still importable from local files”, “already compatible inside br1”, and “records whose local files are gone”, so migration entry points stop implying that every detected Readest book can still be synchronized.
+  - Touches: `src-tauri/src/commands/library.rs`, `src-tauri/src/models.rs`, `src/lib/services/libraryPersistence.ts`, `src/lib/library/desktopCatalog.ts`, migration banner/empty-state copy.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cargo check --manifest-path /Users/dev/workspace2/hc_apps/br1/src-tauri/Cargo.toml` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/library/page.test.ts ./src/lib/library/desktopCatalog.test.ts` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: this slice does not add more migration breadth. It makes the existing local Readest path honest: banner counts now separate importable books from missing-file records, and “compatible in br1” only counts usable local copies instead of every historical `readest-*` record.
 
 ## Service Security Gate
 

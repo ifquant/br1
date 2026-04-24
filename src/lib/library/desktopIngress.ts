@@ -46,6 +46,8 @@ export const loadDesktopLibrarySurface = async ({
   triggerReadestMigration,
   setDesktopLibraryMode,
   setReadestLibraryCount,
+  setReadestImportableCount,
+  setReadestMissingFileCount,
   setShowReadestMigration
 }: {
   detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
@@ -57,6 +59,8 @@ export const loadDesktopLibrarySurface = async ({
   }) => Promise<void>;
   setDesktopLibraryMode: (value: boolean) => void;
   setReadestLibraryCount: (count: number) => void;
+  setReadestImportableCount: (count: number) => void;
+  setReadestMissingFileCount: (count: number) => void;
   setShowReadestMigration: (value: boolean) => void;
 }) => {
   setDesktopLibraryMode(true);
@@ -64,6 +68,8 @@ export const loadDesktopLibrarySurface = async ({
   const records = await loadPersistedLibraryBooks();
   const readestSummary = await detectReadestLibrary();
   setReadestLibraryCount(readestSummary.count);
+  setReadestImportableCount(readestSummary.importableCount);
+  setReadestMissingFileCount(readestSummary.missingFileCount);
 
   if (records.length === 0 && readestSummary.available) {
     await triggerReadestMigration({ autoOpenFirstBook: false, reloadAfterImport: false });

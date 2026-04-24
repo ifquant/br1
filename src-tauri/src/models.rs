@@ -39,6 +39,8 @@ pub(crate) struct LibraryBookRecord {
 pub(crate) struct ReadestLibrarySummary {
     pub(crate) available: bool,
     pub(crate) count: usize,
+    pub(crate) importable_count: usize,
+    pub(crate) missing_file_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]

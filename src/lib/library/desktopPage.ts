@@ -50,6 +50,8 @@ export type DesktopLibraryPageCoordinatorOptions = {
   setLibraryNoticeState: SetLibraryNoticeState;
   setPersistedLibraryRecords: (records: PersistedLibraryBook[]) => void;
   setReadestCompatibleCount: (count: number) => void;
+  setReadestImportableCount: (count: number) => void;
+  setReadestMissingFileCount: (count: number) => void;
   setImportedBooks: (books: LibraryShelfBook[]) => void;
   canPersistLibrary: () => boolean;
   getPersistedLibraryRecords: () => PersistedLibraryBook[];
@@ -145,6 +147,8 @@ export type DesktopLibraryPageCoordinatorStateBindings = Pick<
   | 'setLibraryNoticeState'
   | 'setPersistedLibraryRecords'
   | 'setReadestCompatibleCount'
+  | 'setReadestImportableCount'
+  | 'setReadestMissingFileCount'
   | 'setImportedBooks'
   | 'getPersistedLibraryRecords'
   | 'getBulkRepairBusy'
@@ -179,6 +183,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   persistedLibraryRecords,
   setPersistedLibraryRecords,
   setReadestCompatibleCount,
+  setReadestImportableCount,
+  setReadestMissingFileCount,
   setImportedBooks,
   bulkRepairBusy,
   setBulkRepairBusy,
@@ -201,6 +207,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   persistedLibraryRecords: PersistedLibraryBook[];
   setPersistedLibraryRecords: (records: PersistedLibraryBook[]) => void;
   setReadestCompatibleCount: (count: number) => void;
+  setReadestImportableCount: (count: number) => void;
+  setReadestMissingFileCount: (count: number) => void;
   setImportedBooks: (books: LibraryShelfBook[]) => void;
   bulkRepairBusy: boolean;
   setBulkRepairBusy: (busy: boolean) => void;
@@ -222,6 +230,8 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   setLibraryNoticeState: setLibraryNotice,
   setPersistedLibraryRecords,
   setReadestCompatibleCount,
+  setReadestImportableCount,
+  setReadestMissingFileCount,
   setImportedBooks,
   getPersistedLibraryRecords: () => persistedLibraryRecords,
   getBulkRepairBusy: () => bulkRepairBusy,
@@ -396,6 +406,8 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       triggerReadestMigration,
       setDesktopLibraryMode: options.setDesktopLibraryMode,
       setReadestLibraryCount: options.setReadestLibraryCount,
+      setReadestImportableCount: options.setReadestImportableCount,
+      setReadestMissingFileCount: options.setReadestMissingFileCount,
       setShowReadestMigration: options.setShowReadestMigration
     });
   };

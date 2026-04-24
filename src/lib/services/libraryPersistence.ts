@@ -27,6 +27,8 @@ export type PersistedLibraryBook = {
 export type ReadestLibrarySummary = {
   available: boolean;
   count: number;
+  importableCount: number;
+  missingFileCount: number;
 };
 
 export type ReadestImportSummary = {
@@ -207,7 +209,7 @@ export const loadPersistedLibraryBooks = async (): Promise<PersistedLibraryBook[
 
 export const detectReadestLibrary = async (): Promise<ReadestLibrarySummary> => {
   if (!isTauriDesktop()) {
-    return { available: false, count: 0 };
+    return { available: false, count: 0, importableCount: 0, missingFileCount: 0 };
   }
 
   return invokeTauri<ReadestLibrarySummary>('detect_readest_library');
