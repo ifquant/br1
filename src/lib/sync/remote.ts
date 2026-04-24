@@ -15,7 +15,6 @@ export type Br1RemoteSyncStatus =
 export type Br1RemoteSyncRequest = {
   provider: Br1RemoteSyncProvider;
   operation: Br1RemoteSyncOperation;
-  snapshot: Br1SyncSnapshot;
 };
 
 export type Br1RemoteSyncResult = {

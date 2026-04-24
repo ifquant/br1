@@ -1,10 +1,15 @@
 use crate::models::{
     KoReaderRemoteProgressEntry, KoReaderRemoteSyncRequest, KoReaderRemoteSyncResult,
+    LibraryBookRecord,
 };
+use crate::util::{ensure_library_root, library_json_path, load_library_records};
 use reqwest::{Client, StatusCode, Url};
 use std::time::Duration;
 
 const KOREADER_REMOTE_SYNC_TIMEOUT: Duration = Duration::from_secs(15);
+const KO_READER_XPOINTER_PREFIX: &str = "/body/DocFragment[";
+const EPUB_CFI_PREFIX: &str = "epubcfi(";
+const PLAIN_TEXT_PROGRESS_PREFIX: &str = "txt:";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum KoReaderRemoteSyncOperation {
@@ -149,6 +154,133 @@ fn auth_failure_result(
 
 fn build_endpoint(config: &KoReaderRemoteSyncConfig, path: &str) -> Result<Url, String> {
     config.base_url.join(path).map_err(|error| error.to_string())
+}
+
+fn build_progress_entry_url(
+    config: &KoReaderRemoteSyncConfig,
+    document: &str,
+) -> Result<Url, String> {
+    let mut url = build_endpoint(config, "syncs/progress")?;
+    {
+        let mut segments = url
+            .path_segments_mut()
+            .map_err(|_| "KOReader progress endpoint is invalid.".to_string())?;
+        segments.push(document);
+    }
+    Ok(url)
+}
+
+fn hash_identity_part(value: &str) -> String {
+    let mut hash = 0x811c9dc5u32;
+    for byte in value.bytes() {
+        hash ^= byte as u32;
+        hash = hash.wrapping_mul(0x01000193);
+    }
+    format!("{hash:08x}")
+}
+
+fn derive_document_hash(book: &LibraryBookRecord) -> String {
+    hash_identity_part(
+        book.source_path
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(book.file_path.as_str())
+            .trim(),
+    )
+}
+
+fn normalize_progress_label(value: &str) -> String {
+    value.trim().to_string()
+}
+
+fn is_koreader_locator(value: &str) -> bool {
+    value.starts_with(KO_READER_XPOINTER_PREFIX) || value.starts_with(EPUB_CFI_PREFIX)
+}
+
+fn is_page_progress(value: &str) -> bool {
+    let Some(inner) = value.strip_prefix('[').and_then(|value| value.strip_suffix(']')) else {
+        return false;
+    };
+    let Some((current, total)) = inner.split_once(',') else {
+        return false;
+    };
+    current.trim().parse::<u64>().is_ok() && total.trim().parse::<u64>().map(|value| value > 0).unwrap_or(false)
+}
+
+fn to_percent(value: Option<f64>) -> Option<f64> {
+    let value = value?;
+    if !value.is_finite() {
+        return None;
+    }
+    Some((value.clamp(0.0, 1.0) * 10000.0).round() / 100.0)
+}
+
+fn to_koreader_remote_progress_value(book: &LibraryBookRecord) -> String {
+    let koreader_location = book
+        .koreader_progress_location
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if !koreader_location.is_empty() && is_koreader_locator(&koreader_location) {
+        return koreader_location;
+    }
+
+    let location = book
+        .progress_location
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if is_koreader_locator(&location) {
+        return location;
+    }
+
+    if location.starts_with(PLAIN_TEXT_PROGRESS_PREFIX) {
+        return String::new();
+    }
+
+    let label = normalize_progress_label(&book.progress);
+    if is_page_progress(&label) || label.chars().all(|char| char.is_ascii_digit()) {
+        return label;
+    }
+
+    String::new()
+}
+
+fn load_current_progress_entries(
+    app: &tauri::AppHandle,
+) -> Result<Vec<KoReaderRemoteProgressEntry>, String> {
+    ensure_library_root(app)?;
+    let library_json = library_json_path(app)?;
+    let library_books = load_library_records(&library_json)?;
+    let mut entries = Vec::new();
+
+    for book in library_books {
+        let progress = to_koreader_remote_progress_value(&book);
+        let timestamp = book.last_opened_at.unwrap_or(book.imported_at);
+        if progress.is_empty() || timestamp == 0 {
+            continue;
+        }
+
+        entries.push(KoReaderRemoteProgressEntry {
+            schema_version: 1,
+            book_id: book.id.clone(),
+            file_path: book.file_path.clone(),
+            source_path: book.source_path.clone(),
+            title: book.title.clone(),
+            author: book.author.clone(),
+            format: book.format.clone(),
+            document: derive_document_hash(&book),
+            progress,
+            percentage: to_percent(book.progress_fraction),
+            timestamp,
+            device: None,
+            device_id: None,
+        });
+    }
+
+    Ok(entries)
 }
 
 async fn authenticate(
@@ -351,7 +483,7 @@ async fn pull_progress_entries(
     let mut skipped_count = 0usize;
 
     for entry in entries {
-        let url = build_endpoint(config, &format!("syncs/progress/{}", entry.document)).map_err(
+        let url = build_progress_entry_url(config, &entry.document).map_err(
             |detail| {
                 result_with_status(
                     operation,
@@ -490,6 +622,7 @@ async fn pull_progress_entries(
 
 #[tauri::command]
 pub(crate) async fn run_koreader_remote_sync(
+    app: tauri::AppHandle,
     request: KoReaderRemoteSyncRequest,
 ) -> Result<KoReaderRemoteSyncResult, String> {
     let operation = normalize_operation(&request.operation)?;
@@ -502,12 +635,13 @@ pub(crate) async fn run_koreader_remote_sync(
         return Ok(result);
     }
 
+    let entries = load_current_progress_entries(&app)?;
     let result = match operation {
         KoReaderRemoteSyncOperation::Push => {
-            push_progress_entries(&client, &config, &request.entries, &operation).await
+            push_progress_entries(&client, &config, &entries, &operation).await
         }
         KoReaderRemoteSyncOperation::Pull => {
-            pull_progress_entries(&client, &config, &request.entries, &operation).await
+            pull_progress_entries(&client, &config, &entries, &operation).await
         }
     };
 

@@ -1,13 +1,14 @@
 use crate::models::{
-    ApplySyncSnapshotRequest, ApplySyncSnapshotResult, ReaderBookmarksEntry,
+    ApplySyncSnapshotRequest, ApplySyncSnapshotResult, LibraryBookRecord, ReaderBookmarksEntry,
+    ReaderBookmarkRecord,
     KoReaderSyncExchangeExportDialogResult, KoReaderSyncExchangeImportDialogResult,
-    ReaderHighlightsWorkspaceEntry, ReaderNotesEntry, SyncSnapshotDocument,
-    SyncSnapshotExportDialogResult, SyncSnapshotImportDialogResult, BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
-    READER_BOOKMARKS_SCHEMA_VERSION, READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION,
-    READER_NOTES_SCHEMA_VERSION,
+    ReaderHighlightsWorkspaceEntry, ReaderHighlightsWorkspaceStateRecord, ReaderNoteRecord,
+    ReaderNotesEntry, SyncSnapshotDocument, SyncSnapshotExportDialogResult,
+    SyncSnapshotImportDialogResult, SyncSnapshotRecord, BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+    READER_BOOKMARKS_SCHEMA_VERSION, READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION, READER_NOTES_SCHEMA_VERSION,
 };
 use crate::util::{
-    ensure_library_root, library_json_path, now_millis, reader_bookmarks_root,
+    ensure_library_root, library_json_path, load_library_records, now_millis, reader_bookmarks_root,
     reader_highlights_workspace_root, reader_notes_root, reader_storage_component_key,
     save_library_records, sync_snapshots_root,
 };
@@ -187,6 +188,188 @@ fn apply_sync_snapshot_roots(
         note_book_count: request.notes.len(),
         highlights_workspace_book_count: request.highlights_workspace.len(),
         restored_reader_settings: request.reader_settings.is_some(),
+    })
+}
+
+fn hash_sync_key(value: &str) -> String {
+    let mut hash = 0x811c9dc5u32;
+    for byte in value.bytes() {
+        hash ^= byte as u32;
+        hash = hash.wrapping_mul(0x01000193);
+    }
+    format!("{hash:08x}")
+}
+
+fn build_scoped_record_id(kind: &str, scope: &str) -> String {
+    format!("{kind}:{}", hash_sync_key(scope))
+}
+
+fn resolve_updated_at(values: &[Option<u64>], fallback_updated_at: u64) -> u64 {
+    values
+        .iter()
+        .flatten()
+        .copied()
+        .max()
+        .unwrap_or(fallback_updated_at)
+}
+
+fn library_metadata_sync_record(book: &LibraryBookRecord, exported_at: u64) -> SyncSnapshotRecord {
+    SyncSnapshotRecord {
+        schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+        kind: "library-book".to_string(),
+        id: format!("library-book:{}", book.id),
+        updated_at: resolve_updated_at(&[Some(book.imported_at)], exported_at),
+        scope: Some(serde_json::json!({ "bookId": book.id })),
+        payload: serde_json::json!({
+            "id": book.id,
+            "title": book.title,
+            "author": book.author,
+            "format": book.format,
+            "description": book.description,
+            "language": book.language,
+            "publisher": book.publisher,
+            "collection": book.collection,
+            "tags": book.tags,
+            "filePath": book.file_path,
+            "coverPath": book.cover_path,
+            "sourcePath": book.source_path,
+            "importedAt": book.imported_at,
+            "libraryFileExists": book.library_file_exists,
+            "sourceFileExists": book.source_file_exists,
+        }),
+    }
+}
+
+fn reading_state_sync_record(book: &LibraryBookRecord, exported_at: u64) -> SyncSnapshotRecord {
+    SyncSnapshotRecord {
+        schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+        kind: "reading-state".to_string(),
+        id: format!("reading-state:{}", book.id),
+        updated_at: resolve_updated_at(&[book.last_opened_at, Some(book.imported_at)], exported_at),
+        scope: Some(serde_json::json!({
+            "bookId": book.id,
+            "filePath": book.file_path,
+        })),
+        payload: serde_json::json!({
+            "id": book.id,
+            "filePath": book.file_path,
+            "progress": book.progress,
+            "status": book.status,
+            "progressFraction": book.progress_fraction,
+            "progressLocation": book.progress_location,
+            "koreaderProgressLocation": book.koreader_progress_location,
+            "lastOpenedAt": book.last_opened_at,
+        }),
+    }
+}
+
+fn bookmarks_sync_record(
+    book_key: &str,
+    bookmarks: Vec<ReaderBookmarkRecord>,
+    exported_at: u64,
+) -> SyncSnapshotRecord {
+    let updated_at = resolve_updated_at(
+        &bookmarks
+            .iter()
+            .map(|bookmark| Some(bookmark.created_at))
+            .collect::<Vec<_>>(),
+        exported_at,
+    );
+    SyncSnapshotRecord {
+        schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+        kind: "bookmarks".to_string(),
+        id: build_scoped_record_id("bookmarks", book_key),
+        updated_at,
+        scope: Some(serde_json::json!({ "bookKey": book_key })),
+        payload: serde_json::json!({
+            "bookKey": book_key,
+            "bookmarks": bookmarks,
+        }),
+    }
+}
+
+fn notes_sync_record(
+    book_key: &str,
+    notes: Vec<ReaderNoteRecord>,
+    exported_at: u64,
+) -> SyncSnapshotRecord {
+    let updated_at = resolve_updated_at(
+        &notes
+            .iter()
+            .map(|note| Some(note.created_at))
+            .collect::<Vec<_>>(),
+        exported_at,
+    );
+    SyncSnapshotRecord {
+        schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+        kind: "notes".to_string(),
+        id: build_scoped_record_id("notes", book_key),
+        updated_at,
+        scope: Some(serde_json::json!({ "bookKey": book_key })),
+        payload: serde_json::json!({
+            "bookKey": book_key,
+            "notes": notes,
+        }),
+    }
+}
+
+fn highlights_sync_record(
+    book_key: &str,
+    state: ReaderHighlightsWorkspaceStateRecord,
+    exported_at: u64,
+) -> SyncSnapshotRecord {
+    let mut updated_values = Vec::new();
+    for selection in &state.saved_selections {
+        updated_values.push(Some(selection.created_at));
+        updated_values.push(selection.import_source.as_ref().map(|source| source.imported_at));
+    }
+
+    SyncSnapshotRecord {
+        schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+        kind: "highlights-workspace".to_string(),
+        id: build_scoped_record_id("highlights-workspace", book_key),
+        updated_at: resolve_updated_at(&updated_values, exported_at),
+        scope: Some(serde_json::json!({ "bookKey": book_key })),
+        payload: serde_json::json!({
+            "bookKey": book_key,
+            "state": state,
+        }),
+    }
+}
+
+pub(crate) fn load_current_sync_snapshot(
+    app: &tauri::AppHandle,
+) -> Result<SyncSnapshotDocument, String> {
+    ensure_library_root(app)?;
+    let exported_at = now_millis()?;
+    let library_json = library_json_path(app)?;
+    let library_books = load_library_records(&library_json)?;
+    let mut records = Vec::new();
+
+    for book in &library_books {
+        records.push(library_metadata_sync_record(book, exported_at));
+        records.push(reading_state_sync_record(book, exported_at));
+
+        let book_key = book.file_path.clone();
+        let bookmarks =
+            crate::commands::bookmarks::load_reader_bookmarks(app.clone(), book_key.clone())?;
+        records.push(bookmarks_sync_record(&book_key, bookmarks, exported_at));
+
+        let notes = crate::commands::notes::load_reader_notes(app.clone(), book_key.clone())?;
+        records.push(notes_sync_record(&book_key, notes, exported_at));
+
+        if let Some(state) = crate::commands::highlights_workspace::load_reader_highlights_workspace_state(
+            app.clone(),
+            book_key.clone(),
+        )? {
+            records.push(highlights_sync_record(&book_key, state, exported_at));
+        }
+    }
+
+    Ok(SyncSnapshotDocument {
+        schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
+        exported_at,
+        records,
     })
 }
 

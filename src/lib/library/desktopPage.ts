@@ -993,11 +993,9 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     options.setRemoteSyncBusy(true);
     clearLibraryNotice();
     try {
-      const snapshot = await buildCurrentSyncSnapshot();
       const result = await options.runRemoteSync({
         provider: 'readestCloud',
-        operation: 'push',
-        snapshot
+        operation: 'push'
       });
 
       if (result.status === 'success') {
@@ -1033,11 +1031,9 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     options.setRemoteSyncBusy(true);
     clearLibraryNotice();
     try {
-      const snapshot = await buildCurrentSyncSnapshot();
       const result = await options.runRemoteSync({
         provider: 'readestCloud',
-        operation: 'pull',
-        snapshot
+        operation: 'pull'
       });
 
       if (result.status === 'success') {

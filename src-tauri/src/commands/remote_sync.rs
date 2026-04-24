@@ -1,4 +1,5 @@
 use crate::models::{RemoteSyncRequest, RemoteSyncResult, SyncSnapshotDocument};
+use crate::commands::sync_snapshot::load_current_sync_snapshot;
 use reqwest::{Client, StatusCode, Url};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -390,6 +391,7 @@ async fn upload_remote_snapshot(
 async fn run_remote_sync_with_config(
     request: RemoteSyncRequest,
     config: ReadestCloudConfig,
+    snapshot: SyncSnapshotDocument,
 ) -> RemoteSyncResult {
     let operation = match normalize_operation(&request.operation) {
         Ok(operation) => operation,
@@ -422,7 +424,7 @@ async fn run_remote_sync_with_config(
         );
     }
 
-    if let Err(detail) = validate_sync_snapshot(&request.snapshot) {
+    if let Err(detail) = validate_sync_snapshot(&snapshot) {
         return result_with_status(
             READEST_CLOUD_PROVIDER,
             &operation,
@@ -436,7 +438,7 @@ async fn run_remote_sync_with_config(
         );
     }
 
-    let local_fingerprint = match snapshot_fingerprint(&request.snapshot) {
+    let local_fingerprint = match snapshot_fingerprint(&snapshot) {
         Ok(fingerprint) => fingerprint,
         Err(detail) => {
             return result_with_status(
@@ -513,7 +515,7 @@ async fn run_remote_sync_with_config(
                 );
             }
 
-            match upload_remote_snapshot(&client, &config, &request.snapshot, local_fingerprint).await {
+            match upload_remote_snapshot(&client, &config, &snapshot, local_fingerprint).await {
                 Ok(result) | Err(result) => result,
             }
         }
@@ -577,12 +579,16 @@ async fn run_remote_sync_with_config(
 }
 
 #[tauri::command]
-pub(crate) async fn run_remote_sync(request: RemoteSyncRequest) -> Result<RemoteSyncResult, String> {
+pub(crate) async fn run_remote_sync(
+    app: tauri::AppHandle,
+    request: RemoteSyncRequest,
+) -> Result<RemoteSyncResult, String> {
     let operation = normalize_operation(&request.operation)?;
     let Some(config) = resolve_readest_cloud_config() else {
         return Ok(missing_config_result(&operation));
     };
-    Ok(run_remote_sync_with_config(request, config).await)
+    let snapshot = load_current_sync_snapshot(&app)?;
+    Ok(run_remote_sync_with_config(request, config, snapshot).await)
 }
 
 #[cfg(test)]
@@ -634,11 +640,10 @@ mod tests {
         }
     }
 
-    fn sample_request(operation: &str, snapshot: SyncSnapshotDocument) -> RemoteSyncRequest {
+    fn sample_request(operation: &str) -> RemoteSyncRequest {
         RemoteSyncRequest {
             provider: READEST_CLOUD_PROVIDER.to_string(),
             operation: operation.to_string(),
-            snapshot,
         }
     }
 
@@ -693,8 +698,9 @@ mod tests {
         };
 
         let result = tauri::async_runtime::block_on(run_remote_sync_with_config(
-            sample_request("push", local.clone()),
+            sample_request("push"),
             config,
+            local.clone(),
         ));
 
         assert_eq!(result.status, "success");
@@ -718,8 +724,9 @@ mod tests {
         };
 
         let result = tauri::async_runtime::block_on(run_remote_sync_with_config(
-            sample_request("push", local),
+            sample_request("push"),
             config,
+            local,
         ));
 
         assert_eq!(result.status, "conflict");
@@ -740,8 +747,9 @@ mod tests {
         };
 
         let result = tauri::async_runtime::block_on(run_remote_sync_with_config(
-            sample_request("pull", sample_snapshot(100, "Local")),
+            sample_request("pull"),
             config,
+            sample_snapshot(100, "Local"),
         ));
 
         assert_eq!(result.status, "offline");
@@ -758,8 +766,9 @@ mod tests {
         };
 
         let result = tauri::async_runtime::block_on(run_remote_sync_with_config(
-            sample_request("pull", sample_snapshot(100, "Local")),
+            sample_request("pull"),
             config,
+            sample_snapshot(100, "Local"),
         ));
 
         assert_eq!(result.status, "retryable-failure");

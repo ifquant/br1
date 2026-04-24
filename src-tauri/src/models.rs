@@ -429,7 +429,6 @@ pub(crate) struct ApplySyncSnapshotResult {
 pub(crate) struct RemoteSyncRequest {
     pub(crate) provider: String,
     pub(crate) operation: String,
-    pub(crate) snapshot: SyncSnapshotDocument,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -476,8 +475,6 @@ pub(crate) struct KoReaderRemoteProgressEntry {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct KoReaderRemoteSyncRequest {
     pub(crate) operation: String,
-    #[serde(default)]
-    pub(crate) entries: Vec<KoReaderRemoteProgressEntry>,
 }
 
 #[derive(Debug, Clone, Serialize)]
