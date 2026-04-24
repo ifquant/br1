@@ -379,7 +379,7 @@ These checks apply to every P2 service slice.
 
 - [x] S-2 Renderer cannot use service flows to read arbitrary local files
   - Done commit: 0511
-  - Notes: sync snapshot import/export now keeps file selection and save-path ownership inside Tauri dialogs. The renderer never supplies arbitrary snapshot filesystem paths; it only receives parsed snapshot content or file-name summaries, while restore writes go through Tauri-owned app-data paths and existing hashed storage roots.
+  - Notes: sync snapshot import/export now keeps file selection and save-path ownership inside Tauri dialogs. The renderer never supplies arbitrary snapshot filesystem paths; it only receives parsed snapshot content or file-name summaries, while restore writes go through Tauri-owned app-data paths and existing hashed storage roots. KOReader exchange import now follows the same rule: file selection, validation, match resolution, and local apply all execute inside Tauri instead of returning a parsed exchange document to renderer for merge/apply.
 
 - [x] S-3 Long-lived provider credentials are not stored in renderer-only state
   - Done commit: 0505, 00d5fd1, affd7a2
@@ -395,3 +395,4 @@ Use this log when completing each item.
 
 | Date | Item | Commit | Verification | Notes |
 |---|---|---|---|---|
+| 2026-04-25 | Move KOReader exchange import/apply into Tauri | this commit | `cargo check --manifest-path src-tauri/Cargo.toml`; `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `pnpm check`; `git diff --check` | closes the last renderer-owned KOReader exchange apply path by routing file pick, validation, merge/apply, and conflict summaries through `restore_koreader_sync_exchange_dialog` |

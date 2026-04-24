@@ -289,7 +289,7 @@ pub fn run() {
             commands::library::update_library_reading_state,
             commands::koreader_remote_sync::run_koreader_remote_sync,
             commands::remote_sync::run_remote_sync,
-            commands::sync_snapshot::load_koreader_sync_exchange_dialog,
+            commands::sync_snapshot::restore_koreader_sync_exchange_dialog,
             commands::sync_snapshot::save_koreader_sync_exchange_dialog,
             commands::sync_snapshot::save_sync_snapshot_dialog,
             commands::sync_snapshot::restore_sync_snapshot_dialog

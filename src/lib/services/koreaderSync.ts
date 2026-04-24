@@ -51,11 +51,17 @@ export type KoReaderSyncExchangeExportDialogResult = {
   bookCount: number;
 };
 
-export type KoReaderSyncExchangeImportDialogResult = {
+export type ApplyKoReaderSyncExchangeResult = {
+  appliedBookCount: number;
+  skippedBookCount: number;
+  conflicts: KoReaderSyncConflict[];
+};
+
+export type RestoreKoReaderSyncExchangeDialogResult = {
   cancelled: boolean;
   fileName: string | null;
   bookCount: number;
-  document: Br1KoReaderSyncExchangeDocument | null;
+  applyResult: ApplyKoReaderSyncExchangeResult | null;
 };
 
 export type KoReaderSyncConflictKind =
@@ -739,10 +745,13 @@ export const saveKoReaderSyncExchangeDialog = async (
   });
 };
 
-export const loadKoReaderSyncExchangeDialog = async (): Promise<KoReaderSyncExchangeImportDialogResult> => {
-  requireTauriKoReaderSyncRuntime('loadKoReaderSyncExchangeDialog');
-  return invokeTauri<KoReaderSyncExchangeImportDialogResult>('load_koreader_sync_exchange_dialog');
-};
+export const restoreKoReaderSyncExchangeDialog =
+  async (): Promise<RestoreKoReaderSyncExchangeDialogResult> => {
+    requireTauriKoReaderSyncRuntime('restoreKoReaderSyncExchangeDialog');
+    return invokeTauri<RestoreKoReaderSyncExchangeDialogResult>(
+      'restore_koreader_sync_exchange_dialog'
+    );
+  };
 
 export const runKoReaderRemoteSync = async (
   request: Br1KoReaderRemoteSyncRequest

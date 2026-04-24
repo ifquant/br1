@@ -386,12 +386,31 @@ pub(crate) struct KoReaderSyncExchangeExportDialogResult {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct KoReaderSyncExchangeImportDialogResult {
+pub(crate) struct KoReaderSyncConflictResult {
+    pub(crate) kind: String,
+    pub(crate) book_title: String,
+    pub(crate) book_author: String,
+    pub(crate) book_format: String,
+    pub(crate) detail: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ApplyKoReaderSyncExchangeResult {
+    pub(crate) applied_book_count: usize,
+    pub(crate) skipped_book_count: usize,
+    #[serde(default)]
+    pub(crate) conflicts: Vec<KoReaderSyncConflictResult>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RestoreKoReaderSyncExchangeDialogResult {
     pub(crate) cancelled: bool,
     pub(crate) file_name: Option<String>,
     pub(crate) book_count: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) document: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) apply_result: Option<ApplyKoReaderSyncExchangeResult>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,11 +1,13 @@
 use crate::models::{
-    ApplySyncSnapshotRequest, ApplySyncSnapshotResult, LibraryBookRecord, ReaderBookmarksEntry,
-    ReaderBookmarkRecord,
-    KoReaderSyncExchangeExportDialogResult, KoReaderSyncExchangeImportDialogResult,
-    ReaderHighlightsWorkspaceEntry, ReaderHighlightsWorkspaceStateRecord, ReaderNoteRecord,
-    ReaderNotesEntry, RestoreSyncSnapshotDialogResult, SyncSnapshotBookmarksStateRecord,
-    SyncSnapshotDocument, SyncSnapshotExportDialogResult, SyncSnapshotHighlightsWorkspaceRecord,
-    SyncSnapshotImportDialogResult, SyncSnapshotNotesStateRecord, SyncSnapshotRecord,
+    ApplyKoReaderSyncExchangeResult, ApplySyncSnapshotRequest, ApplySyncSnapshotResult,
+    KoReaderSyncConflictResult, KoReaderSyncExchangeExportDialogResult,
+    LibraryBookRecord, ReaderBookmarksEntry, ReaderBookmarkKoReaderMetadataRecord,
+    ReaderBookmarkRecord, ReaderHighlightsWorkspaceEntry, ReaderHighlightsWorkspaceStateRecord,
+    ReaderNoteRecord, ReaderNotesEntry, RestoreKoReaderSyncExchangeDialogResult,
+    RestoreSyncSnapshotDialogResult,
+    SyncSnapshotBookmarksStateRecord, SyncSnapshotDocument, SyncSnapshotExportDialogResult,
+    SyncSnapshotHighlightsWorkspaceRecord, SyncSnapshotImportDialogResult,
+    SyncSnapshotNotesStateRecord, SyncSnapshotRecord,
     BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
     READER_BOOKMARKS_SCHEMA_VERSION, READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION, READER_NOTES_SCHEMA_VERSION,
 };
@@ -15,7 +17,7 @@ use crate::util::{
     save_library_records, sync_snapshots_root,
 };
 use serde::de::DeserializeOwned;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri_plugin_dialog::DialogExt;
@@ -67,6 +69,83 @@ struct SyncSnapshotReadingStatePayload {
 struct SyncSnapshotReaderSettingsPayload {
     storage_key: String,
     settings: serde_json::Value,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KoReaderExchangeConfigPayload {
+    progress: serde_json::Value,
+    xpointer: String,
+    updated_at: u64,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KoReaderExchangeIdentityPayload {
+    book_hash: String,
+    meta_hash: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KoReaderExchangeAnnotationPayload {
+    id: String,
+    #[serde(rename = "type")]
+    kind: String,
+    xpointer0: String,
+    #[serde(default)]
+    xpointer1: Option<String>,
+    text: String,
+    note: String,
+    #[serde(default)]
+    page: Option<u64>,
+    #[serde(default)]
+    style: Option<String>,
+    #[serde(default)]
+    color: Option<String>,
+    created_at: u64,
+    updated_at: u64,
+    #[serde(default)]
+    deleted_at: Option<u64>,
+    #[serde(flatten)]
+    identity: KoReaderExchangeIdentityPayload,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KoReaderExchangeBookPayload {
+    book_id: String,
+    file_path: String,
+    #[serde(default)]
+    source_path: Option<String>,
+    title: String,
+    author: String,
+    format: String,
+    koreader: KoReaderExchangeBookStatePayload,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KoReaderExchangeBookStatePayload {
+    config: KoReaderExchangeConfigPayload,
+    #[serde(default)]
+    annotations: Vec<KoReaderExchangeAnnotationPayload>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KoReaderExchangeDocumentPayload {
+    schema_version: u64,
+    books: Vec<KoReaderExchangeBookPayload>,
+}
+
+#[derive(Debug, Clone)]
+struct KoReaderExchangeConflict {
+    kind: String,
+    book_title: String,
+    book_author: String,
+    book_format: String,
+    detail: String,
 }
 
 fn sync_snapshot_file_name(exported_at: u64) -> String {
@@ -426,40 +505,525 @@ fn prepare_apply_sync_snapshot_request(
 }
 
 fn validate_koreader_sync_exchange(document: &serde_json::Value) -> Result<usize, String> {
-    let object = document
-        .as_object()
-        .ok_or_else(|| "KOReader exchange document must be a JSON object.".to_string())?;
-    let schema_version = object
-        .get("schemaVersion")
-        .and_then(|value| value.as_u64())
-        .ok_or_else(|| "KOReader exchange document is missing schemaVersion.".to_string())?;
-    if schema_version != KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION {
+    let parsed: KoReaderExchangeDocumentPayload = serde_json::from_value(document.clone())
+        .map_err(|error| format!("KOReader exchange document is not valid JSON: {error}"))?;
+    if parsed.schema_version != KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION {
         return Err(format!(
-            "Unsupported KOReader exchange schema version: {schema_version}"
+            "Unsupported KOReader exchange schema version: {}",
+            parsed.schema_version
         ));
     }
 
-    let books = object
-        .get("books")
-        .and_then(|value| value.as_array())
-        .ok_or_else(|| "KOReader exchange document is missing a books array.".to_string())?;
-
-    for (index, book) in books.iter().enumerate() {
-        let Some(book) = book.as_object() else {
-            return Err(format!("KOReader exchange book {} must be an object.", index + 1));
-        };
-        let title = book.get("title").and_then(|value| value.as_str()).unwrap_or("").trim();
-        let author = book.get("author").and_then(|value| value.as_str()).unwrap_or("").trim();
-        let format = book.get("format").and_then(|value| value.as_str()).unwrap_or("").trim();
-        if title.is_empty() || author.is_empty() || format.is_empty() {
+    for (index, book) in parsed.books.iter().enumerate() {
+        if book.title.trim().is_empty() || book.author.trim().is_empty() || book.format.trim().is_empty() {
             return Err(format!(
                 "KOReader exchange book {} is missing title, author, or format.",
                 index + 1
             ));
         }
+        if book.koreader.config.xpointer.trim().is_empty() {
+            return Err(format!(
+                "KOReader exchange book {} is missing a KOReader xpointer.",
+                index + 1
+            ));
+        }
     }
 
-    Ok(books.len())
+    Ok(parsed.books.len())
+}
+
+fn parse_koreader_exchange_document(raw: &str) -> Result<KoReaderExchangeDocumentPayload, String> {
+    let document: serde_json::Value = serde_json::from_str(raw)
+        .map_err(|error| format!("Exchange file is not valid JSON: {error}"))?;
+    validate_koreader_sync_exchange(&document)?;
+    serde_json::from_value(document)
+        .map_err(|error| format!("KOReader exchange document is not valid JSON: {error}"))
+}
+
+fn has_koreader_identity(
+    book_hash: Option<&String>,
+    meta_hash: Option<&String>,
+) -> bool {
+    matches!((book_hash, meta_hash), (Some(book_hash), Some(meta_hash)) if !book_hash.is_empty() && !meta_hash.is_empty())
+}
+
+fn matches_imported_koreader_bookmark(
+    existing: &ReaderBookmarkRecord,
+    imported: &ReaderBookmarkRecord,
+) -> bool {
+    let Some(existing_metadata) = existing.koreader.as_ref() else {
+        return false;
+    };
+    let Some(imported_metadata) = imported.koreader.as_ref() else {
+        return false;
+    };
+    if existing.id == imported.id {
+        return true;
+    }
+
+    let existing_annotation = &existing_metadata.annotation;
+    let imported_annotation = &imported_metadata.annotation;
+    has_koreader_identity(
+        existing_annotation.book_hash.as_ref(),
+        existing_annotation.meta_hash.as_ref(),
+    ) && has_koreader_identity(
+        imported_annotation.book_hash.as_ref(),
+        imported_annotation.meta_hash.as_ref(),
+    ) && existing_annotation.book_hash == imported_annotation.book_hash
+        && existing_annotation.meta_hash == imported_annotation.meta_hash
+        && existing_annotation
+            .xpointer0
+            .eq(imported_annotation.xpointer0.as_str())
+}
+
+fn matches_imported_koreader_note(existing: &ReaderNoteRecord, imported: &ReaderNoteRecord) -> bool {
+    let Some(existing_metadata) = existing.koreader.as_ref() else {
+        return false;
+    };
+    let Some(imported_metadata) = imported.koreader.as_ref() else {
+        return false;
+    };
+    if existing.id == imported.id {
+        return true;
+    }
+
+    has_koreader_identity(
+        existing_metadata.book_hash.as_ref(),
+        existing_metadata.meta_hash.as_ref(),
+    ) && has_koreader_identity(
+        imported_metadata.book_hash.as_ref(),
+        imported_metadata.meta_hash.as_ref(),
+    ) && existing_metadata.book_hash == imported_metadata.book_hash
+        && existing_metadata.meta_hash == imported_metadata.meta_hash
+        && existing_metadata.xpointer0.eq(imported_metadata.xpointer0.as_str())
+}
+
+fn imported_annotation_to_bookmark(
+    annotation: &KoReaderExchangeAnnotationPayload,
+) -> Option<ReaderBookmarkRecord> {
+    if annotation.deleted_at.is_some() || annotation.kind != "bookmark" {
+        return None;
+    }
+
+    Some(ReaderBookmarkRecord {
+        id: annotation.id.clone(),
+        locator: annotation.xpointer0.clone(),
+        target_href: annotation.xpointer0.clone(),
+        chapter_label: if annotation.text.trim().is_empty() {
+            "KOReader bookmark".to_string()
+        } else {
+            annotation.text.clone()
+        },
+        chapter_href: annotation.xpointer0.clone(),
+        progress_label: annotation
+            .page
+            .map(|page| format!("Page {page}"))
+            .unwrap_or_default(),
+        location_label: annotation.xpointer0.clone(),
+        created_at: annotation.created_at,
+        koreader: Some(ReaderBookmarkKoReaderMetadataRecord {
+            annotation: crate::models::ReaderAnnotationKoReaderMetadataRecord {
+                book_hash: Some(annotation.identity.book_hash.clone()),
+                meta_hash: Some(annotation.identity.meta_hash.clone()),
+                xpointer0: annotation.xpointer0.clone(),
+                xpointer1: None,
+                page: annotation.page,
+                style: None,
+                color: None,
+                updated_at: Some(annotation.updated_at),
+                deleted_at: annotation.deleted_at,
+            },
+            text: Some(annotation.text.clone()),
+            note: Some(annotation.note.clone()),
+        }),
+    })
+}
+
+fn imported_annotation_to_note(annotation: &KoReaderExchangeAnnotationPayload) -> Option<ReaderNoteRecord> {
+    if annotation.deleted_at.is_some() || annotation.kind != "annotation" {
+        return None;
+    }
+
+    Some(ReaderNoteRecord {
+        id: annotation.id.clone(),
+        kind: if annotation.note.trim().is_empty() {
+            "highlight".to_string()
+        } else {
+            "note".to_string()
+        },
+        cfi: annotation.xpointer0.clone(),
+        text: annotation.text.clone(),
+        note: annotation.note.clone(),
+        chapter_label: if annotation.text.trim().is_empty() {
+            "KOReader annotation".to_string()
+        } else {
+            annotation.text.clone()
+        },
+        chapter_href: String::new(),
+        created_at: annotation.created_at,
+        koreader: Some(crate::models::ReaderAnnotationKoReaderMetadataRecord {
+            book_hash: Some(annotation.identity.book_hash.clone()),
+            meta_hash: Some(annotation.identity.meta_hash.clone()),
+            xpointer0: annotation.xpointer0.clone(),
+            xpointer1: annotation.xpointer1.clone(),
+            page: annotation.page,
+            style: annotation.style.clone(),
+            color: annotation.color.clone(),
+            updated_at: Some(annotation.updated_at),
+            deleted_at: annotation.deleted_at,
+        }),
+    })
+}
+
+fn merge_imported_bookmarks(
+    current_bookmarks: &[ReaderBookmarkRecord],
+    imported_bookmarks: &[ReaderBookmarkRecord],
+) -> Vec<ReaderBookmarkRecord> {
+    let mut merged = current_bookmarks
+        .iter()
+        .filter(|bookmark| {
+            let metadata = bookmark.koreader.as_ref().map(|entry| &entry.annotation);
+            !has_koreader_identity(
+                metadata.and_then(|entry| entry.book_hash.as_ref()),
+                metadata.and_then(|entry| entry.meta_hash.as_ref()),
+            ) && !imported_bookmarks
+                .iter()
+                .any(|imported| matches_imported_koreader_bookmark(bookmark, imported))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+
+    merged.extend(imported_bookmarks.iter().map(|bookmark| {
+        let existing = current_bookmarks
+            .iter()
+            .find(|candidate| matches_imported_koreader_bookmark(candidate, bookmark));
+        ReaderBookmarkRecord {
+            id: bookmark.id.clone(),
+            locator: existing
+                .map(|entry| entry.locator.clone())
+                .unwrap_or_else(|| bookmark.locator.clone()),
+            target_href: existing
+                .filter(|entry| !entry.target_href.is_empty())
+                .map(|entry| entry.target_href.clone())
+                .unwrap_or_else(|| {
+                    if !bookmark.target_href.is_empty() {
+                        bookmark.target_href.clone()
+                    } else {
+                        bookmark.locator.clone()
+                    }
+                }),
+            chapter_label: if !bookmark.chapter_label.is_empty() {
+                bookmark.chapter_label.clone()
+            } else {
+                existing
+                    .map(|entry| entry.chapter_label.clone())
+                    .unwrap_or_else(|| "KOReader bookmark".to_string())
+            },
+            chapter_href: existing
+                .filter(|entry| !entry.chapter_href.is_empty())
+                .map(|entry| entry.chapter_href.clone())
+                .unwrap_or_else(|| {
+                    if !bookmark.chapter_href.is_empty() {
+                        bookmark.chapter_href.clone()
+                    } else if let Some(existing) = existing {
+                        if !existing.target_href.is_empty() {
+                            existing.target_href.clone()
+                        } else if !bookmark.target_href.is_empty() {
+                            bookmark.target_href.clone()
+                        } else {
+                            bookmark.locator.clone()
+                        }
+                    } else if !bookmark.target_href.is_empty() {
+                        bookmark.target_href.clone()
+                    } else {
+                        bookmark.locator.clone()
+                    }
+                }),
+            progress_label: if !bookmark.progress_label.is_empty() {
+                bookmark.progress_label.clone()
+            } else {
+                existing
+                    .map(|entry| entry.progress_label.clone())
+                    .unwrap_or_default()
+            },
+            location_label: existing
+                .filter(|entry| !entry.location_label.is_empty())
+                .map(|entry| entry.location_label.clone())
+                .unwrap_or_else(|| {
+                    if !bookmark.location_label.is_empty() {
+                        bookmark.location_label.clone()
+                    } else {
+                        bookmark.locator.clone()
+                    }
+                }),
+            created_at: bookmark.created_at,
+            koreader: bookmark.koreader.clone(),
+        }
+    }));
+
+    merged
+}
+
+fn merge_imported_notes(
+    current_notes: &[ReaderNoteRecord],
+    imported_notes: &[ReaderNoteRecord],
+) -> Vec<ReaderNoteRecord> {
+    let mut merged = current_notes
+        .iter()
+        .filter(|note| {
+            let metadata = note.koreader.as_ref();
+            !has_koreader_identity(
+                metadata.and_then(|entry| entry.book_hash.as_ref()),
+                metadata.and_then(|entry| entry.meta_hash.as_ref()),
+            ) && !imported_notes
+                .iter()
+                .any(|imported| matches_imported_koreader_note(note, imported))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+
+    merged.extend(imported_notes.iter().map(|note| {
+        let existing = current_notes
+            .iter()
+            .find(|candidate| matches_imported_koreader_note(candidate, note));
+        ReaderNoteRecord {
+            id: note.id.clone(),
+            kind: note.kind.clone(),
+            cfi: existing
+                .map(|entry| entry.cfi.clone())
+                .unwrap_or_else(|| note.cfi.clone()),
+            text: note.text.clone(),
+            note: note.note.clone(),
+            chapter_label: if !note.chapter_label.is_empty() {
+                note.chapter_label.clone()
+            } else {
+                existing
+                    .map(|entry| entry.chapter_label.clone())
+                    .unwrap_or_else(|| "KOReader annotation".to_string())
+            },
+            chapter_href: existing
+                .filter(|entry| !entry.chapter_href.is_empty())
+                .map(|entry| entry.chapter_href.clone())
+                .unwrap_or_else(|| note.chapter_href.clone()),
+            created_at: note.created_at,
+            koreader: note.koreader.clone(),
+        }
+    }));
+
+    merged
+}
+
+fn imported_book_updated_at(book: &KoReaderExchangeBookPayload) -> u64 {
+    book.koreader
+        .annotations
+        .iter()
+        .map(|annotation| annotation.updated_at)
+        .chain(std::iter::once(book.koreader.config.updated_at))
+        .max()
+        .unwrap_or(book.koreader.config.updated_at)
+}
+
+fn current_book_updated_at(
+    current_book: &LibraryBookRecord,
+    current_bookmarks: &[ReaderBookmarkRecord],
+    current_notes: &[ReaderNoteRecord],
+) -> u64 {
+    current_bookmarks
+        .iter()
+        .map(|bookmark| bookmark.created_at)
+        .chain(current_notes.iter().map(|note| note.created_at))
+        .chain(std::iter::once(
+            current_book
+                .last_opened_at
+                .unwrap_or(current_book.imported_at),
+        ))
+        .max()
+        .unwrap_or(current_book.imported_at)
+}
+
+fn reading_state_payload_json(book: &LibraryBookRecord) -> serde_json::Value {
+    serde_json::json!({
+        "progress": book.progress,
+        "status": book.status,
+        "progressFraction": book.progress_fraction,
+        "progressLocation": book.progress_location,
+        "koreaderProgressLocation": book.koreader_progress_location,
+        "lastOpenedAt": book.last_opened_at,
+    })
+}
+
+fn resolve_matched_library_book<'a>(
+    exchange_book: &KoReaderExchangeBookPayload,
+    records: &'a [LibraryBookRecord],
+) -> Result<&'a LibraryBookRecord, KoReaderExchangeConflict> {
+    if let Some(record) = records.iter().find(|record| record.id == exchange_book.book_id) {
+        return Ok(record);
+    }
+    if let Some(record) = records
+        .iter()
+        .find(|record| record.file_path == exchange_book.file_path)
+    {
+        return Ok(record);
+    }
+    if let Some(source_path) = exchange_book.source_path.as_ref() {
+        if let Some(record) = records
+            .iter()
+            .find(|record| record.source_path.as_ref() == Some(source_path))
+        {
+            return Ok(record);
+        }
+    }
+
+    let fallback_matches = records
+        .iter()
+        .filter(|record| {
+            record.title == exchange_book.title
+                && record.author == exchange_book.author
+                && record.format == exchange_book.format
+        })
+        .collect::<Vec<_>>();
+    if fallback_matches.len() == 1 {
+        return Ok(fallback_matches[0]);
+    }
+    if fallback_matches.len() > 1 {
+        return Err(KoReaderExchangeConflict {
+            kind: "ambiguous-local-book".to_string(),
+            book_title: exchange_book.title.clone(),
+            book_author: exchange_book.author.clone(),
+            book_format: exchange_book.format.clone(),
+            detail: format!(
+                "找到 {} 本同名同作者同格式图书，无法安全决定要覆盖哪一本。",
+                fallback_matches.len()
+            ),
+        });
+    }
+
+    Err(KoReaderExchangeConflict {
+        kind: "missing-local-book".to_string(),
+        book_title: exchange_book.title.clone(),
+        book_author: exchange_book.author.clone(),
+        book_format: exchange_book.format.clone(),
+        detail: "当前书库中找不到可唯一匹配的图书记录。".to_string(),
+    })
+}
+
+fn apply_koreader_sync_exchange_document(
+    app: &tauri::AppHandle,
+    document: &KoReaderExchangeDocumentPayload,
+) -> Result<ApplyKoReaderSyncExchangeResult, String> {
+    ensure_library_root(app)?;
+    let library_json = library_json_path(app)?;
+    let mut library_books = load_library_records(&library_json)?;
+    let book_index_by_id = library_books
+        .iter()
+        .enumerate()
+        .map(|(index, book)| (book.id.clone(), index))
+        .collect::<HashMap<_, _>>();
+    let mut applied_book_count = 0usize;
+    let mut conflicts = Vec::new();
+
+    for exchange_book in &document.books {
+        let matched = match resolve_matched_library_book(exchange_book, &library_books) {
+            Ok(record) => record.clone(),
+            Err(conflict) => {
+                conflicts.push(conflict);
+                continue;
+            }
+        };
+
+        let current_bookmarks =
+            crate::commands::bookmarks::load_reader_bookmarks(app.clone(), matched.file_path.clone())?;
+        let current_notes =
+            crate::commands::notes::load_reader_notes(app.clone(), matched.file_path.clone())?;
+        let imported_book = LibraryBookRecord {
+            progress: match &exchange_book.koreader.config.progress {
+                serde_json::Value::String(value) if !value.trim().is_empty() => value.trim().to_string(),
+                serde_json::Value::Array(values) if values.len() == 2 => {
+                    let current = values.first().and_then(|value| value.as_u64()).unwrap_or(0);
+                    let total = values.get(1).and_then(|value| value.as_u64()).unwrap_or(0);
+                    if total > 0 {
+                        format!("[{current},{total}]")
+                    } else {
+                        matched.progress.clone()
+                    }
+                }
+                _ => matched.progress.clone(),
+            },
+            progress_fraction: match &exchange_book.koreader.config.progress {
+                serde_json::Value::Array(values) if values.len() == 2 => {
+                    let current = values.first().and_then(|value| value.as_f64()).unwrap_or(0.0);
+                    let total = values.get(1).and_then(|value| value.as_f64()).unwrap_or(0.0);
+                    if total > 0.0 { Some(current / total) } else { matched.progress_fraction }
+                }
+                _ => matched.progress_fraction,
+            },
+            koreader_progress_location: Some(exchange_book.koreader.config.xpointer.trim().to_string()),
+            last_opened_at: Some(exchange_book.koreader.config.updated_at),
+            ..matched.clone()
+        };
+        let imported_bookmarks = exchange_book
+            .koreader
+            .annotations
+            .iter()
+            .filter_map(imported_annotation_to_bookmark)
+            .collect::<Vec<_>>();
+        let imported_notes = exchange_book
+            .koreader
+            .annotations
+            .iter()
+            .filter_map(imported_annotation_to_note)
+            .collect::<Vec<_>>();
+        let merged_bookmarks = merge_imported_bookmarks(&current_bookmarks, &imported_bookmarks);
+        let merged_notes = merge_imported_notes(&current_notes, &imported_notes);
+        let payload_differs =
+            reading_state_payload_json(&matched) != reading_state_payload_json(&imported_book)
+                || serde_json::to_value(&current_bookmarks).map_err(|error| error.to_string())?
+                    != serde_json::to_value(&merged_bookmarks).map_err(|error| error.to_string())?
+                || serde_json::to_value(&current_notes).map_err(|error| error.to_string())?
+                    != serde_json::to_value(&merged_notes).map_err(|error| error.to_string())?;
+
+        if payload_differs
+            && current_book_updated_at(&matched, &current_bookmarks, &current_notes)
+                > imported_book_updated_at(exchange_book)
+        {
+            conflicts.push(KoReaderExchangeConflict {
+                kind: "local-newer".to_string(),
+                book_title: matched.title.clone(),
+                book_author: matched.author.clone(),
+                book_format: matched.format.clone(),
+                detail: "当前本地阅读状态比导入文件更新，已跳过以避免覆盖较新的本地记录。".to_string(),
+            });
+            continue;
+        }
+
+        if let Some(index) = book_index_by_id.get(&matched.id).copied() {
+            library_books[index] = imported_book;
+        }
+        crate::commands::bookmarks::save_reader_bookmarks(
+            app.clone(),
+            matched.file_path.clone(),
+            merged_bookmarks,
+        )?;
+        crate::commands::notes::save_reader_notes(app.clone(), matched.file_path.clone(), merged_notes)?;
+        applied_book_count += 1;
+    }
+
+    save_library_records(&library_json, &library_books)?;
+
+    Ok(ApplyKoReaderSyncExchangeResult {
+        applied_book_count,
+        skipped_book_count: document.books.len().saturating_sub(applied_book_count),
+        conflicts: conflicts
+            .into_iter()
+            .map(|conflict| KoReaderSyncConflictResult {
+                kind: conflict.kind,
+                book_title: conflict.book_title,
+                book_author: conflict.book_author,
+                book_format: conflict.book_format,
+                detail: conflict.detail,
+            })
+            .collect(),
+    })
 }
 
 fn write_sync_snapshot_document(path: &Path, snapshot: &SyncSnapshotDocument) -> Result<(), String> {
@@ -901,9 +1465,9 @@ pub(crate) async fn save_koreader_sync_exchange_dialog(
 }
 
 #[tauri::command]
-pub(crate) async fn load_koreader_sync_exchange_dialog(
+pub(crate) async fn restore_koreader_sync_exchange_dialog(
     app: tauri::AppHandle,
-) -> Result<KoReaderSyncExchangeImportDialogResult, String> {
+) -> Result<RestoreKoReaderSyncExchangeDialogResult, String> {
     let snapshots_root = sync_snapshots_root(&app)?;
     let picker_app = app.clone();
     let selected = tauri::async_runtime::spawn_blocking(move || {
@@ -918,24 +1482,23 @@ pub(crate) async fn load_koreader_sync_exchange_dialog(
     .map_err(|error| error.to_string())?;
 
     let Some(selected) = selected else {
-        return Ok(KoReaderSyncExchangeImportDialogResult {
+        return Ok(RestoreKoReaderSyncExchangeDialogResult {
             cancelled: true,
             file_name: None,
             book_count: 0,
-            document: None,
+            apply_result: None,
         });
     };
 
     let path = resolve_dialog_file_path(selected)?;
     let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-    let document: serde_json::Value =
-        serde_json::from_str(&raw).map_err(|error| format!("Exchange file is not valid JSON: {error}"))?;
-    let book_count = validate_koreader_sync_exchange(&document)?;
-    Ok(KoReaderSyncExchangeImportDialogResult {
+    let document = parse_koreader_exchange_document(&raw)?;
+    let apply_result = apply_koreader_sync_exchange_document(&app, &document)?;
+    Ok(RestoreKoReaderSyncExchangeDialogResult {
         cancelled: false,
         file_name: path.file_name().and_then(|value| value.to_str()).map(str::to_string),
-        book_count,
-        document: Some(document),
+        book_count: document.books.len(),
+        apply_result: Some(apply_result),
     })
 }
 
