@@ -1,6 +1,6 @@
 # Readest Alignment Checklist
 
-Last updated: 2026-04-24
+Last updated: 2026-04-25
 
 ## Purpose
 
@@ -293,6 +293,13 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: added a first `readestCloud` remote provider on top of the snapshot substrate through a Tauri-owned `run_remote_sync` HTTP bridge. Renderer never supplies the remote URL; Tauri derives `BR1_READEST_CLOUD_SYNC_BASE_URL`, `BR1_READEST_CLOUD_SYNC_LIBRARY_ID`, and `BR1_READEST_CLOUD_SYNC_TOKEN` from local desktop env only, then talks to one provider-owned endpoint family. The library header now exposes minimal `Push` / `Pull` actions. Push refuses to overwrite a diverged remote snapshot and returns an explicit conflict state; pull restores the remote snapshot through the existing local apply path. Missing-config, offline, retryable failure, conflict, success, and empty-remote states all surface as product notices instead of getting collapsed into generic thrown errors.
 
+- [x] P2-3.4 Make snapshot restore transactional and keep remote pull on restore-level validation
+  - Outcome: local snapshot restore and `readestCloud` pull now apply a whole restore set together or leave local state unchanged, and remote payload acceptance stays tied to the same restore-level validation gate as local restore instead of drifting back to a weaker JSON-only check.
+  - Touches: shared restore/apply helpers under `src-tauri/src/commands/sync_snapshot.rs` and `src-tauri/src/commands/remote_sync.rs`, plus minimal library notice wiring.
+  - Verify: `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot` (PASS); `cargo test --manifest-path src-tauri/Cargo.toml remote_sync` (PASS); `pnpm check` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: the shared snapshot apply roots now execute as a rollback-backed file mutation plan across `library.json`, bookmarks, notes, and highlights workspace files. That means local snapshot restore and Readest Cloud pull now share the same transactional write boundary instead of relying on partial directory clears and sequential writes.
+
 - [x] P2-4.1 Add KOReader import/export mapping
   - Outcome: KOReader-compatible progress and annotation data can map into and out of the sync substrate without becoming the core model.
   - Touches: ecosystem adapter module, sync mapping tests.
@@ -397,3 +404,4 @@ Use this log when completing each item.
 |---|---|---|---|---|
 | 2026-04-25 | Move KOReader exchange import/apply into Tauri | this commit | `cargo check --manifest-path src-tauri/Cargo.toml`; `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `pnpm check`; `git diff --check` | closes the last renderer-owned KOReader exchange apply path by routing file pick, validation, merge/apply, and conflict summaries through `restore_koreader_sync_exchange_dialog` |
 | 2026-04-25 | Harden post-merge sync validation and KOReader import semantics | this commit | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | adds rollback-backed KOReader exchange writes, makes local-newer honor KOReader `updated_at`, requires KOReader identity for fallback matching, promotes Readest Cloud pull validation to restore-level checks, and stops Readest import from seeding `koreaderProgressLocation` |
+| 2026-04-25 | Make snapshot restore transactional across local and remote apply | this commit | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | replaces the shared snapshot apply roots with a rollback-backed mutation plan so local snapshot restore and Readest Cloud pull no longer risk half-applied library/bookmark/note/highlights state |

@@ -14,7 +14,7 @@ use crate::models::{
 use crate::util::{
     ensure_library_root, library_json_path, load_library_records, now_millis, reader_bookmarks_root,
     reader_highlights_workspace_root, reader_notes_root, reader_storage_component_key,
-    save_library_records, sync_snapshots_root,
+    sync_snapshots_root,
 };
 use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
@@ -1153,16 +1153,81 @@ fn write_json_document(path: &Path, document: &serde_json::Value) -> Result<(), 
     fs::write(path, raw).map_err(|error| error.to_string())
 }
 
-fn clear_json_files_in_directory(root: &Path) -> Result<(), String> {
+#[derive(Clone)]
+enum FileMutation {
+    Write { path: PathBuf, bytes: Vec<u8> },
+    Delete { path: PathBuf },
+}
+
+fn collect_json_file_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
     fs::create_dir_all(root).map_err(|error| error.to_string())?;
+    let mut files = Vec::new();
     for entry in fs::read_dir(root).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
         let path = entry.path();
-        if path.extension().and_then(|value| value.to_str()) != Some("json") {
-            continue;
+        if path.extension().and_then(|value| value.to_str()) == Some("json") {
+            files.push(path);
         }
-        fs::remove_file(path).map_err(|error| error.to_string())?;
     }
+    Ok(files)
+}
+
+fn apply_file_mutations_with_rollback(mutations: &[FileMutation]) -> Result<(), String> {
+    let mut backups = Vec::with_capacity(mutations.len());
+    for mutation in mutations {
+        let path = match mutation {
+            FileMutation::Write { path, .. } | FileMutation::Delete { path } => path,
+        };
+        let original = if path.exists() {
+            Some(fs::read(path).map_err(|error| error.to_string())?)
+        } else {
+            None
+        };
+        backups.push((path.clone(), original));
+    }
+
+    for mutation in mutations {
+        let result = match mutation {
+            FileMutation::Write { path, bytes } => {
+                if let Some(parent) = path.parent() {
+                    if let Err(error) = fs::create_dir_all(parent) {
+                        Err(error.to_string())
+                    } else {
+                        fs::write(path, bytes).map_err(|error| error.to_string())
+                    }
+                } else {
+                    fs::write(path, bytes).map_err(|error| error.to_string())
+                }
+            }
+            FileMutation::Delete { path } => {
+                if path.exists() {
+                    fs::remove_file(path).map_err(|error| error.to_string())
+                } else {
+                    Ok(())
+                }
+            }
+        };
+
+        if let Err(error) = result {
+            for (restore_path, original) in backups.iter() {
+                match original {
+                    Some(bytes) => {
+                        if let Some(parent) = restore_path.parent() {
+                            let _ = fs::create_dir_all(parent);
+                        }
+                        let _ = fs::write(restore_path, bytes);
+                    }
+                    None => {
+                        if restore_path.exists() {
+                            let _ = fs::remove_file(restore_path);
+                        }
+                    }
+                }
+            }
+            return Err(error);
+        }
+    }
+
     Ok(())
 }
 
@@ -1173,43 +1238,65 @@ fn apply_sync_snapshot_roots(
     highlights_root: &Path,
     request: &ApplySyncSnapshotRequest,
 ) -> Result<ApplySyncSnapshotResult, String> {
-    if let Some(parent) = library_json.parent() {
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
-    save_library_records(library_json, &request.library_books)?;
+    let mut mutations = Vec::new();
+    let library_raw = serde_json::to_vec_pretty(&request.library_books).map_err(|error| error.to_string())?;
+    mutations.push(FileMutation::Write {
+        path: library_json.to_path_buf(),
+        bytes: library_raw,
+    });
 
-    clear_json_files_in_directory(bookmarks_root)?;
+    let mut desired_bookmark_paths = HashSet::new();
     for record in &request.bookmarks {
         let path = bookmarks_root.join(format!("{}.json", reader_storage_component_key(&record.book_key)));
+        desired_bookmark_paths.insert(path.clone());
         let entry = ReaderBookmarksEntry {
             schema_version: READER_BOOKMARKS_SCHEMA_VERSION,
             bookmarks: record.bookmarks.clone(),
         };
-        let raw = serde_json::to_string_pretty(&entry).map_err(|error| error.to_string())?;
-        fs::write(path, raw).map_err(|error| error.to_string())?;
+        let raw = serde_json::to_vec_pretty(&entry).map_err(|error| error.to_string())?;
+        mutations.push(FileMutation::Write { path, bytes: raw });
+    }
+    for path in collect_json_file_paths(bookmarks_root)? {
+        if !desired_bookmark_paths.contains(&path) {
+            mutations.push(FileMutation::Delete { path });
+        }
     }
 
-    clear_json_files_in_directory(notes_root)?;
+    let mut desired_note_paths = HashSet::new();
     for record in &request.notes {
         let path = notes_root.join(format!("{}.json", reader_storage_component_key(&record.book_key)));
+        desired_note_paths.insert(path.clone());
         let entry = ReaderNotesEntry {
             schema_version: READER_NOTES_SCHEMA_VERSION,
             notes: record.notes.clone(),
         };
-        let raw = serde_json::to_string_pretty(&entry).map_err(|error| error.to_string())?;
-        fs::write(path, raw).map_err(|error| error.to_string())?;
+        let raw = serde_json::to_vec_pretty(&entry).map_err(|error| error.to_string())?;
+        mutations.push(FileMutation::Write { path, bytes: raw });
+    }
+    for path in collect_json_file_paths(notes_root)? {
+        if !desired_note_paths.contains(&path) {
+            mutations.push(FileMutation::Delete { path });
+        }
     }
 
-    clear_json_files_in_directory(highlights_root)?;
+    let mut desired_highlight_paths = HashSet::new();
     for record in &request.highlights_workspace {
         let path = highlights_root.join(format!("{}.json", reader_storage_component_key(&record.book_key)));
+        desired_highlight_paths.insert(path.clone());
         let entry = ReaderHighlightsWorkspaceEntry {
             schema_version: READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION,
             state: record.state.clone(),
         };
-        let raw = serde_json::to_string_pretty(&entry).map_err(|error| error.to_string())?;
-        fs::write(path, raw).map_err(|error| error.to_string())?;
+        let raw = serde_json::to_vec_pretty(&entry).map_err(|error| error.to_string())?;
+        mutations.push(FileMutation::Write { path, bytes: raw });
     }
+    for path in collect_json_file_paths(highlights_root)? {
+        if !desired_highlight_paths.contains(&path) {
+            mutations.push(FileMutation::Delete { path });
+        }
+    }
+
+    apply_file_mutations_with_rollback(&mutations)?;
 
     Ok(ApplySyncSnapshotResult {
         library_book_count: request.library_books.len(),
@@ -1619,12 +1706,12 @@ pub(crate) async fn restore_koreader_sync_exchange_dialog(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_sync_snapshot_roots, bookmark_updated_at, bookmarks_sync_record,
+        apply_file_mutations_with_rollback, apply_sync_snapshot_roots, bookmark_updated_at, bookmarks_sync_record,
         build_scoped_record_id, current_book_updated_at, derive_koreader_book_identity,
         highlights_sync_record, library_metadata_sync_record, note_updated_at,
         notes_sync_record, parse_sync_snapshot_document, prepare_sync_snapshot_restore,
         reading_state_sync_record, resolve_matched_library_book, write_files_with_rollback,
-        write_sync_snapshot_document, KoReaderExchangeBookPayload,
+        write_sync_snapshot_document, FileMutation, KoReaderExchangeBookPayload,
         KoReaderExchangeBookStatePayload, KoReaderExchangeConfigPayload,
         KoReaderExchangeIdentityPayload, READER_SETTINGS_STORAGE_KEY,
     };
@@ -2162,5 +2249,35 @@ mod tests {
         assert!(!error.is_empty());
         assert_eq!(fs::read_to_string(&ok_path).unwrap(), "before");
         assert!(bad_path.is_dir());
+    }
+
+    #[test]
+    fn apply_file_mutations_with_rollback_restores_deleted_files_on_failure() {
+        let root = temp_root("mutation-rollback");
+        fs::create_dir_all(&root).unwrap();
+        let stale = root.join("stale.json");
+        let good = root.join("good.json");
+        let bad = root.join("bad.json");
+        fs::write(&stale, "stale").unwrap();
+        fs::write(&good, "before").unwrap();
+        fs::create_dir_all(&bad).unwrap();
+
+        let error = apply_file_mutations_with_rollback(&[
+            FileMutation::Delete { path: stale.clone() },
+            FileMutation::Write {
+                path: good.clone(),
+                bytes: br#"after"#.to_vec(),
+            },
+            FileMutation::Write {
+                path: bad.clone(),
+                bytes: br#"cannot-write-directory"#.to_vec(),
+            },
+        ])
+        .unwrap_err();
+
+        assert!(!error.is_empty());
+        assert_eq!(fs::read_to_string(&stale).unwrap(), "stale");
+        assert_eq!(fs::read_to_string(&good).unwrap(), "before");
+        assert!(bad.is_dir());
     }
 }
