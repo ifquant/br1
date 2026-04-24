@@ -467,7 +467,17 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
     autoOpenFirstBook?: boolean;
     reloadAfterImport?: boolean;
   } = {}) {
-    if (!options.canPersistLibrary() || options.getMigrationBusy()) return;
+    if (!options.canPersistLibrary()) return;
+
+    if (options.getMigrationBusy()) return;
+
+    if (options.getSyncSnapshotBusy() || options.getRemoteSyncBusy()) {
+      setLibraryNotice(
+        'info',
+        '当前还有快照导入导出或远端同步进行中，请等待这些桌面操作完成后再开始 Readest 迁移。'
+      );
+      return;
+    }
 
     await migrateDesktopReadestLibrary({
       migrationBusy: options.getMigrationBusy(),
@@ -612,6 +622,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handleExportSyncSnapshot = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {
@@ -644,6 +655,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handleImportSyncSnapshot = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {
@@ -701,6 +713,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handleExportKoReaderSync = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {
@@ -734,6 +747,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handleImportKoReaderSync = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {
@@ -782,6 +796,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handlePushKoReaderRemoteSync = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {
@@ -823,6 +838,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handlePullKoReaderRemoteSync = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {
@@ -930,6 +946,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handlePushRemoteSync = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {
@@ -968,6 +985,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
   const handlePullRemoteSync = async () => {
     if (
       !options.canPersistLibrary() ||
+      options.getMigrationBusy() ||
       options.getSyncSnapshotBusy() ||
       options.getRemoteSyncBusy()
     ) {

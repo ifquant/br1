@@ -140,6 +140,20 @@
   let advancedFiltersOpen = false;
   let sortMenuElement: HTMLDivElement | null = null;
   let searchInputElement: HTMLInputElement | null = null;
+  $: desktopOperationsVisible = showSyncSnapshotActions || showRemoteSyncActions;
+  $: operationsLockedByMigration = importDisabled && !syncSnapshotBusy && !remoteSyncBusy;
+  $: snapshotOperationsDisabled =
+    syncSnapshotBusy || remoteSyncBusy || operationsLockedByMigration;
+  $: remoteOperationsDisabled =
+    remoteSyncBusy || syncSnapshotBusy || operationsLockedByMigration;
+  $: operationsMenuLabel = desktopOperationsVisible ? '整理与同步' : '浏览选项';
+  $: operationsMenuAriaLabel = desktopOperationsVisible ? '书库整理与同步选项' : '书库浏览选项';
+  $: desktopOperationsSummary = operationsLockedByMigration
+    ? 'Readest 兼容处理中，快照、交换和远端同步入口暂时锁定。'
+    : '把备份恢复、KOReader 交换、Readest Cloud 和迁移提示收成一个桌面操作面。';
+  $: migrationContextSummary = operationsLockedByMigration
+    ? '当前正在导入 Readest 兼容藏书；完成后下方迁移横幅会刷新结果。'
+    : '检测到本机 Readest 书库时，下方会出现迁移横幅；文件选择和写入继续保持在 Tauri 侧。';
 
   const dispatch = createEventDispatcher<{
     querychange: { query: string };
@@ -164,14 +178,6 @@
     exitgroup: void;
     jumptrail: { index: number };
   }>();
-
-  const actions = [
-    {
-      label: '更多操作',
-      className: 'view',
-      svg: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="1.35" fill="currentColor"/><circle cx="10" cy="10" r="1.35" fill="currentColor"/><circle cx="15" cy="10" r="1.35" fill="currentColor"/></svg>`
-    }
-  ];
 
   const sortOptions = [
     { value: 'recent', label: '最近阅读' },
@@ -476,152 +482,204 @@
       </span>
       <strong>导入书籍</strong>
     </button>
-    {#each actions as action}
-      {#if action.className === 'view'}
-        <div bind:this={sortMenuElement} class:open={sortMenuOpen} class="menu-shell">
-          <button
-            type="button"
-            class={`ghost ${action.className}`}
-            aria-label={action.label}
-            aria-expanded={sortMenuOpen}
-            aria-haspopup="menu"
-            on:click={handleToggleSortMenu}
-          >
-            <span aria-hidden="true">{@html action.svg}</span>
-          </button>
+    {#if desktopOperationsVisible}
+      <button
+        type="button"
+        class="header-action desktop-action"
+        aria-label="备份当前桌面书库"
+        disabled={snapshotOperationsDisabled}
+        title={operationsLockedByMigration ? 'Readest 兼容处理中，稍后再试。' : ''}
+        on:click={handleExportSyncSnapshot}
+      >
+        <span aria-hidden="true">
+          <svg viewBox="0 0 20 20"><path d="M10 3.75v8.4M6.65 8.85L10 12.2l3.35-3.35M4.5 14.75h11" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.55"/></svg>
+        </span>
+        <strong>{syncSnapshotBusy ? '备份中…' : '备份书库'}</strong>
+      </button>
+      <button
+        type="button"
+        class="header-action desktop-action"
+        aria-label="从快照恢复当前桌面书库"
+        disabled={snapshotOperationsDisabled}
+        title={operationsLockedByMigration ? 'Readest 兼容处理中，稍后再试。' : ''}
+        on:click={handleImportSyncSnapshot}
+      >
+        <span aria-hidden="true">
+          <svg viewBox="0 0 20 20"><path d="M10 16.25v-8.4M13.35 11.15L10 7.8l-3.35 3.35M4.5 5.25h11" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.55"/></svg>
+        </span>
+        <strong>{syncSnapshotBusy ? '恢复中…' : '恢复快照'}</strong>
+      </button>
+    {/if}
+    <div bind:this={sortMenuElement} class:open={sortMenuOpen} class="menu-shell">
+      <button
+        type="button"
+        class="header-action operations-action"
+        aria-label={operationsMenuLabel}
+        aria-expanded={sortMenuOpen}
+        aria-haspopup="menu"
+        on:click={handleToggleSortMenu}
+      >
+        <span aria-hidden="true">
+          <svg viewBox="0 0 20 20"><circle cx="5" cy="10" r="1.35" fill="currentColor"/><circle cx="10" cy="10" r="1.35" fill="currentColor"/><circle cx="15" cy="10" r="1.35" fill="currentColor"/></svg>
+        </span>
+        <strong>{operationsMenuLabel}</strong>
+      </button>
 
-          {#if sortMenuOpen}
-            <div class="sort-menu" role="menu" aria-label="书库浏览选项">
-              <span class="sort-menu-label">排序方式</span>
-              {#each sortOptions as option}
-                <button
-                  type="button"
-                  class:active-sort={sortBy === option.value}
-                  class="sort-option"
-                  role="menuitemradio"
-                  aria-checked={sortBy === option.value}
-                  on:click={() => handleSortChange(option.value)}
-                >
-                  <span>{option.label}</span>
-                  {#if sortBy === option.value}
-                    <small>当前</small>
-                  {/if}
-                </button>
-              {/each}
-
-              <span class="sort-menu-label secondary-label">书库分组</span>
-              {#each groupOptions as option}
-                <button
-                  type="button"
-                  class:active-sort={groupBy === option.value}
-                  class="sort-option"
-                  role="menuitemradio"
-                  aria-checked={groupBy === option.value}
-                  on:click={() => handleGroupByChange(option.value)}
-                >
-                  <span>{option.label}</span>
-                  <small>{groupBy === option.value ? '当前' : option.detail}</small>
-                </button>
-              {/each}
-
-              {#if showSyncSnapshotActions}
-                <span class="sort-menu-label secondary-label">本地快照</span>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={syncSnapshotBusy}
-                  on:click={handleExportSyncSnapshot}
-                >
-                  <span>导出本地快照</span>
-                  <small>{syncSnapshotBusy ? '进行中…' : '保存当前书库与阅读状态'}</small>
-                </button>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={syncSnapshotBusy}
-                  on:click={handleImportSyncSnapshot}
-                >
-                  <span>恢复本地快照</span>
-                  <small>{syncSnapshotBusy ? '进行中…' : '覆盖恢复当前持久化状态'}</small>
-                </button>
-
-                <span class="sort-menu-label secondary-label">KOReader 交换</span>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={syncSnapshotBusy}
-                  on:click={handleExportKoReaderSync}
-                >
-                  <span>导出 KOReader 交换文件</span>
-                  <small>{syncSnapshotBusy ? '进行中…' : '导出当前书库的 KOReader 兼容进度与批注'}</small>
-                </button>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={syncSnapshotBusy}
-                  on:click={handleImportKoReaderSync}
-                >
-                  <span>导入 KOReader 交换文件</span>
-                  <small>{syncSnapshotBusy ? '进行中…' : '只应用可唯一匹配且无冲突的图书记录'}</small>
-                </button>
+      {#if sortMenuOpen}
+        <div class="sort-menu" role="menu" aria-label={operationsMenuAriaLabel}>
+          <span class="sort-menu-label">排序方式</span>
+          {#each sortOptions as option}
+            <button
+              type="button"
+              class:active-sort={sortBy === option.value}
+              class="sort-option"
+              role="menuitemradio"
+              aria-checked={sortBy === option.value}
+              on:click={() => handleSortChange(option.value)}
+            >
+              <span>{option.label}</span>
+              {#if sortBy === option.value}
+                <small>当前</small>
               {/if}
+            </button>
+          {/each}
 
-              {#if showRemoteSyncActions}
-                <span class="sort-menu-label secondary-label">云同步</span>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={remoteSyncBusy}
-                  on:click={handlePushKoReaderRemoteSync}
-                >
-                  <span>推送 KOReader 阅读进度</span>
-                  <small>{remoteSyncBusy ? '进行中…' : '官方 KOSync 只同步阅读进度，不含书签与批注'}</small>
-                </button>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={remoteSyncBusy}
-                  on:click={handlePullKoReaderRemoteSync}
-                >
-                  <span>拉取 KOReader 阅读进度</span>
-                  <small>{remoteSyncBusy ? '进行中…' : '只回填较新的 KOReader 阅读进度，不含书签与批注'}</small>
-                </button>
-                <div class="sort-option sort-option-note" aria-hidden="true">
-                  <span>KOReader 书签与批注</span>
-                  <small>官方 KOSync 不支持远端批注协议；需要继续同步时，请使用上面的 KOReader 交换文件。</small>
-                </div>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={remoteSyncBusy}
-                  on:click={handlePushRemoteSync}
-                >
-                  <span>推送到 Readest Cloud</span>
-                  <small>{remoteSyncBusy ? '进行中…' : '仅在云端未分叉时推送当前快照'}</small>
-                </button>
-                <button
-                  type="button"
-                  class="sort-option"
-                  role="menuitem"
-                  disabled={remoteSyncBusy}
-                  on:click={handlePullRemoteSync}
-                >
-                  <span>从 Readest Cloud 拉取</span>
-                  <small>{remoteSyncBusy ? '进行中…' : '用云端快照覆盖当前本地状态'}</small>
-                </button>
-              {/if}
+          <span class="sort-menu-label secondary-label">书库分组</span>
+          {#each groupOptions as option}
+            <button
+              type="button"
+              class:active-sort={groupBy === option.value}
+              class="sort-option"
+              role="menuitemradio"
+              aria-checked={groupBy === option.value}
+              on:click={() => handleGroupByChange(option.value)}
+            >
+              <span>{option.label}</span>
+              <small>{groupBy === option.value ? '当前' : option.detail}</small>
+            </button>
+          {/each}
+
+          {#if desktopOperationsVisible}
+            <span class="sort-menu-label secondary-label">桌面操作面</span>
+            <div class="operations-summary-panel" aria-hidden="true">
+              <strong>书库整理与同步</strong>
+              <small>{desktopOperationsSummary}</small>
             </div>
+            <div class="operations-overview-grid" aria-hidden="true">
+              <div class="operations-overview-card">
+                <span>本地快照</span>
+                <strong>备份与恢复</strong>
+                <small>整库保存或回滚当前书库、阅读进度和阅读设置。</small>
+              </div>
+              <div class="operations-overview-card">
+                <span>KOReader / Cloud</span>
+                <strong>交换与远端同步</strong>
+                <small>保留 KOReader 交换和 Readest Cloud 的现有安全边界，不新增 renderer 路径输入。</small>
+              </div>
+              <div class="operations-overview-card">
+                <span>Readest 迁移</span>
+                <strong>{operationsLockedByMigration ? '正在兼容 Readest 藏书' : '迁移入口保留在下方横幅'}</strong>
+                <small>{migrationContextSummary}</small>
+              </div>
+            </div>
+          {/if}
+
+          {#if showSyncSnapshotActions}
+            <span class="sort-menu-label secondary-label">本地快照</span>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={snapshotOperationsDisabled}
+              on:click={handleExportSyncSnapshot}
+            >
+              <span>导出本地快照</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : syncSnapshotBusy ? '进行中…' : '保存当前书库与阅读状态'}</small>
+            </button>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={snapshotOperationsDisabled}
+              on:click={handleImportSyncSnapshot}
+            >
+              <span>恢复本地快照</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : syncSnapshotBusy ? '进行中…' : '覆盖恢复当前持久化状态'}</small>
+            </button>
+
+            <span class="sort-menu-label secondary-label">KOReader 交换</span>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={snapshotOperationsDisabled}
+              on:click={handleExportKoReaderSync}
+            >
+              <span>导出 KOReader 交换文件</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : syncSnapshotBusy ? '进行中…' : '导出当前书库的 KOReader 兼容进度与批注'}</small>
+            </button>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={snapshotOperationsDisabled}
+              on:click={handleImportKoReaderSync}
+            >
+              <span>导入 KOReader 交换文件</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : syncSnapshotBusy ? '进行中…' : '只应用可唯一匹配且无冲突的图书记录'}</small>
+            </button>
+          {/if}
+
+          {#if showRemoteSyncActions}
+            <span class="sort-menu-label secondary-label">云同步</span>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={remoteOperationsDisabled}
+              on:click={handlePushKoReaderRemoteSync}
+            >
+              <span>推送 KOReader 阅读进度</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : remoteSyncBusy ? '进行中…' : '官方 KOSync 只同步阅读进度，不含书签与批注'}</small>
+            </button>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={remoteOperationsDisabled}
+              on:click={handlePullKoReaderRemoteSync}
+            >
+              <span>拉取 KOReader 阅读进度</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : remoteSyncBusy ? '进行中…' : '只回填较新的 KOReader 阅读进度，不含书签与批注'}</small>
+            </button>
+            <div class="sort-option sort-option-note" aria-hidden="true">
+              <span>KOReader 书签与批注</span>
+              <small>官方 KOSync 不支持远端批注协议；需要继续同步时，请使用上面的 KOReader 交换文件。</small>
+            </div>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={remoteOperationsDisabled}
+              on:click={handlePushRemoteSync}
+            >
+              <span>推送到 Readest Cloud</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : remoteSyncBusy ? '进行中…' : '仅在云端未分叉时推送当前快照'}</small>
+            </button>
+            <button
+              type="button"
+              class="sort-option"
+              role="menuitem"
+              disabled={remoteOperationsDisabled}
+              on:click={handlePullRemoteSync}
+            >
+              <span>从 Readest Cloud 拉取</span>
+              <small>{operationsLockedByMigration ? 'Readest 兼容处理中…' : remoteSyncBusy ? '进行中…' : '用云端快照覆盖当前本地状态'}</small>
+            </button>
           {/if}
         </div>
       {/if}
-    {/each}
+    </div>
   </div>
 </header>
 
@@ -1220,6 +1278,15 @@
     color: var(--text-primary);
   }
 
+  .desktop-action {
+    background: color-mix(in srgb, var(--surface-reader) 72%, white 28%);
+    color: color-mix(in srgb, #5a4631 86%, var(--text-secondary) 14%);
+  }
+
+  .desktop-action:hover {
+    background: color-mix(in srgb, var(--surface-reader) 64%, white 36%);
+  }
+
   .import-action {
     background: color-mix(in srgb, var(--accent-warm) 12%, var(--surface-panel) 88%);
     color: color-mix(in srgb, #73481f 86%, var(--text-secondary) 14%);
@@ -1357,12 +1424,7 @@
     padding: 0 8px;
   }
 
-  button.ghost:hover {
-    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-    color: var(--text-primary);
-  }
-
-  .menu-shell.open button.ghost,
+  .menu-shell.open .operations-action,
   .mode.active {
     background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
     color: var(--text-primary);
@@ -1373,7 +1435,8 @@
     right: 0;
     top: calc(100% + 8px);
     z-index: 3;
-    min-width: 156px;
+    width: min(360px, calc(100vw - 28px));
+    min-width: min(320px, calc(100vw - 28px));
     display: grid;
     gap: 4px;
     padding: 10px;
@@ -1406,6 +1469,7 @@
   .sort-option {
     width: 100%;
     height: auto;
+    align-items: flex-start;
     justify-content: space-between;
     padding: 9px 10px;
     border-radius: 10px;
@@ -1428,8 +1492,56 @@
   .sort-option small {
     color: var(--text-muted);
     font-size: 9px;
-    line-height: 1;
+    line-height: 1.35;
     letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: right;
+  }
+
+  .operations-summary-panel {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border-radius: 10px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, var(--surface-reader) 82%, white 18%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .operations-summary-panel strong,
+  .operations-overview-card strong {
+    color: var(--text-primary);
+    font: 600 12px/1.25 var(--font-chrome);
+    letter-spacing: 0.01em;
+  }
+
+  .operations-summary-panel small,
+  .operations-overview-card small {
+    color: var(--text-secondary);
+    font: 500 10px/1.45 var(--font-chrome);
+    letter-spacing: 0.01em;
+  }
+
+  .operations-overview-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .operations-overview-card {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .operations-overview-card span {
+    color: var(--text-muted);
+    font: 700 9px/1 var(--font-chrome);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
