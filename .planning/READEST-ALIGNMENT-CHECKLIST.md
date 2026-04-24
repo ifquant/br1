@@ -470,7 +470,7 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Outcome: translation stops being only a request panel, and TTS gains more deliberate follow-current/reading-mode semantics.
   - Touches: reader viewport, sidebar/workspace surfaces, TTS helpers, targeted reader regressions.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/reader/tts.test.ts` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commits: da15fca, this commit
+  - Done commits: da15fca, 9dbfb08
   - Tutorial: `tutorials/commit/0543-turn-translation-into-a-dedicated-reader-mode.md`, `tutorials/commit/0544-turn-tts-into-a-dedicated-reader-mode.md`.
   - Notes: this phase now closes the dedicated translation/TTS reader-mode surface. It still does not introduce a new speech engine or full browser media-session integration, so later reader parity work should treat those as new slices instead of quietly expanding this one.
 
@@ -482,28 +482,32 @@ Goal: turn the library from a strong bookshelf into a complete desktop reading h
   - Outcome: backup/restore, KOReader / Readest Cloud sync affordances, and Readest migration context are available from one intentional library header/menu surface without adding renderer-controlled filesystem entry.
   - Touches: library header, desktop page wiring, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: recorded in workspace commit history for this slice.
+  - Done commit: 9eef796
   - Notes: this slice productizes the existing snapshot export/restore, KOReader exchange, and remote sync actions by grouping them under a desktop operations surface and exposing visible backup/restore affordances in the header. It keeps migration on the existing Readest banner and now blocks migration from starting while snapshot or remote-sync work is already in flight.
 
 - [x] P6-1.2 Add transfer queue and remaining desktop support affordances
   - Outcome: transfer/queue state becomes inspectable, and desktop support actions stop being scattered or invisible.
   - Touches: library support components, queue/state projection, library notices.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: recorded in workspace commit history for this slice.
+  - Done commit: 04aa541
   - Notes: this slice does not invent a new transfer engine. It projects the existing associated-book open queue and rejection reporting path into one library support card, with only safe refresh/clear actions on top of the current desktop substrate.
 
 ## P7 Catalog And Ecosystem Productization
 
 Goal: expose the already-built OPDS / Calibre substrate as a real end-user feature.
 
-- [ ] P7-1.1 Add a catalog manager product surface
+- [x] P7-1.1 Add a catalog manager product surface
   - Outcome: saved/user-configured catalog sources, auth-required states, and fixture/live-source states are visible in a real Svelte product area.
   - Touches: new route or surfaced library area, catalog services, focused UI regression.
-  - Notes: keep the existing Tauri trust boundary; do not add renderer-controlled URL fetching.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/services/catalogs.test.ts` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "catalog route explains the desktop-owned boundary in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: recorded in git history for this slice.
+  - Tutorial: `tutorials/commit/0545-add-the-first-catalog-manager-and-browser-surface.md`.
+  - Notes: this slice adds a first-class `/catalogs` route, root-nav and library-header entry points, saved-source management, and safe browse/search/import-intent presentation on top of the existing desktop-owned substrate. It keeps the existing Tauri trust boundary and does not add renderer-controlled URL fetching or acquisition download execution.
 
 - [ ] P7-1.2 Add a catalog browser and import flow
   - Outcome: browse/search/import works as a desktop-visible flow on top of the existing safe catalog substrate.
   - Touches: catalog browse/search UI, library entry points, import-intent presentation.
+  - Progress: the first `/catalogs` route now exposes browse/search/import-intent presentation on top of the existing safe substrate, and library/header navigation links to it. What is still missing is a bounded desktop-side execution path that turns a ready acquisition intent into a real library import instead of stopping at handoff presentation.
   - Notes: this slice should build on `catalogs.rs` / `catalogs.ts`, not replace them.
 
 ## Service Security Gate

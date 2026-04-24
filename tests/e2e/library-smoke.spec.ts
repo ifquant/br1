@@ -368,6 +368,16 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(notebook.locator('.tts-panel strong', { hasText: '会话状态' })).toBeVisible();
 });
 
+test('catalog route explains the desktop-owned boundary in web mode', async ({ page }) => {
+  await page.goto('/catalogs');
+
+  await expect(page.getByRole('heading', { name: '书源目录' })).toBeVisible();
+  await expect(page.getByLabel('书源连接器状态')).toBeVisible();
+  await expect(page.getByText('当前环境不会直接发起 live catalog 抓取；桌面端负责所有安全 browse/search/import-intent 调用。')).toBeVisible();
+  await expect(page.getByLabel('书源设置').getByText('先选择一个书源。')).toBeVisible();
+  await expect(page.getByText('当前只生成安全 handoff，不直接下载 acquisition 链接。')).toBeVisible();
+});
+
 test('reader opens txt assets in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

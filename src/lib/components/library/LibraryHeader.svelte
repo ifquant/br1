@@ -482,6 +482,12 @@
       </span>
       <strong>导入书籍</strong>
     </button>
+    <a class="header-action catalog-action" aria-label="打开书源目录" href="/catalogs">
+      <span aria-hidden="true">
+        <svg viewBox="0 0 20 20"><path d="M4.75 4.75h10.5v10.5H4.75zM7.75 7.75h4.5M7.75 10h4.5M7.75 12.25h3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.45"/></svg>
+      </span>
+      <strong>书源目录</strong>
+    </a>
     {#if desktopOperationsVisible}
       <button
         type="button"

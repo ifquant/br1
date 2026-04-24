@@ -40,6 +40,7 @@
 
   const navItems = [
     { href: '/library', label: '书库' },
+    { href: '/catalogs', label: '书源' },
     { href: '/reader', label: '阅读' }
   ];
 
