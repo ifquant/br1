@@ -74,7 +74,7 @@
   let currentCoverUrl = '';
   let notebookVisible = false;
   let notebookPinned = false;
-  let notebookTab: 'notes' | 'highlights' | 'assistant' = 'notes';
+  let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' = 'notes';
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -297,13 +297,15 @@
       try {
         const persisted = JSON.parse(rawNotebookShell) as {
           pinned?: boolean;
-          activeTab?: 'notes' | 'highlights' | 'assistant';
+          activeTab?: 'notes' | 'highlights' | 'assistant' | 'translation';
         };
         notebookPinned = !!persisted.pinned;
         notebookVisible = !!persisted.pinned;
         notebookTab =
           persisted.activeTab === 'highlights'
             ? 'highlights'
+            : persisted.activeTab === 'translation'
+              ? 'translation'
             : persisted.activeTab === 'assistant'
               ? 'assistant'
               : 'notes';
@@ -594,14 +596,14 @@
 
     if (!normalizedText) {
       assistanceState = createEmptyReaderAssistanceResultState(request);
-      notebookTab = 'assistant';
+      notebookTab = 'translation';
       notebookVisible = true;
       return;
     }
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
-    notebookTab = 'assistant';
+    notebookTab = 'translation';
     notebookVisible = true;
 
     try {
@@ -724,6 +726,18 @@
           }}
         >
           {notebookVisible ? '关闭工作台' : '笔记工作台'}
+        </button>
+        <button
+          type="button"
+          class="parallel-toggle notebook-toggle"
+          aria-pressed={notebookVisible && notebookTab === 'translation'}
+          aria-label="打开翻译模式"
+          on:click={() => {
+            notebookVisible = true;
+            notebookTab = 'translation';
+          }}
+        >
+          翻译模式
         </button>
         <button
           type="button"

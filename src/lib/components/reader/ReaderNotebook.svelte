@@ -11,7 +11,7 @@
 
   export let visible = false;
   export let pinned = false;
-  export let activeTab: 'notes' | 'highlights' | 'assistant' = 'notes';
+  export let activeTab: 'notes' | 'highlights' | 'assistant' | 'translation' = 'notes';
   export let preview: ReaderPreviewState;
   export let notesState: ReaderSidebarNotesState;
   export let supportsTextAnnotations = false;
@@ -38,7 +38,8 @@
   };
   export let onClose: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
-  export let onTabChange: ((tab: 'notes' | 'highlights' | 'assistant') => void) | null = null;
+  export let onTabChange: ((tab: 'notes' | 'highlights' | 'assistant' | 'translation') => void) | null =
+    null;
 
   $: noteEntries = notesState.notes.filter((note) => note.kind !== 'highlight');
   $: highlightEntries = notesState.notes.filter((note) => note.kind === 'highlight');
@@ -52,7 +53,7 @@
       .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  const setTab = (tab: 'notes' | 'highlights' | 'assistant') => {
+  const setTab = (tab: 'notes' | 'highlights' | 'assistant' | 'translation') => {
     if (tab === activeTab) return;
     onTabChange?.(tab);
   };
@@ -117,6 +118,15 @@
         on:click={() => setTab('assistant')}
       >
         AI 助手
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class:active={activeTab === 'translation'}
+        aria-selected={activeTab === 'translation'}
+        on:click={() => setTab('translation')}
+      >
+        翻译模式
       </button>
     </div>
 
@@ -189,10 +199,24 @@
             <p class="empty-state">还没有高亮。先从选区里保存几条高亮，再回到这里做持续整理。</p>
           {/if}
         </section>
-      {:else}
+      {:else if activeTab === 'assistant'}
         <ReaderAssistWorkspace
           title="AI 阅读助手"
           summary="把查词、百科和翻译结果放到 notebook 里的独立工作台，而不是只做一个 sidebar 结果区。"
+          {preview}
+          {notesState}
+          {assistance}
+          {translationProviderStatuses}
+          callbacks={{
+            onRequestLookup: callbacks.onRequestLookup,
+            onRequestTranslation: callbacks.onRequestTranslation
+          }}
+        />
+      {:else}
+        <ReaderAssistWorkspace
+          title="翻译模式"
+          summary="把原文和译文并排收进 reader 工作台，让翻译成为一种阅读模式，而不是助手里的临时请求。"
+          lockedMode="translation"
           {preview}
           {notesState}
           {assistance}

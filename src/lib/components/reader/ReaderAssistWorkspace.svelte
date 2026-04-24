@@ -28,10 +28,11 @@
   export let title = 'AI 阅读助手';
   export let summary =
     '把词典、维基百科和翻译请求收成一个工作台，而不是继续挤在 sidebar result panel 里。';
+  export let lockedMode: 'lookup' | 'translation' | null = null;
 
   let assistLookupTerm = '';
   let assistLookupTermSeededForBookKey = '';
-  let assistMode: 'lookup' | 'translation' = 'lookup';
+  let assistMode: 'lookup' | 'translation' = lockedMode ?? 'lookup';
   let assistLookupProvider: ReaderLookupProvider = 'wikipedia';
   let assistTranslationProvider: ReaderTranslationProvider = 'deepl';
   let assistTranslationText = '';
@@ -46,17 +47,23 @@
     (activeAssistanceRequest?.kind === 'translation'
       ? activeAssistanceRequest.provider
       : assistLookupProvider);
+  $: if (lockedMode && assistMode !== lockedMode) {
+    assistMode = lockedMode;
+  }
   $: if (assistLookupTermSeededForBookKey !== bookKey) {
     assistLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);
     assistTranslationText = normalizeAssistanceText(
       notesState.selection?.text || preview.chapterLabel || preview.title
     );
-    assistMode = 'lookup';
+    assistMode = lockedMode ?? 'lookup';
     assistLookupProvider = 'wikipedia';
     assistTranslationProvider = 'deepl';
     assistTranslationTargetLanguage = 'zh';
     assistLookupTermSeededForBookKey = bookKey;
   }
+  $: translationSourceText = normalizeAssistanceText(
+    assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
+  );
 
   const fillAssistLookupTerm = (term: string) => {
     assistLookupTerm = normalizeAssistanceTerm(term);
@@ -118,30 +125,32 @@
     {/if}
   </div>
 
-  <div class="assist-actions">
-    <button
-      type="button"
-      class:active={assistMode === 'lookup'}
-      class="assist-chip"
-      aria-pressed={assistMode === 'lookup'}
-      on:click={() => {
-        assistMode = 'lookup';
-      }}
-    >
-      查找
-    </button>
-    <button
-      type="button"
-      class:active={assistMode === 'translation'}
-      class="assist-chip"
-      aria-pressed={assistMode === 'translation'}
-      on:click={() => {
-        assistMode = 'translation';
-      }}
-    >
-      翻译
-    </button>
-  </div>
+  {#if !lockedMode}
+    <div class="assist-actions">
+      <button
+        type="button"
+        class:active={assistMode === 'lookup'}
+        class="assist-chip"
+        aria-pressed={assistMode === 'lookup'}
+        on:click={() => {
+          assistMode = 'lookup';
+        }}
+      >
+        查找
+      </button>
+      <button
+        type="button"
+        class:active={assistMode === 'translation'}
+        class="assist-chip"
+        aria-pressed={assistMode === 'translation'}
+        on:click={() => {
+          assistMode = 'translation';
+        }}
+      >
+        翻译
+      </button>
+    </div>
+  {/if}
 
   {#if assistMode === 'translation'}
     <label class="assist-field">
@@ -284,7 +293,7 @@
     </button>
   </div>
 
-  <div class="assist-result" aria-label="查找结果">
+  <div class="assist-result" aria-label={assistMode === 'translation' ? '翻译结果' : '查找结果'}>
     <div class="assist-translation-status">
       <strong>翻译提供方状态</strong>
       <span>翻译配置由桌面端托管，renderer 只读取状态，不保存密钥。</span>
@@ -297,7 +306,45 @@
         {/each}
       </div>
     </div>
-    {#if assistance.status === 'loading'}
+    {#if assistMode === 'translation'}
+      <div class="assist-translation-panels" aria-label="翻译阅读面板">
+        <article class="assist-translation-card">
+          <strong>原文</strong>
+          <p>{translationSourceText || '先在正文里选中文本，或输入要翻译的内容。'}</p>
+        </article>
+        <article class="assist-translation-card result">
+          <strong>译文</strong>
+          {#if assistance.status === 'loading'}
+            <p>
+              正在向{getReaderTranslationProviderDisplayLabel(
+                activeAssistanceRequest?.kind === 'translation'
+                  ? activeAssistanceRequest.provider
+                  : assistTranslationProvider
+              )}请求翻译结果。
+            </p>
+          {:else if
+            assistance.status === 'ready' &&
+            assistance.result &&
+            activeAssistanceRequest?.kind === 'translation'}
+            <span>
+              {assistance.result.sourceLabel ||
+                getReaderTranslationProviderDisplayLabel(
+                  activeAssistanceRequest.provider
+                )}
+            </span>
+            <p>{assistance.result.body}</p>
+          {:else if assistance.status === 'empty'}
+            <p>没有可翻译的内容。</p>
+          {:else if assistance.status === 'offline'}
+            <p>{assistance.error || '桌面运行时或网络不可用。'}</p>
+          {:else if assistance.status === 'error'}
+            <p>{assistance.error || '翻译请求失败。'}</p>
+          {:else}
+            <p>发起翻译后，译文会显示在这里；如果没有选区，会回退到当前章节标题。</p>
+          {/if}
+        </article>
+      </div>
+    {:else if assistance.status === 'loading'}
       <strong>正在查询</strong>
       <span>
         {#if activeAssistanceRequest?.kind === 'translation'}
@@ -344,11 +391,7 @@
       </span>
     {:else}
       <strong>等待查询</strong>
-      <span>
-        {assistMode === 'translation'
-          ? '输入文本后可以直接发起翻译；如果没有选区，会回退到当前章节标题。'
-          : `输入词条后可以直接发起${assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。`}
-      </span>
+      <span>输入词条后可以直接发起{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。</span>
     {/if}
   </div>
 </section>
@@ -478,6 +521,30 @@
     color: #8b3b2f;
   }
 
+  .assist-translation-panels {
+    display: grid;
+    gap: 10px;
+  }
+
+  .assist-translation-card {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
+  }
+
+  .assist-translation-card.result {
+    background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+  }
+
+  .assist-translation-card strong {
+    color: var(--text-primary);
+    font: 700 12px/1.2 var(--font-chrome);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
   .assist-result {
     display: grid;
     gap: 8px;
@@ -491,6 +558,15 @@
     color: var(--text-secondary);
     font-size: 13px;
     line-height: 1.7;
+    white-space: pre-wrap;
+  }
+
+  .assist-translation-card span,
+  .assist-translation-card p {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+    margin: 0;
     white-space: pre-wrap;
   }
 

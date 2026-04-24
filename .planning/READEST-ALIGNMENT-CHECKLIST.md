@@ -469,6 +469,8 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
 - [ ] P5-1.3 Turn translation and TTS into intentional reading modes
   - Outcome: translation stops being only a request panel, and TTS gains more deliberate follow/media-session/reading-mode semantics.
   - Touches: reader viewport, sidebar/workspace surfaces, TTS helpers, targeted reader regressions.
+  - Progress: the translation half is now productized as a dedicated `翻译模式` notebook tab with explicit source/translated panels and a focused reader smoke. TTS follow/media-session semantics are still pending, so this item stays open.
+  - Tutorial: `tutorials/commit/0543-turn-translation-into-a-dedicated-reader-mode.md`.
   - Notes: do not reopen provider/network boundary work unless the slice exposes a concrete bug.
 
 ## P6 Library Operations And Desktop Support

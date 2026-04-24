@@ -319,6 +319,32 @@ test('reader can open the ai workspace inside the notebook shell', async ({ page
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
 
+test('reader can open translation mode as a dedicated notebook tab', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '翻译模式测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: '打开翻译模式' })).toBeVisible();
+
+  await page.getByRole('button', { name: '打开翻译模式' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
+  await expect(notebook.locator('.assist-summary strong', { hasText: '翻译模式' })).toBeVisible();
+  await expect(
+    page.getByText('把原文和译文并排收进 reader 工作台，让翻译成为一种阅读模式，而不是助手里的临时请求。')
+  ).toBeVisible();
+  const translationPanels = page.getByLabel('翻译阅读面板');
+  await expect(translationPanels).toBeVisible();
+  await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '原文' })).toBeVisible();
+  await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '译文' })).toBeVisible();
+});
+
 test('reader opens txt assets in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
