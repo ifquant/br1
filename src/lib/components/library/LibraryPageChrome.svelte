@@ -1,6 +1,50 @@
   <script lang="ts">
+  import { getContext } from 'svelte';
+  import { readable, type Readable } from 'svelte/store';
   import LibraryHeader from './LibraryHeader.svelte';
   import type { LibraryBrowseAction, LibraryPageChromeModel } from '$lib/library/types';
+
+  type LibraryDesktopSupportState = {
+    desktopAvailable: boolean;
+    mainWindowActive: boolean;
+    queueStatus: 'unavailable' | 'idle' | 'queued' | 'processing';
+    pendingRequestCount: number;
+    activeRequestPreview: string[];
+    lastProcessedCount: number;
+    lastProcessedPreview: string[];
+    lastQueueActivityLabel: string;
+    rejectedInputCount: number;
+    rejectedInputPreview: string[];
+  };
+
+  type LibraryDesktopSupportContext = {
+    state: Readable<LibraryDesktopSupportState>;
+    refreshQueue: () => void;
+    clearRejectedInputs: () => void;
+  };
+
+  const LIBRARY_DESKTOP_SUPPORT_CONTEXT = 'br1-library-desktop-support-context';
+
+  const createEmptyLibraryDesktopSupportState = (): LibraryDesktopSupportState => ({
+    desktopAvailable: false,
+    mainWindowActive: false,
+    queueStatus: 'unavailable',
+    pendingRequestCount: 0,
+    activeRequestPreview: [],
+    lastProcessedCount: 0,
+    lastProcessedPreview: [],
+    lastQueueActivityLabel: '',
+    rejectedInputCount: 0,
+    rejectedInputPreview: []
+  });
+
+  const libraryDesktopSupportContext =
+    getContext<LibraryDesktopSupportContext | undefined>(LIBRARY_DESKTOP_SUPPORT_CONTEXT) ?? {
+      state: readable(createEmptyLibraryDesktopSupportState()),
+      refreshQueue: () => {},
+      clearRejectedInputs: () => {}
+    };
+  const libraryDesktopSupportState = libraryDesktopSupportContext.state;
 
   export let model: LibraryPageChromeModel = {
     header: {
@@ -73,6 +117,45 @@
     if (!onReadestMigration) return;
     void onReadestMigration();
   };
+
+  const handleRefreshDesktopQueue = () => {
+    libraryDesktopSupportContext.refreshQueue();
+  };
+
+  const handleClearRejectedInputs = () => {
+    libraryDesktopSupportContext.clearRejectedInputs();
+  };
+
+  $: queueStatusTitle =
+    $libraryDesktopSupportState.queueStatus === 'processing'
+      ? `正在接管 ${$libraryDesktopSupportState.pendingRequestCount} 个桌面打开请求`
+      : $libraryDesktopSupportState.queueStatus === 'queued'
+        ? $libraryDesktopSupportState.pendingRequestCount > 0
+          ? `发现 ${$libraryDesktopSupportState.pendingRequestCount} 个待处理的桌面打开请求`
+          : '正在检查桌面打开队列'
+        : $libraryDesktopSupportState.desktopAvailable
+          ? $libraryDesktopSupportState.mainWindowActive
+            ? '当前没有待处理的桌面打开请求'
+            : '当前窗口不负责处理桌面打开请求'
+          : '当前是网页/预览环境，桌面打开支持不可用';
+  $: queueStatusDetail =
+    $libraryDesktopSupportState.queueStatus === 'processing' &&
+    $libraryDesktopSupportState.activeRequestPreview.length > 0
+      ? $libraryDesktopSupportState.activeRequestPreview.join('，')
+      : $libraryDesktopSupportState.lastProcessedCount > 0
+        ? `最近一次处理 ${$libraryDesktopSupportState.lastProcessedCount} 个请求${
+            $libraryDesktopSupportState.lastQueueActivityLabel
+              ? ` · ${$libraryDesktopSupportState.lastQueueActivityLabel}`
+              : ''
+          }`
+        : $libraryDesktopSupportState.desktopAvailable
+          ? $libraryDesktopSupportState.mainWindowActive
+            ? '主窗口会继续监听文件关联打开队列，并把可信输入送入阅读器。'
+            : '只有主窗口会消费文件关联打开队列。'
+          : '在桌面应用中，主窗口会消费关联打开队列并拦截不受信任的输入。';
+  $: showDesktopSupportCard =
+    $libraryDesktopSupportState.desktopAvailable ||
+    $libraryDesktopSupportState.rejectedInputCount > 0;
 </script>
 
 <LibraryHeader
@@ -144,9 +227,41 @@
   </section>
 {/if}
 
+{#if showDesktopSupportCard}
+  <section class="desktop-support-card" aria-label="桌面支持与关联打开状态">
+    <div class="desktop-support-copy">
+      <strong>桌面支持</strong>
+      <span>{queueStatusTitle}</span>
+      <small>{queueStatusDetail}</small>
+      {#if $libraryDesktopSupportState.rejectedInputCount > 0}
+        <small class="desktop-support-warning">
+          最近忽略 {$libraryDesktopSupportState.rejectedInputCount} 个无法打开的输入：
+          {$libraryDesktopSupportState.rejectedInputPreview.join('，')}
+        </small>
+      {/if}
+    </div>
+    <div class="desktop-support-actions">
+      <button
+        type="button"
+        class="notice-dismiss primary"
+        disabled={!$libraryDesktopSupportState.desktopAvailable || !$libraryDesktopSupportState.mainWindowActive}
+        on:click={handleRefreshDesktopQueue}
+      >
+        立即检查打开队列
+      </button>
+      {#if $libraryDesktopSupportState.rejectedInputCount > 0}
+        <button type="button" class="notice-dismiss" on:click={handleClearRejectedInputs}>
+          清除忽略提示
+        </button>
+      {/if}
+    </div>
+  </section>
+{/if}
+
 <slot />
 
 <style>
+  .desktop-support-card,
   .migration-banner {
     display: flex;
     justify-content: space-between;
@@ -161,6 +276,14 @@
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
       0 8px 24px rgba(42, 30, 15, 0.05);
+  }
+
+  .desktop-support-card {
+    margin-top: 10px;
+    border-color: color-mix(in srgb, #5d775b 16%, var(--line-soft) 84%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0)),
+      color-mix(in srgb, #edf3e8 80%, var(--surface-panel) 20%);
   }
 
   .library-notice {
@@ -225,6 +348,38 @@
     gap: 3px;
   }
 
+  .desktop-support-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .desktop-support-copy strong {
+    font-family: var(--font-chrome);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--text-primary);
+  }
+
+  .desktop-support-copy span,
+  .desktop-support-copy small {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
+
+  .desktop-support-warning {
+    color: color-mix(in srgb, #96552b 82%, var(--text-primary) 18%);
+  }
+
+  .desktop-support-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
   .migration-copy strong {
     font-family: var(--font-chrome);
     font-size: 13px;
@@ -249,5 +404,19 @@
     font-weight: 600;
     line-height: 1;
     box-shadow: 0 10px 20px rgba(42, 30, 15, 0.12);
+  }
+
+  @media (max-width: 900px) {
+    .desktop-support-card,
+    .library-notice,
+    .migration-banner {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .desktop-support-actions,
+    .notice-actions {
+      justify-content: flex-start;
+    }
   }
 </style>

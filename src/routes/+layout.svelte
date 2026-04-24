@@ -2,8 +2,8 @@
   import 'overlayscrollbars/styles/overlayscrollbars.css';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
-  import { derived } from 'svelte/store';
+  import { onMount, setContext } from 'svelte';
+  import { derived, writable, type Readable } from 'svelte/store';
   import { openReaderTarget, toExternalLibraryFileReaderTarget } from '$lib/services';
   import { invokeTauri, isTauriDesktop } from '$lib/services/platform';
 
@@ -16,7 +16,27 @@
     rejectedInputs: AssociatedBookOpenInputRejection[];
   };
 
+  type LibraryDesktopSupportState = {
+    desktopAvailable: boolean;
+    mainWindowActive: boolean;
+    queueStatus: 'unavailable' | 'idle' | 'queued' | 'processing';
+    pendingRequestCount: number;
+    activeRequestPreview: string[];
+    lastProcessedCount: number;
+    lastProcessedPreview: string[];
+    lastQueueActivityLabel: string;
+    rejectedInputCount: number;
+    rejectedInputPreview: string[];
+  };
+
+  type LibraryDesktopSupportContext = {
+    state: Readable<LibraryDesktopSupportState>;
+    refreshQueue: () => void;
+    clearRejectedInputs: () => void;
+  };
+
   const ASSOCIATED_BOOK_OPEN_REJECTION_EVENT = 'br1:associated-book-open-inputs-rejected';
+  const LIBRARY_DESKTOP_SUPPORT_CONTEXT = 'br1-library-desktop-support-context';
 
   const navItems = [
     { href: '/library', label: '书库' },
@@ -34,6 +54,50 @@
   let associatedBookOpenNotice = '';
   let associatedBookOpenNoticeDetails = '';
   let associatedBookOpenNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+  let refreshAssociatedBookOpenQueue: (() => void) | null = null;
+
+  const createEmptyLibraryDesktopSupportState = (): LibraryDesktopSupportState => ({
+    desktopAvailable: false,
+    mainWindowActive: false,
+    queueStatus: 'unavailable',
+    pendingRequestCount: 0,
+    activeRequestPreview: [],
+    lastProcessedCount: 0,
+    lastProcessedPreview: [],
+    lastQueueActivityLabel: '',
+    rejectedInputCount: 0,
+    rejectedInputPreview: []
+  });
+
+  const libraryDesktopSupportState = writable<LibraryDesktopSupportState>(
+    createEmptyLibraryDesktopSupportState()
+  );
+
+  const updateLibraryDesktopSupportState = (
+    updater: (current: LibraryDesktopSupportState) => LibraryDesktopSupportState
+  ) => {
+    libraryDesktopSupportState.update((current) => updater(current));
+  };
+
+  const formatQueueActivityLabel = () =>
+    new Intl.DateTimeFormat('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).format(new Date());
+
+  setContext<LibraryDesktopSupportContext>(LIBRARY_DESKTOP_SUPPORT_CONTEXT, {
+    state: {
+      subscribe: libraryDesktopSupportState.subscribe
+    },
+    refreshQueue: () => {
+      refreshAssociatedBookOpenQueue?.();
+    },
+    clearRejectedInputs: () => {
+      clearAssociatedBookOpenNotice();
+    }
+  });
 
   const clearAssociatedBookOpenNotice = () => {
     associatedBookOpenNotice = '';
@@ -42,6 +106,11 @@
       clearTimeout(associatedBookOpenNoticeTimer);
       associatedBookOpenNoticeTimer = null;
     }
+    updateLibraryDesktopSupportState((current) => ({
+      ...current,
+      rejectedInputCount: 0,
+      rejectedInputPreview: []
+    }));
   };
 
   const showAssociatedBookOpenNotice = (report: AssociatedBookOpenRejectionReport) => {
@@ -58,6 +127,11 @@
 
     associatedBookOpenNotice = `已忽略 ${rejectedInputs.length} 个无法打开的输入。`;
     associatedBookOpenNoticeDetails = `${preview}${remaining > 0 ? `，另有 ${remaining} 个` : ''}`;
+    updateLibraryDesktopSupportState((current) => ({
+      ...current,
+      rejectedInputCount: rejectedInputs.length,
+      rejectedInputPreview: rejectedInputs.slice(0, 3).map((entry) => entry.input || entry.reason)
+    }));
 
     if (associatedBookOpenNoticeTimer !== null) {
       clearTimeout(associatedBookOpenNoticeTimer);
@@ -69,6 +143,18 @@
 
   const flushAssociatedBookOpenRequests = async () => {
     const requests = await invokeTauri<Array<{ path: string }>>('consume_associated_book_open_requests');
+    const preview = requests.slice(0, 3).map((request) => request.path);
+
+    updateLibraryDesktopSupportState((current) => ({
+      ...current,
+      queueStatus: requests.length > 0 ? 'processing' : 'idle',
+      pendingRequestCount: requests.length,
+      activeRequestPreview: preview,
+      lastProcessedCount: requests.length > 0 ? requests.length : current.lastProcessedCount,
+      lastProcessedPreview: requests.length > 0 ? preview : current.lastProcessedPreview,
+      lastQueueActivityLabel: formatQueueActivityLabel()
+    }));
+
     for (const request of requests) {
       const target = toExternalLibraryFileReaderTarget(request.path);
       const opened = await openReaderTarget(target);
@@ -76,10 +162,21 @@
         await goto(target.href);
       }
     }
+
+    updateLibraryDesktopSupportState((current) => ({
+      ...current,
+      queueStatus: 'idle',
+      pendingRequestCount: 0,
+      activeRequestPreview: [],
+      lastQueueActivityLabel: formatQueueActivityLabel()
+    }));
   };
 
   onMount(() => {
-    if (!isTauriDesktop()) return;
+    if (!isTauriDesktop()) {
+      libraryDesktopSupportState.set(createEmptyLibraryDesktopSupportState());
+      return;
+    }
 
     let disposed = false;
     let flushChain = Promise.resolve();
@@ -94,7 +191,22 @@
         })
         .catch((error) => {
           console.error('Failed to flush associated-book open requests', error);
+          updateLibraryDesktopSupportState((current) => ({
+            ...current,
+            queueStatus: 'idle',
+            pendingRequestCount: 0,
+            activeRequestPreview: []
+          }));
         });
+    };
+
+    refreshAssociatedBookOpenQueue = () => {
+      updateLibraryDesktopSupportState((current) => ({
+        ...current,
+        queueStatus: current.mainWindowActive ? 'queued' : current.queueStatus,
+        activeRequestPreview: current.mainWindowActive ? current.activeRequestPreview : []
+      }));
+      queueFlush();
     };
 
     (async () => {
@@ -106,10 +218,22 @@
 
       const currentWindow = getCurrentWindow();
       if (currentWindow.label !== 'main') {
+        libraryDesktopSupportState.set({
+          ...createEmptyLibraryDesktopSupportState(),
+          desktopAvailable: true,
+          mainWindowActive: false
+        });
         return;
       }
 
-      queueFlush();
+      libraryDesktopSupportState.set({
+        ...createEmptyLibraryDesktopSupportState(),
+        desktopAvailable: true,
+        mainWindowActive: true,
+        queueStatus: 'idle'
+      });
+
+      refreshAssociatedBookOpenQueue();
       rejectionUnlistenPromise = listen<AssociatedBookOpenRejectionReport>(
         ASSOCIATED_BOOK_OPEN_REJECTION_EVENT,
         ({ payload }) => {
@@ -117,6 +241,10 @@
         }
       );
       openRequestUnlistenPromise = listen('br1:associated-book-open-requested', () => {
+        updateLibraryDesktopSupportState((current) => ({
+          ...current,
+          queueStatus: 'queued'
+        }));
         queueFlush();
       });
     })().catch((error) => {
@@ -125,6 +253,7 @@
 
     return () => {
       disposed = true;
+      refreshAssociatedBookOpenQueue = null;
       clearAssociatedBookOpenNotice();
       void openRequestUnlistenPromise?.then((unlisten) => {
         if (typeof unlisten === 'function') {
