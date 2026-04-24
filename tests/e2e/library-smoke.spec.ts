@@ -264,6 +264,36 @@ test('reader can open a parallel surface without collapsing the shell', async ({
   await expect(secondaryStage.getByRole('button', { name: '下一页' })).toBeVisible();
 });
 
+test('reader can open a notebook workspace without collapsing navigation', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '笔记工作台测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: '打开笔记工作台' })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
+
+  await page.getByRole('button', { name: '打开笔记工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  await expect(page.getByRole('button', { name: '关闭笔记工作台' })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: '笔记工作台标签' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '固定笔记工作台' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
+
+  await page.getByRole('button', { name: '固定笔记工作台' }).click();
+  await expect(page.getByRole('button', { name: '取消固定笔记工作台' })).toBeVisible();
+
+  await page.getByRole('button', { name: '关闭笔记工作台' }).click();
+  await expect(page.getByRole('button', { name: '打开笔记工作台' })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
+});
+
 test('reader opens txt assets in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

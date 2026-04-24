@@ -452,10 +452,12 @@ Goal: close the next set of user-visible Readest gaps that now mainly live in re
 
 Goal: make the reader feel like a multi-workspace Readest-style reading product instead of a growing single-sidebar feature surface.
 
-- [ ] P5-1.1 Add a notebook-grade reader workspace shell
+- [x] P5-1.1 Add a notebook-grade reader workspace shell
   - Outcome: notes/highlights move into a dedicated notebook/workbench surface with explicit open/pin/dismiss behavior instead of remaining only one sidebar tab.
   - Touches: reader workspace shell, route wiring, notes/highlights presentation, focused reader regression.
-  - Notes: this is the first reader-workspace slice and should not yet expand into AI or translation-mode behavior.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open a notebook workspace without collapsing navigation"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: recorded in workspace commit history for this slice.
+  - Notes: this first workspace slice replaces the old right-side bridge placeholder with a notebook shell, persists pin/tab state at the route level, and opens the notebook when note/highlight actions fire. It intentionally keeps the older sidebar notes/highlights path alive so the reader workspace can grow without rewriting the existing annotation substrate in the same commit.
 
 - [ ] P5-1.2 Add an AI assistant workspace on top of the notebook shell
   - Outcome: AI reading help becomes a real workspace with its own framing instead of another provider-result panel.
@@ -531,3 +533,4 @@ Use this log when completing each item.
 | 2026-04-25 | Tighten Readest local-library migration and compatibility semantics | 1a3580d | `pnpm check`; `cargo check --manifest-path src-tauri/Cargo.toml`; `pnpm dlx tsx --test ./src/lib/library/page.test.ts ./src/lib/library/desktopCatalog.test.ts`; `git diff --check` | separates detected Readest records from importable local files and from already-compatible br1 copies so migration entry points stop overstating what can be synced |
 | 2026-04-25 | Centralize reader format capability boundaries for search and annotations | b850cc5 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"`; `git diff --check` | moves TXT search unsupported handling into the shared reader format capability contract so viewport and sidebar behavior can grow from one source of truth |
 | 2026-04-25 | Productize reader search states across formats and sidebars | 735f1c7 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader search states read like one product surface across txt and epub"`; `git diff --check` | turns the sidebar search surface into one coherent product state machine across TXT unsupported search, EPUB empty results, and EPUB hit navigation |
+| 2026-04-25 | Add a notebook-grade reader workspace shell | recorded in workspace commit history for this slice | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open a notebook workspace without collapsing navigation"`; `git diff --check` | replaces the old bridge placeholder with a real notebook workbench, persists pin/tab state at the route level, and keeps legacy sidebar notes/highlights reachable while the new reader workspace line grows |

@@ -3,6 +3,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
+  import ReaderNotebook from '$lib/components/reader/ReaderNotebook.svelte';
   import type {
     ReaderControlRequest,
     ReaderLookupProvider,
@@ -71,7 +72,9 @@
   let persistSequence = 0;
   let lastPersistPromise: Promise<void> = Promise.resolve();
   let currentCoverUrl = '';
-  let bridgePanelOpen = false;
+  let notebookVisible = false;
+  let notebookPinned = false;
+  let notebookTab: 'notes' | 'highlights' = 'notes';
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -200,17 +203,22 @@
   const addNoteFromSelection = () => {
     const added = notesController.addFromSelection();
     if (!added) return;
+    notebookTab = 'notes';
+    notebookVisible = true;
     sidebarController.openTab('notes');
   };
 
   const addHighlightFromSelection = () => {
     const added = notesController.addHighlightFromSelection();
     if (!added) return;
+    notebookTab = 'highlights';
+    notebookVisible = true;
     sidebarController.openTab('notes');
   };
 
   const openNote = (cfi: string) => {
     notesController.open(cfi);
+    notebookVisible = true;
     sidebarController.openTab('notes');
     searchController.clearRecentResultCfi();
     issueHrefControl(cfi);
@@ -230,6 +238,19 @@
 
   const deleteNotes = (ids: string[]) => {
     notesController.removeMany(ids);
+  };
+
+  const NOTEBOOK_STORAGE_KEY = 'br1.reader.notebook-shell';
+
+  const persistNotebookShell = () => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(
+      NOTEBOOK_STORAGE_KEY,
+      JSON.stringify({
+        pinned: notebookPinned,
+        activeTab: notebookTab
+      })
+    );
   };
 
   function resolveReaderTtsSpeechTarget(): ReaderTtsSpeechTarget | null {
@@ -271,6 +292,20 @@
     })();
 
     if (typeof localStorage === 'undefined') return;
+    const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
+    if (rawNotebookShell) {
+      try {
+        const persisted = JSON.parse(rawNotebookShell) as {
+          pinned?: boolean;
+          activeTab?: 'notes' | 'highlights';
+        };
+        notebookPinned = !!persisted.pinned;
+        notebookVisible = !!persisted.pinned;
+        notebookTab = persisted.activeTab === 'highlights' ? 'highlights' : 'notes';
+      } catch (error) {
+        console.warn('Failed to restore reader notebook shell state', error);
+      }
+    }
     searchController.restoreConfig();
     searchController.enablePersistence();
     sidebarController.restore();
@@ -286,6 +321,9 @@
   }
   $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
     ttsController.setSpeechTarget(resolveReaderTtsSpeechTarget());
+  }
+  $: if (typeof localStorage !== 'undefined') {
+    persistNotebookShell();
   }
   $: searchController.persist($searchState);
   $: sidebarController.persist($sidebarState);
@@ -619,8 +657,8 @@
 
   <div
     class:window-mode={isWindowMode}
-    class:bridge-open={!isWindowMode && bridgePanelOpen}
-    class:bridge-collapsed={!isWindowMode && !bridgePanelOpen}
+    class:notebook-open={notebookVisible}
+    class:notebook-collapsed={!notebookVisible}
     class:sidebar-hidden={isWindowMode && !$sidebarState.visible}
     class:sidebar-overlay={isWindowMode && $sidebarState.visible && !$sidebarState.pinned}
     class="workspace"
@@ -663,6 +701,20 @@
           on:click={toggleParallelSurface}
         >
           {parallelEnabled ? '关闭并行阅读' : '并行阅读'}
+        </button>
+        <button
+          type="button"
+          class="parallel-toggle notebook-toggle"
+          aria-pressed={notebookVisible}
+          aria-label={notebookVisible ? '收起笔记工作台' : '切换笔记工作台'}
+          on:click={() => {
+            notebookVisible = !notebookVisible;
+            if (notebookVisible && notebookTab !== 'highlights') {
+              notebookTab = 'notes';
+            }
+          }}
+        >
+          {notebookVisible ? '关闭工作台' : '笔记工作台'}
         </button>
       </div>
 
@@ -743,33 +795,39 @@
       </div>
     </div>
 
-    {#if !isWindowMode}
-      {#if bridgePanelOpen}
-        <aside class="bridge-placeholder" aria-label="桥梁面板">
-          <header class="bridge-head">
-            <span class="label">桥</span>
-            <button type="button" aria-label="收起桥梁面板" on:click={() => (bridgePanelOpen = false)}>
-              ×
-            </button>
-          </header>
-
-          <div class="bridge-card">
-            <strong>解释这段</strong>
-            <p>这里保留 `br1` 的桥梁层挂载位。先把它作为右侧上下文面板摆正，不提前接入智能行为。</p>
-          </div>
-
-          <div class="bridge-card secondary">
-            <strong>为什么重要</strong>
-            <p>后续桥梁层可以从当前位置、章节关系和高亮沉淀里给出解释，而不是挤进正文主舞台。</p>
-          </div>
-        </aside>
-      {:else}
-        <aside class="bridge-tab" aria-label="桥梁面板已收起">
-          <button type="button" aria-label="打开桥梁面板" on:click={() => (bridgePanelOpen = true)}>
-            <span>桥</span>
-          </button>
-        </aside>
-      {/if}
+    {#if notebookVisible}
+      <ReaderNotebook
+        visible={notebookVisible}
+        pinned={notebookPinned}
+        activeTab={notebookTab}
+        preview={currentPreview}
+        notesState={$notesState}
+        supportsTextAnnotations={supportsTextAnnotationsForFormat(currentPreview.formatLabel)}
+        textAnnotationSupportMessage="当前格式暂不支持正文批注。"
+        callbacks={{
+          onAddHighlight: sidebarCallbacks.onAddHighlight,
+          onAddNote: sidebarCallbacks.onAddNote,
+          onOpenNote: sidebarCallbacks.onOpenNote,
+          onEditNote: sidebarCallbacks.onEditNote,
+          onDeleteNote: sidebarCallbacks.onDeleteNote
+        }}
+        onClose={() => {
+          notebookVisible = false;
+        }}
+        onTogglePin={() => {
+          notebookPinned = !notebookPinned;
+          if (notebookPinned) notebookVisible = true;
+        }}
+        onTabChange={(tab) => {
+          notebookTab = tab;
+        }}
+      />
+    {:else}
+      <aside class="notebook-tab" aria-label="笔记工作台已收起">
+        <button type="button" aria-label="打开笔记工作台" on:click={() => (notebookVisible = true)}>
+          <span>记</span>
+        </button>
+      </aside>
     {/if}
   </div>
 </section>
@@ -827,11 +885,11 @@
     width: 100%;
   }
 
-  .workspace.bridge-collapsed {
+  .workspace.notebook-collapsed {
     grid-template-columns: 248px minmax(0, 1fr) 48px;
   }
 
-  .workspace.bridge-open {
+  .workspace.notebook-open {
     grid-template-columns: 248px minmax(0, 1fr) 276px;
   }
 
@@ -845,15 +903,24 @@
       var(--reader-window-edge-x, 18px)
       var(--reader-window-edge-y-bottom, 12px);
     box-sizing: border-box;
-    grid-template-columns: minmax(208px, var(--reader-sidebar-width, 224px)) minmax(0, 1fr);
+    grid-template-columns: minmax(208px, var(--reader-sidebar-width, 224px)) minmax(0, 1fr) 304px;
   }
 
   .workspace.window-mode.sidebar-hidden {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 304px;
   }
 
   .workspace.window-mode.sidebar-overlay {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 304px;
+  }
+
+  .workspace.window-mode.notebook-collapsed {
+    grid-template-columns: minmax(208px, var(--reader-sidebar-width, 224px)) minmax(0, 1fr) 44px;
+  }
+
+  .workspace.window-mode.sidebar-hidden.notebook-collapsed,
+  .workspace.window-mode.sidebar-overlay.notebook-collapsed {
+    grid-template-columns: minmax(0, 1fr) 44px;
   }
 
   .sidebar-resize-handle {
@@ -887,18 +954,7 @@
     outline-offset: 3px;
   }
 
-  .bridge-placeholder {
-    display: grid;
-    align-content: start;
-    gap: 10px;
-    padding: 12px;
-    border: 1px solid rgba(64, 47, 24, 0.1);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 92%, white 8%);
-  }
-
-  .bridge-tab {
+  .notebook-tab {
     display: grid;
     align-content: start;
     justify-items: center;
@@ -907,7 +963,7 @@
     background: color-mix(in srgb, var(--surface-panel) 86%, white 14%);
   }
 
-  .bridge-tab button {
+  .notebook-tab button {
     width: 32px;
     min-height: 84px;
     border: 1px solid var(--border-light);
@@ -922,66 +978,14 @@
     box-shadow: 0 8px 18px rgba(42, 30, 15, 0.05);
   }
 
-  .bridge-tab button:hover {
+  .notebook-tab button:hover {
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
   }
 
-  .bridge-placeholder button:focus-visible,
-  .bridge-tab button:focus-visible {
+  .notebook-tab button:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 72%, white 28%);
     outline-offset: 3px;
-  }
-
-  .label {
-    color: var(--text-muted);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    font-family: var(--font-chrome);
-  }
-
-  .bridge-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    align-items: center;
-    padding: 2px 2px 8px;
-  }
-
-  .bridge-head button {
-    width: 26px;
-    height: 26px;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--text-muted);
-    font: inherit;
-  }
-
-  .bridge-card {
-    display: grid;
-    gap: 6px;
-    padding: 14px 14px 12px;
-    border: 1px solid var(--border-light);
-    background: color-mix(in srgb, var(--surface-reader) 76%, white 24%);
-  }
-
-  .bridge-card.secondary {
-    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-  }
-
-  .bridge-card strong {
-    font-family: var(--font-chrome);
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .bridge-card p {
-    margin: 0;
-    color: var(--text-secondary);
-    line-height: 1.65;
-    font-size: 13px;
   }
 
   .reader-surface {
@@ -993,6 +997,7 @@
   .parallel-surface-toolbar {
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
     min-width: 0;
   }
 
@@ -1039,11 +1044,11 @@
       grid-template-columns: 236px minmax(0, 1fr);
     }
 
-    .workspace.bridge-collapsed {
+    .workspace.notebook-collapsed {
       grid-template-columns: 236px minmax(0, 1fr) 44px;
     }
 
-    .workspace.bridge-open {
+    .workspace.notebook-open {
       grid-template-columns: 236px minmax(0, 1fr);
     }
 
@@ -1052,14 +1057,14 @@
       --reader-window-edge-y-top: 8px;
       --reader-window-edge-y-bottom: 10px;
       --reader-window-sidebar-gap: 14px;
-      grid-template-columns: 208px minmax(0, 1fr);
+      grid-template-columns: 208px minmax(0, 1fr) 288px;
     }
 
-    .bridge-placeholder {
+    :global(.reader-notebook) {
       grid-column: 1 / -1;
     }
 
-    .bridge-tab {
+    .notebook-tab {
       grid-column: auto;
       padding-inline: 2px;
     }
@@ -1067,8 +1072,8 @@
 
   @media (max-width: 960px) {
     .workspace,
-    .workspace.bridge-collapsed,
-    .workspace.bridge-open {
+    .workspace.notebook-collapsed,
+    .workspace.notebook-open {
       grid-template-columns: 1fr;
     }
 
@@ -1080,19 +1085,19 @@
       order: 2;
     }
 
-    .bridge-placeholder,
-    .bridge-tab {
+    :global(.reader-notebook),
+    .notebook-tab {
       order: 3;
     }
 
-    .bridge-tab {
+    .notebook-tab {
       justify-items: stretch;
       padding: 8px 14px 12px;
       border-left: 0;
       border-top: 1px solid rgba(64, 47, 24, 0.1);
     }
 
-    .bridge-tab button {
+    .notebook-tab button {
       width: 100%;
       min-height: 38px;
       writing-mode: horizontal-tb;
