@@ -298,64 +298,77 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Outcome: KOReader-compatible progress and annotation data can map into and out of the sync substrate without becoming the core model.
   - Touches: ecosystem adapter module, sync mapping tests.
   - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/sync/koreader.test.js` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 5d7f1bf
   - Notes: added a pure `src/lib/sync/koreader.ts` adapter that keeps KOReader-only hashes, xpointers, page numbers, and annotation style/color metadata inside the ecosystem edge instead of introducing new core sync record kinds. The first slice covers KOReader book-config progress mapping through `reading-state` plus annotation/bookmark round-trips through the existing `notes` and `bookmarks` records, with fixture coverage that explicitly drops deleted KOReader entries and keeps page-progress handling best-effort until the visible workflow slice.
 
 - [x] P2-4.2 Add KOReader sync workflow
   - Outcome: users can run a visible KOReader sync/import/export flow with conflict reporting.
   - Touches: adapter UI, sync services, tests.
   - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/sync/koreader.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: ea2ad10
   - Notes: added a visible library-menu KOReader exchange workflow on top of the adapter slice instead of jumping straight to remote KOReader protocol wiring. Export now writes a Tauri-owned `br1-koreader-sync-*.json` exchange document built from the current sync snapshot; import opens the same kind of document through a Tauri dialog, merges only uniquely matched books back into the current snapshot, and skips missing, ambiguous, or locally newer books with explicit conflict counts in the resulting notice instead of hard-stopping the whole import.
 
 - [x] P2-4.3 Add KOReader server-backed progress sync
   - Outcome: users can manually push and pull KOReader reading progress against a configured KOReader server without turning the renderer into a generic network proxy.
   - Touches: KOReader remote command, sync service merge helpers, library menu wiring, tests.
   - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: affd7a2
   - Notes: added a dedicated Tauri-owned `run_koreader_remote_sync` command that authenticates with fixed KOReader endpoint families and env-owned credentials, then wires manual push/pull actions into the existing library menu. Push only emits reading progress payloads; pull only merges reading-state records, skips ambiguous hashes and locally newer records, and leaves annotation remote sync explicitly out of scope for this slice.
 
 - [x] P2-4.4 Normalize KOReader remote progress semantics
   - Outcome: KOReader remote progress sync now speaks locator/page semantics instead of leaking `br1` UI progress labels into the protocol.
   - Touches: KOReader progress projection/merge helpers, desktop sync notices, tests.
   - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 2e104d1
   - Notes: corrected the first remote-progress slice so push now prefers KOReader-compatible locators or page values and skips unsupported local-only positions like `txt:` pseudo-locators, while pull maps remote locator values back into `progressLocation` and keeps `br1` display progress as a percentage/page label. This keeps the KOReader wire contract closer to Readest instead of serializing raw UI text.
 
 - [x] P2-4.5 Add reader-side XCFI conversion substrate
   - Outcome: `br1` now has a checked-in CFI/XPointer conversion utility layer that future KOReader reader-sync work can call directly.
   - Touches: reader substrate utilities, exports, targeted tests.
   - Verify: `pnpm check` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/reader/xcfi.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 50f8f10
   - Notes: ported the Readest `XCFI` converter into `src/lib/reader/xcfi.ts` with `extractSpineIndex`, bidirectional conversion helpers, and XPointer normalization. This slice is intentionally substrate-only: it exposes the conversion layer to `br1` without yet wiring live reader progress or notes persistence through it.
 
 - [x] P2-4.6 Persist KOReader-compatible reader locators alongside local progress
   - Outcome: EPUB reader progress persistence now keeps a KOReader-facing locator in parallel with the existing local reopen CFI so remote sync can export the right wire value without breaking `br1` resume semantics.
   - Touches: reader viewport state emission, reader persistence/update flow, sync substrate records, KOReader sync projection, targeted tests.
   - Verify: `pnpm check` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/reader/xcfi.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js .tmp-sync-tests/src/lib/sync/model.test.js` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 183e574
   - Notes: `ReaderViewport` now converts live EPUB CFIs into normalized KOReader XPointers asynchronously and emits them as a separate `koreaderProgressLocation`, while the route still persists the original `progressLocation` for local reopen. The new field is carried through `LibraryBookRecord`, sync `reading-state`, Readest import, and KOReader remote projection so push prefers the KOReader locator and pull preserves it without overwriting the reader's own CFI resume path.
 
 - [x] P2-4.7 Persist KOReader annotation and bookmark metadata in local reader state
   - Outcome: locally created highlights, notes, and bookmarks can keep KOReader-compatible locator metadata so later exchange/remote annotation sync does not have to reconstruct that data from lossy CFI-only state.
   - Touches: reader selection emission, reader notes/bookmarks controllers, Tauri reader note/bookmark schema, KOReader sync adapter, targeted tests.
   - Verify: `pnpm check` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/reader/xcfi.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js .tmp-sync-tests/src/lib/sync/model.test.js` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 924cb06
   - Notes: `ReaderSelectionState`, `ReaderNote`, and `ReaderBookmark` now have an explicit optional `koreader` metadata lane instead of forcing KOReader data to hide in sync-only adapter casts. `ReaderViewport` resolves KOReader XPointers for live selections, note/highlight creation persists that locator metadata, bookmark creation persists the current KOReader progress locator, and Tauri note/bookmark JSON now round-trips the same optional metadata shape without breaking old files.
 
 - [x] P2-4.8 Lock KOReader remote sync to the official progress-only contract
   - Outcome: the UI and desktop notices no longer imply that the official `koreader/koreader-sync-server` can sync annotations or bookmarks; remote KOReader actions are explicitly scoped to progress only.
   - Touches: library KOReader remote action copy, desktop KOReader remote notices, checklist/tutorial.
   - Verify: `pnpm check` (PASS); `git diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 121d6f8
   - Notes: after re-checking the official KOSync server boundary, this slice intentionally stops short of inventing a non-standard annotation protocol. The KOReader remote actions are now labeled as reading-progress actions, and the UI points users to KOReader exchange files for bookmark/annotation transfer until a different server/provider slice exists.
+
+### P2-4 Closeout
+
+- Status: `P2-4` is functionally closed for the official KOReader parity surface currently implemented in `br1`.
+- Included:
+  - KOReader exchange import/export for progress, bookmarks, and annotations
+  - official KOSync server-backed reading progress push/pull
+  - reader-side CFI/XPointer substrate plus persisted KOReader locator/annotation metadata
+- Explicitly not included:
+  - remote bookmark/annotation sync over official `koreader/koreader-sync-server`
+  - any invented non-standard remote annotation protocol layered on top of official KOSync
+- Merge implication:
+  - this phase is now in a merge-reviewable state because the protocol boundary is explicit instead of half-implied.
 
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
 
 - [x] S-1 Renderer cannot turn catalog or translation commands into arbitrary network proxying
-  - Done commit: 0505, this commit
+  - Done commit: 0505, 00d5fd1, affd7a2, 121d6f8
   - Notes: catalog commands only originally; now remote sync too. User-configured http/https OPDS URLs are still persisted only as source metadata, browsing still returns an explicit unsupported product state unless the source maps to an allowlisted bundled fixture page, and the new `readestCloud` sync path does not accept renderer-supplied URLs at all. Tauri derives the sync base URL and library id from local desktop env, constructs the endpoint family itself, and keeps auth/header use inside the desktop boundary.
 
 - [x] S-2 Renderer cannot use service flows to read arbitrary local files
@@ -363,11 +376,11 @@ These checks apply to every P2 service slice.
   - Notes: sync snapshot import/export now keeps file selection and save-path ownership inside Tauri dialogs. The renderer never supplies arbitrary snapshot filesystem paths; it only receives parsed snapshot content or file-name summaries, while restore writes go through Tauri-owned app-data paths and existing hashed storage roots.
 
 - [x] S-3 Long-lived provider credentials are not stored in renderer-only state
-  - Done commit: 0505, this commit
+  - Done commit: 0505, 00d5fd1, affd7a2
   - Notes: catalog commands only originally; now remote sync too. The renderer-facing catalog settings input still stores only auth kind, required/configured booleans, and labels/redacted presence metadata, and the remote sync token is read from local desktop env only. No long-lived password/token/cookie secret is accepted from renderer state for either path.
 
 - [x] S-4 Network and filesystem failures produce product-level error states, not silent failures
-  - Done commit: 0505, this commit
+  - Done commit: 0505, 00d5fd1, affd7a2, 121d6f8
   - Notes: catalog commands only originally; now remote sync too. Invalid settings files, source settings write failures, unsupported live URLs, auth-required sources, and non-allowlisted page hrefs still return `CatalogErrorState` or source connectivity states, and remote sync now returns explicit missing-config, offline, retryable-failure, conflict, success, and empty states instead of silently dropping network/file boundary failures.
 
 ## Completion Log
