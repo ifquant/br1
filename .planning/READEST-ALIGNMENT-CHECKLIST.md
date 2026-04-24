@@ -20,6 +20,8 @@ Detailed worker handoff:
 
 - `docs/superpowers/plans/2026-04-23-readest-alignment-phase-1.md`
 - `docs/superpowers/plans/2026-04-25-readest-reader-parity-wave-plan.md`
+- `docs/superpowers/plans/2026-04-25-readest-gap-audit-plan.md`
+- `docs/superpowers/plans/2026-04-25-readest-gap-driven-parallel-plan.md`
 - `docs/superpowers/plans/p0-exit-audit-template.md`
 
 That handoff explains files, task order, and test commands. This checklist remains the only status ledger.
@@ -32,7 +34,7 @@ That handoff explains files, task order, and test commands. This checklist remai
 
 ## Current Baseline
 
-`br1` has closed the first Readest alignment line for reader capabilities and service/ecosystem groundwork.
+`br1` has closed the first large Readest alignment line for trusted local-library, reader-capability, and service/ecosystem groundwork.
 
 Strong areas:
 
@@ -50,19 +52,20 @@ Strong areas:
 
 Main gaps against Readest:
 
-- reader product parity is now the main visible frontier: search states, reader shell chrome hierarchy, and sidebar workspace semantics still read more like accumulated features than one intentional Readest-style reading product
-- library homepage parity has largely closed through the P3 line, but should still be treated as a regression-sensitive surface rather than reopened casually
+- reader workspace parity is now the highest-value frontier: `br1` still lacks a notebook-grade workspace, a notebook-grade AI assistant surface, inline translated-reading mode, and fuller TTS reading-mode behavior
+- library homepage parity has largely closed through the P3 line, but library operations and desktop support surfaces still lag behind Readest
+- OPDS / Calibre substrate exists, but catalog browsing and catalog management are still not exposed as a first-class product surface in `br1`
 - Readest local library migration exists, and its “compatibility vs reimport” semantics are now explicit enough to move off the main execution line
-- official KOReader parity is closed only for exchange plus progress-only remote sync; bookmark/annotation remote sync remains intentionally out of scope
-- the service/security hardening line is strong, but it is no longer the main user-visible parity frontier
+- official KOReader parity remains intentionally scoped to exchange plus progress-only remote sync
 
 Planning consequence:
 
 - route-closure is maintenance only
 - P0, P1, and P2 are functionally closed as the first Readest alignment line
 - P3 is functionally closed as the library-product parity line
-- the next main execution line is P4 reader product parity
-- new parity work should prefer visible reader workflow/visual slices over deeper sync/provider expansion unless a new correctness blocker appears
+- P4 is now a narrow reader capability/search closeout line rather than the long-term mainline
+- the next main execution lines are `P5 reader workspace parity`, `P6 library operations and desktop support`, and `P7 catalog and ecosystem productization`
+- new parity work should prefer productized reader/library/catalog surfaces over deeper provider expansion unless a new correctness blocker appears
 
 ## Execution Rules
 
@@ -434,16 +437,63 @@ Goal: close the next set of user-visible Readest gaps that now mainly live in re
   - Outcome: search idle, unsupported, empty, and result states should read like one product surface across EPUB, TXT, and other supported reader formats instead of a mix of generic defaults and format-specific leftovers.
   - Touches: `src/lib/components/reader/ReaderSidebar.svelte`, shared search capability messaging in `src/lib/reader/formats.ts`, focused reader smoke coverage.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader search states read like one product surface across txt and epub"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 735f1c7
   - Notes: this slice keeps TXT search unsupported, but it stops rendering unsupported, empty, and hit states as disconnected copies. The sidebar summary/result area now reads like one reader surface across TXT and EPUB without adding new search capability.
 
 - [ ] P4-2.1 Align reader shell chrome, toolbar density, and progress hierarchy
   - Outcome: header/footer controls, progress summaries, and parallel-reader affordances should feel like one intentional reading product instead of an accumulation of utility controls.
-  - Notes: this slice should favor user-visible hierarchy and reading feel over structural churn.
+  - Notes: gap audit on 2026-04-25 reduced this from “next mainline” to a narrower follow-on. Do not execute it as shell-only polish if the same effort should instead land under `P5` notebook/translation/TTS workspace work.
 
 - [ ] P4-2.2 Tighten notes, bookmarks, and highlights workspace product semantics
   - Outcome: the sidebar should present notes/bookmarks/highlights as one coherent reading workspace with clearer unsupported states, counts, and action framing across formats.
-  - Notes: keep the current storage/sync substrate unless a product-semantic fix requires a bounded correctness repair.
+  - Notes: keep the current storage/sync substrate unless a product-semantic fix requires a bounded correctness repair. This item is now subordinate to `P5-1` notebook workspace planning.
+
+## P5 Reader Workspace Parity
+
+Goal: make the reader feel like a multi-workspace Readest-style reading product instead of a growing single-sidebar feature surface.
+
+- [ ] P5-1.1 Add a notebook-grade reader workspace shell
+  - Outcome: notes/highlights move into a dedicated notebook/workbench surface with explicit open/pin/dismiss behavior instead of remaining only one sidebar tab.
+  - Touches: reader workspace shell, route wiring, notes/highlights presentation, focused reader regression.
+  - Notes: this is the first reader-workspace slice and should not yet expand into AI or translation-mode behavior.
+
+- [ ] P5-1.2 Add an AI assistant workspace on top of the notebook shell
+  - Outcome: AI reading help becomes a real workspace with its own framing instead of another provider-result panel.
+  - Touches: notebook shell, assistance model, assistant workspace components.
+  - Notes: preserve the existing lookup/translation provider substrate; this is a workspace/productization slice, not a provider rewrite.
+
+- [ ] P5-1.3 Turn translation and TTS into intentional reading modes
+  - Outcome: translation stops being only a request panel, and TTS gains more deliberate follow/media-session/reading-mode semantics.
+  - Touches: reader viewport, sidebar/workspace surfaces, TTS helpers, targeted reader regressions.
+  - Notes: do not reopen provider/network boundary work unless the slice exposes a concrete bug.
+
+## P6 Library Operations And Desktop Support
+
+Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
+
+- [ ] P6-1.1 Add a productized library operations surface
+  - Outcome: backup/restore, KOReader / Readest Cloud sync affordances, and Readest migration context are available from one intentional library header/menu surface without adding renderer-controlled filesystem entry.
+  - Touches: library header, desktop page wiring, checklist/tutorial docs.
+  - Notes: this slice should productize the existing snapshot export/restore, KOReader exchange, and remote sync actions by grouping them under a desktop operations surface and exposing visible backup/restore affordances in the header. It should not invent metadata-refresh or library-root migration commands unless a safe Tauri-owned command path is first wired; migration should remain surfaced through the existing Readest detection banner plus any added header/menu context.
+
+- [ ] P6-1.2 Add transfer queue and remaining desktop support affordances
+  - Outcome: transfer/queue state becomes inspectable, and desktop support actions stop being scattered or invisible.
+  - Touches: library support components, queue/state projection, library notices.
+  - Notes: this is a product-surface slice, not a backend transfer-engine rewrite.
+
+## P7 Catalog And Ecosystem Productization
+
+Goal: expose the already-built OPDS / Calibre substrate as a real end-user feature.
+
+- [ ] P7-1.1 Add a catalog manager product surface
+  - Outcome: saved/user-configured catalog sources, auth-required states, and fixture/live-source states are visible in a real Svelte product area.
+  - Touches: new route or surfaced library area, catalog services, focused UI regression.
+  - Notes: keep the existing Tauri trust boundary; do not add renderer-controlled URL fetching.
+
+- [ ] P7-1.2 Add a catalog browser and import flow
+  - Outcome: browse/search/import works as a desktop-visible flow on top of the existing safe catalog substrate.
+  - Touches: catalog browse/search UI, library entry points, import-intent presentation.
+  - Notes: this slice should build on `catalogs.rs` / `catalogs.ts`, not replace them.
 
 ## Service Security Gate
 
@@ -480,4 +530,4 @@ Use this log when completing each item.
 | 2026-04-25 | Productize continue reading and recent reading | 260c6f1 | `pnpm check`; `pnpm dlx tsx --test ./src/lib/library/page.test.ts`; `git diff --check` | turns continue/recent shelves into explicit reading-workflow rules and excludes finished books from recent reading |
 | 2026-04-25 | Tighten Readest local-library migration and compatibility semantics | 1a3580d | `pnpm check`; `cargo check --manifest-path src-tauri/Cargo.toml`; `pnpm dlx tsx --test ./src/lib/library/page.test.ts ./src/lib/library/desktopCatalog.test.ts`; `git diff --check` | separates detected Readest records from importable local files and from already-compatible br1 copies so migration entry points stop overstating what can be synced |
 | 2026-04-25 | Centralize reader format capability boundaries for search and annotations | b850cc5 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"`; `git diff --check` | moves TXT search unsupported handling into the shared reader format capability contract so viewport and sidebar behavior can grow from one source of truth |
-| 2026-04-25 | Productize reader search states across formats and sidebars | this commit | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader search states read like one product surface across txt and epub"`; `git diff --check` | turns the sidebar search surface into one coherent product state machine across TXT unsupported search, EPUB empty results, and EPUB hit navigation |
+| 2026-04-25 | Productize reader search states across formats and sidebars | 735f1c7 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader search states read like one product surface across txt and epub"`; `git diff --check` | turns the sidebar search surface into one coherent product state machine across TXT unsupported search, EPUB empty results, and EPUB hit navigation |
