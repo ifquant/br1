@@ -8,6 +8,8 @@ type ReaderFormatCapability = {
   searchable: boolean;
 };
 
+export const READER_UNSUPPORTED_SEARCH_TITLE = '当前格式不支持正文搜索';
+
 const READER_FORMAT_CAPABILITIES: readonly ReaderFormatCapability[] = [
   { extension: 'epub', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: true },
   { extension: 'pdf', supportStatus: 'supported', packagedAssociated: true, textAnnotatable: true, searchable: true },

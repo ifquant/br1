@@ -34,7 +34,13 @@
     normalizeAssistanceTerm,
     normalizeAssistanceText
   } from '$lib/reader';
-  import { getTextAnnotationSupportMessage, supportsTextAnnotationsForFormat } from '$lib/reader/formats';
+  import {
+    getSearchSupportMessage,
+    getTextAnnotationSupportMessage,
+    READER_UNSUPPORTED_SEARCH_TITLE,
+    supportsSearchForFormat,
+    supportsTextAnnotationsForFormat
+  } from '$lib/reader/formats';
   import {
     canPersistReaderHighlightsWorkspaceState,
     loadReaderHighlightsWorkspaceState,
@@ -435,6 +441,51 @@
     return formatTimestamp(value);
   };
 
+  const getSearchSummaryModel = (search: ReaderSidebarSearchState, formatLabel: string) => {
+    if (search.status === 'searching') {
+      return {
+        title: '正在搜索',
+        detail:
+          search.progress > 0
+            ? `已扫描 ${Math.round(search.progress * 100)}%`
+            : '正在扫描当前书的正文内容。'
+      };
+    }
+
+    if (search.status === 'error') {
+      if (!supportsSearchForFormat(formatLabel)) {
+        return {
+          title: READER_UNSUPPORTED_SEARCH_TITLE,
+          detail: getSearchSupportMessage(formatLabel)
+        };
+      }
+
+      return {
+        title: '正文搜索暂时不可用',
+        detail: search.error || '正文搜索失败。'
+      };
+    }
+
+    if (search.results.length) {
+      return {
+        title: `${search.results.length}`,
+        detail: '正文命中结果'
+      };
+    }
+
+    if (search.term.trim() && search.status === 'done') {
+      return {
+        title: '0',
+        detail: '当前关键词没有命中正文内容'
+      };
+    }
+
+    return {
+      title: '正文搜索',
+      detail: '输入关键词后会在正文里搜索，而不只是过滤目录。'
+    };
+  };
+
   const handleSidebarToggle = () => {
     callbacks.onToggleSidebar?.();
   };
@@ -548,6 +599,7 @@
     0,
     recentSearchResultIndex >= 0 ? recentSearchResultIndex : activeSearchResultIndex
   );
+  $: searchSummaryModel = getSearchSummaryModel(search, preview.formatLabel);
   $: isCurrentLocationBookmarked =
     !!bookmarksState.activeLocator &&
     bookmarksState.bookmarks.some((bookmark) => bookmark.locator === bookmarksState.activeLocator);
@@ -1741,22 +1793,8 @@
         {/if}
 
         <div class="search-summary">
-          {#if search.status === 'searching'}
-            <strong>正在搜索</strong>
-            <span>
-              {#if search.progress > 0}
-                已扫描 {Math.round(search.progress * 100)}%
-              {:else}
-                正在扫描当前书的正文。
-              {/if}
-            </span>
-          {:else if search.term.trim()}
-            <strong>{search.results.length}</strong>
-            <span>正文命中结果</span>
-          {:else}
-            <strong>正文搜索</strong>
-            <span>输入关键词后会在正文里搜索，而不只是过滤目录。</span>
-          {/if}
+          <strong>{searchSummaryModel.title}</strong>
+          <span>{searchSummaryModel.detail}</span>
         </div>
 
         {#if search.results.length}
@@ -1790,6 +1828,8 @@
         <div class="search-results" aria-label="搜索结果">
           {#if search.status === 'error'}
             <p class="empty">{search.error || '正文搜索失败。'}</p>
+          {:else if search.status === 'searching' && !search.results.length}
+            <p class="empty">正在整理命中的正文段落和所在章节。</p>
           {:else if search.results.length}
             {#each search.results as item}
               <button
@@ -1810,7 +1850,7 @@
           {:else if search.term.trim() && search.status === 'done'}
             <p class="empty">没有命中正文内容。</p>
           {:else}
-            <p class="empty">打开书后，这里会显示真正的正文搜索结果。</p>
+            <p class="empty">输入关键词后，这里会显示命中的正文段落和所在章节。</p>
           {/if}
         </div>
         </section>

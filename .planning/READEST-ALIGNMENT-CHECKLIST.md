@@ -19,6 +19,7 @@ When a checklist item ships, update that item from `- [ ]` to `- [x]`, fill in i
 Detailed worker handoff:
 
 - `docs/superpowers/plans/2026-04-23-readest-alignment-phase-1.md`
+- `docs/superpowers/plans/2026-04-25-readest-reader-parity-wave-plan.md`
 - `docs/superpowers/plans/p0-exit-audit-template.md`
 
 That handoff explains files, task order, and test commands. This checklist remains the only status ledger.
@@ -49,9 +50,9 @@ Strong areas:
 
 Main gaps against Readest:
 
-- library product parity is still uneven: header/search density, card hierarchy, section semantics, and overall shelf behavior are not yet intentionally aligned as one product surface
-- continue reading / recent reading are implemented but not yet closed as a stable Readest-style homepage workflow
-- Readest local library migration exists, but its “compatibility vs reimport” semantics are still not explicit enough as a product experience
+- reader product parity is now the main visible frontier: search states, reader shell chrome hierarchy, and sidebar workspace semantics still read more like accumulated features than one intentional Readest-style reading product
+- library homepage parity has largely closed through the P3 line, but should still be treated as a regression-sensitive surface rather than reopened casually
+- Readest local library migration exists, and its “compatibility vs reimport” semantics are now explicit enough to move off the main execution line
 - official KOReader parity is closed only for exchange plus progress-only remote sync; bookmark/annotation remote sync remains intentionally out of scope
 - the service/security hardening line is strong, but it is no longer the main user-visible parity frontier
 
@@ -59,8 +60,9 @@ Planning consequence:
 
 - route-closure is maintenance only
 - P0, P1, and P2 are functionally closed as the first Readest alignment line
-- the next main execution line should shift back to user-visible library product parity
-- new parity work should prefer visible library workflow/visual slices over deeper sync/provider expansion unless a new correctness blocker appears
+- P3 is functionally closed as the library-product parity line
+- the next main execution line is P4 reader product parity
+- new parity work should prefer visible reader workflow/visual slices over deeper sync/provider expansion unless a new correctness blocker appears
 
 ## Execution Rules
 
@@ -425,12 +427,15 @@ Goal: close the next set of user-visible Readest gaps that now mainly live in re
   - Outcome: reader format support now exposes a single shared contract for text annotation and full-text search affordances, so capability copy stops drifting between the sidebar, the viewport, and format-specific special cases.
   - Touches: `src/lib/reader/formats.ts`, `src/lib/components/reader/ReaderViewport.svelte`, focused reader smoke coverage.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: b850cc5
   - Notes: this slice is intentionally narrow. It does not add TXT search; it moves the existing unsupported behavior into the shared reader-format capability table so later reader parity work can reuse one source of truth instead of preserving per-component hardcoded messages.
 
-- [ ] P4-1.2 Productize reader search states across formats and sidebars
+- [x] P4-1.2 Productize reader search states across formats and sidebars
   - Outcome: search idle, unsupported, empty, and result states should read like one product surface across EPUB, TXT, and other supported reader formats instead of a mix of generic defaults and format-specific leftovers.
-  - Notes: this should stay on messaging, state hierarchy, and affordance alignment first; it should not quietly expand format support.
+  - Touches: `src/lib/components/reader/ReaderSidebar.svelte`, shared search capability messaging in `src/lib/reader/formats.ts`, focused reader smoke coverage.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader search states read like one product surface across txt and epub"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: this slice keeps TXT search unsupported, but it stops rendering unsupported, empty, and hit states as disconnected copies. The sidebar summary/result area now reads like one reader surface across TXT and EPUB without adding new search capability.
 
 - [ ] P4-2.1 Align reader shell chrome, toolbar density, and progress hierarchy
   - Outcome: header/footer controls, progress summaries, and parallel-reader affordances should feel like one intentional reading product instead of an accumulation of utility controls.
@@ -474,4 +479,5 @@ Use this log when completing each item.
 | 2026-04-25 | Align library sort, filter, section, and scroll behavior | 1b985ad | `pnpm check`; `git diff --check`; `pnpm exec playwright test tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` | collapses search/filter states into explicit result shelves and hides workflow sections once the page is in search/filter mode |
 | 2026-04-25 | Productize continue reading and recent reading | 260c6f1 | `pnpm check`; `pnpm dlx tsx --test ./src/lib/library/page.test.ts`; `git diff --check` | turns continue/recent shelves into explicit reading-workflow rules and excludes finished books from recent reading |
 | 2026-04-25 | Tighten Readest local-library migration and compatibility semantics | 1a3580d | `pnpm check`; `cargo check --manifest-path src-tauri/Cargo.toml`; `pnpm dlx tsx --test ./src/lib/library/page.test.ts ./src/lib/library/desktopCatalog.test.ts`; `git diff --check` | separates detected Readest records from importable local files and from already-compatible br1 copies so migration entry points stop overstating what can be synced |
-| 2026-04-25 | Centralize reader format capability boundaries for search and annotations | this commit | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"`; `git diff --check` | moves TXT search unsupported handling into the shared reader format capability contract so viewport and sidebar behavior can grow from one source of truth |
+| 2026-04-25 | Centralize reader format capability boundaries for search and annotations | b850cc5 | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows txt search capability boundary messaging in web mode"`; `git diff --check` | moves TXT search unsupported handling into the shared reader format capability contract so viewport and sidebar behavior can grow from one source of truth |
+| 2026-04-25 | Productize reader search states across formats and sidebars | this commit | `pnpm check`; `pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader search states read like one product surface across txt and epub"`; `git diff --check` | turns the sidebar search surface into one coherent product state machine across TXT unsupported search, EPUB empty results, and EPUB hit navigation |
