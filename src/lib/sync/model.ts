@@ -89,6 +89,7 @@ export const normalizeReadingStateSyncPayload = (
       ? payload.progressFraction
       : null,
   progressLocation: normalizeOptionalString(payload.progressLocation),
+  koreaderProgressLocation: normalizeOptionalString(payload.koreaderProgressLocation),
   lastOpenedAt: typeof payload.lastOpenedAt === 'number' ? payload.lastOpenedAt : null
 });
 
@@ -197,6 +198,7 @@ export const createReadingStateSyncRecord = (
     status: book.status,
     progressFraction: book.progressFraction ?? null,
     progressLocation: book.progressLocation ?? null,
+    koreaderProgressLocation: book.koreaderProgressLocation ?? null,
     lastOpenedAt: book.lastOpenedAt ?? null
   });
 
@@ -338,6 +340,7 @@ export const restorePersistedLibraryBookFromSync = (
   status: readingStateRecord?.payload.status ?? '未开始',
   progressFraction: readingStateRecord?.payload.progressFraction ?? null,
   progressLocation: readingStateRecord?.payload.progressLocation ?? null,
+  koreaderProgressLocation: readingStateRecord?.payload.koreaderProgressLocation ?? null,
   lastOpenedAt: readingStateRecord?.payload.lastOpenedAt ?? null
 });
 

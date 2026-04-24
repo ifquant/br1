@@ -14,12 +14,14 @@
     createFoliateViewElement,
     ensureFoliateViewDefinition,
     flattenToc,
+    getXPointerFromCFI,
     getReaderFormatSupportStatus,
     getReaderThemePalette,
     getReaderViewStyles,
     inferReaderFormatLabelFromName,
     installReaderBookTransformGuards,
     loadReaderBookDocument,
+    normalizeProgressXPointer,
     pickAuthor,
     pickText,
     parsePlainTextCodeBlocks,
@@ -90,6 +92,7 @@
   let plainTextTitle = '';
   let plainTextScroller: HTMLDivElement | null = null;
   let readerViewportVars = '';
+  let readerStateDispatchNonce = 0;
 
   type ResolvedReaderOpenSource = {
     source: string | File;
@@ -197,6 +200,29 @@
 
   const emitPlainTextReaderState = (partial?: Partial<ReaderPreviewState>) => {
     dispatch('readerstate', getPlainTextReaderState(partial));
+  };
+
+  const resolveKoReaderProgressLocation = async (
+    book: ReaderBookDocument | undefined,
+    currentLocation: string
+  ) => {
+    if (!book || !currentLocation.startsWith('epubcfi(') || currentFormatLabel === 'PDF') {
+      return '';
+    }
+
+    const contents = foliateViewElement?.renderer?.getContents?.() ?? [];
+    const content = contents[0];
+    if (!content?.doc) {
+      return '';
+    }
+
+    try {
+      const xpointer = await getXPointerFromCFI(currentLocation, content.doc, content.index, book);
+      return normalizeProgressXPointer(xpointer.xpointer);
+    } catch (error) {
+      console.warn('Failed to convert reader CFI to KOReader XPointer', error);
+      return '';
+    }
   };
 
   const waitForReaderLayoutToSettle = async () => {
@@ -439,7 +465,7 @@
         ? `第 ${sectionCurrent + 1} / ${sectionTotal} 节`
         : '等待定位';
 
-    dispatch('readerstate', {
+    const previewState: ReaderPreviewState = {
       ...getFallbackReaderState(),
       title: pickText(book?.metadata?.title) || openSourceLabel || READER_EMPTY_TITLE,
       author: pickAuthor(book?.metadata?.creator) || '未知作者',
@@ -451,10 +477,29 @@
         typeof (lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
           ? ((lastLocation as { cfi?: string }).cfi ?? '')
           : '',
+      koreaderProgressLocation: '',
       locationLabel: formatReaderLocationLabel(currentFormatLabel, lastLocation),
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
       ...partial
+    };
+
+    dispatch('readerstate', previewState);
+
+    if (!previewState.progressLocation.startsWith('epubcfi(')) {
+      return;
+    }
+
+    const dispatchNonce = ++readerStateDispatchNonce;
+    void resolveKoReaderProgressLocation(book, previewState.progressLocation).then((koreaderProgressLocation) => {
+      if (!koreaderProgressLocation || dispatchNonce !== readerStateDispatchNonce) {
+        return;
+      }
+
+      dispatch('readerstate', {
+        ...previewState,
+        koreaderProgressLocation
+      });
     });
   };
 

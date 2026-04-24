@@ -33,6 +33,7 @@ const alpha = {
   importedAt: 1700000000000,
   progressFraction: 0.1,
   progressLocation: 'epubcfi(/6/2!/4/2)',
+  koreaderProgressLocation: '/body/DocFragment[1]/body/div/p[2]',
   lastOpenedAt: 1700000005000,
   libraryFileExists: true,
   sourceFileExists: true
@@ -47,6 +48,7 @@ const beta = {
   progress: '20%',
   progressFraction: 0.2,
   progressLocation: 'epubcfi(/6/4!/4/2)',
+  koreaderProgressLocation: '/body/DocFragment[2]/body/div/p[4]',
   lastOpenedAt: 1700000010000
 };
 
@@ -165,7 +167,7 @@ test('KOReader remote progress export keeps one progress entry per reading-state
   assert.equal(entries.length, 2);
   assert.equal(entries[0]?.bookId, 'book-alpha');
   assert.equal(entries[0]?.document.length > 0, true);
-  assert.equal(entries[0]?.progress, 'epubcfi(/6/2!/4/2)');
+  assert.equal(entries[0]?.progress, '/body/DocFragment[1]/body/div/p[2]');
   assert.equal(entries[0]?.percentage, 10);
 });
 
@@ -188,6 +190,10 @@ test('KOReader remote progress pull merges newer remote progress into the snapsh
   assert.equal((alphaReading as { payload: { progress: string } }).payload.progress, '44%');
   assert.equal(
     (alphaReading as { payload: { progressLocation: string | null } }).payload.progressLocation,
+    'epubcfi(/6/18!/4/2)'
+  );
+  assert.equal(
+    (alphaReading as { payload: { koreaderProgressLocation: string | null } }).payload.koreaderProgressLocation,
     'epubcfi(/6/18!/4/2)'
   );
   assert.equal(
@@ -223,6 +229,7 @@ test('KOReader remote progress export skips books without a KOReader-compatible 
         filePath: '/library/plain.txt',
         sourcePath: '/imports/plain.txt',
         progressLocation: 'txt:0.250000',
+        koreaderProgressLocation: null,
         progress: '25%',
         progressFraction: 0.25
       }),
@@ -234,6 +241,7 @@ test('KOReader remote progress export skips books without a KOReader-compatible 
         filePath: '/library/plain.txt',
         sourcePath: '/imports/plain.txt',
         progressLocation: 'txt:0.250000',
+        koreaderProgressLocation: null,
         progress: '25%',
         progressFraction: 0.25
       })

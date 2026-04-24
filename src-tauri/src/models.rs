@@ -25,6 +25,8 @@ pub(crate) struct LibraryBookRecord {
     pub(crate) imported_at: u64,
     pub(crate) progress_fraction: Option<f64>,
     pub(crate) progress_location: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) koreader_progress_location: Option<String>,
     pub(crate) last_opened_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) library_file_exists: Option<bool>,

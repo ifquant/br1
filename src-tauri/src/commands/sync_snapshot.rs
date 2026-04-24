@@ -471,6 +471,7 @@ mod tests {
                     imported_at: 100,
                     progress_fraction: Some(0.1),
                     progress_location: Some("epubcfi(/6/2)".to_string()),
+                    koreader_progress_location: Some("/body/DocFragment[1]/body/p".to_string()),
                     last_opened_at: Some(120),
                     library_file_exists: Some(true),
                     source_file_exists: Some(true),

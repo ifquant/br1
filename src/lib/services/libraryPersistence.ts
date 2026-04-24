@@ -18,6 +18,7 @@ export type PersistedLibraryBook = {
   importedAt: number;
   progressFraction?: number | null;
   progressLocation?: string | null;
+  koreaderProgressLocation?: string | null;
   lastOpenedAt?: number | null;
   libraryFileExists?: boolean | null;
   sourceFileExists?: boolean | null;
@@ -50,6 +51,7 @@ export type LibraryReadingStateUpdate = {
   progressLabel: string;
   progressFraction: number;
   progressLocation?: string;
+  koreaderProgressLocation?: string;
 };
 
 export type LibraryRepairCandidatePreview = {

@@ -19,6 +19,7 @@ export type ReaderPreviewState = {
   layoutLabel: string;
   progressFraction: number;
   progressLocation: string;
+  koreaderProgressLocation: string;
 };
 
 export const READER_EMPTY_TITLE = 'Bridge Reader';
@@ -40,6 +41,7 @@ export const createEmptyReaderPreviewState = (
   layoutLabel: READER_WAITING_LAYOUT_LABEL,
   progressFraction: 0,
   progressLocation: '',
+  koreaderProgressLocation: '',
   ...overrides
 });
 

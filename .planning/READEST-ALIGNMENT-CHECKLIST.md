@@ -329,6 +329,13 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: ported the Readest `XCFI` converter into `src/lib/reader/xcfi.ts` with `extractSpineIndex`, bidirectional conversion helpers, and XPointer normalization. This slice is intentionally substrate-only: it exposes the conversion layer to `br1` without yet wiring live reader progress or notes persistence through it.
 
+- [x] P2-4.6 Persist KOReader-compatible reader locators alongside local progress
+  - Outcome: EPUB reader progress persistence now keeps a KOReader-facing locator in parallel with the existing local reopen CFI so remote sync can export the right wire value without breaking `br1` resume semantics.
+  - Touches: reader viewport state emission, reader persistence/update flow, sync substrate records, KOReader sync projection, targeted tests.
+  - Verify: `pnpm check` (PASS); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-sync-tests --noEmit false && node --test .tmp-sync-tests/src/lib/reader/xcfi.test.js .tmp-sync-tests/src/lib/services/koreaderSync.test.js .tmp-sync-tests/src/lib/sync/koreader.test.js .tmp-sync-tests/src/lib/sync/model.test.js` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: `ReaderViewport` now converts live EPUB CFIs into normalized KOReader XPointers asynchronously and emits them as a separate `koreaderProgressLocation`, while the route still persists the original `progressLocation` for local reopen. The new field is carried through `LibraryBookRecord`, sync `reading-state`, Readest import, and KOReader remote projection so push prefers the KOReader locator and pull preserves it without overwriting the reader's own CFI resume path.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

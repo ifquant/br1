@@ -1666,6 +1666,9 @@ pub(crate) fn import_library_books(
             progress_location: existing_record
                 .as_ref()
                 .and_then(|record| record.progress_location.clone()),
+            koreader_progress_location: existing_record
+                .as_ref()
+                .and_then(|record| record.koreader_progress_location.clone()),
             last_opened_at: existing_record
                 .as_ref()
                 .and_then(|record| record.last_opened_at),
@@ -1969,6 +1972,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             "继续阅读".to_string()
         };
 
+        let readest_location = readest_config.location.clone();
         let mut record = LibraryBookRecord {
             id: record_id.clone(),
             title: readest_record.title.clone(),
@@ -1990,7 +1994,8 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             source_path: Some(source_file.to_string_lossy().to_string()),
             imported_at,
             progress_fraction: readest_progress_fraction(readest_record.progress.as_deref()),
-            progress_location: readest_config.location,
+            progress_location: readest_location.clone(),
+            koreader_progress_location: readest_location,
             last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
             library_file_exists: None,
             source_file_exists: None,
@@ -2028,6 +2033,7 @@ pub(crate) fn update_library_reading_state(
     progress_label: String,
     progress_fraction: f64,
     progress_location: Option<String>,
+    koreader_progress_location: Option<String>,
 ) -> Result<(), String> {
     let library_json = library_json_path(&app)?;
     let mut records = load_library_records(&library_json)?;
@@ -2053,6 +2059,8 @@ pub(crate) fn update_library_reading_state(
     };
     record.progress_fraction = Some(progress_fraction);
     record.progress_location = progress_location.filter(|value| !value.trim().is_empty());
+    record.koreader_progress_location =
+        koreader_progress_location.filter(|value| !value.trim().is_empty());
     record.last_opened_at = Some(now_millis()?);
 
     save_library_records(&library_json, &records)
@@ -2152,6 +2160,7 @@ mod tests {
             imported_at: 1,
             progress_fraction: None,
             progress_location: None,
+            koreader_progress_location: None,
             last_opened_at: None,
             library_file_exists: None,
             source_file_exists: None,

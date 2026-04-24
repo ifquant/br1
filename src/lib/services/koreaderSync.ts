@@ -160,6 +160,11 @@ const isKoReaderLocator = (value: string | null | undefined) => {
 };
 
 const toKoReaderRemoteProgressValue = (book: PersistedLibraryBook) => {
+  const koreaderLocation = book.koreaderProgressLocation?.trim() ?? '';
+  if (koreaderLocation && isKoReaderLocator(koreaderLocation)) {
+    return koreaderLocation;
+  }
+
   const location = book.progressLocation?.trim() ?? '';
   if (isKoReaderLocator(location)) {
     return location;
@@ -208,6 +213,7 @@ const toKoReaderRemoteReadingStateBook = (
     progress: progressLabel,
     progressFraction,
     progressLocation: hasLocator ? remoteProgress : book.progressLocation ?? null,
+    koreaderProgressLocation: hasLocator ? remoteProgress : book.koreaderProgressLocation ?? null,
     lastOpenedAt: remoteEntry.timestamp
   };
 };
@@ -249,6 +255,7 @@ const toPersistedLibraryBook = (
   status: readingStateRecord?.payload.status ?? '未开始',
   progressFraction: readingStateRecord?.payload.progressFraction ?? null,
   progressLocation: readingStateRecord?.payload.progressLocation ?? null,
+  koreaderProgressLocation: readingStateRecord?.payload.koreaderProgressLocation ?? null,
   lastOpenedAt: readingStateRecord?.payload.lastOpenedAt ?? null
 });
 

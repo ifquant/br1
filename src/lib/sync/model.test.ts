@@ -35,6 +35,7 @@ const fixtureBook = {
   importedAt: 1700000000000,
   progressFraction: 0.4,
   progressLocation: 'epubcfi(/6/14!/4/2/8)',
+  koreaderProgressLocation: '/body/DocFragment[3]/body/div/section/p[8]',
   lastOpenedAt: 1700000005000,
   libraryFileExists: true,
   sourceFileExists: true
@@ -187,4 +188,23 @@ test('bulk library substrate helper emits metadata and reading-state records for
     ['library-book', 'reading-state', 'library-book', 'reading-state']
   );
   assert.equal(records[3]?.updatedAt, 1700000020000);
+});
+
+test('reading-state sync records preserve KOReader-specific progress locators', () => {
+  const record = createReadingStateSyncRecord(fixtureBook, {
+    fallbackUpdatedAt: 1
+  });
+
+  assert.equal(record.payload.progressLocation, 'epubcfi(/6/14!/4/2/8)');
+  assert.equal(record.payload.koreaderProgressLocation, '/body/DocFragment[3]/body/div/section/p[8]');
+
+  const restored = restorePersistedLibraryBookFromSync(
+    createLibraryBookMetadataSyncRecord(fixtureBook, {
+      fallbackUpdatedAt: 1
+    }),
+    record
+  );
+
+  assert.equal(restored.progressLocation, 'epubcfi(/6/14!/4/2/8)');
+  assert.equal(restored.koreaderProgressLocation, '/body/DocFragment[3]/body/div/section/p[8]');
 });

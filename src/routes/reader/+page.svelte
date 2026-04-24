@@ -340,7 +340,8 @@
       chapterLabel: preview.chapterLabel,
       progressLabel: preview.progressLabel,
       progressFraction: preview.progressFraction,
-      progressLocation: normalizedProgressLocation
+      progressLocation: normalizedProgressLocation,
+      koreaderProgressLocation: preview.koreaderProgressLocation || undefined
     }).catch((error) => {
       console.error('Failed to persist library reading state', error);
     });
