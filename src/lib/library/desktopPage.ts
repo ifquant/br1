@@ -819,7 +819,10 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       const snapshot = await buildKoReaderRemoteSyncSnapshot();
       const entries = options.createKoReaderRemoteProgressEntriesFromSnapshot(snapshot);
       if (entries.length === 0) {
-        setLibraryNotice('info', '当前书库里没有可安全推送到 KOReader 的阅读进度。');
+        setLibraryNotice(
+          'info',
+          '当前书库里没有可安全推送到 KOReader 的阅读进度。官方 KOSync 只同步进度；书签和批注请使用 KOReader 交换文件。'
+        );
         return;
       }
       const result = await options.runKoReaderRemoteSync({
@@ -828,7 +831,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       });
 
       if (result.status === 'success' || result.status === 'empty') {
-        setLibraryNotice('info', result.message);
+        setLibraryNotice('info', `${result.message} 书签和批注不会通过官方 KOSync 远端同步。`);
         return;
       }
 
@@ -843,7 +846,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       setLibraryNotice('error', result.message);
     } catch (error) {
       console.error('Failed to push KOReader remote progress', error);
-      setLibraryNotice('error', '推送 KOReader 阅读进度失败，请稍后重试。', {
+      setLibraryNotice('error', '推送 KOReader 阅读进度失败，请稍后重试。官方 KOSync 不包含批注同步。', {
         label: '重试',
         run: handlePushKoReaderRemoteSync
       });
@@ -867,7 +870,10 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       const snapshot = await buildKoReaderRemoteSyncSnapshot();
       const entries = options.createKoReaderRemoteProgressEntriesFromSnapshot(snapshot);
       if (entries.length === 0) {
-        setLibraryNotice('info', '当前书库里没有可用来匹配 KOReader 远端进度的本地定位信息。');
+        setLibraryNotice(
+          'info',
+          '当前书库里没有可用来匹配 KOReader 远端进度的本地定位信息。官方 KOSync 只回填阅读进度；书签和批注请使用 KOReader 交换文件。'
+        );
         return;
       }
       const result = await options.runKoReaderRemoteSync({
@@ -882,7 +888,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
         await loadLibrary();
         setLibraryNotice(
           'info',
-          `${result.message} 已应用 ${plan.appliedBookCount} 本。${summarizeKoReaderRemotePullConflicts(plan)}`
+          `${result.message} 已应用 ${plan.appliedBookCount} 本。${summarizeKoReaderRemotePullConflicts(plan)} 书签和批注不会通过官方 KOSync 回填。`
         );
         return;
       }
@@ -903,7 +909,7 @@ export const buildDesktopLibraryPageCoordinator = (options: DesktopLibraryPageCo
       setLibraryNotice('error', result.message);
     } catch (error) {
       console.error('Failed to pull KOReader remote progress', error);
-      setLibraryNotice('error', '拉取 KOReader 阅读进度失败，请稍后重试。', {
+      setLibraryNotice('error', '拉取 KOReader 阅读进度失败，请稍后重试。官方 KOSync 不包含批注同步。', {
         label: '重试',
         run: handlePullKoReaderRemoteSync
       });

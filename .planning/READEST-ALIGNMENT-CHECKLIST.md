@@ -343,6 +343,13 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
   - Done commit: this commit
   - Notes: `ReaderSelectionState`, `ReaderNote`, and `ReaderBookmark` now have an explicit optional `koreader` metadata lane instead of forcing KOReader data to hide in sync-only adapter casts. `ReaderViewport` resolves KOReader XPointers for live selections, note/highlight creation persists that locator metadata, bookmark creation persists the current KOReader progress locator, and Tauri note/bookmark JSON now round-trips the same optional metadata shape without breaking old files.
 
+- [x] P2-4.8 Lock KOReader remote sync to the official progress-only contract
+  - Outcome: the UI and desktop notices no longer imply that the official `koreader/koreader-sync-server` can sync annotations or bookmarks; remote KOReader actions are explicitly scoped to progress only.
+  - Touches: library KOReader remote action copy, desktop KOReader remote notices, checklist/tutorial.
+  - Verify: `pnpm check` (PASS); `git diff --check` (PASS).
+  - Done commit: this commit
+  - Notes: after re-checking the official KOSync server boundary, this slice intentionally stops short of inventing a non-standard annotation protocol. The KOReader remote actions are now labeled as reading-progress actions, and the UI points users to KOReader exchange files for bookmark/annotation transfer until a different server/provider slice exists.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

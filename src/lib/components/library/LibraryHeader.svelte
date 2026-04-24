@@ -538,8 +538,8 @@
                   disabled={remoteSyncBusy}
                   on:click={handlePushKoReaderRemoteSync}
                 >
-                  <span>推送到 KOReader</span>
-                  <small>{remoteSyncBusy ? '进行中…' : '仅同步当前书库的阅读进度到 KOReader 服务端'}</small>
+                  <span>推送 KOReader 阅读进度</span>
+                  <small>{remoteSyncBusy ? '进行中…' : '官方 KOSync 只同步阅读进度，不含书签与批注'}</small>
                 </button>
                 <button
                   type="button"
@@ -548,9 +548,13 @@
                   disabled={remoteSyncBusy}
                   on:click={handlePullKoReaderRemoteSync}
                 >
-                  <span>从 KOReader 拉取</span>
-                  <small>{remoteSyncBusy ? '进行中…' : '只回填 KOReader 服务端较新的阅读进度'}</small>
+                  <span>拉取 KOReader 阅读进度</span>
+                  <small>{remoteSyncBusy ? '进行中…' : '只回填较新的 KOReader 阅读进度，不含书签与批注'}</small>
                 </button>
+                <div class="sort-option sort-option-note" aria-hidden="true">
+                  <span>KOReader 书签与批注</span>
+                  <small>官方 KOSync 不支持远端批注协议；需要继续同步时，请使用上面的 KOReader 交换文件。</small>
+                </div>
                 <button
                   type="button"
                   class="sort-option"
@@ -1303,6 +1307,13 @@
     padding: 9px 10px;
     border-radius: 10px;
     font-size: 12px;
+  }
+
+  .sort-option-note {
+    cursor: default;
+    opacity: 0.9;
+    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
   }
 
   .sort-option:hover,
