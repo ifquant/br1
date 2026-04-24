@@ -157,7 +157,6 @@
         shelfSectionTitle={model.body.shelfSectionTitle}
         onDispatchBrowseAction={actions.onDispatchBrowseAction}
         onOpenLink={actions.onOpenLink}
-        onImportBooks={actions.onImportBooks}
         onOpenSourcePath={model.supportsDesktopBookActions ? actions.onOpenSourcePath : null}
         onUpdateBookMetadata={model.supportsDesktopBookActions ? actions.onUpdateBookMetadata : null}
         onRemoveBook={model.supportsDesktopBookActions ? actions.onRemoveBook : null}

@@ -32,7 +32,6 @@
   export let shelfSectionTitle = '书架';
   export let onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
   export let onOpenLink: (href: string) => void | Promise<void>;
-  export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onUpdateBookMetadata:
     | ((
@@ -59,7 +58,6 @@
   $: currentGroupBy = browseState.groupBy === 'none' ? 'author' : browseState.groupBy;
   $: currentGroupLabel = browseState.groupScope;
   $: shelfGroupBy = browseState.groupBy;
-  $: showImportTile = !browseState.groupScope;
   $: browseSurface = buildLibraryBrowseSurfaceModel(browseState, browseBooks, shelfBooks);
 
   const isActionAvailable = (action: LibraryBrowseAction) =>
@@ -290,7 +288,6 @@
           {viewMode}
           groupBy={subgroupSurface.shelf.groupBy}
           activeGroupLabel=""
-          showImportTile={false}
           blockedGroupExplanations={subgroupSurface.blockedGroupExplanations}
           groupEnterHintSurface="subgroup"
           onEnterGroupAvailable={isEnterGroupAvailable}
@@ -314,7 +311,6 @@
   {viewMode}
   groupBy={shelfGroupBy}
   activeGroupLabel={currentGroupLabel}
-  {showImportTile}
   blockedGroupExplanations={browseSurface.shelfGroupCardExplanations}
   groupEnterHintSurface="group-card"
   onEnterGroupAvailable={isEnterGroupAvailable}
@@ -326,7 +322,6 @@
       label
     })}
   {onOpenLink}
-  {onImportBooks}
   {onOpenSourcePath}
   {onUpdateBookMetadata}
   {onRemoveBook}

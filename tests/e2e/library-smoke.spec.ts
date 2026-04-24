@@ -54,7 +54,7 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /继续阅读《胡雪岩》/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /从本机导入书籍/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: '导入书籍' })).toBeVisible();
   await expect(page.locator('input.import-input[type="file"]').first()).toHaveAttribute(
     'accept',
     '.epub,.pdf,.mobi,.azw3,.fb2,.cbz,.txt'

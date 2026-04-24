@@ -139,6 +139,7 @@
   let sortMenuOpen = false;
   let advancedFiltersOpen = false;
   let sortMenuElement: HTMLDivElement | null = null;
+  let searchInputElement: HTMLInputElement | null = null;
 
   const dispatch = createEventDispatcher<{
     querychange: { query: string };
@@ -165,11 +166,6 @@
   }>();
 
   const actions = [
-    {
-      label: '导入书籍',
-      className: 'plus',
-      svg: `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.25v11.5M4.25 10h11.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg>`
-    },
     {
       label: '更多操作',
       className: 'view',
@@ -250,6 +246,12 @@
 
   const handleImportBooks = () => {
     dispatch('importbooks');
+  };
+
+  const handleClearQuery = () => {
+    if (!query) return;
+    dispatch('querychange', { query: '' });
+    searchInputElement?.focus();
   };
 
   const handleExportSyncSnapshot = () => {
@@ -395,21 +397,48 @@
 <svelte:window on:click={handleWindowClick} on:keydown={handleWindowKeydown} />
 
 <header class="library-header">
-  <div class="search-shell" aria-label="书库搜索">
-    <span class="search-icon" aria-hidden="true">
-      <svg viewBox="0 0 20 20">
-        <circle cx="8.25" cy="8.25" r="4.6" fill="none" stroke="currentColor" stroke-width="1.55"></circle>
-        <path d="M11.75 11.75L15.6 15.6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.55"></path>
-      </svg>
-    </span>
-    <input
-      type="search"
-      value={query}
-      placeholder={derivedPlaceholder}
-      spellcheck="false"
-      aria-label="搜索书籍"
-      on:input={handleQueryInput}
-    />
+  <div class="search-cluster">
+    <div class="search-shell" aria-label="书库搜索">
+      <span class="search-icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20">
+          <circle cx="8.25" cy="8.25" r="4.6" fill="none" stroke="currentColor" stroke-width="1.55"></circle>
+          <path d="M11.75 11.75L15.6 15.6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.55"></path>
+        </svg>
+      </span>
+      <input
+        bind:this={searchInputElement}
+        type="search"
+        value={query}
+        placeholder={derivedPlaceholder}
+        spellcheck="false"
+        aria-label="搜索书籍"
+        on:input={handleQueryInput}
+      />
+      {#if query}
+        <button
+          type="button"
+          class="search-clear"
+          aria-label={`清除搜索 ${query}`}
+          on:click={handleClearQuery}
+        >
+          清除
+        </button>
+      {/if}
+    </div>
+
+    <div class="search-status-row" aria-label="书库工具条状态">
+      {#if activeFilterDetail}
+        <span class="active-filter-detail" aria-label="书库当前筛选详情">
+          {activeFilterDetail}
+        </span>
+      {:else if statusSummary}
+        <span class="status-summary" aria-label="书库状态摘要">{statusSummary}</span>
+      {/if}
+
+      {#if filterSummary}
+        <span class="filter-summary" aria-label="书库筛选摘要">{filterSummary}</span>
+      {/if}
+    </div>
   </div>
 
   <div class="actions" aria-label="书库操作">
@@ -435,6 +464,18 @@
         列表
       </button>
     </div>
+    <button
+      type="button"
+      class="header-action import-action"
+      aria-label="导入书籍"
+      disabled={importDisabled}
+      on:click={handleImportBooks}
+    >
+      <span aria-hidden="true">
+        <svg viewBox="0 0 20 20"><path d="M10 4.25v11.5M4.25 10h11.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg>
+      </span>
+      <strong>导入书籍</strong>
+    </button>
     {#each actions as action}
       {#if action.className === 'view'}
         <div bind:this={sortMenuElement} class:open={sortMenuOpen} class="menu-shell">
@@ -579,16 +620,6 @@
             </div>
           {/if}
         </div>
-      {:else}
-        <button
-          type="button"
-          class={`ghost ${action.className}`}
-          aria-label={action.label}
-          disabled={importDisabled}
-          on:click={handleImportBooks}
-        >
-          <span aria-hidden="true">{@html action.svg}</span>
-        </button>
       {/if}
     {/each}
   </div>
@@ -669,6 +700,33 @@
     >
       <span>筛选</span>
       <small>{advancedFiltersActive ? '已应用' : showAdvancedFilters ? '收起' : '更多'}</small>
+    </button>
+  {/if}
+
+  {#if activeFilterChips.length > 0}
+    <div class="active-filter-chips" aria-label="书库当前筛选条件">
+      {#each activeFilterChips as chip}
+        <button
+          type="button"
+          class="active-filter-chip"
+          aria-label={`移除书库筛选：${chip.label}`}
+          on:click={() => handleClearFilterChip(chip.id)}
+        >
+          <span>{chip.label}</span>
+          <small>移除</small>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
+  {#if filterSummary}
+    <button
+      type="button"
+      class="clear-filters"
+      aria-label="清除书库筛选"
+      on:click={handleClearFilters}
+    >
+      清除筛选
     </button>
   {/if}
 
@@ -758,29 +816,6 @@
         </div>
       {/if}
 
-      {#if statusSummary}
-        <span class="status-summary" aria-label="书库状态摘要">{statusSummary}</span>
-      {/if}
-      {#if activeFilterDetail}
-        <span class="active-filter-detail" aria-label="书库当前筛选详情">
-          {activeFilterDetail}
-        </span>
-      {/if}
-      {#if activeFilterChips.length > 0}
-        <div class="active-filter-chips" aria-label="书库当前筛选条件">
-          {#each activeFilterChips as chip}
-            <button
-              type="button"
-              class="active-filter-chip"
-              aria-label={`移除书库筛选：${chip.label}`}
-              on:click={() => handleClearFilterChip(chip.id)}
-            >
-              <span>{chip.label}</span>
-              <small>移除</small>
-            </button>
-          {/each}
-        </div>
-      {/if}
       {#if formatSummary}
         <span class="metadata-summary format-summary" aria-label="书库格式摘要">{formatSummary}</span>
       {/if}
@@ -793,17 +828,6 @@
       {#if coverSummary}
         <span class="metadata-summary cover-summary" aria-label="书库封面摘要">{coverSummary}</span>
       {/if}
-      {#if filterSummary}
-        <span class="filter-summary" aria-label="书库筛选摘要">{filterSummary}</span>
-        <button
-          type="button"
-          class="clear-filters"
-          aria-label="清除书库筛选"
-          on:click={handleClearFilters}
-        >
-          清除筛选
-        </button>
-      {/if}
     </div>
   {/if}
 </div>
@@ -811,12 +835,19 @@
 <style>
   .library-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     min-height: 48px;
     padding: 0 0 8px;
     font-family: var(--font-chrome);
     border-bottom: 1px solid var(--line-soft);
+  }
+
+  .search-cluster {
+    display: grid;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .filter-row {
@@ -1158,8 +1189,43 @@
   .actions {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 8px;
     flex: 0 0 auto;
+  }
+
+  .header-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    width: auto;
+    min-width: max-content;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 0;
+    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
+    color: var(--text-secondary);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 84%, white 16%),
+      0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+
+  .header-action strong {
+    font: 600 11px/1 var(--font-chrome);
+    letter-spacing: 0.01em;
+  }
+
+  .header-action:hover {
+    background: color-mix(in srgb, var(--surface-panel) 74%, white 26%);
+    color: var(--text-primary);
+  }
+
+  .import-action {
+    background: color-mix(in srgb, var(--accent-warm) 12%, var(--surface-panel) 88%);
+    color: color-mix(in srgb, #73481f 86%, var(--text-secondary) 14%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--accent-warm) 26%, white 74%),
+      0 6px 16px rgba(128, 84, 44, 0.08);
   }
 
   .menu-shell {
@@ -1180,6 +1246,30 @@
     box-shadow:
       inset 0 0 0 1px var(--border-light),
       0 1px 0 rgba(255, 255, 255, 0.34);
+  }
+
+  .search-status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 23px;
+  }
+
+  .search-clear {
+    width: auto;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
+    color: var(--text-secondary);
+    font: 600 10px/1 var(--font-chrome);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 82%, white 18%);
+  }
+
+  .search-clear:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-reader) 70%, white 30%);
   }
 
   .search-icon {
@@ -1252,6 +1342,19 @@
     display: block;
     width: 100%;
     height: 100%;
+  }
+
+  button.header-action {
+    width: auto;
+    min-width: max-content;
+    height: 30px;
+    padding: 0 12px;
+  }
+
+  button.search-clear {
+    width: auto;
+    height: 22px;
+    padding: 0 8px;
   }
 
   button.ghost:hover {
@@ -1336,6 +1439,19 @@
   }
 
   @media (max-width: 900px) {
+    .library-header {
+      flex-wrap: wrap;
+    }
+
+    .actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .header-action strong {
+      display: none;
+    }
+
     .search-shell {
       min-width: 0;
     }

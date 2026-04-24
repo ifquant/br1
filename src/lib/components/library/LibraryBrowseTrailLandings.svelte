@@ -141,7 +141,6 @@
                   viewMode={viewMode}
                   groupBy={subgroupShelf.groupBy}
                   activeGroupLabel=""
-                  showImportTile={false}
                   blockedGroupExplanations={getBlockedGroupExplanations(landing, subgroupShelf.groupBy)}
                   groupEnterHintSurface="subgroup"
                   onEnterGroupAvailable={(label, nextGroupBy) =>

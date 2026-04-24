@@ -11,8 +11,6 @@
   export let viewMode: 'grid' | 'list' = 'grid';
   export let groupBy: 'none' | 'author' | 'collection' | 'format' = 'none';
   export let activeGroupLabel = '';
-  export let showImportTile = false;
-  export let importHref = '';
   export let onEnterGroup:
     | ((label: string, groupBy: 'author' | 'collection' | 'format') => void | Promise<void>)
     | null = null;
@@ -25,7 +23,6 @@
   export let blockedGroupExplanations: LibraryBrowseGuardExplanation[] = [];
   export let groupEnterHintSurface: LibraryBrowseGuardSurface = 'group-card';
   export let onOpenLink: ((href: string) => void | Promise<void>) | null = null;
-  export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onUpdateBookMetadata:
     | ((
@@ -59,21 +56,13 @@
   let metadataEditTags = '';
 
   $: topLevelGroupedBrowse = groupBy !== 'none' && !activeGroupLabel;
-  $: totalItems = books.length + (showImportTile ? 1 : 0);
-  $: itemCountLabel = topLevelGroupedBrowse ? `${groupedBooks.length} 组` : `${totalItems} 本`;
-  $: viewModeLabel = viewMode === 'grid' ? '网格视图' : '列表视图';
+  $: itemCountLabel = topLevelGroupedBrowse ? `${groupedBooks.length} 组` : `${books.length} 本`;
   $: groupedBooks = groupBooks(books, groupBy);
 
   const handleLinkClick = (event: MouseEvent, href: string | undefined) => {
     if (!href || !onOpenLink) return;
     event.preventDefault();
     void onOpenLink(href);
-  };
-
-  const handleImportClick = (event: MouseEvent) => {
-    if (!onImportBooks) return;
-    event.preventDefault();
-    void onImportBooks();
   };
 
   const handleEnterGroup = (event: MouseEvent, label: string) => {
@@ -291,7 +280,6 @@
       <h2>{sectionTitle}</h2>
       <div class="shelf-meta">
         <span>{itemCountLabel}</span>
-        <span>{viewModeLabel}</span>
       </div>
     </div>
   </header>
@@ -382,59 +370,6 @@
             </button>
           </article>
         {/each}
-
-        {#if showImportTile}
-          <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="导入书籍">
-            <svelte:element
-              this={onImportBooks || importHref ? 'a' : 'div'}
-              class:list-link={viewMode === 'list'}
-              class="book-link import-link"
-              href={importHref}
-              role={onImportBooks || importHref ? 'link' : undefined}
-              aria-label={onImportBooks || importHref ? '从本机导入书籍' : undefined}
-              on:click={(event: MouseEvent) => {
-                if (onImportBooks) {
-                  handleImportClick(event);
-                } else {
-                  handleLinkClick(event, importHref);
-                }
-              }}
-            >
-              <div class="cover-shell">
-                <div class="cover import-cover" aria-hidden="true">
-                  <div class="import-plus">＋</div>
-                </div>
-              </div>
-              {#if viewMode === 'list'}
-                <div class="meta list-meta import-meta import-meta-list">
-                  <div class="list-copy">
-                    <strong>导入书籍</strong>
-                    <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
-                    <div class="meta-pills">
-                      <span class="meta-pill strong">本机导入</span>
-                      <span class="meta-pill">本机文件</span>
-                    </div>
-                  </div>
-                  <div class="list-trailing">
-                    <div class="trailing-copy">
-                      <small>立即导入</small>
-                      <em>把本机已有书籍并入当前书库。</em>
-                    </div>
-                    <div class="inline-actions" aria-hidden="true">
-                      <span class="action-dot">＋</span>
-                    </div>
-                  </div>
-                </div>
-              {:else}
-                <div class="meta import-meta">
-                  <strong>导入书籍</strong>
-                  <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
-                  <p>把本机已有书籍并入当前书库。</p>
-                </div>
-              {/if}
-            </svelte:element>
-          </article>
-        {/if}
       </div>
     {:else}
       {#each groupedBooks as group}
@@ -708,59 +643,6 @@
           </div>
         </section>
       {/each}
-
-      {#if showImportTile}
-        <article class:list-card={viewMode === 'list'} class="book-card import-card" aria-label="导入书籍">
-          <svelte:element
-            this={onImportBooks || importHref ? 'a' : 'div'}
-            class:list-link={viewMode === 'list'}
-            class="book-link import-link"
-            href={importHref}
-            role={onImportBooks || importHref ? 'link' : undefined}
-            aria-label={onImportBooks || importHref ? '从本机导入书籍' : undefined}
-            on:click={(event: MouseEvent) => {
-              if (onImportBooks) {
-                handleImportClick(event);
-              } else {
-                handleLinkClick(event, importHref);
-              }
-            }}
-          >
-            <div class="cover-shell">
-              <div class="cover import-cover" aria-hidden="true">
-                <div class="import-plus">＋</div>
-              </div>
-            </div>
-            {#if viewMode === 'list'}
-              <div class="meta list-meta import-meta import-meta-list">
-                <div class="list-copy">
-                  <strong>导入书籍</strong>
-                  <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
-                  <div class="meta-pills">
-                    <span class="meta-pill strong">本机导入</span>
-                    <span class="meta-pill">本机文件</span>
-                  </div>
-                </div>
-                <div class="list-trailing">
-                  <div class="trailing-copy">
-                    <small>立即导入</small>
-                    <em>把本机已有书籍并入当前书库。</em>
-                  </div>
-                  <div class="inline-actions" aria-hidden="true">
-                    <span class="action-dot">＋</span>
-                  </div>
-                </div>
-              </div>
-            {:else}
-              <div class="meta import-meta">
-                <strong>导入书籍</strong>
-                <span>支持 EPUB / PDF / FB2 / MOBI / AZW3</span>
-                <p>把本机已有书籍并入当前书库。</p>
-              </div>
-            {/if}
-          </svelte:element>
-        </article>
-      {/if}
     {/if}
   </div>
 </section>
@@ -809,23 +691,6 @@
 
   .shelf-meta span {
     white-space: nowrap;
-  }
-
-  .shelf-meta span + span {
-    position: relative;
-    padding-left: 8px;
-  }
-
-  .shelf-meta span + span::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 3px;
-    height: 3px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--text-muted) 78%, white 22%);
-    transform: translateY(-50%);
   }
 
   .shelf-body {
@@ -1561,52 +1426,6 @@
   .status-row em {
     max-width: 50%;
     text-align: right;
-  }
-
-  .import-cover {
-    display: grid;
-    place-items: center;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 70%, white 30%);
-    border-style: dashed;
-    border-color: rgba(79, 59, 33, 0.16);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-      inset 0 14px 28px rgba(248, 240, 228, 0.35);
-    transition:
-      border-color 120ms ease,
-      background 120ms ease;
-  }
-
-  .import-card:hover .import-cover {
-    border-color: rgba(79, 59, 33, 0.24);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
-      color-mix(in srgb, var(--surface-panel) 74%, white 26%);
-  }
-
-  .import-plus {
-    color: color-mix(in srgb, var(--text-muted) 82%, white 18%);
-    font-size: 23px;
-    line-height: 1;
-  }
-
-  .import-meta strong {
-    color: color-mix(in srgb, var(--text-primary) 92%, white 8%);
-  }
-
-  .import-meta span {
-    color: var(--text-muted);
-  }
-
-  .import-meta p {
-    color: color-mix(in srgb, var(--text-secondary) 80%, white 20%);
-  }
-
-  .import-meta-list .inline-actions {
-    opacity: 1;
-    transform: none;
   }
 
   @media (max-width: 900px) {

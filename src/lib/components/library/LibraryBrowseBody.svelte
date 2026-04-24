@@ -21,7 +21,6 @@
   export let shelfSectionTitle = '书架';
   export let onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
   export let onOpenLink: (href: string) => void | Promise<void>;
-  export let onImportBooks: (() => void | Promise<void>) | null = null;
   export let onOpenSourcePath: ((filePath: string) => void | Promise<void>) | null = null;
   export let onUpdateBookMetadata:
     | ((
@@ -134,7 +133,6 @@
     {shelfSectionTitle}
     {onDispatchBrowseAction}
     {onOpenLink}
-    {onImportBooks}
     {onOpenSourcePath}
     {onUpdateBookMetadata}
     {onRemoveBook}

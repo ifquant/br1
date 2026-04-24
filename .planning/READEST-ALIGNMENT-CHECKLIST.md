@@ -382,11 +382,12 @@ Goal: turn Readest service and ecosystem features into concrete `br1` capabiliti
 
 Goal: close the remaining user-visible Readest gaps that now mainly live in the library homepage, shelf semantics, and local-library compatibility experience.
 
-- [ ] P3-1.1 Align the library top toolbar and search behavior
+- [x] P3-1.1 Align the library top toolbar and search behavior
   - Outcome: the library header becomes the single real control surface for search, import entry, view-mode switching, and overflow actions instead of sharing those responsibilities with shelf-local preview controls.
   - Touches: `src/lib/components/library/LibraryHeader.svelte`, `src/lib/components/library/BookshelfPreview.svelte`, `src/routes/library/+page.svelte`, focused library smoke coverage.
-  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`; focused library search/action regression if behavior changes.
-  - Notes: this is the first P3 slice because it fixes product information architecture before visual polish. It should remove duplicated toolbar semantics rather than layering another control row on top.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test /Users/dev/workspace2/hc_apps/br1/tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` (PASS).
+  - Done commit: this commit
+  - Notes: the header now owns the visible import entry, search clear action, and search/filter status summary; the shelf-level import tile and shelf-local view-mode echo were removed so the library control surface stops competing with the body. Grouped-browse trail/pivot/sibling navigation remains in the body for now and is intentionally deferred because that path still needs a dedicated header-side rethreading slice.
 
 - [ ] P3-1.2 Align library cards, covers, metadata, and status density
   - Outcome: grid/list cards, import tile, and section cards use a more intentional Readest-style hierarchy for cover ratio, title/author line breaks, progress/state chips, and action affordances.
@@ -441,3 +442,4 @@ Use this log when completing each item.
 | 2026-04-25 | Move KOReader exchange import/apply into Tauri | 9cdd6ba | `cargo check --manifest-path src-tauri/Cargo.toml`; `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `pnpm check`; `git diff --check` | closes the last renderer-owned KOReader exchange apply path by routing file pick, validation, merge/apply, and conflict summaries through `restore_koreader_sync_exchange_dialog` |
 | 2026-04-25 | Harden post-merge sync validation and KOReader import semantics | 987ee43 | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | adds rollback-backed KOReader exchange writes, makes local-newer honor KOReader `updated_at`, requires KOReader identity for fallback matching, promotes Readest Cloud pull validation to restore-level checks, and stops Readest import from seeding `koreaderProgressLocation` |
 | 2026-04-25 | Make snapshot restore transactional across local and remote apply | d8695f8 | `cargo test --manifest-path src-tauri/Cargo.toml sync_snapshot`; `cargo test --manifest-path src-tauri/Cargo.toml remote_sync`; `pnpm check`; `git diff --check` | replaces the shared snapshot apply roots with a rollback-backed mutation plan so local snapshot restore and Readest Cloud pull no longer risk half-applied library/bookmark/note/highlights state |
+| 2026-04-25 | Align the library top toolbar and search behavior | this commit | `pnpm check`; `git diff --check`; `pnpm exec playwright test tests/e2e/library-smoke.spec.ts --grep "library renders the reading-first shell in web mode"` | moves import/search status back into the header, removes the shelf import tile, and stops shelf headers from echoing top-level view semantics |
