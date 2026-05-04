@@ -12,6 +12,7 @@
   import {
     createEmptyReaderAssistanceState,
     getReaderAssistanceProviderDisplayLabel,
+    getReaderAssistanceRequestContextLabel,
     getReaderAssistanceRequestSubject,
     getReaderTranslationProviderDisplayLabel,
     normalizeAssistanceTerm,
@@ -41,6 +42,7 @@
   let assistTranslationProvider: ReaderTranslationProvider = 'deepl';
   let assistTranslationText = '';
   let assistTranslationTargetLanguage = 'zh';
+  let selectedHistoryEntryId = '';
 
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
@@ -71,6 +73,18 @@
   $: visibleHistory = history.filter((entry) =>
     assistMode === 'translation' ? entry.request.kind === 'translation' : entry.request.kind === 'lookup'
   );
+  $: {
+    const selectedEntryStillVisible = visibleHistory.some((entry) => entry.id === selectedHistoryEntryId);
+    if (selectedHistoryEntryId && !selectedEntryStillVisible) {
+      selectedHistoryEntryId = '';
+    }
+  }
+  $: selectedHistoryEntry =
+    visibleHistory.find((entry) => entry.id === selectedHistoryEntryId) ?? null;
+  $: archivedTranslationSourceText =
+    selectedHistoryEntry?.request.kind === 'translation'
+      ? normalizeAssistanceText(selectedHistoryEntry.request.text)
+      : '';
 
   const formatHistoryTimestamp = (value: number) => {
     const date = new Date(value);
@@ -86,6 +100,7 @@
   };
 
   const replayHistoryEntry = (entry: ReaderAssistanceHistoryEntry) => {
+    selectedHistoryEntryId = entry.id;
     if (entry.request.kind === 'translation') {
       assistMode = 'translation';
       assistTranslationProvider = entry.request.provider;
@@ -103,6 +118,21 @@
     assistLookupProvider = entry.request.provider;
     assistLookupTerm = entry.request.term;
     callbacks.onRequestLookup?.(entry.request.provider, entry.request.term);
+  };
+
+  const selectHistoryEntry = (entry: ReaderAssistanceHistoryEntry) => {
+    selectedHistoryEntryId = entry.id;
+    if (entry.request.kind === 'translation') {
+      assistMode = 'translation';
+      assistTranslationProvider = entry.request.provider;
+      assistTranslationText = entry.request.text;
+      assistTranslationTargetLanguage = entry.request.targetLanguage;
+      return;
+    }
+
+    assistMode = 'lookup';
+    assistLookupProvider = entry.request.provider;
+    assistLookupTerm = entry.request.term;
   };
 
   const fillAssistLookupTerm = (term: string) => {
@@ -346,12 +376,13 @@
       {#if visibleHistory.length > 0}
         <div class="assist-history-list">
           {#each visibleHistory as entry}
-            <article class="assist-history-item">
+            <article class:selected={selectedHistoryEntryId === entry.id} class="assist-history-item">
               <div class="assist-history-copy">
                 <strong>{getReaderAssistanceRequestSubject(entry.request) || '未命名请求'}</strong>
                 <span>
                   {getReaderAssistanceProviderDisplayLabel(entry.request.provider)} · {getHistoryStatusLabel(entry)} · {formatHistoryTimestamp(entry.updatedAt)}
                 </span>
+                <small>{getReaderAssistanceRequestContextLabel(entry.request)}</small>
                 <small>
                   {#if entry.status === 'ready' && entry.result}
                     {entry.result.title}
@@ -364,9 +395,14 @@
                   {/if}
                 </small>
               </div>
-              <button type="button" class="assist-chip" on:click={() => replayHistoryEntry(entry)}>
-                再次发起
-              </button>
+              <div class="assist-history-actions">
+                <button type="button" class="assist-chip" on:click={() => selectHistoryEntry(entry)}>
+                  {selectedHistoryEntryId === entry.id ? '正在查看' : '查看记录'}
+                </button>
+                <button type="button" class="assist-chip" on:click={() => replayHistoryEntry(entry)}>
+                  再次发起
+                </button>
+              </div>
             </article>
           {/each}
         </div>
@@ -394,11 +430,36 @@
       <div class="assist-translation-panels" aria-label="翻译阅读面板">
         <article class="assist-translation-card">
           <strong>原文</strong>
-          <p>{translationSourceText || '先在正文里选中文本，或输入要翻译的内容。'}</p>
+          <p>
+            {#if selectedHistoryEntry?.request.kind === 'translation'}
+              {archivedTranslationSourceText || '这条历史记录没有保留原文。'}
+            {:else}
+              {translationSourceText || '先在正文里选中文本，或输入要翻译的内容。'}
+            {/if}
+          </p>
         </article>
         <article class="assist-translation-card result">
           <strong>译文</strong>
-          {#if assistance.status === 'loading'}
+          {#if selectedHistoryEntry?.request.kind === 'translation'}
+            <span>历史记录 · {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}</span>
+            {#if selectedHistoryEntry.status === 'loading'}
+              <p>
+                正在向{getReaderTranslationProviderDisplayLabel(selectedHistoryEntry.request.provider)}请求翻译结果。
+              </p>
+            {:else if selectedHistoryEntry.status === 'ready' && selectedHistoryEntry.result}
+              <span>
+                {selectedHistoryEntry.result.sourceLabel ||
+                  getReaderTranslationProviderDisplayLabel(selectedHistoryEntry.request.provider)}
+              </span>
+              <p>{selectedHistoryEntry.result.body}</p>
+            {:else if selectedHistoryEntry.status === 'empty'}
+              <p>这条历史请求没有返回可翻译内容。</p>
+            {:else if selectedHistoryEntry.status === 'offline'}
+              <p>{selectedHistoryEntry.error || '这条历史请求当时处于离线状态。'}</p>
+            {:else}
+              <p>{selectedHistoryEntry.error || '这条历史请求失败了。'}</p>
+            {/if}
+          {:else if assistance.status === 'loading'}
             <p>
               正在向{getReaderTranslationProviderDisplayLabel(
                 activeAssistanceRequest?.kind === 'translation'
@@ -437,6 +498,23 @@
           正在向{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}请求结果。
         {/if}
       </span>
+    {:else if selectedHistoryEntry}
+      <strong>{selectedHistoryEntry.result?.title || '历史记录'}</strong>
+      <span>
+        历史记录 · {getReaderAssistanceProviderDisplayLabel(selectedHistoryEntry.request.provider)} · {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}
+      </span>
+      {#if selectedHistoryEntry.status === 'ready' && selectedHistoryEntry.result}
+        <p>{selectedHistoryEntry.result.body}</p>
+        {#if selectedHistoryEntry.result.url}
+          <a href={selectedHistoryEntry.result.url} target="_blank" rel="noreferrer">打开词条</a>
+        {/if}
+      {:else if selectedHistoryEntry.status === 'empty'}
+        <p>这条历史请求没有返回结果。</p>
+      {:else if selectedHistoryEntry.status === 'offline'}
+        <p>{selectedHistoryEntry.error || '这条历史请求当时处于离线状态。'}</p>
+      {:else}
+        <p>{selectedHistoryEntry.error || '这条历史请求失败了。'}</p>
+      {/if}
     {:else if assistance.status === 'ready' && assistance.result}
       <strong>{assistance.result.title}</strong>
       <span>
@@ -615,7 +693,20 @@
     gap: 12px;
     padding: 10px 12px;
     border: 1px solid var(--border-light);
-    background: color-mix(in srgb, var(--surface-reader) 84%, white 16%);
+      background: color-mix(in srgb, var(--surface-reader) 84%, white 16%);
+  }
+
+  .assist-history-item.selected {
+    border-color: color-mix(in srgb, var(--accent-warm, #8c6a3b) 32%, white 68%);
+    background: color-mix(in srgb, var(--surface-reader) 74%, white 26%);
+  }
+
+  .assist-history-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+    justify-content: flex-end;
   }
 
   .assist-history-copy {

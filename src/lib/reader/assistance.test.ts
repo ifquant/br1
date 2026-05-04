@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   createReaderAssistanceHistoryEntry,
   getReaderAssistanceProviderDisplayLabel,
+  getReaderAssistanceRequestContextLabel,
   getReaderAssistanceRequestSubject,
   updateReaderAssistanceHistoryEntry,
   upsertReaderAssistanceHistoryEntry
@@ -90,6 +91,27 @@ test('assistance history keeps the newest entries first and replaces existing id
 test('assistance helpers expose reader-facing provider and subject labels', () => {
   assert.equal(getReaderAssistanceProviderDisplayLabel('dictionary'), '词典');
   assert.equal(getReaderAssistanceProviderDisplayLabel('deepl'), 'DeepL');
+  assert.equal(
+    getReaderAssistanceRequestContextLabel({
+      kind: 'lookup',
+      provider: 'wikipedia',
+      term: 'bridge reader',
+      chapterLabel: '第一章',
+      bookKey: 'book-1'
+    }),
+    '第一章 · 维基百科'
+  );
+  assert.equal(
+    getReaderAssistanceRequestContextLabel({
+      kind: 'translation',
+      provider: 'deepl',
+      text: 'translate this paragraph',
+      targetLanguage: 'zh',
+      chapterLabel: '第二章',
+      bookKey: 'book-1'
+    }),
+    '第二章 · 译为 ZH'
+  );
   assert.equal(
     getReaderAssistanceRequestSubject({
       kind: 'translation',

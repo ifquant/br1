@@ -11,6 +11,7 @@ export {
   createOfflineReaderAssistanceState,
   createReadyReaderAssistanceState,
   getReaderAssistanceProviderDisplayLabel,
+  getReaderAssistanceRequestContextLabel,
   getReaderAssistanceRequestSubject,
   isLookupReaderAssistanceRequest,
   isTranslationReaderAssistanceRequest,

@@ -89,6 +89,26 @@ export const getReaderAssistanceRequestSubject = (request: ReaderAssistanceReque
     ? normalizeAssistanceText(request.text)
     : normalizeAssistanceTerm(request.term);
 
+export const getReaderAssistanceRequestContextLabel = (
+  request: ReaderAssistanceRequest
+): string => {
+  const chapter = request.chapterLabel?.trim();
+
+  if (request.kind === 'translation') {
+    if (chapter) {
+      return `${chapter} · 译为 ${request.targetLanguage.toUpperCase()}`;
+    }
+
+    return `译为 ${request.targetLanguage.toUpperCase()}`;
+  }
+
+  if (chapter) {
+    return request.provider === 'dictionary' ? `${chapter} · 词典` : `${chapter} · 维基百科`;
+  }
+
+  return request.provider === 'dictionary' ? '词典请求' : '维基百科请求';
+};
+
 export const canRequestAssistanceForText = (value: string): boolean =>
   normalizeAssistanceTerm(value).length > 0;
 
