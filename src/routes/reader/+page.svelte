@@ -978,79 +978,98 @@
       ></button>
     {/if}
     <div class="reader-surface">
-      <div class="parallel-surface-toolbar" aria-label="并行阅读控制">
-        <button
-          type="button"
-          class="parallel-toggle"
-          aria-pressed={parallelEnabled}
-          aria-label={parallelEnabled ? '关闭并行阅读' : '开启并行阅读'}
-          disabled={!canOpenParallelSurface}
-          on:click={toggleParallelSurface}
-        >
-          {parallelEnabled ? '关闭并行阅读' : '并行阅读'}
-        </button>
-        <button
-          type="button"
-          class="parallel-toggle notebook-toggle"
-          aria-pressed={notebookVisible}
-          aria-label={notebookVisible ? '收起笔记工作台' : '切换笔记工作台'}
-          on:click={() => {
-            notebookVisible = !notebookVisible;
-            if (notebookVisible && notebookTab !== 'highlights') {
-              notebookTab = 'notes';
-            }
-          }}
-        >
-          {notebookVisible ? '关闭工作台' : '笔记工作台'}
-        </button>
-        <button
-          type="button"
-          class="parallel-toggle notebook-toggle"
-          aria-pressed={notebookVisible && notebookTab === 'translation'}
-          aria-label="打开翻译模式"
-          on:click={() => {
-            notebookVisible = true;
-            notebookTab = 'translation';
-          }}
-        >
-          翻译模式
-        </button>
-        <button
-          type="button"
-          class="parallel-toggle notebook-toggle"
-          aria-pressed={notebookVisible && notebookTab === 'assistant'}
-          aria-label="打开 AI 工作台"
-          on:click={() => {
-            notebookVisible = true;
-            notebookTab = 'assistant';
-          }}
-        >
-          AI 工作台
-        </button>
-        <button
-          type="button"
-          class="parallel-toggle notebook-toggle"
-          aria-pressed={notebookVisible && notebookTab === 'tts'}
-          aria-label="打开朗读模式"
-          on:click={() => {
-            notebookVisible = true;
-            notebookTab = 'tts';
-          }}
-        >
-          朗读模式
-        </button>
-        <button
-          type="button"
-          class="parallel-toggle notebook-toggle"
-          aria-pressed={notebookVisible && notebookTab === 'sync'}
-          aria-label="打开同步工作台"
-          on:click={() => {
-            notebookVisible = true;
-            notebookTab = 'sync';
-          }}
-        >
-          同步工作台
-        </button>
+      <div class="parallel-surface-toolbar" aria-label="阅读工作区控制">
+        <div class="surface-toolbar-row primary" aria-label="阅读布局控制">
+          <button
+            type="button"
+            class="parallel-toggle"
+            aria-pressed={parallelEnabled}
+            aria-label={parallelEnabled ? '关闭并行阅读' : '开启并行阅读'}
+            disabled={!canOpenParallelSurface}
+            on:click={toggleParallelSurface}
+          >
+            {parallelEnabled ? '关闭并行阅读' : '并行阅读'}
+          </button>
+          <button
+            type="button"
+            class="parallel-toggle notebook-toggle"
+            aria-pressed={notebookVisible}
+            aria-label={notebookVisible ? '收起笔记工作台' : '切换笔记工作台'}
+            on:click={() => {
+              notebookVisible = !notebookVisible;
+              if (notebookVisible && notebookTab !== 'highlights') {
+                notebookTab = 'notes';
+              }
+            }}
+          >
+            {notebookVisible ? '关闭工作台' : '打开工作台'}
+          </button>
+        </div>
+        <div class="surface-toolbar-row workspace-modes" aria-label="工作台模式切换">
+          <span class="workspace-mode-label">工作台模式</span>
+          <div class="workspace-mode-buttons">
+            <button
+              type="button"
+              class="parallel-toggle notebook-toggle mode-toggle"
+              aria-pressed={notebookVisible && notebookTab === 'notes'}
+              aria-label="打开笔记工作台"
+              on:click={() => {
+                notebookVisible = true;
+                notebookTab = 'notes';
+              }}
+            >
+              笔记
+            </button>
+            <button
+              type="button"
+              class="parallel-toggle notebook-toggle mode-toggle"
+              aria-pressed={notebookVisible && notebookTab === 'assistant'}
+              aria-label="打开 AI 工作台"
+              on:click={() => {
+                notebookVisible = true;
+                notebookTab = 'assistant';
+              }}
+            >
+              AI
+            </button>
+            <button
+              type="button"
+              class="parallel-toggle notebook-toggle mode-toggle"
+              aria-pressed={notebookVisible && notebookTab === 'translation'}
+              aria-label="打开翻译模式"
+              on:click={() => {
+                notebookVisible = true;
+                notebookTab = 'translation';
+              }}
+            >
+              翻译
+            </button>
+            <button
+              type="button"
+              class="parallel-toggle notebook-toggle mode-toggle"
+              aria-pressed={notebookVisible && notebookTab === 'tts'}
+              aria-label="打开朗读模式"
+              on:click={() => {
+                notebookVisible = true;
+                notebookTab = 'tts';
+              }}
+            >
+              朗读
+            </button>
+            <button
+              type="button"
+              class="parallel-toggle notebook-toggle mode-toggle"
+              aria-pressed={notebookVisible && notebookTab === 'sync'}
+              aria-label="打开同步工作台"
+              on:click={() => {
+                notebookVisible = true;
+                notebookTab = 'sync';
+              }}
+            >
+              同步
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class:parallel-enabled={parallelEnabled} class="reader-stage-stack">
@@ -1358,8 +1377,39 @@
   }
 
   .parallel-surface-toolbar {
+    display: grid;
+    gap: 8px;
+    justify-items: end;
+    min-width: 0;
+  }
+
+  .surface-toolbar-row {
     display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .surface-toolbar-row.primary {
     justify-content: flex-end;
+  }
+
+  .surface-toolbar-row.workspace-modes {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .workspace-mode-label {
+    color: var(--text-muted);
+    font: 700 11px/1 var(--font-chrome);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .workspace-mode-buttons {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, max-content));
     gap: 8px;
     min-width: 0;
   }
@@ -1384,6 +1434,11 @@
   .parallel-toggle:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 72%, white 28%);
     outline-offset: 3px;
+  }
+
+  .mode-toggle {
+    min-width: 68px;
+    justify-content: center;
   }
 
   .reader-stage-stack {
@@ -1467,10 +1522,26 @@
     }
 
     .parallel-surface-toolbar {
+      justify-items: stretch;
+    }
+
+    .surface-toolbar-row,
+    .surface-toolbar-row.primary,
+    .surface-toolbar-row.workspace-modes {
       justify-content: stretch;
     }
 
-    .parallel-toggle {
+    .surface-toolbar-row.workspace-modes {
+      display: grid;
+      gap: 8px;
+    }
+
+    .workspace-mode-buttons {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .parallel-toggle,
+    .mode-toggle {
       width: 100%;
     }
 
@@ -1483,6 +1554,12 @@
       --reader-window-edge-x: 10px;
       --reader-window-edge-y-bottom: 10px;
       --reader-window-sidebar-gap: 10px;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .workspace-mode-buttons {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

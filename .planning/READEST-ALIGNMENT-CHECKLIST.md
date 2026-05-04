@@ -443,6 +443,7 @@ Goal: close the next set of user-visible Readest gaps that now mainly live in re
 - [ ] P4-2.1 Align reader shell chrome, toolbar density, and progress hierarchy
   - Outcome: header/footer controls, progress summaries, and parallel-reader affordances should feel like one intentional reading product instead of an accumulation of utility controls.
   - Notes: gap audit on 2026-04-25 reduced this from “next mainline” to a narrower follow-on. Do not execute it as shell-only polish if the same effort should instead land under `P5` notebook/translation/TTS workspace work.
+  - Follow-up: `0556` narrows the route-level reader toolbar into a two-row chrome model, with layout controls separated from notebook workspace mode switching so the shell stops presenting every reader action as one flat utility strip. Tutorial: `tutorials/commit/0556-split-reader-toolbar-into-layout-and-workspace-modes.md`.
 
 - [ ] P4-2.2 Tighten notes, bookmarks, and highlights workspace product semantics
   - Outcome: the sidebar should present notes/bookmarks/highlights as one coherent reading workspace with clearer unsupported states, counts, and action framing across formats.
