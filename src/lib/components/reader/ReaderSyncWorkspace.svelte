@@ -66,6 +66,21 @@
   $: remoteStatusSummary = summarizeRemoteStatus(remoteSyncResult);
   $: currentBookActivityTime = formatActivityTime(currentBookActivity?.recordedAt ?? null);
   $: libraryActivityTime = formatActivityTime(libraryActivity?.recordedAt ?? null);
+  $: remoteStatus = remoteSyncResult?.status ?? null;
+  $: hasKnownRemoteState = remoteStatus !== null;
+  $: libraryReadinessSummary = !desktopAvailable
+    ? '当前环境不是桌面端，所以这里只能展示整库同步边界，不能执行交换文件导入或远端进度同步。'
+    : !hasKnownRemoteState
+      ? '桌面端整库同步入口已可用，但 KOReader 远端状态还没有探测；先执行一次 push 或 pull 才会得到配置或连通性结论。'
+      : remoteStatus === 'missing-config'
+        ? '交换文件导入可用，但 KOReader 远端还缺少基础地址、用户名或 user key 配置。'
+        : remoteStatus === 'auth-failure'
+          ? '交换文件导入可用，但 KOReader 远端凭据当前无法通过认证。'
+          : remoteStatus === 'offline'
+            ? '交换文件导入可用，但 KOReader 远端当前不可达。'
+            : remoteStatus === 'retryable-failure'
+              ? '交换文件导入可用，但 KOReader 远端上一次返回了可重试失败。'
+              : '交换文件导入和 KOReader 远端进度同步都处于可执行状态。';
 
   const summarizeExchangeConflicts = (conflicts: KoReaderSyncConflict[]) => {
     if (conflicts.length === 0) return '';
@@ -122,6 +137,18 @@
     if (status === 'ready') return '已就绪';
     if (status === 'partial') return '部分就绪';
     return '阻断';
+  };
+
+  const toRemoteConfigReadiness = (status: Br1KoReaderRemoteSyncResult['status'] | null) => {
+    if (status === null) return 'partial';
+    if (status === 'missing-config' || status === 'auth-failure') return 'blocked';
+    return 'ready';
+  };
+
+  const toRemoteConnectivityReadiness = (status: Br1KoReaderRemoteSyncResult['status'] | null) => {
+    if (status === null) return 'partial';
+    if (status === 'offline' || status === 'retryable-failure') return 'blocked';
+    return 'ready';
   };
 </script>
 
@@ -201,6 +228,48 @@
       <strong>整库远端动作</strong>
       <span>KOReader 远端 push / pull 仍然按整库阅读进度运行。</span>
       <p>当前工作台只把控制入口移到 reader，不改变现有 progress-only 边界，也不新增批注远端协议。</p>
+      <div class="sync-readiness-card" aria-label="整库同步就绪状态">
+        <strong>同步就绪状态</strong>
+        <span>{libraryReadinessSummary}</span>
+        <div class="sync-readiness-list">
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(desktopAvailable ? 'ready' : 'blocked')}</small>
+            <span>{desktopAvailable ? '桌面运行时可执行整库同步动作' : '当前环境不是桌面端'}</span>
+          </div>
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(desktopAvailable ? 'ready' : 'blocked')}</small>
+            <span>{desktopAvailable ? 'KOReader 交换文件导入入口可用' : '交换文件导入需要桌面端文件选择器'}</span>
+          </div>
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(toRemoteConfigReadiness(remoteStatus))}</small>
+            <span>
+              {remoteStatus === null
+                ? 'KOReader 远端配置状态尚未探测'
+                : remoteStatus === 'missing-config'
+                  ? 'KOReader 远端缺少基础配置'
+                  : remoteStatus === 'auth-failure'
+                    ? 'KOReader 远端凭据认证失败'
+                    : 'KOReader 远端配置已知可用'}
+            </span>
+          </div>
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(toRemoteConnectivityReadiness(remoteStatus))}</small>
+            <span>
+              {remoteStatus === null
+                ? 'KOReader 远端连通性尚未探测'
+                : remoteStatus === 'offline'
+                  ? 'KOReader 远端当前不可达'
+                  : remoteStatus === 'retryable-failure'
+                    ? 'KOReader 远端上一次返回可重试失败'
+                    : 'KOReader 远端最近一次连通性可用'}
+            </span>
+          </div>
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus('partial')}</small>
+            <span>官方 KOSync 仍然只同步阅读进度，不会同步批注</span>
+          </div>
+        </div>
+      </div>
       {#if libraryActivity}
         <div class="sync-activity-card">
           <span>最近动作 · {libraryActivity.actionLabel}</span>
