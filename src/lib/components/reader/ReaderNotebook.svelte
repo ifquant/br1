@@ -9,6 +9,7 @@
     RestoreKoReaderSyncExchangeDialogResult
   } from '$lib/services';
   import type {
+    ReaderAssistanceHistoryEntry,
     ReaderAssistanceState,
     ReaderPreviewState,
     ReaderSidebarCallbacks,
@@ -47,6 +48,7 @@
   export let supportsTextAnnotations = false;
   export let textAnnotationSupportMessage = '';
   export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
+  export let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
   export let ttsSession: ReaderTtsSessionState = createEmptyReaderTtsSessionState();
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
@@ -285,6 +287,7 @@
           {preview}
           {notesState}
           {assistance}
+          history={assistanceHistory}
           {translationProviderStatuses}
           callbacks={{
             onRequestLookup: callbacks.onRequestLookup,
@@ -299,6 +302,7 @@
           {preview}
           {notesState}
           {assistance}
+          history={assistanceHistory}
           {translationProviderStatuses}
           callbacks={{
             onRequestLookup: callbacks.onRequestLookup,

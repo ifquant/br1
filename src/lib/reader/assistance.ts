@@ -47,11 +47,23 @@ export type ReaderAssistanceResult = {
 
 export type ReaderAssistanceStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'offline' | 'error';
 
+export type ReaderAssistanceHistoryStatus = Exclude<ReaderAssistanceStatus, 'idle'>;
+
 export type ReaderAssistanceState = {
   status: ReaderAssistanceStatus;
   activeRequest: ReaderAssistanceRequest | null;
   result: ReaderAssistanceResult | null;
   error: string;
+};
+
+export type ReaderAssistanceHistoryEntry = {
+  id: string;
+  request: ReaderAssistanceRequest;
+  status: ReaderAssistanceHistoryStatus;
+  result: ReaderAssistanceResult | null;
+  error: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export const normalizeAssistanceTerm = (value: string): string =>
@@ -63,6 +75,19 @@ export const normalizeAssistanceText = (value: string): string =>
 export const getReaderTranslationProviderDisplayLabel = (
   provider: ReaderTranslationProvider
 ): string => (provider === 'deepl' ? 'DeepL' : 'Yandex');
+
+export const getReaderAssistanceProviderDisplayLabel = (
+  provider: ReaderAssistanceProvider
+): string => {
+  if (provider === 'dictionary') return '词典';
+  if (provider === 'wikipedia') return '维基百科';
+  return getReaderTranslationProviderDisplayLabel(provider);
+};
+
+export const getReaderAssistanceRequestSubject = (request: ReaderAssistanceRequest): string =>
+  request.kind === 'translation'
+    ? normalizeAssistanceText(request.text)
+    : normalizeAssistanceTerm(request.term);
 
 export const canRequestAssistanceForText = (value: string): boolean =>
   normalizeAssistanceTerm(value).length > 0;
@@ -159,6 +184,48 @@ export const createErrorReaderAssistanceState = (
   error: error.trim(),
   ...overrides
 });
+
+export const createReaderAssistanceHistoryEntry = (
+  request: ReaderAssistanceRequest,
+  overrides: Partial<ReaderAssistanceHistoryEntry> = {}
+): ReaderAssistanceHistoryEntry => {
+  const normalizedRequest = normalizeReaderAssistanceRequest(request);
+  const now = Date.now();
+
+  return {
+    id: overrides.id?.trim() || `assist-${now}`,
+    request: normalizedRequest,
+    status: overrides.status ?? 'loading',
+    result: overrides.result ?? null,
+    error: overrides.error?.trim() || '',
+    createdAt: overrides.createdAt ?? now,
+    updatedAt: overrides.updatedAt ?? now
+  };
+};
+
+export const updateReaderAssistanceHistoryEntry = (
+  entry: ReaderAssistanceHistoryEntry,
+  overrides: Partial<ReaderAssistanceHistoryEntry> = {}
+): ReaderAssistanceHistoryEntry => ({
+  ...entry,
+  ...overrides,
+  request: overrides.request
+    ? normalizeReaderAssistanceRequest(overrides.request)
+    : normalizeReaderAssistanceRequest(entry.request),
+  error: overrides.error !== undefined ? overrides.error.trim() : entry.error.trim(),
+  updatedAt: overrides.updatedAt ?? Date.now()
+});
+
+export const upsertReaderAssistanceHistoryEntry = (
+  entries: ReaderAssistanceHistoryEntry[],
+  entry: ReaderAssistanceHistoryEntry,
+  limit = 8
+): ReaderAssistanceHistoryEntry[] => {
+  const nextEntries = entries.filter((current) => current.id !== entry.id);
+  nextEntries.unshift(entry);
+  nextEntries.sort((left, right) => right.updatedAt - left.updatedAt);
+  return nextEntries.slice(0, Math.max(1, limit));
+};
 
 export const isLookupReaderAssistanceRequest = (
   request: ReaderAssistanceRequest

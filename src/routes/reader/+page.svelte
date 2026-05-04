@@ -5,6 +5,7 @@
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import ReaderNotebook from '$lib/components/reader/ReaderNotebook.svelte';
   import type {
+    ReaderAssistanceHistoryEntry,
     ReaderControlRequest,
     ReaderLookupProvider,
     ReaderPreviewState,
@@ -28,6 +29,7 @@
     createEmptyReaderAssistanceResultState,
     createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
+    createReaderAssistanceHistoryEntry,
     createReaderBookmarksController,
     createReaderParallelSessionFromRoute,
     createReaderNotesController,
@@ -44,8 +46,10 @@
     normalizeAssistanceTerm,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
+    updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
+    upsertReaderAssistanceHistoryEntry,
     type ReaderTtsSpeechTarget,
     toReaderOpenControlRequest
   } from '$lib/reader';
@@ -119,6 +123,7 @@
   let parallelEnabled = false;
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let assistanceState = createEmptyReaderAssistanceState();
+  let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
   let assistanceRequestNonce = 0;
   let lastAssistanceBookKey = '';
   let translationProviderStatuses: ReaderTranslationProviderStatus[] =
@@ -375,6 +380,7 @@
   }
   $: if (readerBookKey !== lastAssistanceBookKey) {
     assistanceState = createEmptyReaderAssistanceState();
+    assistanceHistory = [];
     lastAssistanceBookKey = readerBookKey;
   }
   $: resolvedTtsTarget = resolveReaderTtsSpeechTarget();
@@ -826,9 +832,18 @@
       cfi: $notesState.selection?.cfi,
       chapterLabel: currentPreview.chapterLabel
     };
+    const historyEntry = createReaderAssistanceHistoryEntry(request, {
+      id: `assist-${Date.now()}-${assistanceRequestNonce + 1}`
+    });
 
     if (!canRequestAssistanceForText(normalizedTerm)) {
       assistanceState = createEmptyReaderAssistanceResultState(request);
+      assistanceHistory = upsertReaderAssistanceHistoryEntry(
+        assistanceHistory,
+        updateReaderAssistanceHistoryEntry(historyEntry, {
+          status: 'empty'
+        })
+      );
       notebookTab = 'assistant';
       notebookVisible = true;
       return;
@@ -836,6 +851,7 @@
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
+    assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
     notebookTab = 'assistant';
     notebookVisible = true;
 
@@ -843,14 +859,34 @@
       const nextState = await requestReaderAssistance(request);
       if (token !== assistanceRequestNonce) return;
       assistanceState = nextState;
+      assistanceHistory = upsertReaderAssistanceHistoryEntry(
+        assistanceHistory,
+        updateReaderAssistanceHistoryEntry(historyEntry, {
+          status: resolveAssistanceHistoryStatus(nextState.status),
+          result: nextState.result,
+          error: nextState.error
+        })
+      );
     } catch (error) {
       if (token !== assistanceRequestNonce) return;
       assistanceState = createErrorReaderAssistanceState(
         request,
         error instanceof Error ? error.message : String(error)
       );
+      assistanceHistory = upsertReaderAssistanceHistoryEntry(
+        assistanceHistory,
+        updateReaderAssistanceHistoryEntry(historyEntry, {
+          status: 'error',
+          error: error instanceof Error ? error.message : String(error)
+        })
+      );
     }
   };
+
+  const resolveAssistanceHistoryStatus = (
+    status: typeof assistanceState.status
+  ): 'loading' | 'ready' | 'empty' | 'offline' | 'error' =>
+    status === 'idle' ? 'empty' : status;
 
   const requestAssistanceTranslation = async (
     provider: ReaderTranslationProvider,
@@ -869,9 +905,18 @@
       cfi: $notesState.selection?.cfi,
       chapterLabel: fallback.chapterLabel
     };
+    const historyEntry = createReaderAssistanceHistoryEntry(request, {
+      id: `assist-${Date.now()}-${assistanceRequestNonce + 1}`
+    });
 
     if (!normalizedText) {
       assistanceState = createEmptyReaderAssistanceResultState(request);
+      assistanceHistory = upsertReaderAssistanceHistoryEntry(
+        assistanceHistory,
+        updateReaderAssistanceHistoryEntry(historyEntry, {
+          status: 'empty'
+        })
+      );
       notebookTab = 'translation';
       notebookVisible = true;
       return;
@@ -879,6 +924,7 @@
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
+    assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
     notebookTab = 'translation';
     notebookVisible = true;
 
@@ -886,11 +932,26 @@
       const nextState = await requestReaderAssistance(request);
       if (token !== assistanceRequestNonce) return;
       assistanceState = nextState;
+      assistanceHistory = upsertReaderAssistanceHistoryEntry(
+        assistanceHistory,
+        updateReaderAssistanceHistoryEntry(historyEntry, {
+          status: resolveAssistanceHistoryStatus(nextState.status),
+          result: nextState.result,
+          error: nextState.error
+        })
+      );
     } catch (error) {
       if (token !== assistanceRequestNonce) return;
       assistanceState = createErrorReaderAssistanceState(
         request,
         error instanceof Error ? error.message : String(error)
+      );
+      assistanceHistory = upsertReaderAssistanceHistoryEntry(
+        assistanceHistory,
+        updateReaderAssistanceHistoryEntry(historyEntry, {
+          status: 'error',
+          error: error instanceof Error ? error.message : String(error)
+        })
       );
     }
   };
@@ -965,6 +1026,7 @@
         bookmarksState={$bookmarksState}
         notesState={$notesState}
         assistance={assistanceState}
+        {assistanceHistory}
         translationProviderStatuses={translationProviderStatuses}
         callbacks={sidebarCallbacks}
       />
@@ -1159,6 +1221,7 @@
         supportsTextAnnotations={supportsTextAnnotationsForFormat(currentPreview.formatLabel)}
         textAnnotationSupportMessage="当前格式暂不支持正文批注。"
         assistance={assistanceState}
+        {assistanceHistory}
         ttsSession={$ttsState}
         ttsTarget={effectiveTtsTarget}
         ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}

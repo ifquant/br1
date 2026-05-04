@@ -3,6 +3,7 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
   import type {
+    ReaderAssistanceHistoryEntry,
     ReaderAssistanceState,
     ReaderHighlightSelectionSet,
     ReaderHighlightSelectionSetExport,
@@ -52,6 +53,7 @@
   export let coverUrl = '';
   export let preview: ReaderPreviewState = createEmptyReaderPreviewState();
   export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
+  export let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let search: ReaderSidebarSearchState = {
     term: '',
@@ -1835,6 +1837,7 @@
             {preview}
             {notesState}
             {assistance}
+            history={assistanceHistory}
             {translationProviderStatuses}
             callbacks={{
               onRequestLookup: callbacks.onRequestLookup,

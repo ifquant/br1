@@ -4,19 +4,26 @@ export type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 export {
   canRequestAssistanceForText,
   createEmptyReaderAssistanceResultState,
+  createReaderAssistanceHistoryEntry,
   createEmptyReaderAssistanceState,
   createErrorReaderAssistanceState,
   createLoadingReaderAssistanceState,
   createOfflineReaderAssistanceState,
   createReadyReaderAssistanceState,
+  getReaderAssistanceProviderDisplayLabel,
+  getReaderAssistanceRequestSubject,
   isLookupReaderAssistanceRequest,
   isTranslationReaderAssistanceRequest,
   getReaderTranslationProviderDisplayLabel,
   normalizeAssistanceTerm,
   normalizeAssistanceText,
-  normalizeReaderAssistanceRequest
+  normalizeReaderAssistanceRequest,
+  updateReaderAssistanceHistoryEntry,
+  upsertReaderAssistanceHistoryEntry
 } from './assistance';
 export type {
+  ReaderAssistanceHistoryEntry,
+  ReaderAssistanceHistoryStatus,
   ReaderAssistanceProvider,
   ReaderAssistanceRequest,
   ReaderAssistanceResult,
