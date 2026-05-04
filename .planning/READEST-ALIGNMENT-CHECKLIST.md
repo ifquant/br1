@@ -521,9 +521,17 @@ Goal: turn the existing sync substrate into an explicit reader-side control surf
   - Outcome: the reader notebook has a visible sync workspace for current-book KOReader exchange export and whole-library KOReader remote progress actions, with explicit desktop-boundary messaging.
   - Touches: reader notebook tabs, reader route state/actions, new sync workspace component, focused reader smoke.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: f4f90a3
   - Tutorial: `tutorials/commit/0547-add-a-reader-sync-workspace-for-koreader-flows.md`.
   - Notes: this slice does not invent new sync protocols. It lifts existing KOReader exchange import/export and remote progress controls into the reader notebook, keeps current-book exchange export scoped to managed library files, and keeps remote push/pull explicitly progress-only and desktop-owned.
+
+- [x] P8-1.2 Productize sync results, retry affordances, and current-book refresh
+  - Outcome: the reader sync workspace now shows the last export/import/remote result as explicit product cards, exposes retry on failed actions, and refreshes the current managed-book sync state after import or pull.
+  - Touches: reader sync workspace, reader notebook sync props, reader route sync action state, focused reader smoke.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0548-productize-reader-sync-results-and-retry-flow.md`.
+  - Notes: this slice keeps the existing KOReader protocol boundaries, but stops the reader sync tab from behaving like a fire-and-forget action cluster. The workspace now preserves the last export result, summarizes exchange conflicts and remote status, and refreshes the current managed-book locator state after successful import or remote pull.
 
 ## Service Security Gate
 
@@ -567,4 +575,5 @@ Use this log when completing each item.
 | 2026-04-25 | Expose library desktop support and associated-open queue context | 04aa541 | `pnpm check`; `git diff --check` | adds a library support card for desktop/main-window context, current associated-open queue activity, last processed batches, and recent rejected inputs without inventing any new renderer-owned file-open path |
 | 2026-04-25 | Add the first catalog manager and browser surface | 7173705 | `pnpm check`; `pnpm dlx tsx --test ./src/lib/services/catalogs.test.ts`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "catalog route explains the desktop-owned boundary in web mode"`; `git diff --check` | adds `/catalogs`, saved-source management, root/library entry points, and safe browse/search/import-intent presentation without acquisition execution |
 | 2026-04-25 | Execute safe catalog imports inside Tauri | 17c9a4a | `pnpm check`; `cargo test --manifest-path src-tauri/Cargo.toml catalogs`; `pnpm dlx tsx --test ./src/lib/services/catalogs.test.ts`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "catalog route explains the desktop-owned boundary in web mode"`; `git diff --check` | turns ready catalog intents into real managed-library imports by re-resolving them inside Tauri, materializing only allowlisted fixture acquisitions, and reusing the trusted library import pipeline |
-| 2026-05-04 | Add a reader sync workspace for KOReader flows | this commit | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"`; `git diff --check` | adds a sync tab to the reader notebook, current-book KOReader exchange export, reader-side import/push/pull controls, and explicit desktop-boundary messaging for non-desktop or non-managed-book contexts |
+| 2026-05-04 | Add a reader sync workspace for KOReader flows | f4f90a3 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"`; `git diff --check` | adds a sync tab to the reader notebook, current-book KOReader exchange export, reader-side import/push/pull controls, and explicit desktop-boundary messaging for non-desktop or non-managed-book contexts |
+| 2026-05-04 | Productize reader sync results and retry flow | this commit | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"`; `git diff --check` | adds last-result cards for export/import/remote actions, conflict and remote-status summaries, retry affordances for failed actions, and managed-book state refresh after import or remote pull |

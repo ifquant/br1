@@ -4,6 +4,7 @@
   import ReaderTtsWorkspace from './ReaderTtsWorkspace.svelte';
   import type {
     Br1KoReaderRemoteSyncResult,
+    KoReaderSyncExchangeExportDialogResult,
     PersistedLibraryBook,
     RestoreKoReaderSyncExchangeDialogResult
   } from '$lib/services';
@@ -55,9 +56,11 @@
   export let bookmarkCount = 0;
   export let syncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
     null;
+  export let syncExchangeExportResult: KoReaderSyncExchangeExportDialogResult | null = null;
   export let syncExchangeImportResult: RestoreKoReaderSyncExchangeDialogResult | null = null;
   export let syncRemoteResult: Br1KoReaderRemoteSyncResult | null = null;
   export let syncNotice: { kind: 'info' | 'error'; message: string } | null = null;
+  export let onRetrySyncAction: (() => void) | null = null;
   export let callbacks: ReaderNotebookCallbacks = {
     onAddHighlight: null,
     onAddNote: null,
@@ -304,6 +307,7 @@
           currentBook={currentManagedBook}
           desktopAvailable={desktopSyncAvailable}
           busyAction={syncBusyAction}
+          exchangeExportResult={syncExchangeExportResult}
           exchangeImportResult={syncExchangeImportResult}
           remoteSyncResult={syncRemoteResult}
           notice={syncNotice}
@@ -313,6 +317,7 @@
           onImportExchange={callbacks.onImportKoReaderSync}
           onPushRemoteProgress={callbacks.onPushKoReaderRemoteSync}
           onPullRemoteProgress={callbacks.onPullKoReaderRemoteSync}
+          onRetryBusyAction={onRetrySyncAction}
         />
       {/if}
     </div>

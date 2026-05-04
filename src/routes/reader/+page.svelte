@@ -18,6 +18,7 @@
   } from '$lib/reader';
   import type {
     Br1KoReaderRemoteSyncResult,
+    KoReaderSyncExchangeExportDialogResult,
     PersistedLibraryBook,
     RestoreKoReaderSyncExchangeDialogResult
   } from '$lib/services';
@@ -92,8 +93,10 @@
   let readerSyncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
     null;
   let readerSyncNotice: { kind: 'info' | 'error'; message: string } | null = null;
+  let readerKoReaderExchangeExportResult: KoReaderSyncExchangeExportDialogResult | null = null;
   let readerKoReaderExchangeImportResult: RestoreKoReaderSyncExchangeDialogResult | null = null;
   let readerKoReaderRemoteSyncResult: Br1KoReaderRemoteSyncResult | null = null;
+  let readerSyncRetryAction: (() => void) | null = null;
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -382,25 +385,28 @@
   $: if (!supportsTextAnnotationsForFormat(currentPreview.formatLabel)) {
     notesController.setSelection(null);
   }
+  const refreshCurrentManagedBookState = async () => {
+    if (!sourcePath || !autoOpenLibraryFile) {
+      currentManagedBook = null;
+      currentCoverUrl = '';
+      return;
+    }
+
+    try {
+      const records = await loadPersistedLibraryBooks();
+      const match = records.find((record) => record.filePath === sourcePath);
+      currentManagedBook = match ?? null;
+      currentCoverUrl = match ? await toLibraryCoverUrl(match) : '';
+    } catch (error) {
+      console.warn('Failed to resolve reader cover for sidebar book card', error);
+      currentManagedBook = null;
+      currentCoverUrl = '';
+    }
+  };
+
   $: {
     sourcePath;
-    void (async () => {
-      if (!sourcePath || !autoOpenLibraryFile) {
-        currentCoverUrl = '';
-        return;
-      }
-
-      try {
-        const records = await loadPersistedLibraryBooks();
-        const match = records.find((record) => record.filePath === sourcePath);
-        currentManagedBook = match ?? null;
-        currentCoverUrl = match ? await toLibraryCoverUrl(match) : '';
-      } catch (error) {
-        console.warn('Failed to resolve reader cover for sidebar book card', error);
-        currentManagedBook = null;
-        currentCoverUrl = '';
-      }
-    })();
+    void refreshCurrentManagedBookState();
   }
   $: if (!sourcePath || !autoOpenLibraryFile) {
     currentManagedBook = null;
@@ -408,6 +414,10 @@
 
   const setReaderSyncNotice = (kind: 'info' | 'error', message: string) => {
     readerSyncNotice = { kind, message };
+  };
+
+  const clearReaderSyncRetryAction = () => {
+    readerSyncRetryAction = null;
   };
 
   const exportCurrentBookKoReaderExchange = async () => {
@@ -418,6 +428,7 @@
 
     readerSyncBusyAction = 'export-current';
     readerSyncNotice = null;
+    clearReaderSyncRetryAction();
     try {
       const snapshot = createLocalSyncSnapshot({
         libraryBooks: [currentManagedBook],
@@ -427,6 +438,7 @@
       });
       const document = createKoReaderSyncExchangeFromSnapshot(snapshot);
       const result = await saveKoReaderSyncExchangeDialog(document);
+      readerKoReaderExchangeExportResult = result;
       if (result.cancelled) {
         setReaderSyncNotice('info', '已取消当前图书 KOReader 交换文件导出。');
         return;
@@ -438,6 +450,7 @@
       );
     } catch (error) {
       console.error('Failed to export current-book KOReader exchange', error);
+      readerSyncRetryAction = exportCurrentBookKoReaderExchange;
       setReaderSyncNotice('error', '导出当前图书 KOReader 交换文件失败，请确认桌面权限和当前图书状态后重试。');
     } finally {
       readerSyncBusyAction = null;
@@ -447,6 +460,7 @@
   const importKoReaderExchangeFromReader = async () => {
     readerSyncBusyAction = 'import-exchange';
     readerSyncNotice = null;
+    clearReaderSyncRetryAction();
     try {
       const imported = await restoreKoReaderSyncExchangeDialog();
       readerKoReaderExchangeImportResult = imported;
@@ -465,6 +479,7 @@
         setReaderSyncNotice('error', 'KOReader 导入没有应用任何图书。');
         return;
       }
+      await refreshCurrentManagedBookState();
       setReaderSyncNotice(
         'info',
         `已导入 KOReader 交换文件${imported.fileName ? `：${imported.fileName}` : ''}，应用 ${imported.applyResult.appliedBookCount} 本，跳过 ${imported.applyResult.skippedBookCount} 本。`
@@ -472,6 +487,7 @@
     } catch (error) {
       console.error('Failed to import KOReader exchange from reader workspace', error);
       const detail = error instanceof Error ? error.message : '请检查交换文件是否完整有效。';
+      readerSyncRetryAction = importKoReaderExchangeFromReader;
       setReaderSyncNotice('error', `导入 KOReader 交换文件失败：${detail}`);
     } finally {
       readerSyncBusyAction = null;
@@ -481,6 +497,7 @@
   const pushKoReaderRemoteSyncFromReader = async () => {
     readerSyncBusyAction = 'push-remote';
     readerSyncNotice = null;
+    clearReaderSyncRetryAction();
     try {
       const result = await runKoReaderRemoteSync({ operation: 'push' });
       readerKoReaderRemoteSyncResult = result;
@@ -492,6 +509,7 @@
       );
     } catch (error) {
       console.error('Failed to push KOReader remote progress from reader workspace', error);
+      readerSyncRetryAction = pushKoReaderRemoteSyncFromReader;
       setReaderSyncNotice('error', '推送 KOReader 阅读进度失败，请稍后重试。');
     } finally {
       readerSyncBusyAction = null;
@@ -501,9 +519,13 @@
   const pullKoReaderRemoteSyncFromReader = async () => {
     readerSyncBusyAction = 'pull-remote';
     readerSyncNotice = null;
+    clearReaderSyncRetryAction();
     try {
       const result = await runKoReaderRemoteSync({ operation: 'pull' });
       readerKoReaderRemoteSyncResult = result;
+      if (result.status === 'success' || result.status === 'empty') {
+        await refreshCurrentManagedBookState();
+      }
       setReaderSyncNotice(
         result.status === 'success' || result.status === 'empty' ? 'info' : 'error',
         result.status === 'success'
@@ -512,6 +534,7 @@
       );
     } catch (error) {
       console.error('Failed to pull KOReader remote progress from reader workspace', error);
+      readerSyncRetryAction = pullKoReaderRemoteSyncFromReader;
       setReaderSyncNotice('error', '拉取 KOReader 阅读进度失败，请稍后重试。');
     } finally {
       readerSyncBusyAction = null;
@@ -1046,6 +1069,7 @@
         {currentManagedBook}
         bookmarkCount={$bookmarksState.bookmarks.length}
         syncBusyAction={readerSyncBusyAction}
+        syncExchangeExportResult={readerKoReaderExchangeExportResult}
         syncExchangeImportResult={readerKoReaderExchangeImportResult}
         syncRemoteResult={readerKoReaderRemoteSyncResult}
         syncNotice={readerSyncNotice}
@@ -1066,6 +1090,7 @@
           onPushKoReaderRemoteSync: pushKoReaderRemoteSyncFromReader,
           onPullKoReaderRemoteSync: pullKoReaderRemoteSyncFromReader
         }}
+        onRetrySyncAction={readerSyncRetryAction}
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
         onClose={() => {

@@ -1,5 +1,7 @@
 <script lang="ts">
   import type {
+    KoReaderSyncConflict,
+    KoReaderSyncExchangeExportDialogResult,
     Br1KoReaderRemoteSyncResult,
     RestoreKoReaderSyncExchangeDialogResult
   } from '$lib/services';
@@ -11,6 +13,7 @@
   export let desktopAvailable = false;
   export let busyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
     null;
+  export let exchangeExportResult: KoReaderSyncExchangeExportDialogResult | null = null;
   export let exchangeImportResult: RestoreKoReaderSyncExchangeDialogResult | null = null;
   export let remoteSyncResult: Br1KoReaderRemoteSyncResult | null = null;
   export let notice: { kind: 'info' | 'error'; message: string } | null = null;
@@ -20,6 +23,7 @@
   export let onImportExchange: (() => void) | null = null;
   export let onPushRemoteProgress: (() => void) | null = null;
   export let onPullRemoteProgress: (() => void) | null = null;
+  export let onRetryBusyAction: (() => void) | null = null;
 
   $: hasManagedLibraryBook = !!currentBook;
   $: currentKoReaderLocator = currentBook?.koreaderProgressLocation?.trim() || '';
@@ -29,6 +33,43 @@
     : currentRestoreLocator
       ? '当前图书只有本地恢复定位，还没有 KOReader locator。'
       : '当前图书还没有可用于同步的定位信息。';
+  $: exchangeConflictSummary = summarizeExchangeConflicts(exchangeImportResult?.applyResult?.conflicts ?? []);
+  $: remoteStatusSummary = summarizeRemoteStatus(remoteSyncResult);
+
+  const summarizeExchangeConflicts = (conflicts: KoReaderSyncConflict[]) => {
+    if (conflicts.length === 0) return '';
+    const missingCount = conflicts.filter((conflict) => conflict.kind === 'missing-local-book').length;
+    const ambiguousCount = conflicts.filter(
+      (conflict) => conflict.kind === 'ambiguous-local-book'
+    ).length;
+    const localNewerCount = conflicts.filter((conflict) => conflict.kind === 'local-newer').length;
+    const parts = [
+      missingCount > 0 ? `未匹配 ${missingCount} 本` : null,
+      ambiguousCount > 0 ? `歧义 ${ambiguousCount} 本` : null,
+      localNewerCount > 0 ? `本地更新 ${localNewerCount} 本` : null
+    ].filter((value): value is string => Boolean(value));
+    return parts.length > 0 ? parts.join('，') : '';
+  };
+
+  const summarizeRemoteStatus = (result: Br1KoReaderRemoteSyncResult | null) => {
+    if (!result) return '';
+    if (result.status === 'missing-config') {
+      return '需要先在桌面环境里配置 KOReader server 基础地址、用户名和 user key。';
+    }
+    if (result.status === 'auth-failure') {
+      return '当前凭据无法通过远端认证；需要回到桌面环境修正用户或 user key。';
+    }
+    if (result.status === 'offline') {
+      return '当前像是网络不可达或 KOReader server 无法连接。';
+    }
+    if (result.status === 'retryable-failure') {
+      return '远端返回了可重试失败；可以直接在这里再试一次。';
+    }
+    if (result.status === 'empty') {
+      return '这次没有可推送或可拉取的阅读进度。';
+    }
+    return '当前仍然遵守 progress-only 边界，不会通过官方 KOSync 同步批注。';
+  };
 </script>
 
 <section class="sync-workspace" aria-label="同步工作台">
@@ -105,6 +146,23 @@
     <div class:error={notice.kind === 'error'} class="sync-notice" aria-live="polite">
       <strong>{notice.kind === 'error' ? '同步失败' : '同步提示'}</strong>
       <span>{notice.message}</span>
+      {#if notice.kind === 'error' && onRetryBusyAction}
+        <div class="sync-inline-actions">
+          <button type="button" class="ghost-action" on:click={() => onRetryBusyAction?.()}>
+            重试刚才的动作
+          </button>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {#if exchangeExportResult && !exchangeExportResult.cancelled}
+    <div class="sync-result-card">
+      <strong>最近一次当前图书导出</strong>
+      <span>
+        已导出 {exchangeExportResult.bookCount} 本
+        {exchangeExportResult.fileName ? ` · ${exchangeExportResult.fileName}` : ''}。
+      </span>
     </div>
   {/if}
 
@@ -115,6 +173,16 @@
         应用 {exchangeImportResult.applyResult.appliedBookCount} 本，跳过
         {exchangeImportResult.applyResult.skippedBookCount} 本。
       </span>
+      {#if exchangeConflictSummary}
+        <small>冲突摘要：{exchangeConflictSummary}</small>
+      {/if}
+      {#if exchangeImportResult.applyResult.conflicts.length > 0}
+        <ul class="sync-conflict-list" aria-label="交换文件导入冲突摘要">
+          {#each exchangeImportResult.applyResult.conflicts.slice(0, 3) as conflict}
+            <li>{conflict.bookTitle}：{conflict.detail}</li>
+          {/each}
+        </ul>
+      {/if}
     </div>
   {/if}
 
@@ -127,6 +195,9 @@
         · push {remoteSyncResult.pushedCount} / pull {remoteSyncResult.pulledCount} / skip
         {remoteSyncResult.skippedCount}
       </small>
+      {#if remoteStatusSummary}
+        <small>{remoteStatusSummary}</small>
+      {/if}
     </div>
   {/if}
 </section>
@@ -188,10 +259,24 @@
     gap: 10px;
   }
 
+  .sync-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .sync-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .sync-conflict-list {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
   }
 
   .primary-action,
