@@ -97,6 +97,22 @@
   let readerKoReaderExchangeImportResult: RestoreKoReaderSyncExchangeDialogResult | null = null;
   let readerKoReaderRemoteSyncResult: Br1KoReaderRemoteSyncResult | null = null;
   let readerSyncRetryAction: (() => void) | null = null;
+  let currentBookSyncActivity:
+    | {
+        actionLabel: string;
+        status: 'success' | 'error' | 'cancelled';
+        message: string;
+        recordedAt: number;
+      }
+    | null = null;
+  let librarySyncActivity:
+    | {
+        actionLabel: string;
+        status: 'success' | 'error' | 'cancelled';
+        message: string;
+        recordedAt: number;
+      }
+    | null = null;
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -420,6 +436,27 @@
     readerSyncRetryAction = null;
   };
 
+  const recordSyncActivity = (
+    scope: 'current-book' | 'library',
+    actionLabel: string,
+    status: 'success' | 'error' | 'cancelled',
+    message: string
+  ) => {
+    const activity = {
+      actionLabel,
+      status,
+      message,
+      recordedAt: Date.now()
+    };
+
+    if (scope === 'current-book') {
+      currentBookSyncActivity = activity;
+      return;
+    }
+
+    librarySyncActivity = activity;
+  };
+
   const exportCurrentBookKoReaderExchange = async () => {
     if (!currentManagedBook) {
       setReaderSyncNotice('error', '只有从 br1 受管书库打开的图书，才可以直接导出当前图书的 KOReader 交换文件。');
@@ -440,10 +477,17 @@
       const result = await saveKoReaderSyncExchangeDialog(document);
       readerKoReaderExchangeExportResult = result;
       if (result.cancelled) {
+        recordSyncActivity('current-book', '导出当前图书交换文件', 'cancelled', '已取消当前图书 KOReader 交换文件导出。');
         setReaderSyncNotice('info', '已取消当前图书 KOReader 交换文件导出。');
         return;
       }
 
+      recordSyncActivity(
+        'current-book',
+        '导出当前图书交换文件',
+        'success',
+        `已导出当前图书 KOReader 交换文件${result.fileName ? `：${result.fileName}` : ''}。`
+      );
       setReaderSyncNotice(
         'info',
         `已导出当前图书 KOReader 交换文件${result.fileName ? `：${result.fileName}` : ''}。`
@@ -451,6 +495,12 @@
     } catch (error) {
       console.error('Failed to export current-book KOReader exchange', error);
       readerSyncRetryAction = exportCurrentBookKoReaderExchange;
+      recordSyncActivity(
+        'current-book',
+        '导出当前图书交换文件',
+        'error',
+        '导出当前图书 KOReader 交换文件失败，请确认桌面权限和当前图书状态后重试。'
+      );
       setReaderSyncNotice('error', '导出当前图书 KOReader 交换文件失败，请确认桌面权限和当前图书状态后重试。');
     } finally {
       readerSyncBusyAction = null;
@@ -465,10 +515,17 @@
       const imported = await restoreKoReaderSyncExchangeDialog();
       readerKoReaderExchangeImportResult = imported;
       if (imported.cancelled) {
+        recordSyncActivity('library', '导入交换文件', 'cancelled', '已取消 KOReader 交换文件导入。');
         setReaderSyncNotice('info', '已取消 KOReader 交换文件导入。');
         return;
       }
       if (!imported.applyResult) {
+        recordSyncActivity(
+          'library',
+          '导入交换文件',
+          'error',
+          `KOReader 交换文件恢复未返回应用结果${imported.fileName ? `：${imported.fileName}` : ''}。`
+        );
         setReaderSyncNotice(
           'error',
           `KOReader 交换文件恢复未返回应用结果${imported.fileName ? `：${imported.fileName}` : ''}。`
@@ -476,10 +533,17 @@
         return;
       }
       if (imported.applyResult.appliedBookCount <= 0) {
+        recordSyncActivity('library', '导入交换文件', 'error', 'KOReader 导入没有应用任何图书。');
         setReaderSyncNotice('error', 'KOReader 导入没有应用任何图书。');
         return;
       }
       await refreshCurrentManagedBookState();
+      recordSyncActivity(
+        'library',
+        '导入交换文件',
+        'success',
+        `已导入 KOReader 交换文件${imported.fileName ? `：${imported.fileName}` : ''}，应用 ${imported.applyResult.appliedBookCount} 本，跳过 ${imported.applyResult.skippedBookCount} 本。`
+      );
       setReaderSyncNotice(
         'info',
         `已导入 KOReader 交换文件${imported.fileName ? `：${imported.fileName}` : ''}，应用 ${imported.applyResult.appliedBookCount} 本，跳过 ${imported.applyResult.skippedBookCount} 本。`
@@ -488,6 +552,7 @@
       console.error('Failed to import KOReader exchange from reader workspace', error);
       const detail = error instanceof Error ? error.message : '请检查交换文件是否完整有效。';
       readerSyncRetryAction = importKoReaderExchangeFromReader;
+      recordSyncActivity('library', '导入交换文件', 'error', `导入 KOReader 交换文件失败：${detail}`);
       setReaderSyncNotice('error', `导入 KOReader 交换文件失败：${detail}`);
     } finally {
       readerSyncBusyAction = null;
@@ -501,6 +566,12 @@
     try {
       const result = await runKoReaderRemoteSync({ operation: 'push' });
       readerKoReaderRemoteSyncResult = result;
+      recordSyncActivity(
+        'library',
+        '推送远端阅读进度',
+        result.status === 'success' || result.status === 'empty' ? 'success' : 'error',
+        result.message
+      );
       setReaderSyncNotice(
         result.status === 'success' || result.status === 'empty' ? 'info' : 'error',
         result.status === 'success' || result.status === 'empty'
@@ -510,6 +581,7 @@
     } catch (error) {
       console.error('Failed to push KOReader remote progress from reader workspace', error);
       readerSyncRetryAction = pushKoReaderRemoteSyncFromReader;
+      recordSyncActivity('library', '推送远端阅读进度', 'error', '推送 KOReader 阅读进度失败，请稍后重试。');
       setReaderSyncNotice('error', '推送 KOReader 阅读进度失败，请稍后重试。');
     } finally {
       readerSyncBusyAction = null;
@@ -526,6 +598,12 @@
       if (result.status === 'success' || result.status === 'empty') {
         await refreshCurrentManagedBookState();
       }
+      recordSyncActivity(
+        'library',
+        '拉取远端阅读进度',
+        result.status === 'success' || result.status === 'empty' ? 'success' : 'error',
+        result.message
+      );
       setReaderSyncNotice(
         result.status === 'success' || result.status === 'empty' ? 'info' : 'error',
         result.status === 'success'
@@ -535,6 +613,7 @@
     } catch (error) {
       console.error('Failed to pull KOReader remote progress from reader workspace', error);
       readerSyncRetryAction = pullKoReaderRemoteSyncFromReader;
+      recordSyncActivity('library', '拉取远端阅读进度', 'error', '拉取 KOReader 阅读进度失败，请稍后重试。');
       setReaderSyncNotice('error', '拉取 KOReader 阅读进度失败，请稍后重试。');
     } finally {
       readerSyncBusyAction = null;
@@ -1073,6 +1152,8 @@
         syncExchangeImportResult={readerKoReaderExchangeImportResult}
         syncRemoteResult={readerKoReaderRemoteSyncResult}
         syncNotice={readerSyncNotice}
+        {currentBookSyncActivity}
+        {librarySyncActivity}
         callbacks={{
           onAddHighlight: sidebarCallbacks.onAddHighlight,
           onAddNote: sidebarCallbacks.onAddNote,

@@ -61,6 +61,22 @@
   export let syncRemoteResult: Br1KoReaderRemoteSyncResult | null = null;
   export let syncNotice: { kind: 'info' | 'error'; message: string } | null = null;
   export let onRetrySyncAction: (() => void) | null = null;
+  export let currentBookSyncActivity:
+    | {
+        actionLabel: string;
+        status: 'success' | 'error' | 'cancelled';
+        message: string;
+        recordedAt: number;
+      }
+    | null = null;
+  export let librarySyncActivity:
+    | {
+        actionLabel: string;
+        status: 'success' | 'error' | 'cancelled';
+        message: string;
+        recordedAt: number;
+      }
+    | null = null;
   export let callbacks: ReaderNotebookCallbacks = {
     onAddHighlight: null,
     onAddNote: null,
@@ -313,6 +329,8 @@
           notice={syncNotice}
           noteCount={noteEntries.length}
           {bookmarkCount}
+          currentBookActivity={currentBookSyncActivity}
+          libraryActivity={librarySyncActivity}
           onExportCurrentBookExchange={callbacks.onExportCurrentBookSync}
           onImportExchange={callbacks.onImportKoReaderSync}
           onPushRemoteProgress={callbacks.onPushKoReaderRemoteSync}

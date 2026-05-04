@@ -24,6 +24,22 @@
   export let onPushRemoteProgress: (() => void) | null = null;
   export let onPullRemoteProgress: (() => void) | null = null;
   export let onRetryBusyAction: (() => void) | null = null;
+  export let currentBookActivity:
+    | {
+        actionLabel: string;
+        status: 'success' | 'error' | 'cancelled';
+        message: string;
+        recordedAt: number;
+      }
+    | null = null;
+  export let libraryActivity:
+    | {
+        actionLabel: string;
+        status: 'success' | 'error' | 'cancelled';
+        message: string;
+        recordedAt: number;
+      }
+    | null = null;
 
   $: hasManagedLibraryBook = !!currentBook;
   $: currentKoReaderLocator = currentBook?.koreaderProgressLocation?.trim() || '';
@@ -35,6 +51,8 @@
       : '当前图书还没有可用于同步的定位信息。';
   $: exchangeConflictSummary = summarizeExchangeConflicts(exchangeImportResult?.applyResult?.conflicts ?? []);
   $: remoteStatusSummary = summarizeRemoteStatus(remoteSyncResult);
+  $: currentBookActivityTime = formatActivityTime(currentBookActivity?.recordedAt ?? null);
+  $: libraryActivityTime = formatActivityTime(libraryActivity?.recordedAt ?? null);
 
   const summarizeExchangeConflicts = (conflicts: KoReaderSyncConflict[]) => {
     if (conflicts.length === 0) return '';
@@ -70,6 +88,22 @@
     }
     return '当前仍然遵守 progress-only 边界，不会通过官方 KOSync 同步批注。';
   };
+
+  const formatActivityTime = (value: number | null) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+    return new Date(value).toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const describeActivityStatus = (status: 'success' | 'error' | 'cancelled') => {
+    if (status === 'success') return '成功';
+    if (status === 'cancelled') return '已取消';
+    return '失败';
+  };
 </script>
 
 <section class="sync-workspace" aria-label="同步工作台">
@@ -98,12 +132,32 @@
           在桌面应用里打开受管书库图书后，这里会显示当前图书的同步就绪状态。
         {/if}
       </small>
+      {#if currentBookActivity}
+        <div class="sync-activity-card">
+          <span>最近动作 · {currentBookActivity.actionLabel}</span>
+          <small>
+            {describeActivityStatus(currentBookActivity.status)}
+            {currentBookActivityTime ? ` · ${currentBookActivityTime}` : ''}
+          </small>
+          <p>{currentBookActivity.message}</p>
+        </div>
+      {/if}
     </article>
 
     <article class="sync-panel">
       <strong>整库远端动作</strong>
       <span>KOReader 远端 push / pull 仍然按整库阅读进度运行。</span>
       <p>当前工作台只把控制入口移到 reader，不改变现有 progress-only 边界，也不新增批注远端协议。</p>
+      {#if libraryActivity}
+        <div class="sync-activity-card">
+          <span>最近动作 · {libraryActivity.actionLabel}</span>
+          <small>
+            {describeActivityStatus(libraryActivity.status)}
+            {libraryActivityTime ? ` · ${libraryActivityTime}` : ''}
+          </small>
+          <p>{libraryActivity.message}</p>
+        </div>
+      {/if}
     </article>
   </div>
 
@@ -210,6 +264,7 @@
 
   .sync-summary,
   .sync-panel,
+  .sync-activity-card,
   .sync-result-card,
   .sync-notice {
     display: grid;
@@ -230,6 +285,9 @@
   .sync-panel span,
   .sync-panel p,
   .sync-panel small,
+  .sync-activity-card span,
+  .sync-activity-card p,
+  .sync-activity-card small,
   .sync-result-card span,
   .sync-result-card small,
   .sync-notice span {
@@ -257,6 +315,12 @@
   .sync-panels {
     display: grid;
     gap: 10px;
+  }
+
+  .sync-activity-card {
+    padding: 10px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
   }
 
   .sync-inline-actions {

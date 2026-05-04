@@ -377,8 +377,8 @@ test('reader can open sync workspace inside the notebook shell', async ({ page }
 
   await page.goto(readerHref);
 
-  await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '打开同步工作台' })).toBeVisible();
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: '打开同步工作台' })).toBeVisible({ timeout: 15000 });
 
   await page.getByRole('button', { name: '打开同步工作台' }).click();
 
@@ -389,6 +389,8 @@ test('reader can open sync workspace inside the notebook shell', async ({ page }
     notebook.getByText('把 KOReader 交换文件和远端进度控制从 library 菜单抬到 reader notebook，让同步成为显式阅读工作流。')
   ).toBeVisible();
   await expect(page.getByLabel('同步工作台状态')).toContainText('当前环境不支持桌面同步');
+  await expect(notebook.getByText('当前图书已有 KOReader-compatible locator。')).toHaveCount(0);
+  await expect(notebook.getByText('最近动作 ·')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '导出当前图书 KOReader 交换文件' })).toBeDisabled();
   await expect(page.getByRole('button', { name: '推送 KOReader 阅读进度' })).toBeDisabled();
 });
