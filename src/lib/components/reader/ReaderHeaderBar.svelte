@@ -128,53 +128,61 @@
     </div>
 
     <div class="controls" aria-label="阅读控制">
-      <button type="button" aria-label="回到书库" title="回到书库" on:click={() => onGoToLibrary?.()}>⌂</button>
-      <button
-        type="button"
-        class:active={isCurrentLocationBookmarked}
-        aria-label={isCurrentLocationBookmarked ? '移除当前位置书签' : '添加当前位置书签'}
-        title={isCurrentLocationBookmarked ? '移除书签' : '添加书签'}
-        on:click={() => onToggleBookmark?.()}
-      >
-        {isCurrentLocationBookmarked ? '★' : '☆'}
-      </button>
-      <button
-        type="button"
-        class:active={activeSidebarTab === 'bookmarks' && sidebarVisible}
-        aria-label="显示书签面板"
-        title="显示书签面板"
-        on:click={() => onOpenSidebarTab?.('bookmarks')}
-      >
-        🔖
-      </button>
-      <button
-        type="button"
-        class:active={activeSidebarTab === 'search' && sidebarVisible}
-        aria-label="显示搜索面板"
-        title="显示搜索面板"
-        on:click={() => onOpenSidebarTab?.('search')}
-      >
-        ⌕
-      </button>
-      <button
-        type="button"
-        class:active={activeSidebarTab === 'notes' && sidebarVisible}
-        aria-label="显示笔记面板"
-        title="显示笔记面板"
-        on:click={() => onOpenSidebarTab?.('notes')}
-      >
-        ✎
-      </button>
-      <button
-        type="button"
-        class:active={activeSidebarTab === 'assist' && sidebarVisible}
-        aria-label="显示百科面板"
-        title="显示百科面板"
-        on:click={() => onOpenSidebarTab?.('assist')}
-      >
-        W
-      </button>
-      <div class="tts-group" aria-label="朗读控制">
+      <div class="control-group primary-actions" aria-label="主要操作">
+        <button type="button" aria-label="回到书库" title="回到书库" on:click={() => onGoToLibrary?.()}>⌂</button>
+        <button
+          type="button"
+          class:active={isCurrentLocationBookmarked}
+          aria-label={isCurrentLocationBookmarked ? '移除当前位置书签' : '添加当前位置书签'}
+          title={isCurrentLocationBookmarked ? '移除书签' : '添加书签'}
+          on:click={() => onToggleBookmark?.()}
+        >
+          {isCurrentLocationBookmarked ? '★' : '☆'}
+        </button>
+      </div>
+      <div class="control-group sidebar-shortcuts" aria-label="侧栏入口">
+        <span class="control-group-label">侧栏</span>
+        <div class="control-group-buttons">
+          <button
+            type="button"
+            class:active={activeSidebarTab === 'bookmarks' && sidebarVisible}
+            aria-label="显示书签面板"
+            title="显示书签面板"
+            on:click={() => onOpenSidebarTab?.('bookmarks')}
+          >
+            🔖
+          </button>
+          <button
+            type="button"
+            class:active={activeSidebarTab === 'search' && sidebarVisible}
+            aria-label="显示搜索面板"
+            title="显示搜索面板"
+            on:click={() => onOpenSidebarTab?.('search')}
+          >
+            ⌕
+          </button>
+          <button
+            type="button"
+            class:active={activeSidebarTab === 'notes' && sidebarVisible}
+            aria-label="显示笔记面板"
+            title="显示笔记面板"
+            on:click={() => onOpenSidebarTab?.('notes')}
+          >
+            ✎
+          </button>
+          <button
+            type="button"
+            class:active={activeSidebarTab === 'assist' && sidebarVisible}
+            aria-label="显示百科面板"
+            title="显示百科面板"
+            on:click={() => onOpenSidebarTab?.('assist')}
+          >
+            W
+          </button>
+        </div>
+      </div>
+      <div class="tts-group control-group" aria-label="朗读控制">
+        <span class="control-group-label">朗读</span>
         <button
           type="button"
           class:active={ttsSession.status === 'speaking'}
@@ -711,13 +719,42 @@
 
   .controls {
     display: flex;
-    gap: 4px;
-    flex-wrap: nowrap;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
     -webkit-app-region: no-drag;
   }
 
   .window-mode .controls {
     justify-content: flex-end;
+  }
+
+  .control-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .control-group-label {
+    color: var(--reader-shell-muted, var(--text-muted));
+    font: 700 10px/1 var(--font-chrome);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .control-group-buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sidebar-shortcuts,
+  .tts-group {
+    padding-left: 8px;
+    border-left: 1px solid color-mix(in srgb, var(--reader-shell-border, var(--border-light)) 76%, transparent 24%);
   }
 
   .menu-anchor {
@@ -752,9 +789,6 @@
     display: inline-flex;
     gap: 4px;
     align-items: center;
-    margin-left: 4px;
-    padding-left: 8px;
-    border-left: 1px solid color-mix(in srgb, var(--reader-shell-border, var(--border-light)) 76%, transparent 24%);
   }
 
   .tts-group .tts-status {
@@ -855,6 +889,39 @@
     .reader-head.window-mode {
       transition: none;
       transform: none;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .reader-head-frame,
+    .reader-head-frame.window-mode {
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: stretch;
+      gap: 8px;
+      padding-inline: 12px;
+    }
+
+    .leading-tools {
+      display: none;
+    }
+
+    .head-meta.window-mode {
+      padding-inline: 0;
+      text-align: left;
+      cursor: default;
+    }
+
+    .window-mode .title-row {
+      justify-items: start;
+    }
+
+    .subtitle-row {
+      justify-content: flex-start;
+    }
+
+    .controls,
+    .window-mode .controls {
+      justify-content: flex-start;
     }
   }
 </style>

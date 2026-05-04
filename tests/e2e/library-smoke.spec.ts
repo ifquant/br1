@@ -555,6 +555,7 @@ test('reader persists epub layout settings through reload in web mode', async ({
 
   await page.goto(readerUrl);
   await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await expect(page.getByLabel('阅读页脚控制')).toContainText('分页');
 
   await pickReaderSetting('阅读模式', '滚动');
@@ -567,6 +568,7 @@ test('reader persists epub layout settings through reload in web mode', async ({
   await page.reload();
 
   await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await expect(page.getByLabel('阅读页脚控制')).toContainText('滚动');
   await expect
     .poll(readRendererState, { message: 'expected renderer settings to update before reload' })
