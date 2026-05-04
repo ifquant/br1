@@ -2558,6 +2558,8 @@
               <p class="empty">当前章节还没有高亮，可以切回“全部”查看其他章节标记。</p>
             {:else if allHighlights.length && highlightsFilter === 'selected'}
               <p class="empty">还没有选中的高亮，可以先选中几条再切回“已选高亮”查看。</p>
+            {:else if savedHighlightSelections.length}
+              <p class="empty">当前书还没有高亮，但跨书高亮选择集还保留在上面，可以继续整理或导入匹配结果。</p>
             {:else}
               <p class="empty">还没有高亮，先选中一段正文再用“先高亮当前选中内容”。</p>
             {/if}

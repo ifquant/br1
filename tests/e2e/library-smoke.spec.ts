@@ -1096,7 +1096,9 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: '删除本组高亮' }).click();
   await expect(highlightCards).toHaveCount(0);
-  await expect(page.getByLabel('高亮面板')).toContainText('还没有高亮');
+  await expect(page.getByLabel('高亮面板')).toContainText(
+    '当前书还没有高亮，但跨书高亮选择集还保留在上面，可以继续整理或导入匹配结果。'
+  );
 
   await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
   await expect(page.locator('.notes-meta-row')).toContainText('0 高亮');
