@@ -736,7 +736,7 @@ test('reader shows explicit text-annotation limits for txt and cbz assets in web
     await page.goto(
       `/reader?source=asset&url=${encodeURIComponent(sample.assetPath)}&label=${encodeURIComponent(sample.label)}`
     );
-    await page.getByRole('tab', { name: '笔记' }).click();
+    await page.getByLabel('阅读侧栏标签').getByRole('tab', { name: '笔记' }).click();
     await expect(page.getByRole('region', { name: '笔记面板' })).toContainText(sample.message);
     await expect(page.getByRole('button', { name: '当前格式暂不支持批注' })).toBeDisabled();
   }
@@ -763,7 +763,11 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   };
 
   await page.goto(readerUrl);
-  await page.getByRole('tab', { name: '笔记' }).click();
+  const sidebarTabs = page.getByLabel('阅读侧栏标签');
+  await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
+  const notesPanel = page.getByRole('region', { name: '笔记面板' });
+  await expect(notesPanel).toContainText('标注');
+  await expect(notesPanel).toContainText('先在正文里选中一段文本，再把它存成当前书的笔记或高亮。');
   const noteButton = page.locator('.primary-note-action');
   const highlightButton = page.locator('.secondary-note-action').first();
   await expect(noteButton).toBeDisabled();
@@ -771,7 +775,8 @@ test('reader supports txt notes through selection, persistence, and note reopen 
 
   await selectText('plain text file exists');
 
-  await expect(page.locator('.selection-card p')).toContainText('plain text file exists');
+  await expect(notesPanel.locator('.selection-card p')).toContainText('plain text file exists');
+  await expect(notesPanel).toContainText('已选中一段正文，可以直接记笔记或高亮。');
   await expect(noteButton).toBeEnabled();
   await expect(highlightButton).toBeEnabled();
   await expect(noteButton).toHaveText('为当前选中内容记笔记');
@@ -790,7 +795,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     element.dispatchEvent(new Event('scroll', { bubbles: true }));
   });
   await selectText('The rest of this fixture just adds enough steady reading length');
-  await expect(page.locator('.selection-card p')).toContainText(
+  await expect(notesPanel.locator('.selection-card p')).toContainText(
     'The rest of this fixture just adds enough steady reading length'
   );
 
@@ -799,7 +804,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(page.locator('.notes-meta-row')).toContainText('0 笔记');
 
   await selectText('the book opens, the state moves, and the state comes back');
-  await expect(page.locator('.selection-card p')).toContainText(
+  await expect(notesPanel.locator('.selection-card p')).toContainText(
     'the book opens, the state moves, and the state comes back'
   );
 
@@ -857,7 +862,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(notesMetaRow).toContainText('0 笔记');
   await expect(notesCards).toHaveCount(2);
 
-  await page.getByRole('tab', { name: '高亮' }).click();
+  await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
   const highlightCards = page.locator('.highlight-card');
   const highlightsPanel = page.getByLabel('高亮面板');
   await expect(highlightsPanel).toContainText('已保存 2 条高亮');
@@ -912,7 +917,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await savedSelectionSortControls.getByRole('button', { name: '最早保存' }).click();
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('Web TXT 重命名高亮');
   await page.reload();
-  await page.getByRole('tab', { name: '高亮' }).click();
+  await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
   await expect(highlightsPanel).toContainText('1 已选高亮');
   await expect(highlightsPanel).toContainText('最早添加优先');
   await expect(highlightCards).toHaveCount(1);
@@ -1035,7 +1040,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     'missing imported passage for unresolved drilldown'
   );
   await page.reload();
-  await page.getByRole('tab', { name: '高亮' }).click();
+  await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
   await expect(savedSelectionPanel).toContainText('刷新筛选按书保留');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('部分匹配');
@@ -1069,12 +1074,12 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(highlightCards).toHaveCount(0);
   await expect(page.getByLabel('高亮面板')).toContainText('还没有高亮');
 
-  await page.getByRole('tab', { name: '笔记' }).click();
+  await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
   await expect(page.locator('.notes-meta-row')).toContainText('0 高亮');
   await expect(page.locator('.notes-meta-row')).toContainText('0 笔记');
   await expect(page.locator('.note-card')).toHaveCount(0);
   await page.reload();
-  await page.getByRole('tab', { name: '笔记' }).click();
+  await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
   await expect(page.locator('.notes-meta-row')).toContainText('0 笔记');
   await expect(page.locator('.note-card', { hasText: 'txt note body' })).toHaveCount(0);
   await expect(page.locator('.note-card', { hasText: '高亮' })).toHaveCount(0);

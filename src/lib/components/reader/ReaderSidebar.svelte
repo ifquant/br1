@@ -155,6 +155,12 @@
   let highlightsWorkspaceLoadToken = 0;
   $: supportsTextAnnotations = supportsTextAnnotationsForFormat(preview.formatLabel);
   $: textAnnotationSupportMessage = getTextAnnotationSupportMessage(preview.formatLabel);
+  $: notesPanelSummary = (() => {
+    if (!supportsTextAnnotations) return textAnnotationSupportMessage;
+    if (notesState.selection) return '已选中一段正文，可以直接记笔记或高亮。';
+    if (notesState.notes.length) return '这里会一起显示当前书的笔记和高亮，可按章节或类型收窄。';
+    return '先在正文里选中一段文本，再把它存成当前书的笔记或高亮。';
+  })();
   $: highlightsWorkspaceStorageKey = bookKey ? `br1.reader.highlights.workspace:${bookKey}` : '';
 
   const applyDefaultHighlightsWorkspaceState = () => {
@@ -2549,16 +2555,8 @@
       {:else}
         <section class="sidebar-panel" aria-label="笔记面板">
         <div class="notes-summary">
-          <strong>最近笔记</strong>
-          <span>
-            {#if !supportsTextAnnotations}
-              {textAnnotationSupportMessage}
-            {:else if notesState.selection}
-              已选中一段正文，可以直接记一条笔记。
-            {:else}
-              {textAnnotationSupportMessage}
-            {/if}
-          </span>
+          <strong>标注</strong>
+          <span>{notesPanelSummary}</span>
         </div>
 
         <div class="notes-meta-row">
@@ -2728,7 +2726,7 @@
         <div class="note-list">
           {#if groupedNotes.length}
             {#each groupedNotes as group}
-              <section class="note-group" aria-label={`${group.chapterLabel} 的笔记`}>
+              <section class="note-group" aria-label={`${group.chapterLabel} 的标注`}>
                 <button
                   type="button"
                   class="note-group-head"
@@ -2785,9 +2783,11 @@
               当前筛选下还没有{notesKindFilter === 'highlight' ? '高亮' : '笔记'}，可以切回“全部类型”查看其他标注。
             </p>
           {:else if notesState.notes.length && notesFilter === 'chapter'}
-            <p class="empty">当前章节还没有笔记，可以切回“全部”查看其他章节内容。</p>
+            <p class="empty">
+              当前章节还没有{notesKindFilter === 'highlight' ? '高亮' : notesKindFilter === 'note' ? '笔记' : '标注'}，可以切回“全部”查看其他章节内容。
+            </p>
           {:else}
-            <p class="empty">打开书并选中一段正文后，这里会出现最近的笔记卡片。</p>
+            <p class="empty">打开书并选中一段正文后，这里会出现当前书的笔记和高亮。</p>
           {/if}
         </div>
         </section>
