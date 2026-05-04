@@ -44,11 +44,24 @@
   $: hasManagedLibraryBook = !!currentBook;
   $: currentKoReaderLocator = currentBook?.koreaderProgressLocation?.trim() || '';
   $: currentRestoreLocator = currentBook?.progressLocation?.trim() || '';
+  $: hasLibraryReplica = currentBook?.libraryFileExists !== false;
+  $: hasSourceFileAssociation = !!currentBook?.sourcePath?.trim();
+  $: hasSourceFile = currentBook?.sourceFileExists === true;
+  $: exportReady = desktopAvailable && hasManagedLibraryBook && hasLibraryReplica;
   $: currentLocatorSummary = currentKoReaderLocator
     ? '当前图书已有 KOReader-compatible locator。'
     : currentRestoreLocator
       ? '当前图书只有本地恢复定位，还没有 KOReader locator。'
       : '当前图书还没有可用于同步的定位信息。';
+  $: exportReadinessSummary = exportReady
+    ? '当前图书已经满足 reader 内当前书交换文件导出的基本条件。'
+    : !desktopAvailable
+      ? '当前环境不是桌面端，所以这里只能展示同步状态，不能执行导出。'
+      : !hasManagedLibraryBook
+        ? '当前图书不在 br1 受管书库里，所以不能直接导出当前书交换文件。'
+        : !hasLibraryReplica
+          ? '当前图书的受管书库副本缺失，当前书导出已被阻断。'
+          : '当前图书还没有达到当前书导出条件。';
   $: exchangeConflictSummary = summarizeExchangeConflicts(exchangeImportResult?.applyResult?.conflicts ?? []);
   $: remoteStatusSummary = summarizeRemoteStatus(remoteSyncResult);
   $: currentBookActivityTime = formatActivityTime(currentBookActivity?.recordedAt ?? null);
@@ -104,6 +117,12 @@
     if (status === 'cancelled') return '已取消';
     return '失败';
   };
+
+  const describeReadinessStatus = (status: 'ready' | 'partial' | 'blocked') => {
+    if (status === 'ready') return '已就绪';
+    if (status === 'partial') return '部分就绪';
+    return '阻断';
+  };
 </script>
 
 <section class="sync-workspace" aria-label="同步工作台">
@@ -132,6 +151,40 @@
           在桌面应用里打开受管书库图书后，这里会显示当前图书的同步就绪状态。
         {/if}
       </small>
+      <div class="sync-readiness-card" aria-label="当前图书同步就绪状态">
+        <strong>同步就绪状态</strong>
+        <span>{exportReadinessSummary}</span>
+        <div class="sync-readiness-list">
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(hasManagedLibraryBook ? 'ready' : 'blocked')}</small>
+            <span>{hasManagedLibraryBook ? '受管书库记录已识别' : '当前图书不在受管书库中'}</span>
+          </div>
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(hasLibraryReplica ? 'ready' : 'blocked')}</small>
+            <span>{hasLibraryReplica ? '受管书库副本可用' : '受管书库副本缺失'}</span>
+          </div>
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(currentKoReaderLocator ? 'ready' : currentRestoreLocator ? 'partial' : 'blocked')}</small>
+            <span>
+              {currentKoReaderLocator
+                ? '已有 KOReader locator'
+                : currentRestoreLocator
+                  ? '只有本地恢复 locator'
+                  : '还没有定位信息'}
+            </span>
+          </div>
+          <div class="sync-readiness-item">
+            <small>{describeReadinessStatus(!hasSourceFileAssociation ? 'partial' : hasSourceFile ? 'ready' : 'blocked')}</small>
+            <span>
+              {!hasSourceFileAssociation
+                ? '没有原始来源文件关联'
+                : hasSourceFile
+                  ? '原始来源文件仍可访问'
+                  : '原始来源文件已缺失'}
+            </span>
+          </div>
+        </div>
+      </div>
       {#if currentBookActivity}
         <div class="sync-activity-card">
           <span>最近动作 · {currentBookActivity.actionLabel}</span>
@@ -264,6 +317,7 @@
 
   .sync-summary,
   .sync-panel,
+  .sync-readiness-card,
   .sync-activity-card,
   .sync-result-card,
   .sync-notice {
@@ -273,6 +327,7 @@
 
   .sync-summary strong,
   .sync-panel strong,
+  .sync-readiness-card strong,
   .sync-result-card strong,
   .sync-notice strong {
     color: var(--text-primary);
@@ -285,6 +340,8 @@
   .sync-panel span,
   .sync-panel p,
   .sync-panel small,
+  .sync-readiness-card span,
+  .sync-readiness-card small,
   .sync-activity-card span,
   .sync-activity-card p,
   .sync-activity-card small,
@@ -315,6 +372,29 @@
   .sync-panels {
     display: grid;
     gap: 10px;
+  }
+
+  .sync-readiness-card {
+    padding: 10px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+  }
+
+  .sync-readiness-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .sync-readiness-item {
+    display: grid;
+    gap: 2px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-light);
+  }
+
+  .sync-readiness-item:first-child {
+    padding-top: 0;
+    border-top: 0;
   }
 
   .sync-activity-card {
