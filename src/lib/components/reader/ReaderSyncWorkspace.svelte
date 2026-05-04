@@ -8,6 +8,14 @@
   import type { PersistedLibraryBook } from '$lib/services';
   import type { ReaderPreviewState } from '$lib/reader';
 
+  type SyncTimelineEntry = {
+    label: string;
+    status: 'success' | 'error' | 'cancelled' | 'info';
+    summary: string;
+    recordedAt: number | null;
+    details: string[];
+  };
+
   export let preview: ReaderPreviewState;
   export let currentBook: PersistedLibraryBook | null = null;
   export let desktopAvailable = false;
@@ -64,8 +72,6 @@
           : '当前图书还没有达到当前书导出条件。';
   $: exchangeConflictSummary = summarizeExchangeConflicts(exchangeImportResult?.applyResult?.conflicts ?? []);
   $: remoteStatusSummary = summarizeRemoteStatus(remoteSyncResult);
-  $: currentBookActivityTime = formatActivityTime(currentBookActivity?.recordedAt ?? null);
-  $: libraryActivityTime = formatActivityTime(libraryActivity?.recordedAt ?? null);
   $: remoteStatus = remoteSyncResult?.status ?? null;
   $: hasKnownRemoteState = remoteStatus !== null;
   $: libraryReadinessSummary = !desktopAvailable
@@ -81,6 +87,8 @@
             : remoteStatus === 'retryable-failure'
               ? '交换文件导入可用，但 KOReader 远端上一次返回了可重试失败。'
               : '交换文件导入和 KOReader 远端进度同步都处于可执行状态。';
+  $: currentBookTimeline = buildCurrentBookTimeline();
+  $: libraryTimeline = buildLibraryTimeline();
 
   const summarizeExchangeConflicts = (conflicts: KoReaderSyncConflict[]) => {
     if (conflicts.length === 0) return '';
@@ -133,6 +141,13 @@
     return '失败';
   };
 
+  const describeTimelineStatus = (status: SyncTimelineEntry['status']) => {
+    if (status === 'success') return '成功';
+    if (status === 'cancelled') return '已取消';
+    if (status === 'error') return '失败';
+    return '信息';
+  };
+
   const describeReadinessStatus = (status: 'ready' | 'partial' | 'blocked') => {
     if (status === 'ready') return '已就绪';
     if (status === 'partial') return '部分就绪';
@@ -149,6 +164,112 @@
     if (status === null) return 'partial';
     if (status === 'offline' || status === 'retryable-failure') return 'blocked';
     return 'ready';
+  };
+
+  const buildCurrentBookTimeline = (): SyncTimelineEntry[] => {
+    if (currentBookActivity) {
+      const details: string[] = [];
+      if (exchangeExportResult && !exchangeExportResult.cancelled) {
+        details.push(
+          `导出文件：${exchangeExportResult.fileName ?? '未返回文件名'}`,
+          `导出图书：${exchangeExportResult.bookCount} 本`
+        );
+      }
+
+      return [
+        {
+          label: currentBookActivity.actionLabel,
+          status: currentBookActivity.status,
+          summary: currentBookActivity.message,
+          recordedAt: currentBookActivity.recordedAt,
+          details
+        }
+      ];
+    }
+
+    if (exchangeExportResult && !exchangeExportResult.cancelled) {
+      return [
+        {
+          label: '最近导出结果',
+          status: 'success',
+          summary: `已导出 ${exchangeExportResult.bookCount} 本。`,
+          recordedAt: null,
+          details: exchangeExportResult.fileName ? [`导出文件：${exchangeExportResult.fileName}`] : []
+        }
+      ];
+    }
+
+    return [];
+  };
+
+  const buildLibraryTimeline = (): SyncTimelineEntry[] => {
+    const entries: SyncTimelineEntry[] = [];
+
+    if (libraryActivity) {
+      const details: string[] = [];
+      if (exchangeImportResult?.applyResult && libraryActivity.actionLabel === '导入交换文件') {
+        details.push(
+          `应用 ${exchangeImportResult.applyResult.appliedBookCount} 本`,
+          `跳过 ${exchangeImportResult.applyResult.skippedBookCount} 本`
+        );
+        if (exchangeConflictSummary) {
+          details.push(`冲突摘要：${exchangeConflictSummary}`);
+        }
+      }
+      if (remoteSyncResult && libraryActivity.actionLabel !== '导入交换文件') {
+        details.push(
+          `${remoteSyncResult.operation === 'push' ? '推送' : '拉取'} · 状态 ${remoteSyncResult.status}`,
+          `push ${remoteSyncResult.pushedCount} / pull ${remoteSyncResult.pulledCount} / skip ${remoteSyncResult.skippedCount}`
+        );
+        if (remoteStatusSummary) {
+          details.push(remoteStatusSummary);
+        }
+      }
+
+      entries.push({
+        label: libraryActivity.actionLabel,
+        status: libraryActivity.status,
+        summary: libraryActivity.message,
+        recordedAt: libraryActivity.recordedAt,
+        details
+      });
+    }
+
+    if (!libraryActivity && exchangeImportResult?.applyResult) {
+      const details = [
+        `应用 ${exchangeImportResult.applyResult.appliedBookCount} 本`,
+        `跳过 ${exchangeImportResult.applyResult.skippedBookCount} 本`
+      ];
+      if (exchangeConflictSummary) {
+        details.push(`冲突摘要：${exchangeConflictSummary}`);
+      }
+      entries.push({
+        label: '最近交换文件导入',
+        status: 'info',
+        summary: '当前 reader 会保留最近一次交换文件导入结果。',
+        recordedAt: null,
+        details
+      });
+    }
+
+    if (!libraryActivity && remoteSyncResult) {
+      const details = [
+        `${remoteSyncResult.operation === 'push' ? '推送' : '拉取'} · 状态 ${remoteSyncResult.status}`,
+        `push ${remoteSyncResult.pushedCount} / pull ${remoteSyncResult.pulledCount} / skip ${remoteSyncResult.skippedCount}`
+      ];
+      if (remoteStatusSummary) {
+        details.push(remoteStatusSummary);
+      }
+      entries.push({
+        label: '最近远端同步',
+        status: remoteSyncResult.status === 'success' || remoteSyncResult.status === 'empty' ? 'success' : 'error',
+        summary: remoteSyncResult.message,
+        recordedAt: null,
+        details
+      });
+    }
+
+    return entries;
   };
 </script>
 
@@ -212,14 +333,26 @@
           </div>
         </div>
       </div>
-      {#if currentBookActivity}
-        <div class="sync-activity-card">
-          <span>最近动作 · {currentBookActivity.actionLabel}</span>
-          <small>
-            {describeActivityStatus(currentBookActivity.status)}
-            {currentBookActivityTime ? ` · ${currentBookActivityTime}` : ''}
-          </small>
-          <p>{currentBookActivity.message}</p>
+      {#if currentBookTimeline.length > 0}
+        <div class="sync-timeline-card" aria-label="当前图书同步状态时间线">
+          <strong>状态时间线</strong>
+          {#each currentBookTimeline as entry}
+            <div class="sync-timeline-entry">
+              <span>最近动作 · {entry.label}</span>
+              <small>
+                {describeTimelineStatus(entry.status)}
+                {entry.recordedAt ? ` · ${formatActivityTime(entry.recordedAt)}` : ''}
+              </small>
+              <p>{entry.summary}</p>
+              {#if entry.details.length > 0}
+                <ul class="sync-timeline-detail-list">
+                  {#each entry.details as detail}
+                    <li>{detail}</li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+          {/each}
         </div>
       {/if}
     </article>
@@ -270,14 +403,26 @@
           </div>
         </div>
       </div>
-      {#if libraryActivity}
-        <div class="sync-activity-card">
-          <span>最近动作 · {libraryActivity.actionLabel}</span>
-          <small>
-            {describeActivityStatus(libraryActivity.status)}
-            {libraryActivityTime ? ` · ${libraryActivityTime}` : ''}
-          </small>
-          <p>{libraryActivity.message}</p>
+      {#if libraryTimeline.length > 0}
+        <div class="sync-timeline-card" aria-label="整库同步状态时间线">
+          <strong>状态时间线</strong>
+          {#each libraryTimeline as entry}
+            <div class="sync-timeline-entry">
+              <span>最近动作 · {entry.label}</span>
+              <small>
+                {describeTimelineStatus(entry.status)}
+                {entry.recordedAt ? ` · ${formatActivityTime(entry.recordedAt)}` : ''}
+              </small>
+              <p>{entry.summary}</p>
+              {#if entry.details.length > 0}
+                <ul class="sync-timeline-detail-list">
+                  {#each entry.details as detail}
+                    <li>{detail}</li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+          {/each}
         </div>
       {/if}
     </article>
@@ -332,50 +477,6 @@
     </div>
   {/if}
 
-  {#if exchangeExportResult && !exchangeExportResult.cancelled}
-    <div class="sync-result-card">
-      <strong>最近一次当前图书导出</strong>
-      <span>
-        已导出 {exchangeExportResult.bookCount} 本
-        {exchangeExportResult.fileName ? ` · ${exchangeExportResult.fileName}` : ''}。
-      </span>
-    </div>
-  {/if}
-
-  {#if exchangeImportResult?.applyResult}
-    <div class="sync-result-card">
-      <strong>最近一次交换文件导入</strong>
-      <span>
-        应用 {exchangeImportResult.applyResult.appliedBookCount} 本，跳过
-        {exchangeImportResult.applyResult.skippedBookCount} 本。
-      </span>
-      {#if exchangeConflictSummary}
-        <small>冲突摘要：{exchangeConflictSummary}</small>
-      {/if}
-      {#if exchangeImportResult.applyResult.conflicts.length > 0}
-        <ul class="sync-conflict-list" aria-label="交换文件导入冲突摘要">
-          {#each exchangeImportResult.applyResult.conflicts.slice(0, 3) as conflict}
-            <li>{conflict.bookTitle}：{conflict.detail}</li>
-          {/each}
-        </ul>
-      {/if}
-    </div>
-  {/if}
-
-  {#if remoteSyncResult}
-    <div class="sync-result-card">
-      <strong>最近一次远端同步</strong>
-      <span>{remoteSyncResult.message}</span>
-      <small>
-        {remoteSyncResult.operation === 'push' ? '推送' : '拉取'} · 状态 {remoteSyncResult.status}
-        · push {remoteSyncResult.pushedCount} / pull {remoteSyncResult.pulledCount} / skip
-        {remoteSyncResult.skippedCount}
-      </small>
-      {#if remoteStatusSummary}
-        <small>{remoteStatusSummary}</small>
-      {/if}
-    </div>
-  {/if}
 </section>
 
 <style>
@@ -387,8 +488,8 @@
   .sync-summary,
   .sync-panel,
   .sync-readiness-card,
-  .sync-activity-card,
-  .sync-result-card,
+  .sync-timeline-card,
+  .sync-timeline-entry,
   .sync-notice {
     display: grid;
     gap: 6px;
@@ -397,7 +498,7 @@
   .sync-summary strong,
   .sync-panel strong,
   .sync-readiness-card strong,
-  .sync-result-card strong,
+  .sync-timeline-card strong,
   .sync-notice strong {
     color: var(--text-primary);
     font: 700 14px/1.25 var(--font-chrome);
@@ -411,11 +512,12 @@
   .sync-panel small,
   .sync-readiness-card span,
   .sync-readiness-card small,
-  .sync-activity-card span,
-  .sync-activity-card p,
-  .sync-activity-card small,
-  .sync-result-card span,
-  .sync-result-card small,
+  .sync-timeline-card span,
+  .sync-timeline-card p,
+  .sync-timeline-card small,
+  .sync-timeline-entry span,
+  .sync-timeline-entry p,
+  .sync-timeline-entry small,
   .sync-notice span {
     color: var(--text-secondary);
     font-size: 12px;
@@ -425,7 +527,6 @@
 
   .sync-status-strip,
   .sync-panel,
-  .sync-result-card,
   .sync-notice {
     padding: 12px;
     border: 1px solid var(--border-light);
@@ -466,10 +567,28 @@
     border-top: 0;
   }
 
-  .sync-activity-card {
+  .sync-timeline-card {
     padding: 10px;
     border: 1px solid var(--border-light);
     background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+  }
+
+  .sync-timeline-entry {
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-light);
+  }
+
+  .sync-timeline-entry:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .sync-timeline-detail-list {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
   }
 
   .sync-inline-actions {
@@ -482,14 +601,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-  }
-
-  .sync-conflict-list {
-    margin: 0;
-    padding-left: 18px;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.6;
   }
 
   .primary-action,
