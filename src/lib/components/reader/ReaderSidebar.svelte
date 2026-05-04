@@ -161,6 +161,18 @@
     if (notesState.notes.length) return '这里会一起显示当前书的笔记和高亮，可按章节或类型收窄。';
     return '先在正文里选中一段文本，再把它存成当前书的笔记或高亮。';
   })();
+  $: bookmarksPanelSummary = (() => {
+    if (bookmarksState.bookmarks.length) {
+      if (isCurrentLocationBookmarked) {
+        return `已保存 ${bookmarksState.bookmarks.length} 个阅读位置，当前页已经在书签里。`;
+      }
+      return `已保存 ${bookmarksState.bookmarks.length} 个阅读位置，可把当前页和已存位置来回切换。`;
+    }
+    if (bookmarksState.activeLocator) {
+      return '还没有保存的阅读位置，可以先把当前页存成书签。';
+    }
+    return '等正文定位稳定后，可以把当前页存成书签。';
+  })();
   $: highlightsWorkspaceStorageKey = bookKey ? `br1.reader.highlights.workspace:${bookKey}` : '';
 
   const applyDefaultHighlightsWorkspaceState = () => {
@@ -1820,21 +1832,15 @@
       {:else if activeTab === 'bookmarks'}
         <section class="sidebar-panel" aria-label="书签面板">
         <div class="bookmarks-summary">
-          <strong>书签</strong>
-          <span>
-            {#if bookmarksState.bookmarks.length}
-              已保存 {bookmarksState.bookmarks.length} 个阅读位置，可直接跳回正文。
-            {:else}
-              用顶栏星标把当前位置存成书签。
-            {/if}
-          </span>
+          <strong>阅读位置</strong>
+          <span>{bookmarksPanelSummary}</span>
         </div>
 
         <div class="bookmarks-meta-row">
           <span>{bookmarksState.bookmarks.length} 书签</span>
-          <span>{isCurrentLocationBookmarked ? '当前位置已保存' : '当前位置未保存'}</span>
-          <span>{bookmarksFilter === 'chapter' ? `${sortedBookmarks.length} 当前章节` : '全部章节'}</span>
-          <span>{bookmarksSort === 'recent' ? '最近添加优先' : '按章节排序'}</span>
+          <span>{isCurrentLocationBookmarked ? '当前页已入书签' : '当前页未入书签'}</span>
+          <span>{bookmarksFilter === 'chapter' ? `${sortedBookmarks.length} 当前章节` : '查看全部章节'}</span>
+          <span>{bookmarksSort === 'recent' ? '按最近保存' : '按章节浏览'}</span>
         </div>
 
         <div class="bookmarks-actions">
@@ -1843,7 +1849,7 @@
             class="primary-bookmark-action"
             on:click={() => callbacks.onToggleCurrentBookmark?.()}
           >
-            {isCurrentLocationBookmarked ? '取消当前位置书签' : '保存当前位置为书签'}
+            {isCurrentLocationBookmarked ? '移除当前页书签' : '保存当前页位置'}
           </button>
         </div>
 
@@ -1987,9 +1993,9 @@
               {/each}
             {/if}
           {:else if bookmarksState.bookmarks.length && bookmarksFilter === 'chapter'}
-            <p class="empty">当前章节还没有书签，可以切回“全部”查看其他位置。</p>
+            <p class="empty">当前章节还没有保存的阅读位置，可以切回“全部”查看其他位置。</p>
           {:else}
-            <p class="empty">还没有书签，先在顶栏点一下星标保存当前位置。</p>
+            <p class="empty">还没有保存的阅读位置，先把当前页存成书签。</p>
           {/if}
         </div>
         </section>

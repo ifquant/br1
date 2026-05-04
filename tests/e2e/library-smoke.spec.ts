@@ -742,6 +742,28 @@ test('reader shows explicit text-annotation limits for txt and cbz assets in web
   }
 });
 
+test('reader productizes bookmarks as current reading positions in web mode', async ({ page }) => {
+  const readerUrl =
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
+
+  await page.goto(readerUrl);
+  const sidebarTabs = page.getByLabel('阅读侧栏标签');
+  await sidebarTabs.getByRole('tab', { name: '书签' }).click();
+
+  const bookmarksPanel = page.getByRole('region', { name: '书签面板' });
+  await expect(bookmarksPanel).toContainText('阅读位置');
+  await expect(bookmarksPanel).toContainText('还没有保存的阅读位置，可以先把当前页存成书签。');
+  await expect(bookmarksPanel).toContainText('当前页未入书签');
+
+  const bookmarkAction = page.getByRole('button', { name: '保存当前页位置' });
+  await expect(bookmarkAction).toBeVisible();
+  await bookmarkAction.click();
+
+  await expect(bookmarksPanel).toContainText('已保存 1 个阅读位置，当前页已经在书签里。');
+  await expect(bookmarksPanel).toContainText('当前页已入书签');
+  await expect(page.getByRole('button', { name: '移除当前页书签' })).toBeVisible();
+});
+
 test('reader supports txt notes through selection, persistence, and note reopen in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
