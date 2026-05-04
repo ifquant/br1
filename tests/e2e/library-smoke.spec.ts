@@ -395,6 +395,12 @@ test('reader can open sync workspace inside the notebook shell', async ({ page }
   await expect(page.getByLabel('整库同步就绪状态')).toContainText(
     '当前环境不是桌面端，所以这里只能展示整库同步边界，不能执行交换文件导入或远端进度同步。'
   );
+  await expect(page.getByLabel('当前图书同步状态时间线')).toContainText(
+    '当前书还没有发生过导出动作。'
+  );
+  await expect(page.getByLabel('整库同步状态时间线')).toContainText(
+    '整库同步还没有留下最近动作。'
+  );
   await expect(notebook.getByText('当前图书已有 KOReader-compatible locator。')).toHaveCount(0);
   await expect(notebook.getByText('最近动作 ·')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '导出当前图书 KOReader 交换文件' })).toBeDisabled();

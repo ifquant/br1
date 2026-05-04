@@ -354,6 +354,11 @@
             </div>
           {/each}
         </div>
+      {:else}
+        <div class="sync-timeline-card muted" aria-label="当前图书同步状态时间线">
+          <strong>状态时间线</strong>
+          <p>当前书还没有发生过导出动作。等你在桌面端对受管书库图书执行一次当前书导出后，这里会保留最近一次结果。</p>
+        </div>
       {/if}
     </article>
 
@@ -423,6 +428,11 @@
               {/if}
             </div>
           {/each}
+        </div>
+      {:else}
+        <div class="sync-timeline-card muted" aria-label="整库同步状态时间线">
+          <strong>状态时间线</strong>
+          <p>整库同步还没有留下最近动作。等你执行一次交换文件导入，或者做一次 KOReader 远端 push / pull 之后，这里会保留最近一次状态。</p>
         </div>
       {/if}
     </article>
@@ -571,6 +581,10 @@
     padding: 10px;
     border: 1px solid var(--border-light);
     background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+  }
+
+  .sync-timeline-card.muted {
+    background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
   }
 
   .sync-timeline-entry {
