@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import {
+    READER_EMPTY_TITLE,
     getReaderFormatDisplayLabel,
     getReaderLayoutDisplayLabel,
     getReaderLocationDisplayLabel,
@@ -25,6 +26,12 @@
   $: locationDisplayLabel = getReaderLocationDisplayLabel(preview.locationLabel);
   $: formatDisplayLabel = getReaderFormatDisplayLabel(preview.formatLabel);
   $: layoutDisplayLabel = getReaderLayoutDisplayLabel(preview.layoutLabel);
+  $: chapterDisplayLabel = (() => {
+    const chapterLabel = preview.chapterLabel.trim();
+    if (chapterLabel && chapterLabel !== '等待打开书籍') return chapterLabel;
+    if (preview.title.trim() && preview.title !== READER_EMPTY_TITLE) return preview.title.trim();
+    return '等待打开书籍';
+  })();
 
   const issueControl = (type: 'prev' | 'next' | 'start') => {
     controlNonce += 1;
@@ -46,35 +53,40 @@
   class:visible={isVisible}
   class="footer-bar"
   aria-label="阅读页脚控制"
->
-  <div
+  >
+    <div
     class:window-mode={isWindowMode}
     class:focus-width={viewWidthMode === 'focus'}
     class:wide-width={viewWidthMode === 'wide'}
     class="footer-frame"
-  >
+    >
     <div class="footer-controls">
       <button type="button" aria-label="上一页" title="上一页" on:click={() => issueControl('prev')}>‹</button>
       <button type="button" aria-label="回到开头" title="回到开头" on:click={() => issueControl('start')}>·</button>
       <button type="button" aria-label="下一页" title="下一页" on:click={() => issueControl('next')}>›</button>
     </div>
-    <label class="progress-strip" aria-label="阅读进度">
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={sliderValue}
-        on:input={(event) => {
-          sliderValue = Number((event.currentTarget as HTMLInputElement).value);
-        }}
-        on:change={() => issueFractionControl(sliderValue / 100)}
-      />
-      <span>{preview.progressLabel}</span>
-    </label>
-    <div class="footer-meta">
-      <span>{locationDisplayLabel}</span>
-      <span>{formatDisplayLabel}</span>
-      <span>{layoutDisplayLabel}</span>
+    <div class="footer-reading-status" aria-label="当前阅读状态">
+      <div class="reading-summary">
+        <strong>{chapterDisplayLabel}</strong>
+        <span>{locationDisplayLabel}</span>
+      </div>
+      <label class="progress-strip" aria-label="阅读进度">
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={sliderValue}
+          on:input={(event) => {
+            sliderValue = Number((event.currentTarget as HTMLInputElement).value);
+          }}
+          on:change={() => issueFractionControl(sliderValue / 100)}
+        />
+        <span>{preview.progressLabel}</span>
+      </label>
+    </div>
+    <div class="footer-meta" aria-label="阅读环境">
+      <span class="footer-chip">{formatDisplayLabel}</span>
+      <span class="footer-chip">{layoutDisplayLabel}</span>
     </div>
   </div>
 </footer>
@@ -85,10 +97,10 @@
   }
 
   .footer-frame {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
     gap: 10px 14px;
-    flex-wrap: wrap;
     padding: 8px 12px 10px;
     border-top: 1px solid var(--border-light);
     background: color-mix(in srgb, var(--surface-panel) 96%, white 4%);
@@ -170,7 +182,8 @@
     display: inline-flex;
     gap: 8px;
     align-items: center;
-    min-width: min(280px, 100%);
+    min-width: 0;
+    width: 100%;
   }
 
   .progress-strip input {
@@ -179,34 +192,76 @@
   }
 
   .progress-strip span {
-    min-width: 32px;
+    min-width: 36px;
     text-align: right;
+    color: var(--text-secondary);
+    font-weight: 700;
+  }
+
+  .footer-reading-status {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .reading-summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 12px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .reading-summary strong {
+    min-width: 0;
+    color: var(--text-primary);
+    font: 700 12px/1.25 var(--font-chrome);
+    letter-spacing: 0.02em;
+  }
+
+  .reading-summary span {
+    color: var(--text-muted);
+    white-space: nowrap;
   }
 
   .footer-meta {
     display: inline-flex;
-    gap: 0;
+    gap: 8px;
     align-items: center;
+    justify-content: flex-end;
     flex-wrap: wrap;
     color: var(--text-muted);
   }
 
-  .footer-meta span + span {
-    position: relative;
-    padding-left: 9px;
-    margin-left: 8px;
+  .footer-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--border-light) 92%, white 8%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
+    color: var(--text-muted);
+    font: 700 10px/1 var(--font-chrome);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
-  .footer-meta span + span::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 3px;
-    height: 3px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--text-muted) 70%, white 30%);
-    transform: translateY(-50%);
+  @media (max-width: 860px) {
+    .footer-frame,
+    .footer-frame.window-mode {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .footer-controls {
+      justify-content: flex-start;
+    }
+
+    .footer-meta {
+      justify-content: flex-start;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

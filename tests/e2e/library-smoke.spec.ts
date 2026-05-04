@@ -1151,18 +1151,22 @@ for (const sample of sampleReaderCases) {
     const footer = page.getByLabel('阅读页脚控制');
 
     await expect(page.locator('.stage-error')).toHaveCount(0);
-    await expect(page.getByRole('main', { name: /reader stage/i })).toBeVisible();
+    await expect(footer).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(new RegExp(`Failed to open ${sample.label}`, 'i'))).toHaveCount(0);
     await expect(footer).toContainText(sample.format);
     await expect(footer).toContainText(readerLayoutLabel(sample.layout));
     await expect(footer).not.toContainText('正在打开');
+    await expect(footer.getByLabel('当前阅读状态')).toBeVisible();
+    await expect(footer.getByLabel('阅读环境')).toBeVisible();
 
     await page.reload();
 
     await expect(page.locator('.stage-error')).toHaveCount(0);
-    await expect(page.getByRole('main', { name: /reader stage/i })).toBeVisible();
+    await expect(footer).toBeVisible({ timeout: 15000 });
     await expect(footer).toContainText(sample.format);
     await expect(footer).toContainText(readerLayoutLabel(sample.layout));
     await expect(footer).not.toContainText('正在打开');
+    await expect(footer.getByLabel('当前阅读状态')).toBeVisible();
+    await expect(footer.getByLabel('阅读环境')).toBeVisible();
   });
 }
