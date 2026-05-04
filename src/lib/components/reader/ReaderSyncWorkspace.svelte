@@ -360,6 +360,20 @@
           <p>当前书还没有发生过导出动作。等你在桌面端对受管书库图书执行一次当前书导出后，这里会保留最近一次结果。</p>
         </div>
       {/if}
+      <div class="sync-action-group" aria-label="当前图书同步动作">
+        <strong>动作</strong>
+        <span>当前书导出只对来自 br1 受管书库的图书可用。</span>
+        <div class="sync-actions">
+          <button
+            type="button"
+            class="primary-action"
+            disabled={!desktopAvailable || !hasManagedLibraryBook || busyAction !== null}
+            on:click={() => onExportCurrentBookExchange?.()}
+          >
+            {busyAction === 'export-current' ? '导出中…' : '导出当前图书 KOReader 交换文件'}
+          </button>
+        </div>
+      </div>
     </article>
 
     <article class="sync-panel">
@@ -435,42 +449,37 @@
           <p>整库同步还没有留下最近动作。等你执行一次交换文件导入，或者做一次 KOReader 远端 push / pull 之后，这里会保留最近一次状态。</p>
         </div>
       {/if}
+      <div class="sync-action-group" aria-label="整库同步动作">
+        <strong>动作</strong>
+        <span>交换文件导入和远端进度同步都保持桌面端执行；官方 KOSync 仍然只同步阅读进度。</span>
+        <div class="sync-actions library-actions">
+          <button
+            type="button"
+            class="ghost-action"
+            disabled={!desktopAvailable || busyAction !== null}
+            on:click={() => onImportExchange?.()}
+          >
+            {busyAction === 'import-exchange' ? '导入中…' : '导入 KOReader 交换文件'}
+          </button>
+          <button
+            type="button"
+            class="ghost-action"
+            disabled={!desktopAvailable || busyAction !== null}
+            on:click={() => onPushRemoteProgress?.()}
+          >
+            {busyAction === 'push-remote' ? '推送中…' : '推送 KOReader 阅读进度'}
+          </button>
+          <button
+            type="button"
+            class="ghost-action"
+            disabled={!desktopAvailable || busyAction !== null}
+            on:click={() => onPullRemoteProgress?.()}
+          >
+            {busyAction === 'pull-remote' ? '拉取中…' : '拉取 KOReader 阅读进度'}
+          </button>
+        </div>
+      </div>
     </article>
-  </div>
-
-  <div class="sync-actions">
-    <button
-      type="button"
-      class="primary-action"
-      disabled={!desktopAvailable || !hasManagedLibraryBook || busyAction !== null}
-      on:click={() => onExportCurrentBookExchange?.()}
-    >
-      {busyAction === 'export-current' ? '导出中…' : '导出当前图书 KOReader 交换文件'}
-    </button>
-    <button
-      type="button"
-      class="ghost-action"
-      disabled={!desktopAvailable || busyAction !== null}
-      on:click={() => onImportExchange?.()}
-    >
-      {busyAction === 'import-exchange' ? '导入中…' : '导入 KOReader 交换文件'}
-    </button>
-    <button
-      type="button"
-      class="ghost-action"
-      disabled={!desktopAvailable || busyAction !== null}
-      on:click={() => onPushRemoteProgress?.()}
-    >
-      {busyAction === 'push-remote' ? '推送中…' : '推送 KOReader 阅读进度'}
-    </button>
-    <button
-      type="button"
-      class="ghost-action"
-      disabled={!desktopAvailable || busyAction !== null}
-      on:click={() => onPullRemoteProgress?.()}
-    >
-      {busyAction === 'pull-remote' ? '拉取中…' : '拉取 KOReader 阅读进度'}
-    </button>
   </div>
 
   {#if notice}
@@ -499,6 +508,7 @@
   .sync-panel,
   .sync-readiness-card,
   .sync-timeline-card,
+  .sync-action-group,
   .sync-timeline-entry,
   .sync-notice {
     display: grid;
@@ -509,6 +519,7 @@
   .sync-panel strong,
   .sync-readiness-card strong,
   .sync-timeline-card strong,
+  .sync-action-group strong,
   .sync-notice strong {
     color: var(--text-primary);
     font: 700 14px/1.25 var(--font-chrome);
@@ -525,6 +536,7 @@
   .sync-timeline-card span,
   .sync-timeline-card p,
   .sync-timeline-card small,
+  .sync-action-group span,
   .sync-timeline-entry span,
   .sync-timeline-entry p,
   .sync-timeline-entry small,
@@ -587,6 +599,12 @@
     background: color-mix(in srgb, var(--surface-reader) 90%, white 10%);
   }
 
+  .sync-action-group {
+    padding: 10px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
+  }
+
   .sync-timeline-entry {
     padding-top: 8px;
     border-top: 1px dashed var(--border-light);
@@ -615,6 +633,12 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .library-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    width: 100%;
   }
 
   .primary-action,
@@ -653,5 +677,13 @@
   .ghost-action:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 72%, white 28%);
     outline-offset: 3px;
+  }
+
+  @media (max-width: 720px) {
+    .sync-actions,
+    .library-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
   }
 </style>
