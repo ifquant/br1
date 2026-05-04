@@ -1,6 +1,12 @@
 <script lang="ts">
   import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
+  import ReaderSyncWorkspace from './ReaderSyncWorkspace.svelte';
   import ReaderTtsWorkspace from './ReaderTtsWorkspace.svelte';
+  import type {
+    Br1KoReaderRemoteSyncResult,
+    PersistedLibraryBook,
+    RestoreKoReaderSyncExchangeDialogResult
+  } from '$lib/services';
   import type {
     ReaderAssistanceState,
     ReaderPreviewState,
@@ -26,11 +32,15 @@
     onTtsPause: (() => void) | null;
     onTtsResume: (() => void) | null;
     onTtsStop: (() => void) | null;
+    onExportCurrentBookSync: (() => void) | null;
+    onImportKoReaderSync: (() => void) | null;
+    onPushKoReaderRemoteSync: (() => void) | null;
+    onPullKoReaderRemoteSync: (() => void) | null;
   };
 
   export let visible = false;
   export let pinned = false;
-  export let activeTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' = 'notes';
+  export let activeTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync' = 'notes';
   export let preview: ReaderPreviewState;
   export let notesState: ReaderSidebarNotesState;
   export let supportsTextAnnotations = false;
@@ -40,6 +50,14 @@
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
+  export let desktopSyncAvailable = false;
+  export let currentManagedBook: PersistedLibraryBook | null = null;
+  export let bookmarkCount = 0;
+  export let syncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
+    null;
+  export let syncExchangeImportResult: RestoreKoReaderSyncExchangeDialogResult | null = null;
+  export let syncRemoteResult: Br1KoReaderRemoteSyncResult | null = null;
+  export let syncNotice: { kind: 'info' | 'error'; message: string } | null = null;
   export let callbacks: ReaderNotebookCallbacks = {
     onAddHighlight: null,
     onAddNote: null,
@@ -51,12 +69,16 @@
     onTtsStart: null,
     onTtsPause: null,
     onTtsResume: null,
-    onTtsStop: null
+    onTtsStop: null,
+    onExportCurrentBookSync: null,
+    onImportKoReaderSync: null,
+    onPushKoReaderRemoteSync: null,
+    onPullKoReaderRemoteSync: null
   };
   export let onClose: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
   export let onTabChange:
-    | ((tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts') => void)
+    | ((tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync') => void)
     | null = null;
   export let onPinCurrentTtsTarget: (() => void) | null = null;
   export let onResumeFollowingCurrentTtsTarget: (() => void) | null = null;
@@ -73,7 +95,7 @@
       .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  const setTab = (tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts') => {
+  const setTab = (tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync') => {
     if (tab === activeTab) return;
     onTabChange?.(tab);
   };
@@ -156,6 +178,15 @@
         on:click={() => setTab('tts')}
       >
         朗读模式
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class:active={activeTab === 'sync'}
+        aria-selected={activeTab === 'sync'}
+        on:click={() => setTab('sync')}
+      >
+        同步工作台
       </button>
     </div>
 
@@ -255,7 +286,7 @@
             onRequestTranslation: callbacks.onRequestTranslation
           }}
         />
-      {:else}
+      {:else if activeTab === 'tts'}
         <ReaderTtsWorkspace
           {ttsSession}
           target={ttsTarget}
@@ -266,6 +297,22 @@
           onStop={callbacks.onTtsStop}
           onPinCurrentTarget={onPinCurrentTtsTarget}
           onResumeFollowingCurrent={onResumeFollowingCurrentTtsTarget}
+        />
+      {:else}
+        <ReaderSyncWorkspace
+          {preview}
+          currentBook={currentManagedBook}
+          desktopAvailable={desktopSyncAvailable}
+          busyAction={syncBusyAction}
+          exchangeImportResult={syncExchangeImportResult}
+          remoteSyncResult={syncRemoteResult}
+          notice={syncNotice}
+          noteCount={noteEntries.length}
+          {bookmarkCount}
+          onExportCurrentBookExchange={callbacks.onExportCurrentBookSync}
+          onImportExchange={callbacks.onImportKoReaderSync}
+          onPushRemoteProgress={callbacks.onPushKoReaderRemoteSync}
+          onPullRemoteProgress={callbacks.onPullKoReaderRemoteSync}
         />
       {/if}
     </div>

@@ -16,6 +16,11 @@
     ReaderTranslationProviderStatus,
     ReaderTocItem
   } from '$lib/reader';
+  import type {
+    Br1KoReaderRemoteSyncResult,
+    PersistedLibraryBook,
+    RestoreKoReaderSyncExchangeDialogResult
+  } from '$lib/services';
   import {
     createEmptyReaderPreviewState,
     createEmptyReaderAssistanceState,
@@ -47,8 +52,11 @@
   import {
     createDefaultReaderTranslationProviderStatuses,
     canPersistReaderBookmarks,
+    canPersistLibrary,
     canPersistReaderNotes,
     clearReaderSearchCache,
+    createKoReaderSyncExchangeFromSnapshot,
+    createLocalSyncSnapshot,
     goToLibrarySurface,
     loadPersistedLibraryBooks,
     notifyLibrarySurfaceReadingStateChanged,
@@ -60,6 +68,9 @@
     loadReaderTranslationProviderStatuses,
     startCurrentWindowDrag,
     requestReaderAssistance,
+    restoreKoReaderSyncExchangeDialog,
+    runKoReaderRemoteSync,
+    saveKoReaderSyncExchangeDialog,
     toLibraryCoverUrl,
     updateLibraryReadingState
   } from '$lib/services';
@@ -74,9 +85,15 @@
   let currentCoverUrl = '';
   let notebookVisible = false;
   let notebookPinned = false;
-  let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' = 'notes';
+  let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync' = 'notes';
   let ttsFollowsCurrentLocation = true;
   let pinnedTtsTarget: ReaderTtsSpeechTarget | null = null;
+  let currentManagedBook: PersistedLibraryBook | null = null;
+  let readerSyncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
+    null;
+  let readerSyncNotice: { kind: 'info' | 'error'; message: string } | null = null;
+  let readerKoReaderExchangeImportResult: RestoreKoReaderSyncExchangeDialogResult | null = null;
+  let readerKoReaderRemoteSyncResult: Br1KoReaderRemoteSyncResult | null = null;
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -308,7 +325,7 @@
       try {
         const persisted = JSON.parse(rawNotebookShell) as {
           pinned?: boolean;
-          activeTab?: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts';
+          activeTab?: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync';
         };
         notebookPinned = !!persisted.pinned;
         notebookVisible = !!persisted.pinned;
@@ -319,9 +336,11 @@
               ? 'translation'
               : persisted.activeTab === 'tts'
                 ? 'tts'
-              : persisted.activeTab === 'assistant'
-                ? 'assistant'
-                : 'notes';
+                : persisted.activeTab === 'sync'
+                  ? 'sync'
+                : persisted.activeTab === 'assistant'
+                  ? 'assistant'
+                  : 'notes';
       } catch (error) {
         console.warn('Failed to restore reader notebook shell state', error);
       }
@@ -374,13 +393,130 @@
       try {
         const records = await loadPersistedLibraryBooks();
         const match = records.find((record) => record.filePath === sourcePath);
+        currentManagedBook = match ?? null;
         currentCoverUrl = match ? await toLibraryCoverUrl(match) : '';
       } catch (error) {
         console.warn('Failed to resolve reader cover for sidebar book card', error);
+        currentManagedBook = null;
         currentCoverUrl = '';
       }
     })();
   }
+  $: if (!sourcePath || !autoOpenLibraryFile) {
+    currentManagedBook = null;
+  }
+
+  const setReaderSyncNotice = (kind: 'info' | 'error', message: string) => {
+    readerSyncNotice = { kind, message };
+  };
+
+  const exportCurrentBookKoReaderExchange = async () => {
+    if (!currentManagedBook) {
+      setReaderSyncNotice('error', '只有从 br1 受管书库打开的图书，才可以直接导出当前图书的 KOReader 交换文件。');
+      return;
+    }
+
+    readerSyncBusyAction = 'export-current';
+    readerSyncNotice = null;
+    try {
+      const snapshot = createLocalSyncSnapshot({
+        libraryBooks: [currentManagedBook],
+        bookmarkStates: [{ bookKey: currentManagedBook.filePath, bookmarks: $bookmarksState.bookmarks }],
+        noteStates: [{ bookKey: currentManagedBook.filePath, notes: $notesState.notes }],
+        highlightsWorkspaceStates: []
+      });
+      const document = createKoReaderSyncExchangeFromSnapshot(snapshot);
+      const result = await saveKoReaderSyncExchangeDialog(document);
+      if (result.cancelled) {
+        setReaderSyncNotice('info', '已取消当前图书 KOReader 交换文件导出。');
+        return;
+      }
+
+      setReaderSyncNotice(
+        'info',
+        `已导出当前图书 KOReader 交换文件${result.fileName ? `：${result.fileName}` : ''}。`
+      );
+    } catch (error) {
+      console.error('Failed to export current-book KOReader exchange', error);
+      setReaderSyncNotice('error', '导出当前图书 KOReader 交换文件失败，请确认桌面权限和当前图书状态后重试。');
+    } finally {
+      readerSyncBusyAction = null;
+    }
+  };
+
+  const importKoReaderExchangeFromReader = async () => {
+    readerSyncBusyAction = 'import-exchange';
+    readerSyncNotice = null;
+    try {
+      const imported = await restoreKoReaderSyncExchangeDialog();
+      readerKoReaderExchangeImportResult = imported;
+      if (imported.cancelled) {
+        setReaderSyncNotice('info', '已取消 KOReader 交换文件导入。');
+        return;
+      }
+      if (!imported.applyResult) {
+        setReaderSyncNotice(
+          'error',
+          `KOReader 交换文件恢复未返回应用结果${imported.fileName ? `：${imported.fileName}` : ''}。`
+        );
+        return;
+      }
+      if (imported.applyResult.appliedBookCount <= 0) {
+        setReaderSyncNotice('error', 'KOReader 导入没有应用任何图书。');
+        return;
+      }
+      setReaderSyncNotice(
+        'info',
+        `已导入 KOReader 交换文件${imported.fileName ? `：${imported.fileName}` : ''}，应用 ${imported.applyResult.appliedBookCount} 本，跳过 ${imported.applyResult.skippedBookCount} 本。`
+      );
+    } catch (error) {
+      console.error('Failed to import KOReader exchange from reader workspace', error);
+      const detail = error instanceof Error ? error.message : '请检查交换文件是否完整有效。';
+      setReaderSyncNotice('error', `导入 KOReader 交换文件失败：${detail}`);
+    } finally {
+      readerSyncBusyAction = null;
+    }
+  };
+
+  const pushKoReaderRemoteSyncFromReader = async () => {
+    readerSyncBusyAction = 'push-remote';
+    readerSyncNotice = null;
+    try {
+      const result = await runKoReaderRemoteSync({ operation: 'push' });
+      readerKoReaderRemoteSyncResult = result;
+      setReaderSyncNotice(
+        result.status === 'success' || result.status === 'empty' ? 'info' : 'error',
+        result.status === 'success' || result.status === 'empty'
+          ? `${result.message} 书签和批注不会通过官方 KOSync 远端同步。`
+          : result.message
+      );
+    } catch (error) {
+      console.error('Failed to push KOReader remote progress from reader workspace', error);
+      setReaderSyncNotice('error', '推送 KOReader 阅读进度失败，请稍后重试。');
+    } finally {
+      readerSyncBusyAction = null;
+    }
+  };
+
+  const pullKoReaderRemoteSyncFromReader = async () => {
+    readerSyncBusyAction = 'pull-remote';
+    readerSyncNotice = null;
+    try {
+      const result = await runKoReaderRemoteSync({ operation: 'pull' });
+      readerKoReaderRemoteSyncResult = result;
+      setReaderSyncNotice(
+        result.status === 'success' || result.status === 'empty' ? 'info' : 'error',
+        result.status === 'success'
+          ? `${result.message} 书签和批注不会通过官方 KOSync 回填。`
+          : result.message
+      );
+    } catch (error) {
+      console.error('Failed to pull KOReader remote progress from reader workspace', error);
+      setReaderSyncNotice('error', '拉取 KOReader 阅读进度失败，请稍后重试。');
+    } finally {
+      readerSyncBusyAction = null;
+    }
+  };
 
   const persistLibraryReadingState = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return Promise.resolve();
@@ -801,6 +937,18 @@
         >
           朗读模式
         </button>
+        <button
+          type="button"
+          class="parallel-toggle notebook-toggle"
+          aria-pressed={notebookVisible && notebookTab === 'sync'}
+          aria-label="打开同步工作台"
+          on:click={() => {
+            notebookVisible = true;
+            notebookTab = 'sync';
+          }}
+        >
+          同步工作台
+        </button>
       </div>
 
       <div class:parallel-enabled={parallelEnabled} class="reader-stage-stack">
@@ -894,6 +1042,13 @@
         ttsTarget={effectiveTtsTarget}
         ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}
         translationProviderStatuses={translationProviderStatuses}
+        desktopSyncAvailable={canPersistLibrary()}
+        {currentManagedBook}
+        bookmarkCount={$bookmarksState.bookmarks.length}
+        syncBusyAction={readerSyncBusyAction}
+        syncExchangeImportResult={readerKoReaderExchangeImportResult}
+        syncRemoteResult={readerKoReaderRemoteSyncResult}
+        syncNotice={readerSyncNotice}
         callbacks={{
           onAddHighlight: sidebarCallbacks.onAddHighlight,
           onAddNote: sidebarCallbacks.onAddNote,
@@ -905,7 +1060,11 @@
           onTtsStart: handleTtsStart,
           onTtsPause: handleTtsPause,
           onTtsResume: handleTtsResume,
-          onTtsStop: handleTtsStop
+          onTtsStop: handleTtsStop,
+          onExportCurrentBookSync: exportCurrentBookKoReaderExchange,
+          onImportKoReaderSync: importKoReaderExchangeFromReader,
+          onPushKoReaderRemoteSync: pushKoReaderRemoteSyncFromReader,
+          onPullKoReaderRemoteSync: pullKoReaderRemoteSyncFromReader
         }}
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}

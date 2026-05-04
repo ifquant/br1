@@ -508,10 +508,22 @@ Goal: expose the already-built OPDS / Calibre substrate as a real end-user featu
   - Outcome: browse/search/import works as a desktop-visible flow on top of the existing safe catalog substrate.
   - Touches: catalog browse/search UI, import execution command, catalog services, focused catalog tests.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cargo test --manifest-path /Users/dev/workspace2/hc_apps/br1/src-tauri/Cargo.toml catalogs` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm dlx tsx --test ./src/lib/services/catalogs.test.ts` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "catalog route explains the desktop-owned boundary in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: 17c9a4a
   - Tutorial: `tutorials/commit/0546-execute-safe-catalog-imports-inside-tauri.md`.
   - Notes: catalog import execution now re-resolves the request inside Tauri, materializes only allowlisted fixture acquisitions into a desktop-owned cache, registers the staged file as a trusted import source, and then reuses the existing library import pipeline. The `/catalogs` route now surfaces per-entry importability, desktop-owned import execution, and actionable auth/unsupported guidance without enabling live renderer-side fetching.
   - Notes: this slice should build on `catalogs.rs` / `catalogs.ts`, not replace them.
+
+## P8 Reader Sync Controls
+
+Goal: turn the existing sync substrate into an explicit reader-side control surface instead of leaving it only in library menus and service facades.
+
+- [x] P8-1.1 Add a notebook-grade sync workspace for KOReader flows
+  - Outcome: the reader notebook has a visible sync workspace for current-book KOReader exchange export and whole-library KOReader remote progress actions, with explicit desktop-boundary messaging.
+  - Touches: reader notebook tabs, reader route state/actions, new sync workspace component, focused reader smoke.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0547-add-a-reader-sync-workspace-for-koreader-flows.md`.
+  - Notes: this slice does not invent new sync protocols. It lifts existing KOReader exchange import/export and remote progress controls into the reader notebook, keeps current-book exchange export scoped to managed library files, and keeps remote push/pull explicitly progress-only and desktop-owned.
 
 ## Service Security Gate
 
@@ -554,4 +566,5 @@ Use this log when completing each item.
 | 2026-04-25 | Add a productized library operations surface | 9eef796 | `pnpm check`; `git diff --check` | promotes backup/restore into visible library header actions, groups snapshot/KOReader/Readest Cloud work under one desktop operations menu, and blocks Readest migration from starting while snapshot or remote sync work is already active |
 | 2026-04-25 | Expose library desktop support and associated-open queue context | 04aa541 | `pnpm check`; `git diff --check` | adds a library support card for desktop/main-window context, current associated-open queue activity, last processed batches, and recent rejected inputs without inventing any new renderer-owned file-open path |
 | 2026-04-25 | Add the first catalog manager and browser surface | 7173705 | `pnpm check`; `pnpm dlx tsx --test ./src/lib/services/catalogs.test.ts`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "catalog route explains the desktop-owned boundary in web mode"`; `git diff --check` | adds `/catalogs`, saved-source management, root/library entry points, and safe browse/search/import-intent presentation without acquisition execution |
-| 2026-04-25 | Execute safe catalog imports inside Tauri | this commit | `pnpm check`; `cargo test --manifest-path src-tauri/Cargo.toml catalogs`; `pnpm dlx tsx --test ./src/lib/services/catalogs.test.ts`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "catalog route explains the desktop-owned boundary in web mode"`; `git diff --check` | turns ready catalog intents into real managed-library imports by re-resolving them inside Tauri, materializing only allowlisted fixture acquisitions, and reusing the trusted library import pipeline |
+| 2026-04-25 | Execute safe catalog imports inside Tauri | 17c9a4a | `pnpm check`; `cargo test --manifest-path src-tauri/Cargo.toml catalogs`; `pnpm dlx tsx --test ./src/lib/services/catalogs.test.ts`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "catalog route explains the desktop-owned boundary in web mode"`; `git diff --check` | turns ready catalog intents into real managed-library imports by re-resolving them inside Tauri, materializing only allowlisted fixture acquisitions, and reusing the trusted library import pipeline |
+| 2026-05-04 | Add a reader sync workspace for KOReader flows | this commit | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"`; `git diff --check` | adds a sync tab to the reader notebook, current-book KOReader exchange export, reader-side import/push/pull controls, and explicit desktop-boundary messaging for non-desktop or non-managed-book contexts |

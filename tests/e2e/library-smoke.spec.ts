@@ -368,6 +368,31 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(notebook.locator('.tts-panel strong', { hasText: '会话状态' })).toBeVisible();
 });
 
+test('reader can open sync workspace inside the notebook shell', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '同步工作台测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '打开同步工作台' })).toBeVisible();
+
+  await page.getByRole('button', { name: '打开同步工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  await expect(page.getByRole('tab', { name: '同步工作台', selected: true })).toBeVisible();
+  await expect(
+    notebook.getByText('把 KOReader 交换文件和远端进度控制从 library 菜单抬到 reader notebook，让同步成为显式阅读工作流。')
+  ).toBeVisible();
+  await expect(page.getByLabel('同步工作台状态')).toContainText('当前环境不支持桌面同步');
+  await expect(page.getByRole('button', { name: '导出当前图书 KOReader 交换文件' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '推送 KOReader 阅读进度' })).toBeDisabled();
+});
+
 test('catalog route explains the desktop-owned boundary in web mode', async ({ page }) => {
   await page.goto('/catalogs');
 
