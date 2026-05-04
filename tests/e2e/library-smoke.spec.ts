@@ -887,7 +887,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
   const highlightCards = page.locator('.highlight-card');
   const highlightsPanel = page.getByLabel('高亮面板');
-  await expect(highlightsPanel).toContainText('已保存 2 条高亮');
+  await expect(highlightsPanel).toContainText('当前书已保存 2 条高亮，可继续筛选、选中或整理成跨书选择集。');
   await expect(highlightsPanel).toContainText('最近添加优先');
   await expect(highlightCards).toHaveCount(2);
   await expect(highlightCards.first()).toContainText('The rest of this fixture just adds enough steady reading length');
@@ -918,6 +918,8 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   page.once('dialog', (dialog) => dialog.accept('Web TXT 重点高亮'));
   await page.getByRole('button', { name: '保存当前选择集' }).click();
   const savedSelectionPanel = page.getByLabel('已保存高亮选择集');
+  await expect(savedSelectionPanel).toContainText('跨书高亮选择集');
+  await expect(savedSelectionPanel).toContainText('按书保留跨书映射结果');
   await expect(savedSelectionPanel).toContainText('Web TXT 重点高亮');
   page.once('dialog', (dialog) => dialog.accept('Web TXT 重命名高亮'));
   await savedSelectionPanel.getByRole('button', { name: '重命名' }).click();
@@ -1063,7 +1065,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   );
   await page.reload();
   await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
-  await expect(savedSelectionPanel).toContainText('刷新筛选按书保留');
+  await expect(savedSelectionPanel).toContainText('按书保留跨书映射结果');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(1);
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('部分匹配');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('未命中 1 条，可刷新映射');
@@ -1076,7 +1078,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('完全匹配');
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card').first()).toContainText('已全部映射 1/1');
   await expect(savedSelectionPanel.getByRole('button', { name: '未匹配 0' })).toBeDisabled();
-  await savedSelectionPanel.getByRole('button', { name: '全部已保存' }).click();
+  await savedSelectionPanel.getByRole('button', { name: '全部选择集' }).click();
   await expect(savedSelectionPanel.locator('.saved-highlight-selection-card')).toHaveCount(3);
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');

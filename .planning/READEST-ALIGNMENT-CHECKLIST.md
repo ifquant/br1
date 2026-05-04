@@ -452,6 +452,7 @@ Goal: close the next set of user-visible Readest gaps that now mainly live in re
   - Notes: keep the current storage/sync substrate unless a product-semantic fix requires a bounded correctness repair. This item is now subordinate to `P5-1` notebook workspace planning.
   - Follow-up: `0559` turns the sidebar notes surface into a real annotation workspace by replacing the misleading “最近笔记” framing with “标注”, clarifying the supported-format guidance, and updating note-group and empty-state copy so mixed note/highlight lists stop pretending to be note-only. Tutorial: `tutorials/commit/0559-reframe-notes-panel-as-an-annotation-workspace.md`.
   - Follow-up: `0560` reframes bookmarks as current reading positions instead of a passive saved-list, clarifies current-page state in the sidebar, and updates empty-state/action copy so the bookmark surface reads like a reading workflow. Tutorial: `tutorials/commit/0560-reframe-bookmarks-as-reading-positions.md`.
+  - Follow-up: `0561` separates current-book highlights from cross-book highlight-selection sets in the panel language, so the highlights workspace stops presenting those two workflows as one undifferentiated saved list. Tutorial: `tutorials/commit/0561-separate-highlights-from-cross-book-selection-sets.md`.
 
 ## P5 Reader Workspace Parity
 

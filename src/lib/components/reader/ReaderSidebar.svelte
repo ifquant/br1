@@ -173,6 +173,19 @@
     }
     return '等正文定位稳定后，可以把当前页存成书签。';
   })();
+  $: highlightsPanelSummary = (() => {
+    if (!supportsTextAnnotations) return textAnnotationSupportMessage;
+    if (allHighlights.length) {
+      if (savedHighlightSelections.length) {
+        return `当前书已保存 ${allHighlights.length} 条高亮，跨书高亮选择集也会在这里继续管理。`;
+      }
+      return `当前书已保存 ${allHighlights.length} 条高亮，可继续筛选、选中或整理成跨书选择集。`;
+    }
+    if (savedHighlightSelections.length) {
+      return '当前书还没有高亮，但已保存的跨书高亮选择集仍然可以在这里继续整理。';
+    }
+    return '先选中一段正文创建高亮；如果要跨书复用，再把当前选择存成选择集。';
+  })();
   $: highlightsWorkspaceStorageKey = bookKey ? `br1.reader.highlights.workspace:${bookKey}` : '';
 
   const applyDefaultHighlightsWorkspaceState = () => {
@@ -2003,15 +2016,7 @@
         <section class="sidebar-panel" aria-label="高亮面板">
           <div class="notes-summary">
             <strong>高亮</strong>
-            <span>
-              {#if !supportsTextAnnotations}
-                {textAnnotationSupportMessage}
-              {:else if allHighlights.length}
-                已保存 {allHighlights.length} 条高亮，可单独聚焦阅读标记。
-              {:else}
-                选中一段正文后，可以先把它高亮出来。
-              {/if}
-            </span>
+            <span>{highlightsPanelSummary}</span>
           </div>
 
           <div class="notes-meta-row">
@@ -2166,9 +2171,9 @@
             <section class="saved-highlight-selections" aria-label="已保存高亮选择集">
               <div class="saved-highlight-selections-head">
                 <div class="saved-highlight-selections-summary">
-                  <strong>已保存选择集</strong>
+                  <strong>跨书高亮选择集</strong>
                   <span>{savedHighlightSelections.length} 组</span>
-                  <span>刷新筛选按书保留</span>
+                  <span>按书保留跨书映射结果</span>
                 </div>
                 <div class="saved-highlight-selections-toolbar">
                   <button type="button" class="notes-filter-chip" on:click={importSavedHighlightSelection}>
@@ -2236,7 +2241,7 @@
                       class:active={savedHighlightSelectionsRefreshFilter === 'all'}
                       on:click={() => (savedHighlightSelectionsRefreshFilter = 'all')}
                     >
-                      全部已保存
+                      全部选择集
                     </button>
                     <button
                       type="button"
@@ -2278,7 +2283,7 @@
                       class:active={savedHighlightSelectionsRefreshFilter === 'all'}
                       on:click={() => (savedHighlightSelectionsRefreshFilter = 'all')}
                     >
-                      全部已保存
+                      全部选择集
                     </button>
                     <button
                       type="button"
