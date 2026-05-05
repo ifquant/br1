@@ -643,6 +643,14 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0585-add-current-book-scope-summaries-to-ai-tabs.md`.
   - Notes: this slice does not change history storage, lane navigation, or provider behavior. It only makes the top of the assistant and translation workspaces state the current-book scope before the reader reaches the overview cards or focused lane sections.
 
+- [x] P5-1.24 Separate AI overview mode from focused lane mode
+  - Outcome: when the assistant stays on `本书 AI 记录摘要`, the focused lane no longer remains expanded below it; overview mode and lane mode now read as distinct notebook states.
+  - Touches: shared assistant workspace overview/lane visibility contract, AI overview navigation regressions.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can move from the ai archive overview into one lane and back again"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0586-separate-ai-overview-mode-from-focused-lanes.md`.
+  - Notes: this slice does not change history storage, provider behavior, or focused-lane navigation semantics. It only prevents the overview and focused lane from rendering as two simultaneous notebook states.
+
 ## P6 Library Operations And Desktop Support
 
 Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
@@ -838,3 +846,4 @@ Use this log when completing each item.
 | 2026-05-05 | Collapse focused-lane browse state into one notebook navigation section | e47d9db | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows breadcrumb and grouped browse controls inside focused ai lanes|reader can switch a focused ai lane between current-record and full-history views|reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | turns the focused-lane breadcrumb, summary, and browse controls into one explicit `浏览导航` section so the notebook navigation contract has a stable top-level anchor instead of three loose UI fragments |
 | 2026-05-05 | Turn the current-book AI archive overview into a real notebook section | 4c6f9da | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | turns the current-book AI archive overview from a loose card grid into a section with its own header, total summary, and stable lane-entry area |
 | 2026-05-05 | Add current-book scope summaries to the AI assistant and translation tabs | 313b185 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | adds explicit current-book scope summaries at the top of the assistant and translation workspaces so the reader can see tab-level scope before drilling into notebook sections |
+| 2026-05-05 | Separate AI overview mode from focused lane mode | pending | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | makes overview mode and focused lane mode mutually exclusive so the assistant no longer renders the current-book overview and a live focused lane at the same time |

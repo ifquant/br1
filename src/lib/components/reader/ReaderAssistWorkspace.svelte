@@ -576,7 +576,8 @@
   </div>
 
   <div class="assist-result" aria-label={assistMode === 'translation' ? '翻译结果' : '查找结果'}>
-    <div class="assist-history" aria-label={assistMode === 'translation' ? '最近翻译' : '最近求助'}>
+    {#if lockedMode || !archiveOverviewVisible}
+      <div class="assist-history" aria-label={assistMode === 'translation' ? '最近翻译' : '最近求助'}>
       <div class="assist-history-head">
         <strong>{getArchiveLaneTitle(assistMode)}</strong>
         <span>
@@ -750,7 +751,18 @@
           </p>
         {/if}
       </section>
-    </div>
+      </div>
+    {:else}
+      <section class="assist-history-section assist-overview-mode-note" aria-label="AI 工作台浏览提示">
+        <div class="assist-history-section-head">
+          <strong>当前浏览提示</strong>
+          <span>先从摘要进入一条记录分区，再继续浏览当前记录和历史记录列表。</span>
+        </div>
+        <p class="assist-history-empty">
+          当前停留在本书 AI 记录摘要。选择 `查找记录` 或 `翻译记录` 后，才会展开对应 notebook lane 的导航、当前记录和历史记录列表。
+        </p>
+      </section>
+    {/if}
     <div class="assist-translation-status">
       <strong>翻译提供方状态</strong>
       <span>翻译配置由桌面端托管，renderer 只读取状态，不保存密钥。</span>

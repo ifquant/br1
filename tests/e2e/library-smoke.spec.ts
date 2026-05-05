@@ -323,6 +323,10 @@ test('reader can open the ai workspace inside the notebook shell', async ({ page
   await expect(page.getByLabel('本书 AI 记录摘要')).toBeVisible();
   await expect(page.getByLabel('本书 AI 记录摘要')).toContainText('查找 0 条 · 翻译 0 条');
   await expect(page.getByLabel('本书 AI 记录入口')).toBeVisible();
+  await expect(page.getByLabel('AI 工作台浏览提示')).toContainText(
+    '当前停留在本书 AI 记录摘要。选择 `查找记录` 或 `翻译记录` 后，才会展开对应 notebook lane 的导航、当前记录和历史记录列表。'
+  );
+  await expect(page.getByLabel('最近求助')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
@@ -1009,6 +1013,8 @@ test('reader can move from the ai archive overview into one lane and back again'
   await expect(historyLane.getByRole('button', { name: '返回本书 AI 记录摘要' })).toBeVisible();
   await historyLane.getByRole('button', { name: '返回本书 AI 记录摘要' }).click();
   await expect(overview).toBeVisible();
+  await expect(notebook.getByLabel('AI 工作台浏览提示')).toBeVisible();
+  await expect(notebook.getByLabel('最近翻译')).toHaveCount(0);
 });
 
 test('reader can clear current-book ai history in web mode', async ({ page }) => {
