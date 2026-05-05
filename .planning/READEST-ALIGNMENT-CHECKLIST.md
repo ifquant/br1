@@ -818,7 +818,7 @@ Goal: turn the existing sync substrate into an explicit reader-side control surf
   - Outcome: current-book export and whole-library import/push/pull actions now live inside their respective panels instead of sharing one mixed bottom action row, and narrow layouts stack the controls more cleanly.
   - Touches: reader sync workspace presentation, focused reader smoke.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open sync workspace inside the notebook shell"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: b4ca91c
   - Tutorial: `tutorials/commit/0555-move-sync-actions-into-their-owning-panels.md`.
   - Notes: this slice does not add or remove any sync capability. It only rehomes the existing buttons into the panel they belong to, which makes the workspace read as two independent operating lanes and improves narrow-width stacking behavior.
 
@@ -830,9 +830,17 @@ Goal: close the remaining gap between dedicated reader modes and the live readin
   - Outcome: opening translation mode from the active reader keeps it attached to the current reading source by default, while the user can explicitly lock that mode to its current source and later resume live following.
   - Touches: reader route/session ownership, translation mode state contract, notebook action semantics, focused reader regressions.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: this commit
+  - Done commit: abbe0e8
   - Tutorial: `tutorials/commit/0592-make-translation-mode-follow-the-current-reading-source.md`.
   - Notes: translation mode now defaults to the current reading source instead of behaving like a detached request form. When a live reading source is available, the mode follows it; when it is not, the reader can still type or paste text, lock that source explicitly, and later resume live following.
+
+- [x] P9-1.2 Make the notebook summary follow the dedicated TTS mode state
+  - Outcome: opening the dedicated TTS mode stops showing the generic notebook summary and instead exposes the current TTS session state, source ownership, and target summary, while switching books resets pinned TTS targets back to current-book follow mode.
+  - Touches: reader route/session ownership, reader notebook summary contract, TTS mode focused regressions.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0593-make-the-notebook-summary-follow-the-dedicated-tts-mode.md`.
+  - Notes: this slice does not change TTS playback engines or paragraph extraction. It only makes the notebook chrome reflect the actual TTS mode contract.
 
 ## Service Security Gate
 
@@ -919,4 +927,5 @@ Use this log when completing each item.
 | 2026-05-05 | Remove archive-overview navigation semantics from dedicated translation mode | c88654b | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | removes the fake overview parent and return action from locked translation mode so its navigation contract matches the fact that it is already a dedicated workspace |
 | 2026-05-05 | Record the P5 closeout boundary | beafe12 | `pnpm check`; `git diff --check` | documents which AI workspace structures are now treated as closed in P5 and which larger ideas remain intentionally out of scope for the next mainline |
 | 2026-05-05 | Run the P5 closeout review | fd0f449 | `pnpm check`; `git diff --check` | records that the current-book AI workspace line no longer has structural blockers and that the next step should be a new reader workspace mainline instead of more P5 micro-polish |
-| 2026-05-05 | Make translation mode follow the current reading source by default | this commit | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | makes dedicated translation mode follow the live reading source when one exists, keeps manual text entry viable when it does not, and adds explicit lock/resume controls so the workspace no longer behaves like a detached request form |
+| 2026-05-05 | Make translation mode follow the current reading source by default | abbe0e8 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | makes dedicated translation mode follow the live reading source when one exists, keeps manual text entry viable when it does not, and adds explicit lock/resume controls so the workspace no longer behaves like a detached request form |
+| 2026-05-05 | Make the notebook summary follow the dedicated TTS mode state | this commit | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git diff --check` | makes dedicated TTS mode own its notebook summary and current-book follow state instead of reusing the generic notebook summary or carrying pinned targets across book switches |

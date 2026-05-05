@@ -452,6 +452,8 @@
     assistanceState = createEmptyReaderAssistanceState();
     assistanceHistory = restoreAssistanceHistory();
     assistanceSelection = restoreAssistanceSelection();
+    ttsFollowsCurrentLocation = true;
+    pinnedTtsTarget = null;
     translationFollowsCurrentSource = true;
     pinnedTranslationSource = null;
     lastAssistanceBookKey = readerBookKey;

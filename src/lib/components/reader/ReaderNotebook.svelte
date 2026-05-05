@@ -18,7 +18,12 @@
     ReaderTtsSessionState,
     ReaderTtsSpeechTarget
   } from '$lib/reader';
-  import { createEmptyReaderAssistanceState, createEmptyReaderTtsSessionState } from '$lib/reader';
+  import {
+    createEmptyReaderAssistanceState,
+    createEmptyReaderTtsSessionState,
+    getReaderTtsReadableTargetLabel,
+    getReaderTtsSessionStatusLabel
+  } from '$lib/reader';
 
   type ReaderNotebookCallbacks = Pick<
     ReaderSidebarCallbacks,
@@ -129,6 +134,8 @@
   $: assistanceStatusSummary =
     assistance.status === 'ready' ? '助手已有结果' : assistance.status === 'loading' ? '助手查询中' : '助手待命';
   $: translationSourceSummary = translationModeSourceLabel || '当前阅读位置';
+  $: ttsStatusSummary = getReaderTtsSessionStatusLabel(ttsSession);
+  $: ttsTargetSummary = getReaderTtsReadableTargetLabel(ttsSession) || '还没有可朗读目标';
   $: notebookSummaryItems =
     activeTab === 'assistant'
       ? [
@@ -144,6 +151,13 @@
             translationModeFollowsCurrentSource ? `跟随${translationSourceSummary}` : `已锁定${translationSourceSummary}`,
             '原文 / 译文并排阅读'
           ]
+        : activeTab === 'tts'
+          ? [
+              `朗读状态：${ttsStatusSummary}`,
+              ttsFollowsCurrentLocation ? '跟随当前阅读位置' : '已锁定朗读目标',
+              `朗读目标：${ttsTargetSummary}`,
+              '朗读模式工作台'
+            ]
         : [
             `${highlightEntries.length} 高亮`,
             `${noteEntries.length} 笔记`,
