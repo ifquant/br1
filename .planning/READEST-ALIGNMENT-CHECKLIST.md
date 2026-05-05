@@ -958,9 +958,17 @@ Goal: move dedicated TTS from a correct reading-mode shell into a more trustwort
   - Outcome: the repo now explicitly states which reader TTS runtime guarantees count as shipped in `P10`, and which larger playback/runtime ideas remain intentionally outside this line.
   - Touches: checklist/tutorial docs only.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: this commit
+  - Done commit: 11d9a4b
   - Tutorial: `tutorials/commit/0605-close-the-p10-reader-tts-runtime-line.md`.
   - Notes: this closeout does not add EPUB/PDF live excerpt extraction, source-language inference, or playback queue work. It only makes the stopping point durable inside the repo.
+
+- [x] P10-1.7 Run the P10 closeout review
+  - Outcome: the repo now records whether `P10` still has a structural blocker and whether the next recommended step is more `P10` micro-slices or a new reader workspace mainline.
+  - Touches: checklist/tutorial docs only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0606-record-the-p10-closeout-review.md`.
+  - Notes: this review does not widen `P10` scope. It only records the verdict on the already-landed runtime slices.
 
 ### P10 Closeout
 
@@ -976,6 +984,11 @@ Explicitly not included in P10:
 - richer playback queue, queue navigation, or transport expansion beyond browser media session
 - unstable live-excerpt extraction for EPUB, PDF, or Foliate body content
 - source-language guessing or inference from arbitrary text for TXT, PDF, or generic source-side playback
+
+Closeout review verdict:
+- no remaining structural blocker was found in the shipped P10 runtime line
+- the remaining gaps are deliberate scope limits around richer playback/runtime surfaces, not unresolved contract failures in the current TTS route
+- the next recommended mainline is not more `P10` micro-slices, but the next reader workspace or playback surface that still has a material parity gap
 
 
 ## Service Security Gate
@@ -1076,3 +1089,5 @@ Use this log when completing each item.
 | 2026-05-05 | Carry translation target language into the speech runtime | 0558021 | `pnpm check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git diff --check` | carries the chosen translation target language through translated TTS target resolution and into runtime speech startup so translated playback stops defaulting to the browser UI locale |
 | 2026-05-05 | Prefer visible plain-text body excerpts over chapter-title fallback | 089c54b | `pnpm check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader uses visible plain-text excerpts as the source tts target in web mode"`; `git diff --check` | lets TXT/source TTS consume a stable visible-body excerpt from the plain-text viewport before falling back to scaffold labels, while intentionally leaving EPUB/PDF live-excerpt extraction out of scope |
 | 2026-05-05 | Carry EPUB metadata language into source-side TTS targets | 37a2d23 | `pnpm check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git diff --check` | carries stable `book.metadata.language` from the Foliate reader preview into source-side TTS target resolution so EPUB source playback can prefer book language without guessing from arbitrary text |
+| 2026-05-05 | Close the P10 reader TTS runtime line | 11d9a4b | `pnpm check`; `git diff --check` | documents which active-session, media-session, translated-language, TXT excerpt, and EPUB metadata-language guarantees now count as closed in P10 and which larger playback/runtime expansions remain intentionally out of scope |
+| 2026-05-05 | Run the P10 closeout review | this commit | `pnpm check`; `git diff --check` | records that the current reader TTS runtime line has no remaining structural blocker and that the next step should be a new reader workspace or playback mainline instead of more P10 micro-slices |
