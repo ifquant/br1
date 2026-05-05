@@ -754,6 +754,101 @@ test('reader shows notebook-style action hierarchy inside ai archive lanes', asy
   await expect(historyLane.getByRole('button', { name: '再次发起' }).first()).toBeVisible();
 });
 
+test('reader can switch a focused ai lane between current-record and full-history views', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: 'AI 分区浏览模式测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-lookup-2',
+            request: {
+              kind: 'lookup',
+              provider: 'dictionary',
+              term: 'mediation',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-result-2',
+              provider: 'dictionary',
+              title: 'mediation',
+              body: 'Bridging between two parties.',
+              createdAt: 20
+            },
+            error: '',
+            createdAt: 20,
+            updatedAt: 20
+          },
+          {
+            id: 'assist-lookup-1',
+            request: {
+              kind: 'lookup',
+              provider: 'wikipedia',
+              term: 'bridge reader',
+              chapterLabel: '第一章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-result-1',
+              provider: 'wikipedia',
+              title: 'Bridge reader',
+              body: 'A notebook-style reading bridge.',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          }
+        ])
+      );
+    },
+    { historyKey: historyStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: 'AI 工作台' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'AI 工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  await notebook.getByLabel('本书 AI 记录摘要').getByRole('button', { name: /查找记录/ }).click();
+
+  const historyLane = notebook.getByLabel('最近求助');
+  await historyLane.getByRole('button', { name: '查看记录' }).last().click();
+  await historyLane.getByRole('button', { name: '只看当前记录' }).click();
+  await expect(historyLane.getByRole('button', { name: '只看当前记录' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  const archiveSection = historyLane.getByLabel('历史记录列表 section');
+  await expect(archiveSection).toContainText(
+    '当前处于只看当前记录模式；切回完整历史后，可以继续浏览这本书的查找记录。'
+  );
+  await expect(archiveSection.getByRole('button', { name: '查看记录' })).toHaveCount(0);
+
+  await historyLane.getByRole('button', { name: '查看完整历史' }).click();
+  await expect(historyLane.getByRole('button', { name: '查看完整历史' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(archiveSection.getByRole('button', { name: '查看记录' })).toHaveCount(1);
+  await expect(archiveSection.locator('.assist-history-status-badge')).toHaveText('当前正在查看');
+});
+
 test('reader can move from the ai archive overview into one lane and back again', async ({ page }) => {
   const sourceUrl = '/samples/sample-book.epub';
   const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;

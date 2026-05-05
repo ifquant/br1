@@ -54,6 +54,8 @@
   let lookupArchiveExpanded = true;
   let translationArchiveExpanded = true;
   let archiveOverviewVisible = true;
+  let lookupLaneViewMode: 'full' | 'focus' = 'full';
+  let translationLaneViewMode: 'full' | 'focus' = 'full';
 
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
@@ -98,12 +100,25 @@
     assistMode === 'translation' ? entry.request.kind === 'translation' : entry.request.kind === 'lookup'
   );
   $: archiveExpanded = assistMode === 'translation' ? translationArchiveExpanded : lookupArchiveExpanded;
+  $: isFocusLaneView =
+    (assistMode === 'translation' ? translationLaneViewMode : lookupLaneViewMode) === 'focus';
+  $: isFullLaneView = !isFocusLaneView;
   $: selectedHistoryEntryId =
     assistMode === 'translation' ? selectedTranslationHistoryEntryId : selectedLookupHistoryEntryId;
   $: {
     const selectedEntryStillVisible = visibleHistory.some((entry) => entry.id === selectedHistoryEntryId);
     if (selectedHistoryEntryId && !selectedEntryStillVisible) {
       onSelectHistoryEntry?.(assistMode, '');
+    }
+  }
+  $: if (
+    !selectedHistoryEntryId &&
+    (assistMode === 'translation' ? translationLaneViewMode : lookupLaneViewMode) === 'focus'
+  ) {
+    if (assistMode === 'translation') {
+      translationLaneViewMode = 'full';
+    } else {
+      lookupLaneViewMode = 'full';
     }
   }
   $: selectedHistoryEntry =
@@ -267,10 +282,20 @@
     lookupArchiveExpanded = expanded;
   };
 
+  const setLaneViewMode = (mode: 'lookup' | 'translation', viewMode: 'full' | 'focus') => {
+    if (mode === 'translation') {
+      translationLaneViewMode = viewMode;
+      return;
+    }
+
+    lookupLaneViewMode = viewMode;
+  };
+
   const openArchiveLane = (mode: 'lookup' | 'translation') => {
     assistMode = mode;
     archiveOverviewVisible = false;
     setArchiveExpanded(mode, true);
+    setLaneViewMode(mode, 'full');
   };
 </script>
 
@@ -539,6 +564,26 @@
                 返回本书 AI 记录摘要
               </button>
             {/if}
+            {#if selectedHistoryEntry}
+              <button
+                type="button"
+                class:active={isFocusLaneView}
+                class="assist-chip"
+                aria-pressed={isFocusLaneView ? 'true' : 'false'}
+                on:click={() => setLaneViewMode(assistMode, 'focus')}
+              >
+                只看当前记录
+              </button>
+              <button
+                type="button"
+                class:active={isFullLaneView}
+                class="assist-chip"
+                aria-pressed={isFullLaneView ? 'true' : 'false'}
+                on:click={() => setLaneViewMode(assistMode, 'full')}
+              >
+                查看完整历史
+              </button>
+            {/if}
           </div>
           {#if visibleHistory.length > 0}
             <div class="assist-history-maintenance-actions" aria-label="记录分区维护操作">
@@ -580,7 +625,13 @@
           <strong>历史记录列表</strong>
           <span>{getHistoryListSectionSummary(assistMode, visibleHistory.length)}</span>
         </div>
-        {#if visibleHistory.length > 0 && archiveExpanded}
+        {#if isFocusLaneView}
+          <p class="assist-history-collapsed-copy">
+            {assistMode === 'translation'
+              ? '当前处于只看当前记录模式；切回完整历史后，可以继续浏览这本书的翻译记录。'
+              : '当前处于只看当前记录模式；切回完整历史后，可以继续浏览这本书的查找记录。'}
+          </p>
+        {:else if visibleHistory.length > 0 && archiveExpanded}
           <div class="assist-history-list">
             {#each visibleHistory as entry}
               <article class:selected={selectedHistoryEntryId === entry.id} class="assist-history-item">

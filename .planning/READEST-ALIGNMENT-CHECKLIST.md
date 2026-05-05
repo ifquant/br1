@@ -587,6 +587,14 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0578-split-focused-ai-lanes-into-current-and-history-sections.md`.
   - Notes: this slice does not change archive storage, replay semantics, or provider behavior. It only gives the focused lane a clearer notebook scaffold so later thread/archive work has stable section anchors.
 
+- [x] P5-1.17 Let focused AI lanes switch between current-record and full-history browsing
+  - Outcome: once a record is selected inside a focused lookup or translation lane, the reader can explicitly switch between `只看当前记录` and `查看完整历史` instead of treating selection and browse mode as the same thing.
+  - Touches: shared assistant workspace lane navigation semantics, focused AI lane browse-mode regression.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can switch a focused ai lane between current-record and full-history views|reader shows notebook-style action hierarchy inside ai archive lanes"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0579-let-focused-ai-lanes-switch-between-current-and-history-views.md`.
+  - Notes: this slice keeps archive persistence, replay, and provider behavior unchanged. It only adds an explicit browse-mode toggle and keeps the `aria-pressed` state aligned with the visible lane mode so focused navigation reads like a real notebook workflow.
+
 ## P6 Library Operations And Desktop Support
 
 Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
@@ -775,3 +783,4 @@ Use this log when completing each item.
 | 2026-05-05 | Separate navigation, maintenance, and item actions inside focused AI lanes | 1b39e4f | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | splits focused-lane controls into section navigation, section maintenance, and per-record primary/secondary actions so the notebook lane no longer reads like one flat tool row |
 | 2026-05-05 | Align lookup and translation result sections inside focused AI lanes | 0b177d3 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader restores the selected ai history record for the current book in web mode|reader restores the selected translation ai history record for the current book in web mode|reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | adds explicit result-section headers and supporting summaries for lookup and translation lanes so restored history and live results read like one notebook surface instead of raw provider payload cards |
 | 2026-05-05 | Split focused AI lanes into explicit current-record and history-list sections | 2986907 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | adds explicit `当前记录` and `历史记录列表` subsections inside focused lookup/translation lanes so the notebook can separate active archived context from the archive list itself |
+| 2026-05-05 | Let focused AI lanes switch between current-record and full-history browsing | pending | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can switch a focused ai lane between current-record and full-history views|reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | adds an explicit browse-mode toggle between `只看当前记录` and `查看完整历史` so selecting an archived record no longer implicitly changes how much of the lane the reader is browsing |
