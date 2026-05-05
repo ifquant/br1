@@ -320,42 +320,51 @@
   </div>
 
   {#if !lockedMode && archiveOverviewVisible}
-    <div class="assist-archive-overview" aria-label="本书 AI 记录摘要">
-      <button
-        type="button"
-        class:active={assistMode === 'lookup'}
-        class="assist-archive-card"
-        on:click={() => openArchiveLane('lookup')}
-      >
-        <strong>查找记录</strong>
-        <span>{lookupHistory.length > 0 ? `当前书 ${lookupHistory.length} 条` : '当前书还没有查找记录'}</span>
-        <small>
-          {#if latestLookupHistoryEntry}
-            最近一条：{getReaderAssistanceRequestSubject(latestLookupHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestLookupHistoryEntry.updatedAt)}
-          {:else}
-            查词和百科结果会按当前书保留在这里。
-          {/if}
-        </small>
-      </button>
-      <button
-        type="button"
-        class:active={assistMode === 'translation'}
-        class="assist-archive-card"
-        on:click={() => openArchiveLane('translation')}
-      >
-        <strong>翻译记录</strong>
-        <span>
-          {translationHistory.length > 0 ? `当前书 ${translationHistory.length} 条` : '当前书还没有翻译记录'}
-        </span>
-        <small>
-          {#if latestTranslationHistoryEntry}
-            最近一条：{getReaderAssistanceRequestSubject(latestTranslationHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestTranslationHistoryEntry.updatedAt)}
-          {:else}
-            当前书的翻译请求和结果会按语言上下文保留在这里。
-          {/if}
-        </small>
-      </button>
-    </div>
+    <section class="assist-history-section assist-archive-overview" aria-label="本书 AI 记录摘要">
+      <div class="assist-history-section-head">
+        <strong>本书 AI 记录摘要</strong>
+        <span>查找 {lookupHistory.length} 条 · 翻译 {translationHistory.length} 条</span>
+      </div>
+      <small class="assist-history-head-note">
+        先看这本书积累了哪些查找和翻译记录，再进入某一条 notebook lane 继续浏览。
+      </small>
+      <div class="assist-archive-overview-cards" aria-label="本书 AI 记录入口">
+        <button
+          type="button"
+          class:active={assistMode === 'lookup'}
+          class="assist-archive-card"
+          on:click={() => openArchiveLane('lookup')}
+        >
+          <strong>查找记录</strong>
+          <span>{lookupHistory.length > 0 ? `当前书 ${lookupHistory.length} 条` : '当前书还没有查找记录'}</span>
+          <small>
+            {#if latestLookupHistoryEntry}
+              最近一条：{getReaderAssistanceRequestSubject(latestLookupHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestLookupHistoryEntry.updatedAt)}
+            {:else}
+              查词和百科结果会按当前书保留在这里。
+            {/if}
+          </small>
+        </button>
+        <button
+          type="button"
+          class:active={assistMode === 'translation'}
+          class="assist-archive-card"
+          on:click={() => openArchiveLane('translation')}
+        >
+          <strong>翻译记录</strong>
+          <span>
+            {translationHistory.length > 0 ? `当前书 ${translationHistory.length} 条` : '当前书还没有翻译记录'}
+          </span>
+          <small>
+            {#if latestTranslationHistoryEntry}
+              最近一条：{getReaderAssistanceRequestSubject(latestTranslationHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestTranslationHistoryEntry.updatedAt)}
+            {:else}
+              当前书的翻译请求和结果会按语言上下文保留在这里。
+            {/if}
+          </small>
+        </button>
+      </div>
+    </section>
   {/if}
 
   <div class="assist-context">

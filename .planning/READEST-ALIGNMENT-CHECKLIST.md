@@ -627,6 +627,14 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0583-collapse-focused-ai-navigation-into-one-section.md`.
   - Notes: this slice does not change archive persistence, replay, or provider behavior. It only turns the focused-lane navigation surface into one explicit notebook section so the navigation contract has a stable top-level anchor.
 
+- [x] P5-1.22 Turn the current-book AI archive overview into a real notebook section
+  - Outcome: `本书 AI 记录摘要` no longer reads like a loose card grid; it now has an explicit section header, total summary, and stable entry area before the reader drills into one lane.
+  - Touches: shared assistant workspace overview-section presentation, overview-to-lane navigation regression.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can move from the ai archive overview into one lane and back again"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0584-turn-the-ai-archive-overview-into-a-section.md`.
+  - Notes: this slice does not change history storage, lane navigation semantics, or provider behavior. It only gives the overview side of the AI workspace the same notebook-section structure already used inside focused lanes.
+
 ## P6 Library Operations And Desktop Support
 
 Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
@@ -820,3 +828,4 @@ Use this log when completing each item.
 | 2026-05-05 | Add a browse summary layer to focused AI lanes | c3c8c98 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows breadcrumb and grouped browse controls inside focused ai lanes|reader can switch a focused ai lane between current-record and full-history views|reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | adds explicit `当前位置 / 当前范围` summary state so the focused-lane navigation contract does not rely only on breadcrumb and toggle controls |
 | 2026-05-05 | Add current-entry summary to the focused AI navigation contract | e758dc0 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows breadcrumb and grouped browse controls inside focused ai lanes|reader can switch a focused ai lane between current-record and full-history views|reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | adds explicit `当前条目` summary state so the focused-lane navigation surface states which archived record is currently selected instead of relying only on the content sections below |
 | 2026-05-05 | Collapse focused-lane browse state into one notebook navigation section | e47d9db | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows breadcrumb and grouped browse controls inside focused ai lanes|reader can switch a focused ai lane between current-record and full-history views|reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | turns the focused-lane breadcrumb, summary, and browse controls into one explicit `浏览导航` section so the notebook navigation contract has a stable top-level anchor instead of three loose UI fragments |
+| 2026-05-05 | Turn the current-book AI archive overview into a real notebook section | pending | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | turns the current-book AI archive overview from a loose card grid into a section with its own header, total summary, and stable lane-entry area |

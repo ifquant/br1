@@ -995,6 +995,9 @@ test('reader can move from the ai archive overview into one lane and back again'
   await expect(notebook).toBeVisible();
   const overview = notebook.getByLabel('本书 AI 记录摘要');
   await expect(overview).toBeVisible();
+  await expect(overview).toContainText('本书 AI 记录摘要');
+  await expect(overview).toContainText('查找 1 条 · 翻译 1 条');
+  await expect(overview.getByLabel('本书 AI 记录入口')).toBeVisible();
   await overview.getByRole('button', { name: /翻译记录/ }).click();
   await expect(overview).toBeHidden();
   const historyLane = notebook.getByLabel('最近翻译');
