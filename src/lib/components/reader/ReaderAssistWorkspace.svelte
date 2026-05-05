@@ -103,6 +103,10 @@
   $: isFocusLaneView =
     (assistMode === 'translation' ? translationLaneViewMode : lookupLaneViewMode) === 'focus';
   $: isFullLaneView = !isFocusLaneView;
+  $: laneBreadcrumb =
+    selectedHistoryEntryId && isFocusLaneView
+      ? `本书 AI 记录摘要 / ${getArchiveLaneTitle(assistMode)} / 当前记录`
+      : `本书 AI 记录摘要 / ${getArchiveLaneTitle(assistMode)}`;
   $: selectedHistoryEntryId =
     assistMode === 'translation' ? selectedTranslationHistoryEntryId : selectedLookupHistoryEntryId;
   $: {
@@ -162,6 +166,7 @@
 
     return mode === 'translation' ? `当前书 ${count} 条翻译历史` : `当前书 ${count} 条查找历史`;
   };
+
 
   const getLookupResultSummary = (): string => {
     if (selectedHistoryEntry) {
@@ -546,6 +551,9 @@
         <span>
           {getArchiveLaneSummary(assistMode, visibleHistory.length)}
         </span>
+        <small class="assist-history-breadcrumb" aria-label="当前 AI 导航路径">
+          {laneBreadcrumb}
+        </small>
         <small class="assist-history-head-note">
           {assistMode === 'translation'
             ? '保留本书最近的翻译请求，方便回看和再次发起。'
@@ -554,35 +562,39 @@
         <div class="assist-history-head-actions">
           <div class="assist-history-nav-actions" aria-label="记录分区导航">
             {#if !archiveOverviewVisible}
-              <button
-                type="button"
-                class="assist-chip assist-chip-primary"
-                on:click={() => {
-                  archiveOverviewVisible = true;
-                }}
-              >
-                返回本书 AI 记录摘要
-              </button>
+              <div class="assist-nav-group" aria-label="浏览位置">
+                <button
+                  type="button"
+                  class="assist-chip assist-chip-primary"
+                  on:click={() => {
+                    archiveOverviewVisible = true;
+                  }}
+                >
+                  返回本书 AI 记录摘要
+                </button>
+              </div>
             {/if}
             {#if selectedHistoryEntry}
-              <button
-                type="button"
-                class:active={isFocusLaneView}
-                class="assist-chip"
-                aria-pressed={isFocusLaneView ? 'true' : 'false'}
-                on:click={() => setLaneViewMode(assistMode, 'focus')}
-              >
-                只看当前记录
-              </button>
-              <button
-                type="button"
-                class:active={isFullLaneView}
-                class="assist-chip"
-                aria-pressed={isFullLaneView ? 'true' : 'false'}
-                on:click={() => setLaneViewMode(assistMode, 'full')}
-              >
-                查看完整历史
-              </button>
+              <div class="assist-nav-group" aria-label="浏览范围">
+                <button
+                  type="button"
+                  class:active={isFocusLaneView}
+                  class="assist-chip"
+                  aria-pressed={isFocusLaneView ? 'true' : 'false'}
+                  on:click={() => setLaneViewMode(assistMode, 'focus')}
+                >
+                  只看当前记录
+                </button>
+                <button
+                  type="button"
+                  class:active={isFullLaneView}
+                  class="assist-chip"
+                  aria-pressed={isFullLaneView ? 'true' : 'false'}
+                  on:click={() => setLaneViewMode(assistMode, 'full')}
+                >
+                  查看完整历史
+                </button>
+              </div>
             {/if}
           </div>
           {#if visibleHistory.length > 0}
@@ -1018,6 +1030,13 @@
     line-height: 1.55;
   }
 
+  .assist-history-breadcrumb {
+    color: color-mix(in srgb, var(--text-secondary) 86%, var(--accent-warm, #8c6a3b) 14%);
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: none;
+  }
+
   .assist-history-head-actions {
     display: grid;
     gap: 8px;
@@ -1029,6 +1048,13 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .assist-nav-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
   }
 
   .assist-history-head .clear-history {
