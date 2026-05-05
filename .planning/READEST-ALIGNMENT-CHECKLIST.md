@@ -667,6 +667,29 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0588-remove-overview-semantics-from-dedicated-translation-mode.md`.
   - Notes: this slice does not change translation history storage or replay behavior. It only fixes the navigation contract so the dedicated translation workspace does not expose a fake return path to an overview that is unavailable in locked mode.
 
+- [x] P5-1.27 Record the P5 closeout boundary
+  - Outcome: the repo now states which AI workspace parity pieces are considered closed in P5, and which items remain intentionally outside this line.
+  - Touches: checklist closeout notes, tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0589-close-the-p5-ai-workspace-structure-line.md`.
+  - Notes: P5 now includes notebook shell, AI assistant workspace, translation mode, current-book archive overview, focused lane navigation, and notebook-summary alignment. It explicitly does not include cross-book AI archive browsing, thread-style conversation history, provider expansion, or remote AI sync.
+
+### P5 Closeout
+
+Included in P5:
+- notebook-grade AI assistant tab inside the reader workspace
+- dedicated translation mode inside the notebook shell
+- current-book archive overview with explicit section structure
+- focused lane navigation, current-record/history separation, and browse-mode controls
+- top-level scope and notebook-summary alignment for assistant and translation tabs
+
+Explicitly not included in P5:
+- cross-book AI archive browsing
+- thread-style conversation history
+- provider/network expansion beyond the existing lookup/translation substrate
+- remote AI sync or cloud archive surfaces
+
 ## P6 Library Operations And Desktop Support
 
 Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
@@ -865,3 +888,4 @@ Use this log when completing each item.
 | 2026-05-05 | Separate AI overview mode from focused lane mode | b03e05e | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | makes overview mode and focused lane mode mutually exclusive so the assistant no longer renders the current-book overview and a live focused lane at the same time |
 | 2026-05-05 | Make the notebook summary reflect the active AI workspace tab | 640c302 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | makes the notebook summary strip reflect assistant-specific and translation-specific workspace state instead of keeping one generic assistant status line across all tabs |
 | 2026-05-05 | Remove archive-overview navigation semantics from dedicated translation mode | c88654b | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | removes the fake overview parent and return action from locked translation mode so its navigation contract matches the fact that it is already a dedicated workspace |
+| 2026-05-05 | Record the P5 closeout boundary | pending | `pnpm check`; `git diff --check` | documents which AI workspace structures are now treated as closed in P5 and which larger ideas remain intentionally out of scope for the next mainline |
