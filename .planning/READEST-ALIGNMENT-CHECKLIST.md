@@ -878,9 +878,17 @@ Goal: close the remaining gap between dedicated reader modes and the live readin
   - Outcome: the repo now states which translated-TTS and reading-mode parity pieces are considered closed in `P9`, and which larger TTS/translation expansions remain intentionally outside this line.
   - Touches: checklist closeout notes, tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: this commit
+  - Done commit: 49aa5b5
   - Tutorial: `tutorials/commit/0598-close-the-p9-reader-reading-mode-line.md`.
   - Notes: P9 now includes translation-mode ownership, dedicated TTS notebook summary ownership, source-versus-translated TTS switching, archive-backed translated-TTS resolution, archive provenance/jump-back affordances, and live waiting-source provenance. It explicitly does not include paragraph segmentation, richer speech engines, provider expansion, cross-book translated-TTS browsing, or remote TTS sync.
+
+- [x] P9-1.8 Run the P9 closeout review
+  - Outcome: the repo now records whether the translated-TTS reading-mode line still has structural blockers, and it states whether the next step should stay in `P9` or move to a new reader workspace mainline.
+  - Touches: checklist closeout review notes, tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0599-record-the-p9-closeout-review.md`.
+  - Notes: this review found no remaining structural blocker inside the translated-TTS reading-mode line. Remaining gaps are larger reading/playback product expansions rather than ownership or provenance correctness inside the current notebook contract.
 
 ### P9 Closeout
 
@@ -896,6 +904,11 @@ Explicitly not included in P9:
 - new speech engines, voice/provider expansion, or playback queue work
 - cross-book translated-TTS archive browsing
 - remote/cloud TTS sync surfaces
+
+Closeout review verdict:
+- no remaining structural blocker was found in the translated-TTS reading-mode line
+- archive-backed and live waiting-source paths are now both represented inside the dedicated TTS notebook contract
+- the next recommended mainline is not more `P9` micro-slices, but the next reader workspace line that still has a material parity gap
 
 ## Service Security Gate
 
@@ -988,4 +1001,5 @@ Use this log when completing each item.
 | 2026-05-05 | Let translated TTS follow the selected translation archive | f1f7378 | `pnpm check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader lets translated tts mode consume the selected translation archive in web mode|reader can open tts mode as a dedicated notebook tab|reader restores the selected translation ai history record for the current book in web mode"`; `git diff --check` | makes dedicated translated TTS consume the selected translation archive before falling back to the live translation result and fixes the focused-lane restore path so archive cleanup cannot silently drop the selected translation record |
 | 2026-05-05 | Expose translated-TTS archive provenance and jump back to translation mode | f6f8905 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader lets translated tts mode consume the selected translation archive in web mode"`; `git diff --check` | makes archive-backed translated TTS show its provenance inside the TTS tab itself and lets the reader jump straight back to the translation workspace without losing the selected translation record |
 | 2026-05-05 | Keep live translated-TTS provenance in sync with the current reading source | f055232 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader lets translated tts mode consume the selected translation archive in web mode"`; `git diff --check` | makes the live translated-TTS path reuse the same current reading source that translation mode already follows, so the notebook summary and waiting-state copy say `等待译文结果` instead of collapsing back to a generic no-target state |
-| 2026-05-05 | Record the P9 closeout boundary | this commit | `pnpm check`; `git diff --check` | documents which translation/TTS reading-mode pieces now count as closed in P9 and which larger playback or cross-book expansions remain intentionally out of scope |
+| 2026-05-05 | Record the P9 closeout boundary | 49aa5b5 | `pnpm check`; `git diff --check` | documents which translation/TTS reading-mode pieces now count as closed in P9 and which larger playback or cross-book expansions remain intentionally out of scope |
+| 2026-05-05 | Run the P9 closeout review | this commit | `pnpm check`; `git diff --check` | records that the translated-TTS reading-mode line no longer has structural blockers and that the next step should be a new reader workspace mainline instead of more P9 micro-slices |
