@@ -954,6 +954,30 @@ Goal: move dedicated TTS from a correct reading-mode shell into a more trustwort
   - Tutorial: `tutorials/commit/0604-carry-epub-metadata-language-into-source-tts.md`.
   - Notes: this slice intentionally does not guess source language from arbitrary text, and it does not add TXT/PDF language inference.
 
+- [x] P10-1.6 Record the P10 closeout boundary
+  - Outcome: the repo now explicitly states which reader TTS runtime guarantees count as shipped in `P10`, and which larger playback/runtime ideas remain intentionally outside this line.
+  - Touches: checklist/tutorial docs only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0605-close-the-p10-reader-tts-runtime-line.md`.
+  - Notes: this closeout does not add EPUB/PDF live excerpt extraction, source-language inference, or playback queue work. It only makes the stopping point durable inside the repo.
+
+### P10 Closeout
+
+Included in P10:
+- active-session retargeting now follows explicit ownership changes such as book switches, source/translated mode switches, and follow-current resets
+- dedicated TTS now mirrors its live session into the browser media session with play, pause, and stop controls
+- translated TTS now carries explicit translation target language into runtime speech startup
+- TXT source-side TTS now prefers stable visible-body excerpts over chapter-title scaffold fallback
+- EPUB/Foliate source-side TTS now carries stable book metadata language into source-target resolution
+
+Explicitly not included in P10:
+- paragraph-level or sentence-level TTS segmentation or relocation
+- richer playback queue, queue navigation, or transport expansion beyond browser media session
+- unstable live-excerpt extraction for EPUB, PDF, or Foliate body content
+- source-language guessing or inference from arbitrary text for TXT, PDF, or generic source-side playback
+
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
