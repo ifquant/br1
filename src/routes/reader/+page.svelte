@@ -515,7 +515,11 @@
   $: effectiveTtsTarget = ttsFollowsCurrentLocation
     ? resolvedTtsTarget
     : pinnedTtsTarget || resolvedTtsTarget;
-  $: resolvedTranslationSource = resolveReaderTranslationModeSource();
+  $: {
+    currentPreview;
+    $notesState.selection;
+    resolvedTranslationSource = resolveReaderTranslationModeSource();
+  }
   $: effectiveTranslationSource = translationFollowsCurrentSource
     ? resolvedTranslationSource
     : pinnedTranslationSource || resolvedTranslationSource;

@@ -1165,7 +1165,11 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读译文');
   await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(notebook.getByRole('region', { name: '朗读模式' })).toContainText('当前还没有可朗读的译文结果。');
+  await expect(notebook.getByRole('region', { name: '朗读模式' })).toContainText('正在跟随当前章节');
+  await expect(notebook.getByRole('region', { name: '朗读模式' })).toContainText('第 1 / 3 节');
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('正在跟随当前章节');
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('第 1 / 3 节');
+  await expect(page.getByRole('button', { name: '在翻译模式中查看' })).toBeVisible();
   const lockTtsTargetButton = page.getByRole('button', { name: '锁定当前朗读目标' });
   await expect(lockTtsTargetButton).toBeVisible();
   await expect(notebook.locator('.tts-panel strong', { hasText: '当前朗读目标' })).toBeVisible();
@@ -1179,7 +1183,7 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
     await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随当前阅读位置');
     await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
   } else {
-    await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读目标：还没有可朗读目标');
+    await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读目标：等待译文结果');
     await expect(lockTtsTargetButton).toBeDisabled();
   }
   await page.getByRole('button', { name: '朗读原文' }).click();

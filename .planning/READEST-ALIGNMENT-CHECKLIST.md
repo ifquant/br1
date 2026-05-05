@@ -866,6 +866,14 @@ Goal: close the remaining gap between dedicated reader modes and the live readin
   - Tutorial: `tutorials/commit/0596-expose-translated-tts-archive-provenance.md`.
   - Notes: this slice does not close the live waiting-source provenance path for translated TTS. It only makes the archive-backed translated-TTS path traceable and directly navigable.
 
+- [ ] P9-1.6 Keep live translated-TTS provenance in sync with the current reading source
+  - Outcome: when translated TTS has no selected archive and no translated result yet, the TTS tab still shows which current reading source it is waiting on, and the notebook summary upgrades from “还没有可朗读目标” to “等待译文结果”.
+  - Touches: route-owned translation-source reactivity, TTS live waiting-state copy, focused translated-TTS regressions.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader lets translated tts mode consume the selected translation archive in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0597-keep-live-translated-tts-provenance-in-sync.md`.
+  - Notes: this slice does not add new TTS sources or new provenance panels. It only fixes the live-path reactive gap so translated TTS reflects the same current reading source that translation mode already follows.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
