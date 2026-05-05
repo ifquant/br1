@@ -1,5 +1,8 @@
 import { writable } from 'svelte/store';
-import { createWebSpeechReaderTtsRuntime } from './ttsRuntime';
+import {
+  createWebSpeechReaderTtsRuntime,
+  type ReaderTtsRuntimeMediaSessionSnapshot
+} from './ttsRuntime';
 import type { ReaderTtsReadAloudTextMode } from './types';
 
 export type ReaderTtsSessionStatus = 'unavailable' | 'idle' | 'speaking' | 'paused' | 'error';
@@ -287,6 +290,22 @@ const hasSameReaderTtsSessionState = (
   current.speechTargetLabel === next.speechTargetLabel &&
   current.followsCurrent === next.followsCurrent;
 
+const createReaderTtsRuntimeMediaSessionSnapshot = (
+  state: ReaderTtsSessionState
+): ReaderTtsRuntimeMediaSessionSnapshot => ({
+  status: state.status,
+  title: getReaderTtsReadableTargetLabel(state),
+  artist:
+    getReaderTtsReadableSourceLabel(state) ||
+    (state.followsCurrent ? READER_TTS_DEFAULT_SOURCE_LABEL : READER_TTS_LOCKED_TARGET_LABEL),
+  album:
+    state.status === 'speaking'
+      ? 'Bridge Reader · 朗读中'
+      : state.status === 'paused'
+        ? 'Bridge Reader · 已暂停'
+        : 'Bridge Reader · 朗读模式'
+});
+
 export const createReaderTtsController = ({
   isAvailable = false,
   unavailableReason = READER_TTS_UNAVAILABLE_REASON,
@@ -296,11 +315,11 @@ export const createReaderTtsController = ({
   let available = isAvailable;
   let activeSpeechTarget: ReaderTtsSpeechTarget | null = null;
   let speechSessionToken = 0;
-  const state = writable<ReaderTtsSessionState>(
-    available
-      ? createIdleReaderTtsSessionState()
-      : createUnavailableReaderTtsSessionState(unavailableReason)
-  );
+  const initialState = available
+    ? createIdleReaderTtsSessionState()
+    : createUnavailableReaderTtsSessionState(unavailableReason);
+  let currentState = initialState;
+  const state = writable<ReaderTtsSessionState>(initialState);
 
   const stamp = (next: ReaderTtsSessionState, lastAction: ReaderTtsSessionAction) => ({
     ...next,
@@ -487,6 +506,30 @@ export const createReaderTtsController = ({
       )
     );
   };
+
+  const syncRuntimeMediaSession = () => {
+    runtime.syncMediaSession(createReaderTtsRuntimeMediaSessionSnapshot(currentState), {
+      onPlay: () => {
+        if (currentState.status === 'paused') {
+          resume();
+          return;
+        }
+
+        start();
+      },
+      onPause: () => {
+        pause();
+      },
+      onStop: () => {
+        stop();
+      }
+    });
+  };
+
+  state.subscribe((next) => {
+    currentState = next;
+    syncRuntimeMediaSession();
+  });
 
   return {
     state,

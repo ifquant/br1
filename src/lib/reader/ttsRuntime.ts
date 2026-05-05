@@ -3,12 +3,29 @@ export type ReaderTtsRuntimeSpeakHandlers = {
   onError: (message: string) => void;
 };
 
+export type ReaderTtsRuntimeMediaSessionSnapshot = {
+  status: 'unavailable' | 'idle' | 'speaking' | 'paused' | 'error';
+  title: string;
+  artist: string;
+  album: string;
+};
+
+export type ReaderTtsRuntimeMediaSessionHandlers = {
+  onPlay: () => void;
+  onPause: () => void;
+  onStop: () => void;
+};
+
 export type ReaderTtsRuntime = {
   supported: boolean;
   speak: (text: string, handlers: ReaderTtsRuntimeSpeakHandlers, lang?: string) => boolean;
   pause: () => boolean;
   resume: () => boolean;
   stop: () => boolean;
+  syncMediaSession: (
+    snapshot: ReaderTtsRuntimeMediaSessionSnapshot,
+    handlers: ReaderTtsRuntimeMediaSessionHandlers
+  ) => void;
 };
 
 const createUnsupportedReaderTtsRuntime = (): ReaderTtsRuntime => ({
@@ -16,7 +33,8 @@ const createUnsupportedReaderTtsRuntime = (): ReaderTtsRuntime => ({
   speak: () => false,
   pause: () => false,
   resume: () => false,
-  stop: () => false
+  stop: () => false,
+  syncMediaSession: () => {}
 });
 
 export const createWebSpeechReaderTtsRuntime = (): ReaderTtsRuntime => {
@@ -26,6 +44,10 @@ export const createWebSpeechReaderTtsRuntime = (): ReaderTtsRuntime => {
 
   const speechSynthesis = window.speechSynthesis;
   const hasUtterance = typeof window.SpeechSynthesisUtterance === 'function';
+  const mediaSession = navigator.mediaSession ?? null;
+  const MediaMetadataCtor = (
+    window as Window & typeof globalThis & { MediaMetadata?: new (init?: MediaMetadataInit) => MediaMetadata }
+  ).MediaMetadata;
 
   if (!speechSynthesis || !hasUtterance) {
     return createUnsupportedReaderTtsRuntime();
@@ -36,6 +58,19 @@ export const createWebSpeechReaderTtsRuntime = (): ReaderTtsRuntime => {
   const clearActiveUtterance = (utterance: SpeechSynthesisUtterance) => {
     if (activeUtterance === utterance) {
       activeUtterance = null;
+    }
+  };
+
+  const installMediaSessionHandler = (
+    action: MediaSessionAction,
+    handler: MediaSessionActionHandler | null
+  ) => {
+    if (!mediaSession) return;
+
+    try {
+      mediaSession.setActionHandler(action, handler);
+    } catch {
+      // Some browsers expose mediaSession but reject unsupported handlers.
     }
   };
 
@@ -89,6 +124,43 @@ export const createWebSpeechReaderTtsRuntime = (): ReaderTtsRuntime => {
         return true;
       } catch {
         return false;
+      }
+    },
+    syncMediaSession: (snapshot, handlers) => {
+      if (!mediaSession) return;
+
+      installMediaSessionHandler('play', () => handlers.onPlay());
+      installMediaSessionHandler('pause', () => handlers.onPause());
+      installMediaSessionHandler('stop', () => handlers.onStop());
+
+      try {
+        mediaSession.playbackState =
+          snapshot.status === 'speaking'
+            ? 'playing'
+            : snapshot.status === 'paused'
+              ? 'paused'
+              : 'none';
+      } catch {
+        // Some browsers expose readonly or partial mediaSession implementations.
+      }
+
+      if (!MediaMetadataCtor || !snapshot.title.trim()) {
+        try {
+          mediaSession.metadata = null;
+        } catch {
+          // Ignore browsers that reject metadata clearing.
+        }
+        return;
+      }
+
+      try {
+        mediaSession.metadata = new MediaMetadataCtor({
+          title: snapshot.title,
+          artist: snapshot.artist,
+          album: snapshot.album
+        });
+      } catch {
+        // Ignore malformed or unsupported metadata writes.
       }
     }
   };
