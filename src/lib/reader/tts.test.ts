@@ -30,7 +30,10 @@ test('normalizeReaderTtsSpeechTarget keeps explicit source and follow-current me
     sourceLabel: '正文',
     targetLabel: '当前段落',
     followsCurrent: true,
-    lang: undefined
+    lang: undefined,
+    progressLocation: undefined,
+    progressFraction: undefined,
+    chapterHref: undefined
   });
 });
 
@@ -80,7 +83,10 @@ test('translated TTS mode prefers the current translation result', () => {
     sourceLabel: 'DeepL 翻译结果',
     targetLabel: '译文',
     followsCurrent: true,
-    lang: 'zh-CN'
+    lang: 'zh-CN',
+    progressLocation: undefined,
+    progressFraction: null,
+    chapterHref: undefined
   });
 });
 
@@ -128,6 +134,9 @@ test('source TTS mode prefers a live reading excerpt before chapter-title fallba
       excerptText: ' This plain text file exists to verify the current contract. ',
       excerptSourceLabel: '当前阅读位置',
       sourceLanguage: 'en',
+      progressLocation: 'txt:0.245000',
+      progressFraction: 0.245,
+      chapterHref: '#txt-body',
       chapterLabel: '纯文本',
       title: 'Sample TXT Book'
     }
@@ -139,7 +148,10 @@ test('source TTS mode prefers a live reading excerpt before chapter-title fallba
     sourceLabel: '当前阅读位置',
     targetLabel: '正文摘录',
     followsCurrent: true,
-    lang: 'en-US'
+    lang: 'en-US',
+    progressLocation: 'txt:0.245000',
+    progressFraction: 0.245,
+    chapterHref: '#txt-body'
   });
 });
 
@@ -151,6 +163,8 @@ test('source TTS mode carries EPUB metadata language into chapter fallback targe
       excerptText: '',
       excerptSourceLabel: '',
       sourceLanguage: 'fr',
+      progressLocation: 'epubcfi(/6/2[chap01]!/4/2/6)',
+      chapterHref: '#chap01',
       chapterLabel: 'Chapitre 1',
       title: 'Livre Exemple'
     }
@@ -162,7 +176,10 @@ test('source TTS mode carries EPUB metadata language into chapter fallback targe
     sourceLabel: '当前阅读位置',
     targetLabel: '章节标题',
     followsCurrent: true,
-    lang: 'fr-FR'
+    lang: 'fr-FR',
+    progressLocation: 'epubcfi(/6/2[chap01]!/4/2/6)',
+    progressFraction: null,
+    chapterHref: '#chap01'
   });
 });
 

@@ -16,6 +16,7 @@
   export let target: ReaderTtsSpeechTarget | null = null;
   export let followsCurrentLocation = true;
   export let readAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
+  export let canJumpToCurrentTtsLocation = false;
   export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   export let translatedWaitingSourceLabel = '';
   export let translatedWaitingSourceText = '';
@@ -28,6 +29,7 @@
   export let onStop: (() => void) | null = null;
   export let onPinCurrentTarget: (() => void) | null = null;
   export let onResumeFollowingCurrent: (() => void) | null = null;
+  export let onJumpToCurrentTtsLocation: (() => void) | null = null;
   export let onSetReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
   export let onOpenTranslationMode: (() => void) | null = null;
 
@@ -129,6 +131,11 @@
         回到当前阅读位置
       </button>
     {/if}
+    {#if canJumpToCurrentTtsLocation}
+      <button type="button" class="ghost-action" on:click={() => onJumpToCurrentTtsLocation?.()}>
+        回到朗读位置
+      </button>
+    {/if}
   </div>
 
   <div class="tts-panels">
@@ -174,7 +181,9 @@
       <strong>会话状态</strong>
       <span>{ttsStatusDetail}</span>
       <p>
-        {#if followsCurrentLocation}
+        {#if canJumpToCurrentTtsLocation}
+          当前阅读已经离开朗读位置，可以直接回到朗读停留处继续跟读。
+        {:else if followsCurrentLocation}
           现在会在空闲状态下自动跟随当前选区或阅读位置，不需要每次重新指定朗读目标。
         {:else}
           当前朗读目标已经锁定，直到你手动回到当前阅读位置。

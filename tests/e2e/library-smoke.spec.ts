@@ -1208,6 +1208,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
   const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
+  const lockTtsTargetButton = page.getByRole('button', { name: '锁定当前朗读目标' });
   await expect(currentTargetPanel).toContainText(
     'This plain text file exists to verify the current P0-1 downgrade contract.'
   );
@@ -1227,6 +1228,24 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   await expect(currentTargetPanel).not.toContainText(
     'This plain text file exists to verify the current P0-1 downgrade contract.'
   );
+  await expect(lockTtsTargetButton).toBeVisible();
+
+  if (await lockTtsTargetButton.isEnabled()) {
+    await lockTtsTargetButton.click();
+    await expect(page.getByLabel('朗读模式状态')).toContainText('已锁定朗读目标');
+    await page.locator('.plain-text-surface').evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    const backToTtsLocationButton = page.getByRole('button', { name: '回到朗读位置' });
+    await expect(backToTtsLocationButton).toBeVisible();
+    await expect(page.getByLabel('笔记工作台摘要')).toContainText('可回到朗读位置');
+    await expect(ttsRegion.locator('.tts-panel').nth(1)).toContainText('当前阅读已经离开朗读位置');
+    await backToTtsLocationButton.click();
+    await expect(backToTtsLocationButton).toHaveCount(0);
+    await expect(page.getByLabel('笔记工作台摘要')).not.toContainText('可回到朗读位置');
+    await expect(ttsRegion.locator('.tts-panel').nth(1)).not.toContainText('当前阅读已经离开朗读位置');
+  }
 });
 
 test('reader lets translated tts mode consume the selected translation archive in web mode', async ({

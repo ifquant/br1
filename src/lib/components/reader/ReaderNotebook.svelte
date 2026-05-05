@@ -61,6 +61,7 @@
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
   export let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
+  export let canJumpToCurrentTtsLocation = false;
   export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   export let translatedTtsSourceContextLabel = '';
   export let translatedTtsSourceText = '';
@@ -124,6 +125,7 @@
     | null = null;
   export let onPinCurrentTtsTarget: (() => void) | null = null;
   export let onResumeFollowingCurrentTtsTarget: (() => void) | null = null;
+  export let onJumpToCurrentTtsLocation: (() => void) | null = null;
   export let onSetTtsReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
   export let onOpenTranslationMode: (() => void) | null = null;
   export let onPinCurrentTranslationSource:
@@ -168,7 +170,7 @@
               `朗读状态：${ttsStatusSummary}`,
               ttsFollowsCurrentLocation ? '跟随当前阅读位置' : '已锁定朗读目标',
               ttsReadAloudSummary,
-              `朗读目标：${ttsTargetSummary}`,
+              canJumpToCurrentTtsLocation ? '可回到朗读位置' : `朗读目标：${ttsTargetSummary}`,
               '朗读模式工作台'
             ]
         : [
@@ -397,6 +399,7 @@
           target={ttsTarget}
           followsCurrentLocation={ttsFollowsCurrentLocation}
           readAloudTextMode={ttsReadAloudTextMode}
+          {canJumpToCurrentTtsLocation}
           {translatedTtsSourceKind}
           translatedWaitingSourceLabel={translatedTtsSourceContextLabel}
           translatedWaitingSourceText={translatedTtsSourceText}
@@ -409,6 +412,7 @@
           onStop={callbacks.onTtsStop}
           onPinCurrentTarget={onPinCurrentTtsTarget}
           onResumeFollowingCurrent={onResumeFollowingCurrentTtsTarget}
+          onJumpToCurrentTtsLocation={onJumpToCurrentTtsLocation}
           onSetReadAloudTextMode={onSetTtsReadAloudTextMode}
           onOpenTranslationMode={onOpenTranslationMode}
         />

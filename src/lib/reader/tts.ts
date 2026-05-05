@@ -18,6 +18,9 @@ export type ReaderTtsSpeechTarget = {
   targetLabel?: string;
   followsCurrent?: boolean;
   lang?: string;
+  progressLocation?: string;
+  progressFraction?: number | null;
+  chapterHref?: string;
 };
 
 export type ReaderTtsSessionState = {
@@ -29,6 +32,9 @@ export type ReaderTtsSessionState = {
   speechSourceLabel: string;
   speechTargetLabel: string;
   followsCurrent: boolean;
+  speechProgressLocation: string;
+  speechProgressFraction: number | null;
+  speechChapterHref: string;
 };
 
 export type ReaderTtsControllerOptions = {
@@ -53,12 +59,22 @@ const createReaderTtsSessionTargetState = (target: ReaderTtsSpeechTarget | null)
     normalizedTarget?.targetLabel || normalizedTarget?.label
   );
   const speechSourceLabel = trimReaderTtsLabel(normalizedTarget?.sourceLabel);
+  const speechProgressLocation = trimReaderTtsLabel(normalizedTarget?.progressLocation);
+  const speechChapterHref = trimReaderTtsLabel(normalizedTarget?.chapterHref);
+  const speechProgressFraction =
+    typeof normalizedTarget?.progressFraction === 'number' &&
+    Number.isFinite(normalizedTarget.progressFraction)
+      ? normalizedTarget.progressFraction
+      : null;
 
   return {
     speechLabel: speechTargetLabel,
     speechSourceLabel,
     speechTargetLabel,
-    followsCurrent: !!normalizedTarget?.followsCurrent
+    followsCurrent: !!normalizedTarget?.followsCurrent,
+    speechProgressLocation,
+    speechProgressFraction,
+    speechChapterHref
   };
 };
 
@@ -74,6 +90,13 @@ export const normalizeReaderTtsSpeechTarget = (
   const sourceLabel = trimReaderTtsLabel(normalizedTarget?.sourceLabel);
   const targetLabel = trimReaderTtsLabel(normalizedTarget?.targetLabel) || label;
   const lang = trimReaderTtsLabel(normalizedTarget?.lang);
+  const progressLocation = trimReaderTtsLabel(normalizedTarget?.progressLocation);
+  const chapterHref = trimReaderTtsLabel(normalizedTarget?.chapterHref);
+  const progressFraction =
+    typeof normalizedTarget?.progressFraction === 'number' &&
+    Number.isFinite(normalizedTarget.progressFraction)
+      ? normalizedTarget.progressFraction
+      : undefined;
 
   return {
     text,
@@ -81,7 +104,10 @@ export const normalizeReaderTtsSpeechTarget = (
     sourceLabel: sourceLabel || undefined,
     targetLabel: targetLabel || undefined,
     followsCurrent: !!normalizedTarget?.followsCurrent,
-    lang: lang || undefined
+    lang: lang || undefined,
+    progressLocation: progressLocation || undefined,
+    progressFraction,
+    chapterHref: chapterHref || undefined
   };
 };
 
@@ -96,6 +122,9 @@ export const createEmptyReaderTtsSessionState = (
   speechSourceLabel: '',
   speechTargetLabel: '',
   followsCurrent: false,
+  speechProgressLocation: '',
+  speechProgressFraction: null,
+  speechChapterHref: '',
   ...overrides
 });
 
@@ -211,6 +240,9 @@ export type ReaderTtsSourceTargetInput = {
   excerptText?: string | null;
   excerptSourceLabel?: string | null;
   sourceLanguage?: string | null;
+  progressLocation?: string | null;
+  progressFraction?: number | null;
+  chapterHref?: string | null;
   chapterLabel?: string | null;
   title?: string | null;
 };
@@ -219,6 +251,9 @@ export type ReaderTtsTranslatedTargetInput = {
   translatedText?: string | null;
   providerLabel?: string | null;
   targetLanguage?: string | null;
+  progressLocation?: string | null;
+  progressFraction?: number | null;
+  chapterHref?: string | null;
 };
 
 export const normalizeReaderTtsLanguageTag = (value?: string | null): string => {
@@ -270,11 +305,23 @@ export const resolveReaderTtsSpeechTargetForMode = ({
   const normalizedExcerptText = source.excerptText?.trim() || '';
   const normalizedExcerptSourceLabel = source.excerptSourceLabel?.trim() || '';
   const normalizedSourceLanguage = normalizeReaderTtsLanguageTag(source.sourceLanguage);
+  const normalizedSourceProgressLocation = source.progressLocation?.trim() || '';
+  const normalizedSourceChapterHref = source.chapterHref?.trim() || '';
+  const normalizedSourceProgressFraction =
+    typeof source.progressFraction === 'number' && Number.isFinite(source.progressFraction)
+      ? source.progressFraction
+      : null;
   const normalizedChapterLabel = source.chapterLabel?.trim() || '';
   const normalizedTitle = source.title?.trim() || '';
   const normalizedTranslatedText = translated?.translatedText?.trim() || '';
   const normalizedProviderLabel = translated?.providerLabel?.trim() || '';
   const normalizedTargetLanguage = normalizeReaderTtsLanguageTag(translated?.targetLanguage);
+  const normalizedTranslatedProgressLocation = translated?.progressLocation?.trim() || '';
+  const normalizedTranslatedChapterHref = translated?.chapterHref?.trim() || '';
+  const normalizedTranslatedProgressFraction =
+    typeof translated?.progressFraction === 'number' && Number.isFinite(translated.progressFraction)
+      ? translated.progressFraction
+      : null;
 
   if (mode === 'translated') {
     if (!normalizedTranslatedText) return null;
@@ -290,7 +337,10 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       sourceLabel: translatedSourceLabel,
       targetLabel: '译文',
       followsCurrent: true,
-      lang: normalizedTargetLanguage || undefined
+      lang: normalizedTargetLanguage || undefined,
+      progressLocation: normalizedTranslatedProgressLocation || undefined,
+      progressFraction: normalizedTranslatedProgressFraction,
+      chapterHref: normalizedTranslatedChapterHref || undefined
     };
   }
 
@@ -301,7 +351,10 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       sourceLabel: '正文选区',
       targetLabel: '选中文本',
       followsCurrent: true,
-      lang: normalizedSourceLanguage || undefined
+      lang: normalizedSourceLanguage || undefined,
+      progressLocation: normalizedSourceProgressLocation || undefined,
+      progressFraction: normalizedSourceProgressFraction,
+      chapterHref: normalizedSourceChapterHref || undefined
     };
   }
 
@@ -312,7 +365,10 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       sourceLabel: normalizedExcerptSourceLabel || '当前阅读位置',
       targetLabel: '正文摘录',
       followsCurrent: true,
-      lang: normalizedSourceLanguage || undefined
+      lang: normalizedSourceLanguage || undefined,
+      progressLocation: normalizedSourceProgressLocation || undefined,
+      progressFraction: normalizedSourceProgressFraction,
+      chapterHref: normalizedSourceChapterHref || undefined
     };
   }
 
@@ -323,7 +379,10 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       sourceLabel: '当前阅读位置',
       targetLabel: '章节标题',
       followsCurrent: true,
-      lang: normalizedSourceLanguage || undefined
+      lang: normalizedSourceLanguage || undefined,
+      progressLocation: normalizedSourceProgressLocation || undefined,
+      progressFraction: normalizedSourceProgressFraction,
+      chapterHref: normalizedSourceChapterHref || undefined
     };
   }
 
@@ -334,7 +393,10 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       sourceLabel: '当前阅读位置',
       targetLabel: '书名',
       followsCurrent: true,
-      lang: normalizedSourceLanguage || undefined
+      lang: normalizedSourceLanguage || undefined,
+      progressLocation: normalizedSourceProgressLocation || undefined,
+      progressFraction: normalizedSourceProgressFraction,
+      chapterHref: normalizedSourceChapterHref || undefined
     };
   }
 
@@ -352,7 +414,10 @@ const hasSameReaderTtsSessionState = (
   current.speechLabel === next.speechLabel &&
   current.speechSourceLabel === next.speechSourceLabel &&
   current.speechTargetLabel === next.speechTargetLabel &&
-  current.followsCurrent === next.followsCurrent;
+  current.followsCurrent === next.followsCurrent &&
+  current.speechProgressLocation === next.speechProgressLocation &&
+  current.speechProgressFraction === next.speechProgressFraction &&
+  current.speechChapterHref === next.speechChapterHref;
 
 const createReaderTtsRuntimeMediaSessionSnapshot = (
   state: ReaderTtsSessionState
