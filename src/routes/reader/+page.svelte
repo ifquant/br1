@@ -1060,6 +1060,10 @@
             ...assistanceSelection,
             lookupHistoryEntryId: ''
           };
+    if (typeof localStorage !== 'undefined') {
+      persistAssistanceHistory();
+      persistAssistanceSelection();
+    }
   };
 
   $: sidebarCallbacks = {
