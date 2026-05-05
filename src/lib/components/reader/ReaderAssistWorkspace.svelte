@@ -53,6 +53,7 @@
   let restoredSelectedMode: 'lookup' | 'translation' | null = null;
   let lookupArchiveExpanded = true;
   let translationArchiveExpanded = true;
+  let archiveOverviewVisible = true;
 
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
@@ -83,6 +84,7 @@
     assistLookupProvider = 'wikipedia';
     assistTranslationProvider = 'deepl';
     assistTranslationTargetLanguage = 'zh';
+    archiveOverviewVisible = lockedMode ? false : !restoredSelectedMode;
     assistLookupTermSeededForBookKey = bookKey;
   }
   $: translationSourceText = normalizeAssistanceText(
@@ -194,6 +196,12 @@
 
     lookupArchiveExpanded = expanded;
   };
+
+  const openArchiveLane = (mode: 'lookup' | 'translation') => {
+    assistMode = mode;
+    archiveOverviewVisible = false;
+    setArchiveExpanded(mode, true);
+  };
 </script>
 
 <section class="assist-workspace" aria-label={title}>
@@ -202,16 +210,13 @@
     <span>{summary}</span>
   </div>
 
-  {#if !lockedMode}
+  {#if !lockedMode && archiveOverviewVisible}
     <div class="assist-archive-overview" aria-label="本书 AI 记录摘要">
       <button
         type="button"
         class:active={assistMode === 'lookup'}
         class="assist-archive-card"
-        on:click={() => {
-          assistMode = 'lookup';
-          lookupArchiveExpanded = true;
-        }}
+        on:click={() => openArchiveLane('lookup')}
       >
         <strong>查找记录</strong>
         <span>{lookupHistory.length > 0 ? `当前书 ${lookupHistory.length} 条` : '当前书还没有查找记录'}</span>
@@ -227,10 +232,7 @@
         type="button"
         class:active={assistMode === 'translation'}
         class="assist-archive-card"
-        on:click={() => {
-          assistMode = 'translation';
-          translationArchiveExpanded = true;
-        }}
+        on:click={() => openArchiveLane('translation')}
       >
         <strong>翻译记录</strong>
         <span>
@@ -452,6 +454,17 @@
             : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
         </span>
         <div class="assist-history-head-actions">
+          {#if !archiveOverviewVisible}
+            <button
+              type="button"
+              class="assist-chip"
+              on:click={() => {
+                archiveOverviewVisible = true;
+              }}
+            >
+              返回本书 AI 记录摘要
+            </button>
+          {/if}
           {#if visibleHistory.length > 0}
             <button
               type="button"

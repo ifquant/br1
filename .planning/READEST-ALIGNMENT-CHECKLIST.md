@@ -547,6 +547,14 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0572-keep-active-ai-archive-context-while-collapsing-history.md`.
   - Notes: this slice does not add new persistence or multi-book archive browsing. It only lets the current lookup or translation section fold its list while leaving the active archived record visible as the section summary.
 
+- [x] P5-1.12 Let the AI notebook move from the archive overview into one lane and back again
+  - Outcome: the AI workspace stops showing overview cards and active lane details as one flat pile, and instead supports explicit two-level navigation between the current-book archive overview and the focused lookup/translation lane.
+  - Touches: shared assistant workspace overview/lane navigation, focused archive-navigation regression.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can move from the ai archive overview into one lane and back again"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0574-add-two-level-navigation-between-ai-overview-and-lanes.md`.
+  - Notes: this slice keeps navigation local to the current notebook session. It does not persist overview-vs-lane navigation state, and it does not introduce a cross-book archive browser.
+
 ## P6 Library Operations And Desktop Support
 
 Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
@@ -730,3 +738,4 @@ Use this log when completing each item.
 | 2026-05-05 | Group current-book AI history into notebook-style lookup and translation sections | 2e3fa06 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader groups current-book ai history into lookup and translation sections in web mode"`; `git diff --check` | adds a current-book history overview to the AI workspace so lookup and translation archives show up as separate notebook sections before the user drills into one active lane |
 | 2026-05-05 | Restore the selected translation archive in the correct notebook lane | a12c1a7 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader restores the selected translation ai history record for the current book in web mode"`; `git diff --check` | restores the AI workspace into the translation lane when the persisted archived selection is translation-owned and constrains the notebook to one active archived record across lookup and translation lanes |
 | 2026-05-05 | Keep the active archive summary visible when a notebook lane is collapsed | 64853d3 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader keeps the active ai archive summary visible when the history list is collapsed"`; `git diff --check` | adds lane-level collapse controls and keeps the active archived record visible as section context even after the current history list is folded |
+| 2026-05-05 | Let the AI notebook move from the archive overview into one lane and back again | pending | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | turns the overview cards into real navigation entry points and adds an explicit return path back to the current-book archive overview from a focused lookup or translation lane |
