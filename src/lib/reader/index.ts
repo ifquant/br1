@@ -128,6 +128,7 @@ export {
   getReaderTtsReadableTargetLabel,
   getReaderTtsSessionStatusLabel,
   getReaderTtsStatusDetail,
+  normalizeReaderTtsLanguageTag,
   normalizeReaderTtsSpeechTarget,
   planReaderTtsRetargetAction,
   resolveReaderTtsSpeechTargetForMode,
@@ -143,6 +144,7 @@ export type {
   ReaderTtsSpeechTarget,
   ReaderTtsTranslatedTargetInput
 } from './tts';
+export type { ReaderTtsRuntime } from './ttsRuntime';
 export {
   createDefaultReaderSettings,
   getReaderShellPalette,

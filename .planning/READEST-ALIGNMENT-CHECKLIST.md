@@ -930,6 +930,14 @@ Goal: move dedicated TTS from a correct reading-mode shell into a more trustwort
   - Tutorial: `tutorials/commit/0601-mirror-reader-tts-into-the-browser-media-session.md`.
   - Notes: this slice does not add paragraph relocation, queueing, or richer external playback transports. It only makes the existing browser-side TTS session visible and controllable through Media Session when the browser supports it.
 
+- [x] P10-1.3 Carry translation target language into the speech runtime
+  - Outcome: translated TTS no longer always falls back to the browser UI language; it now carries the chosen translation target language into the speech target and the runtime start path.
+  - Touches: reader TTS target contract, translated-target resolution, controller runtime language selection, focused TTS helper tests, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0602-carry-translation-target-language-into-the-speech-runtime.md`.
+  - Notes: this slice does not try to guess source-language pronunciation from arbitrary book text. It only makes translated TTS honor the explicit target language that the translation workflow already knows.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

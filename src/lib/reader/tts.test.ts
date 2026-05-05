@@ -4,10 +4,12 @@ import test from 'node:test';
 import {
   READER_TTS_FOLLOW_CURRENT_LABEL,
   READER_TTS_LOCKED_TARGET_LABEL,
+  createReaderTtsController,
   createEmptyReaderTtsSessionState,
   getReaderTtsFollowCurrentLabel,
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,
+  normalizeReaderTtsLanguageTag,
   normalizeReaderTtsSpeechTarget,
   planReaderTtsRetargetAction,
   resolveReaderTtsSpeechTargetForMode
@@ -27,7 +29,8 @@ test('normalizeReaderTtsSpeechTarget keeps explicit source and follow-current me
     label: '当前段落',
     sourceLabel: '正文',
     targetLabel: '当前段落',
-    followsCurrent: true
+    followsCurrent: true,
+    lang: undefined
   });
 });
 
@@ -66,7 +69,8 @@ test('translated TTS mode prefers the current translation result', () => {
     },
     translated: {
       translatedText: ' translated paragraph ',
-      providerLabel: 'DeepL'
+      providerLabel: 'DeepL',
+      targetLanguage: 'zh'
     }
   });
 
@@ -75,7 +79,8 @@ test('translated TTS mode prefers the current translation result', () => {
     label: '当前译文',
     sourceLabel: 'DeepL 翻译结果',
     targetLabel: '译文',
-    followsCurrent: true
+    followsCurrent: true,
+    lang: 'zh-CN'
   });
 });
 
@@ -89,11 +94,13 @@ test('translated TTS mode preserves explicit archive-versus-live source labels',
     },
     translated: {
       translatedText: ' archived translated paragraph ',
-      providerLabel: '历史译文 · DeepL'
+      providerLabel: '历史译文 · DeepL',
+      targetLanguage: 'en'
     }
   });
 
   assert.equal(target?.sourceLabel, '历史译文 · DeepL');
+  assert.equal(target?.lang, 'en-US');
 });
 
 test('translated TTS mode yields no target when there is no translation result yet', () => {
@@ -119,4 +126,42 @@ test('TTS retarget plan restarts active speech but only arms paused sessions', (
   assert.equal(planReaderTtsRetargetAction('idle'), 'replace-target');
   assert.equal(planReaderTtsRetargetAction('error'), 'replace-target');
   assert.equal(planReaderTtsRetargetAction('unavailable'), 'replace-target');
+});
+
+test('normalizeReaderTtsLanguageTag expands common translation targets', () => {
+  assert.equal(normalizeReaderTtsLanguageTag('zh'), 'zh-CN');
+  assert.equal(normalizeReaderTtsLanguageTag('en'), 'en-US');
+  assert.equal(normalizeReaderTtsLanguageTag('fr'), 'fr-FR');
+  assert.equal(normalizeReaderTtsLanguageTag('pt-BR'), 'pt-BR');
+});
+
+test('TTS controller prefers the target language over navigator.language', () => {
+  let spokenLanguage = '';
+  const runtime = {
+    supported: true,
+    speak: (_text: string, _handlers: { onEnd: () => void; onError: (message: string) => void }, lang?: string) => {
+      spokenLanguage = lang || '';
+      return true;
+    },
+    pause: () => true,
+    resume: () => true,
+    stop: () => true,
+    syncMediaSession: () => {}
+  };
+  const controller = createReaderTtsController({
+    isAvailable: true,
+    runtime,
+    getNow: () => 1
+  });
+
+  controller.start({
+    text: 'translated paragraph',
+    label: '当前译文',
+    sourceLabel: 'DeepL 翻译结果',
+    targetLabel: '译文',
+    followsCurrent: true,
+    lang: 'en-US'
+  });
+
+  assert.equal(spokenLanguage, 'en-US');
 });

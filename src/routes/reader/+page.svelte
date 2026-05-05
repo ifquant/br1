@@ -415,6 +415,7 @@
       selectedTranslationHistoryEntry.request.kind === 'translation'
         ? {
             translatedText: normalizeAssistanceText(selectedTranslationHistoryEntry.result.body),
+            targetLanguage: selectedTranslationHistoryEntry.request.targetLanguage,
             providerLabel:
               `历史译文 · ${
                 selectedTranslationHistoryEntry.result.sourceLabel ||
@@ -428,6 +429,7 @@
       assistanceState.result
         ? {
             translatedText: normalizeAssistanceText(assistanceState.result.body),
+            targetLanguage: assistanceState.activeRequest.targetLanguage,
             providerLabel:
               `当前译文 · ${
                 assistanceState.result.sourceLabel ||

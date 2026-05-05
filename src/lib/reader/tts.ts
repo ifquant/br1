@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import {
   createWebSpeechReaderTtsRuntime,
+  type ReaderTtsRuntime,
   type ReaderTtsRuntimeMediaSessionSnapshot
 } from './ttsRuntime';
 import type { ReaderTtsReadAloudTextMode } from './types';
@@ -16,6 +17,7 @@ export type ReaderTtsSpeechTarget = {
   sourceLabel?: string;
   targetLabel?: string;
   followsCurrent?: boolean;
+  lang?: string;
 };
 
 export type ReaderTtsSessionState = {
@@ -33,6 +35,7 @@ export type ReaderTtsControllerOptions = {
   isAvailable?: boolean;
   unavailableReason?: string;
   getNow?: () => number;
+  runtime?: ReaderTtsRuntime;
 };
 
 export const READER_TTS_UNAVAILABLE_REASON = '当前还没有接入朗读引擎';
@@ -70,13 +73,15 @@ export const normalizeReaderTtsSpeechTarget = (
     trimReaderTtsLabel(normalizedTarget?.label) || trimReaderTtsLabel(normalizedTarget?.targetLabel);
   const sourceLabel = trimReaderTtsLabel(normalizedTarget?.sourceLabel);
   const targetLabel = trimReaderTtsLabel(normalizedTarget?.targetLabel) || label;
+  const lang = trimReaderTtsLabel(normalizedTarget?.lang);
 
   return {
     text,
     label: label || targetLabel,
     sourceLabel: sourceLabel || undefined,
     targetLabel: targetLabel || undefined,
-    followsCurrent: !!normalizedTarget?.followsCurrent
+    followsCurrent: !!normalizedTarget?.followsCurrent,
+    lang: lang || undefined
   };
 };
 
@@ -210,6 +215,43 @@ export type ReaderTtsSourceTargetInput = {
 export type ReaderTtsTranslatedTargetInput = {
   translatedText?: string | null;
   providerLabel?: string | null;
+  targetLanguage?: string | null;
+};
+
+export const normalizeReaderTtsLanguageTag = (value?: string | null): string => {
+  const normalized = value?.trim().toLowerCase() || '';
+  if (!normalized) return '';
+  if (normalized.includes('-')) {
+    const [language, region] = normalized.split('-', 2);
+    if (!language) return '';
+    if (!region) return language;
+    return `${language}-${region.toUpperCase()}`;
+  }
+
+  switch (normalized) {
+    case 'zh':
+      return 'zh-CN';
+    case 'en':
+      return 'en-US';
+    case 'ja':
+      return 'ja-JP';
+    case 'ko':
+      return 'ko-KR';
+    case 'fr':
+      return 'fr-FR';
+    case 'de':
+      return 'de-DE';
+    case 'es':
+      return 'es-ES';
+    case 'it':
+      return 'it-IT';
+    case 'pt':
+      return 'pt-BR';
+    case 'ru':
+      return 'ru-RU';
+    default:
+      return normalized;
+  }
 };
 
 export const resolveReaderTtsSpeechTargetForMode = ({
@@ -226,6 +268,7 @@ export const resolveReaderTtsSpeechTargetForMode = ({
   const normalizedTitle = source.title?.trim() || '';
   const normalizedTranslatedText = translated?.translatedText?.trim() || '';
   const normalizedProviderLabel = translated?.providerLabel?.trim() || '';
+  const normalizedTargetLanguage = normalizeReaderTtsLanguageTag(translated?.targetLanguage);
 
   if (mode === 'translated') {
     if (!normalizedTranslatedText) return null;
@@ -240,7 +283,8 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       label: '当前译文',
       sourceLabel: translatedSourceLabel,
       targetLabel: '译文',
-      followsCurrent: true
+      followsCurrent: true,
+      lang: normalizedTargetLanguage || undefined
     };
   }
 
@@ -309,9 +353,9 @@ const createReaderTtsRuntimeMediaSessionSnapshot = (
 export const createReaderTtsController = ({
   isAvailable = false,
   unavailableReason = READER_TTS_UNAVAILABLE_REASON,
-  getNow = () => Date.now()
+  getNow = () => Date.now(),
+  runtime = createWebSpeechReaderTtsRuntime()
 }: ReaderTtsControllerOptions = {}) => {
-  const runtime = createWebSpeechReaderTtsRuntime();
   let available = isAvailable;
   let activeSpeechTarget: ReaderTtsSpeechTarget | null = null;
   let speechSessionToken = 0;
@@ -432,7 +476,7 @@ export const createReaderTtsController = ({
         onEnd: () => settleSpeechEnd(sessionToken),
         onError: (message) => settleSpeechError(sessionToken, message)
       },
-      navigator.language
+      nextTarget.lang || navigator.language
     );
 
     if (!started) {
