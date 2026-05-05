@@ -659,6 +659,14 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0587-make-the-notebook-summary-follow-the-active-ai-tab.md`.
   - Notes: this slice does not change reader storage or AI request behavior. It only stops the notebook summary strip from staying overly generic when the user is already inside assistant- or translation-specific workspace modes.
 
+- [x] P5-1.26 Remove archive-overview navigation semantics from dedicated translation mode
+  - Outcome: `翻译模式` no longer pretends it lives under `本书 AI 记录摘要`; its breadcrumb and browse controls now reflect that it is already a dedicated notebook mode.
+  - Touches: shared assistant workspace breadcrumb/navigation semantics, translation-mode notebook regression.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0588-remove-overview-semantics-from-dedicated-translation-mode.md`.
+  - Notes: this slice does not change translation history storage or replay behavior. It only fixes the navigation contract so the dedicated translation workspace does not expose a fake return path to an overview that is unavailable in locked mode.
+
 ## P6 Library Operations And Desktop Support
 
 Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
@@ -856,3 +864,4 @@ Use this log when completing each item.
 | 2026-05-05 | Add current-book scope summaries to the AI assistant and translation tabs | 313b185 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | adds explicit current-book scope summaries at the top of the assistant and translation workspaces so the reader can see tab-level scope before drilling into notebook sections |
 | 2026-05-05 | Separate AI overview mode from focused lane mode | b03e05e | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | makes overview mode and focused lane mode mutually exclusive so the assistant no longer renders the current-book overview and a live focused lane at the same time |
 | 2026-05-05 | Make the notebook summary reflect the active AI workspace tab | 640c302 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | makes the notebook summary strip reflect assistant-specific and translation-specific workspace state instead of keeping one generic assistant status line across all tabs |
+| 2026-05-05 | Remove archive-overview navigation semantics from dedicated translation mode | pending | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | removes the fake overview parent and return action from locked translation mode so its navigation contract matches the fact that it is already a dedicated workspace |

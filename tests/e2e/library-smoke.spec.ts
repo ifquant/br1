@@ -1088,6 +1088,7 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
 
   await page.goto(readerHref);
 
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('button', { name: '打开翻译模式' })).toBeVisible();
 
   await page.getByRole('button', { name: '打开翻译模式' }).click();
@@ -1106,6 +1107,13 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(page.getByLabel('翻译模式范围摘要')).toContainText(
     '这里只保留当前书的翻译记录，以及原文 / 译文并排的阅读结果。'
   );
+  const translationHistoryLane = notebook.getByLabel('最近翻译');
+  await expect(translationHistoryLane.getByLabel('当前 AI 导航路径')).toHaveText(
+    '翻译模式 / 本书翻译记录'
+  );
+  await expect(
+    translationHistoryLane.getByRole('button', { name: '返回本书 AI 记录摘要' })
+  ).toHaveCount(0);
   const translationPanels = page.getByLabel('翻译阅读面板');
   await expect(translationPanels).toBeVisible();
   await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '原文' })).toBeVisible();

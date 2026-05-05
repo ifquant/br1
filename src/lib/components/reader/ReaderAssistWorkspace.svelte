@@ -118,10 +118,11 @@
   $: currentEntrySummary = selectedHistoryEntry
     ? getReaderAssistanceRequestSubject(selectedHistoryEntry.request) || '未命名请求'
     : '';
+  $: laneBreadcrumbBase = lockedMode === 'translation' ? '翻译模式' : '本书 AI 记录摘要';
   $: laneBreadcrumb =
     selectedHistoryEntryId && isFocusLaneView
-      ? `本书 AI 记录摘要 / ${getArchiveLaneTitle(assistMode)} / 当前记录`
-      : `本书 AI 记录摘要 / ${getArchiveLaneTitle(assistMode)}`;
+      ? `${laneBreadcrumbBase} / ${getArchiveLaneTitle(assistMode)} / 当前记录`
+      : `${laneBreadcrumbBase} / ${getArchiveLaneTitle(assistMode)}`;
   $: selectedHistoryEntryId =
     assistMode === 'translation' ? selectedTranslationHistoryEntryId : selectedLookupHistoryEntryId;
   $: {
@@ -608,7 +609,7 @@
               : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
           </small>
           <div class="assist-history-nav-actions" aria-label="记录分区导航">
-            {#if !archiveOverviewVisible}
+            {#if !lockedMode && !archiveOverviewVisible}
               <div class="assist-nav-group" aria-label="浏览位置">
                 <button
                   type="button"
