@@ -442,6 +442,8 @@
       mode: ttsReadAloudTextMode,
       source: {
         selectedText: $notesState.selection?.text,
+        excerptText: currentPreview.ttsSourceText,
+        excerptSourceLabel: currentPreview.ttsSourceLabel,
         chapterLabel:
           chapterLabel &&
           chapterLabel !== READER_NOT_OPENED_LOCATION_LABEL &&

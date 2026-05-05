@@ -1191,6 +1191,44 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(page.getByLabel('朗读模式状态')).toContainText('原文朗读');
 });
 
+test('reader uses visible plain-text excerpts as the source tts target in web mode', async ({
+  page
+}) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.txt',
+    label: 'TXT 朗读摘录测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '打开朗读模式' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
+  const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
+  await expect(currentTargetPanel).toContainText(
+    'This plain text file exists to verify the current P0-1 downgrade contract.'
+  );
+  await expect(currentTargetPanel).toContainText('当前阅读位置');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('正文摘录');
+
+  await page.locator('.plain-text-surface').evaluate((element) => {
+    const maxScroll = element.scrollHeight - element.clientHeight;
+    if (maxScroll <= 0) {
+      throw new Error('expected the TXT fixture to produce a scrollable plain-text surface');
+    }
+    element.scrollTop = maxScroll * 0.82;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+
+  await expect(currentTargetPanel).toContainText('Depth line');
+  await expect(currentTargetPanel).not.toContainText(
+    'This plain text file exists to verify the current P0-1 downgrade contract.'
+  );
+});
+
 test('reader lets translated tts mode consume the selected translation archive in web mode', async ({
   page
 }) => {

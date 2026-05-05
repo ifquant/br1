@@ -208,6 +208,8 @@ export const planReaderTtsRetargetAction = (
 
 export type ReaderTtsSourceTargetInput = {
   selectedText?: string | null;
+  excerptText?: string | null;
+  excerptSourceLabel?: string | null;
   chapterLabel?: string | null;
   title?: string | null;
 };
@@ -264,6 +266,8 @@ export const resolveReaderTtsSpeechTargetForMode = ({
   translated?: ReaderTtsTranslatedTargetInput | null;
 }): ReaderTtsSpeechTarget | null => {
   const normalizedSelectedText = source.selectedText?.trim() || '';
+  const normalizedExcerptText = source.excerptText?.trim() || '';
+  const normalizedExcerptSourceLabel = source.excerptSourceLabel?.trim() || '';
   const normalizedChapterLabel = source.chapterLabel?.trim() || '';
   const normalizedTitle = source.title?.trim() || '';
   const normalizedTranslatedText = translated?.translatedText?.trim() || '';
@@ -294,6 +298,16 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       label: '选中文本',
       sourceLabel: '正文选区',
       targetLabel: '选中文本',
+      followsCurrent: true
+    };
+  }
+
+  if (normalizedExcerptText) {
+    return {
+      text: normalizedExcerptText,
+      label: '当前正文摘录',
+      sourceLabel: normalizedExcerptSourceLabel || '当前阅读位置',
+      targetLabel: '正文摘录',
       followsCurrent: true
     };
   }

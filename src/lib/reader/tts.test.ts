@@ -120,6 +120,27 @@ test('translated TTS mode yields no target when there is no translation result y
   assert.equal(target, null);
 });
 
+test('source TTS mode prefers a live reading excerpt before chapter-title fallback', () => {
+  const target = resolveReaderTtsSpeechTargetForMode({
+    mode: 'source',
+    source: {
+      selectedText: '',
+      excerptText: ' This plain text file exists to verify the current contract. ',
+      excerptSourceLabel: '当前阅读位置',
+      chapterLabel: '纯文本',
+      title: 'Sample TXT Book'
+    }
+  });
+
+  assert.deepEqual(target, {
+    text: 'This plain text file exists to verify the current contract.',
+    label: '当前正文摘录',
+    sourceLabel: '当前阅读位置',
+    targetLabel: '正文摘录',
+    followsCurrent: true
+  });
+});
+
 test('TTS retarget plan restarts active speech but only arms paused sessions', () => {
   assert.equal(planReaderTtsRetargetAction('speaking'), 'restart-session');
   assert.equal(planReaderTtsRetargetAction('paused'), 'stop-and-arm-target');

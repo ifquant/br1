@@ -166,6 +166,74 @@
 
   const getPlainTextLines = () => plainTextContent.split(/\r?\n/);
 
+  const isPlainTextExcerptCandidate = (line: string) => {
+    const normalized = line.trim();
+    if (!normalized) return false;
+    if (normalized === plainTextTitle.trim()) return false;
+    if (/^Section \d+$/i.test(normalized)) return false;
+    return true;
+  };
+
+  const isPlainTextHeadingLine = (lines: string[], index: number) => {
+    if (index !== 0) return false;
+    const normalized = lines[index]?.trim() || '';
+    if (!normalized) return false;
+    if (normalized.length > 80) return false;
+    return !(lines[index + 1]?.trim() || '');
+  };
+
+  const getPlainTextReaderExcerpt = () => {
+    const lines = getPlainTextLines();
+    if (!lines.length) {
+      return {
+        text: '',
+        label: ''
+      };
+    }
+
+    const fraction = getPlainTextScrollFraction();
+    const totalLines = Math.max(lines.length, 1);
+    const startIndex = Math.min(
+      Math.max(0, Math.round(fraction * Math.max(totalLines - 1, 0))),
+      Math.max(lines.length - 1, 0)
+    );
+    const collected: string[] = [];
+
+    for (let index = startIndex; index < lines.length; index += 1) {
+      const normalized = lines[index]?.trim() || '';
+      if (!normalized) {
+        if (collected.length) break;
+        continue;
+      }
+
+      if (isPlainTextHeadingLine(lines, index)) {
+        if (collected.length) break;
+        continue;
+      }
+
+      if (!isPlainTextExcerptCandidate(normalized)) {
+        if (collected.length) break;
+        continue;
+      }
+
+      collected.push(normalized);
+      if (collected.join(' ').length >= 220) break;
+    }
+
+    const text = collected.join(' ').trim();
+    if (!text) {
+      return {
+        text: '',
+        label: ''
+      };
+    }
+
+    return {
+      text: text.length > 220 ? `${text.slice(0, 217).trimEnd()}...` : text,
+      label: '当前阅读位置'
+    };
+  };
+
   const getPlainTextScrollFraction = () => {
     if (!plainTextScroller) return 0;
     const maxScroll = plainTextScroller.scrollHeight - plainTextScroller.clientHeight;
@@ -178,6 +246,7 @@
   ): ReaderPreviewState => {
     const fraction = getPlainTextScrollFraction();
     const lines = getPlainTextLines();
+    const excerpt = getPlainTextReaderExcerpt();
     const totalLines = Math.max(lines.length, 1);
     const currentLine = Math.min(
       totalLines,
@@ -197,6 +266,8 @@
       locationLabel: `第 ${currentLine} / ${totalLines} 行`,
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
+      ttsSourceText: excerpt.text,
+      ttsSourceLabel: excerpt.label,
       ...overrides
     };
   };
