@@ -313,6 +313,9 @@ test('reader can open the ai workspace inside the notebook shell', async ({ page
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: 'AI 助手', selected: true })).toBeVisible();
   await expect(page.getByText('AI 阅读助手')).toBeVisible();
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('当前书查找 0 条');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('当前书翻译 0 条');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('助手待命');
   await expect(
     page.getByText('把查词、百科和翻译结果放到 notebook 里的独立工作台，而不是只做一个 sidebar 结果区。')
   ).toBeVisible();
@@ -1093,6 +1096,9 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
   await expect(notebook.locator('.assist-summary strong', { hasText: '翻译模式' })).toBeVisible();
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('当前书翻译 0 条');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('翻译模式待命');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('原文 / 译文并排阅读');
   await expect(
     page.getByText('把原文和译文并排收进 reader 工作台，让翻译成为一种阅读模式，而不是助手里的临时请求。')
   ).toBeVisible();

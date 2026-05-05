@@ -115,6 +115,33 @@
   $: noteEntries = notesState.notes.filter((note) => note.kind !== 'highlight');
   $: highlightEntries = notesState.notes.filter((note) => note.kind === 'highlight');
   $: selectionText = notesState.selection?.text.trim() || '';
+  $: lookupHistoryCount = assistanceHistory.filter((entry) => entry.request.kind === 'lookup').length;
+  $: translationHistoryCount = assistanceHistory.filter(
+    (entry) => entry.request.kind === 'translation'
+  ).length;
+  $: assistanceStatusSummary =
+    assistance.status === 'ready' ? '助手已有结果' : assistance.status === 'loading' ? '助手查询中' : '助手待命';
+  $: notebookSummaryItems =
+    activeTab === 'assistant'
+      ? [
+          `当前书查找 ${lookupHistoryCount} 条`,
+          `当前书翻译 ${translationHistoryCount} 条`,
+          assistanceStatusSummary,
+          selectionText ? '已选中文本' : '未选中文本'
+        ]
+      : activeTab === 'translation'
+        ? [
+            `当前书翻译 ${translationHistoryCount} 条`,
+            assistance.status === 'loading' ? '翻译请求进行中' : '翻译模式待命',
+            selectionText ? '已选中文本' : '未选中文本',
+            '原文 / 译文并排阅读'
+          ]
+        : [
+            `${highlightEntries.length} 高亮`,
+            `${noteEntries.length} 笔记`,
+            assistanceStatusSummary,
+            selectionText ? '已选中文本' : '未选中文本'
+          ];
 
   const formatTimestamp = (value: number) => {
     const date = new Date(value);
@@ -156,10 +183,9 @@
     </header>
 
     <div class="notebook-summary" aria-label="笔记工作台摘要">
-      <span>{highlightEntries.length} 高亮</span>
-      <span>{noteEntries.length} 笔记</span>
-      <span>{assistance.status === 'ready' ? '助手已有结果' : assistance.status === 'loading' ? '助手查询中' : '助手待命'}</span>
-      <span>{selectionText ? '已选中文本' : '未选中文本'}</span>
+      {#each notebookSummaryItems as item}
+        <span>{item}</span>
+      {/each}
     </div>
 
     <div class="notebook-tabs" role="tablist" aria-label="笔记工作台标签">
