@@ -1252,6 +1252,15 @@ test('reader lets translated tts mode consume the selected translation archive i
   await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
   await expect(notebook.getByText('当前还没有可朗读的译文结果。')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '锁定当前朗读目标' })).toBeEnabled();
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('历史记录 · 第二章 · 译为 ZH');
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText(
+    'Bridge reading keeps the text in focus.'
+  );
+  await page.getByRole('button', { name: '在翻译模式中查看' }).click();
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
+  await expect(notebook.getByLabel('最近翻译').locator('.assist-history-status-badge')).toHaveText(
+    '当前正在查看'
+  );
 });
 
 test('reader can open sync workspace inside the notebook shell', async ({ page }) => {

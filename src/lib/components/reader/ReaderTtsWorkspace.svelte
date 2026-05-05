@@ -16,6 +16,12 @@
   export let target: ReaderTtsSpeechTarget | null = null;
   export let followsCurrentLocation = true;
   export let readAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
+  export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
+  export let translatedWaitingSourceLabel = '';
+  export let translatedWaitingSourceText = '';
+  export let translationModeSourceText = '';
+  export let translationModeSourceLabel = '';
+  export let translationModeFollowsCurrent = true;
   export let onStart: (() => void) | null = null;
   export let onPause: (() => void) | null = null;
   export let onResume: (() => void) | null = null;
@@ -23,6 +29,7 @@
   export let onPinCurrentTarget: (() => void) | null = null;
   export let onResumeFollowingCurrent: (() => void) | null = null;
   export let onSetReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
+  export let onOpenTranslationMode: (() => void) | null = null;
 
   $: ttsStatusLabel = getReaderTtsSessionStatusLabel(ttsSession);
   $: ttsStatusDetail = getReaderTtsStatusDetail(ttsSession);
@@ -33,6 +40,24 @@
   $: readAloudTextModeLabel = readAloudTextMode === 'translated' ? '译文朗读' : '原文朗读';
   $: canStop = ttsSession.status === 'speaking' || ttsSession.status === 'paused';
   $: hasTarget = !!target?.text.trim();
+  $: normalizedTranslatedWaitingSourceLabel = translatedWaitingSourceLabel.trim();
+  $: normalizedTranslatedWaitingSourceText = translatedWaitingSourceText.trim();
+  $: normalizedTranslationModeSourceText = translationModeSourceText.trim();
+  $: translatedSourceContextLabel =
+    normalizedTranslatedWaitingSourceLabel ||
+    (normalizedTranslationModeSourceText
+      ? translationModeFollowsCurrent
+        ? `正在跟随${translationModeSourceLabel.trim() || '当前阅读位置'}`
+        : `已锁定${translationModeSourceLabel.trim() || '当前翻译目标'}`
+      : '');
+  $: translatedSourceContextText =
+    normalizedTranslatedWaitingSourceText || normalizedTranslationModeSourceText;
+  $: translatedTtsSourceSummary =
+    translatedTtsSourceKind === 'archived-translation'
+      ? '正在复用已选中的历史译文来源。'
+      : translatedTtsSourceKind === 'live-translation' || normalizedTranslationModeSourceText
+        ? '正在等待当前翻译阅读来源产出译文结果。'
+        : '当前还没有可用于译文朗读的翻译来源。';
 
   const runPrimaryAction = () => {
     if (ttsSession.status === 'speaking') {
@@ -111,7 +136,7 @@
       <strong>当前朗读目标</strong>
       <span>
         {#if readAloudTextMode === 'translated'}
-          {ttsSourceLabel || '等待当前翻译结果提供译文朗读目标。'}
+          {ttsSourceLabel || translatedSourceContextLabel || '等待当前翻译结果提供译文朗读目标。'}
         {:else}
           {ttsSourceLabel || '等待正文、选区或章节提供朗读目标。'}
         {/if}
@@ -120,12 +145,31 @@
         {#if target?.text}
           {target.text}
         {:else if readAloudTextMode === 'translated'}
-          当前还没有可朗读的译文结果。
+          {translatedSourceContextText || '当前还没有可朗读的译文结果。'}
         {:else}
           当前没有可朗读内容。
         {/if}
       </p>
     </article>
+    {#if readAloudTextMode === 'translated'}
+      <article class="tts-panel" aria-label="译文朗读来源">
+        <strong>译文来源</strong>
+        <span>
+          {translatedSourceContextLabel ||
+            (translatedTtsSourceKind === 'archived-translation'
+              ? '历史译文来源'
+              : translatedTtsSourceKind === 'live-translation' || normalizedTranslationModeSourceText
+                ? '当前翻译阅读来源'
+                : '暂无译文来源')}
+        </span>
+        <p>{translatedSourceContextText || translatedTtsSourceSummary}</p>
+        {#if translatedTtsSourceKind !== 'none' || normalizedTranslationModeSourceText}
+          <button type="button" class="ghost-action provenance-action" on:click={() => onOpenTranslationMode?.()}>
+            在翻译模式中查看
+          </button>
+        {/if}
+      </article>
+    {/if}
     <article class="tts-panel">
       <strong>会话状态</strong>
       <span>{ttsStatusDetail}</span>
@@ -213,6 +257,10 @@
   .tts-panels {
     display: grid;
     gap: 10px;
+  }
+
+  .provenance-action {
+    justify-self: start;
   }
 
   .primary-action:focus-visible,

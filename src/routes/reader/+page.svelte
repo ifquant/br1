@@ -48,6 +48,7 @@
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
     canRequestAssistanceForText,
+    getReaderAssistanceRequestContextLabel,
     normalizeAssistanceText,
     normalizeAssistanceTerm,
     getReaderTranslationProviderDisplayLabel,
@@ -124,6 +125,9 @@
     label: '',
     chapterLabel: ''
   };
+  let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
+  let translatedTtsSourceContextLabel = '';
+  let translatedTtsSourceText = '';
   let currentManagedBook: PersistedLibraryBook | null = null;
   let readerSyncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
     null;
@@ -515,6 +519,34 @@
   $: effectiveTranslationSource = translationFollowsCurrentSource
     ? resolvedTranslationSource
     : pinnedTranslationSource || resolvedTranslationSource;
+  $: {
+    const selectedTranslationHistoryEntryId = assistanceSelection.translationHistoryEntryId.trim();
+    const selectedTranslationHistoryEntry = selectedTranslationHistoryEntryId
+      ? assistanceHistory.find(
+          (entry) =>
+            entry.id === selectedTranslationHistoryEntryId && entry.request.kind === 'translation'
+        ) || null
+      : null;
+    const normalizedLiveTranslationSourceText = normalizeAssistanceText(effectiveTranslationSource.text);
+
+    if (selectedTranslationHistoryEntry?.request.kind === 'translation') {
+      translatedTtsSourceKind = 'archived-translation';
+      translatedTtsSourceContextLabel = `历史记录 · ${getReaderAssistanceRequestContextLabel(
+        selectedTranslationHistoryEntry.request
+      )}`;
+      translatedTtsSourceText = normalizeAssistanceText(selectedTranslationHistoryEntry.request.text);
+    } else if (normalizedLiveTranslationSourceText) {
+      translatedTtsSourceKind = 'live-translation';
+      translatedTtsSourceContextLabel = translationFollowsCurrentSource
+        ? `正在跟随${effectiveTranslationSource.label || '当前阅读位置'}`
+        : `已锁定${effectiveTranslationSource.label || '当前翻译目标'}`;
+      translatedTtsSourceText = normalizedLiveTranslationSourceText;
+    } else {
+      translatedTtsSourceKind = 'none';
+      translatedTtsSourceContextLabel = '';
+      translatedTtsSourceText = '';
+    }
+  }
   $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
     ttsController.setSpeechTarget(effectiveTtsTarget);
   }
@@ -1451,6 +1483,9 @@
         ttsTarget={effectiveTtsTarget}
         ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}
         ttsReadAloudTextMode={ttsReadAloudTextMode}
+        {translatedTtsSourceKind}
+        translatedTtsSourceContextLabel={translatedTtsSourceContextLabel}
+        translatedTtsSourceText={translatedTtsSourceText}
         translationModeSourceText={effectiveTranslationSource.text}
         translationModeSourceLabel={effectiveTranslationSource.label}
         translationModeFollowsCurrentSource={translationFollowsCurrentSource}
@@ -1486,6 +1521,9 @@
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
         onSetTtsReadAloudTextMode={setTtsReadAloudTextMode}
+        onOpenTranslationMode={() => {
+          notebookTab = 'translation';
+        }}
         onPinCurrentTranslationSource={pinCurrentTranslationSource}
         onResumeFollowingCurrentTranslationSource={resumeFollowingCurrentTranslationSource}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}

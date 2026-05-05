@@ -61,6 +61,9 @@
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
   export let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
+  export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
+  export let translatedTtsSourceContextLabel = '';
+  export let translatedTtsSourceText = '';
   export let translationModeSourceText = '';
   export let translationModeSourceLabel = '';
   export let translationModeFollowsCurrentSource = true;
@@ -122,6 +125,7 @@
   export let onPinCurrentTtsTarget: (() => void) | null = null;
   export let onResumeFollowingCurrentTtsTarget: (() => void) | null = null;
   export let onSetTtsReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
+  export let onOpenTranslationMode: (() => void) | null = null;
   export let onPinCurrentTranslationSource:
     | ((source: { text: string; label: string }) => void)
     | null = null;
@@ -138,7 +142,11 @@
     assistance.status === 'ready' ? '助手已有结果' : assistance.status === 'loading' ? '助手查询中' : '助手待命';
   $: translationSourceSummary = translationModeSourceLabel || '当前阅读位置';
   $: ttsStatusSummary = getReaderTtsSessionStatusLabel(ttsSession);
-  $: ttsTargetSummary = getReaderTtsReadableTargetLabel(ttsSession) || '还没有可朗读目标';
+  $: ttsTargetSummary =
+    getReaderTtsReadableTargetLabel(ttsSession) ||
+    (ttsReadAloudTextMode === 'translated' && translatedTtsSourceText.trim()
+      ? '等待译文结果'
+      : '还没有可朗读目标');
   $: ttsReadAloudSummary = ttsReadAloudTextMode === 'translated' ? '朗读译文' : '朗读原文';
   $: notebookSummaryItems =
     activeTab === 'assistant'
@@ -389,6 +397,12 @@
           target={ttsTarget}
           followsCurrentLocation={ttsFollowsCurrentLocation}
           readAloudTextMode={ttsReadAloudTextMode}
+          {translatedTtsSourceKind}
+          translatedWaitingSourceLabel={translatedTtsSourceContextLabel}
+          translatedWaitingSourceText={translatedTtsSourceText}
+          translationModeSourceText={translationModeSourceText}
+          translationModeSourceLabel={translationModeSourceLabel}
+          translationModeFollowsCurrent={translationModeFollowsCurrentSource}
           onStart={callbacks.onTtsStart}
           onPause={callbacks.onTtsPause}
           onResume={callbacks.onTtsResume}
@@ -396,6 +410,7 @@
           onPinCurrentTarget={onPinCurrentTtsTarget}
           onResumeFollowingCurrent={onResumeFollowingCurrentTtsTarget}
           onSetReadAloudTextMode={onSetTtsReadAloudTextMode}
+          onOpenTranslationMode={onOpenTranslationMode}
         />
       {:else}
         <ReaderSyncWorkspace

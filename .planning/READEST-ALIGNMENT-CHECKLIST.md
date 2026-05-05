@@ -858,6 +858,14 @@ Goal: close the remaining gap between dedicated reader modes and the live readin
   - Tutorial: `tutorials/commit/0595-let-translated-tts-follow-the-selected-translation-archive.md`.
   - Notes: this slice does not add live excerpt fallback or a richer TTS segment model. It only makes translated TTS honor the translation archive the user is already browsing and keeps archive cleanup from wiping the selected translation lane during notebook restores.
 
+- [ ] P9-1.5 Expose translated-TTS archive provenance and jump back to translation mode
+  - Outcome: when dedicated translated TTS is reading from a selected translation archive, the TTS tab makes that archive provenance visible and lets the reader jump straight back into the translation workspace without losing the selected record.
+  - Touches: TTS workspace provenance panels, notebook-to-translation navigation, focused translated-TTS regressions.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader lets translated tts mode consume the selected translation archive in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0596-expose-translated-tts-archive-provenance.md`.
+  - Notes: this slice does not close the live waiting-source provenance path for translated TTS. It only makes the archive-backed translated-TTS path traceable and directly navigable.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
