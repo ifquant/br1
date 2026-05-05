@@ -50,6 +50,7 @@
   let assistTranslationProvider: ReaderTranslationProvider = 'deepl';
   let assistTranslationText = '';
   let assistTranslationTargetLanguage = 'zh';
+  let restoredSelectedMode: 'lookup' | 'translation' | null = null;
 
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
@@ -60,8 +61,16 @@
     (activeAssistanceRequest?.kind === 'translation'
       ? activeAssistanceRequest.provider
       : assistLookupProvider);
+  $: restoredSelectedMode = selectedTranslationHistoryEntryId.trim()
+    ? 'translation'
+    : selectedLookupHistoryEntryId.trim()
+      ? 'lookup'
+      : null;
   $: if (lockedMode && assistMode !== lockedMode) {
     assistMode = lockedMode;
+  }
+  $: if (!lockedMode && restoredSelectedMode && assistMode !== restoredSelectedMode) {
+    assistMode = restoredSelectedMode;
   }
   $: if (assistLookupTermSeededForBookKey !== bookKey) {
     assistLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);

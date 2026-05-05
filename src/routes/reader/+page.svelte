@@ -1040,10 +1040,12 @@
       mode === 'translation'
         ? {
             ...assistanceSelection,
+            lookupHistoryEntryId: '',
             translationHistoryEntryId: entryId.trim()
           }
         : {
             ...assistanceSelection,
+            translationHistoryEntryId: '',
             lookupHistoryEntryId: entryId.trim()
           };
   };

@@ -444,6 +444,74 @@ test('reader restores the selected ai history record for the current book in web
   await expect(resultPanel.locator('> p')).toHaveText('A notebook-style reading bridge.');
 });
 
+test('reader restores the selected translation ai history record for the current book in web mode', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const selectionStorageKey = `br1.reader.assistance.selection:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: 'AI 翻译历史选中恢复测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey, selectionKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-translation-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Bridge reading keeps the text in focus.',
+              targetLanguage: 'zh',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-result-1',
+              provider: 'deepl',
+              title: '第二章',
+              body: '桥接式阅读让正文保持在中心位置。',
+              createdAt: 20
+            },
+            error: '',
+            createdAt: 20,
+            updatedAt: 20
+          }
+        ])
+      );
+      window.localStorage.setItem(
+        selectionKey,
+        JSON.stringify({
+          lookupHistoryEntryId: '',
+          translationHistoryEntryId: 'assist-translation-1'
+        })
+      );
+    },
+    { historyKey: historyStorageKey, selectionKey: selectionStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'AI 工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  const historyLane = notebook.getByLabel('最近翻译');
+  await expect(historyLane.getByRole('button', { name: '正在查看' })).toBeVisible();
+  const resultPanel = notebook.locator('.assist-result');
+  await expect(resultPanel.getByText('历史记录 · 第二章 · 译为 ZH')).toBeVisible();
+  await expect(resultPanel.locator('article.assist-translation-card.result p')).toHaveText(
+    '桥接式阅读让正文保持在中心位置。'
+  );
+});
+
 test('reader groups current-book ai history into lookup and translation sections in web mode', async ({
   page
 }) => {
