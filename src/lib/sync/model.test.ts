@@ -166,7 +166,8 @@ test('reader settings sync records normalize invalid payload values and use fall
       viewWidthMode: 'focus',
       chromeMode: 'always',
       readingRulerMode: 'on',
-      focusAidMode: 'paragraph'
+      focusAidMode: 'paragraph',
+      ttsReadAloudText: 'translated'
     },
     {
       storageKey: 'br1.reader.settings',
@@ -178,6 +179,7 @@ test('reader settings sync records normalize invalid payload values and use fall
   assert.equal(record.scope?.storageKey, 'br1.reader.settings');
   assert.equal(restoreReaderSettingsFromSync(record).flowMode, 'paginated');
   assert.equal(restoreReaderSettingsFromSync(record).focusAidMode, 'paragraph');
+  assert.equal(restoreReaderSettingsFromSync(record).ttsReadAloudText, 'translated');
 });
 
 test('bulk library substrate helper emits metadata and reading-state records for each book', () => {

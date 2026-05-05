@@ -129,14 +129,17 @@ export {
   getReaderTtsSessionStatusLabel,
   getReaderTtsStatusDetail,
   normalizeReaderTtsSpeechTarget,
+  resolveReaderTtsSpeechTargetForMode,
   READER_TTS_NO_TEXT_REASON
 } from './tts';
 export type {
   ReaderTtsControllerOptions,
+  ReaderTtsSourceTargetInput,
   ReaderTtsSessionAction,
   ReaderTtsSessionState,
   ReaderTtsSessionStatus,
-  ReaderTtsSpeechTarget
+  ReaderTtsSpeechTarget,
+  ReaderTtsTranslatedTargetInput
 } from './tts';
 export {
   createDefaultReaderSettings,
@@ -185,6 +188,7 @@ export type {
   ReaderLineHeight,
   ReaderPageMargins,
   ReaderReadingRulerMode,
+  ReaderTtsReadAloudTextMode,
   ReaderSettings,
   ReaderThemePreset,
   ReaderChromeMode,

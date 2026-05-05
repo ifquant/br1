@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { createWebSpeechReaderTtsRuntime } from './ttsRuntime';
+import type { ReaderTtsReadAloudTextMode } from './types';
 
 export type ReaderTtsSessionStatus = 'unavailable' | 'idle' | 'speaking' | 'paused' | 'error';
 
@@ -187,6 +188,77 @@ export const getReaderTtsReadableTargetLabel = (state: ReaderTtsSessionState): s
 
 export const getReaderTtsFollowCurrentLabel = (state: ReaderTtsSessionState): string =>
   state.followsCurrent ? READER_TTS_FOLLOW_CURRENT_LABEL : READER_TTS_LOCKED_TARGET_LABEL;
+
+export type ReaderTtsSourceTargetInput = {
+  selectedText?: string | null;
+  chapterLabel?: string | null;
+  title?: string | null;
+};
+
+export type ReaderTtsTranslatedTargetInput = {
+  translatedText?: string | null;
+  providerLabel?: string | null;
+};
+
+export const resolveReaderTtsSpeechTargetForMode = ({
+  mode,
+  source,
+  translated
+}: {
+  mode: ReaderTtsReadAloudTextMode;
+  source: ReaderTtsSourceTargetInput;
+  translated?: ReaderTtsTranslatedTargetInput | null;
+}): ReaderTtsSpeechTarget | null => {
+  const normalizedSelectedText = source.selectedText?.trim() || '';
+  const normalizedChapterLabel = source.chapterLabel?.trim() || '';
+  const normalizedTitle = source.title?.trim() || '';
+  const normalizedTranslatedText = translated?.translatedText?.trim() || '';
+  const normalizedProviderLabel = translated?.providerLabel?.trim() || '';
+
+  if (mode === 'translated') {
+    if (!normalizedTranslatedText) return null;
+
+    return {
+      text: normalizedTranslatedText,
+      label: '当前译文',
+      sourceLabel: normalizedProviderLabel ? `${normalizedProviderLabel} 翻译结果` : '当前翻译结果',
+      targetLabel: '译文',
+      followsCurrent: true
+    };
+  }
+
+  if (normalizedSelectedText) {
+    return {
+      text: normalizedSelectedText,
+      label: '选中文本',
+      sourceLabel: '正文选区',
+      targetLabel: '选中文本',
+      followsCurrent: true
+    };
+  }
+
+  if (normalizedChapterLabel) {
+    return {
+      text: normalizedChapterLabel,
+      label: '当前章节',
+      sourceLabel: '当前阅读位置',
+      targetLabel: '章节标题',
+      followsCurrent: true
+    };
+  }
+
+  if (normalizedTitle) {
+    return {
+      text: normalizedTitle,
+      label: '当前书名',
+      sourceLabel: '当前阅读位置',
+      targetLabel: '书名',
+      followsCurrent: true
+    };
+  }
+
+  return null;
+};
 
 const hasSameReaderTtsSessionState = (
   current: ReaderTtsSessionState,

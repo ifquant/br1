@@ -8,7 +8,8 @@ import {
   getReaderTtsFollowCurrentLabel,
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,
-  normalizeReaderTtsSpeechTarget
+  normalizeReaderTtsSpeechTarget,
+  resolveReaderTtsSpeechTargetForMode
 } from './tts';
 
 test('normalizeReaderTtsSpeechTarget keeps explicit source and follow-current metadata', () => {
@@ -52,4 +53,44 @@ test('TTS follow-current helper distinguishes fixed targets', () => {
   assert.equal(getReaderTtsReadableSourceLabel(state), '');
   assert.equal(getReaderTtsReadableTargetLabel(state), '选中文本');
   assert.equal(getReaderTtsFollowCurrentLabel(state), READER_TTS_LOCKED_TARGET_LABEL);
+});
+
+test('translated TTS mode prefers the current translation result', () => {
+  const target = resolveReaderTtsSpeechTargetForMode({
+    mode: 'translated',
+    source: {
+      selectedText: 'original paragraph',
+      chapterLabel: 'Chapter 3',
+      title: 'Sample Book'
+    },
+    translated: {
+      translatedText: ' translated paragraph ',
+      providerLabel: 'DeepL'
+    }
+  });
+
+  assert.deepEqual(target, {
+    text: 'translated paragraph',
+    label: '当前译文',
+    sourceLabel: 'DeepL 翻译结果',
+    targetLabel: '译文',
+    followsCurrent: true
+  });
+});
+
+test('translated TTS mode yields no target when there is no translation result yet', () => {
+  const target = resolveReaderTtsSpeechTargetForMode({
+    mode: 'translated',
+    source: {
+      selectedText: 'original paragraph',
+      chapterLabel: 'Chapter 3',
+      title: 'Sample Book'
+    },
+    translated: {
+      translatedText: '',
+      providerLabel: 'DeepL'
+    }
+  });
+
+  assert.equal(target, null);
 });

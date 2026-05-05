@@ -8,6 +8,7 @@ import type {
   ReaderPageMargins,
   ReaderSettings,
   ReaderReadingRulerMode,
+  ReaderTtsReadAloudTextMode,
   ReaderThemePreset,
   ReaderViewWidthMode
 } from './types';
@@ -32,6 +33,8 @@ const isReadingRulerMode = (value: unknown): value is ReaderReadingRulerMode =>
   value === 'off' || value === 'on';
 const isFocusAidMode = (value: unknown): value is ReaderFocusAidMode =>
   value === 'off' || value === 'line' || value === 'paragraph';
+const isTtsReadAloudTextMode = (value: unknown): value is ReaderTtsReadAloudTextMode =>
+  value === 'source' || value === 'translated';
 
 export const READER_SETTINGS_STORAGE_KEY = 'br1.reader.settings';
 
@@ -66,7 +69,8 @@ export const createDefaultReaderSettings = (): ReaderSettings => ({
   viewWidthMode: 'standard',
   chromeMode: 'auto',
   readingRulerMode: 'off',
-  focusAidMode: 'off'
+  focusAidMode: 'off',
+  ttsReadAloudText: 'source'
 });
 
 export const getReaderThemePalette = (
@@ -164,7 +168,10 @@ export const normalizeReaderSettings = (value: unknown): ReaderSettings => {
     readingRulerMode: isReadingRulerMode(candidate.readingRulerMode)
       ? candidate.readingRulerMode
       : defaults.readingRulerMode,
-    focusAidMode: isFocusAidMode(candidate.focusAidMode) ? candidate.focusAidMode : defaults.focusAidMode
+    focusAidMode: isFocusAidMode(candidate.focusAidMode) ? candidate.focusAidMode : defaults.focusAidMode,
+    ttsReadAloudText: isTtsReadAloudTextMode(candidate.ttsReadAloudText)
+      ? candidate.ttsReadAloudText
+      : defaults.ttsReadAloudText
   };
 };
 

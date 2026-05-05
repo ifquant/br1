@@ -14,6 +14,7 @@
     ReaderPreviewState,
     ReaderSidebarCallbacks,
     ReaderSidebarNotesState,
+    ReaderTtsReadAloudTextMode,
     ReaderTranslationProviderStatus,
     ReaderTtsSessionState,
     ReaderTtsSpeechTarget
@@ -59,6 +60,7 @@
   export let ttsSession: ReaderTtsSessionState = createEmptyReaderTtsSessionState();
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
+  export let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
   export let translationModeSourceText = '';
   export let translationModeSourceLabel = '';
   export let translationModeFollowsCurrentSource = true;
@@ -119,6 +121,7 @@
     | null = null;
   export let onPinCurrentTtsTarget: (() => void) | null = null;
   export let onResumeFollowingCurrentTtsTarget: (() => void) | null = null;
+  export let onSetTtsReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
   export let onPinCurrentTranslationSource:
     | ((source: { text: string; label: string }) => void)
     | null = null;
@@ -136,6 +139,7 @@
   $: translationSourceSummary = translationModeSourceLabel || '当前阅读位置';
   $: ttsStatusSummary = getReaderTtsSessionStatusLabel(ttsSession);
   $: ttsTargetSummary = getReaderTtsReadableTargetLabel(ttsSession) || '还没有可朗读目标';
+  $: ttsReadAloudSummary = ttsReadAloudTextMode === 'translated' ? '朗读译文' : '朗读原文';
   $: notebookSummaryItems =
     activeTab === 'assistant'
       ? [
@@ -155,6 +159,7 @@
           ? [
               `朗读状态：${ttsStatusSummary}`,
               ttsFollowsCurrentLocation ? '跟随当前阅读位置' : '已锁定朗读目标',
+              ttsReadAloudSummary,
               `朗读目标：${ttsTargetSummary}`,
               '朗读模式工作台'
             ]
@@ -383,12 +388,14 @@
           {ttsSession}
           target={ttsTarget}
           followsCurrentLocation={ttsFollowsCurrentLocation}
+          readAloudTextMode={ttsReadAloudTextMode}
           onStart={callbacks.onTtsStart}
           onPause={callbacks.onTtsPause}
           onResume={callbacks.onTtsResume}
           onStop={callbacks.onTtsStop}
           onPinCurrentTarget={onPinCurrentTtsTarget}
           onResumeFollowingCurrent={onResumeFollowingCurrentTtsTarget}
+          onSetReadAloudTextMode={onSetTtsReadAloudTextMode}
         />
       {:else}
         <ReaderSyncWorkspace

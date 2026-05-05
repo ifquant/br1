@@ -1,5 +1,9 @@
 <script lang="ts">
-  import type { ReaderTtsSessionState, ReaderTtsSpeechTarget } from '$lib/reader';
+  import type {
+    ReaderTtsReadAloudTextMode,
+    ReaderTtsSessionState,
+    ReaderTtsSpeechTarget
+  } from '$lib/reader';
   import {
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableSourceLabel,
@@ -11,12 +15,14 @@
   export let ttsSession: ReaderTtsSessionState;
   export let target: ReaderTtsSpeechTarget | null = null;
   export let followsCurrentLocation = true;
+  export let readAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
   export let onStart: (() => void) | null = null;
   export let onPause: (() => void) | null = null;
   export let onResume: (() => void) | null = null;
   export let onStop: (() => void) | null = null;
   export let onPinCurrentTarget: (() => void) | null = null;
   export let onResumeFollowingCurrent: (() => void) | null = null;
+  export let onSetReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
 
   $: ttsStatusLabel = getReaderTtsSessionStatusLabel(ttsSession);
   $: ttsStatusDetail = getReaderTtsStatusDetail(ttsSession);
@@ -24,6 +30,7 @@
   $: ttsSourceLabel = getReaderTtsReadableSourceLabel(ttsSession);
   $: ttsTargetLabel = getReaderTtsReadableTargetLabel(ttsSession);
   $: ttsFollowLabel = followsCurrentLocation ? '跟随当前阅读位置' : '已锁定朗读目标';
+  $: readAloudTextModeLabel = readAloudTextMode === 'translated' ? '译文朗读' : '原文朗读';
   $: canStop = ttsSession.status === 'speaking' || ttsSession.status === 'paused';
   $: hasTarget = !!target?.text.trim();
 
@@ -51,10 +58,29 @@
   <div class="tts-status-strip" aria-label="朗读模式状态">
     <span>{ttsStatusLabel}</span>
     <span>{ttsFollowLabel}</span>
+    <span>{readAloudTextModeLabel}</span>
     <span>{ttsTargetLabel || '没有可朗读目标'}</span>
   </div>
 
   <div class="tts-actions">
+    <button
+      type="button"
+      class:active={readAloudTextMode === 'source'}
+      class="ghost-action"
+      aria-pressed={readAloudTextMode === 'source'}
+      on:click={() => onSetReadAloudTextMode?.('source')}
+    >
+      朗读原文
+    </button>
+    <button
+      type="button"
+      class:active={readAloudTextMode === 'translated'}
+      class="ghost-action"
+      aria-pressed={readAloudTextMode === 'translated'}
+      on:click={() => onSetReadAloudTextMode?.('translated')}
+    >
+      朗读译文
+    </button>
     <button
       type="button"
       class="primary-action"
@@ -83,8 +109,22 @@
   <div class="tts-panels">
     <article class="tts-panel">
       <strong>当前朗读目标</strong>
-      <span>{ttsSourceLabel || '等待正文、选区或章节提供朗读目标。'}</span>
-      <p>{target?.text || '当前没有可朗读内容。'}</p>
+      <span>
+        {#if readAloudTextMode === 'translated'}
+          {ttsSourceLabel || '等待当前翻译结果提供译文朗读目标。'}
+        {:else}
+          {ttsSourceLabel || '等待正文、选区或章节提供朗读目标。'}
+        {/if}
+      </span>
+      <p>
+        {#if target?.text}
+          {target.text}
+        {:else if readAloudTextMode === 'translated'}
+          当前还没有可朗读的译文结果。
+        {:else}
+          当前没有可朗读内容。
+        {/if}
+      </p>
     </article>
     <article class="tts-panel">
       <strong>会话状态</strong>

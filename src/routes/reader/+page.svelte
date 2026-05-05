@@ -14,6 +14,8 @@
     ReaderSidebarCallbacks,
     ReaderSearchHistoryEntry,
     ReaderSearchResult,
+    ReaderSettings,
+    ReaderTtsReadAloudTextMode,
     ReaderTranslationProvider,
     ReaderTranslationProviderStatus,
     ReaderTocItem
@@ -50,8 +52,11 @@
     normalizeAssistanceTerm,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
+    loadReaderSettings,
+    saveReaderSettings,
     serializeReaderAssistanceHistory,
     serializeReaderAssistanceWorkspaceSelection,
+    resolveReaderTtsSpeechTargetForMode,
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
@@ -99,6 +104,7 @@
   let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync' = 'notes';
   let ttsFollowsCurrentLocation = true;
   let pinnedTtsTarget: ReaderTtsSpeechTarget | null = null;
+  let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
   let translationFollowsCurrentSource = true;
   let pinnedTranslationSource: {
     text: string;
@@ -366,46 +372,49 @@
     );
   };
 
+  const persistReaderSettingPatch = (patch: Partial<ReaderSettings>) => {
+    if (typeof localStorage === 'undefined') return;
+    const nextSettings = {
+      ...loadReaderSettings(localStorage),
+      ...patch
+    };
+    saveReaderSettings(localStorage, nextSettings);
+  };
+
   function resolveReaderTtsSpeechTarget(): ReaderTtsSpeechTarget | null {
-    const selectedText = $notesState.selection?.text.trim();
-    if (selectedText) {
-      return {
-        text: selectedText,
-        label: '选中文本',
-        sourceLabel: '正文选区',
-        targetLabel: '选中文本',
-        followsCurrent: true
-      };
-    }
-
     const chapterLabel = currentPreview.chapterLabel.trim();
-    if (
-      chapterLabel &&
-      chapterLabel !== READER_NOT_OPENED_LOCATION_LABEL &&
-      chapterLabel !== READER_OPENING_LOCATION_LABEL &&
-      chapterLabel !== '等待打开书籍'
-    ) {
-      return {
-        text: chapterLabel,
-        label: '当前章节',
-        sourceLabel: '当前阅读位置',
-        targetLabel: '章节标题',
-        followsCurrent: true
-      };
-    }
-
     const title = currentPreview.title.trim();
-    if (title && title !== READER_EMPTY_TITLE) {
-      return {
-        text: title,
-        label: '当前书名',
-        sourceLabel: '当前阅读位置',
-        targetLabel: '书名',
-        followsCurrent: true
-      };
-    }
+    const translationResultText =
+      assistanceState.status === 'ready' &&
+      assistanceState.activeRequest?.kind === 'translation' &&
+      assistanceState.result
+        ? normalizeAssistanceText(assistanceState.result.body)
+        : '';
+    const translationProviderLabel =
+      assistanceState.status === 'ready' &&
+      assistanceState.activeRequest?.kind === 'translation' &&
+      assistanceState.result
+        ? assistanceState.result.sourceLabel || assistanceState.result.title
+        : '';
 
-    return null;
+    return resolveReaderTtsSpeechTargetForMode({
+      mode: ttsReadAloudTextMode,
+      source: {
+        selectedText: $notesState.selection?.text,
+        chapterLabel:
+          chapterLabel &&
+          chapterLabel !== READER_NOT_OPENED_LOCATION_LABEL &&
+          chapterLabel !== READER_OPENING_LOCATION_LABEL &&
+          chapterLabel !== '等待打开书籍'
+            ? chapterLabel
+            : '',
+        title: title && title !== READER_EMPTY_TITLE ? title : ''
+      },
+      translated: {
+        translatedText: translationResultText,
+        providerLabel: translationProviderLabel
+      }
+    });
   }
 
   onMount(() => {
@@ -414,6 +423,7 @@
     })();
 
     if (typeof localStorage === 'undefined') return;
+    ttsReadAloudTextMode = loadReaderSettings(localStorage).ttsReadAloudText;
     const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
     if (rawNotebookShell) {
       try {
@@ -845,6 +855,19 @@
     pinnedTtsTarget = null;
     if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
       ttsController.setSpeechTarget(resolvedTtsTarget);
+    }
+  };
+
+  const setTtsReadAloudTextMode = (mode: ReaderTtsReadAloudTextMode) => {
+    if (ttsReadAloudTextMode === mode) return;
+    ttsReadAloudTextMode = mode;
+    persistReaderSettingPatch({ ttsReadAloudText: mode });
+    if (!ttsFollowsCurrentLocation) {
+      pinnedTtsTarget = null;
+      ttsFollowsCurrentLocation = true;
+    }
+    if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
+      ttsController.setSpeechTarget(resolveReaderTtsSpeechTarget());
     }
   };
 
@@ -1388,6 +1411,7 @@
         ttsSession={$ttsState}
         ttsTarget={effectiveTtsTarget}
         ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}
+        ttsReadAloudTextMode={ttsReadAloudTextMode}
         translationModeSourceText={effectiveTranslationSource.text}
         translationModeSourceLabel={effectiveTranslationSource.label}
         translationModeFollowsCurrentSource={translationFollowsCurrentSource}
@@ -1422,6 +1446,7 @@
         onRetrySyncAction={readerSyncRetryAction}
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
+        onSetTtsReadAloudTextMode={setTtsReadAloudTextMode}
         onPinCurrentTranslationSource={pinCurrentTranslationSource}
         onResumeFollowingCurrentTranslationSource={resumeFollowingCurrentTranslationSource}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
