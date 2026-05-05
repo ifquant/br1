@@ -77,6 +77,10 @@
   $: translationSourceText = normalizeAssistanceText(
     assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
   );
+  $: lookupHistory = history.filter((entry) => entry.request.kind === 'lookup');
+  $: translationHistory = history.filter((entry) => entry.request.kind === 'translation');
+  $: latestLookupHistoryEntry = lookupHistory[0] ?? null;
+  $: latestTranslationHistoryEntry = translationHistory[0] ?? null;
   $: visibleHistory = history.filter((entry) =>
     assistMode === 'translation' ? entry.request.kind === 'translation' : entry.request.kind === 'lookup'
   );
@@ -176,6 +180,49 @@
     <strong>{title}</strong>
     <span>{summary}</span>
   </div>
+
+  {#if !lockedMode}
+    <div class="assist-archive-overview" aria-label="本书 AI 记录摘要">
+      <button
+        type="button"
+        class:active={assistMode === 'lookup'}
+        class="assist-archive-card"
+        on:click={() => {
+          assistMode = 'lookup';
+        }}
+      >
+        <strong>查找记录</strong>
+        <span>{lookupHistory.length > 0 ? `当前书 ${lookupHistory.length} 条` : '当前书还没有查找记录'}</span>
+        <small>
+          {#if latestLookupHistoryEntry}
+            最近一条：{getReaderAssistanceRequestSubject(latestLookupHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestLookupHistoryEntry.updatedAt)}
+          {:else}
+            查词和百科结果会按当前书保留在这里。
+          {/if}
+        </small>
+      </button>
+      <button
+        type="button"
+        class:active={assistMode === 'translation'}
+        class="assist-archive-card"
+        on:click={() => {
+          assistMode = 'translation';
+        }}
+      >
+        <strong>翻译记录</strong>
+        <span>
+          {translationHistory.length > 0 ? `当前书 ${translationHistory.length} 条` : '当前书还没有翻译记录'}
+        </span>
+        <small>
+          {#if latestTranslationHistoryEntry}
+            最近一条：{getReaderAssistanceRequestSubject(latestTranslationHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestTranslationHistoryEntry.updatedAt)}
+          {:else}
+            当前书的翻译请求和结果会按语言上下文保留在这里。
+          {/if}
+        </small>
+      </button>
+    </div>
+  {/if}
 
   <div class="assist-context">
     <span>
@@ -608,6 +655,39 @@
     background: color-mix(in srgb, var(--surface-reader) 82%, white 18%);
   }
 
+  .assist-archive-overview {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .assist-archive-card {
+    display: grid;
+    gap: 6px;
+    text-align: left;
+    padding: 12px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
+    cursor: pointer;
+  }
+
+  .assist-archive-card.active {
+    border-color: color-mix(in srgb, var(--accent-warm, #8c6a3b) 32%, white 68%);
+    background: color-mix(in srgb, var(--surface-reader) 74%, white 26%);
+  }
+
+  .assist-archive-card strong {
+    color: var(--text-primary);
+    font: 700 13px/1.3 var(--font-chrome);
+  }
+
+  .assist-archive-card span,
+  .assist-archive-card small {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
   .assist-field input,
   .assist-field textarea {
     width: 100%;
@@ -769,6 +849,12 @@
   .assist-translation-panels {
     display: grid;
     gap: 10px;
+  }
+
+  @media (max-width: 760px) {
+    .assist-archive-overview {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   .assist-translation-card {

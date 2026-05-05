@@ -444,6 +444,86 @@ test('reader restores the selected ai history record for the current book in web
   await expect(resultPanel.locator('> p')).toHaveText('A notebook-style reading bridge.');
 });
 
+test('reader groups current-book ai history into lookup and translation sections in web mode', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: 'AI 记录摘要测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-translation-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Bridge reading keeps the text in focus.',
+              targetLanguage: 'zh',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-result-1',
+              provider: 'deepl',
+              title: '第二章',
+              body: '桥接式阅读让正文保持在中心位置。',
+              createdAt: 20
+            },
+            error: '',
+            createdAt: 20,
+            updatedAt: 20
+          },
+          {
+            id: 'assist-lookup-1',
+            request: {
+              kind: 'lookup',
+              provider: 'wikipedia',
+              term: 'bridge reader',
+              chapterLabel: '第一章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-result-1',
+              provider: 'wikipedia',
+              title: 'Bridge reader',
+              body: 'A notebook-style reading bridge.',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          }
+        ])
+      );
+    },
+    { historyKey: historyStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'AI 工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  const overview = notebook.getByLabel('本书 AI 记录摘要');
+  await expect(overview.getByRole('button', { name: /查找记录/ })).toContainText('当前书 1 条');
+  await expect(overview.getByRole('button', { name: /翻译记录/ })).toContainText('当前书 1 条');
+  await overview.getByRole('button', { name: /翻译记录/ }).click();
+  const historyLane = notebook.getByLabel('最近翻译');
+  await expect(historyLane.getByText('Bridge reading keeps the text in focus.')).toBeVisible();
+});
+
 test('reader can clear current-book ai history in web mode', async ({ page }) => {
   const sourceUrl = '/samples/sample-book.epub';
   const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
