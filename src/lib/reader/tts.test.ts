@@ -127,6 +127,7 @@ test('source TTS mode prefers a live reading excerpt before chapter-title fallba
       selectedText: '',
       excerptText: ' This plain text file exists to verify the current contract. ',
       excerptSourceLabel: '当前阅读位置',
+      sourceLanguage: 'en',
       chapterLabel: '纯文本',
       title: 'Sample TXT Book'
     }
@@ -137,7 +138,31 @@ test('source TTS mode prefers a live reading excerpt before chapter-title fallba
     label: '当前正文摘录',
     sourceLabel: '当前阅读位置',
     targetLabel: '正文摘录',
-    followsCurrent: true
+    followsCurrent: true,
+    lang: 'en-US'
+  });
+});
+
+test('source TTS mode carries EPUB metadata language into chapter fallback targets', () => {
+  const target = resolveReaderTtsSpeechTargetForMode({
+    mode: 'source',
+    source: {
+      selectedText: '',
+      excerptText: '',
+      excerptSourceLabel: '',
+      sourceLanguage: 'fr',
+      chapterLabel: 'Chapitre 1',
+      title: 'Livre Exemple'
+    }
+  });
+
+  assert.deepEqual(target, {
+    text: 'Chapitre 1',
+    label: '当前章节',
+    sourceLabel: '当前阅读位置',
+    targetLabel: '章节标题',
+    followsCurrent: true,
+    lang: 'fr-FR'
   });
 });
 

@@ -210,6 +210,7 @@ export type ReaderTtsSourceTargetInput = {
   selectedText?: string | null;
   excerptText?: string | null;
   excerptSourceLabel?: string | null;
+  sourceLanguage?: string | null;
   chapterLabel?: string | null;
   title?: string | null;
 };
@@ -268,6 +269,7 @@ export const resolveReaderTtsSpeechTargetForMode = ({
   const normalizedSelectedText = source.selectedText?.trim() || '';
   const normalizedExcerptText = source.excerptText?.trim() || '';
   const normalizedExcerptSourceLabel = source.excerptSourceLabel?.trim() || '';
+  const normalizedSourceLanguage = normalizeReaderTtsLanguageTag(source.sourceLanguage);
   const normalizedChapterLabel = source.chapterLabel?.trim() || '';
   const normalizedTitle = source.title?.trim() || '';
   const normalizedTranslatedText = translated?.translatedText?.trim() || '';
@@ -298,7 +300,8 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       label: '选中文本',
       sourceLabel: '正文选区',
       targetLabel: '选中文本',
-      followsCurrent: true
+      followsCurrent: true,
+      lang: normalizedSourceLanguage || undefined
     };
   }
 
@@ -308,7 +311,8 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       label: '当前正文摘录',
       sourceLabel: normalizedExcerptSourceLabel || '当前阅读位置',
       targetLabel: '正文摘录',
-      followsCurrent: true
+      followsCurrent: true,
+      lang: normalizedSourceLanguage || undefined
     };
   }
 
@@ -318,7 +322,8 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       label: '当前章节',
       sourceLabel: '当前阅读位置',
       targetLabel: '章节标题',
-      followsCurrent: true
+      followsCurrent: true,
+      lang: normalizedSourceLanguage || undefined
     };
   }
 
@@ -328,7 +333,8 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       label: '当前书名',
       sourceLabel: '当前阅读位置',
       targetLabel: '书名',
-      followsCurrent: true
+      followsCurrent: true,
+      lang: normalizedSourceLanguage || undefined
     };
   }
 

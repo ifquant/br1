@@ -571,6 +571,11 @@
       typeof sectionCurrent === 'number' && typeof sectionTotal === 'number'
         ? `第 ${sectionCurrent + 1} / ${sectionTotal} 节`
         : '等待定位';
+    const metadataLanguage = Array.isArray(book?.metadata?.language)
+      ? (book?.metadata?.language.find((value) => typeof value === 'string' && value.trim()) ?? '')
+      : typeof book?.metadata?.language === 'string'
+        ? book.metadata.language
+        : '';
 
     const previewState: ReaderPreviewState = {
       ...getFallbackReaderState(),
@@ -588,6 +593,7 @@
       locationLabel: formatReaderLocationLabel(currentFormatLabel, lastLocation),
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
+      ttsSourceLanguage: metadataLanguage.trim(),
       ...partial
     };
 

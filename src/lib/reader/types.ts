@@ -22,6 +22,7 @@ export type ReaderPreviewState = {
   koreaderProgressLocation: string;
   ttsSourceText: string;
   ttsSourceLabel: string;
+  ttsSourceLanguage: string;
 };
 
 export const READER_EMPTY_TITLE = 'Bridge Reader';
@@ -46,6 +47,7 @@ export const createEmptyReaderPreviewState = (
   koreaderProgressLocation: '',
   ttsSourceText: '',
   ttsSourceLabel: '',
+  ttsSourceLanguage: '',
   ...overrides
 });
 

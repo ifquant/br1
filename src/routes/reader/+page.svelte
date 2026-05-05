@@ -444,6 +444,7 @@
         selectedText: $notesState.selection?.text,
         excerptText: currentPreview.ttsSourceText,
         excerptSourceLabel: currentPreview.ttsSourceLabel,
+        sourceLanguage: currentPreview.ttsSourceLanguage,
         chapterLabel:
           chapterLabel &&
           chapterLabel !== READER_NOT_OPENED_LOCATION_LABEL &&
