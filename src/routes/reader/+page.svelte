@@ -30,6 +30,7 @@
     createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
     createReaderAssistanceHistoryEntry,
+    parseReaderAssistanceHistory,
     createReaderBookmarksController,
     createReaderParallelSessionFromRoute,
     createReaderNotesController,
@@ -46,6 +47,7 @@
     normalizeAssistanceTerm,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
+    serializeReaderAssistanceHistory,
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
@@ -148,6 +150,7 @@
   $: canOpenParallelSurface = parallelEnabled || parallelSession.panes.primary.openTarget !== null;
   $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
   $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
+  $: assistanceHistoryStorageKey = `br1.reader.assistance.history:${readerBookKey}`;
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -285,6 +288,30 @@
 
   const NOTEBOOK_STORAGE_KEY = 'br1.reader.notebook-shell';
 
+  const persistAssistanceHistory = () => {
+    if (typeof localStorage === 'undefined') return;
+    if (!assistanceHistoryStorageKey) return;
+    localStorage.setItem(
+      assistanceHistoryStorageKey,
+      serializeReaderAssistanceHistory(assistanceHistory)
+    );
+  };
+
+  const restoreAssistanceHistory = () => {
+    if (typeof localStorage === 'undefined') return [];
+    if (!assistanceHistoryStorageKey) return [];
+    const rawHistory = localStorage.getItem(assistanceHistoryStorageKey);
+    if (!rawHistory) return [];
+
+    try {
+      return parseReaderAssistanceHistory(rawHistory);
+    } catch (error) {
+      console.warn('Failed to restore reader assistance history', error);
+      localStorage.removeItem(assistanceHistoryStorageKey);
+      return [];
+    }
+  };
+
   const persistNotebookShell = () => {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(
@@ -380,7 +407,7 @@
   }
   $: if (readerBookKey !== lastAssistanceBookKey) {
     assistanceState = createEmptyReaderAssistanceState();
-    assistanceHistory = [];
+    assistanceHistory = restoreAssistanceHistory();
     lastAssistanceBookKey = readerBookKey;
   }
   $: resolvedTtsTarget = resolveReaderTtsSpeechTarget();
@@ -392,6 +419,9 @@
   }
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
+  }
+  $: if (typeof localStorage !== 'undefined') {
+    persistAssistanceHistory();
   }
   $: searchController.persist($searchState);
   $: sidebarController.persist($sidebarState);

@@ -66,6 +66,8 @@ export type ReaderAssistanceHistoryEntry = {
   updatedAt: number;
 };
 
+export const READER_ASSISTANCE_HISTORY_LIMIT = 8;
+
 export const normalizeAssistanceTerm = (value: string): string =>
   value.replace(/\s+/g, ' ').trim().slice(0, 240);
 
@@ -239,12 +241,64 @@ export const updateReaderAssistanceHistoryEntry = (
 export const upsertReaderAssistanceHistoryEntry = (
   entries: ReaderAssistanceHistoryEntry[],
   entry: ReaderAssistanceHistoryEntry,
-  limit = 8
+  limit = READER_ASSISTANCE_HISTORY_LIMIT
 ): ReaderAssistanceHistoryEntry[] => {
   const nextEntries = entries.filter((current) => current.id !== entry.id);
   nextEntries.unshift(entry);
   nextEntries.sort((left, right) => right.updatedAt - left.updatedAt);
   return nextEntries.slice(0, Math.max(1, limit));
+};
+
+export const serializeReaderAssistanceHistory = (
+  entries: ReaderAssistanceHistoryEntry[],
+  limit = READER_ASSISTANCE_HISTORY_LIMIT
+): string =>
+  JSON.stringify(
+    entries
+      .slice()
+      .sort((left, right) => right.updatedAt - left.updatedAt)
+      .slice(0, Math.max(1, limit))
+  );
+
+export const parseReaderAssistanceHistory = (
+  raw: string,
+  limit = READER_ASSISTANCE_HISTORY_LIMIT
+): ReaderAssistanceHistoryEntry[] => {
+  const parsed = JSON.parse(raw) as unknown;
+
+  if (!Array.isArray(parsed)) return [];
+
+  const entries = parsed.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return [];
+
+    const record = candidate as Partial<ReaderAssistanceHistoryEntry>;
+    const request = record.request;
+
+    if (!request || typeof request !== 'object') return [];
+    if (request.kind !== 'lookup' && request.kind !== 'translation') return [];
+    if (record.status !== 'loading' && record.status !== 'ready' && record.status !== 'empty' && record.status !== 'offline' && record.status !== 'error') {
+      return [];
+    }
+
+    try {
+      return [
+        createReaderAssistanceHistoryEntry(request, {
+          id: typeof record.id === 'string' ? record.id : undefined,
+          status: record.status,
+          result: record.result ?? null,
+          error: typeof record.error === 'string' ? record.error : '',
+          createdAt: typeof record.createdAt === 'number' ? record.createdAt : undefined,
+          updatedAt: typeof record.updatedAt === 'number' ? record.updatedAt : undefined
+        })
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  return entries
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .slice(0, Math.max(1, limit));
 };
 
 export const isLookupReaderAssistanceRequest = (

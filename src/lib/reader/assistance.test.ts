@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  READER_ASSISTANCE_HISTORY_LIMIT,
   createReaderAssistanceHistoryEntry,
   getReaderAssistanceProviderDisplayLabel,
   getReaderAssistanceRequestContextLabel,
   getReaderAssistanceRequestSubject,
+  parseReaderAssistanceHistory,
+  serializeReaderAssistanceHistory,
   updateReaderAssistanceHistoryEntry,
   upsertReaderAssistanceHistoryEntry
 } from './assistance';
@@ -122,4 +125,88 @@ test('assistance helpers expose reader-facing provider and subject labels', () =
     }),
     'translate this paragraph'
   );
+});
+
+test('assistance history serialization restores sorted valid records and drops invalid ones', () => {
+  const raw = JSON.stringify([
+    {
+      id: 'invalid',
+      request: null,
+      status: 'ready'
+    },
+    {
+      id: 'assist-2',
+      request: {
+        kind: 'translation',
+        provider: 'deepl',
+        text: ' translated paragraph ',
+        targetLanguage: 'zh',
+        chapterLabel: '第二章',
+        bookKey: 'book-1'
+      },
+      status: 'ready',
+      result: {
+        id: 'result-2',
+        provider: 'deepl',
+        title: 'DeepL',
+        body: '译文',
+        createdAt: 20
+      },
+      error: '',
+      createdAt: 20,
+      updatedAt: 20
+    },
+    {
+      id: 'assist-1',
+      request: {
+        kind: 'lookup',
+        provider: 'wikipedia',
+        term: ' bridge reader ',
+        chapterLabel: '第一章',
+        bookKey: 'book-1'
+      },
+      status: 'empty',
+      result: null,
+      error: '',
+      createdAt: 10,
+      updatedAt: 10
+    }
+  ]);
+
+  const restored = parseReaderAssistanceHistory(raw);
+
+  assert.deepEqual(
+    restored.map((entry) => [entry.id, entry.status, entry.request.kind]),
+    [
+      ['assist-2', 'ready', 'translation'],
+      ['assist-1', 'empty', 'lookup']
+    ]
+  );
+  assert.equal(restored[1]?.request.kind, 'lookup');
+  if (restored[1]?.request.kind === 'lookup') {
+    assert.equal(restored[1].request.term, 'bridge reader');
+  }
+});
+
+test('assistance history serialization keeps the newest entries within the storage limit', () => {
+  const entries = Array.from({ length: READER_ASSISTANCE_HISTORY_LIMIT + 2 }, (_, index) =>
+    createReaderAssistanceHistoryEntry(
+      {
+        kind: 'lookup',
+        provider: 'dictionary',
+        term: `term-${index}`,
+        bookKey: 'book-1'
+      },
+      {
+        id: `assist-${index}`,
+        updatedAt: index
+      }
+    )
+  );
+
+  const restored = parseReaderAssistanceHistory(serializeReaderAssistanceHistory(entries));
+
+  assert.equal(restored.length, READER_ASSISTANCE_HISTORY_LIMIT);
+  assert.equal(restored[0]?.id, `assist-${READER_ASSISTANCE_HISTORY_LIMIT + 1}`);
+  assert.equal(restored.at(-1)?.id, 'assist-2');
 });

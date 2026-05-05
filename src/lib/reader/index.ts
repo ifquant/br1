@@ -2,6 +2,7 @@ import type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 
 export type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 export {
+  READER_ASSISTANCE_HISTORY_LIMIT,
   canRequestAssistanceForText,
   createEmptyReaderAssistanceResultState,
   createReaderAssistanceHistoryEntry,
@@ -19,6 +20,8 @@ export {
   normalizeAssistanceTerm,
   normalizeAssistanceText,
   normalizeReaderAssistanceRequest,
+  parseReaderAssistanceHistory,
+  serializeReaderAssistanceHistory,
   updateReaderAssistanceHistoryEntry,
   upsertReaderAssistanceHistoryEntry
 } from './assistance';
