@@ -99,6 +99,12 @@
   let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync' = 'notes';
   let ttsFollowsCurrentLocation = true;
   let pinnedTtsTarget: ReaderTtsSpeechTarget | null = null;
+  let translationFollowsCurrentSource = true;
+  let pinnedTranslationSource: {
+    text: string;
+    label: string;
+    chapterLabel: string;
+  } | null = null;
   let currentManagedBook: PersistedLibraryBook | null = null;
   let readerSyncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
     null;
@@ -446,12 +452,18 @@
     assistanceState = createEmptyReaderAssistanceState();
     assistanceHistory = restoreAssistanceHistory();
     assistanceSelection = restoreAssistanceSelection();
+    translationFollowsCurrentSource = true;
+    pinnedTranslationSource = null;
     lastAssistanceBookKey = readerBookKey;
   }
   $: resolvedTtsTarget = resolveReaderTtsSpeechTarget();
   $: effectiveTtsTarget = ttsFollowsCurrentLocation
     ? resolvedTtsTarget
     : pinnedTtsTarget || resolvedTtsTarget;
+  $: resolvedTranslationSource = resolveReaderTranslationModeSource();
+  $: effectiveTranslationSource = translationFollowsCurrentSource
+    ? resolvedTranslationSource
+    : pinnedTranslationSource || resolvedTranslationSource;
   $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
     ttsController.setSpeechTarget(effectiveTtsTarget);
   }
@@ -834,6 +846,23 @@
     }
   };
 
+  const pinCurrentTranslationSource = (source?: { text: string; label: string }) => {
+    const normalizedPinnedText = normalizeAssistanceText(source?.text || effectiveTranslationSource.text);
+    pinnedTranslationSource = normalizedPinnedText
+      ? {
+          text: normalizedPinnedText,
+          label: source?.label || effectiveTranslationSource.label || '当前翻译目标',
+          chapterLabel: effectiveTranslationSource.chapterLabel
+        }
+      : null;
+    translationFollowsCurrentSource = false;
+  };
+
+  const resumeFollowingCurrentTranslationSource = () => {
+    translationFollowsCurrentSource = true;
+    pinnedTranslationSource = null;
+  };
+
   const openBookmark = (href: string) => {
     if (!href) return;
     sidebarController.openTab('bookmarks');
@@ -869,6 +898,7 @@
     if (selectedText) {
       return {
         text: selectedText,
+        label: $notesState.selection?.chapterLabel?.trim() ? '正文选区' : '当前选区',
         chapterLabel: $notesState.selection?.chapterLabel || currentPreview.chapterLabel
       };
     }
@@ -882,6 +912,7 @@
     ) {
       return {
         text: chapterLabel,
+        label: '当前章节',
         chapterLabel
       };
     }
@@ -890,13 +921,25 @@
     if (title && title !== READER_EMPTY_TITLE) {
       return {
         text: title,
+        label: '当前书名',
         chapterLabel: currentPreview.chapterLabel
       };
     }
 
     return {
       text: '',
+      label: '',
       chapterLabel: currentPreview.chapterLabel
+    };
+  };
+
+  const resolveReaderTranslationModeSource = () => {
+    const fallback = resolveReaderTranslationFallback();
+
+    return {
+      text: fallback.text,
+      label: fallback.label,
+      chapterLabel: fallback.chapterLabel
     };
   };
 
@@ -1343,6 +1386,9 @@
         ttsSession={$ttsState}
         ttsTarget={effectiveTtsTarget}
         ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}
+        translationModeSourceText={effectiveTranslationSource.text}
+        translationModeSourceLabel={effectiveTranslationSource.label}
+        translationModeFollowsCurrentSource={translationFollowsCurrentSource}
         translationProviderStatuses={translationProviderStatuses}
         desktopSyncAvailable={canPersistLibrary()}
         {currentManagedBook}
@@ -1374,6 +1420,8 @@
         onRetrySyncAction={readerSyncRetryAction}
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
+        onPinCurrentTranslationSource={pinCurrentTranslationSource}
+        onResumeFollowingCurrentTranslationSource={resumeFollowingCurrentTranslationSource}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
         onClearAssistanceHistory={clearAssistanceHistory}
         onClose={() => {

@@ -1099,6 +1099,7 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(notebook.locator('.assist-summary strong', { hasText: '翻译模式' })).toBeVisible();
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('当前书翻译 0 条');
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('翻译模式待命');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随');
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('原文 / 译文并排阅读');
   await expect(
     page.getByText('把原文和译文并排收进 reader 工作台，让翻译成为一种阅读模式，而不是助手里的临时请求。')
@@ -1114,12 +1115,24 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(
     translationHistoryLane.getByRole('button', { name: '返回本书 AI 记录摘要' })
   ).toHaveCount(0);
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
+  await expect(page.getByRole('button', { name: '锁定当前翻译目标' })).toBeVisible();
   const translationPanels = page.getByLabel('翻译阅读面板');
   await expect(translationPanels).toBeVisible();
-  await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '原文' })).toBeVisible();
-  await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '译文' })).toBeVisible();
-  await expect(translationPanels.locator('.assist-card-header span').first()).toHaveText('当前输入或正文选区');
-  await expect(translationPanels.locator('.assist-card-header span').last()).toHaveText('当前翻译结果');
+  const sourceCard = translationPanels.locator('.assist-translation-card').first();
+  const resultCard = translationPanels.locator('.assist-translation-card').last();
+  await expect(sourceCard.locator('.assist-card-header strong', { hasText: '原文' })).toBeVisible();
+  await expect(resultCard.locator('.assist-card-header strong', { hasText: '译文' })).toBeVisible();
+  await expect(sourceCard.locator('.assist-card-header span')).toContainText('正在跟随');
+  await expect(resultCard.locator('.assist-card-header span')).toHaveText('当前翻译结果');
+  const translationInput = notebook.getByRole('textbox', { name: '翻译文本' });
+  await translationInput.fill('Translate this paragraph while keeping the current reading mode.');
+  await page.getByRole('button', { name: '锁定当前翻译目标' }).click();
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定当前手动输入');
+  await expect(sourceCard.locator('.assist-card-header span')).toContainText('已锁定当前手动输入');
+  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
+  await page.getByRole('button', { name: '回到当前阅读位置' }).click();
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
 });
 
 test('reader can open tts mode as a dedicated notebook tab', async ({ page }) => {

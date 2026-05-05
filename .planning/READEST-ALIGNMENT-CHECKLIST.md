@@ -1,6 +1,6 @@
 # Readest Alignment Checklist
 
-Last updated: 2026-04-25
+Last updated: 2026-05-05
 
 ## Purpose
 
@@ -34,7 +34,7 @@ That handoff explains files, task order, and test commands. This checklist remai
 
 ## Current Baseline
 
-`br1` has closed the first large Readest alignment line for trusted local-library, reader-capability, and service/ecosystem groundwork.
+`br1` has now closed the first large Readest alignment line for trusted local-library, reader-capability, AI workspace, catalog, and sync groundwork.
 
 Strong areas:
 
@@ -46,15 +46,18 @@ Strong areas:
 - grouped library browse and library repair workflows
 - reader assistance: Wikipedia, dictionary, DeepL, and Yandex translation
 - reader TTS, visual/focus aids, parallel read, and code highlighting
+- notebook-grade AI assistant and translation workspace structure
+- reader-side sync workspace for KOReader progress exchange and remote sync controls
+- library operations and desktop support surfaces
 - OPDS / Calibre catalog integration through Tauri-owned boundaries
+- first-class catalog manager/browser/import surfaces
 - local snapshot sync, Readest Cloud sync substrate, and KOReader exchange/progress sync
 - transactional local/remote snapshot restore hardening
 
 Main gaps against Readest:
 
-- reader workspace parity is now the highest-value frontier: `br1` still lacks a notebook-grade workspace, a notebook-grade AI assistant surface, inline translated-reading mode, and fuller TTS reading-mode behavior
-- library homepage parity has largely closed through the P3 line, but library operations and desktop support surfaces still lag behind Readest
-- OPDS / Calibre substrate exists, but catalog browsing and catalog management are still not exposed as a first-class product surface in `br1`
+- reader reading-mode parity is now the highest-value frontier: translation mode still behaves too much like a detached workspace instead of following the current reading source by default, and TTS still lacks fuller reading-mode behavior
+- the reader notebook still needs explicit mode-follow/lock/resume semantics where a reading mode can either stay attached to the active source or intentionally pin itself to an older source
 - Readest local library migration exists, and its “compatibility vs reimport” semantics are now explicit enough to move off the main execution line
 - official KOReader parity remains intentionally scoped to exchange plus progress-only remote sync
 
@@ -64,8 +67,9 @@ Planning consequence:
 - P0, P1, and P2 are functionally closed as the first Readest alignment line
 - P3 is functionally closed as the library-product parity line
 - P4 is now a narrow reader capability/search closeout line rather than the long-term mainline
-- the next main execution lines are `P5 reader workspace parity`, `P6 library operations and desktop support`, and `P7 catalog and ecosystem productization`
-- new parity work should prefer productized reader/library/catalog surfaces over deeper provider expansion unless a new correctness blocker appears
+- P5, P6, P7, and P8 are functionally closed as shipped workspace/library/catalog/sync lines
+- the next main execution line is `P9 reader reading-mode parity`
+- new parity work should prefer tighter reading-mode ownership and source-follow semantics over deeper provider expansion unless a new correctness blocker appears
 
 ## Execution Rules
 
@@ -818,6 +822,18 @@ Goal: turn the existing sync substrate into an explicit reader-side control surf
   - Tutorial: `tutorials/commit/0555-move-sync-actions-into-their-owning-panels.md`.
   - Notes: this slice does not add or remove any sync capability. It only rehomes the existing buttons into the panel they belong to, which makes the workspace read as two independent operating lanes and improves narrow-width stacking behavior.
 
+## P9 Reader Reading-Mode Parity
+
+Goal: close the remaining gap between dedicated reader modes and the live reading source, starting with translation mode ownership.
+
+- [x] P9-1.1 Make translation mode follow the current reading source by default, with explicit lock and resume semantics
+  - Outcome: opening translation mode from the active reader keeps it attached to the current reading source by default, while the user can explicitly lock that mode to its current source and later resume live following.
+  - Touches: reader route/session ownership, translation mode state contract, notebook action semantics, focused reader regressions.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0592-make-translation-mode-follow-the-current-reading-source.md`.
+  - Notes: translation mode now defaults to the current reading source instead of behaving like a detached request form. When a live reading source is available, the mode follows it; when it is not, the reader can still type or paste text, lock that source explicitly, and later resume live following.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
@@ -903,3 +919,4 @@ Use this log when completing each item.
 | 2026-05-05 | Remove archive-overview navigation semantics from dedicated translation mode | c88654b | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | removes the fake overview parent and return action from locked translation mode so its navigation contract matches the fact that it is already a dedicated workspace |
 | 2026-05-05 | Record the P5 closeout boundary | beafe12 | `pnpm check`; `git diff --check` | documents which AI workspace structures are now treated as closed in P5 and which larger ideas remain intentionally out of scope for the next mainline |
 | 2026-05-05 | Run the P5 closeout review | fd0f449 | `pnpm check`; `git diff --check` | records that the current-book AI workspace line no longer has structural blockers and that the next step should be a new reader workspace mainline instead of more P5 micro-polish |
+| 2026-05-05 | Make translation mode follow the current reading source by default | this commit | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | makes dedicated translation mode follow the live reading source when one exists, keeps manual text entry viable when it does not, and adds explicit lock/resume controls so the workspace no longer behaves like a detached request form |

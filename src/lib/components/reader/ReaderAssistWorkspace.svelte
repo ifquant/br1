@@ -27,6 +27,9 @@
   export let history: ReaderAssistanceHistoryEntry[] = [];
   export let selectedLookupHistoryEntryId = '';
   export let selectedTranslationHistoryEntryId = '';
+  export let translationReadingModeSourceText = '';
+  export let translationReadingModeSourceLabel = '';
+  export let translationReadingModeFollowsCurrent = true;
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let callbacks: Pick<ReaderSidebarCallbacks, 'onRequestLookup' | 'onRequestTranslation'> = {
     onRequestLookup: null,
@@ -38,6 +41,10 @@
   export let onClearHistory:
     | ((mode: 'lookup' | 'translation') => void)
     | null = null;
+  export let onPinCurrentTranslationSource:
+    | ((source: { text: string; label: string }) => void)
+    | null = null;
+  export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
   export let title = 'AI 阅读助手';
   export let summary =
     '把词典、维基百科和翻译请求收成一个工作台，而不是继续挤在 sidebar result panel 里。';
@@ -89,9 +96,22 @@
     archiveOverviewVisible = lockedMode ? false : !restoredSelectedMode;
     assistLookupTermSeededForBookKey = bookKey;
   }
-  $: translationSourceText = normalizeAssistanceText(
-    assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
-  );
+  $: effectiveTranslationSourceText =
+    lockedMode === 'translation' && translationReadingModeFollowsCurrent
+      ? normalizeAssistanceText(translationReadingModeSourceText)
+      : normalizeAssistanceText(
+          assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
+        );
+  $: translationReadingModeHasLiveSource =
+    lockedMode === 'translation' &&
+    translationReadingModeFollowsCurrent &&
+    !!normalizeAssistanceText(translationReadingModeSourceText);
+  $: translationSourceModeLabel =
+    lockedMode === 'translation'
+      ? translationReadingModeFollowsCurrent
+        ? `正在跟随${translationReadingModeSourceLabel || '当前阅读位置'}`
+        : `已锁定${translationReadingModeSourceLabel || '当前翻译目标'}`
+      : '当前输入或正文选区';
   $: lookupHistory = history.filter((entry) => entry.request.kind === 'lookup');
   $: translationHistory = history.filter((entry) => entry.request.kind === 'translation');
   $: latestLookupHistoryEntry = lookupHistory[0] ?? null;
@@ -284,9 +304,7 @@
   };
 
   const requestAssistTranslation = () => {
-    const text = normalizeAssistanceText(
-      assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
-    );
+    const text = normalizeAssistanceText(effectiveTranslationSourceText);
     callbacks.onRequestTranslation?.(
       assistTranslationProvider,
       text,
@@ -383,7 +401,14 @@
 
   <div class="assist-context">
     <span>
-      {#if notesState.selection?.text?.trim() && assistMode === 'translation'}
+      {#if assistMode === 'translation' && lockedMode === 'translation'}
+        当前翻译来源：{translationSourceModeLabel}。
+        {#if effectiveTranslationSourceText}
+          {effectiveTranslationSourceText}
+        {:else}
+          当前还没有可翻译的正文来源。
+        {/if}
+      {:else if notesState.selection?.text?.trim() && assistMode === 'translation'}
         当前选区：{normalizeAssistanceText(notesState.selection.text)}
       {:else if notesState.selection?.text?.trim()}
         当前选区：{normalizeAssistanceTerm(notesState.selection.text)}
@@ -407,6 +432,13 @@
       <span>词典目前仅支持英文词条。</span>
     {/if}
   </div>
+
+  {#if lockedMode === 'translation'}
+    <div class="assist-reading-mode-strip" aria-label="翻译模式阅读来源状态">
+      <span>{translationSourceModeLabel}</span>
+      <span>{effectiveTranslationSourceText || '当前还没有可翻译的正文来源。'}</span>
+    </div>
+  {/if}
 
   {#if !lockedMode}
     <div class="assist-actions">
@@ -441,8 +473,17 @@
       <textarea
         rows="5"
         maxlength="8000"
-        placeholder="输入要翻译的文本，或先在正文里选中一段内容"
-        value={assistTranslationText}
+        readonly={translationReadingModeHasLiveSource}
+        placeholder={
+          translationReadingModeHasLiveSource
+            ? '当前会跟随正文选区、章节或书名更新翻译来源'
+            : '输入要翻译的文本，或先在正文里选中一段内容'
+        }
+        value={
+          translationReadingModeHasLiveSource
+            ? effectiveTranslationSourceText
+            : assistTranslationText
+        }
         on:input={(event) =>
           fillAssistTranslationText((event.currentTarget as HTMLTextAreaElement).value)}
       ></textarea>
@@ -467,33 +508,76 @@
   {/if}
 
   <div class="assist-actions">
-    <button
-      type="button"
-      class="assist-chip"
-      disabled={!notesState.selection?.text?.trim()}
-      on:click={() => {
-        if (assistMode === 'translation') {
-          fillAssistTranslationText(notesState.selection?.text || '');
-        } else {
-          fillAssistLookupTerm(notesState.selection?.text || '');
-        }
-      }}
-    >
-      填入选区
-    </button>
-    <button
-      type="button"
-      class="assist-chip"
-      on:click={() => {
-        if (assistMode === 'translation') {
-          fillAssistTranslationText(preview.chapterLabel || preview.title);
-        } else {
-          fillAssistLookupTerm(preview.chapterLabel);
-        }
-      }}
-    >
-      填入章节
-    </button>
+    {#if !translationReadingModeHasLiveSource}
+      <button
+        type="button"
+        class="assist-chip"
+        disabled={!notesState.selection?.text?.trim()}
+        on:click={() => {
+          if (assistMode === 'translation') {
+            fillAssistTranslationText(notesState.selection?.text || '');
+          } else {
+            fillAssistLookupTerm(notesState.selection?.text || '');
+          }
+        }}
+      >
+        填入选区
+      </button>
+      <button
+        type="button"
+        class="assist-chip"
+        on:click={() => {
+          if (assistMode === 'translation') {
+            fillAssistTranslationText(preview.chapterLabel || preview.title);
+          } else {
+            fillAssistLookupTerm(preview.chapterLabel);
+          }
+        }}
+      >
+        填入章节
+      </button>
+    {/if}
+    {#if lockedMode === 'translation'}
+      {#if translationReadingModeFollowsCurrent}
+        <button
+          type="button"
+          class="assist-chip"
+          disabled={!normalizeAssistanceText(effectiveTranslationSourceText || assistTranslationText)}
+          on:click={() => {
+            const manualTranslationText = normalizeAssistanceText(assistTranslationText);
+            const pinnedText = normalizeAssistanceText(
+              translationReadingModeHasLiveSource
+                ? effectiveTranslationSourceText
+                : manualTranslationText || effectiveTranslationSourceText
+            );
+            const pinnedLabel = translationReadingModeHasLiveSource
+              ? translationReadingModeSourceLabel || '当前阅读位置'
+              : manualTranslationText
+                ? '当前手动输入'
+                : translationReadingModeSourceLabel || '当前翻译目标';
+            fillAssistTranslationText(pinnedText);
+            if (pinnedText) {
+              onPinCurrentTranslationSource?.({
+                text: pinnedText,
+                label: pinnedLabel
+              });
+            }
+          }}
+        >
+          锁定当前翻译目标
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="assist-chip"
+          on:click={() => {
+            onResumeFollowingCurrentTranslationSource?.();
+          }}
+        >
+          回到当前阅读位置
+        </button>
+      {/if}
+    {/if}
     {#if assistMode === 'translation'}
       <button
         type="button"
@@ -559,9 +643,7 @@
       class="primary-assist-action"
       disabled={
         assistMode === 'translation'
-          ? !normalizeAssistanceText(
-              assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
-            )
+          ? !normalizeAssistanceText(effectiveTranslationSourceText)
           : !normalizeAssistanceTerm(assistLookupTerm || notesState.selection?.text || preview.chapterLabel)
       }
       on:click={assistMode === 'translation' ? requestAssistTranslation : requestAssistLookup}
@@ -784,14 +866,14 @@
             <span>
               {selectedHistoryEntry?.request.kind === 'translation'
                 ? `历史记录 · ${getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}`
-                : '当前输入或正文选区'}
+                : translationSourceModeLabel}
             </span>
           </div>
           <p>
             {#if selectedHistoryEntry?.request.kind === 'translation'}
               {archivedTranslationSourceText || '这条历史记录没有保留原文。'}
             {:else}
-              {translationSourceText || '先在正文里选中文本，或输入要翻译的内容。'}
+              {effectiveTranslationSourceText || '先在正文里选中文本，或输入要翻译的内容。'}
             {/if}
           </p>
         </article>

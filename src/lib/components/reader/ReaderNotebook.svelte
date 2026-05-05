@@ -54,6 +54,9 @@
   export let ttsSession: ReaderTtsSessionState = createEmptyReaderTtsSessionState();
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
+  export let translationModeSourceText = '';
+  export let translationModeSourceLabel = '';
+  export let translationModeFollowsCurrentSource = true;
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let desktopSyncAvailable = false;
   export let currentManagedBook: PersistedLibraryBook | null = null;
@@ -111,6 +114,10 @@
     | null = null;
   export let onPinCurrentTtsTarget: (() => void) | null = null;
   export let onResumeFollowingCurrentTtsTarget: (() => void) | null = null;
+  export let onPinCurrentTranslationSource:
+    | ((source: { text: string; label: string }) => void)
+    | null = null;
+  export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
 
   $: noteEntries = notesState.notes.filter((note) => note.kind !== 'highlight');
   $: highlightEntries = notesState.notes.filter((note) => note.kind === 'highlight');
@@ -121,6 +128,7 @@
   ).length;
   $: assistanceStatusSummary =
     assistance.status === 'ready' ? '助手已有结果' : assistance.status === 'loading' ? '助手查询中' : '助手待命';
+  $: translationSourceSummary = translationModeSourceLabel || '当前阅读位置';
   $: notebookSummaryItems =
     activeTab === 'assistant'
       ? [
@@ -133,7 +141,7 @@
         ? [
             `当前书翻译 ${translationHistoryCount} 条`,
             assistance.status === 'loading' ? '翻译请求进行中' : '翻译模式待命',
-            selectionText ? '已选中文本' : '未选中文本',
+            translationModeFollowsCurrentSource ? `跟随${translationSourceSummary}` : `已锁定${translationSourceSummary}`,
             '原文 / 译文并排阅读'
           ]
         : [
@@ -343,11 +351,16 @@
           history={assistanceHistory}
           {selectedLookupHistoryEntryId}
           {selectedTranslationHistoryEntryId}
+          translationReadingModeSourceText={translationModeSourceText}
+          translationReadingModeSourceLabel={translationModeSourceLabel}
+          translationReadingModeFollowsCurrent={translationModeFollowsCurrentSource}
           {translationProviderStatuses}
           callbacks={{
             onRequestLookup: callbacks.onRequestLookup,
             onRequestTranslation: callbacks.onRequestTranslation
           }}
+          onPinCurrentTranslationSource={onPinCurrentTranslationSource}
+          onResumeFollowingCurrentTranslationSource={onResumeFollowingCurrentTranslationSource}
           onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
           onClearHistory={onClearAssistanceHistory}
         />
