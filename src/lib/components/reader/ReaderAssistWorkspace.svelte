@@ -137,6 +137,17 @@
     return mode === 'translation' ? '当前书还没有翻译记录' : '当前书还没有查找记录';
   };
 
+  const getActiveRecordSectionSummary = (entry: ReaderAssistanceHistoryEntry): string =>
+    `${getReaderAssistanceRequestContextLabel(entry.request)} · ${getHistoryStatusLabel(entry)}`;
+
+  const getHistoryListSectionSummary = (mode: 'lookup' | 'translation', count: number): string => {
+    if (count <= 0) {
+      return mode === 'translation' ? '当前书还没有翻译历史。' : '当前书还没有查找历史。';
+    }
+
+    return mode === 'translation' ? `当前书 ${count} 条翻译历史` : `当前书 ${count} 条查找历史`;
+  };
+
   const getLookupResultSummary = (): string => {
     if (selectedHistoryEntry) {
       return `历史记录 · ${getReaderAssistanceProviderDisplayLabel(selectedHistoryEntry.request.provider)} · ${getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}`;
@@ -550,72 +561,84 @@
         </div>
       </div>
       {#if selectedHistoryEntry}
-        <article class="assist-active-record" aria-label="当前正在查看的 AI 记录">
-          <strong>当前正在查看</strong>
-          <span>{getReaderAssistanceRequestSubject(selectedHistoryEntry.request) || '未命名请求'}</span>
-          <small>
-            {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)} · {getHistoryStatusLabel(selectedHistoryEntry)} · {formatHistoryTimestamp(selectedHistoryEntry.updatedAt)}
-          </small>
-        </article>
+        <section class="assist-history-section" aria-label="当前记录 section">
+          <div class="assist-history-section-head">
+            <strong>当前记录</strong>
+            <span>{getActiveRecordSectionSummary(selectedHistoryEntry)}</span>
+          </div>
+          <article class="assist-active-record" aria-label="当前正在查看的 AI 记录">
+            <strong>当前正在查看</strong>
+            <span>{getReaderAssistanceRequestSubject(selectedHistoryEntry.request) || '未命名请求'}</span>
+            <small>
+              {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)} · {getHistoryStatusLabel(selectedHistoryEntry)} · {formatHistoryTimestamp(selectedHistoryEntry.updatedAt)}
+            </small>
+          </article>
+        </section>
       {/if}
-      {#if visibleHistory.length > 0 && archiveExpanded}
-        <div class="assist-history-list">
-          {#each visibleHistory as entry}
-            <article class:selected={selectedHistoryEntryId === entry.id} class="assist-history-item">
-              <div class="assist-history-copy">
-                <strong>{getReaderAssistanceRequestSubject(entry.request) || '未命名请求'}</strong>
-                <span>
-                  {getReaderAssistanceProviderDisplayLabel(entry.request.provider)} · {getHistoryStatusLabel(entry)} · {formatHistoryTimestamp(entry.updatedAt)}
-                </span>
-                <small>{getReaderAssistanceRequestContextLabel(entry.request)}</small>
-                <small>
-                  {#if entry.status === 'ready' && entry.result}
-                    {entry.result.title}
-                  {:else if entry.error}
-                    {entry.error}
-                  {:else if entry.request.chapterLabel}
-                    {entry.request.chapterLabel}
+      <section class="assist-history-section" aria-label="历史记录列表 section">
+        <div class="assist-history-section-head">
+          <strong>历史记录列表</strong>
+          <span>{getHistoryListSectionSummary(assistMode, visibleHistory.length)}</span>
+        </div>
+        {#if visibleHistory.length > 0 && archiveExpanded}
+          <div class="assist-history-list">
+            {#each visibleHistory as entry}
+              <article class:selected={selectedHistoryEntryId === entry.id} class="assist-history-item">
+                <div class="assist-history-copy">
+                  <strong>{getReaderAssistanceRequestSubject(entry.request) || '未命名请求'}</strong>
+                  <span>
+                    {getReaderAssistanceProviderDisplayLabel(entry.request.provider)} · {getHistoryStatusLabel(entry)} · {formatHistoryTimestamp(entry.updatedAt)}
+                  </span>
+                  <small>{getReaderAssistanceRequestContextLabel(entry.request)}</small>
+                  <small>
+                    {#if entry.status === 'ready' && entry.result}
+                      {entry.result.title}
+                    {:else if entry.error}
+                      {entry.error}
+                    {:else if entry.request.chapterLabel}
+                      {entry.request.chapterLabel}
+                    {:else}
+                      {assistMode === 'translation' ? '等待翻译结果。' : '等待查找结果。'}
+                    {/if}
+                  </small>
+                </div>
+                <div class="assist-history-actions">
+                  {#if selectedHistoryEntryId === entry.id}
+                    <span class="assist-history-status-badge">当前正在查看</span>
                   {:else}
-                    {assistMode === 'translation' ? '等待翻译结果。' : '等待查找结果。'}
+                    <button
+                      type="button"
+                      class="assist-chip assist-chip-primary"
+                      on:click={() => selectHistoryEntry(entry)}
+                    >
+                      查看记录
+                    </button>
                   {/if}
-                </small>
-              </div>
-              <div class="assist-history-actions">
-                {#if selectedHistoryEntryId === entry.id}
-                  <span class="assist-history-status-badge">当前正在查看</span>
-                {:else}
                   <button
                     type="button"
-                    class="assist-chip assist-chip-primary"
-                    on:click={() => selectHistoryEntry(entry)}
+                    class="assist-chip assist-chip-secondary"
+                    on:click={() => replayHistoryEntry(entry)}
                   >
-                    查看记录
+                    再次发起
                   </button>
-                {/if}
-                <button
-                  type="button"
-                  class="assist-chip assist-chip-secondary"
-                  on:click={() => replayHistoryEntry(entry)}
-                >
-                  再次发起
-                </button>
-              </div>
-            </article>
-          {/each}
-        </div>
-      {:else if visibleHistory.length > 0}
-        <p class="assist-history-collapsed-copy">
-          {assistMode === 'translation'
-            ? '翻译记录列表已收起；当前书的最近翻译仍然保留在这个 section 里。'
-            : '查找记录列表已收起；当前书的最近求助仍然保留在这个 section 里。'}
-        </p>
-      {:else}
-        <p class="assist-history-empty">
-          {assistMode === 'translation'
-            ? '还没有这本书的翻译记录。发起一次翻译后，这里会保留最近请求。'
-            : '还没有这本书的查找记录。发起一次查词或百科后，这里会保留最近请求。'}
-        </p>
-      {/if}
+                </div>
+              </article>
+            {/each}
+          </div>
+        {:else if visibleHistory.length > 0}
+          <p class="assist-history-collapsed-copy">
+            {assistMode === 'translation'
+              ? '翻译记录列表已收起；当前书的最近翻译仍然保留在这个 section 里。'
+              : '查找记录列表已收起；当前书的最近求助仍然保留在这个 section 里。'}
+          </p>
+        {:else}
+          <p class="assist-history-empty">
+            {assistMode === 'translation'
+              ? '还没有这本书的翻译记录。发起一次翻译后，这里会保留最近请求。'
+              : '还没有这本书的查找记录。发起一次查词或百科后，这里会保留最近请求。'}
+          </p>
+        {/if}
+      </section>
     </div>
     <div class="assist-translation-status">
       <strong>翻译提供方状态</strong>
@@ -981,6 +1004,16 @@
     gap: 8px;
   }
 
+  .assist-history-section {
+    display: grid;
+    gap: 8px;
+  }
+
+  .assist-history-section-head {
+    display: grid;
+    gap: 4px;
+  }
+
   .assist-active-record {
     display: grid;
     gap: 4px;
@@ -991,7 +1024,9 @@
 
   .assist-active-record span,
   .assist-active-record small,
-  .assist-history-collapsed-copy {
+  .assist-history-collapsed-copy,
+  .assist-history-empty,
+  .assist-history-section-head span {
     color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.55;

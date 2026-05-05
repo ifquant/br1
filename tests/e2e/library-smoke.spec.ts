@@ -742,6 +742,14 @@ test('reader shows notebook-style action hierarchy inside ai archive lanes', asy
   await expect(historyLane.getByLabel('记录分区维护操作')).toBeVisible();
   await expect(historyLane.getByRole('button', { name: '查看记录' }).last()).toBeVisible();
   await historyLane.getByRole('button', { name: '查看记录' }).last().click();
+  const activeSection = historyLane.getByLabel('当前记录 section');
+  await expect(activeSection.locator('.assist-history-section-head > strong')).toHaveText('当前记录');
+  await expect(activeSection.getByLabel('当前正在查看的 AI 记录')).toBeVisible();
+  const archiveSection = historyLane.getByLabel('历史记录列表 section');
+  await expect(archiveSection.locator('.assist-history-section-head > strong')).toHaveText('历史记录列表');
+  await expect(archiveSection.locator('.assist-history-section-head > span')).toHaveText(
+    '当前书 2 条查找历史'
+  );
   await expect(historyLane.locator('.assist-history-status-badge')).toHaveText('当前正在查看');
   await expect(historyLane.getByRole('button', { name: '再次发起' }).first()).toBeVisible();
 });
