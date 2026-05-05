@@ -109,6 +109,9 @@
     : isFocusLaneView
       ? '当前记录'
       : '完整历史';
+  $: currentEntrySummary = selectedHistoryEntry
+    ? getReaderAssistanceRequestSubject(selectedHistoryEntry.request) || '未命名请求'
+    : '';
   $: laneBreadcrumb =
     selectedHistoryEntryId && isFocusLaneView
       ? `本书 AI 记录摘要 / ${getArchiveLaneTitle(assistMode)} / 当前记录`
@@ -563,6 +566,9 @@
         <div class="assist-history-nav-summary" aria-label="当前 AI 浏览摘要">
           <span>当前位置：{browsePositionSummary}</span>
           <span>当前范围：{browseScopeSummary}</span>
+          {#if currentEntrySummary}
+            <span>当前条目：{currentEntrySummary}</span>
+          {/if}
         </div>
         <small class="assist-history-head-note">
           {assistMode === 'translation'
