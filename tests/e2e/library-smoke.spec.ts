@@ -367,7 +367,7 @@ test('reader restores ai workspace history for the current book in web mode', as
 
   await page.goto(readerHref);
 
-  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: 'AI 工作台' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
@@ -727,6 +727,8 @@ test('reader can move from the ai archive overview into one lane and back again'
   await overview.getByRole('button', { name: /翻译记录/ }).click();
   await expect(overview).toBeHidden();
   const historyLane = notebook.getByLabel('最近翻译');
+  await expect(historyLane.locator('.assist-history-head > strong')).toHaveText('本书翻译记录');
+  await expect(historyLane.getByText('当前书 1 条翻译记录')).toBeVisible();
   await expect(historyLane.getByRole('button', { name: '返回本书 AI 记录摘要' })).toBeVisible();
   await historyLane.getByRole('button', { name: '返回本书 AI 记录摘要' }).click();
   await expect(overview).toBeVisible();

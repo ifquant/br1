@@ -126,6 +126,17 @@
     return '请求失败';
   };
 
+  const getArchiveLaneTitle = (mode: 'lookup' | 'translation'): string =>
+    mode === 'translation' ? '本书翻译记录' : '本书查找记录';
+
+  const getArchiveLaneSummary = (mode: 'lookup' | 'translation', count: number): string => {
+    if (count > 0) {
+      return `当前书 ${count} 条${mode === 'translation' ? '翻译' : '查找'}记录`;
+    }
+
+    return mode === 'translation' ? '当前书还没有翻译记录' : '当前书还没有查找记录';
+  };
+
   const replayHistoryEntry = (entry: ReaderAssistanceHistoryEntry) => {
     onSelectHistoryEntry?.(entry.request.kind, entry.id);
     if (entry.request.kind === 'translation') {
@@ -447,12 +458,15 @@
   <div class="assist-result" aria-label={assistMode === 'translation' ? '翻译结果' : '查找结果'}>
     <div class="assist-history" aria-label={assistMode === 'translation' ? '最近翻译' : '最近求助'}>
       <div class="assist-history-head">
-        <strong>{assistMode === 'translation' ? '最近翻译' : '最近求助'}</strong>
+        <strong>{getArchiveLaneTitle(assistMode)}</strong>
         <span>
+          {getArchiveLaneSummary(assistMode, visibleHistory.length)}
+        </span>
+        <small class="assist-history-head-note">
           {assistMode === 'translation'
             ? '保留本书最近的翻译请求，方便回看和再次发起。'
             : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
-        </span>
+        </small>
         <div class="assist-history-head-actions">
           {#if !archiveOverviewVisible}
             <button
@@ -823,6 +837,12 @@
   .assist-history-head {
     display: grid;
     gap: 4px;
+  }
+
+  .assist-history-head-note {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
   }
 
   .assist-history-head-actions {
