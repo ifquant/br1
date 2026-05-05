@@ -468,32 +468,36 @@
             : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
         </small>
         <div class="assist-history-head-actions">
-          {#if !archiveOverviewVisible}
-            <button
-              type="button"
-              class="assist-chip"
-              on:click={() => {
-                archiveOverviewVisible = true;
-              }}
-            >
-              返回本书 AI 记录摘要
-            </button>
-          {/if}
+          <div class="assist-history-nav-actions" aria-label="记录分区导航">
+            {#if !archiveOverviewVisible}
+              <button
+                type="button"
+                class="assist-chip assist-chip-primary"
+                on:click={() => {
+                  archiveOverviewVisible = true;
+                }}
+              >
+                返回本书 AI 记录摘要
+              </button>
+            {/if}
+          </div>
           {#if visibleHistory.length > 0}
-            <button
-              type="button"
-              class="assist-chip"
-              on:click={() => setArchiveExpanded(assistMode, !archiveExpanded)}
-            >
-              {archiveExpanded ? '收起记录列表' : '展开记录列表'}
-            </button>
-            <button
-              type="button"
-              class="assist-chip clear-history"
-              on:click={() => onClearHistory?.(assistMode)}
-            >
-              {assistMode === 'translation' ? '清除本书翻译记录' : '清除本书求助记录'}
-            </button>
+            <div class="assist-history-maintenance-actions" aria-label="记录分区维护操作">
+              <button
+                type="button"
+                class="assist-chip assist-chip-secondary"
+                on:click={() => setArchiveExpanded(assistMode, !archiveExpanded)}
+              >
+                {archiveExpanded ? '收起记录列表' : '展开记录列表'}
+              </button>
+              <button
+                type="button"
+                class="assist-chip assist-chip-danger clear-history"
+                on:click={() => onClearHistory?.(assistMode)}
+              >
+                {assistMode === 'translation' ? '清除本书翻译记录' : '清除本书求助记录'}
+              </button>
+            </div>
           {/if}
         </div>
       </div>
@@ -529,10 +533,22 @@
                 </small>
               </div>
               <div class="assist-history-actions">
-                <button type="button" class="assist-chip" on:click={() => selectHistoryEntry(entry)}>
-                  {selectedHistoryEntryId === entry.id ? '正在查看' : '查看记录'}
-                </button>
-                <button type="button" class="assist-chip" on:click={() => replayHistoryEntry(entry)}>
+                {#if selectedHistoryEntryId === entry.id}
+                  <span class="assist-history-status-badge">当前正在查看</span>
+                {:else}
+                  <button
+                    type="button"
+                    class="assist-chip assist-chip-primary"
+                    on:click={() => selectHistoryEntry(entry)}
+                  >
+                    查看记录
+                  </button>
+                {/if}
+                <button
+                  type="button"
+                  class="assist-chip assist-chip-secondary"
+                  on:click={() => replayHistoryEntry(entry)}
+                >
                   再次发起
                 </button>
               </div>
@@ -808,6 +824,22 @@
     background: color-mix(in srgb, var(--surface-reader) 72%, white 28%);
   }
 
+  .assist-chip-primary {
+    color: color-mix(in srgb, var(--accent-warm, #8c6a3b) 78%, black 22%);
+    border-color: color-mix(in srgb, var(--accent-warm, #8c6a3b) 32%, white 68%);
+    background: color-mix(in srgb, var(--surface-reader) 78%, white 22%);
+  }
+
+  .assist-chip-secondary {
+    background: color-mix(in srgb, var(--surface-panel) 92%, white 8%);
+  }
+
+  .assist-chip-danger {
+    color: color-mix(in srgb, #8b3d2e 78%, black 22%);
+    border-color: color-mix(in srgb, #8b3d2e 24%, white 76%);
+    background: color-mix(in srgb, #8b3d2e 8%, var(--surface-panel) 92%);
+  }
+
   .primary-assist-action {
     background: color-mix(in srgb, var(--accent-warm, #8c6a3b) 20%, var(--surface-reader) 80%);
     color: color-mix(in srgb, var(--accent-warm, #8c6a3b) 78%, black 22%);
@@ -846,10 +878,16 @@
   }
 
   .assist-history-head-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .assist-history-nav-actions,
+  .assist-history-maintenance-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 4px;
   }
 
   .assist-history-head .clear-history {
@@ -912,6 +950,19 @@
     gap: 8px;
     align-items: flex-start;
     justify-content: flex-end;
+  }
+
+  .assist-history-status-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    border: 1px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 26%, white 74%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-reader) 74%, white 26%);
+    color: color-mix(in srgb, var(--accent-warm, #8c6a3b) 78%, black 22%);
+    font: 700 12px/1 var(--font-chrome);
+    letter-spacing: 0.04em;
+    padding: 0 12px;
   }
 
   .assist-history-copy {
