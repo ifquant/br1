@@ -6,6 +6,7 @@
   import ReaderNotebook from '$lib/components/reader/ReaderNotebook.svelte';
   import type {
     ReaderAssistanceHistoryEntry,
+    ReaderAssistanceWorkspaceSelection,
     ReaderControlRequest,
     ReaderLookupProvider,
     ReaderPreviewState,
@@ -25,12 +26,14 @@
   } from '$lib/services';
   import {
     createEmptyReaderPreviewState,
+    createEmptyReaderAssistanceWorkspaceSelection,
     createEmptyReaderAssistanceState,
     createEmptyReaderAssistanceResultState,
     createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
     createReaderAssistanceHistoryEntry,
     parseReaderAssistanceHistory,
+    parseReaderAssistanceWorkspaceSelection,
     createReaderBookmarksController,
     createReaderParallelSessionFromRoute,
     createReaderNotesController,
@@ -48,6 +51,7 @@
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     serializeReaderAssistanceHistory,
+    serializeReaderAssistanceWorkspaceSelection,
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
@@ -126,6 +130,8 @@
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
+  let assistanceSelection: ReaderAssistanceWorkspaceSelection =
+    createEmptyReaderAssistanceWorkspaceSelection();
   let assistanceRequestNonce = 0;
   let lastAssistanceBookKey = '';
   let translationProviderStatuses: ReaderTranslationProviderStatus[] =
@@ -151,6 +157,7 @@
   $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
   $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
   $: assistanceHistoryStorageKey = `br1.reader.assistance.history:${readerBookKey}`;
+  $: assistanceSelectionStorageKey = `br1.reader.assistance.selection:${readerBookKey}`;
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -312,6 +319,36 @@
     }
   };
 
+  const persistAssistanceSelection = () => {
+    if (typeof localStorage === 'undefined') return;
+    if (!assistanceSelectionStorageKey) return;
+    localStorage.setItem(
+      assistanceSelectionStorageKey,
+      serializeReaderAssistanceWorkspaceSelection(assistanceSelection)
+    );
+  };
+
+  const restoreAssistanceSelection = () => {
+    if (typeof localStorage === 'undefined') {
+      return createEmptyReaderAssistanceWorkspaceSelection();
+    }
+    if (!assistanceSelectionStorageKey) {
+      return createEmptyReaderAssistanceWorkspaceSelection();
+    }
+    const rawSelection = localStorage.getItem(assistanceSelectionStorageKey);
+    if (!rawSelection) {
+      return createEmptyReaderAssistanceWorkspaceSelection();
+    }
+
+    try {
+      return parseReaderAssistanceWorkspaceSelection(rawSelection);
+    } catch (error) {
+      console.warn('Failed to restore reader assistance selection', error);
+      localStorage.removeItem(assistanceSelectionStorageKey);
+      return createEmptyReaderAssistanceWorkspaceSelection();
+    }
+  };
+
   const persistNotebookShell = () => {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(
@@ -408,6 +445,7 @@
   $: if (readerBookKey !== lastAssistanceBookKey) {
     assistanceState = createEmptyReaderAssistanceState();
     assistanceHistory = restoreAssistanceHistory();
+    assistanceSelection = restoreAssistanceSelection();
     lastAssistanceBookKey = readerBookKey;
   }
   $: resolvedTtsTarget = resolveReaderTtsSpeechTarget();
@@ -422,6 +460,9 @@
   }
   $: if (typeof localStorage !== 'undefined') {
     persistAssistanceHistory();
+  }
+  $: if (typeof localStorage !== 'undefined') {
+    persistAssistanceSelection();
   }
   $: searchController.persist($searchState);
   $: sidebarController.persist($sidebarState);
@@ -986,6 +1027,19 @@
     }
   };
 
+  const selectAssistanceHistoryEntry = (mode: 'lookup' | 'translation', entryId: string) => {
+    assistanceSelection =
+      mode === 'translation'
+        ? {
+            ...assistanceSelection,
+            translationHistoryEntryId: entryId.trim()
+          }
+        : {
+            ...assistanceSelection,
+            lookupHistoryEntryId: entryId.trim()
+          };
+  };
+
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
     onToggleCurrentBookmark: handleToggleBookmark,
@@ -1057,8 +1111,11 @@
         notesState={$notesState}
         assistance={assistanceState}
         {assistanceHistory}
+        selectedLookupHistoryEntryId={assistanceSelection.lookupHistoryEntryId}
+        selectedTranslationHistoryEntryId={assistanceSelection.translationHistoryEntryId}
         translationProviderStatuses={translationProviderStatuses}
         callbacks={sidebarCallbacks}
+        onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
       />
     {/if}
     {#if isWindowMode && $sidebarState.visible && $sidebarState.pinned}
@@ -1252,6 +1309,8 @@
         textAnnotationSupportMessage="当前格式暂不支持正文批注。"
         assistance={assistanceState}
         {assistanceHistory}
+        selectedLookupHistoryEntryId={assistanceSelection.lookupHistoryEntryId}
+        selectedTranslationHistoryEntryId={assistanceSelection.translationHistoryEntryId}
         ttsSession={$ttsState}
         ttsTarget={effectiveTtsTarget}
         ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}
@@ -1286,6 +1345,7 @@
         onRetrySyncAction={readerSyncRetryAction}
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
+        onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
         onClose={() => {
           notebookVisible = false;
         }}

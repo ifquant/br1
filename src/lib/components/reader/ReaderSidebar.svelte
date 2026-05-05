@@ -54,7 +54,12 @@
   export let preview: ReaderPreviewState = createEmptyReaderPreviewState();
   export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
   export let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
+  export let selectedLookupHistoryEntryId = '';
+  export let selectedTranslationHistoryEntryId = '';
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
+  export let onSelectAssistanceHistoryEntry:
+    | ((mode: 'lookup' | 'translation', entryId: string) => void)
+    | null = null;
   export let search: ReaderSidebarSearchState = {
     term: '',
     status: 'idle',
@@ -1838,11 +1843,14 @@
             {notesState}
             {assistance}
             history={assistanceHistory}
+            {selectedLookupHistoryEntryId}
+            {selectedTranslationHistoryEntryId}
             {translationProviderStatuses}
             callbacks={{
               onRequestLookup: callbacks.onRequestLookup,
               onRequestTranslation: callbacks.onRequestTranslation
             }}
+            onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
           />
         </section>
       {:else if activeTab === 'bookmarks'}

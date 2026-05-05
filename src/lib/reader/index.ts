@@ -6,6 +6,7 @@ export {
   canRequestAssistanceForText,
   createEmptyReaderAssistanceResultState,
   createReaderAssistanceHistoryEntry,
+  createEmptyReaderAssistanceWorkspaceSelection,
   createEmptyReaderAssistanceState,
   createErrorReaderAssistanceState,
   createLoadingReaderAssistanceState,
@@ -21,13 +22,16 @@ export {
   normalizeAssistanceText,
   normalizeReaderAssistanceRequest,
   parseReaderAssistanceHistory,
+  parseReaderAssistanceWorkspaceSelection,
   serializeReaderAssistanceHistory,
+  serializeReaderAssistanceWorkspaceSelection,
   updateReaderAssistanceHistoryEntry,
   upsertReaderAssistanceHistoryEntry
 } from './assistance';
 export type {
   ReaderAssistanceHistoryEntry,
   ReaderAssistanceHistoryStatus,
+  ReaderAssistanceWorkspaceSelection,
   ReaderAssistanceProvider,
   ReaderAssistanceRequest,
   ReaderAssistanceResult,

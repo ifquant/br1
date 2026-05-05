@@ -25,11 +25,16 @@
   export let notesState: ReaderSidebarNotesState;
   export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
   export let history: ReaderAssistanceHistoryEntry[] = [];
+  export let selectedLookupHistoryEntryId = '';
+  export let selectedTranslationHistoryEntryId = '';
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let callbacks: Pick<ReaderSidebarCallbacks, 'onRequestLookup' | 'onRequestTranslation'> = {
     onRequestLookup: null,
     onRequestTranslation: null
   };
+  export let onSelectHistoryEntry:
+    | ((mode: 'lookup' | 'translation', entryId: string) => void)
+    | null = null;
   export let title = 'AI 阅读助手';
   export let summary =
     '把词典、维基百科和翻译请求收成一个工作台，而不是继续挤在 sidebar result panel 里。';
@@ -42,7 +47,6 @@
   let assistTranslationProvider: ReaderTranslationProvider = 'deepl';
   let assistTranslationText = '';
   let assistTranslationTargetLanguage = 'zh';
-  let selectedHistoryEntryId = '';
 
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
@@ -73,10 +77,12 @@
   $: visibleHistory = history.filter((entry) =>
     assistMode === 'translation' ? entry.request.kind === 'translation' : entry.request.kind === 'lookup'
   );
+  $: selectedHistoryEntryId =
+    assistMode === 'translation' ? selectedTranslationHistoryEntryId : selectedLookupHistoryEntryId;
   $: {
     const selectedEntryStillVisible = visibleHistory.some((entry) => entry.id === selectedHistoryEntryId);
     if (selectedHistoryEntryId && !selectedEntryStillVisible) {
-      selectedHistoryEntryId = '';
+      onSelectHistoryEntry?.(assistMode, '');
     }
   }
   $: selectedHistoryEntry =
@@ -100,7 +106,7 @@
   };
 
   const replayHistoryEntry = (entry: ReaderAssistanceHistoryEntry) => {
-    selectedHistoryEntryId = entry.id;
+    onSelectHistoryEntry?.(entry.request.kind, entry.id);
     if (entry.request.kind === 'translation') {
       assistMode = 'translation';
       assistTranslationProvider = entry.request.provider;
@@ -121,7 +127,7 @@
   };
 
   const selectHistoryEntry = (entry: ReaderAssistanceHistoryEntry) => {
-    selectedHistoryEntryId = entry.id;
+    onSelectHistoryEntry?.(entry.request.kind, entry.id);
     if (entry.request.kind === 'translation') {
       assistMode = 'translation';
       assistTranslationProvider = entry.request.provider;

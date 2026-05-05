@@ -68,6 +68,11 @@ export type ReaderAssistanceHistoryEntry = {
 
 export const READER_ASSISTANCE_HISTORY_LIMIT = 8;
 
+export type ReaderAssistanceWorkspaceSelection = {
+  lookupHistoryEntryId: string;
+  translationHistoryEntryId: string;
+};
+
 export const normalizeAssistanceTerm = (value: string): string =>
   value.replace(/\s+/g, ' ').trim().slice(0, 240);
 
@@ -299,6 +304,35 @@ export const parseReaderAssistanceHistory = (
   return entries
     .sort((left, right) => right.updatedAt - left.updatedAt)
     .slice(0, Math.max(1, limit));
+};
+
+export const createEmptyReaderAssistanceWorkspaceSelection = (
+  overrides: Partial<ReaderAssistanceWorkspaceSelection> = {}
+): ReaderAssistanceWorkspaceSelection => ({
+  lookupHistoryEntryId: overrides.lookupHistoryEntryId?.trim() || '',
+  translationHistoryEntryId: overrides.translationHistoryEntryId?.trim() || ''
+});
+
+export const serializeReaderAssistanceWorkspaceSelection = (
+  selection: ReaderAssistanceWorkspaceSelection
+): string => JSON.stringify(createEmptyReaderAssistanceWorkspaceSelection(selection));
+
+export const parseReaderAssistanceWorkspaceSelection = (
+  raw: string
+): ReaderAssistanceWorkspaceSelection => {
+  const parsed = JSON.parse(raw) as unknown;
+
+  if (!parsed || typeof parsed !== 'object') {
+    return createEmptyReaderAssistanceWorkspaceSelection();
+  }
+
+  const record = parsed as Partial<ReaderAssistanceWorkspaceSelection>;
+  return createEmptyReaderAssistanceWorkspaceSelection({
+    lookupHistoryEntryId:
+      typeof record.lookupHistoryEntryId === 'string' ? record.lookupHistoryEntryId : '',
+    translationHistoryEntryId:
+      typeof record.translationHistoryEntryId === 'string' ? record.translationHistoryEntryId : ''
+  });
 };
 
 export const isLookupReaderAssistanceRequest = (

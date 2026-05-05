@@ -4,10 +4,13 @@ import test from 'node:test';
 import {
   READER_ASSISTANCE_HISTORY_LIMIT,
   createReaderAssistanceHistoryEntry,
+  createEmptyReaderAssistanceWorkspaceSelection,
   getReaderAssistanceProviderDisplayLabel,
   getReaderAssistanceRequestContextLabel,
   getReaderAssistanceRequestSubject,
   parseReaderAssistanceHistory,
+  parseReaderAssistanceWorkspaceSelection,
+  serializeReaderAssistanceWorkspaceSelection,
   serializeReaderAssistanceHistory,
   updateReaderAssistanceHistoryEntry,
   upsertReaderAssistanceHistoryEntry
@@ -209,4 +212,21 @@ test('assistance history serialization keeps the newest entries within the stora
   assert.equal(restored.length, READER_ASSISTANCE_HISTORY_LIMIT);
   assert.equal(restored[0]?.id, `assist-${READER_ASSISTANCE_HISTORY_LIMIT + 1}`);
   assert.equal(restored.at(-1)?.id, 'assist-2');
+});
+
+test('assistance workspace selection serialization restores valid ids and drops malformed payloads', () => {
+  const serialized = serializeReaderAssistanceWorkspaceSelection({
+    lookupHistoryEntryId: 'lookup-1',
+    translationHistoryEntryId: 'translation-2'
+  });
+
+  assert.deepEqual(parseReaderAssistanceWorkspaceSelection(serialized), {
+    lookupHistoryEntryId: 'lookup-1',
+    translationHistoryEntryId: 'translation-2'
+  });
+
+  assert.deepEqual(
+    parseReaderAssistanceWorkspaceSelection('{"lookupHistoryEntryId":12,"translationHistoryEntryId":null}'),
+    createEmptyReaderAssistanceWorkspaceSelection()
+  );
 });

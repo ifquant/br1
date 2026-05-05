@@ -49,6 +49,8 @@
   export let textAnnotationSupportMessage = '';
   export let assistance: ReaderAssistanceState = createEmptyReaderAssistanceState();
   export let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
+  export let selectedLookupHistoryEntryId = '';
+  export let selectedTranslationHistoryEntryId = '';
   export let ttsSession: ReaderTtsSessionState = createEmptyReaderTtsSessionState();
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
@@ -98,6 +100,9 @@
   };
   export let onClose: (() => void) | null = null;
   export let onTogglePin: (() => void) | null = null;
+  export let onSelectAssistanceHistoryEntry:
+    | ((mode: 'lookup' | 'translation', entryId: string) => void)
+    | null = null;
   export let onTabChange:
     | ((tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync') => void)
     | null = null;
@@ -288,11 +293,14 @@
           {notesState}
           {assistance}
           history={assistanceHistory}
+          {selectedLookupHistoryEntryId}
+          {selectedTranslationHistoryEntryId}
           {translationProviderStatuses}
           callbacks={{
             onRequestLookup: callbacks.onRequestLookup,
             onRequestTranslation: callbacks.onRequestTranslation
           }}
+          onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
         />
       {:else if activeTab === 'translation'}
         <ReaderAssistWorkspace
@@ -303,11 +311,14 @@
           {notesState}
           {assistance}
           history={assistanceHistory}
+          {selectedLookupHistoryEntryId}
+          {selectedTranslationHistoryEntryId}
           {translationProviderStatuses}
           callbacks={{
             onRequestLookup: callbacks.onRequestLookup,
             onRequestTranslation: callbacks.onRequestTranslation
           }}
+          onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
         />
       {:else if activeTab === 'tts'}
         <ReaderTtsWorkspace

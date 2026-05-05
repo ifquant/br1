@@ -381,6 +381,69 @@ test('reader restores ai workspace history for the current book in web mode', as
   await expect(resultPanel.locator('> p')).toHaveText('A notebook-style reading bridge.');
 });
 
+test('reader restores the selected ai history record for the current book in web mode', async ({ page }) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const selectionStorageKey = `br1.reader.assistance.selection:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: 'AI 历史选中恢复测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey, selectionKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-lookup-1',
+            request: {
+              kind: 'lookup',
+              provider: 'wikipedia',
+              term: 'bridge reader',
+              chapterLabel: '第一章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-result-1',
+              provider: 'wikipedia',
+              title: 'Bridge reader',
+              body: 'A notebook-style reading bridge.',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          }
+        ])
+      );
+      window.localStorage.setItem(
+        selectionKey,
+        JSON.stringify({
+          lookupHistoryEntryId: 'assist-lookup-1',
+          translationHistoryEntryId: ''
+        })
+      );
+    },
+    { historyKey: historyStorageKey, selectionKey: selectionStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'AI 工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  const historyLane = notebook.getByLabel('最近求助');
+  await expect(historyLane.getByRole('button', { name: '正在查看' })).toBeVisible();
+  const resultPanel = notebook.locator('.assist-result');
+  await expect(resultPanel.locator('> strong')).toHaveText('Bridge reader');
+  await expect(resultPanel.locator('> p')).toHaveText('A notebook-style reading bridge.');
+});
+
 test('reader can open translation mode as a dedicated notebook tab', async ({ page }) => {
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',
