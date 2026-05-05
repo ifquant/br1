@@ -103,6 +103,12 @@
   $: isFocusLaneView =
     (assistMode === 'translation' ? translationLaneViewMode : lookupLaneViewMode) === 'focus';
   $: isFullLaneView = !isFocusLaneView;
+  $: browsePositionSummary = getArchiveLaneTitle(assistMode);
+  $: browseScopeSummary = !selectedHistoryEntryId
+    ? '完整历史'
+    : isFocusLaneView
+      ? '当前记录'
+      : '完整历史';
   $: laneBreadcrumb =
     selectedHistoryEntryId && isFocusLaneView
       ? `本书 AI 记录摘要 / ${getArchiveLaneTitle(assistMode)} / 当前记录`
@@ -554,6 +560,10 @@
         <small class="assist-history-breadcrumb" aria-label="当前 AI 导航路径">
           {laneBreadcrumb}
         </small>
+        <div class="assist-history-nav-summary" aria-label="当前 AI 浏览摘要">
+          <span>当前位置：{browsePositionSummary}</span>
+          <span>当前范围：{browseScopeSummary}</span>
+        </div>
         <small class="assist-history-head-note">
           {assistMode === 'translation'
             ? '保留本书最近的翻译请求，方便回看和再次发起。'
@@ -1035,6 +1045,18 @@
     font-size: 11px;
     letter-spacing: 0.03em;
     text-transform: none;
+  }
+
+  .assist-history-nav-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .assist-history-nav-summary span {
+    color: color-mix(in srgb, var(--text-secondary) 88%, var(--accent-warm, #8c6a3b) 12%);
+    font-size: 11px;
+    line-height: 1.5;
   }
 
   .assist-history-head-actions {

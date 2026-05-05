@@ -903,11 +903,16 @@ test('reader shows breadcrumb and grouped browse controls inside focused ai lane
 
   const historyLane = notebook.getByLabel('最近求助');
   await expect(historyLane.getByLabel('当前 AI 导航路径')).toHaveText('本书 AI 记录摘要 / 本书查找记录');
+  const navSummary = historyLane.getByLabel('当前 AI 浏览摘要');
+  await expect(navSummary).toContainText('当前位置：本书查找记录');
+  await expect(navSummary).toContainText('当前范围：完整历史');
   await historyLane.getByRole('button', { name: '查看记录' }).click();
   await historyLane.getByRole('button', { name: '只看当前记录' }).click();
   await expect(historyLane.getByLabel('当前 AI 导航路径')).toHaveText(
     '本书 AI 记录摘要 / 本书查找记录 / 当前记录'
   );
+  await expect(navSummary).toContainText('当前位置：本书查找记录');
+  await expect(navSummary).toContainText('当前范围：当前记录');
   await expect(historyLane.getByLabel('浏览位置')).toBeVisible();
   await expect(historyLane.getByLabel('浏览范围')).toBeVisible();
 });
