@@ -592,6 +592,66 @@ test('reader groups current-book ai history into lookup and translation sections
   await expect(historyLane.getByText('Bridge reading keeps the text in focus.')).toBeVisible();
 });
 
+test('reader keeps the active ai archive summary visible when the history list is collapsed', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: 'AI 折叠记录测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-lookup-1',
+            request: {
+              kind: 'lookup',
+              provider: 'wikipedia',
+              term: 'bridge reader',
+              chapterLabel: '第一章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-result-1',
+              provider: 'wikipedia',
+              title: 'Bridge reader',
+              body: 'A notebook-style reading bridge.',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          }
+        ])
+      );
+    },
+    { historyKey: historyStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'AI 工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  const historyLane = notebook.getByLabel('最近求助');
+  await historyLane.getByRole('button', { name: '查看记录' }).click();
+  const activeRecord = historyLane.getByLabel('当前正在查看的 AI 记录');
+  await expect(activeRecord).toContainText('bridge reader');
+  await historyLane.getByRole('button', { name: '收起记录列表' }).click();
+  await expect(activeRecord).toContainText('bridge reader');
+  await expect(historyLane.getByText('查找记录列表已收起；当前书的最近求助仍然保留在这个 section 里。')).toBeVisible();
+  await expect(historyLane.getByRole('button', { name: '展开记录列表' })).toBeVisible();
+});
+
 test('reader can clear current-book ai history in web mode', async ({ page }) => {
   const sourceUrl = '/samples/sample-book.epub';
   const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;

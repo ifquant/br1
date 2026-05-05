@@ -51,6 +51,8 @@
   let assistTranslationText = '';
   let assistTranslationTargetLanguage = 'zh';
   let restoredSelectedMode: 'lookup' | 'translation' | null = null;
+  let lookupArchiveExpanded = true;
+  let translationArchiveExpanded = true;
 
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
@@ -93,6 +95,7 @@
   $: visibleHistory = history.filter((entry) =>
     assistMode === 'translation' ? entry.request.kind === 'translation' : entry.request.kind === 'lookup'
   );
+  $: archiveExpanded = assistMode === 'translation' ? translationArchiveExpanded : lookupArchiveExpanded;
   $: selectedHistoryEntryId =
     assistMode === 'translation' ? selectedTranslationHistoryEntryId : selectedLookupHistoryEntryId;
   $: {
@@ -182,6 +185,15 @@
       assistTranslationTargetLanguage.trim() || 'zh'
     );
   };
+
+  const setArchiveExpanded = (mode: 'lookup' | 'translation', expanded: boolean) => {
+    if (mode === 'translation') {
+      translationArchiveExpanded = expanded;
+      return;
+    }
+
+    lookupArchiveExpanded = expanded;
+  };
 </script>
 
 <section class="assist-workspace" aria-label={title}>
@@ -198,6 +210,7 @@
         class="assist-archive-card"
         on:click={() => {
           assistMode = 'lookup';
+          lookupArchiveExpanded = true;
         }}
       >
         <strong>查找记录</strong>
@@ -216,6 +229,7 @@
         class="assist-archive-card"
         on:click={() => {
           assistMode = 'translation';
+          translationArchiveExpanded = true;
         }}
       >
         <strong>翻译记录</strong>
@@ -437,17 +451,35 @@
             ? '保留本书最近的翻译请求，方便回看和再次发起。'
             : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
         </span>
-        {#if visibleHistory.length > 0}
-          <button
-            type="button"
-            class="assist-chip clear-history"
-            on:click={() => onClearHistory?.(assistMode)}
-          >
-            {assistMode === 'translation' ? '清除本书翻译记录' : '清除本书求助记录'}
-          </button>
-        {/if}
+        <div class="assist-history-head-actions">
+          {#if visibleHistory.length > 0}
+            <button
+              type="button"
+              class="assist-chip"
+              on:click={() => setArchiveExpanded(assistMode, !archiveExpanded)}
+            >
+              {archiveExpanded ? '收起记录列表' : '展开记录列表'}
+            </button>
+            <button
+              type="button"
+              class="assist-chip clear-history"
+              on:click={() => onClearHistory?.(assistMode)}
+            >
+              {assistMode === 'translation' ? '清除本书翻译记录' : '清除本书求助记录'}
+            </button>
+          {/if}
+        </div>
       </div>
-      {#if visibleHistory.length > 0}
+      {#if selectedHistoryEntry}
+        <article class="assist-active-record" aria-label="当前正在查看的 AI 记录">
+          <strong>当前正在查看</strong>
+          <span>{getReaderAssistanceRequestSubject(selectedHistoryEntry.request) || '未命名请求'}</span>
+          <small>
+            {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)} · {getHistoryStatusLabel(selectedHistoryEntry)} · {formatHistoryTimestamp(selectedHistoryEntry.updatedAt)}
+          </small>
+        </article>
+      {/if}
+      {#if visibleHistory.length > 0 && archiveExpanded}
         <div class="assist-history-list">
           {#each visibleHistory as entry}
             <article class:selected={selectedHistoryEntryId === entry.id} class="assist-history-item">
@@ -480,6 +512,12 @@
             </article>
           {/each}
         </div>
+      {:else if visibleHistory.length > 0}
+        <p class="assist-history-collapsed-copy">
+          {assistMode === 'translation'
+            ? '翻译记录列表已收起；当前书的最近翻译仍然保留在这个 section 里。'
+            : '查找记录列表已收起；当前书的最近求助仍然保留在这个 section 里。'}
+        </p>
       {:else}
         <p class="assist-history-empty">
           {assistMode === 'translation'
@@ -774,9 +812,15 @@
     gap: 4px;
   }
 
+  .assist-history-head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
   .assist-history-head .clear-history {
     justify-self: start;
-    margin-top: 4px;
   }
 
   .assist-translation-status strong,
@@ -797,6 +841,22 @@
   .assist-history-list {
     display: grid;
     gap: 8px;
+  }
+
+  .assist-active-record {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 22%, white 78%);
+    background: color-mix(in srgb, var(--surface-reader) 80%, white 20%);
+  }
+
+  .assist-active-record span,
+  .assist-active-record small,
+  .assist-history-collapsed-copy {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
   }
 
   .assist-history-item {
