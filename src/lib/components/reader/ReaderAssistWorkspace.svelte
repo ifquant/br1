@@ -35,6 +35,9 @@
   export let onSelectHistoryEntry:
     | ((mode: 'lookup' | 'translation', entryId: string) => void)
     | null = null;
+  export let onClearHistory:
+    | ((mode: 'lookup' | 'translation') => void)
+    | null = null;
   export let title = 'AI 阅读助手';
   export let summary =
     '把词典、维基百科和翻译请求收成一个工作台，而不是继续挤在 sidebar result panel 里。';
@@ -378,6 +381,15 @@
             ? '保留本书最近的翻译请求，方便回看和再次发起。'
             : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
         </span>
+        {#if visibleHistory.length > 0}
+          <button
+            type="button"
+            class="assist-chip clear-history"
+            on:click={() => onClearHistory?.(assistMode)}
+          >
+            {assistMode === 'translation' ? '清除本书翻译记录' : '清除本书求助记录'}
+          </button>
+        {/if}
       </div>
       {#if visibleHistory.length > 0}
         <div class="assist-history-list">
@@ -671,6 +683,11 @@
   .assist-history-head {
     display: grid;
     gap: 4px;
+  }
+
+  .assist-history-head .clear-history {
+    justify-self: start;
+    margin-top: 4px;
   }
 
   .assist-translation-status strong,

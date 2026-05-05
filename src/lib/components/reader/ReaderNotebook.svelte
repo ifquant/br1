@@ -103,6 +103,9 @@
   export let onSelectAssistanceHistoryEntry:
     | ((mode: 'lookup' | 'translation', entryId: string) => void)
     | null = null;
+  export let onClearAssistanceHistory:
+    | ((mode: 'lookup' | 'translation') => void)
+    | null = null;
   export let onTabChange:
     | ((tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync') => void)
     | null = null;
@@ -301,6 +304,7 @@
             onRequestTranslation: callbacks.onRequestTranslation
           }}
           onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
+          onClearHistory={onClearAssistanceHistory}
         />
       {:else if activeTab === 'translation'}
         <ReaderAssistWorkspace
@@ -319,6 +323,7 @@
             onRequestTranslation: callbacks.onRequestTranslation
           }}
           onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
+          onClearHistory={onClearAssistanceHistory}
         />
       {:else if activeTab === 'tts'}
         <ReaderTtsWorkspace

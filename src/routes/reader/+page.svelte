@@ -458,11 +458,19 @@
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
   }
-  $: if (typeof localStorage !== 'undefined') {
-    persistAssistanceHistory();
+  $: {
+    assistanceHistory;
+    assistanceHistoryStorageKey;
+    if (typeof localStorage !== 'undefined') {
+      persistAssistanceHistory();
+    }
   }
-  $: if (typeof localStorage !== 'undefined') {
-    persistAssistanceSelection();
+  $: {
+    assistanceSelection;
+    assistanceSelectionStorageKey;
+    if (typeof localStorage !== 'undefined') {
+      persistAssistanceSelection();
+    }
   }
   $: searchController.persist($searchState);
   $: sidebarController.persist($sidebarState);
@@ -1040,6 +1048,20 @@
           };
   };
 
+  const clearAssistanceHistory = (mode: 'lookup' | 'translation') => {
+    assistanceHistory = assistanceHistory.filter((entry) => entry.request.kind !== mode);
+    assistanceSelection =
+      mode === 'translation'
+        ? {
+            ...assistanceSelection,
+            translationHistoryEntryId: ''
+          }
+        : {
+            ...assistanceSelection,
+            lookupHistoryEntryId: ''
+          };
+  };
+
   $: sidebarCallbacks = {
     onNavigate: issueHrefControl,
     onToggleCurrentBookmark: handleToggleBookmark,
@@ -1116,6 +1138,7 @@
         translationProviderStatuses={translationProviderStatuses}
         callbacks={sidebarCallbacks}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
+        onClearAssistanceHistory={clearAssistanceHistory}
       />
     {/if}
     {#if isWindowMode && $sidebarState.visible && $sidebarState.pinned}
@@ -1346,6 +1369,7 @@
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
+        onClearAssistanceHistory={clearAssistanceHistory}
         onClose={() => {
           notebookVisible = false;
         }}

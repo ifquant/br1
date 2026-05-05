@@ -444,6 +444,65 @@ test('reader restores the selected ai history record for the current book in web
   await expect(resultPanel.locator('> p')).toHaveText('A notebook-style reading bridge.');
 });
 
+test('reader can clear current-book ai history in web mode', async ({ page }) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: 'AI 历史清理测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-lookup-1',
+            request: {
+              kind: 'lookup',
+              provider: 'wikipedia',
+              term: 'bridge reader',
+              chapterLabel: '第一章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-result-1',
+              provider: 'wikipedia',
+              title: 'Bridge reader',
+              body: 'A notebook-style reading bridge.',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          }
+        ])
+      );
+    },
+    { historyKey: historyStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'AI 工作台' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  const historyLane = notebook.getByLabel('最近求助');
+  await expect(historyLane.getByText('bridge reader', { exact: true })).toBeVisible();
+  await historyLane.getByRole('button', { name: '清除本书求助记录' }).click();
+  await expect(historyLane.getByText('还没有这本书的查找记录。发起一次查词或百科后，这里会保留最近请求。')).toBeVisible();
+  await expect
+    .poll(() => page.evaluate((key) => window.localStorage.getItem(key), historyStorageKey), {
+      timeout: 15000
+    })
+    .toBe('[]');
+});
+
 test('reader can open translation mode as a dedicated notebook tab', async ({ page }) => {
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',

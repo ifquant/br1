@@ -60,6 +60,9 @@
   export let onSelectAssistanceHistoryEntry:
     | ((mode: 'lookup' | 'translation', entryId: string) => void)
     | null = null;
+  export let onClearAssistanceHistory:
+    | ((mode: 'lookup' | 'translation') => void)
+    | null = null;
   export let search: ReaderSidebarSearchState = {
     term: '',
     status: 'idle',
@@ -1851,6 +1854,7 @@
               onRequestTranslation: callbacks.onRequestTranslation
             }}
             onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
+            onClearHistory={onClearAssistanceHistory}
           />
         </section>
       {:else if activeTab === 'bookmarks'}
