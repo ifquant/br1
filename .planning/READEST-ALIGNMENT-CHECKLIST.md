@@ -675,6 +675,14 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0589-close-the-p5-ai-workspace-structure-line.md`.
   - Notes: P5 now includes notebook shell, AI assistant workspace, translation mode, current-book archive overview, focused lane navigation, and notebook-summary alignment. It explicitly does not include cross-book AI archive browsing, thread-style conversation history, provider expansion, or remote AI sync.
 
+- [x] P5-1.28 Run the P5 closeout review
+  - Outcome: the repo now records whether the AI workspace line still has merge-blocking structural gaps, and it names the next mainline instead of leaving `继续` to guesswork.
+  - Touches: checklist closeout review notes, tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0590-record-the-p5-closeout-review.md`.
+  - Notes: this review found no remaining structural blockers inside the current-book AI workspace line. The recommended next mainline is not more `P5` micro-polish, but the next reader workspace surface that is still materially behind Readest.
+
 ### P5 Closeout
 
 Included in P5:
@@ -689,6 +697,11 @@ Explicitly not included in P5:
 - thread-style conversation history
 - provider/network expansion beyond the existing lookup/translation substrate
 - remote AI sync or cloud archive surfaces
+
+Closeout review verdict:
+- no remaining structural blocker was found in the current-book AI workspace line
+- remaining gaps are now higher-level product expansion, not notebook-structure correctness
+- the next recommended mainline is a new reader workspace line, not further `P5` micro-slices
 
 ## P6 Library Operations And Desktop Support
 
@@ -889,3 +902,4 @@ Use this log when completing each item.
 | 2026-05-05 | Make the notebook summary reflect the active AI workspace tab | 640c302 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open the ai workspace inside the notebook shell|reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | makes the notebook summary strip reflect assistant-specific and translation-specific workspace state instead of keeping one generic assistant status line across all tabs |
 | 2026-05-05 | Remove archive-overview navigation semantics from dedicated translation mode | c88654b | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | removes the fake overview parent and return action from locked translation mode so its navigation contract matches the fact that it is already a dedicated workspace |
 | 2026-05-05 | Record the P5 closeout boundary | beafe12 | `pnpm check`; `git diff --check` | documents which AI workspace structures are now treated as closed in P5 and which larger ideas remain intentionally out of scope for the next mainline |
+| 2026-05-05 | Run the P5 closeout review | pending | `pnpm check`; `git diff --check` | records that the current-book AI workspace line no longer has structural blockers and that the next step should be a new reader workspace mainline instead of more P5 micro-polish |
