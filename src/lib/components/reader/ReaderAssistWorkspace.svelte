@@ -96,6 +96,12 @@
   $: translationHistory = history.filter((entry) => entry.request.kind === 'translation');
   $: latestLookupHistoryEntry = lookupHistory[0] ?? null;
   $: latestTranslationHistoryEntry = translationHistory[0] ?? null;
+  $: workspaceScopeSummary = lockedMode === 'translation'
+    ? `当前书范围：翻译 ${translationHistory.length} 条`
+    : `当前书范围：查找 ${lookupHistory.length} 条 · 翻译 ${translationHistory.length} 条`;
+  $: workspaceScopeNote = lockedMode === 'translation'
+    ? '这里只保留当前书的翻译记录，以及原文 / 译文并排的阅读结果。'
+    : '这里保留当前书的查找和翻译记录，并在摘要和分区之间切换浏览。';
   $: visibleHistory = history.filter((entry) =>
     assistMode === 'translation' ? entry.request.kind === 'translation' : entry.request.kind === 'lookup'
   );
@@ -317,6 +323,13 @@
   <div class="assist-summary">
     <strong>{title}</strong>
     <span>{summary}</span>
+  </div>
+  <div
+    class="assist-scope"
+    aria-label={lockedMode === 'translation' ? '翻译模式范围摘要' : 'AI 工作台范围摘要'}
+  >
+    <strong>{workspaceScopeSummary}</strong>
+    <span>{workspaceScopeNote}</span>
   </div>
 
   {#if !lockedMode && archiveOverviewVisible}
@@ -919,10 +932,25 @@
   }
 
   .assist-summary span,
-  .assist-context span {
+  .assist-context span,
+  .assist-scope span {
     color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.55;
+  }
+
+  .assist-scope {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--surface-panel) 90%, white 10%);
+  }
+
+  .assist-scope strong {
+    color: var(--text-primary);
+    font: 700 13px/1.35 var(--font-chrome);
+    letter-spacing: 0.02em;
   }
 
   .assist-context {

@@ -316,10 +316,13 @@ test('reader can open the ai workspace inside the notebook shell', async ({ page
   await expect(
     page.getByText('把查词、百科和翻译结果放到 notebook 里的独立工作台，而不是只做一个 sidebar 结果区。')
   ).toBeVisible();
-  await expect(page.getByText('最近求助')).toBeVisible();
-  await expect(
-    page.getByText('还没有这本书的查找记录。发起一次查词或百科后，这里会保留最近请求。')
-  ).toBeVisible();
+  await expect(page.getByLabel('AI 工作台范围摘要')).toContainText('当前书范围：查找 0 条 · 翻译 0 条');
+  await expect(page.getByLabel('AI 工作台范围摘要')).toContainText(
+    '这里保留当前书的查找和翻译记录，并在摘要和分区之间切换浏览。'
+  );
+  await expect(page.getByLabel('本书 AI 记录摘要')).toBeVisible();
+  await expect(page.getByLabel('本书 AI 记录摘要')).toContainText('查找 0 条 · 翻译 0 条');
+  await expect(page.getByLabel('本书 AI 记录入口')).toBeVisible();
   await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
@@ -1087,6 +1090,10 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(
     page.getByText('把原文和译文并排收进 reader 工作台，让翻译成为一种阅读模式，而不是助手里的临时请求。')
   ).toBeVisible();
+  await expect(page.getByLabel('翻译模式范围摘要')).toContainText('当前书范围：翻译 0 条');
+  await expect(page.getByLabel('翻译模式范围摘要')).toContainText(
+    '这里只保留当前书的翻译记录，以及原文 / 译文并排的阅读结果。'
+  );
   const translationPanels = page.getByLabel('翻译阅读面板');
   await expect(translationPanels).toBeVisible();
   await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '原文' })).toBeVisible();
