@@ -902,6 +902,9 @@ test('reader shows breadcrumb and grouped browse controls inside focused ai lane
   await notebook.getByLabel('本书 AI 记录摘要').getByRole('button', { name: /查找记录/ }).click();
 
   const historyLane = notebook.getByLabel('最近求助');
+  const navSection = historyLane.getByLabel('AI 浏览导航 section');
+  await expect(navSection).toContainText('浏览导航');
+  await expect(navSection).toContainText('当前位置 本书查找记录');
   await expect(historyLane.getByLabel('当前 AI 导航路径')).toHaveText('本书 AI 记录摘要 / 本书查找记录');
   const navSummary = historyLane.getByLabel('当前 AI 浏览摘要');
   await expect(navSummary).toContainText('当前位置：本书查找记录');
@@ -912,6 +915,7 @@ test('reader shows breadcrumb and grouped browse controls inside focused ai lane
   await expect(historyLane.getByLabel('当前 AI 导航路径')).toHaveText(
     '本书 AI 记录摘要 / 本书查找记录 / 当前记录'
   );
+  await expect(navSection).toContainText('当前位置 本书查找记录 · 当前范围 当前记录');
   await expect(navSummary).toContainText('当前位置：本书查找记录');
   await expect(navSummary).toContainText('当前范围：当前记录');
   await expect(navSummary).toContainText('当前条目：bridge reader');

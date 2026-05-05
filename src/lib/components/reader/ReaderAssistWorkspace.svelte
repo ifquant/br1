@@ -560,22 +560,30 @@
         <span>
           {getArchiveLaneSummary(assistMode, visibleHistory.length)}
         </span>
-        <small class="assist-history-breadcrumb" aria-label="当前 AI 导航路径">
-          {laneBreadcrumb}
-        </small>
-        <div class="assist-history-nav-summary" aria-label="当前 AI 浏览摘要">
-          <span>当前位置：{browsePositionSummary}</span>
-          <span>当前范围：{browseScopeSummary}</span>
-          {#if currentEntrySummary}
-            <span>当前条目：{currentEntrySummary}</span>
-          {/if}
-        </div>
-        <small class="assist-history-head-note">
-          {assistMode === 'translation'
-            ? '保留本书最近的翻译请求，方便回看和再次发起。'
-            : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
-        </small>
-        <div class="assist-history-head-actions">
+        <section class="assist-history-section assist-history-nav-section" aria-label="AI 浏览导航 section">
+          <div class="assist-history-section-head">
+            <strong>浏览导航</strong>
+            <span>
+              {selectedHistoryEntry
+                ? `当前位置 ${browsePositionSummary} · 当前范围 ${browseScopeSummary}`
+                : `当前位置 ${browsePositionSummary}`}
+            </span>
+          </div>
+          <small class="assist-history-breadcrumb" aria-label="当前 AI 导航路径">
+            {laneBreadcrumb}
+          </small>
+          <div class="assist-history-nav-summary" aria-label="当前 AI 浏览摘要">
+            <span>当前位置：{browsePositionSummary}</span>
+            <span>当前范围：{browseScopeSummary}</span>
+            {#if currentEntrySummary}
+              <span>当前条目：{currentEntrySummary}</span>
+            {/if}
+          </div>
+          <small class="assist-history-head-note">
+            {assistMode === 'translation'
+              ? '保留本书最近的翻译请求，方便回看和再次发起。'
+              : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
+          </small>
           <div class="assist-history-nav-actions" aria-label="记录分区导航">
             {#if !archiveOverviewVisible}
               <div class="assist-nav-group" aria-label="浏览位置">
@@ -613,6 +621,8 @@
               </div>
             {/if}
           </div>
+        </section>
+        <div class="assist-history-head-actions">
           {#if visibleHistory.length > 0}
             <div class="assist-history-maintenance-actions" aria-label="记录分区维护操作">
               <button
