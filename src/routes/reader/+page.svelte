@@ -50,6 +50,7 @@
     canRequestAssistanceForText,
     normalizeAssistanceText,
     normalizeAssistanceTerm,
+    getReaderTranslationProviderDisplayLabel,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     loadReaderSettings,
@@ -104,6 +105,8 @@
   let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync' = 'notes';
   let ttsFollowsCurrentLocation = true;
   let pinnedTtsTarget: ReaderTtsSpeechTarget | null = null;
+  let resolvedTtsTarget: ReaderTtsSpeechTarget | null = null;
+  let effectiveTtsTarget: ReaderTtsSpeechTarget | null = null;
   let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
   let translationFollowsCurrentSource = true;
   let pinnedTranslationSource: {
@@ -111,6 +114,16 @@
     label: string;
     chapterLabel: string;
   } | null = null;
+  let resolvedTranslationSource = {
+    text: '',
+    label: '',
+    chapterLabel: ''
+  };
+  let effectiveTranslationSource = {
+    text: '',
+    label: '',
+    chapterLabel: ''
+  };
   let currentManagedBook: PersistedLibraryBook | null = null;
   let readerSyncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
     null;
@@ -384,18 +397,39 @@
   function resolveReaderTtsSpeechTarget(): ReaderTtsSpeechTarget | null {
     const chapterLabel = currentPreview.chapterLabel.trim();
     const title = currentPreview.title.trim();
-    const translationResultText =
+    const selectedTranslationHistoryEntryId = assistanceSelection.translationHistoryEntryId.trim();
+    const selectedTranslationHistoryEntry = selectedTranslationHistoryEntryId
+      ? assistanceHistory.find(
+          (entry) =>
+            entry.id === selectedTranslationHistoryEntryId && entry.request.kind === 'translation'
+        ) || null
+      : null;
+    const selectedTranslationResult =
+      selectedTranslationHistoryEntry?.status === 'ready' &&
+      selectedTranslationHistoryEntry.result &&
+      selectedTranslationHistoryEntry.request.kind === 'translation'
+        ? {
+            translatedText: normalizeAssistanceText(selectedTranslationHistoryEntry.result.body),
+            providerLabel:
+              `历史译文 · ${
+                selectedTranslationHistoryEntry.result.sourceLabel ||
+                getReaderTranslationProviderDisplayLabel(selectedTranslationHistoryEntry.request.provider)
+              }`
+          }
+        : null;
+    const liveTranslationResult =
       assistanceState.status === 'ready' &&
       assistanceState.activeRequest?.kind === 'translation' &&
       assistanceState.result
-        ? normalizeAssistanceText(assistanceState.result.body)
-        : '';
-    const translationProviderLabel =
-      assistanceState.status === 'ready' &&
-      assistanceState.activeRequest?.kind === 'translation' &&
-      assistanceState.result
-        ? assistanceState.result.sourceLabel || assistanceState.result.title
-        : '';
+        ? {
+            translatedText: normalizeAssistanceText(assistanceState.result.body),
+            providerLabel:
+              `当前译文 · ${
+                assistanceState.result.sourceLabel ||
+                getReaderTranslationProviderDisplayLabel(assistanceState.activeRequest.provider)
+              }`
+          }
+        : null;
 
     return resolveReaderTtsSpeechTargetForMode({
       mode: ttsReadAloudTextMode,
@@ -410,10 +444,7 @@
             : '',
         title: title && title !== READER_EMPTY_TITLE ? title : ''
       },
-      translated: {
-        translatedText: translationResultText,
-        providerLabel: translationProviderLabel
-      }
+      translated: selectedTranslationResult || liveTranslationResult
     });
   }
 
@@ -468,7 +499,15 @@
     pinnedTranslationSource = null;
     lastAssistanceBookKey = readerBookKey;
   }
-  $: resolvedTtsTarget = resolveReaderTtsSpeechTarget();
+  $: {
+    currentPreview;
+    assistanceSelection;
+    assistanceHistory;
+    assistanceState;
+    ttsReadAloudTextMode;
+    $notesState.selection;
+    resolvedTtsTarget = resolveReaderTtsSpeechTarget();
+  }
   $: effectiveTtsTarget = ttsFollowsCurrentLocation
     ? resolvedTtsTarget
     : pinnedTtsTarget || resolvedTtsTarget;

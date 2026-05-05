@@ -1187,6 +1187,73 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(page.getByLabel('朗读模式状态')).toContainText('原文朗读');
 });
 
+test('reader lets translated tts mode consume the selected translation archive in web mode', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const selectionStorageKey = `br1.reader.assistance.selection:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: '译文朗读历史接管测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey, selectionKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-translation-tts-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Bridge reading keeps the text in focus.',
+              targetLanguage: 'zh',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-tts-result-1',
+              provider: 'deepl',
+              title: '第二章',
+              body: '桥接式阅读让正文保持在中心位置。',
+              sourceLabel: 'DeepL',
+              createdAt: 20
+            },
+            error: '',
+            createdAt: 20,
+            updatedAt: 20
+          }
+        ])
+      );
+      window.localStorage.setItem(
+        selectionKey,
+        JSON.stringify({
+          lookupHistoryEntryId: '',
+          translationHistoryEntryId: 'assist-translation-tts-1'
+        })
+      );
+    },
+    { historyKey: historyStorageKey, selectionKey: selectionStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '打开朗读模式' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
+  await page.getByRole('button', { name: '朗读译文' }).click();
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读译文');
+  await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
+  await expect(notebook.getByText('当前还没有可朗读的译文结果。')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '锁定当前朗读目标' })).toBeEnabled();
+});
+
 test('reader can open sync workspace inside the notebook shell', async ({ page }) => {
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',

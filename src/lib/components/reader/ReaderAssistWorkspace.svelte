@@ -114,6 +114,12 @@
       : '当前输入或正文选区';
   $: lookupHistory = history.filter((entry) => entry.request.kind === 'lookup');
   $: translationHistory = history.filter((entry) => entry.request.kind === 'translation');
+  $: lookupSelectionStillVisible = lookupHistory.some(
+    (entry) => entry.id === selectedLookupHistoryEntryId
+  );
+  $: translationSelectionStillVisible = translationHistory.some(
+    (entry) => entry.id === selectedTranslationHistoryEntryId
+  );
   $: latestLookupHistoryEntry = lookupHistory[0] ?? null;
   $: latestTranslationHistoryEntry = translationHistory[0] ?? null;
   $: workspaceScopeSummary = lockedMode === 'translation'
@@ -145,11 +151,15 @@
       : `${laneBreadcrumbBase} / ${getArchiveLaneTitle(assistMode)}`;
   $: selectedHistoryEntryId =
     assistMode === 'translation' ? selectedTranslationHistoryEntryId : selectedLookupHistoryEntryId;
-  $: {
-    const selectedEntryStillVisible = visibleHistory.some((entry) => entry.id === selectedHistoryEntryId);
-    if (selectedHistoryEntryId && !selectedEntryStillVisible) {
-      onSelectHistoryEntry?.(assistMode, '');
-    }
+  $: if (selectedLookupHistoryEntryId && lookupHistory.length > 0 && !lookupSelectionStillVisible) {
+    onSelectHistoryEntry?.('lookup', '');
+  }
+  $: if (
+    selectedTranslationHistoryEntryId &&
+    translationHistory.length > 0 &&
+    !translationSelectionStillVisible
+  ) {
+    onSelectHistoryEntry?.('translation', '');
   }
   $: if (
     !selectedHistoryEntryId &&

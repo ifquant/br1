@@ -217,11 +217,16 @@ export const resolveReaderTtsSpeechTargetForMode = ({
 
   if (mode === 'translated') {
     if (!normalizedTranslatedText) return null;
+    const translatedSourceLabel = normalizedProviderLabel
+      ? normalizedProviderLabel.includes('译文')
+        ? normalizedProviderLabel
+        : `${normalizedProviderLabel} 翻译结果`
+      : '当前翻译结果';
 
     return {
       text: normalizedTranslatedText,
       label: '当前译文',
-      sourceLabel: normalizedProviderLabel ? `${normalizedProviderLabel} 翻译结果` : '当前翻译结果',
+      sourceLabel: translatedSourceLabel,
       targetLabel: '译文',
       followsCurrent: true
     };

@@ -78,6 +78,23 @@ test('translated TTS mode prefers the current translation result', () => {
   });
 });
 
+test('translated TTS mode preserves explicit archive-versus-live source labels', () => {
+  const target = resolveReaderTtsSpeechTargetForMode({
+    mode: 'translated',
+    source: {
+      selectedText: 'original paragraph',
+      chapterLabel: 'Chapter 3',
+      title: 'Sample Book'
+    },
+    translated: {
+      translatedText: ' archived translated paragraph ',
+      providerLabel: '历史译文 · DeepL'
+    }
+  });
+
+  assert.equal(target?.sourceLabel, '历史译文 · DeepL');
+});
+
 test('translated TTS mode yields no target when there is no translation result yet', () => {
   const target = resolveReaderTtsSpeechTargetForMode({
     mode: 'translated',
