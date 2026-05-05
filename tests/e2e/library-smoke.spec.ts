@@ -377,7 +377,9 @@ test('reader restores ai workspace history for the current book in web mode', as
   await expect(historyLane.getByText('第一章 · 维基百科', { exact: true })).toBeVisible();
   await historyLane.getByRole('button', { name: '查看记录' }).click();
   const resultPanel = notebook.locator('.assist-result');
-  await expect(resultPanel.locator('> strong')).toHaveText('Bridge reader');
+  await expect(resultPanel.locator('.assist-result-header > strong')).toHaveText('查找结果');
+  await expect(resultPanel.locator('.assist-result-header > span')).toContainText('历史记录');
+  await expect(resultPanel.locator('> h4')).toHaveText('Bridge reader');
   await expect(resultPanel.locator('> p')).toHaveText('A notebook-style reading bridge.');
 });
 
@@ -438,9 +440,12 @@ test('reader restores the selected ai history record for the current book in web
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
   const historyLane = notebook.getByLabel('最近求助');
-  await expect(historyLane.getByRole('button', { name: '正在查看' })).toBeVisible();
+  await expect(historyLane.locator('.assist-history-status-badge')).toHaveText('当前正在查看');
+  await expect(notebook.getByLabel('当前正在查看的 AI 记录')).toContainText('bridge reader');
   const resultPanel = notebook.locator('.assist-result');
-  await expect(resultPanel.locator('> strong')).toHaveText('Bridge reader');
+  await expect(resultPanel.locator('.assist-result-header > strong')).toHaveText('查找结果');
+  await expect(resultPanel.locator('.assist-result-header > span')).toContainText('历史记录');
+  await expect(resultPanel.locator('> h4')).toHaveText('Bridge reader');
   await expect(resultPanel.locator('> p')).toHaveText('A notebook-style reading bridge.');
 });
 
@@ -504,9 +509,17 @@ test('reader restores the selected translation ai history record for the current
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
   const historyLane = notebook.getByLabel('最近翻译');
-  await expect(historyLane.getByRole('button', { name: '正在查看' })).toBeVisible();
+  await expect(historyLane.locator('.assist-history-status-badge')).toHaveText('当前正在查看');
+  await expect(notebook.getByLabel('当前正在查看的 AI 记录')).toContainText(
+    'Bridge reading keeps the text in focus.'
+  );
   const resultPanel = notebook.locator('.assist-result');
-  await expect(resultPanel.getByText('历史记录 · 第二章 · 译为 ZH')).toBeVisible();
+  await expect(resultPanel.locator('.assist-card-header span').first()).toHaveText(
+    '历史记录 · 第二章 · 译为 ZH'
+  );
+  await expect(resultPanel.locator('.assist-card-header span').last()).toHaveText(
+    '历史记录 · 第二章 · 译为 ZH'
+  );
   await expect(resultPanel.locator('article.assist-translation-card.result p')).toHaveText(
     '桥接式阅读让正文保持在中心位置。'
   );
@@ -898,6 +911,8 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(translationPanels).toBeVisible();
   await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '原文' })).toBeVisible();
   await expect(translationPanels.locator('.assist-translation-card strong', { hasText: '译文' })).toBeVisible();
+  await expect(translationPanels.locator('.assist-card-header span').first()).toHaveText('当前输入或正文选区');
+  await expect(translationPanels.locator('.assist-card-header span').last()).toHaveText('当前翻译结果');
 });
 
 test('reader can open tts mode as a dedicated notebook tab', async ({ page }) => {

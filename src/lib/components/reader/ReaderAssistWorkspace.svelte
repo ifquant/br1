@@ -137,6 +137,54 @@
     return mode === 'translation' ? '当前书还没有翻译记录' : '当前书还没有查找记录';
   };
 
+  const getLookupResultSummary = (): string => {
+    if (selectedHistoryEntry) {
+      return `历史记录 · ${getReaderAssistanceProviderDisplayLabel(selectedHistoryEntry.request.provider)} · ${getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}`;
+    }
+
+    if (assistance.status === 'ready' && assistance.result) {
+      return (
+        assistance.result.sourceLabel ||
+        (assistanceResultProvider === 'dictionary'
+          ? 'Dictionary'
+          : assistanceResultProvider === 'wikipedia'
+            ? 'Wikipedia'
+            : getReaderTranslationProviderDisplayLabel(assistanceResultProvider))
+      );
+    }
+
+    if (assistance.status === 'loading') {
+      return activeAssistanceRequest?.kind === 'translation'
+        ? `正在向${getReaderTranslationProviderDisplayLabel(activeAssistanceRequest.provider)}请求翻译结果。`
+        : `正在向${assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}请求结果。`;
+    }
+
+    if (assistance.status === 'empty') {
+      return activeAssistanceRequest?.kind === 'translation'
+        ? '没有可翻译的内容。'
+        : assistLookupProvider === 'dictionary'
+          ? '词典没有返回对应词条。'
+          : '维基百科没有返回对应词条。';
+    }
+
+    if (assistance.status === 'offline') {
+      return assistance.error || '桌面运行时或网络不可用。';
+    }
+
+    if (assistance.status === 'error') {
+      return (
+        assistance.error ||
+        (activeAssistanceRequest?.kind === 'translation'
+          ? '翻译请求失败。'
+          : assistLookupProvider === 'dictionary'
+            ? '词典查询失败。'
+            : '维基百科查询失败。')
+      );
+    }
+
+    return `输入词条后可以直接发起${assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。`;
+  };
+
   const replayHistoryEntry = (entry: ReaderAssistanceHistoryEntry) => {
     onSelectHistoryEntry?.(entry.request.kind, entry.id);
     if (entry.request.kind === 'translation') {
@@ -584,7 +632,14 @@
     {#if assistMode === 'translation'}
       <div class="assist-translation-panels" aria-label="翻译阅读面板">
         <article class="assist-translation-card">
-          <strong>原文</strong>
+          <div class="assist-card-header">
+            <strong>原文</strong>
+            <span>
+              {selectedHistoryEntry?.request.kind === 'translation'
+                ? `历史记录 · ${getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}`
+                : '当前输入或正文选区'}
+            </span>
+          </div>
           <p>
             {#if selectedHistoryEntry?.request.kind === 'translation'}
               {archivedTranslationSourceText || '这条历史记录没有保留原文。'}
@@ -594,9 +649,17 @@
           </p>
         </article>
         <article class="assist-translation-card result">
-          <strong>译文</strong>
+          <div class="assist-card-header">
+            <strong>译文</strong>
+            <span>
+              {#if selectedHistoryEntry?.request.kind === 'translation'}
+                历史记录 · {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}
+              {:else}
+                当前翻译结果
+              {/if}
+            </span>
+          </div>
           {#if selectedHistoryEntry?.request.kind === 'translation'}
-            <span>历史记录 · {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}</span>
             {#if selectedHistoryEntry.status === 'loading'}
               <p>
                 正在向{getReaderTranslationProviderDisplayLabel(selectedHistoryEntry.request.provider)}请求翻译结果。
@@ -645,23 +708,23 @@
         </article>
       </div>
     {:else if assistance.status === 'loading'}
-      <strong>正在查询</strong>
-      <span>
-        {#if activeAssistanceRequest?.kind === 'translation'}
-          正在向{getReaderTranslationProviderDisplayLabel(activeAssistanceRequest.provider)}请求翻译结果。
-        {:else}
-          正在向{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}请求结果。
-        {/if}
-      </span>
+      <div class="assist-result-header">
+        <strong>查找结果</strong>
+        <span>{getLookupResultSummary()}</span>
+      </div>
+      <p>等待查询结果返回。</p>
     {:else if selectedHistoryEntry}
-      <strong>{selectedHistoryEntry.result?.title || '历史记录'}</strong>
-      <span>
-        历史记录 · {getReaderAssistanceProviderDisplayLabel(selectedHistoryEntry.request.provider)} · {getReaderAssistanceRequestContextLabel(selectedHistoryEntry.request)}
-      </span>
+      <div class="assist-result-header">
+        <strong>查找结果</strong>
+        <span>{getLookupResultSummary()}</span>
+      </div>
+      <h4>{selectedHistoryEntry.result?.title || '历史记录'}</h4>
       {#if selectedHistoryEntry.status === 'ready' && selectedHistoryEntry.result}
         <p>{selectedHistoryEntry.result.body}</p>
         {#if selectedHistoryEntry.result.url}
-          <a href={selectedHistoryEntry.result.url} target="_blank" rel="noreferrer">打开词条</a>
+          <div class="assist-result-actions">
+            <a href={selectedHistoryEntry.result.url} target="_blank" rel="noreferrer">打开词条来源</a>
+          </div>
         {/if}
       {:else if selectedHistoryEntry.status === 'empty'}
         <p>这条历史请求没有返回结果。</p>
@@ -671,44 +734,48 @@
         <p>{selectedHistoryEntry.error || '这条历史请求失败了。'}</p>
       {/if}
     {:else if assistance.status === 'ready' && assistance.result}
-      <strong>{assistance.result.title}</strong>
-      <span>
-        {assistance.result.sourceLabel ||
-          (assistanceResultProvider === 'dictionary'
-            ? 'Dictionary'
-            : assistanceResultProvider === 'wikipedia'
-              ? 'Wikipedia'
-              : getReaderTranslationProviderDisplayLabel(assistanceResultProvider))}
-      </span>
+      <div class="assist-result-header">
+        <strong>查找结果</strong>
+        <span>{getLookupResultSummary()}</span>
+      </div>
+      <h4>{assistance.result.title}</h4>
       <p>{assistance.result.body}</p>
       {#if assistance.result.url}
-        <a href={assistance.result.url} target="_blank" rel="noreferrer">打开词条</a>
+        <div class="assist-result-actions">
+          <a href={assistance.result.url} target="_blank" rel="noreferrer">打开词条来源</a>
+        </div>
       {/if}
     {:else if assistance.status === 'empty'}
-      <strong>没有找到结果</strong>
-      <span>
-        {activeAssistanceRequest?.kind === 'translation'
-          ? '没有可翻译的内容。'
-          : assistLookupProvider === 'dictionary'
-            ? '词典没有返回对应词条。'
-            : '维基百科没有返回对应词条。'}
-      </span>
+      <div class="assist-result-header">
+        <strong>查找结果</strong>
+        <span>{getLookupResultSummary()}</span>
+      </div>
+      <p>没有找到结果。</p>
     {:else if assistance.status === 'offline'}
-      <strong>当前不可用</strong>
-      <span>{assistance.error || '桌面运行时或网络不可用。'}</span>
+      <div class="assist-result-header">
+        <strong>查找结果</strong>
+        <span>{getLookupResultSummary()}</span>
+      </div>
+      <p>{assistance.error || '桌面运行时或网络不可用。'}</p>
     {:else if assistance.status === 'error'}
-      <strong>查询失败</strong>
-      <span>
+      <div class="assist-result-header">
+        <strong>查找结果</strong>
+        <span>{getLookupResultSummary()}</span>
+      </div>
+      <p>
         {assistance.error ||
           (activeAssistanceRequest?.kind === 'translation'
             ? '翻译请求失败。'
             : assistLookupProvider === 'dictionary'
               ? '词典查询失败。'
               : '维基百科查询失败。')}
-      </span>
+      </p>
     {:else}
-      <strong>等待查询</strong>
-      <span>输入词条后可以直接发起{assistLookupProvider === 'dictionary' ? '词典' : '维基百科'}查找。</span>
+      <div class="assist-result-header">
+        <strong>查找结果</strong>
+        <span>{getLookupResultSummary()}</span>
+      </div>
+      <p>等待查询。</p>
     {/if}
   </div>
 </section>
@@ -1029,6 +1096,12 @@
     text-transform: uppercase;
   }
 
+  .assist-card-header,
+  .assist-result-header {
+    display: grid;
+    gap: 4px;
+  }
+
   .assist-result {
     display: grid;
     gap: 8px;
@@ -1045,6 +1118,12 @@
     white-space: pre-wrap;
   }
 
+  .assist-result h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font: 700 14px/1.35 var(--font-reader);
+  }
+
   .assist-translation-card span,
   .assist-translation-card p {
     color: var(--text-secondary);
@@ -1052,6 +1131,12 @@
     line-height: 1.6;
     margin: 0;
     white-space: pre-wrap;
+  }
+
+  .assist-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .assist-result a {

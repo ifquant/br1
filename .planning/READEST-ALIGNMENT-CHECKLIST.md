@@ -571,6 +571,14 @@ Goal: make the reader feel like a multi-workspace Readest-style reading product 
   - Tutorial: `tutorials/commit/0576-separate-ai-lane-navigation-maintenance-and-item-actions.md`.
   - Notes: this slice keeps the same archive model and lane navigation, but it stops treating `返回摘要 / 收起列表 / 清空记录 / 查看记录 / 再次发起` as one undifferentiated control band. Selected records now read as state, while replay remains a secondary action.
 
+- [x] P5-1.15 Align lookup and translation result sections inside focused AI lanes
+  - Outcome: once the reader enters a focused lookup or translation lane, the result surface itself reads like a notebook section instead of a bare provider payload area.
+  - Touches: shared assistant workspace result presentation, focused AI restore/translation regressions.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader restores the selected ai history record for the current book in web mode|reader restores the selected translation ai history record for the current book in web mode|reader can open translation mode as a dedicated notebook tab"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending
+  - Tutorial: `tutorials/commit/0577-align-ai-result-sections-across-lookup-and-translation-lanes.md`.
+  - Notes: this slice keeps the same assistance history, replay, and persistence semantics. It only gives both lookup and translation results explicit section headers and supporting summaries so current results and restored history read like one notebook surface.
+
 ## P6 Library Operations And Desktop Support
 
 Goal: turn the library from a strong bookshelf into a complete desktop reading hub with visible operational surfaces.
@@ -757,3 +765,4 @@ Use this log when completing each item.
 | 2026-05-05 | Let the AI notebook move from the archive overview into one lane and back again | 824fa3b | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | turns the overview cards into real navigation entry points and adds an explicit return path back to the current-book archive overview from a focused lookup or translation lane |
 | 2026-05-05 | Tighten lane headers so focused AI sections read like notebook sections | 819995b | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can move from the ai archive overview into one lane and back again"`; `git diff --check` | promotes the focused lookup/translation lane title and current-book record count into the lane header so the notebook section remains self-describing after the reader drills down from the overview |
 | 2026-05-05 | Separate navigation, maintenance, and item actions inside focused AI lanes | 1b39e4f | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader shows notebook-style action hierarchy inside ai archive lanes"`; `git diff --check` | splits focused-lane controls into section navigation, section maintenance, and per-record primary/secondary actions so the notebook lane no longer reads like one flat tool row |
+| 2026-05-05 | Align lookup and translation result sections inside focused AI lanes | pending | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader restores the selected ai history record for the current book in web mode|reader restores the selected translation ai history record for the current book in web mode|reader can open translation mode as a dedicated notebook tab"`; `git diff --check` | adds explicit result-section headers and supporting summaries for lookup and translation lanes so restored history and live results read like one notebook surface instead of raw provider payload cards |
