@@ -9,6 +9,7 @@ import {
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,
   normalizeReaderTtsSpeechTarget,
+  planReaderTtsRetargetAction,
   resolveReaderTtsSpeechTargetForMode
 } from './tts';
 
@@ -110,4 +111,12 @@ test('translated TTS mode yields no target when there is no translation result y
   });
 
   assert.equal(target, null);
+});
+
+test('TTS retarget plan restarts active speech but only arms paused sessions', () => {
+  assert.equal(planReaderTtsRetargetAction('speaking'), 'restart-session');
+  assert.equal(planReaderTtsRetargetAction('paused'), 'stop-and-arm-target');
+  assert.equal(planReaderTtsRetargetAction('idle'), 'replace-target');
+  assert.equal(planReaderTtsRetargetAction('error'), 'replace-target');
+  assert.equal(planReaderTtsRetargetAction('unavailable'), 'replace-target');
 });

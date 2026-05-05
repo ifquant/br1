@@ -886,7 +886,7 @@ Goal: close the remaining gap between dedicated reader modes and the live readin
   - Outcome: the repo now records whether the translated-TTS reading-mode line still has structural blockers, and it states whether the next step should stay in `P9` or move to a new reader workspace mainline.
   - Touches: checklist closeout review notes, tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: this commit
+  - Done commit: d249271
   - Tutorial: `tutorials/commit/0599-record-the-p9-closeout-review.md`.
   - Notes: this review found no remaining structural blocker inside the translated-TTS reading-mode line. Remaining gaps are larger reading/playback product expansions rather than ownership or provenance correctness inside the current notebook contract.
 
@@ -909,6 +909,18 @@ Closeout review verdict:
 - no remaining structural blocker was found in the translated-TTS reading-mode line
 - archive-backed and live waiting-source paths are now both represented inside the dedicated TTS notebook contract
 - the next recommended mainline is not more `P9` micro-slices, but the next reader workspace line that still has a material parity gap
+
+## P10 Reader TTS Runtime Productization
+
+Goal: move dedicated TTS from a correct reading-mode shell into a more trustworthy runtime surface, starting with active-session retarget behavior.
+
+- [x] P10-1.1 Retarget active TTS sessions when ownership changes
+  - Outcome: switching books, switching between source/translated reading, or explicitly returning to the current reading source no longer leaves an active TTS session silently speaking the stale old target while the notebook claims it has moved.
+  - Touches: reader TTS retarget policy helper, route-owned TTS session transitions, focused TTS helper tests, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: this commit
+  - Tutorial: `tutorials/commit/0600-retarget-active-tts-sessions-when-reading-ownership-changes.md`.
+  - Notes: this slice does not add media-session integration, paragraph segmentation, or a richer playback queue. It only makes explicit TTS ownership changes stop lying about which text is currently armed or being spoken.
 
 ## Service Security Gate
 
@@ -1002,4 +1014,5 @@ Use this log when completing each item.
 | 2026-05-05 | Expose translated-TTS archive provenance and jump back to translation mode | f6f8905 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader lets translated tts mode consume the selected translation archive in web mode"`; `git diff --check` | makes archive-backed translated TTS show its provenance inside the TTS tab itself and lets the reader jump straight back to the translation workspace without losing the selected translation record |
 | 2026-05-05 | Keep live translated-TTS provenance in sync with the current reading source | f055232 | `pnpm check`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader lets translated tts mode consume the selected translation archive in web mode"`; `git diff --check` | makes the live translated-TTS path reuse the same current reading source that translation mode already follows, so the notebook summary and waiting-state copy say `等待译文结果` instead of collapsing back to a generic no-target state |
 | 2026-05-05 | Record the P9 closeout boundary | 49aa5b5 | `pnpm check`; `git diff --check` | documents which translation/TTS reading-mode pieces now count as closed in P9 and which larger playback or cross-book expansions remain intentionally out of scope |
-| 2026-05-05 | Run the P9 closeout review | this commit | `pnpm check`; `git diff --check` | records that the translated-TTS reading-mode line no longer has structural blockers and that the next step should be a new reader workspace mainline instead of more P9 micro-slices |
+| 2026-05-05 | Run the P9 closeout review | d249271 | `pnpm check`; `git diff --check` | records that the translated-TTS reading-mode line no longer has structural blockers and that the next step should be a new reader workspace mainline instead of more P9 micro-slices |
+| 2026-05-05 | Retarget active TTS sessions when reading ownership changes | this commit | `pnpm check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git diff --check` | makes explicit TTS ownership changes restart or re-arm the active session instead of leaving speech on the stale old target while the notebook has already switched to a new reading contract |

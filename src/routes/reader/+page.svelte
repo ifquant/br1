@@ -54,6 +54,7 @@
     getReaderTranslationProviderDisplayLabel,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
+    planReaderTtsRetargetAction,
     loadReaderSettings,
     saveReaderSettings,
     serializeReaderAssistanceHistory,
@@ -497,6 +498,9 @@
     assistanceState = createEmptyReaderAssistanceState();
     assistanceHistory = restoreAssistanceHistory();
     assistanceSelection = restoreAssistanceSelection();
+    if ($ttsState.status === 'speaking' || $ttsState.status === 'paused') {
+      ttsController.stop();
+    }
     ttsFollowsCurrentLocation = true;
     pinnedTtsTarget = null;
     translationFollowsCurrentSource = true;
@@ -912,6 +916,23 @@
     ttsController.stop();
   };
 
+  const applyTtsRetarget = (nextTarget: ReaderTtsSpeechTarget | null) => {
+    const action = planReaderTtsRetargetAction($ttsState.status);
+
+    if (action === 'restart-session') {
+      ttsController.start(nextTarget);
+      return;
+    }
+
+    if (action === 'stop-and-arm-target') {
+      ttsController.stop();
+      ttsController.setSpeechTarget(nextTarget);
+      return;
+    }
+
+    ttsController.setSpeechTarget(nextTarget);
+  };
+
   const pinCurrentTtsTarget = () => {
     pinnedTtsTarget = resolvedTtsTarget
       ? {
@@ -920,17 +941,13 @@
         }
       : null;
     ttsFollowsCurrentLocation = false;
-    if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
-      ttsController.setSpeechTarget(pinnedTtsTarget);
-    }
+    applyTtsRetarget(pinnedTtsTarget);
   };
 
   const resumeFollowingCurrentTtsTarget = () => {
     ttsFollowsCurrentLocation = true;
     pinnedTtsTarget = null;
-    if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
-      ttsController.setSpeechTarget(resolvedTtsTarget);
-    }
+    applyTtsRetarget(resolvedTtsTarget);
   };
 
   const setTtsReadAloudTextMode = (mode: ReaderTtsReadAloudTextMode) => {
@@ -941,9 +958,7 @@
       pinnedTtsTarget = null;
       ttsFollowsCurrentLocation = true;
     }
-    if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
-      ttsController.setSpeechTarget(resolveReaderTtsSpeechTarget());
-    }
+    applyTtsRetarget(resolveReaderTtsSpeechTarget());
   };
 
   const pinCurrentTranslationSource = (source?: { text: string; label: string }) => {

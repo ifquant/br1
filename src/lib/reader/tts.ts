@@ -3,6 +3,7 @@ import { createWebSpeechReaderTtsRuntime } from './ttsRuntime';
 import type { ReaderTtsReadAloudTextMode } from './types';
 
 export type ReaderTtsSessionStatus = 'unavailable' | 'idle' | 'speaking' | 'paused' | 'error';
+export type ReaderTtsRetargetAction = 'replace-target' | 'restart-session' | 'stop-and-arm-target';
 
 export type ReaderTtsSessionAction = 'start' | 'pause' | 'resume' | 'stop';
 
@@ -188,6 +189,14 @@ export const getReaderTtsReadableTargetLabel = (state: ReaderTtsSessionState): s
 
 export const getReaderTtsFollowCurrentLabel = (state: ReaderTtsSessionState): string =>
   state.followsCurrent ? READER_TTS_FOLLOW_CURRENT_LABEL : READER_TTS_LOCKED_TARGET_LABEL;
+
+export const planReaderTtsRetargetAction = (
+  status: ReaderTtsSessionStatus
+): ReaderTtsRetargetAction => {
+  if (status === 'speaking') return 'restart-session';
+  if (status === 'paused') return 'stop-and-arm-target';
+  return 'replace-target';
+};
 
 export type ReaderTtsSourceTargetInput = {
   selectedText?: string | null;

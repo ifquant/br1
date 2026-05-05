@@ -129,11 +129,13 @@ export {
   getReaderTtsSessionStatusLabel,
   getReaderTtsStatusDetail,
   normalizeReaderTtsSpeechTarget,
+  planReaderTtsRetargetAction,
   resolveReaderTtsSpeechTargetForMode,
   READER_TTS_NO_TEXT_REASON
 } from './tts';
 export type {
   ReaderTtsControllerOptions,
+  ReaderTtsRetargetAction,
   ReaderTtsSourceTargetInput,
   ReaderTtsSessionAction,
   ReaderTtsSessionState,
