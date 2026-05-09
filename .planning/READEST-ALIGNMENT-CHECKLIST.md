@@ -1030,7 +1030,7 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Outcome: translated TTS no longer drops the reading-canvas playback surface while it is waiting for the current translation source to produce a speakable body, so the reader can still see the waiting state and reopen the TTS workspace from the canvas.
   - Touches: mini-bar visibility helper boundaries, translated waiting target copy, route-owned mini-bar state, focused helper tests, focused TTS smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `86b0c85`.
   - Tutorial: `tutorials/commit/0610-keep-the-mini-tts-bar-visible-while-translated-audio-is-waiting.md`.
   - Notes: this slice does not create a new translated playback runtime. It only keeps the existing waiting state visible on the reading canvas and tied to the current translation source context.
 
