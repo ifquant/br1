@@ -1018,14 +1018,6 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Tutorial: `tutorials/commit/0609-add-a-persistent-in-reader-tts-mini-bar.md`.
   - Notes: this slice projects the existing TTS session back onto the reading surface. It does not add queueing, sentence stepping, or EPUB/PDF live excerpt extraction.
 
-- [x] P11-1.4 Keep the in-reader TTS mini bar visible while translated playback is still waiting on a selected source
-  - Outcome: translated waiting states no longer collapse the in-reader mini bar when the reader has already selected a live or archived translation source but there is still no translated TTS body to speak.
-  - Touches: route-owned mini-bar waiting-state derivation, shared translated-waiting mini-bar helpers, focused TTS helper coverage, focused reader smoke coverage, checklist/tutorial docs.
-  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: pending.
-  - Tutorial: `tutorials/commit/0610-keep-the-mini-tts-bar-visible-during-translated-waiting-states.md`.
-  - Notes: this slice only changes waiting-state presentation. It does not add runtime queueing, provider selection, or any new translated playback behavior.
-
 - [x] P11-1.4 Keep the mini playback bar visible while translated TTS is still waiting
   - Outcome: translated TTS no longer drops the reading-canvas playback surface while it is waiting for the current translation source to produce a speakable body, so the reader can still see the waiting state and reopen the TTS workspace from the canvas.
   - Touches: mini-bar visibility helper boundaries, translated waiting target copy, route-owned mini-bar state, focused helper tests, focused TTS smoke coverage, checklist/tutorial docs.
@@ -1033,6 +1025,14 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Done commit: `86b0c85`.
   - Tutorial: `tutorials/commit/0610-keep-the-mini-tts-bar-visible-while-translated-audio-is-waiting.md`.
   - Notes: this slice does not create a new translated playback runtime. It only keeps the existing waiting state visible on the reading canvas and tied to the current translation source context.
+
+- [x] P11-1.5 Add mode and provenance summaries to the in-reader TTS mini bar
+  - Outcome: the reading-canvas playback bar now tells the reader whether it is in original-text playback or translated playback, and which reading/translation source currently owns that playback surface.
+  - Touches: in-reader mini-bar presentation, route-owned mode/provenance derivation, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0611-add-mode-and-provenance-summaries-to-the-mini-tts-bar.md`.
+  - Notes: this slice does not add new playback controls or runtime semantics. It only makes the existing reading-canvas playback surface more explicit.
 
 
 ## Service Security Gate

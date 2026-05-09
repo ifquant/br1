@@ -49,6 +49,7 @@
   export let ttsSession: ReaderTtsSessionState;
   export let ttsMiniBarVisible = false;
   export let ttsMiniBarStatusLabel = '';
+  export let ttsMiniBarContextSummary = '';
   export let ttsMiniBarTargetLabel = '';
   export let ttsMiniBarLocationSummary = '';
   export let ttsMiniBarPrimaryActionLabel = '开始朗读';
@@ -306,6 +307,7 @@
   {#if ttsMiniBarVisible}
     <ReaderTtsMiniBar
       statusLabel={ttsMiniBarStatusLabel}
+      contextSummary={ttsMiniBarContextSummary}
       targetLabel={ttsMiniBarTargetLabel}
       locationSummary={ttsMiniBarLocationSummary}
       primaryActionLabel={ttsMiniBarPrimaryActionLabel}

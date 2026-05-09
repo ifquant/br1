@@ -1,5 +1,6 @@
 <script lang="ts">
   export let statusLabel = '空闲';
+  export let contextSummary = '';
   export let targetLabel = '';
   export let locationSummary = '';
   export let primaryActionLabel = '开始朗读';
@@ -16,6 +17,7 @@
   <div class="mini-copy">
     <strong>朗读中枢</strong>
     <span>{statusLabel}</span>
+    <span>{contextSummary || '朗读模式待定'}</span>
     <span>{targetLabel || '没有可朗读目标'}</span>
     <span>{locationSummary || '朗读位置待定'}</span>
   </div>

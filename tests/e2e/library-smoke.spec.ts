@@ -1152,6 +1152,7 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
   await expect(miniBar).toBeVisible();
   await expect(miniBar).toContainText('空闲');
+  await expect(miniBar).toContainText('原文朗读');
   await expect(miniBar).toContainText('第 1 / 3 节');
 
   await page.getByLabel('打开朗读模式').click();
@@ -1235,6 +1236,8 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
   const lockTtsTargetButton = page.getByRole('button', { name: '锁定当前朗读目标' });
   const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
+  await expect(miniBar).toContainText('原文朗读');
+  await expect(miniBar).toContainText('当前阅读位置');
   await expect(miniBar).toContainText('正文摘录');
   await expect(currentTargetPanel).toContainText(
     'This plain text file exists to verify the current P0-1 downgrade contract.'
