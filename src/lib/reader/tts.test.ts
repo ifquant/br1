@@ -6,10 +6,13 @@ import {
   READER_TTS_LOCKED_TARGET_LABEL,
   createReaderTtsController,
   createEmptyReaderTtsSessionState,
+  getReaderTtsCompactPlaybackLocationSummary,
   getReaderTtsFollowCurrentLabel,
+  isReaderTtsPlaybackLocationDrifted,
   getReaderTtsPlaybackLocationSummary,
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,
+  shouldShowReaderTtsMiniBar,
   normalizeReaderTtsLanguageTag,
   normalizeReaderTtsSpeechTarget,
   planReaderTtsRetargetAction,
@@ -62,6 +65,65 @@ test('TTS playback-location summary prefers readable chapter and location metada
   });
 
   assert.equal(getReaderTtsPlaybackLocationSummary(state), 'Chapter 3 · 第 1 / 3 节 · 33%');
+});
+
+test('mini bar visibility and compact location summary prefer the active session before the armed target', () => {
+  const session = createEmptyReaderTtsSessionState({
+    status: 'paused',
+    speechChapterLabel: 'Chapter 3',
+    speechLocationLabel: '第 1 / 3 节',
+    speechProgressLabel: '33%'
+  });
+  const target = normalizeReaderTtsSpeechTarget({
+    text: 'current paragraph',
+    label: '当前段落',
+    chapterLabel: 'Chapter 4',
+    locationLabel: '第 2 / 8 节',
+    progressLabel: '25%'
+  });
+
+  assert.equal(shouldShowReaderTtsMiniBar(session, target), true);
+  assert.equal(getReaderTtsCompactPlaybackLocationSummary(session, target), 'Chapter 3 · 第 1 / 3 节 · 33%');
+  assert.equal(
+    shouldShowReaderTtsMiniBar(createEmptyReaderTtsSessionState({ status: 'idle' }), null),
+    false
+  );
+  assert.equal(
+    getReaderTtsCompactPlaybackLocationSummary(createEmptyReaderTtsSessionState({ status: 'idle' }), target),
+    'Chapter 4 · 第 2 / 8 节 · 25%'
+  );
+});
+
+test('playback drift falls back to visible reading metadata when raw progress locations differ', () => {
+  const session = createEmptyReaderTtsSessionState({
+    status: 'idle',
+    speechChapterLabel: '纯文本',
+    speechLocationLabel: '第 188 / 229 行',
+    speechProgressLabel: '82%',
+    speechProgressLocation: 'txt:0.820010',
+    speechProgressFraction: 0.82,
+    speechChapterHref: '#txt-body'
+  });
+
+  assert.equal(
+    isReaderTtsPlaybackLocationDrifted(session, {
+      title: 'TXT 朗读摘录测试',
+      author: '纯文本来源',
+      chapterLabel: '纯文本',
+      chapterHref: '#txt-body',
+      progressLabel: '82%',
+      locationLabel: '第 188 / 229 行',
+      formatLabel: 'TXT',
+      layoutLabel: 'SCROLL',
+      progressFraction: 0.821,
+      progressLocation: 'txt:0.821337',
+      koreaderProgressLocation: '',
+      ttsSourceText: '',
+      ttsSourceLabel: '',
+      ttsSourceLanguage: 'en'
+    }),
+    false
+  );
 });
 
 test('TTS follow-current helper distinguishes fixed targets', () => {

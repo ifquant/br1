@@ -21,6 +21,7 @@
   import type { ReaderTtsSessionState } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
+  import ReaderTtsMiniBar from './ReaderTtsMiniBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
@@ -46,11 +47,21 @@
   export let landmarkRole: 'main' | 'region' = 'main';
   export let landmarkLabel = 'reader stage';
   export let ttsSession: ReaderTtsSessionState;
+  export let ttsMiniBarVisible = false;
+  export let ttsMiniBarStatusLabel = '';
+  export let ttsMiniBarTargetLabel = '';
+  export let ttsMiniBarLocationSummary = '';
+  export let ttsMiniBarPrimaryActionLabel = '开始朗读';
+  export let ttsMiniBarCanRunPrimaryAction = false;
+  export let ttsMiniBarCanStop = false;
+  export let ttsMiniBarCanJumpToPlaybackLocation = false;
   export let notes: ReaderNote[] = [];
   export let onTtsStart: (() => void) | null = null;
   export let onTtsPause: (() => void) | null = null;
   export let onTtsResume: (() => void) | null = null;
   export let onTtsStop: (() => void) | null = null;
+  export let onOpenTtsWorkspace: (() => void) | null = null;
+  export let onJumpToTtsPlaybackLocation: (() => void) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
@@ -291,6 +302,32 @@
       }}
     />
   </article>
+
+  {#if ttsMiniBarVisible}
+    <ReaderTtsMiniBar
+      statusLabel={ttsMiniBarStatusLabel}
+      targetLabel={ttsMiniBarTargetLabel}
+      locationSummary={ttsMiniBarLocationSummary}
+      primaryActionLabel={ttsMiniBarPrimaryActionLabel}
+      canRunPrimaryAction={ttsMiniBarCanRunPrimaryAction}
+      canStop={ttsMiniBarCanStop}
+      canJumpToPlaybackLocation={ttsMiniBarCanJumpToPlaybackLocation}
+      onRunPrimaryAction={() => {
+        if (ttsSession.status === 'speaking') {
+          onTtsPause?.();
+          return;
+        }
+        if (ttsSession.status === 'paused') {
+          onTtsResume?.();
+          return;
+        }
+        onTtsStart?.();
+      }}
+      onStop={onTtsStop}
+      onOpenWorkspace={onOpenTtsWorkspace}
+      onJumpToPlaybackLocation={onJumpToTtsPlaybackLocation}
+    />
+  {/if}
 
   <ReaderFooterBar
     preview={readerPreview}

@@ -279,7 +279,7 @@ test('reader can open a notebook workspace without collapsing navigation', async
 
   await page.getByRole('button', { name: '打开笔记工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: '笔记工作台', exact: true });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('button', { name: '关闭笔记工作台' })).toBeVisible();
   await expect(page.getByRole('tablist', { name: '笔记工作台标签' })).toBeVisible();
@@ -309,7 +309,7 @@ test('reader can open the ai workspace inside the notebook shell', async ({ page
 
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: '笔记工作台', exact: true });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: 'AI 助手', selected: true })).toBeVisible();
   await expect(page.getByText('AI 阅读助手')).toBeVisible();
@@ -1136,6 +1136,9 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
 });
 
 test('reader can open tts mode as a dedicated notebook tab', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+  });
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',
     url: '/samples/sample-book.epub',
@@ -1145,9 +1148,13 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await page.goto(readerHref);
 
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByLabel('打开朗读模式')).toBeVisible({ timeout: 15000 });
+  const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
+  await expect(miniBar).toBeVisible();
+  await expect(miniBar).toContainText('空闲');
+  await expect(miniBar).toContainText('第 1 / 3 节');
 
-  await page.getByRole('button', { name: '打开朗读模式' }).click();
+  await page.getByLabel('打开朗读模式').click();
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
@@ -1190,11 +1197,19 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await page.getByRole('button', { name: '朗读原文' }).click();
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读原文');
   await expect(page.getByLabel('朗读模式状态')).toContainText('原文朗读');
+  await notebook.getByRole('tab', { name: '笔记' }).click();
+  await expect(notebook.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
+  await expect(miniBar).toBeVisible();
+  await miniBar.getByRole('button', { name: '打开朗读工作台' }).click();
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
 });
 
 test('reader uses visible plain-text excerpts as the source tts target in web mode', async ({
   page
 }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+  });
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',
     url: '/samples/sample-book.txt',
@@ -1205,17 +1220,20 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
 
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: '打开朗读模式' }).click();
+  await page.getByRole('button', { name: '朗读原文' }).click();
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
   const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
   const lockTtsTargetButton = page.getByRole('button', { name: '锁定当前朗读目标' });
+  const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
   await expect(currentTargetPanel).toContainText(
     'This plain text file exists to verify the current P0-1 downgrade contract.'
   );
   await expect(currentTargetPanel).toContainText('当前阅读位置');
   await expect(ttsRegion.getByRole('article', { name: '朗读位置' })).toContainText('第 1 /');
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('正文摘录');
+  await expect(miniBar).toContainText('正文摘录');
 
   await page.locator('.plain-text-surface').evaluate((element) => {
     const maxScroll = element.scrollHeight - element.clientHeight;
@@ -1240,13 +1258,20 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
       element.scrollTop = 0;
       element.dispatchEvent(new Event('scroll', { bubbles: true }));
     });
-    const backToTtsLocationButton = page.getByRole('button', { name: '回到朗读位置' });
+    const backToTtsLocationButton = ttsRegion.getByRole('button', { name: '回到朗读位置' });
+    const miniBarBackToTtsLocationButton = miniBar.getByRole('button', { name: '回到朗读位置' });
     await expect(backToTtsLocationButton).toBeVisible();
+    await expect(miniBarBackToTtsLocationButton).toBeVisible();
     await expect(page.getByLabel('笔记工作台摘要')).toContainText('可回到朗读位置');
     await expect(ttsRegion.getByRole('article', { name: '朗读位置' })).toContainText('已固定到较早的朗读位置');
     await expect(ttsRegion.locator('.tts-panel').last()).toContainText('当前阅读已经离开朗读位置');
-    await backToTtsLocationButton.click();
+    await page.getByLabel('收起笔记工作台').click();
+    await expect(page.getByRole('complementary', { name: '笔记工作台已收起', exact: true })).toBeVisible();
+    await miniBarBackToTtsLocationButton.click();
     await expect(backToTtsLocationButton).toHaveCount(0);
+    await expect(miniBarBackToTtsLocationButton).toHaveCount(0);
+    await miniBar.getByRole('button', { name: '打开朗读工作台' }).click();
+    await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
     await expect(page.getByLabel('笔记工作台摘要')).not.toContainText('可回到朗读位置');
     await expect(ttsRegion.locator('.tts-panel').last()).not.toContainText('当前阅读已经离开朗读位置');
   }

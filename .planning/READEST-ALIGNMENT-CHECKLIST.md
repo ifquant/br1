@@ -1010,6 +1010,14 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Tutorial: `tutorials/commit/0608-add-readable-playback-location-summaries-to-dedicated-tts.md`.
   - Notes: this slice stays on the playback surface. It does not add queueing, sentence stepping, or EPUB/PDF live excerpt extraction.
 
+- [x] P11-1.3 Add a persistent in-reader TTS mini playback bar
+  - Outcome: the active TTS session now stays visible on the reading canvas itself, so readers can reopen dedicated TTS, pause/resume, stop, and jump back to the playback location without reopening the notebook first.
+  - Touches: reader stage chrome, route-owned mini-bar visibility and drift detection, shared TTS playback-location helpers, focused helper tests, focused TTS smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0609-add-a-persistent-in-reader-tts-mini-bar.md`.
+  - Notes: this slice projects the existing TTS session back onto the reading surface. It does not add queueing, sentence stepping, or EPUB/PDF live excerpt extraction.
+
 
 ## Service Security Gate
 

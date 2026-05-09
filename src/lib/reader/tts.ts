@@ -4,7 +4,7 @@ import {
   type ReaderTtsRuntime,
   type ReaderTtsRuntimeMediaSessionSnapshot
 } from './ttsRuntime';
-import type { ReaderTtsReadAloudTextMode } from './types';
+import type { ReaderPreviewState, ReaderTtsReadAloudTextMode } from './types';
 
 export type ReaderTtsSessionStatus = 'unavailable' | 'idle' | 'speaking' | 'paused' | 'error';
 export type ReaderTtsRetargetAction = 'replace-target' | 'restart-session' | 'stop-and-arm-target';
@@ -256,6 +256,70 @@ export const getReaderTtsPlaybackLocationSummary = (state: ReaderTtsSessionState
   ]
     .filter(Boolean)
     .join(' · ');
+
+const getReaderTtsTargetPlaybackLocationSummary = (target: ReaderTtsSpeechTarget | null): string =>
+  [
+    trimReaderTtsLabel(target?.chapterLabel),
+    trimReaderTtsLabel(target?.locationLabel),
+    trimReaderTtsLabel(target?.progressLabel)
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+export const getReaderTtsCompactPlaybackLocationSummary = (
+  state: ReaderTtsSessionState,
+  target: ReaderTtsSpeechTarget | null
+): string => getReaderTtsPlaybackLocationSummary(state) || getReaderTtsTargetPlaybackLocationSummary(target);
+
+export const shouldShowReaderTtsMiniBar = (
+  state: ReaderTtsSessionState,
+  target: ReaderTtsSpeechTarget | null
+): boolean =>
+  !!(
+    getReaderTtsReadableTargetLabel(state) ||
+    normalizeReaderTtsSpeechTarget(target)?.text ||
+    state.status === 'speaking' ||
+    state.status === 'paused' ||
+    state.status === 'error'
+  );
+
+export const isReaderTtsPlaybackLocationDrifted = (
+  state: ReaderTtsSessionState,
+  preview: ReaderPreviewState
+): boolean => {
+  const speechProgressLocation = trimReaderTtsLabel(state.speechProgressLocation);
+  const previewProgressLocation = trimReaderTtsLabel(preview.progressLocation);
+  if (!speechProgressLocation || !previewProgressLocation) return false;
+  if (speechProgressLocation === previewProgressLocation) return false;
+
+  const sameChapterHref =
+    !!trimReaderTtsLabel(state.speechChapterHref) &&
+    trimReaderTtsLabel(state.speechChapterHref) === trimReaderTtsLabel(preview.chapterHref);
+  const sameChapterLabel =
+    !!trimReaderTtsLabel(state.speechChapterLabel) &&
+    trimReaderTtsLabel(state.speechChapterLabel) === trimReaderTtsLabel(preview.chapterLabel);
+  const sameLocationLabel =
+    !!trimReaderTtsLabel(state.speechLocationLabel) &&
+    trimReaderTtsLabel(state.speechLocationLabel) === trimReaderTtsLabel(preview.locationLabel);
+  const sameProgressLabel =
+    !!trimReaderTtsLabel(state.speechProgressLabel) &&
+    trimReaderTtsLabel(state.speechProgressLabel) === trimReaderTtsLabel(preview.progressLabel);
+  const sameProgressFraction =
+    state.speechProgressFraction !== null &&
+    Number.isFinite(state.speechProgressFraction) &&
+    Number.isFinite(preview.progressFraction) &&
+    Math.abs(state.speechProgressFraction - preview.progressFraction) <= 0.01;
+
+  if ((sameChapterHref || sameChapterLabel) && (sameLocationLabel || sameProgressLabel || sameProgressFraction)) {
+    return false;
+  }
+
+  if (sameLocationLabel && (sameProgressLabel || sameProgressFraction)) {
+    return false;
+  }
+
+  return true;
+};
 
 export const planReaderTtsRetargetAction = (
   status: ReaderTtsSessionStatus

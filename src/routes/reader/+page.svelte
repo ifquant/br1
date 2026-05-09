@@ -50,6 +50,11 @@
     canRequestAssistanceForText,
     getReaderAssistanceRequestContextLabel,
     getReaderLocationDisplayLabel,
+    getReaderTtsCompactPlaybackLocationSummary,
+    isReaderTtsPlaybackLocationDrifted,
+    getReaderTtsPrimaryActionLabel,
+    getReaderTtsReadableTargetLabel,
+    getReaderTtsSessionStatusLabel,
     normalizeAssistanceText,
     normalizeAssistanceTerm,
     getReaderTranslationProviderDisplayLabel,
@@ -60,6 +65,7 @@
     saveReaderSettings,
     serializeReaderAssistanceHistory,
     serializeReaderAssistanceWorkspaceSelection,
+    shouldShowReaderTtsMiniBar,
     resolveReaderTtsSpeechTargetForMode,
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
@@ -590,7 +596,39 @@
   $: canJumpToCurrentTtsLocation =
     !!activeTtsProgressLocation &&
     !!currentPreviewProgressLocation &&
-    activeTtsProgressLocation !== currentPreviewProgressLocation;
+    isReaderTtsPlaybackLocationDrifted($ttsState, currentPreview);
+  $: previewPlaybackLocationSummary = [
+    currentPreview.chapterLabel.trim() && currentPreview.chapterLabel.trim() !== '等待打开书籍'
+      ? currentPreview.chapterLabel.trim()
+      : '',
+    currentPreview.locationLabel.trim() &&
+    currentPreview.locationLabel.trim() !== READER_OPENING_LOCATION_LABEL &&
+    currentPreview.locationLabel.trim() !== READER_NOT_OPENED_LOCATION_LABEL
+      ? getReaderLocationDisplayLabel(currentPreview.locationLabel).trim()
+      : '',
+    currentPreview.progressLabel.trim()
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  $: ttsMiniBarLocationSummary =
+    getReaderTtsCompactPlaybackLocationSummary($ttsState, effectiveTtsTarget) ||
+    (ttsReadAloudTextMode === 'translated' ? previewPlaybackLocationSummary : '');
+  $: ttsMiniBarVisible = shouldShowReaderTtsMiniBar($ttsState, effectiveTtsTarget);
+  $: ttsMiniBarStatusLabel = getReaderTtsSessionStatusLabel($ttsState);
+  $: ttsMiniBarTargetLabel =
+    getReaderTtsReadableTargetLabel($ttsState) ||
+    effectiveTtsTarget?.targetLabel?.trim() ||
+    effectiveTtsTarget?.label?.trim() ||
+    (ttsReadAloudTextMode === 'translated' &&
+    !effectiveTtsTarget?.text.trim() &&
+    translatedTtsSourceText.trim()
+      ? '等待译文结果'
+      : '');
+  $: ttsMiniBarPrimaryActionLabel = getReaderTtsPrimaryActionLabel($ttsState);
+  $: ttsMiniBarCanStop = $ttsState.status === 'speaking' || $ttsState.status === 'paused';
+  $: ttsMiniBarCanRunPrimaryAction =
+    (!!effectiveTtsTarget?.text.trim() && $ttsState.status !== 'unavailable') ||
+    ($ttsState.status === 'paused' && !!getReaderTtsReadableTargetLabel($ttsState));
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
   }
@@ -1003,6 +1041,11 @@
       ttsFollowsCurrentLocation = true;
     }
     applyTtsRetarget(resolveReaderTtsSpeechTarget());
+  };
+
+  const openTtsWorkspace = () => {
+    notebookVisible = true;
+    notebookTab = 'tts';
   };
 
   const pinCurrentTranslationSource = (source?: { text: string; label: string }) => {
@@ -1504,6 +1547,16 @@
           onTtsPause={handleTtsPause}
           onTtsResume={handleTtsResume}
           onTtsStop={handleTtsStop}
+          ttsMiniBarVisible={ttsMiniBarVisible}
+          ttsMiniBarStatusLabel={ttsMiniBarStatusLabel}
+          ttsMiniBarTargetLabel={ttsMiniBarTargetLabel}
+          ttsMiniBarLocationSummary={ttsMiniBarLocationSummary}
+          ttsMiniBarPrimaryActionLabel={ttsMiniBarPrimaryActionLabel}
+          ttsMiniBarCanRunPrimaryAction={ttsMiniBarCanRunPrimaryAction}
+          ttsMiniBarCanStop={ttsMiniBarCanStop}
+          ttsMiniBarCanJumpToPlaybackLocation={canJumpToCurrentTtsLocation}
+          onOpenTtsWorkspace={openTtsWorkspace}
+          onJumpToTtsPlaybackLocation={jumpToCurrentTtsLocation}
         />
 
         {#if parallelEnabled}

@@ -122,7 +122,9 @@ export {
   createReaderTtsController,
   createSpeakingReaderTtsSessionState,
   createUnavailableReaderTtsSessionState,
+  getReaderTtsCompactPlaybackLocationSummary,
   getReaderTtsFollowCurrentLabel,
+  isReaderTtsPlaybackLocationDrifted,
   getReaderTtsPlaybackLocationSummary,
   getReaderTtsPrimaryActionLabel,
   getReaderTtsReadableSourceLabel,
@@ -132,6 +134,7 @@ export {
   normalizeReaderTtsLanguageTag,
   normalizeReaderTtsSpeechTarget,
   planReaderTtsRetargetAction,
+  shouldShowReaderTtsMiniBar,
   resolveReaderTtsSpeechTargetForMode,
   READER_TTS_NO_TEXT_REASON
 } from './tts';
