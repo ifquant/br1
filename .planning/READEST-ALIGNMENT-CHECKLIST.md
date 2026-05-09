@@ -1030,7 +1030,7 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Outcome: the reading-canvas playback bar now tells the reader whether it is in original-text playback or translated playback, and which reading/translation source currently owns that playback surface.
   - Touches: in-reader mini-bar presentation, route-owned mode/provenance derivation, focused reader smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `9d82c4c`.
   - Tutorial: `tutorials/commit/0611-add-mode-and-provenance-summaries-to-the-mini-tts-bar.md`.
   - Notes: this slice does not add new playback controls or runtime semantics. It only makes the existing reading-canvas playback surface more explicit.
 
