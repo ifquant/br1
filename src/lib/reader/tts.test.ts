@@ -12,6 +12,7 @@ import {
   getReaderTtsPlaybackLocationSummary,
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,
+  getReaderTtsTranslatedWaitingTargetLabel,
   shouldShowReaderTtsMiniBar,
   normalizeReaderTtsLanguageTag,
   normalizeReaderTtsSpeechTarget,
@@ -92,6 +93,15 @@ test('mini bar visibility and compact location summary prefer the active session
     getReaderTtsCompactPlaybackLocationSummary(createEmptyReaderTtsSessionState({ status: 'idle' }), target),
     'Chapter 4 · 第 2 / 8 节 · 25%'
   );
+});
+
+test('translated waiting state keeps the mini bar visible and names the active translation source', () => {
+  const session = createEmptyReaderTtsSessionState({ status: 'idle' });
+  const waitingTargetLabel = getReaderTtsTranslatedWaitingTargetLabel('正在跟随当前章节');
+
+  assert.equal(waitingTargetLabel, '等待译文结果 · 正在跟随当前章节');
+  assert.equal(shouldShowReaderTtsMiniBar(session, null), false);
+  assert.equal(shouldShowReaderTtsMiniBar(session, null, waitingTargetLabel), true);
 });
 
 test('playback drift falls back to visible reading metadata when raw progress locations differ', () => {

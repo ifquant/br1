@@ -129,6 +129,7 @@ export {
   getReaderTtsPrimaryActionLabel,
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,
+  getReaderTtsTranslatedWaitingTargetLabel,
   getReaderTtsSessionStatusLabel,
   getReaderTtsStatusDetail,
   normalizeReaderTtsLanguageTag,

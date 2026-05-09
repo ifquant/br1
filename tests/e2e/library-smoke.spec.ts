@@ -1193,6 +1193,14 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   } else {
     await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读目标：等待译文结果');
     await expect(lockTtsTargetButton).toBeDisabled();
+    await page.getByLabel('收起笔记工作台').click();
+    await expect(page.getByRole('complementary', { name: '笔记工作台已收起', exact: true })).toBeVisible();
+    await expect(miniBar).toBeVisible();
+    await expect(miniBar).toContainText('等待译文结果');
+    await expect(miniBar).toContainText('正在跟随当前章节');
+    await expect(miniBar).toContainText('第 1 / 3 节');
+    await miniBar.getByRole('button', { name: '打开朗读工作台' }).click();
+    await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
   }
   await page.getByRole('button', { name: '朗读原文' }).click();
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读原文');
@@ -1227,6 +1235,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
   const lockTtsTargetButton = page.getByRole('button', { name: '锁定当前朗读目标' });
   const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
+  await expect(miniBar).toContainText('正文摘录');
   await expect(currentTargetPanel).toContainText(
     'This plain text file exists to verify the current P0-1 downgrade contract.'
   );

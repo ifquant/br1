@@ -55,6 +55,7 @@
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel,
+    getReaderTtsTranslatedWaitingTargetLabel,
     normalizeAssistanceText,
     normalizeAssistanceTerm,
     getReaderTranslationProviderDisplayLabel,
@@ -613,17 +614,24 @@
   $: ttsMiniBarLocationSummary =
     getReaderTtsCompactPlaybackLocationSummary($ttsState, effectiveTtsTarget) ||
     (ttsReadAloudTextMode === 'translated' ? previewPlaybackLocationSummary : '');
-  $: ttsMiniBarVisible = shouldShowReaderTtsMiniBar($ttsState, effectiveTtsTarget);
+  $: ttsMiniBarTranslatedWaitingTargetLabel =
+    ttsReadAloudTextMode === 'translated' &&
+    !getReaderTtsReadableTargetLabel($ttsState) &&
+    !effectiveTtsTarget?.text.trim() &&
+    translatedTtsSourceKind !== 'none'
+      ? getReaderTtsTranslatedWaitingTargetLabel(translatedTtsSourceContextLabel)
+      : '';
+  $: ttsMiniBarVisible = shouldShowReaderTtsMiniBar(
+    $ttsState,
+    effectiveTtsTarget,
+    ttsMiniBarTranslatedWaitingTargetLabel
+  );
   $: ttsMiniBarStatusLabel = getReaderTtsSessionStatusLabel($ttsState);
   $: ttsMiniBarTargetLabel =
     getReaderTtsReadableTargetLabel($ttsState) ||
     effectiveTtsTarget?.targetLabel?.trim() ||
     effectiveTtsTarget?.label?.trim() ||
-    (ttsReadAloudTextMode === 'translated' &&
-    !effectiveTtsTarget?.text.trim() &&
-    translatedTtsSourceText.trim()
-      ? '等待译文结果'
-      : '');
+    ttsMiniBarTranslatedWaitingTargetLabel;
   $: ttsMiniBarPrimaryActionLabel = getReaderTtsPrimaryActionLabel($ttsState);
   $: ttsMiniBarCanStop = $ttsState.status === 'speaking' || $ttsState.status === 'paused';
   $: ttsMiniBarCanRunPrimaryAction =

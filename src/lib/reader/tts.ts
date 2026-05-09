@@ -271,13 +271,28 @@ export const getReaderTtsCompactPlaybackLocationSummary = (
   target: ReaderTtsSpeechTarget | null
 ): string => getReaderTtsPlaybackLocationSummary(state) || getReaderTtsTargetPlaybackLocationSummary(target);
 
+export const getReaderTtsTranslatedWaitingTargetLabel = (sourceContextLabel: string): string => {
+  const normalizedContextLabel = sourceContextLabel.trim();
+  return normalizedContextLabel
+    ? `等待译文结果 · ${normalizedContextLabel}`
+    : '等待译文结果';
+};
+
 export const shouldShowReaderTtsMiniBar = (
   state: ReaderTtsSessionState,
-  target: ReaderTtsSpeechTarget | null
+  target: ReaderTtsSpeechTarget | null,
+  options: {
+    readAloudTextMode?: ReaderTtsReadAloudTextMode;
+    translatedWaitingSourceText?: string | null;
+  } | string = {}
 ): boolean =>
   !!(
     getReaderTtsReadableTargetLabel(state) ||
     normalizeReaderTtsSpeechTarget(target)?.text ||
+    (typeof options === 'string'
+      ? options.trim()
+      : options.readAloudTextMode === 'translated' &&
+        (options.translatedWaitingSourceText?.trim() || '')) ||
     state.status === 'speaking' ||
     state.status === 'paused' ||
     state.status === 'error'
