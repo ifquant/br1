@@ -7,6 +7,7 @@ import {
   createReaderTtsController,
   createEmptyReaderTtsSessionState,
   getReaderTtsFollowCurrentLabel,
+  getReaderTtsPlaybackLocationSummary,
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,
   normalizeReaderTtsLanguageTag,
@@ -31,6 +32,9 @@ test('normalizeReaderTtsSpeechTarget keeps explicit source and follow-current me
     targetLabel: '当前段落',
     followsCurrent: true,
     lang: undefined,
+    chapterLabel: undefined,
+    locationLabel: undefined,
+    progressLabel: undefined,
     progressLocation: undefined,
     progressFraction: undefined,
     chapterHref: undefined
@@ -48,6 +52,16 @@ test('TTS readable helpers fall back to the richer target metadata first', () =>
   assert.equal(getReaderTtsReadableSourceLabel(state), '正文');
   assert.equal(getReaderTtsReadableTargetLabel(state), '当前段落');
   assert.equal(getReaderTtsFollowCurrentLabel(state), READER_TTS_FOLLOW_CURRENT_LABEL);
+});
+
+test('TTS playback-location summary prefers readable chapter and location metadata', () => {
+  const state = createEmptyReaderTtsSessionState({
+    speechChapterLabel: 'Chapter 3',
+    speechLocationLabel: '第 1 / 3 节',
+    speechProgressLabel: '33%'
+  });
+
+  assert.equal(getReaderTtsPlaybackLocationSummary(state), 'Chapter 3 · 第 1 / 3 节 · 33%');
 });
 
 test('TTS follow-current helper distinguishes fixed targets', () => {
@@ -68,11 +82,16 @@ test('translated TTS mode prefers the current translation result', () => {
     source: {
       selectedText: 'original paragraph',
       chapterLabel: 'Chapter 3',
+      locationLabel: 'Location 3',
+      progressLabel: '32%',
       title: 'Sample Book'
     },
     translated: {
       translatedText: ' translated paragraph ',
       providerLabel: 'DeepL',
+      chapterLabel: 'Chapter 3',
+      locationLabel: 'Location 3',
+      progressLabel: '32%',
       targetLanguage: 'zh'
     }
   });
@@ -84,6 +103,9 @@ test('translated TTS mode prefers the current translation result', () => {
     targetLabel: '译文',
     followsCurrent: true,
     lang: 'zh-CN',
+    chapterLabel: 'Chapter 3',
+    locationLabel: 'Location 3',
+    progressLabel: '32%',
     progressLocation: undefined,
     progressFraction: null,
     chapterHref: undefined
@@ -96,6 +118,8 @@ test('translated TTS mode preserves explicit archive-versus-live source labels',
     source: {
       selectedText: 'original paragraph',
       chapterLabel: 'Chapter 3',
+      locationLabel: 'Location 3',
+      progressLabel: '32%',
       title: 'Sample Book'
     },
     translated: {
@@ -107,6 +131,9 @@ test('translated TTS mode preserves explicit archive-versus-live source labels',
 
   assert.equal(target?.sourceLabel, '历史译文 · DeepL');
   assert.equal(target?.lang, 'en-US');
+  assert.equal(target?.chapterLabel, 'Chapter 3');
+  assert.equal(target?.locationLabel, 'Location 3');
+  assert.equal(target?.progressLabel, '32%');
 });
 
 test('translated TTS mode yields no target when there is no translation result yet', () => {
@@ -134,6 +161,8 @@ test('source TTS mode prefers a live reading excerpt before chapter-title fallba
       excerptText: ' This plain text file exists to verify the current contract. ',
       excerptSourceLabel: '当前阅读位置',
       sourceLanguage: 'en',
+      locationLabel: 'Line 42',
+      progressLabel: '24%',
       progressLocation: 'txt:0.245000',
       progressFraction: 0.245,
       chapterHref: '#txt-body',
@@ -149,6 +178,9 @@ test('source TTS mode prefers a live reading excerpt before chapter-title fallba
     targetLabel: '正文摘录',
     followsCurrent: true,
     lang: 'en-US',
+    chapterLabel: '纯文本',
+    locationLabel: 'Line 42',
+    progressLabel: '24%',
     progressLocation: 'txt:0.245000',
     progressFraction: 0.245,
     chapterHref: '#txt-body'
@@ -163,6 +195,8 @@ test('source TTS mode carries EPUB metadata language into chapter fallback targe
       excerptText: '',
       excerptSourceLabel: '',
       sourceLanguage: 'fr',
+      locationLabel: 'Page 1',
+      progressLabel: '12%',
       progressLocation: 'epubcfi(/6/2[chap01]!/4/2/6)',
       chapterHref: '#chap01',
       chapterLabel: 'Chapitre 1',
@@ -177,6 +211,9 @@ test('source TTS mode carries EPUB metadata language into chapter fallback targe
     targetLabel: '章节标题',
     followsCurrent: true,
     lang: 'fr-FR',
+    chapterLabel: 'Chapitre 1',
+    locationLabel: 'Page 1',
+    progressLabel: '12%',
     progressLocation: 'epubcfi(/6/2[chap01]!/4/2/6)',
     progressFraction: null,
     chapterHref: '#chap01'

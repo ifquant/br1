@@ -123,6 +123,7 @@ export {
   createSpeakingReaderTtsSessionState,
   createUnavailableReaderTtsSessionState,
   getReaderTtsFollowCurrentLabel,
+  getReaderTtsPlaybackLocationSummary,
   getReaderTtsPrimaryActionLabel,
   getReaderTtsReadableSourceLabel,
   getReaderTtsReadableTargetLabel,

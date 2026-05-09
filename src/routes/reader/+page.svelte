@@ -49,6 +49,7 @@
     READER_OPENING_LOCATION_LABEL,
     canRequestAssistanceForText,
     getReaderAssistanceRequestContextLabel,
+    getReaderLocationDisplayLabel,
     normalizeAssistanceText,
     normalizeAssistanceTerm,
     getReaderTranslationProviderDisplayLabel,
@@ -402,6 +403,12 @@
   function resolveReaderTtsSpeechTarget(): ReaderTtsSpeechTarget | null {
     const chapterLabel = currentPreview.chapterLabel.trim();
     const title = currentPreview.title.trim();
+    const locationLabel =
+      currentPreview.locationLabel === READER_NOT_OPENED_LOCATION_LABEL ||
+      currentPreview.locationLabel === READER_OPENING_LOCATION_LABEL
+        ? ''
+        : getReaderLocationDisplayLabel(currentPreview.locationLabel).trim();
+    const progressLabel = currentPreview.progressLabel.trim();
     const selectedTranslationHistoryEntryId = assistanceSelection.translationHistoryEntryId.trim();
     const selectedTranslationHistoryEntry = selectedTranslationHistoryEntryId
       ? assistanceHistory.find(
@@ -421,6 +428,7 @@
                 selectedTranslationHistoryEntry.result.sourceLabel ||
                 getReaderTranslationProviderDisplayLabel(selectedTranslationHistoryEntry.request.provider)
               }`,
+            chapterLabel: selectedTranslationHistoryEntry.request.chapterLabel,
             progressLocation: selectedTranslationHistoryEntry.request.cfi,
             chapterHref: ''
           }
@@ -437,6 +445,10 @@
                 assistanceState.result.sourceLabel ||
                 getReaderTranslationProviderDisplayLabel(assistanceState.activeRequest.provider)
               }`,
+            chapterLabel:
+              assistanceState.activeRequest.chapterLabel || chapterLabel,
+            locationLabel,
+            progressLabel,
             progressLocation: assistanceState.activeRequest.cfi || currentPreview.progressLocation,
             progressFraction: currentPreview.progressFraction,
             chapterHref: currentPreview.chapterHref
@@ -450,6 +462,8 @@
         excerptText: currentPreview.ttsSourceText,
         excerptSourceLabel: currentPreview.ttsSourceLabel,
         sourceLanguage: currentPreview.ttsSourceLanguage,
+        locationLabel,
+        progressLabel,
         progressLocation: currentPreview.progressLocation,
         progressFraction: currentPreview.progressFraction,
         chapterHref: currentPreview.chapterHref,

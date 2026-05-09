@@ -5,6 +5,7 @@
     ReaderTtsSpeechTarget
   } from '$lib/reader';
   import {
+    getReaderTtsPlaybackLocationSummary,
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableSourceLabel,
     getReaderTtsReadableTargetLabel,
@@ -17,6 +18,7 @@
   export let followsCurrentLocation = true;
   export let readAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
   export let canJumpToCurrentTtsLocation = false;
+  export let fallbackPlaybackLocationSummary = '';
   export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   export let translatedWaitingSourceLabel = '';
   export let translatedWaitingSourceText = '';
@@ -39,6 +41,23 @@
   $: ttsSourceLabel = getReaderTtsReadableSourceLabel(ttsSession);
   $: ttsTargetLabel = getReaderTtsReadableTargetLabel(ttsSession);
   $: ttsFollowLabel = followsCurrentLocation ? '跟随当前阅读位置' : '已锁定朗读目标';
+  $: playbackLocationSummary = getReaderTtsPlaybackLocationSummary(ttsSession);
+  $: normalizedFallbackPlaybackLocationSummary = fallbackPlaybackLocationSummary.trim();
+  $: effectivePlaybackLocationSummary =
+    playbackLocationSummary ||
+    (readAloudTextMode === 'translated' ? normalizedFallbackPlaybackLocationSummary : '');
+  $: ttsPlaybackLocationDetail = effectivePlaybackLocationSummary
+    ? canJumpToCurrentTtsLocation
+      ? `已固定到较早的朗读位置 · ${effectivePlaybackLocationSummary}`
+      : followsCurrentLocation
+        ? effectivePlaybackLocationSummary
+        : `已固定朗读位置 · ${effectivePlaybackLocationSummary}`
+    : '';
+  $: playbackOwnershipLabel = followsCurrentLocation
+    ? '正在跟随当前阅读位置'
+    : canJumpToCurrentTtsLocation
+      ? '已固定到较早的朗读位置'
+      : '已固定当前朗读位置';
   $: readAloudTextModeLabel = readAloudTextMode === 'translated' ? '译文朗读' : '原文朗读';
   $: canStop = ttsSession.status === 'speaking' || ttsSession.status === 'paused';
   $: hasTarget = !!target?.text.trim();
@@ -60,6 +79,11 @@
       : translatedTtsSourceKind === 'live-translation' || normalizedTranslationModeSourceText
         ? '正在等待当前翻译阅读来源产出译文结果。'
         : '当前还没有可用于译文朗读的翻译来源。';
+  $: effectivePlaybackOwnershipLabel =
+    effectivePlaybackLocationSummary && !playbackLocationSummary && readAloudTextMode === 'translated'
+      ? translatedSourceContextLabel ||
+        (translationModeFollowsCurrent ? '正在跟随当前阅读位置' : '已锁定当前翻译目标')
+      : playbackOwnershipLabel;
 
   const runPrimaryAction = () => {
     if (ttsSession.status === 'speaking') {
@@ -87,6 +111,7 @@
     <span>{ttsFollowLabel}</span>
     <span>{readAloudTextModeLabel}</span>
     <span>{ttsTargetLabel || '没有可朗读目标'}</span>
+    <span>{effectivePlaybackLocationSummary || '朗读位置待定'}</span>
   </div>
 
   <div class="tts-actions">
@@ -157,6 +182,11 @@
           当前没有可朗读内容。
         {/if}
       </p>
+    </article>
+    <article class="tts-panel" aria-label="朗读位置">
+      <strong>朗读位置</strong>
+      <span>{effectivePlaybackOwnershipLabel}</span>
+      <p>{effectivePlaybackLocationSummary || '当前这段朗读还没有可显示的位置摘要。'}</p>
     </article>
     {#if readAloudTextMode === 'translated'}
       <article class="tts-panel" aria-label="译文朗读来源">

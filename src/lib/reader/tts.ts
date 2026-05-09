@@ -18,6 +18,9 @@ export type ReaderTtsSpeechTarget = {
   targetLabel?: string;
   followsCurrent?: boolean;
   lang?: string;
+  chapterLabel?: string;
+  locationLabel?: string;
+  progressLabel?: string;
   progressLocation?: string;
   progressFraction?: number | null;
   chapterHref?: string;
@@ -32,6 +35,9 @@ export type ReaderTtsSessionState = {
   speechSourceLabel: string;
   speechTargetLabel: string;
   followsCurrent: boolean;
+  speechChapterLabel: string;
+  speechLocationLabel: string;
+  speechProgressLabel: string;
   speechProgressLocation: string;
   speechProgressFraction: number | null;
   speechChapterHref: string;
@@ -59,6 +65,9 @@ const createReaderTtsSessionTargetState = (target: ReaderTtsSpeechTarget | null)
     normalizedTarget?.targetLabel || normalizedTarget?.label
   );
   const speechSourceLabel = trimReaderTtsLabel(normalizedTarget?.sourceLabel);
+  const speechChapterLabel = trimReaderTtsLabel(normalizedTarget?.chapterLabel);
+  const speechLocationLabel = trimReaderTtsLabel(normalizedTarget?.locationLabel);
+  const speechProgressLabel = trimReaderTtsLabel(normalizedTarget?.progressLabel);
   const speechProgressLocation = trimReaderTtsLabel(normalizedTarget?.progressLocation);
   const speechChapterHref = trimReaderTtsLabel(normalizedTarget?.chapterHref);
   const speechProgressFraction =
@@ -72,6 +81,9 @@ const createReaderTtsSessionTargetState = (target: ReaderTtsSpeechTarget | null)
     speechSourceLabel,
     speechTargetLabel,
     followsCurrent: !!normalizedTarget?.followsCurrent,
+    speechChapterLabel,
+    speechLocationLabel,
+    speechProgressLabel,
     speechProgressLocation,
     speechProgressFraction,
     speechChapterHref
@@ -90,6 +102,9 @@ export const normalizeReaderTtsSpeechTarget = (
   const sourceLabel = trimReaderTtsLabel(normalizedTarget?.sourceLabel);
   const targetLabel = trimReaderTtsLabel(normalizedTarget?.targetLabel) || label;
   const lang = trimReaderTtsLabel(normalizedTarget?.lang);
+  const chapterLabel = trimReaderTtsLabel(normalizedTarget?.chapterLabel);
+  const locationLabel = trimReaderTtsLabel(normalizedTarget?.locationLabel);
+  const progressLabel = trimReaderTtsLabel(normalizedTarget?.progressLabel);
   const progressLocation = trimReaderTtsLabel(normalizedTarget?.progressLocation);
   const chapterHref = trimReaderTtsLabel(normalizedTarget?.chapterHref);
   const progressFraction =
@@ -105,6 +120,9 @@ export const normalizeReaderTtsSpeechTarget = (
     targetLabel: targetLabel || undefined,
     followsCurrent: !!normalizedTarget?.followsCurrent,
     lang: lang || undefined,
+    chapterLabel: chapterLabel || undefined,
+    locationLabel: locationLabel || undefined,
+    progressLabel: progressLabel || undefined,
     progressLocation: progressLocation || undefined,
     progressFraction,
     chapterHref: chapterHref || undefined
@@ -122,6 +140,9 @@ export const createEmptyReaderTtsSessionState = (
   speechSourceLabel: '',
   speechTargetLabel: '',
   followsCurrent: false,
+  speechChapterLabel: '',
+  speechLocationLabel: '',
+  speechProgressLabel: '',
   speechProgressLocation: '',
   speechProgressFraction: null,
   speechChapterHref: '',
@@ -227,6 +248,15 @@ export const getReaderTtsReadableTargetLabel = (state: ReaderTtsSessionState): s
 export const getReaderTtsFollowCurrentLabel = (state: ReaderTtsSessionState): string =>
   state.followsCurrent ? READER_TTS_FOLLOW_CURRENT_LABEL : READER_TTS_LOCKED_TARGET_LABEL;
 
+export const getReaderTtsPlaybackLocationSummary = (state: ReaderTtsSessionState): string =>
+  [
+    trimReaderTtsLabel(state.speechChapterLabel),
+    trimReaderTtsLabel(state.speechLocationLabel),
+    trimReaderTtsLabel(state.speechProgressLabel)
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
 export const planReaderTtsRetargetAction = (
   status: ReaderTtsSessionStatus
 ): ReaderTtsRetargetAction => {
@@ -240,10 +270,12 @@ export type ReaderTtsSourceTargetInput = {
   excerptText?: string | null;
   excerptSourceLabel?: string | null;
   sourceLanguage?: string | null;
+  chapterLabel?: string | null;
+  locationLabel?: string | null;
+  progressLabel?: string | null;
   progressLocation?: string | null;
   progressFraction?: number | null;
   chapterHref?: string | null;
-  chapterLabel?: string | null;
   title?: string | null;
 };
 
@@ -251,6 +283,9 @@ export type ReaderTtsTranslatedTargetInput = {
   translatedText?: string | null;
   providerLabel?: string | null;
   targetLanguage?: string | null;
+  chapterLabel?: string | null;
+  locationLabel?: string | null;
+  progressLabel?: string | null;
   progressLocation?: string | null;
   progressFraction?: number | null;
   chapterHref?: string | null;
@@ -305,6 +340,8 @@ export const resolveReaderTtsSpeechTargetForMode = ({
   const normalizedExcerptText = source.excerptText?.trim() || '';
   const normalizedExcerptSourceLabel = source.excerptSourceLabel?.trim() || '';
   const normalizedSourceLanguage = normalizeReaderTtsLanguageTag(source.sourceLanguage);
+  const normalizedSourceLocationLabel = source.locationLabel?.trim() || '';
+  const normalizedSourceProgressLabel = source.progressLabel?.trim() || '';
   const normalizedSourceProgressLocation = source.progressLocation?.trim() || '';
   const normalizedSourceChapterHref = source.chapterHref?.trim() || '';
   const normalizedSourceProgressFraction =
@@ -316,6 +353,9 @@ export const resolveReaderTtsSpeechTargetForMode = ({
   const normalizedTranslatedText = translated?.translatedText?.trim() || '';
   const normalizedProviderLabel = translated?.providerLabel?.trim() || '';
   const normalizedTargetLanguage = normalizeReaderTtsLanguageTag(translated?.targetLanguage);
+  const normalizedTranslatedChapterLabel = translated?.chapterLabel?.trim() || '';
+  const normalizedTranslatedLocationLabel = translated?.locationLabel?.trim() || '';
+  const normalizedTranslatedProgressLabel = translated?.progressLabel?.trim() || '';
   const normalizedTranslatedProgressLocation = translated?.progressLocation?.trim() || '';
   const normalizedTranslatedChapterHref = translated?.chapterHref?.trim() || '';
   const normalizedTranslatedProgressFraction =
@@ -338,6 +378,9 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       targetLabel: '译文',
       followsCurrent: true,
       lang: normalizedTargetLanguage || undefined,
+      chapterLabel: normalizedTranslatedChapterLabel || normalizedChapterLabel || undefined,
+      locationLabel: normalizedTranslatedLocationLabel || normalizedSourceLocationLabel || undefined,
+      progressLabel: normalizedTranslatedProgressLabel || normalizedSourceProgressLabel || undefined,
       progressLocation: normalizedTranslatedProgressLocation || undefined,
       progressFraction: normalizedTranslatedProgressFraction,
       chapterHref: normalizedTranslatedChapterHref || undefined
@@ -352,6 +395,9 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       targetLabel: '选中文本',
       followsCurrent: true,
       lang: normalizedSourceLanguage || undefined,
+      chapterLabel: normalizedChapterLabel || undefined,
+      locationLabel: normalizedSourceLocationLabel || undefined,
+      progressLabel: normalizedSourceProgressLabel || undefined,
       progressLocation: normalizedSourceProgressLocation || undefined,
       progressFraction: normalizedSourceProgressFraction,
       chapterHref: normalizedSourceChapterHref || undefined
@@ -366,6 +412,9 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       targetLabel: '正文摘录',
       followsCurrent: true,
       lang: normalizedSourceLanguage || undefined,
+      chapterLabel: normalizedChapterLabel || undefined,
+      locationLabel: normalizedSourceLocationLabel || undefined,
+      progressLabel: normalizedSourceProgressLabel || undefined,
       progressLocation: normalizedSourceProgressLocation || undefined,
       progressFraction: normalizedSourceProgressFraction,
       chapterHref: normalizedSourceChapterHref || undefined
@@ -380,6 +429,9 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       targetLabel: '章节标题',
       followsCurrent: true,
       lang: normalizedSourceLanguage || undefined,
+      chapterLabel: normalizedChapterLabel || undefined,
+      locationLabel: normalizedSourceLocationLabel || undefined,
+      progressLabel: normalizedSourceProgressLabel || undefined,
       progressLocation: normalizedSourceProgressLocation || undefined,
       progressFraction: normalizedSourceProgressFraction,
       chapterHref: normalizedSourceChapterHref || undefined
@@ -394,6 +446,9 @@ export const resolveReaderTtsSpeechTargetForMode = ({
       targetLabel: '书名',
       followsCurrent: true,
       lang: normalizedSourceLanguage || undefined,
+      chapterLabel: normalizedChapterLabel || undefined,
+      locationLabel: normalizedSourceLocationLabel || undefined,
+      progressLabel: normalizedSourceProgressLabel || undefined,
       progressLocation: normalizedSourceProgressLocation || undefined,
       progressFraction: normalizedSourceProgressFraction,
       chapterHref: normalizedSourceChapterHref || undefined
@@ -415,6 +470,9 @@ const hasSameReaderTtsSessionState = (
   current.speechSourceLabel === next.speechSourceLabel &&
   current.speechTargetLabel === next.speechTargetLabel &&
   current.followsCurrent === next.followsCurrent &&
+  current.speechChapterLabel === next.speechChapterLabel &&
+  current.speechLocationLabel === next.speechLocationLabel &&
+  current.speechProgressLabel === next.speechProgressLabel &&
   current.speechProgressLocation === next.speechProgressLocation &&
   current.speechProgressFraction === next.speechProgressFraction &&
   current.speechChapterHref === next.speechChapterHref;

@@ -1154,7 +1154,7 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
   await expect(notebook.getByText('把朗读从 header 的瞬时按钮收成显式阅读模式，让目标、跟随状态和会话控制都可见。')).toBeVisible();
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读状态：');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随当前阅读位置');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随：');
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读原文');
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读目标：');
   await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
@@ -1167,6 +1167,7 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(notebook.getByRole('region', { name: '朗读模式' })).toContainText('正在跟随当前章节');
   await expect(notebook.getByRole('region', { name: '朗读模式' })).toContainText('第 1 / 3 节');
+  await expect(notebook.getByRole('article', { name: '朗读位置' })).toContainText('第 1 / 3 节');
   await expect(notebook.getByLabel('译文朗读来源')).toContainText('正在跟随当前章节');
   await expect(notebook.getByLabel('译文朗读来源')).toContainText('第 1 / 3 节');
   await expect(page.getByRole('button', { name: '在翻译模式中查看' })).toBeVisible();
@@ -1176,11 +1177,11 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(notebook.locator('.tts-panel strong', { hasText: '会话状态' })).toBeVisible();
   if (await lockTtsTargetButton.isEnabled()) {
     await lockTtsTargetButton.click();
-    await expect(page.getByLabel('笔记工作台摘要')).toContainText('已锁定朗读目标');
+    await expect(page.getByLabel('笔记工作台摘要')).toContainText('已固定：');
     await expect(page.getByLabel('朗读模式状态')).toContainText('已锁定朗读目标');
     await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
     await page.getByRole('button', { name: '回到当前阅读位置' }).click();
-    await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随当前阅读位置');
+    await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随：');
     await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
   } else {
     await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读目标：等待译文结果');
@@ -1213,6 +1214,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
     'This plain text file exists to verify the current P0-1 downgrade contract.'
   );
   await expect(currentTargetPanel).toContainText('当前阅读位置');
+  await expect(ttsRegion.getByRole('article', { name: '朗读位置' })).toContainText('第 1 /');
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('正文摘录');
 
   await page.locator('.plain-text-surface').evaluate((element) => {
@@ -1228,6 +1230,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   await expect(currentTargetPanel).not.toContainText(
     'This plain text file exists to verify the current P0-1 downgrade contract.'
   );
+  await expect(ttsRegion.getByRole('article', { name: '朗读位置' })).toContainText('%');
   await expect(lockTtsTargetButton).toBeVisible();
 
   if (await lockTtsTargetButton.isEnabled()) {
@@ -1240,11 +1243,12 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
     const backToTtsLocationButton = page.getByRole('button', { name: '回到朗读位置' });
     await expect(backToTtsLocationButton).toBeVisible();
     await expect(page.getByLabel('笔记工作台摘要')).toContainText('可回到朗读位置');
-    await expect(ttsRegion.locator('.tts-panel').nth(1)).toContainText('当前阅读已经离开朗读位置');
+    await expect(ttsRegion.getByRole('article', { name: '朗读位置' })).toContainText('已固定到较早的朗读位置');
+    await expect(ttsRegion.locator('.tts-panel').last()).toContainText('当前阅读已经离开朗读位置');
     await backToTtsLocationButton.click();
     await expect(backToTtsLocationButton).toHaveCount(0);
     await expect(page.getByLabel('笔记工作台摘要')).not.toContainText('可回到朗读位置');
-    await expect(ttsRegion.locator('.tts-panel').nth(1)).not.toContainText('当前阅读已经离开朗读位置');
+    await expect(ttsRegion.locator('.tts-panel').last()).not.toContainText('当前阅读已经离开朗读位置');
   }
 });
 

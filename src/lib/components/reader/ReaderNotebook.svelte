@@ -22,6 +22,8 @@
   import {
     createEmptyReaderAssistanceState,
     createEmptyReaderTtsSessionState,
+    getReaderLocationDisplayLabel,
+    getReaderTtsPlaybackLocationSummary,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel
   } from '$lib/reader';
@@ -144,6 +146,21 @@
     assistance.status === 'ready' ? '助手已有结果' : assistance.status === 'loading' ? '助手查询中' : '助手待命';
   $: translationSourceSummary = translationModeSourceLabel || '当前阅读位置';
   $: ttsStatusSummary = getReaderTtsSessionStatusLabel(ttsSession);
+  $: ttsPlaybackLocationSummary = getReaderTtsPlaybackLocationSummary(ttsSession);
+  $: previewPlaybackLocationSummary = [
+    preview.chapterLabel.trim() && preview.chapterLabel !== '等待打开书籍' ? preview.chapterLabel.trim() : '',
+    preview.locationLabel.trim() &&
+    preview.locationLabel !== 'Opening book' &&
+    preview.locationLabel !== 'Not opened'
+      ? getReaderLocationDisplayLabel(preview.locationLabel).trim()
+      : '',
+    preview.progressLabel.trim()
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  $: effectiveTtsPlaybackLocationSummary =
+    ttsPlaybackLocationSummary ||
+    (ttsReadAloudTextMode === 'translated' ? previewPlaybackLocationSummary : '');
   $: ttsTargetSummary =
     getReaderTtsReadableTargetLabel(ttsSession) ||
     (ttsReadAloudTextMode === 'translated' && translatedTtsSourceText.trim()
@@ -168,7 +185,13 @@
         : activeTab === 'tts'
           ? [
               `朗读状态：${ttsStatusSummary}`,
-              ttsFollowsCurrentLocation ? '跟随当前阅读位置' : '已锁定朗读目标',
+              ttsFollowsCurrentLocation
+                ? effectiveTtsPlaybackLocationSummary
+                  ? `跟随：${effectiveTtsPlaybackLocationSummary}`
+                  : '跟随当前阅读位置'
+                : effectiveTtsPlaybackLocationSummary
+                  ? `已固定：${effectiveTtsPlaybackLocationSummary}`
+                  : '已锁定朗读目标',
               ttsReadAloudSummary,
               canJumpToCurrentTtsLocation ? '可回到朗读位置' : `朗读目标：${ttsTargetSummary}`,
               '朗读模式工作台'
@@ -401,6 +424,7 @@
           readAloudTextMode={ttsReadAloudTextMode}
           {canJumpToCurrentTtsLocation}
           {translatedTtsSourceKind}
+          fallbackPlaybackLocationSummary={previewPlaybackLocationSummary}
           translatedWaitingSourceLabel={translatedTtsSourceContextLabel}
           translatedWaitingSourceText={translatedTtsSourceText}
           translationModeSourceText={translationModeSourceText}
