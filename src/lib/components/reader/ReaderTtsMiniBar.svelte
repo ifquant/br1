@@ -8,11 +8,13 @@
   export let canStop = false;
   export let canJumpToPlaybackLocation = false;
   export let canOpenTranslationMode = false;
+  export let canResumeFollowingCurrent = false;
   export let onRunPrimaryAction: (() => void) | null = null;
   export let onStop: (() => void) | null = null;
   export let onOpenWorkspace: (() => void) | null = null;
   export let onJumpToPlaybackLocation: (() => void) | null = null;
   export let onOpenTranslationMode: (() => void) | null = null;
+  export let onResumeFollowingCurrent: (() => void) | null = null;
 </script>
 
 <section class="tts-mini-bar" aria-label="阅读中的朗读控制条">
@@ -36,6 +38,16 @@
         on:click={() => onOpenTranslationMode?.()}
       >
         在翻译模式中查看
+      </button>
+    {/if}
+    {#if canResumeFollowingCurrent}
+      <button
+        type="button"
+        class="ghost-action"
+        aria-label="回到当前阅读位置"
+        on:click={() => onResumeFollowingCurrent?.()}
+      >
+        回到当前阅读位置
       </button>
     {/if}
     <button

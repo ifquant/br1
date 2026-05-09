@@ -650,6 +650,7 @@
     (!!translatedTtsSourceText.trim() ||
       translatedTtsSourceKind !== 'none' ||
       !!translatedTtsSourceContextLabel.trim());
+  $: ttsMiniBarCanResumeFollowingCurrent = !notebookVisible && !ttsFollowsCurrentLocation;
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
   }
@@ -1583,9 +1584,11 @@
           ttsMiniBarCanStop={ttsMiniBarCanStop}
           ttsMiniBarCanJumpToPlaybackLocation={canJumpToCurrentTtsLocation}
           ttsMiniBarCanOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
+          ttsMiniBarCanResumeFollowingCurrent={ttsMiniBarCanResumeFollowingCurrent}
           onOpenTtsWorkspace={openTtsWorkspace}
           onJumpToTtsPlaybackLocation={jumpToCurrentTtsLocation}
           onOpenTranslationModeFromMiniBar={openTranslationMode}
+          onResumeFollowingCurrentTtsTargetFromMiniBar={resumeFollowingCurrentTtsTarget}
         />
 
         {#if parallelEnabled}

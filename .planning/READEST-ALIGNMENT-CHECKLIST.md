@@ -1042,6 +1042,14 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Tutorial: `tutorials/commit/0612-let-the-mini-tts-bar-jump-into-translation-mode.md`.
   - Notes: this slice does not add new translation history behavior or new runtime semantics. It only closes the extra navigation hop between the collapsed playback surface and the existing translation workspace.
 
+- [x] P11-1.7 Let the mini TTS bar resume following the current reading position
+  - Outcome: when the reader has locked TTS to an older target and collapsed the notebook, the reading-canvas mini bar can now restore follow-current semantics directly instead of forcing a round trip through the TTS workspace first.
+  - Touches: in-reader mini-bar actions, stage/route-owned TTS follow-current navigation, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader uses visible plain-text excerpts as the source tts target in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0613-let-the-mini-tts-bar-resume-follow-current.md`.
+  - Notes: this slice does not add sentence stepping or new playback runtime behavior. It only projects the existing `回到当前阅读位置` ownership action onto the collapsed canvas surface.
+
 
 ## Service Security Gate
 

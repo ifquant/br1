@@ -1283,11 +1283,17 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
     await expect(ttsRegion.locator('.tts-panel').last()).toContainText('当前阅读已经离开朗读位置');
     await page.getByLabel('收起笔记工作台').click();
     await expect(page.getByRole('complementary', { name: '笔记工作台已收起', exact: true })).toBeVisible();
-    await miniBarBackToTtsLocationButton.click();
-    await expect(backToTtsLocationButton).toHaveCount(0);
+    const miniBarResumeFollowingButton = miniBar.getByRole('button', { name: '回到当前阅读位置' });
+    await expect(miniBarResumeFollowingButton).toBeVisible();
+    await miniBarResumeFollowingButton.click();
+    await expect(miniBarResumeFollowingButton).toHaveCount(0);
     await expect(miniBarBackToTtsLocationButton).toHaveCount(0);
     await miniBar.getByRole('button', { name: '打开朗读工作台' }).click();
     await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+    await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
+    await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toHaveCount(0);
+    await expect(backToTtsLocationButton).toHaveCount(0);
+    await expect(miniBarBackToTtsLocationButton).toHaveCount(0);
     await expect(page.getByLabel('笔记工作台摘要')).not.toContainText('可回到朗读位置');
     await expect(ttsRegion.locator('.tts-panel').last()).not.toContainText('当前阅读已经离开朗读位置');
   }
