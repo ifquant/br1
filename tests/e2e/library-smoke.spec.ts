@@ -1197,6 +1197,7 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
     await page.getByLabel('收起笔记工作台').click();
     await expect(page.getByRole('complementary', { name: '笔记工作台已收起', exact: true })).toBeVisible();
     await expect(miniBar).toBeVisible();
+    await expect(miniBar).toContainText('等待当前翻译来源');
     await expect(miniBar).toContainText('等待译文结果');
     await expect(miniBar).toContainText('正在跟随当前章节');
     await expect(miniBar).toContainText('第 1 / 3 节');
@@ -1352,6 +1353,7 @@ test('reader lets translated tts mode consume the selected translation archive i
   await page.getByRole('button', { name: '朗读译文' }).click();
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读译文');
   await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
+  await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('历史译文 · DeepL');
   await expect(notebook.getByText('当前还没有可朗读的译文结果。')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '锁定当前朗读目标' })).toBeEnabled();
   await expect(notebook.getByLabel('译文朗读来源')).toContainText('历史记录 · 第二章 · 译为 ZH');

@@ -278,6 +278,38 @@ export const getReaderTtsTranslatedWaitingTargetLabel = (sourceContextLabel: str
     : '等待译文结果';
 };
 
+export const getReaderTtsMiniBarContextSummary = ({
+  state,
+  readAloudTextMode,
+  translatedSourceKind = 'none',
+  translatedSourceContextLabel = ''
+}: {
+  state: ReaderTtsSessionState;
+  readAloudTextMode: ReaderTtsReadAloudTextMode;
+  translatedSourceKind?: 'none' | 'live-translation' | 'archived-translation';
+  translatedSourceContextLabel?: string;
+}): string => {
+  const modeLabel = readAloudTextMode === 'translated' ? '译文朗读' : '原文朗读';
+  const sourceLabel = getReaderTtsReadableSourceLabel(state);
+  if (readAloudTextMode !== 'translated') {
+    return [modeLabel, sourceLabel].filter(Boolean).join(' · ');
+  }
+
+  if (sourceLabel) {
+    return [modeLabel, sourceLabel].filter(Boolean).join(' · ');
+  }
+
+  const sourceContext = trimReaderTtsLabel(translatedSourceContextLabel);
+  const waitingProvenanceLabel =
+    translatedSourceKind === 'archived-translation'
+      ? '等待历史译文来源'
+      : translatedSourceKind === 'live-translation'
+        ? '等待当前翻译来源'
+        : '';
+
+  return [modeLabel, waitingProvenanceLabel, sourceContext].filter(Boolean).join(' · ');
+};
+
 export const shouldShowReaderTtsMiniBar = (
   state: ReaderTtsSessionState,
   target: ReaderTtsSpeechTarget | null,

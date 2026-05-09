@@ -52,8 +52,8 @@
     getReaderLocationDisplayLabel,
     getReaderTtsCompactPlaybackLocationSummary,
     isReaderTtsPlaybackLocationDrifted,
+    getReaderTtsMiniBarContextSummary,
     getReaderTtsPrimaryActionLabel,
-    getReaderTtsReadableSourceLabel,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel,
     getReaderTtsTranslatedWaitingTargetLabel,
@@ -628,20 +628,12 @@
     ttsMiniBarTranslatedWaitingTargetLabel
   );
   $: ttsMiniBarStatusLabel = getReaderTtsSessionStatusLabel($ttsState);
-  $: ttsMiniBarContextSummary = [
-    ttsReadAloudTextMode === 'translated' ? '译文朗读' : '原文朗读',
-    ttsReadAloudTextMode === 'translated'
-      ? getReaderTtsReadableSourceLabel($ttsState) ||
-        translatedTtsSourceContextLabel ||
-        (translatedTtsSourceKind === 'archived-translation'
-          ? '历史译文来源'
-          : translatedTtsSourceKind === 'live-translation'
-            ? '当前翻译来源'
-            : '')
-      : getReaderTtsReadableSourceLabel($ttsState)
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  $: ttsMiniBarContextSummary = getReaderTtsMiniBarContextSummary({
+    state: $ttsState,
+    readAloudTextMode: ttsReadAloudTextMode,
+    translatedSourceKind: translatedTtsSourceKind,
+    translatedSourceContextLabel: translatedTtsSourceContextLabel
+  });
   $: ttsMiniBarTargetLabel =
     getReaderTtsReadableTargetLabel($ttsState) ||
     effectiveTtsTarget?.targetLabel?.trim() ||

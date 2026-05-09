@@ -125,6 +125,7 @@ export {
   getReaderTtsCompactPlaybackLocationSummary,
   getReaderTtsFollowCurrentLabel,
   isReaderTtsPlaybackLocationDrifted,
+  getReaderTtsMiniBarContextSummary,
   getReaderTtsPlaybackLocationSummary,
   getReaderTtsPrimaryActionLabel,
   getReaderTtsReadableSourceLabel,
