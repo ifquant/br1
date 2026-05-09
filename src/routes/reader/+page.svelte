@@ -644,6 +644,12 @@
   $: ttsMiniBarCanRunPrimaryAction =
     (!!effectiveTtsTarget?.text.trim() && $ttsState.status !== 'unavailable') ||
     ($ttsState.status === 'paused' && !!getReaderTtsReadableTargetLabel($ttsState));
+  $: ttsMiniBarCanOpenTranslationMode =
+    !notebookVisible &&
+    ttsReadAloudTextMode === 'translated' &&
+    (!!translatedTtsSourceText.trim() ||
+      translatedTtsSourceKind !== 'none' ||
+      !!translatedTtsSourceContextLabel.trim());
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
   }
@@ -1061,6 +1067,11 @@
   const openTtsWorkspace = () => {
     notebookVisible = true;
     notebookTab = 'tts';
+  };
+
+  const openTranslationMode = () => {
+    notebookVisible = true;
+    notebookTab = 'translation';
   };
 
   const pinCurrentTranslationSource = (source?: { text: string; label: string }) => {
@@ -1571,8 +1582,10 @@
           ttsMiniBarCanRunPrimaryAction={ttsMiniBarCanRunPrimaryAction}
           ttsMiniBarCanStop={ttsMiniBarCanStop}
           ttsMiniBarCanJumpToPlaybackLocation={canJumpToCurrentTtsLocation}
+          ttsMiniBarCanOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
           onOpenTtsWorkspace={openTtsWorkspace}
           onJumpToTtsPlaybackLocation={jumpToCurrentTtsLocation}
+          onOpenTranslationModeFromMiniBar={openTranslationMode}
         />
 
         {#if parallelEnabled}
@@ -1655,9 +1668,7 @@
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
         onJumpToCurrentTtsLocation={jumpToCurrentTtsLocation}
         onSetTtsReadAloudTextMode={setTtsReadAloudTextMode}
-        onOpenTranslationMode={() => {
-          notebookTab = 'translation';
-        }}
+        onOpenTranslationMode={openTranslationMode}
         onPinCurrentTranslationSource={pinCurrentTranslationSource}
         onResumeFollowingCurrentTranslationSource={resumeFollowingCurrentTranslationSource}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}

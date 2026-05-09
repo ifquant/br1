@@ -56,6 +56,7 @@
   export let ttsMiniBarCanRunPrimaryAction = false;
   export let ttsMiniBarCanStop = false;
   export let ttsMiniBarCanJumpToPlaybackLocation = false;
+  export let ttsMiniBarCanOpenTranslationMode = false;
   export let notes: ReaderNote[] = [];
   export let onTtsStart: (() => void) | null = null;
   export let onTtsPause: (() => void) | null = null;
@@ -63,6 +64,7 @@
   export let onTtsStop: (() => void) | null = null;
   export let onOpenTtsWorkspace: (() => void) | null = null;
   export let onJumpToTtsPlaybackLocation: (() => void) | null = null;
+  export let onOpenTranslationModeFromMiniBar: (() => void) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
@@ -314,6 +316,7 @@
       canRunPrimaryAction={ttsMiniBarCanRunPrimaryAction}
       canStop={ttsMiniBarCanStop}
       canJumpToPlaybackLocation={ttsMiniBarCanJumpToPlaybackLocation}
+      canOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
       onRunPrimaryAction={() => {
         if (ttsSession.status === 'speaking') {
           onTtsPause?.();
@@ -328,6 +331,7 @@
       onStop={onTtsStop}
       onOpenWorkspace={onOpenTtsWorkspace}
       onJumpToPlaybackLocation={onJumpToTtsPlaybackLocation}
+      onOpenTranslationMode={onOpenTranslationModeFromMiniBar}
     />
   {/if}
 

@@ -7,10 +7,12 @@
   export let canRunPrimaryAction = false;
   export let canStop = false;
   export let canJumpToPlaybackLocation = false;
+  export let canOpenTranslationMode = false;
   export let onRunPrimaryAction: (() => void) | null = null;
   export let onStop: (() => void) | null = null;
   export let onOpenWorkspace: (() => void) | null = null;
   export let onJumpToPlaybackLocation: (() => void) | null = null;
+  export let onOpenTranslationMode: (() => void) | null = null;
 </script>
 
 <section class="tts-mini-bar" aria-label="阅读中的朗读控制条">
@@ -26,6 +28,16 @@
     <button type="button" class="ghost-action" aria-label="打开朗读工作台" on:click={() => onOpenWorkspace?.()}>
       打开朗读工作台
     </button>
+    {#if canOpenTranslationMode}
+      <button
+        type="button"
+        class="ghost-action"
+        aria-label="在翻译模式中查看"
+        on:click={() => onOpenTranslationMode?.()}
+      >
+        在翻译模式中查看
+      </button>
+    {/if}
     <button
       type="button"
       class="primary-action"
