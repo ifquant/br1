@@ -1314,7 +1314,7 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Outcome: `P14` is now explicitly bounded as the current-book restore line for dedicated translation/TTS ownership, config, live bodies, and archive provenance, so follow-up work no longer needs to guess whether more micro-slices still belong here.
   - Touches: reader parity checklist, closeout tutorial.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `287b553`.
   - Tutorial: `tutorials/commit/0638-close-the-p14-reader-mode-ownership-line.md`.
   - Notes: this closeout keeps payload-heavy deep-link state and cross-book archive browsing out of `P14`.
 
@@ -1322,7 +1322,7 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Outcome: the repo now records that no remaining structural blocker was found inside the current-book ownership persistence line, and it names the residuals that are intentionally outside this phase.
   - Touches: reader parity checklist, closeout review tutorial.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `pending`.
+  - Done commit: `this commit`.
   - Tutorial: `tutorials/commit/0639-record-the-p14-closeout-review.md`.
   - Notes: route-owned payload text, cross-book archive/replay, and broader workspace-shell persistence are left for a different mainline if they become worth productizing.
 
