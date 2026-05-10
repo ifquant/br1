@@ -1,3 +1,6 @@
+// Ownership: this library module converts persisted desktop records into the library shelf
+// projection used by the renderer. It depends on persistence/service record shapes, while
+// keeping the UI-facing availability and compatibility wording in one place.
 import type { LibraryShelfBook } from './types';
 import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
 import {
@@ -57,6 +60,8 @@ export const formatProgressPercentLabel = (fraction: number | null) => {
 export const mapDesktopLibraryRecord = async (
   record: PersistedLibraryBook
 ): Promise<LibraryShelfBook> => {
+  // Boundary: the renderer only gets summary labels and reader URLs here; file existence and
+  // asset resolution stay behind the persistence/service seam that produced this record.
   const isReadestCompatible = record.id.startsWith('readest-');
   const hasLibraryFileCopy = record.libraryFileExists !== false;
   const hasOriginalSource = !record.sourcePath || record.sourceFileExists !== false;

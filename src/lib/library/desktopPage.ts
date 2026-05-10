@@ -1,3 +1,6 @@
+// Ownership: this library module is the desktop page coordinator for the library route.
+// It wires page state bindings to privileged desktop services, but it should not absorb
+// rendering code that belongs in Svelte components or pure projection helpers.
 import {
   createLibraryNotice,
   runLibraryNoticeAction as runSharedLibraryNoticeAction
@@ -46,6 +49,8 @@ import type {
 type SetLibraryNoticeState = (notice: LibraryNoticeState | null) => void;
 
 export type DesktopLibraryPageCoordinatorOptions = {
+  // Boundary: every callback here crosses from route/controller state into desktop-only
+  // services or page bindings, so keep the seam explicit instead of hiding it in components.
   getLibraryNoticeState: () => LibraryNoticeState | null;
   setLibraryNoticeState: SetLibraryNoticeState;
   setPersistedLibraryRecords: (records: PersistedLibraryBook[]) => void;

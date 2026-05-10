@@ -1,3 +1,6 @@
+// Ownership: this library module owns small controller-state transitions for notices,
+// browse filters, and query controls. It depends on page state bindings, but it should
+// stay free of rendering concerns and desktop persistence side effects.
 import { getNextLibraryBrowseState } from './navigation';
 import type {
   LibraryActiveFilterChip,
@@ -114,6 +117,8 @@ export const getNormalizedLibraryFilterControlsState = ({
   collectionOptions: string[];
   tagOptions: string[];
 }): LibraryFilterControlsState => {
+  // Boundary: normalization trims stale URL/controller filter state back to values that the
+  // current library projection actually exposes, instead of letting the header overclaim data.
   const formatFilter =
     current.formatFilter === 'all' || formatOptions.includes(current.formatFilter)
       ? current.formatFilter
@@ -190,6 +195,8 @@ export const getNextLibraryFilterControlsState = (
   current: LibraryFilterControlsState,
   action: LibraryFilterControlsAction
 ): LibraryFilterControlsState => {
+  // Refactor risk: shelf shortcuts intentionally reset unrelated filters so "continue reading"
+  // and "browse this collection" feel deterministic instead of layering hidden state together.
   if (action.type === 'set-query') {
     return { ...current, query: action.query };
   }

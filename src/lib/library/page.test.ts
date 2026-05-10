@@ -1,3 +1,5 @@
+// Ownership: this test covers reading-first page derivations for the library route. It keeps
+// continue-reading, recent-reading, and workflow notices aligned with the product semantics.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -29,6 +31,8 @@ const makeBook = (
 };
 
 test('getContinueReadingBooks keeps only in-progress books up to the section limit', () => {
+  // This fixture intentionally mixes active, overflow, and finished titles so the shelf limit
+  // test proves the library does not overclaim what belongs in the resume-first slot.
   const books = [
     makeBook({
       title: 'Recent 1',
@@ -72,6 +76,8 @@ test('getContinueReadingBooks keeps only in-progress books up to the section lim
 });
 
 test('getRecentReadingBooks excludes continue-reading titles and finished books', () => {
+  // This fixture keeps one active book in the continue shelf and several edge cases around it
+  // so the recent-reading shelf cannot silently duplicate or revive finished entries.
   const continueReading = [
     makeBook({
       title: 'Continue me',

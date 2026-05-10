@@ -1,3 +1,6 @@
+// Ownership: this library module keeps route URL and scroll runtime state aligned with the
+// current browse/filter surface. It depends on navigation helpers and page bindings, but it
+// should not redefine browse semantics or desktop-only capabilities.
 import {
   buildLibraryBrowseHref,
   getNormalizedLibraryBrowseState,
@@ -53,6 +56,8 @@ export const syncLibraryBrowseLocation = async ({
   state,
   goto
 }: SyncLibraryBrowseLocationArgs) => {
+  // Boundary: URL sync is the only route side effect here; the actual browse state has already
+  // been validated upstream so runtime helpers do not invent new group transitions.
   const nextHref = buildLibraryBrowseHref(currentUrl, state);
   const currentHref = `${currentUrl.pathname}${currentUrl.search}`;
   if (nextHref === currentHref) return;

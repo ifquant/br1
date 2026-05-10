@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders the current grouped-browse path, sibling
+switches, and pivot entrypoints. It should expose route-provided navigation affordances
+without mutating browse state or desktop availability rules on its own. -->
 <script lang="ts">
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
   import type { LibraryBrowseGuardExplanation } from '$lib/library/types';

@@ -1,3 +1,6 @@
+// Ownership: this library module owns record-matching and repair-queue helpers for the
+// desktop library surface. It depends on persisted record shapes and preserves which items
+// are considered broken, bulk-fixable, or manual-review-only for the UI.
 import type {
   LibraryShelfBook,
   ManualRelinkReview
@@ -71,6 +74,8 @@ export const buildManualRelinkReview = ({
   persistedRecords: PersistedLibraryBook[];
   persistedRecord: PersistedLibraryBook | null | undefined;
 }): ManualRelinkReview | undefined => {
+  // Refactor risk: this copy reads like UI guidance, but it encodes the repair contract the
+  // product makes about preserving identity, progress, and conflict detection during relinks.
   if (!persistedRecord || !isPersistedRecordManualRepairOnly(persistedRecord)) return undefined;
   const preflightLabel = '替换文件预检';
   const preflightDetail =

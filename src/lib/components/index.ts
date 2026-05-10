@@ -1,3 +1,6 @@
+// Ownership: this barrel exposes the public library and reader component surface for
+// route-level composition. Keep it limited to reusable UI entrypoints rather than
+// route/controller helpers or desktop-only integration details.
 export { default as BookshelfPreview } from './library/BookshelfPreview.svelte';
 export { default as LibraryBrowseBody } from './library/LibraryBrowseBody.svelte';
 export { default as LibraryBrowseGuardHint } from './library/LibraryBrowseGuardHint.svelte';

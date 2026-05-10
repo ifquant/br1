@@ -1,3 +1,6 @@
+<!-- Ownership: this library component hosts the hidden import input and forwards the final
+surface model into the scrollable page renderer. It should stay as a thin bridge between
+route bindings and the reusable page surface. -->
 <script lang="ts">
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
   import LibraryPageSurface from './LibraryPageSurface.svelte';

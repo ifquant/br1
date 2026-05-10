@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders concise guard copy when grouped-browse actions
+are intentionally unavailable. It should explain route-provided constraints without inventing
+new navigation rules inside the view layer. -->
 <script lang="ts">
   import type { LibraryBrowseGuardExplanation } from '$lib/library/types';
 

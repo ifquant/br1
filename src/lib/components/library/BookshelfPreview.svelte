@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders browse shelf cards and grouped-preview rows.
+It should not silently absorb desktop maintenance, routing, or persistence logic that
+belongs in the library route/controller layer. -->
 <script lang="ts">
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
   import type {
@@ -84,6 +87,9 @@
 
   const getBookKey = (book: BookshelfPreviewBook) =>
     book.readerHref || `${book.format}::${book.title}::${book.author}`;
+
+  // Refactor risk: grouped preview cards look presentational, but they are a visible promise
+  // about which grouping labels the library surface considers stable enough to navigate into.
 
   const toggleDetails = (event: MouseEvent, key: string) => {
     event.preventDefault();

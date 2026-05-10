@@ -1,3 +1,6 @@
+// Ownership: this library module assembles the final page surface models that Svelte renders.
+// It depends on the pure chrome/body builders and page-state projections, while keeping the
+// active desktop-versus-starter selection out of the component layer.
 import { buildDesktopLibraryBrowseBodySurfaceModel, buildStarterLibraryBrowseBodySurfaceModel } from './body';
 import { buildLibraryPageChromeModel } from './chrome';
 import type { LibraryPageSurfaceModel } from './types';
@@ -198,6 +201,8 @@ export const buildLibraryPageSurfaceSet = ({
   starterBody,
   desktopLibraryMode
 }: BuildLibraryPageSurfaceSetArgs) => {
+  // Boundary: the active surface switch happens here so components only render one already-
+  // shaped model instead of branching over route mode and desktop capability details.
   const desktop = buildDesktopLibraryPageSurfaceModel({
     chrome,
     body: desktopBody

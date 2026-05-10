@@ -1,3 +1,6 @@
+// Ownership: this library module coordinates desktop maintenance actions such as remove,
+// restore, metadata edits, and repair. It should preserve library-facing contracts while
+// delegating all real file mutation and persistence work to existing service commands.
 import type { LibraryNoticeState, LibraryShelfBook } from './types';
 import type { PersistedLibraryBook } from '$lib/services/libraryPersistence';
 
@@ -63,6 +66,8 @@ export const removeLibraryBookFromDesktop = async ({
   applyPersistedLibraryRecords: (records: PersistedLibraryBook[]) => Promise<void>;
   onRestoreRemovedRecord: (record: PersistedLibraryBook) => void | Promise<void>;
 }) => {
+  // Boundary: the UI can promise that "remove" only drops br1-managed copies because the
+  // destructive file work remains behind the desktop service command being called here.
   if (!persistedRecord) {
     setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
     return;
@@ -199,6 +204,8 @@ export const repairDesktopLibraryBook = async ({
   confirmReplacement: (message: string) => boolean;
   reloadLibraryAfterRepair: () => Promise<void>;
 }) => {
+  // Refactor risk: repair looks like a small button flow, but it preserves the semantic
+  // contract that progress and identity stay attached to the existing record after relinking.
   if (!persistedRecord) {
     setLibraryNotice('error', '没有找到这本书的持久化记录，请先刷新书库后重试。');
     return;

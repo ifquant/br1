@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders trail landings for grouped browsing so readers
+can re-enter earlier shelves intentionally. It should reflect the navigation model passed
+down from the route instead of recalculating browse semantics locally. -->
 <script lang="ts">
   import BookshelfPreview from './BookshelfPreview.svelte';
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';

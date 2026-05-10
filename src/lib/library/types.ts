@@ -1,3 +1,8 @@
+// Ownership: this library module defines the shared contracts for the library route,
+// controller, and components. Keep browse, shelf, and page-surface types coherent here
+// instead of letting individual components invent their own incompatible semantics.
+// Surface contract: `LibraryShelfBook` is the renderer-safe book shape after services and
+// controllers have already resolved persistence, progress, and availability details.
 export type LibraryShelfBook = {
   title: string;
   author: string;
@@ -95,6 +100,9 @@ export type LibraryBrowseState = {
   groupScope: string;
   trail: LibraryGroupSegment[];
 };
+
+// Surface contract: browse actions intentionally describe reader-facing navigation intents
+// rather than component events, so different surfaces can share the same transition rules.
 
 export type LibraryBrowseAction =
   | {
@@ -230,6 +238,8 @@ export type LibraryBookMetadataUpdate = {
 };
 
 export type LibraryPageActions = {
+  // Boundary: these callbacks are the only sanctioned way for components to trigger route,
+  // desktop, or persistence work. Components should emit intent through them, not inline logic.
   onImportChange?: ((event: Event) => void | Promise<void>) | null;
   onDispatchBrowseAction: (action: LibraryBrowseAction) => void | Promise<void>;
   onRunNoticeAction?: (() => void | Promise<void>) | null;

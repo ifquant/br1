@@ -1,3 +1,5 @@
+// Ownership: this test covers the desktop catalog projection rules that decide which Readest
+// records the library may honestly present as still readable inside the desktop surface.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -23,6 +25,8 @@ const makeRecord = (
 };
 
 test('countReadestCompatibleRecords only counts readable Readest copies', () => {
+  // This fixture intentionally mixes readable, migrated, and broken records so the test proves
+  // the library surface does not overclaim which Readest titles can still be opened.
   const records = [
     makeRecord({
       id: 'readest-ok',

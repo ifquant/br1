@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders the route's chrome controls for search,
+filters, sorting, grouping, and notices. It should dispatch browse intent upward rather
+than owning filter state, desktop maintenance, or persistence logic directly. -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { onMount } from 'svelte';

@@ -1,3 +1,6 @@
+// Ownership: this library module shapes browse-body surface models for the library page.
+// It keeps workflow, shelf, and empty-state semantics coherent after the page/controller
+// layer has already decided whether the route is in desktop or starter mode.
 import type {
   LibraryActiveFilterChip,
   ContinueReadingBook,
@@ -141,6 +144,8 @@ export const buildDesktopLibraryBrowseBodyModel = ({
 }: BuildDesktopLibraryBrowseBodyModelArgs & {
   workflowSectionsVisible: boolean;
 }): LibraryBrowseBodyModel => ({
+  // Boundary: desktop workflow shelves summarize repair, import, and migration work for the
+  // renderer, but the privileged file-system actions still live behind desktop service calls.
   workflowNotice,
   recoveryShelf: workflowSectionsVisible
     ? {
@@ -260,6 +265,8 @@ export const buildStarterLibraryBrowseBodyModel = ({
 }: BuildStarterLibraryBrowseBodyModelArgs & {
   workflowSectionsVisible: boolean;
 }): LibraryBrowseBodyModel => ({
+  // Refactor risk: continue-reading and recent-reading shelves look presentational, but they
+  // encode the product promise about what counts as active reading versus general browsing.
   workflowNotice,
   continueShelf: workflowSectionsVisible
     ? {

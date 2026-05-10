@@ -1,3 +1,6 @@
+// Ownership: this library module coordinates desktop-only ingress into the library surface:
+// loading persisted records, running imports, and describing Readest migration outcomes.
+// It depends on privileged services, but it should only return page-safe summaries and flows.
 import type { LibraryNoticeState } from './types';
 import type {
   LibraryImportActionResult,
@@ -63,6 +66,8 @@ export const loadDesktopLibrarySurface = async ({
   setReadestMissingFileCount: (count: number) => void;
   setShowReadestMigration: (value: boolean) => void;
 }) => {
+  // Boundary: desktop detection and migration live here so web-mode surfaces never pretend
+  // they can inspect local Readest storage or persisted library files on their own.
   setDesktopLibraryMode(true);
 
   const records = await loadPersistedLibraryBooks();
@@ -98,6 +103,8 @@ export const importDesktopLibraryBooks = async ({
   setShowReadestMigration: (value: boolean) => void;
   onOpenReaderTarget: (target: string | LibraryReaderTarget) => Promise<void>;
 }) => {
+  // Boundary: the picker and import commands are privileged. This helper only translates the
+  // result into library notices, reloads, and optional reader navigation.
   try {
     clearLibraryNotice();
     const result = await importBooksFromDesktopPicker();

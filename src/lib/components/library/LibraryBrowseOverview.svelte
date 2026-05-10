@@ -1,3 +1,6 @@
+<!-- Ownership: this library component summarizes the currently focused group in browse mode.
+It should present the route's group semantics clearly, without introducing new grouping
+or desktop-maintenance rules inside the component. -->
 <script lang="ts">
   import LibraryBrowseGuardHint from './LibraryBrowseGuardHint.svelte';
   import type {

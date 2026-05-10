@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders the header chrome plus desktop support notices
+for the library page. It should present desktop-owned state clearly without pulling the
+privileged queue or migration logic into the Svelte layer. -->
   <script lang="ts">
   import { getContext } from 'svelte';
   import { readable, type Readable } from 'svelte/store';
@@ -40,6 +43,8 @@
 
   const libraryDesktopSupportContext =
     getContext<LibraryDesktopSupportContext | undefined>(LIBRARY_DESKTOP_SUPPORT_CONTEXT) ?? {
+      // Boundary: web mode still renders the same chrome shell, but it must fall back to an
+      // inert desktop-support context so the UI never overclaims local maintenance abilities.
       state: readable(createEmptyLibraryDesktopSupportState()),
       refreshQueue: () => {},
       clearRejectedInputs: () => {}

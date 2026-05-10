@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders the full library page surface from one already-
+shaped model and one action bundle. It should forward user intent upward instead of owning
+route derivation, desktop coordination, or persistence logic directly. -->
 <script lang="ts">
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import type { OverlayScrollbarsComponentRef } from 'overlayscrollbars-svelte';
@@ -12,6 +15,9 @@
   export let model: LibraryPageSurfaceModel;
   export let actions: LibraryPageActions;
   export let scrollRef: OverlayScrollbarsComponentRef<'div'> | null = null;
+
+  // Boundary: every handler here is a view-only relay from rendered controls back into the
+  // library route/controller layer so the page surface stays reusable across route modes.
 
   const handleQueryChange = (event: CustomEvent<{ query: string }>) => {
     if (!actions.onQueryChange) return;

@@ -1,3 +1,6 @@
+// Ownership: this library module derives filter, shelf, and browse projections from the
+// route's current library state. It keeps reading-first library semantics coherent before
+// the final surface model is assembled for Svelte components.
 import { filterBooksByLibraryGroupScope } from './navigation';
 import {
   buildManualRelinkReview,
@@ -209,6 +212,9 @@ export const hasBookBeenOpened = (book: LibraryShelfBook) =>
 
 export const CONTINUE_READING_SECTION_LIMIT = 3;
 export const RECENT_READING_SECTION_LIMIT = 6;
+
+// Refactor risk: continue-reading and recent-reading are not interchangeable visual shelves.
+// They are the route's reading-progress contract for what deserves a "resume" slot first.
 
 export const isBookFinished = (book: LibraryShelfBook) => {
   const progressFraction = getBookProgressFraction(book);

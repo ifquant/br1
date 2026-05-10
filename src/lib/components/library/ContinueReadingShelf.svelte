@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders one reading-workflow shelf such as continue,
+recent, or repair queue. It should only display route-provided actions instead of owning
+desktop repair, import, or persistence behavior directly. -->
 <script lang="ts">
   import type { ContinueReadingBook } from '$lib/library/types';
 
@@ -83,6 +86,9 @@
       book.compatibilityLabel?.includes('无法批量修复') ||
       book.compatibilityLabel?.includes('逐本复核') ||
       false);
+
+  // Refactor risk: repair labels look like copy-only concerns, but they communicate whether
+  // the library can rebuild a copy automatically or needs a manual record-preserving relink.
 
   const getRepairLabel = (
     book: ContinueReadingBook,

@@ -1,3 +1,6 @@
+<!-- Ownership: this library component lays out the browse body for the active library mode.
+It should compose route-built shelves, empty states, and grouped browse panels without
+redefining reading workflow or desktop boundary semantics. -->
 <script lang="ts">
   import ContinueReadingShelf from './ContinueReadingShelf.svelte';
   import LibraryEmptyState from './LibraryEmptyState.svelte';
@@ -70,6 +73,8 @@
   {/if}
 
   {#if !groupedBrowseMode && recoveryShelf && recoveryShelf.books.length > 0}
+    <!-- Boundary: recovery, continue, and recent shelves are already semantically classified
+    upstream; this surface only decides where they appear in the reading-first layout. -->
     <ContinueReadingShelf
       sectionTitle={recoveryShelf.sectionTitle}
       sectionDescription={recoveryShelf.sectionDescription}

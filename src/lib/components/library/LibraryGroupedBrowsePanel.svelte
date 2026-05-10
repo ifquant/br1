@@ -1,3 +1,6 @@
+<!-- Ownership: this library component composes the grouped-browse navigator, overview,
+trail landings, and shelf preview into one reading-first browse surface. It should not
+hide route/controller state transitions or desktop repair behavior inside the UI layer. -->
 <script lang="ts">
   import BookshelfPreview from './BookshelfPreview.svelte';
   import LibraryBrowseNavigator from './LibraryBrowseNavigator.svelte';
@@ -58,6 +61,8 @@
   $: currentGroupBy = browseState.groupBy === 'none' ? 'author' : browseState.groupBy;
   $: currentGroupLabel = browseState.groupScope;
   $: shelfGroupBy = browseState.groupBy;
+  // Refactor risk: grouped browsing looks like presentation, but this panel is where the
+  // product's library hierarchy becomes visible. Changing these inputs can alter route meaning.
   $: browseSurface = buildLibraryBrowseSurfaceModel(browseState, browseBooks, shelfBooks);
 
   const isActionAvailable = (action: LibraryBrowseAction) =>

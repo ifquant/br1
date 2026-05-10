@@ -1,3 +1,6 @@
+<!-- Ownership: this library component renders empty-state copy and retry/clear actions for
+the library surface. It should stay generic and route-driven rather than owning import,
+filter, or desktop behavior by itself. -->
 <script lang="ts">
   type EmptyAction = {
     label: string;

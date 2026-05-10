@@ -1,3 +1,6 @@
+// Ownership: this library module maps route/controller state into the chrome model that
+// drives the header, notices, and migration affordances. It should only package UI-facing
+// summaries, not own filtering, routing, or privileged desktop behavior itself.
 import type {
   LibraryActiveFilterChip,
   LibraryNoticeModel,

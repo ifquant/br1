@@ -1,3 +1,6 @@
+// Ownership: this library module owns grouped-browse semantics for the library surface.
+// It decides how author/collection/format navigation, trail recovery, and guard messaging
+// work so the route and components can stay consistent about browse promises.
 import type {
   LibraryBrowseAction,
   LibraryBrowseActionGuardResult,
@@ -93,6 +96,8 @@ export const getActiveLibraryGroupOverview = (
   groupBy: 'none' | LibraryGroupBy,
   scope: string
 ): ActiveLibraryGroupOverview | null => {
+  // Refactor risk: these summaries look cosmetic, but they define what a group means to the
+  // reader and which pivots are valid next steps when navigating the library hierarchy.
   if (!scope || groupBy === 'none') return null;
 
   const totalBooks = books.length;
