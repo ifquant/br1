@@ -10,6 +10,8 @@
   export let canOpenTranslationMode = false;
   export let canResumeFollowingCurrent = false;
   export let canPinCurrentTarget = false;
+  export let modeSwitchLabel = '';
+  export let canSwitchMode = false;
   export let onRunPrimaryAction: (() => void) | null = null;
   export let onStop: (() => void) | null = null;
   export let onOpenWorkspace: (() => void) | null = null;
@@ -17,6 +19,7 @@
   export let onOpenTranslationMode: (() => void) | null = null;
   export let onResumeFollowingCurrent: (() => void) | null = null;
   export let onPinCurrentTarget: (() => void) | null = null;
+  export let onSwitchMode: (() => void) | null = null;
 </script>
 
 <section class="tts-mini-bar" aria-label="阅读中的朗读控制条">
@@ -60,6 +63,16 @@
         on:click={() => onPinCurrentTarget?.()}
       >
         锁定当前朗读目标
+      </button>
+    {/if}
+    {#if canSwitchMode}
+      <button
+        type="button"
+        class="ghost-action"
+        aria-label={modeSwitchLabel}
+        on:click={() => onSwitchMode?.()}
+      >
+        {modeSwitchLabel}
       </button>
     {/if}
     <button

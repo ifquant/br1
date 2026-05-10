@@ -59,6 +59,8 @@
   export let ttsMiniBarCanOpenTranslationMode = false;
   export let ttsMiniBarCanResumeFollowingCurrent = false;
   export let ttsMiniBarCanPinCurrentTarget = false;
+  export let ttsMiniBarModeSwitchLabel = '';
+  export let ttsMiniBarCanSwitchMode = false;
   export let notes: ReaderNote[] = [];
   export let onTtsStart: (() => void) | null = null;
   export let onTtsPause: (() => void) | null = null;
@@ -69,6 +71,7 @@
   export let onOpenTranslationModeFromMiniBar: (() => void) | null = null;
   export let onResumeFollowingCurrentTtsTargetFromMiniBar: (() => void) | null = null;
   export let onPinCurrentTtsTargetFromMiniBar: (() => void) | null = null;
+  export let onSwitchTtsModeFromMiniBar: (() => void) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
@@ -323,6 +326,8 @@
       canOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
       canResumeFollowingCurrent={ttsMiniBarCanResumeFollowingCurrent}
       canPinCurrentTarget={ttsMiniBarCanPinCurrentTarget}
+      modeSwitchLabel={ttsMiniBarModeSwitchLabel}
+      canSwitchMode={ttsMiniBarCanSwitchMode}
       onRunPrimaryAction={() => {
         if (ttsSession.status === 'speaking') {
           onTtsPause?.();
@@ -340,6 +345,7 @@
       onOpenTranslationMode={onOpenTranslationModeFromMiniBar}
       onResumeFollowingCurrent={onResumeFollowingCurrentTtsTargetFromMiniBar}
       onPinCurrentTarget={onPinCurrentTtsTargetFromMiniBar}
+      onSwitchMode={onSwitchTtsModeFromMiniBar}
     />
   {/if}
 

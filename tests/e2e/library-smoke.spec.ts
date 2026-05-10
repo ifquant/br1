@@ -1201,6 +1201,10 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
     await expect(miniBar).toContainText('等待译文结果');
     await expect(miniBar).toContainText('正在跟随当前章节');
     await expect(miniBar).toContainText('第 1 / 3 节');
+    await miniBar.getByRole('button', { name: '切换到朗读原文' }).click();
+    await expect(miniBar).toContainText('原文朗读');
+    await miniBar.getByRole('button', { name: '切换到朗读译文' }).click();
+    await expect(miniBar).toContainText('译文朗读');
     await miniBar.getByRole('button', { name: '在翻译模式中查看' }).click();
     await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
     await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随当前章节');
@@ -1379,6 +1383,10 @@ test('reader lets translated tts mode consume the selected translation archive i
   await page.getByLabel('收起笔记工作台').click();
   const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
   await expect(miniBar).toContainText('历史译文 · DeepL');
+  await miniBar.getByRole('button', { name: '切换到朗读原文' }).click();
+  await expect(miniBar).toContainText('原文朗读');
+  await miniBar.getByRole('button', { name: '切换到朗读译文' }).click();
+  await expect(miniBar).toContainText('译文朗读');
   await miniBar.getByRole('button', { name: '在翻译模式中查看' }).click();
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
   await expect(notebook.getByLabel('最近翻译').locator('.assist-history-status-badge')).toHaveText(

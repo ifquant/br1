@@ -653,6 +653,15 @@
   $: ttsMiniBarCanResumeFollowingCurrent = !notebookVisible && !ttsFollowsCurrentLocation;
   $: ttsMiniBarCanPinCurrentTarget =
     !notebookVisible && ttsFollowsCurrentLocation && !!effectiveTtsTarget?.text.trim();
+  $: ttsMiniBarCanSwitchMode =
+    !notebookVisible &&
+    (ttsReadAloudTextMode === 'source'
+      ? (!!translatedTtsSourceText.trim() ||
+          translatedTtsSourceKind !== 'none' ||
+          !!translatedTtsSourceContextLabel.trim())
+      : true);
+  $: ttsMiniBarModeSwitchLabel =
+    ttsReadAloudTextMode === 'translated' ? '切换到朗读原文' : '切换到朗读译文';
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
   }
@@ -1588,11 +1597,15 @@
           ttsMiniBarCanOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
           ttsMiniBarCanResumeFollowingCurrent={ttsMiniBarCanResumeFollowingCurrent}
           ttsMiniBarCanPinCurrentTarget={ttsMiniBarCanPinCurrentTarget}
+          ttsMiniBarModeSwitchLabel={ttsMiniBarModeSwitchLabel}
+          ttsMiniBarCanSwitchMode={ttsMiniBarCanSwitchMode}
           onOpenTtsWorkspace={openTtsWorkspace}
           onJumpToTtsPlaybackLocation={jumpToCurrentTtsLocation}
           onOpenTranslationModeFromMiniBar={openTranslationMode}
           onResumeFollowingCurrentTtsTargetFromMiniBar={resumeFollowingCurrentTtsTarget}
           onPinCurrentTtsTargetFromMiniBar={pinCurrentTtsTarget}
+          onSwitchTtsModeFromMiniBar={() =>
+            setTtsReadAloudTextMode(ttsReadAloudTextMode === 'translated' ? 'source' : 'translated')}
         />
 
         {#if parallelEnabled}
