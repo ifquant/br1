@@ -1066,6 +1066,43 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Tutorial: `tutorials/commit/0615-let-the-mini-tts-bar-switch-between-source-and-translated-playback.md`.
   - Notes: this slice does not add new translation persistence or playback runtime behavior. It only projects the existing read-aloud mode toggle onto the collapsed playback surface.
 
+- [x] P11-1.10 Record the P11 closeout boundary
+  - Outcome: the repo now explicitly states which playback-surface guarantees count as shipped in `P11`, and which larger playback/runtime ideas remain intentionally outside this line.
+  - Touches: checklist/tutorial docs only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0616-close-the-p11-reader-playback-surface-line.md`.
+  - Notes: this closeout does not add sentence stepping, queueing, or new runtime work. It only makes the stopping point durable inside the repo.
+
+- [x] P11-1.11 Run the P11 closeout review
+  - Outcome: the repo now records whether `P11` still has a structural blocker and whether the next recommended step is more `P11` micro-slices or a new reader workspace/playback line.
+  - Touches: checklist/tutorial docs only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0617-record-the-p11-closeout-review.md`.
+  - Notes: this review does not widen `P11` scope. It only records the verdict on the already-landed playback-surface slices.
+
+### P11 Closeout
+
+Included in P11:
+- dedicated TTS keeps enough location metadata to relocate the reader back to the active playback anchor
+- dedicated TTS and the canvas mini bar now show readable playback-location summaries instead of falling back to generic status text
+- the reading-canvas mini bar stays visible during translated waiting states
+- the mini bar now exposes explicit translated/source provenance and can jump straight into translation mode when translated playback provenance already exists
+- the mini bar now carries the same follow-current and lock-current ownership controls as the dedicated TTS workspace
+- the mini bar can now switch directly between source and translated playback without reopening the notebook
+
+Explicitly not included in P11:
+- sentence stepping, paragraph stepping, or finer-grained relocation inside a target
+- playback queueing, playlist/next-item controls, or richer transport controls
+- EPUB/PDF live excerpt extraction or broader TTS runtime upgrades that belong to `P10`-style runtime work
+- cross-book translated playback browsing or broader notebook redesign outside the current playback surface
+
+Closeout review verdict:
+- no remaining structural blocker was found in the shipped P11 playback-surface line
+- the remaining gaps are larger playback/runtime or notebook-product expansions, not unresolved contract failures in the current mini-bar and dedicated-TTS surfaces
+- the next recommended mainline is not more `P11` micro-slices, but the next reader workspace or playback line that still has a material parity gap
+
 
 ## Service Security Gate
 
