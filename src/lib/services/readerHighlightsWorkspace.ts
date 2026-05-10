@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam to highlights workspace
+// persistence. The renderer knows when to read or write state, but desktop
+// commands remain responsible for the actual storage contract.
+
 import type { ReaderHighlightsWorkspaceState } from '$lib/reader';
 import { invokeTauri, isTauriDesktop } from './platform';
 

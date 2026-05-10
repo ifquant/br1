@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam for reader-window
+// coordination. Keep URL shaping and window-to-window intents here, and leave
+// native window lifecycle behavior to Tauri.
+
 import { isTauriDesktop } from './platform';
 
 type ReaderWindowTarget = string | { href: string };
@@ -14,6 +18,8 @@ export const openReaderTarget = async (target: ReaderWindowTarget): Promise<bool
   if (!isTauriDesktop() || typeof window === 'undefined') return false;
 
   try {
+    // Refactor risk: this module should only describe the reader window
+    // contract. Avoid moving per-window business logic into this facade.
     const [{ WebviewWindow }, { getCurrentWindow }] = await Promise.all([
       import('@tauri-apps/api/webviewWindow'),
       import('@tauri-apps/api/window')
@@ -49,6 +55,8 @@ export const goToLibrarySurface = async (): Promise<boolean> => {
   if (!isTauriDesktop() || typeof window === 'undefined') return false;
 
   try {
+    // The main window remains the source of truth for library state. Reader
+    // windows hand control back instead of trying to recreate that surface.
     const { getAllWindows, getCurrentWindow } = await import('@tauri-apps/api/window');
 
     const currentWindow = getCurrentWindow();

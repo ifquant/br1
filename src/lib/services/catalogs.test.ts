@@ -1,3 +1,6 @@
+// Test setup is explicit here because sync and persistence bugs usually come
+// from mixing local state, remote state, and retry metadata in the wrong order.
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

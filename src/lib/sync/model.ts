@@ -1,3 +1,7 @@
+// Boundary: this module defines the pure sync record model used by renderer and
+// desktop code. Keep normalization and timestamp policy here, and keep storage
+// or network side effects in higher layers.
+
 import { READER_SETTINGS_STORAGE_KEY, normalizeReaderSettings } from '../reader/settings.js';
 import type { PersistedLibraryBook } from '../services/libraryPersistence.js';
 import type {
@@ -48,6 +52,8 @@ const hashSyncKey = (value: string) => {
 const buildScopedRecordId = (kind: Br1SyncRecord['kind'], scope: string) => `${kind}:${hashSyncKey(scope)}`;
 
 const resolveUpdatedAt = (values: Array<number | null | undefined>, fallbackUpdatedAt = 0) => {
+  // Ordering bugs usually start with stale timestamps. This helper centralizes
+  // the "newest meaningful value wins" rule for every sync record family.
   const nextUpdatedAt = values.reduce<number>(
     (maxValue, value) => (typeof value === 'number' && Number.isFinite(value) ? Math.max(maxValue, value) : maxValue),
     0

@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam to bookmark persistence.
+// Keep renderer-side fallback behavior here, and leave storage ownership to the
+// desktop command layer.
+
 import type { ReaderBookmark } from '$lib/reader';
 import { invokeTauri, isTauriDesktop } from './platform';
 

@@ -1,3 +1,7 @@
+// Boundary: this module declares the stable snapshot schema shared across
+// renderer, desktop, and tests. Keep these types transport-safe and avoid
+// importing privileged runtime details here.
+
 import type { PersistedLibraryBook } from '../services/libraryPersistence.js';
 import type {
   ReaderBookmark,

@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam to library persistence and
+// reader-target glue. Keep URL shaping and web-safe fallbacks here, and leave
+// filesystem mutations or desktop dialogs delegated to Tauri commands.
+
 import { invokeTauri, isTauriDesktop } from './platform';
 
 export type PersistedLibraryBook = {
@@ -145,6 +149,8 @@ const getBookLabelFromPath = (filePath: string) => {
 export const canPersistLibrary = () => isTauriDesktop();
 
 const requireTauriLibraryRuntime = (action: string) => {
+  // Refactor risk: this facade should stay thin enough that a reviewer can see
+  // exactly which calls cross from the renderer into desktop-owned file work.
   if (!isTauriDesktop()) {
     throw new Error(`${action} requires the Tauri desktop runtime`);
   }
@@ -191,6 +197,8 @@ const resolveLibraryRestoreLocation = (
   book: PersistedLibraryBook,
   supportsLocationRestore: boolean
 ) => {
+  // KOReader can sync locators that br1 itself cannot reopen directly. Prefer
+  // only locators the reader understands here, then fall back to percentage.
   if (!supportsLocationRestore) return undefined;
 
   const koreaderLocation = book.koreaderProgressLocation?.trim() ?? '';

@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam to local snapshot export
+// and restore. Keep renderer-safe record assembly and restore planning here,
+// while file dialogs and durable writes stay desktop-owned.
+
 import {
   READER_SETTINGS_STORAGE_KEY,
   saveReaderSettings,
@@ -83,6 +87,8 @@ export type RestoreSyncSnapshotDialogResult = {
 };
 
 const requireTauriSyncSnapshotRuntime = (action: string) => {
+  // Refactor risk: snapshot dialogs are privileged because they cross into
+  // filesystem access. Keep this module focused on snapshot composition only.
   if (!isTauriDesktop()) {
     throw new Error(`${action} requires the Tauri desktop runtime`);
   }
@@ -103,6 +109,8 @@ export const createLocalSyncSnapshot = ({
   readerSettings?: ReaderSettings | null;
   exportedAt?: number;
 }): Br1SyncSnapshot => {
+  // Snapshot assembly order is deliberate: library substrate first, then
+  // per-book overlays, then singleton reader settings for deterministic restore.
   const records: Br1SyncRecord[] = [
     ...createLibrarySyncSubstrateRecords(libraryBooks, {
       fallbackUpdatedAt: exportedAt
@@ -147,6 +155,8 @@ export const prepareSyncSnapshotRestore = (snapshot: Br1SyncSnapshot) => {
   const highlightsWorkspaceStates: SyncSnapshotHighlightsWorkspaceRecord[] = [];
   let readerSettingsRecord: ReaderSettingsSyncRecord | null = null;
 
+  // Test setup is explicit in companion coverage because restore bugs usually
+  // come from classifying record kinds or replaying them in the wrong order.
   for (const record of snapshot.records) {
     switch (record.kind) {
       case 'library-book': {

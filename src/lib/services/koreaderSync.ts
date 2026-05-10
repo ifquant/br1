@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam for KOReader sync import,
+// export, and remote progress exchange. Keep matching and snapshot shaping here,
+// but leave device I/O and network transport to desktop commands.
+
 import {
   createKoReaderAnnotationSyncRecords,
   createKoReaderReadingStateSyncRecord,
@@ -143,6 +147,8 @@ export type KoReaderRemoteSyncPullPlan = {
 };
 
 const requireTauriKoReaderSyncRuntime = (action: string) => {
+  // Refactor risk: the renderer should validate intent and explain failures,
+  // while the desktop layer stays responsible for actual file and remote access.
   if (!isTauriDesktop()) {
     throw new Error(`${action} requires the Tauri desktop runtime`);
   }
@@ -196,6 +202,8 @@ const toKoReaderRemoteReadingStateBook = (
   book: PersistedLibraryBook,
   remoteEntry: Br1KoReaderRemoteProgressEntry
 ): PersistedLibraryBook => {
+  // KOReader payloads may provide a precise locator or only a progress label.
+  // Preserve richer local restore hints when the remote entry cannot improve them safely.
   const remoteProgress = remoteEntry.progress.trim();
   const hasLocator = isKoReaderLocator(remoteProgress);
   const parsedPageProgress = parseKoReaderPageProgress(remoteProgress);

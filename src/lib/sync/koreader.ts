@@ -1,3 +1,7 @@
+// Boundary: this module defines the pure sync contract between br1 records and
+// KOReader metadata. Keep it deterministic and side-effect free so renderer and
+// desktop callers can share the same translation rules.
+
 import type { PersistedLibraryBook } from '../services/libraryPersistence.js';
 import type {
   ReaderBookmark,
@@ -76,6 +80,8 @@ export const deriveKoReaderBookIdentity = (book: {
   filePath: string;
   sourcePath?: string | null;
 }): KoReaderBookIdentity => ({
+  // Identity intentionally prefers the imported source path when present so the
+  // same document can still match after the library copies it elsewhere.
   bookHash: hashIdentityPart(book.sourcePath || book.filePath || book.id),
   metaHash: hashIdentityPart(
     [book.title.trim(), book.author.trim(), book.format.trim(), book.sourcePath?.trim() || '']
@@ -213,6 +219,8 @@ export const createKoReaderAnnotationSyncRecords = (
   notesRecord: ReaderNotesSyncRecord;
   bookmarksRecord: ReaderBookmarksSyncRecord;
 } => {
+  // KOReader deletions stay tombstoned on the KOReader side. br1 sync records
+  // only carry live notes/bookmarks so restore flows do not resurrect deletes.
   const liveAnnotations = annotations.filter((annotation) => !annotation.deletedAt);
   const notes = liveAnnotations
     .filter((annotation) => annotation.type === 'annotation')

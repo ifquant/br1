@@ -1,3 +1,7 @@
+// Boundary: this module defines the pure remote-sync result contract shared by
+// renderer and desktop code. Keep it limited to transport-agnostic status
+// semantics so feature code does not infer backend details.
+
 import type { Br1SyncSnapshot } from './types.js';
 
 export type Br1RemoteSyncProvider = 'readestCloud';

@@ -1,3 +1,7 @@
+// Boundary: this barrel exposes pure sync-model helpers to the rest of the app.
+// Keep it limited to deterministic record shaping and interpretation so UI and
+// desktop layers can share the same sync contract safely.
+
 export {
   createBr1SyncSnapshot,
   createLibraryBookMetadataSyncRecord,

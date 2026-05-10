@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam for reader assistance
+// requests. It may normalize user intent and degrade gracefully in web mode,
+// but translation and lookup execution stay desktop-owned.
+
 import type {
   ReaderAssistanceRequest,
   ReaderAssistanceResult,
@@ -92,6 +96,8 @@ export const requestReaderAssistance = async (
 ): Promise<ReaderAssistanceState> => {
   const normalizedRequest = normalizeReaderAssistanceRequest(request);
   if (normalizedRequest.kind === 'translation') {
+    // Refactor risk: keep provider gating and empty-state UX here, but do not
+    // duplicate translation business logic in the renderer.
     if (!normalizedRequest.text) {
       return createEmptyReaderAssistanceResultState(normalizedRequest);
     }

@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam to catalog persistence and
+// import behavior. Keep renderer-safe request shaping here, and leave network,
+// credential, and filesystem work delegated to desktop commands.
+
 import { isTauriDesktop, invokeTauri } from './platform';
 import type { LibraryReaderTarget, PersistedLibraryBook } from './libraryPersistence';
 import { toLibraryReaderTarget } from './libraryPersistence';

@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam to reader note persistence.
+// Keep web-mode fallbacks here, and leave durable storage behavior delegated to
+// the desktop command layer.
+
 import type { ReaderNote } from '$lib/reader';
 import { invokeTauri, isTauriDesktop } from './platform';
 

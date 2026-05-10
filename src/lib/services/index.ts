@@ -1,3 +1,7 @@
+// Boundary: this barrel exposes the renderer-safe service surface to the rest
+// of the app. Re-export thin facades here, and keep privileged behavior owned
+// by the desktop command layer or lower-level sync helpers.
+
 export {
   browseCatalogSource,
   createCatalogImportIntent,

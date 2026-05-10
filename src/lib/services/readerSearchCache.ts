@@ -1,3 +1,7 @@
+// Boundary: this module is the frontend-facing seam to search-result caching
+// and file fingerprint lookup. Cache invalidation decisions stay in the
+// renderer, while the desktop layer owns disk-backed cache and file access.
+
 import type { ReaderSearchResult } from '$lib/reader';
 import { invokeTauri, isTauriDesktop } from './platform';
 
@@ -22,6 +26,8 @@ export const clearReaderSearchCache = async (bookKey: string): Promise<void> => 
 };
 
 export const loadLibraryFileFingerprint = async (filePath: string): Promise<string> => {
+  // Refactor risk: fingerprint lookup touches desktop-owned files, so keep the
+  // renderer limited to request/response plumbing and explicit failure modes.
   if (!isTauriDesktop()) {
     throw new Error('library-file reader sources require the Tauri desktop runtime');
   }

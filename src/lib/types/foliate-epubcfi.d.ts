@@ -1,3 +1,6 @@
+// This declaration/shim exists to stabilize an external dependency boundary for
+// the rest of the app. Keep only the minimum surface needed by br1 code.
+
 declare module 'foliate-js/epubcfi.js' {
   export const parse: (input: string) => any;
   export const fake: { toIndex: (step: any) => number };
