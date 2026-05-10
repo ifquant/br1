@@ -241,6 +241,97 @@
     return Math.max(0, Math.min(1, plainTextScroller.scrollTop / maxScroll));
   };
 
+  const normalizeFoliateExcerptLine = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+  const stripExcerptHtml = (value: string) =>
+    value
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&');
+
+  const isFoliateExcerptCandidate = (line: string, chapterLabel: string, title: string) => {
+    const normalized = normalizeFoliateExcerptLine(line);
+    if (!normalized) return false;
+    if (normalized === chapterLabel.trim()) return false;
+    if (normalized === title.trim()) return false;
+    if (normalized.length < 8) return false;
+    return true;
+  };
+
+  const getFoliateReaderExcerpt = (chapterLabel: string, title: string) => {
+    if (currentFormatLabel === 'PDF') {
+      return {
+        text: '',
+        label: ''
+      };
+    }
+
+    const contents = foliateViewElement?.renderer?.getContents?.() ?? [];
+    const collected: string[] = [];
+
+    outer: for (const content of contents) {
+      const serializedDoc =
+        typeof XMLSerializer !== 'undefined' && content.doc
+          ? new XMLSerializer().serializeToString(content.doc)
+          : content.doc?.documentElement?.outerHTML || '';
+      const excerptNodes = Array.from(
+        serializedDoc.matchAll(/<(p|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi)
+      );
+      if (!excerptNodes.length) {
+        continue;
+      }
+
+      const lines = excerptNodes.map((match) => stripExcerptHtml(match[2] || ''));
+
+      for (const line of lines) {
+        if (!isFoliateExcerptCandidate(line, chapterLabel, title)) {
+          if (collected.length) {
+            break outer;
+          }
+          continue;
+        }
+
+        collected.push(normalizeFoliateExcerptLine(line));
+        if (collected.join(' ').length >= 220) break outer;
+      }
+    }
+
+    const text = collected.join(' ').trim();
+    if (!text) {
+      const fallbackText = normalizeFoliateExcerptLine(
+        contents
+          .map(
+            (content) =>
+              content.doc?.body?.innerText ||
+              content.doc?.body?.textContent ||
+              content.doc?.documentElement?.textContent ||
+              ''
+          )
+          .join(' ')
+      );
+      if (fallbackText) {
+        return {
+          text: fallbackText.length > 220 ? `${fallbackText.slice(0, 217).trimEnd()}...` : fallbackText,
+          label: '当前章节正文'
+        };
+      }
+    }
+
+    if (!text) {
+      return {
+        text: '',
+        label: ''
+      };
+    }
+
+    return {
+      text: text.length > 220 ? `${text.slice(0, 217).trimEnd()}...` : text,
+      label: '当前章节正文'
+    };
+  };
+
   const getPlainTextReaderState = (
     overrides: Partial<ReaderPreviewState> = {}
   ): ReaderPreviewState => {
@@ -576,12 +667,15 @@
       : typeof book?.metadata?.language === 'string'
         ? book.metadata.language
         : '';
+    const title = pickText(book?.metadata?.title) || openSourceLabel || READER_EMPTY_TITLE;
+    const chapterLabel = lastLocation?.tocItem?.label || fallbackChapter;
+    const excerpt = getFoliateReaderExcerpt(chapterLabel, title);
 
     const previewState: ReaderPreviewState = {
       ...getFallbackReaderState(),
-      title: pickText(book?.metadata?.title) || openSourceLabel || READER_EMPTY_TITLE,
+      title,
       author: pickAuthor(book?.metadata?.creator) || '未知作者',
-      chapterLabel: lastLocation?.tocItem?.label || fallbackChapter,
+      chapterLabel,
       chapterHref: lastLocation?.tocItem?.href || '',
       progressLabel: `${progressPercent}%`,
       progressFraction: fraction,
@@ -593,6 +687,8 @@
       locationLabel: formatReaderLocationLabel(currentFormatLabel, lastLocation),
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
+      ttsSourceText: excerpt.text,
+      ttsSourceLabel: excerpt.label,
       ttsSourceLanguage: metadataLanguage.trim(),
       ...partial
     };

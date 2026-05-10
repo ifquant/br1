@@ -2073,7 +2073,6 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
     await page.getByLabel('收起笔记工作台').click();
     await expect(page.getByRole('complementary', { name: '笔记工作台已收起', exact: true })).toBeVisible();
     await expect(miniBar).toBeVisible();
-    await expect(miniBar).toContainText('等待当前翻译来源');
     await expect(miniBar).toContainText('等待译文结果');
     await expect(miniBar).toContainText('正在跟随当前章节');
     await expect(miniBar).toContainText('第 1 / 3 节');
@@ -2184,6 +2183,52 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
     await expect(page.getByLabel('笔记工作台摘要')).not.toContainText('可回到朗读位置');
     await expect(ttsRegion.locator('.tts-panel').last()).not.toContainText('当前阅读已经离开朗读位置');
   }
+});
+
+test('reader uses current chapter body excerpts as the EPUB source tts target in web mode', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  await page.goto('/');
+  await page.evaluate((bookUrl) => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+    window.localStorage.removeItem(`br1.reader.tts.ownership:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.tts.mode:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.tts.translated-owner:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.assistance.history:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.assistance.selection:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.translation.mode:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.translation.ownership:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.translation.live-result:${bookUrl}`);
+    window.localStorage.removeItem(`br1.reader.tts.translated-live:${bookUrl}`);
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: 'EPUB 朗读摘录测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '打开朗读模式' }).click();
+  await page.getByRole('button', { name: '朗读原文' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
+  const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
+  const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
+
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(currentTargetPanel).toContainText(
+    'This prototype demonstrates a simple EPUB reading assistant.'
+  );
+  await expect(currentTargetPanel).toContainText('当前章节正文');
+  await expect(page.getByLabel('笔记工作台摘要')).toContainText('正文摘录');
+  await expect(miniBar).toContainText('正文摘录');
+  await expect(miniBar).toContainText('当前章节正文');
 });
 
 test('reader lets translated tts mode consume the selected translation archive in web mode', async ({

@@ -1335,6 +1335,18 @@ Closeout review verdict:
 - the remaining unsolved state is no longer “current-book ownership persistence”; it is payload-heavy deep-link state such as pinned text bodies, or broader cross-book archive/replay behavior
 - the next recommended mainline is not more `P14` micro-slices, but a new reader playback / reading-mode line if those payload-heavy or cross-book states need to become explicit product surface
 
+## P15 Reader Source Playback Parity
+
+Goal: make source-side TTS prefer real reading text before scaffold labels across reader formats that already expose trustworthy body content.
+
+- [x] P15-1.1 Prefer current chapter body excerpts over chapter-title fallback for EPUB/Foliate
+  - Outcome: source-side EPUB/Foliate TTS now carries real chapter body sentences into dedicated `朗读模式` before falling back to chapter-title scaffolding, and the source-playback smoke contract is aligned with the current translated-waiting copy.
+  - Touches: Foliate reader preview-state excerpt extraction, focused TTS/source smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader uses current chapter body excerpts as the EPUB source tts target in web mode|reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0640-prefer-current-chapter-body-excerpts-for-epub-source-tts.md`.
+  - Notes: this slice only promotes real chapter body text ahead of chapter-title fallback for Foliate-backed source playback. It does not yet guarantee heading-free excerpts in every preloaded renderer state, and it does not widen source excerpt extraction into PDF or other non-Foliate formats.
+
 
 ## Service Security Gate
 
@@ -1447,3 +1459,4 @@ Use this log when completing each item.
 | 2026-05-10 | Make dedicated TTS read-aloud mode route-addressable | `f7a8c3b` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode|reader restores dedicated tts read-aloud mode from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | turns `workspace=tts` into a self-describing playback-state contract so direct opens, translated jumps, mode switches, and reload no longer depend on ambient persisted TTS settings |
 | 2026-05-10 | Make dedicated translation target language route-addressable | `339cbb7` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader can open translation mode as a dedicated notebook tab|reader restores dedicated translation target language from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | turns `workspace=translation` into a self-describing target-language contract so direct opens, target-language switches, and reload no longer fall back to the workspace-local translation default |
 | 2026-05-10 | Make dedicated translation provider route-addressable | `821c8f6` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation provider from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | turns `workspace=translation` into a self-describing provider-choice contract so direct opens, provider switches, and reload no longer fall back to workspace-local translation provider state |
+| 2026-05-10 | Prefer current chapter body excerpts for EPUB source TTS | `this commit` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader uses current chapter body excerpts as the EPUB source tts target in web mode|reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | promotes real EPUB/Foliate chapter body sentences ahead of chapter-title fallback for source-side TTS and aligns the focused smoke contract with the current translated-waiting copy |
