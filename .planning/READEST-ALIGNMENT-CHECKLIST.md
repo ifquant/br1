@@ -1298,7 +1298,7 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Outcome: dedicated `翻译模式` now restores its target language and provider per book across reload, so one book's `English / Yandex` choice no longer silently leaks into another book and same-book reload no longer snaps back to `中文 / DeepL`.
   - Touches: reader page-local translation mode config persistence, focused reader smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation mode config per book across reload|reader restores dedicated translation ownership for the same book across reload|reader restores dedicated translation target language from route state in web mode|reader restores dedicated translation provider from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `349f8ad`.
   - Tutorial: `tutorials/commit/0636-persist-current-book-translation-mode-config.md`.
   - Notes: this slice only persists current-book translation target language and provider. Visible route-owned `workspace=translation&tl=...&tp=...` overrides still win, and pinned translation payload text remains local reader state rather than deep-link state.
 
