@@ -60,6 +60,7 @@ import type {
   export let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
   export let selectedLookupHistoryEntryId = '';
   export let selectedTranslationHistoryEntryId = '';
+  export let liveTranslationPanelResult: { translatedText: string; providerLabel: string } | null = null;
   export let ttsSession: ReaderTtsSessionState = createEmptyReaderTtsSessionState();
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
@@ -390,6 +391,7 @@ import type {
           history={assistanceHistory}
           {selectedLookupHistoryEntryId}
           {selectedTranslationHistoryEntryId}
+          {liveTranslationPanelResult}
           {translationProviderStatuses}
           callbacks={{
             onRequestLookup: callbacks.onRequestLookup,
@@ -409,6 +411,7 @@ import type {
           history={assistanceHistory}
           {selectedLookupHistoryEntryId}
           {selectedTranslationHistoryEntryId}
+          {liveTranslationPanelResult}
           translationReadingModeSourceText={translationModeSourceText}
           translationReadingModeSourceLabel={translationModeSourceLabel}
           translationReadingModeFollowsCurrent={translationModeFollowsCurrentSource}

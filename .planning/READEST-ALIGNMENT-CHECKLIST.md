@@ -1286,6 +1286,14 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Tutorial: `tutorials/commit/0634-persist-current-book-live-translated-tts-snapshots.md`.
   - Notes: this slice only persists current-book live translated playback snapshots. It still does not make translated payload text route-owned deep-link state, and it does not widen translated playback into a cross-book archive system.
 
+- [x] P14-1.6 Persist current-book live translation snapshots across reload
+  - Outcome: same-book dedicated `翻译模式` now restores the most recent live translated body even when reload no longer has a live `assistanceState` or a surviving exact-match history entry, so the current translation panel does not silently drop back to empty or stale archive semantics.
+  - Touches: reader page-local live translation snapshot persistence, translation workspace result reconstruction, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores live translation snapshots for the same book across reload|reader restores dedicated translation ownership for the same book across reload"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0635-persist-current-book-live-translation-snapshots.md`.
+  - Notes: this slice only persists current-book live translation result snapshots for dedicated `翻译模式`. It does not make live translation payload text route-owned deep-link state, and it does not widen translation history into a cross-book archive/replay system.
+
 
 ## Service Security Gate
 

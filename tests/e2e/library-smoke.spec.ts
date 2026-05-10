@@ -1407,6 +1407,160 @@ test('reader restores dedicated translation ownership for the same book across r
   await expect(translationInput).toHaveValue('第 1 / 3 节');
 });
 
+test('reader restores live translation snapshots for the same book across reload', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const selectionStorageKey = `br1.reader.assistance.selection:${sourceUrl}`;
+  const translationOwnershipStorageKey = `br1.reader.translation.ownership:${sourceUrl}`;
+  const translationLiveSnapshotStorageKey = `br1.reader.translation.live-result:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: '翻译模式 live snapshot 恢复测试',
+    workspace: 'translation'
+  }).toString()}`;
+
+  await page.goto('/');
+  await page.evaluate(
+    ({ historyKey, selectionKey, translationOwnershipKey, translationSnapshotKey }) => {
+      window.localStorage.removeItem('br1.reader.notebook-shell');
+      window.localStorage.removeItem(translationSnapshotKey);
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-translation-live-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Live translation source text.',
+              targetLanguage: 'zh',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-live-result-1',
+              provider: 'deepl',
+              title: '第二章',
+              body: '这是当前翻译模式的 live 译文。',
+              sourceLabel: 'DeepL',
+              createdAt: 20
+            },
+            error: '',
+            createdAt: 20,
+            updatedAt: 20
+          },
+          {
+            id: 'assist-translation-archive-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Archived translation source text.',
+              targetLanguage: 'zh',
+              chapterLabel: '第一章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-archive-result-1',
+              provider: 'deepl',
+              title: '第一章',
+              body: '这是历史译文，不该抢走当前 live 结果。',
+              sourceLabel: 'DeepL',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          }
+        ])
+      );
+      window.localStorage.setItem(
+        selectionKey,
+        JSON.stringify({
+          lookupHistoryEntryId: '',
+          translationHistoryEntryId: ''
+        })
+      );
+      window.localStorage.setItem(
+        translationOwnershipKey,
+        JSON.stringify({
+          followsCurrentSource: false,
+          pinnedSource: {
+            text: 'Live translation source text.',
+            label: '当前翻译目标',
+            chapterLabel: '第二章'
+          }
+        })
+      );
+    },
+    {
+      historyKey: historyStorageKey,
+      selectionKey: selectionStorageKey,
+      translationOwnershipKey: translationOwnershipStorageKey,
+      translationSnapshotKey: translationLiveSnapshotStorageKey
+    }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  const translationPanels = page.getByLabel('翻译阅读面板');
+  const translationResultCard = translationPanels.locator('.assist-translation-card.result');
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
+  await expect(translationResultCard.locator('.assist-card-header span')).toHaveText('当前翻译结果');
+  await expect(translationResultCard).toContainText('这是当前翻译模式的 live 译文。');
+  await expect(translationResultCard).not.toContainText('历史记录');
+
+  await page.evaluate((historyKey) => {
+    window.localStorage.setItem(
+      historyKey,
+      JSON.stringify([
+        {
+          id: 'assist-translation-archive-1',
+          request: {
+            kind: 'translation',
+            provider: 'deepl',
+            text: 'Archived translation source text.',
+            targetLanguage: 'zh',
+            chapterLabel: '第一章',
+            bookKey: '/samples/sample-book.epub'
+          },
+          status: 'ready',
+          result: {
+            id: 'assist-translation-archive-result-1',
+            provider: 'deepl',
+            title: '第一章',
+            body: '这是历史译文，不该抢走当前 live 结果。',
+            sourceLabel: 'DeepL',
+            createdAt: 10
+          },
+          error: '',
+          createdAt: 10,
+          updatedAt: 10
+        }
+      ])
+    );
+  }, historyStorageKey);
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
+  await expect(translationResultCard.locator('.assist-card-header span')).toHaveText('当前翻译结果');
+  await expect(translationResultCard).toContainText('这是当前翻译模式的 live 译文。');
+  await expect(translationResultCard).not.toContainText('历史记录');
+});
+
 test('reader restores dedicated tts ownership for the same book across reload', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => {

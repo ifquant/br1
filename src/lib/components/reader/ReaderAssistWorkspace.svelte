@@ -27,6 +27,7 @@
   export let history: ReaderAssistanceHistoryEntry[] = [];
   export let selectedLookupHistoryEntryId = '';
   export let selectedTranslationHistoryEntryId = '';
+  export let liveTranslationPanelResult: { translatedText: string; providerLabel: string } | null = null;
   export let translationReadingModeSourceText = '';
   export let translationReadingModeSourceLabel = '';
   export let translationReadingModeFollowsCurrent = true;
@@ -1013,10 +1014,13 @@
             <span>
               {assistance.result.sourceLabel ||
                 getReaderTranslationProviderDisplayLabel(
-                  activeAssistanceRequest.provider
-                )}
+                activeAssistanceRequest.provider
+              )}
             </span>
             <p>{assistance.result.body}</p>
+          {:else if liveTranslationPanelResult}
+            <span>{liveTranslationPanelResult.providerLabel}</span>
+            <p>{liveTranslationPanelResult.translatedText}</p>
           {:else if assistance.status === 'empty'}
             <p>没有可翻译的内容。</p>
           {:else if assistance.status === 'offline'}
