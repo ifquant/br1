@@ -1355,6 +1355,138 @@ test('reader restores dedicated translation provider from route state in web mod
   await expect(page).not.toHaveURL(/\/reader\?.*tp=/);
 });
 
+test('reader restores dedicated translation archive selection from route state in web mode', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const selectionStorageKey = `br1.reader.assistance.selection:${sourceUrl}`;
+  const selectedTranslationEntryId = 'assist-translation-route-2';
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: '路由翻译历史选中测试',
+    workspace: 'translation',
+    ta: selectedTranslationEntryId
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey, selectionKey }) => {
+      window.localStorage.removeItem('br1.reader.notebook-shell');
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-translation-route-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Bridge reading keeps the text in focus.',
+              targetLanguage: 'zh',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-route-result-1',
+              provider: 'deepl',
+              title: '第二章',
+              body: '桥接式阅读让正文保持在中心位置。',
+              sourceLabel: 'DeepL',
+              createdAt: 20
+            },
+            error: '',
+            createdAt: 20,
+            updatedAt: 20
+          },
+          {
+            id: 'assist-translation-route-2',
+            request: {
+              kind: 'translation',
+              provider: 'yandex',
+              text: 'Reader-owned route state should restore the archived translation.',
+              targetLanguage: 'en',
+              chapterLabel: '第三章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-route-result-2',
+              provider: 'yandex',
+              title: '第三章',
+              body: 'Reader-owned route state should restore the archived translation.',
+              sourceLabel: 'Yandex',
+              createdAt: 30
+            },
+            error: '',
+            createdAt: 30,
+            updatedAt: 30
+          }
+        ])
+      );
+      window.localStorage.setItem(
+        selectionKey,
+        JSON.stringify({
+          lookupHistoryEntryId: '',
+          translationHistoryEntryId: ''
+        })
+      );
+    },
+    { historyKey: historyStorageKey, selectionKey: selectionStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*workspace=translation(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*ta=assist-translation-route-2(?:&|$)/);
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const translationHistoryLane = notebook.getByLabel('最近翻译');
+  await expect(translationHistoryLane.locator('.assist-history-status-badge')).toHaveText(
+    '当前正在查看'
+  );
+  await expect(notebook.getByLabel('当前正在查看的 AI 记录')).toContainText(
+    'Reader-owned route state should restore the archived translation.'
+  );
+  await expect(notebook.locator('.assist-result')).toContainText('历史记录 · 第三章 · 译为 EN');
+
+  await page
+    .getByLabel('翻译模式朗读去向')
+    .getByRole('button', { name: '在朗读模式中查看' })
+    .click();
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/reader\?.*workspace=tts(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*tts=translated(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*ta=assist-translation-route-2(?:&|$)/);
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('历史记录 · 第三章 · 译为 EN');
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText(
+    'Reader-owned route state should restore the archived translation.'
+  );
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*workspace=tts(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*tts=translated(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*ta=assist-translation-route-2(?:&|$)/);
+  await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText(
+    '历史译文 · Yandex'
+  );
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('历史记录 · 第三章 · 译为 EN');
+
+  await notebook.getByRole('tab', { name: '笔记' }).click();
+  await expect(page.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/reader\?.*workspace=/);
+  await expect(page).not.toHaveURL(/\/reader\?.*ta=/);
+});
+
 test('reader can switch translated playback back to source from translation mode in web mode', async ({
   page
 }) => {

@@ -495,14 +495,20 @@
     workspaceMode: ReaderRouteWorkspaceMode | null,
     nextTtsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = ttsReadAloudTextMode,
     nextTranslationTargetLanguage: string | null = translationTargetLanguage,
-    nextTranslationProvider: ReaderTranslationProvider | null = translationProvider
+    nextTranslationProvider: ReaderTranslationProvider | null = translationProvider,
+    nextTranslationHistoryEntryId: string | null = assistanceSelection.translationHistoryEntryId
   ) => {
+    const normalizedTranslationHistoryEntryId = nextTranslationHistoryEntryId?.trim() || null;
     const nextHref = toReaderWorkspaceModeHref(
       $page.url,
       workspaceMode,
       nextTtsReadAloudTextMode,
       nextTranslationTargetLanguage,
-      nextTranslationProvider
+      nextTranslationProvider,
+      (workspaceMode === 'translation' ||
+        (workspaceMode === 'tts' && nextTtsReadAloudTextMode === 'translated'))
+        ? normalizedTranslationHistoryEntryId
+        : null
     );
     const currentHref = `${$page.url.pathname}${$page.url.search}`;
     if (nextHref === currentHref) return;
@@ -546,6 +552,13 @@
     }
     if (routeOpenState.workspaceMode === 'translation' && routeOpenState.translationProvider) {
       translationProvider = routeOpenState.translationProvider;
+    }
+    if (routeOpenState.translationHistoryEntryId) {
+      assistanceSelection = {
+        ...assistanceSelection,
+        lookupHistoryEntryId: '',
+        translationHistoryEntryId: routeOpenState.translationHistoryEntryId
+      };
     }
     const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
     if (rawNotebookShell) {
@@ -626,6 +639,39 @@
     routeOpenState.translationProvider !== translationProvider
   ) {
     translationProvider = routeOpenState.translationProvider;
+  }
+  $: if (
+    routeOpenState.translationHistoryEntryId &&
+    routeOpenState.translationHistoryEntryId !== assistanceSelection.translationHistoryEntryId
+  ) {
+    assistanceSelection = {
+      ...assistanceSelection,
+      lookupHistoryEntryId: '',
+      translationHistoryEntryId: routeOpenState.translationHistoryEntryId
+    };
+  }
+  $: if (
+    routeOpenState.workspaceMode === 'translation' &&
+    routeOpenState.translationHistoryEntryId
+  ) {
+    const routeOwnedTranslationEntry = assistanceHistory.find(
+      (entry) =>
+        entry.id === routeOpenState.translationHistoryEntryId && entry.request.kind === 'translation'
+    );
+    if (routeOwnedTranslationEntry?.request.kind === 'translation') {
+      if (
+        !routeOpenState.translationTargetLanguage &&
+        translationTargetLanguage !== routeOwnedTranslationEntry.request.targetLanguage
+      ) {
+        translationTargetLanguage = routeOwnedTranslationEntry.request.targetLanguage;
+      }
+      if (
+        !routeOpenState.translationProvider &&
+        translationProvider !== routeOwnedTranslationEntry.request.provider
+      ) {
+        translationProvider = routeOwnedTranslationEntry.request.provider;
+      }
+    }
   }
   $: if (!routeOpenState.workspaceMode && lastAppliedRouteWorkspaceMode) {
     lastAppliedRouteWorkspaceMode = null;
@@ -1421,18 +1467,45 @@
   };
 
   const selectAssistanceHistoryEntry = (mode: 'lookup' | 'translation', entryId: string) => {
+    const normalizedEntryId = entryId.trim();
     assistanceSelection =
       mode === 'translation'
         ? {
             ...assistanceSelection,
             lookupHistoryEntryId: '',
-            translationHistoryEntryId: entryId.trim()
+            translationHistoryEntryId: normalizedEntryId
           }
         : {
             ...assistanceSelection,
             translationHistoryEntryId: '',
-            lookupHistoryEntryId: entryId.trim()
+            lookupHistoryEntryId: normalizedEntryId
           };
+
+    if (mode !== 'translation') return;
+
+    if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
+      void syncReaderWorkspaceModeToRoute(
+        'translation',
+        null,
+        translationTargetLanguage,
+        translationProvider,
+        normalizedEntryId
+      );
+      return;
+    }
+
+    if (
+      (routeOpenState.workspaceMode === 'tts' || notebookTab === 'tts') &&
+      ttsReadAloudTextMode === 'translated'
+    ) {
+      void syncReaderWorkspaceModeToRoute(
+        'tts',
+        'translated',
+        translationTargetLanguage,
+        translationProvider,
+        normalizedEntryId
+      );
+    }
   };
 
   const clearAssistanceHistory = (mode: 'lookup' | 'translation') => {
@@ -1450,6 +1523,32 @@
     if (typeof localStorage !== 'undefined') {
       persistAssistanceHistory();
       persistAssistanceSelection();
+    }
+
+    if (mode !== 'translation') return;
+
+    if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
+      void syncReaderWorkspaceModeToRoute(
+        'translation',
+        null,
+        translationTargetLanguage,
+        translationProvider,
+        ''
+      );
+      return;
+    }
+
+    if (
+      (routeOpenState.workspaceMode === 'tts' || notebookTab === 'tts') &&
+      ttsReadAloudTextMode === 'translated'
+    ) {
+      void syncReaderWorkspaceModeToRoute(
+        'tts',
+        'translated',
+        translationTargetLanguage,
+        translationProvider,
+        ''
+      );
     }
   };
 

@@ -29,6 +29,7 @@ export type ReaderRouteOpenState = {
   ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null;
   translationTargetLanguage: string | null;
   translationProvider: ReaderTranslationProvider | null;
+  translationHistoryEntryId: string | null;
 };
 
 const parseRouteFraction = (value: string | null) => {
@@ -58,6 +59,13 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     (translationProviderParam === 'deepl' || translationProviderParam === 'yandex')
       ? translationProviderParam
       : null;
+  const translationHistoryEntryParam = url.searchParams.get('ta')?.trim() ?? '';
+  const translationHistoryEntryId =
+    ((workspaceMode === 'translation') ||
+      (workspaceMode === 'tts' && ttsReadAloudTextMode === 'translated')) &&
+    translationHistoryEntryParam
+      ? translationHistoryEntryParam
+      : null;
 
   if (source === 'asset') {
     const sourceUrl = url.searchParams.get('url') ?? '';
@@ -71,7 +79,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         workspaceMode,
         ttsReadAloudTextMode,
         translationTargetLanguage,
-        translationProvider
+        translationProvider,
+        translationHistoryEntryId
       };
     }
 
@@ -91,7 +100,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       workspaceMode,
       ttsReadAloudTextMode,
       translationTargetLanguage,
-      translationProvider
+      translationProvider,
+      translationHistoryEntryId
     };
   }
 
@@ -107,7 +117,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         workspaceMode,
         ttsReadAloudTextMode,
         translationTargetLanguage,
-        translationProvider
+        translationProvider,
+        translationHistoryEntryId
       };
     }
 
@@ -130,7 +141,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       workspaceMode,
       ttsReadAloudTextMode,
       translationTargetLanguage,
-      translationProvider
+      translationProvider,
+      translationHistoryEntryId
     };
   }
 
@@ -143,7 +155,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     workspaceMode,
     ttsReadAloudTextMode,
     translationTargetLanguage,
-    translationProvider
+    translationProvider,
+    translationHistoryEntryId
   };
 };
 
@@ -152,7 +165,8 @@ export const toReaderWorkspaceModeHref = (
   workspaceMode: ReaderRouteWorkspaceMode | null,
   ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = null,
   translationTargetLanguage: string | null = null,
-  translationProvider: ReaderTranslationProvider | null = null
+  translationProvider: ReaderTranslationProvider | null = null,
+  translationHistoryEntryId: string | null = null
 ) => {
   const nextUrl = new URL(url);
   if (workspaceMode) {
@@ -174,6 +188,15 @@ export const toReaderWorkspaceModeHref = (
     nextUrl.searchParams.set('tp', translationProvider);
   } else {
     nextUrl.searchParams.delete('tp');
+  }
+  if (
+    ((workspaceMode === 'translation') ||
+      (workspaceMode === 'tts' && ttsReadAloudTextMode === 'translated')) &&
+    translationHistoryEntryId?.trim()
+  ) {
+    nextUrl.searchParams.set('ta', translationHistoryEntryId.trim());
+  } else {
+    nextUrl.searchParams.delete('ta');
   }
   return `${nextUrl.pathname}${nextUrl.search}`;
 };
