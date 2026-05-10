@@ -489,8 +489,11 @@
     });
   }
 
-  const syncReaderWorkspaceModeToRoute = async (workspaceMode: ReaderRouteWorkspaceMode | null) => {
-    const nextHref = toReaderWorkspaceModeHref($page.url, workspaceMode);
+  const syncReaderWorkspaceModeToRoute = async (
+    workspaceMode: ReaderRouteWorkspaceMode | null,
+    nextTtsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = ttsReadAloudTextMode
+  ) => {
+    const nextHref = toReaderWorkspaceModeHref($page.url, workspaceMode, nextTtsReadAloudTextMode);
     const currentHref = `${$page.url.pathname}${$page.url.search}`;
     if (nextHref === currentHref) return;
     await goto(nextHref, {
@@ -506,7 +509,8 @@
     notebookVisible = true;
     notebookTab = tab;
     await syncReaderWorkspaceModeToRoute(
-      tab === 'translation' || tab === 'tts' ? tab : null
+      tab === 'translation' || tab === 'tts' ? tab : null,
+      tab === 'tts' ? ttsReadAloudTextMode : null
     );
   };
 
@@ -522,6 +526,9 @@
 
     if (typeof localStorage === 'undefined') return;
     ttsReadAloudTextMode = loadReaderSettings(localStorage).ttsReadAloudText;
+    if (routeOpenState.workspaceMode === 'tts' && routeOpenState.ttsReadAloudTextMode) {
+      ttsReadAloudTextMode = routeOpenState.ttsReadAloudTextMode;
+    }
     const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
     if (rawNotebookShell) {
       try {
@@ -580,6 +587,13 @@
     lastAppliedRouteWorkspaceMode = routeOpenState.workspaceMode;
     notebookVisible = true;
     notebookTab = routeOpenState.workspaceMode;
+  }
+  $: if (
+    routeOpenState.workspaceMode === 'tts' &&
+    routeOpenState.ttsReadAloudTextMode &&
+    routeOpenState.ttsReadAloudTextMode !== ttsReadAloudTextMode
+  ) {
+    ttsReadAloudTextMode = routeOpenState.ttsReadAloudTextMode;
   }
   $: if (!routeOpenState.workspaceMode && lastAppliedRouteWorkspaceMode) {
     lastAppliedRouteWorkspaceMode = null;
@@ -1116,6 +1130,9 @@
       ttsFollowsCurrentLocation = true;
     }
     applyTtsRetarget(resolveReaderTtsSpeechTarget());
+    if (routeOpenState.workspaceMode === 'tts' || notebookTab === 'tts') {
+      void syncReaderWorkspaceModeToRoute('tts', mode);
+    }
   };
 
   const openTtsWorkspace = () => {

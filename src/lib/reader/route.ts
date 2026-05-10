@@ -1,4 +1,4 @@
-import type { ReaderControlRequest } from './types';
+import type { ReaderControlRequest, ReaderTtsReadAloudTextMode } from './types';
 
 export type ReaderRouteOpenTarget =
   | {
@@ -25,6 +25,7 @@ export type ReaderRouteOpenState = {
   bookKey: string;
   target: ReaderRouteOpenTarget | null;
   workspaceMode: ReaderRouteWorkspaceMode | null;
+  ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null;
 };
 
 const parseRouteFraction = (value: string | null) => {
@@ -39,6 +40,9 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
   const workspaceParam = url.searchParams.get('workspace');
   const workspaceMode: ReaderRouteWorkspaceMode | null =
     workspaceParam === 'translation' || workspaceParam === 'tts' ? workspaceParam : null;
+  const ttsParam = url.searchParams.get('tts');
+  const ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null =
+    workspaceMode === 'tts' && (ttsParam === 'source' || ttsParam === 'translated') ? ttsParam : null;
 
   if (source === 'asset') {
     const sourceUrl = url.searchParams.get('url') ?? '';
@@ -49,7 +53,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         autoOpenKey: '',
         bookKey: label || 'default',
         target: null,
-        workspaceMode
+        workspaceMode,
+        ttsReadAloudTextMode
       };
     }
 
@@ -66,7 +71,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       autoOpenKey: `asset:${target.url}:${target.label}`,
       bookKey: target.bookKey,
       target,
-      workspaceMode
+      workspaceMode,
+      ttsReadAloudTextMode
     };
   }
 
@@ -79,7 +85,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         autoOpenKey: '',
         bookKey: label || 'default',
         target: null,
-        workspaceMode
+        workspaceMode,
+        ttsReadAloudTextMode
       };
     }
 
@@ -99,7 +106,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       autoOpenKey: `library-file:${target.path}:${target.label}:${target.restoreLocation ?? ''}:${target.restoreFraction ?? ''}`,
       bookKey: target.bookKey,
       target,
-      workspaceMode
+      workspaceMode,
+      ttsReadAloudTextMode
     };
   }
 
@@ -109,19 +117,26 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     autoOpenKey: source,
     bookKey: label || 'default',
     target: null,
-    workspaceMode
+    workspaceMode,
+    ttsReadAloudTextMode
   };
 };
 
 export const toReaderWorkspaceModeHref = (
   url: URL,
-  workspaceMode: ReaderRouteWorkspaceMode | null
+  workspaceMode: ReaderRouteWorkspaceMode | null,
+  ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = null
 ) => {
   const nextUrl = new URL(url);
   if (workspaceMode) {
     nextUrl.searchParams.set('workspace', workspaceMode);
   } else {
     nextUrl.searchParams.delete('workspace');
+  }
+  if (workspaceMode === 'tts' && ttsReadAloudTextMode) {
+    nextUrl.searchParams.set('tts', ttsReadAloudTextMode);
+  } else {
+    nextUrl.searchParams.delete('tts');
   }
   return `${nextUrl.pathname}${nextUrl.search}`;
 };

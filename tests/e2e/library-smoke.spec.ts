@@ -1167,6 +1167,7 @@ test('reader restores dedicated translation and tts modes from route state in we
 }) => {
   await page.addInitScript(() => {
     window.localStorage.removeItem('br1.reader.notebook-shell');
+    window.localStorage.removeItem('br1.reader.settings');
   });
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',
@@ -1191,6 +1192,7 @@ test('reader restores dedicated translation and tts modes from route state in we
 
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
   await expect(page).toHaveURL(/\/reader\?.*workspace=tts(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*tts=translated(?:&|$)/);
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
 
   await page.reload();
@@ -1200,10 +1202,62 @@ test('reader restores dedicated translation and tts modes from route state in we
     timeout: 15000
   });
   await expect(page).toHaveURL(/\/reader\?.*workspace=tts(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*tts=translated(?:&|$)/);
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
 
   await notebook.getByRole('tab', { name: '笔记' }).click();
   await expect(page.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
   await expect(page).not.toHaveURL(/\/reader\?.*workspace=/);
+});
+
+test('reader restores dedicated tts read-aloud mode from route state in web mode', async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+    window.localStorage.setItem(
+      'br1.reader.settings',
+      JSON.stringify({
+        ttsReadAloudText: 'translated'
+      })
+    );
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '路由朗读模式测试',
+    workspace: 'tts',
+    tts: 'source'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*workspace=tts(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*tts=source(?:&|$)/);
+  await expect(page.getByRole('button', { name: '朗读原文' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: '朗读译文' }).click();
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page).toHaveURL(/\/reader\?.*tts=translated(?:&|$)/);
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*tts=translated(?:&|$)/);
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+
+  await notebook.getByRole('tab', { name: '笔记' }).click();
+  await expect(page.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/reader\?.*workspace=/);
+  await expect(page).not.toHaveURL(/\/reader\?.*tts=/);
 });
 
 test('reader can switch translated playback back to source from translation mode in web mode', async ({

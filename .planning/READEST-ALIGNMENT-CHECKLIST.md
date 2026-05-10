@@ -1174,6 +1174,14 @@ Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route 
   - Tutorial: `tutorials/commit/0623-make-dedicated-translation-and-tts-modes-url-addressable.md`.
   - Notes: this slice is route-state parity only. It does not widen notebook persistence beyond the dedicated `translation` and `tts` deep-link contract, and non-dedicated tabs such as `笔记`, `AI`, and `同步` remain query-param free.
 
+- [x] P13-1.2 Make dedicated TTS read-aloud mode route-addressable
+  - Outcome: `workspace=tts` now also carries `tts=source|translated`, so direct TTS opens, translation-to-TTS jumps, TTS mode switches, and reload all preserve the same dedicated playback-mode contract without depending on persisted reader settings.
+  - Touches: reader route parsing and href sync, TTS read-aloud mode route override, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode|reader restores dedicated tts read-aloud mode from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `pending`.
+  - Tutorial: `tutorials/commit/0624-make-dedicated-tts-read-aloud-mode-route-addressable.md`.
+  - Notes: this slice only routes the dedicated TTS playback mode. It does not make non-TTS reader settings route-owned, and it does not widen route state to cover broader playback/runtime session semantics.
+
 
 ## Service Security Gate
 
