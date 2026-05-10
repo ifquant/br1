@@ -1475,6 +1475,58 @@ test('reader restores dedicated tts ownership for the same book across reload', 
   await expect(currentTargetPanel).not.toContainText('Depth line');
 });
 
+test('reader restores dedicated tts read-aloud mode per book across reload', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+    window.localStorage.removeItem('br1.reader.tts.mode:/samples/sample-book.epub');
+    window.localStorage.removeItem('br1.reader.tts.mode:/samples/sample-book.txt');
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '朗读模式模式归属持久化测试',
+    workspace: 'tts'
+  }).toString()}`;
+  const otherBookHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.txt',
+    label: '另一册朗读模式模式测试',
+    workspace: 'tts'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '朗读原文' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: '朗读译文' }).click();
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
+
+  await page.goto(otherBookHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '朗读原文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByLabel('朗读模式状态')).toContainText('原文朗读');
+});
+
 test('reader restores dedicated translation archive selection from route state in web mode', async ({
   page
 }) => {

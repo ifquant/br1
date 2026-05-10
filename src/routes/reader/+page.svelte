@@ -15,7 +15,6 @@
     ReaderSidebarCallbacks,
     ReaderSearchHistoryEntry,
     ReaderSearchResult,
-    ReaderSettings,
     ReaderTtsReadAloudTextMode,
     ReaderTranslationProvider,
     ReaderTranslationProviderStatus,
@@ -66,7 +65,6 @@
     parseReaderRouteOpenState,
     planReaderTtsRetargetAction,
     loadReaderSettings,
-    saveReaderSettings,
     serializeReaderAssistanceHistory,
     serializeReaderAssistanceWorkspaceSelection,
     shouldShowReaderTtsMiniBar,
@@ -180,6 +178,7 @@
   let assistanceRequestNonce = 0;
   let lastAssistanceBookKey = '';
   let lastRestoredTtsOwnershipBookKey = '';
+  let lastRestoredTtsReadAloudModeBookKey = '';
   let translationProviderStatuses: ReaderTranslationProviderStatus[] =
     createDefaultReaderTranslationProviderStatuses();
   const ttsController = createReaderTtsController();
@@ -206,6 +205,7 @@
   $: assistanceSelectionStorageKey = `br1.reader.assistance.selection:${readerBookKey}`;
   $: translationOwnershipStorageKey = `br1.reader.translation.ownership:${readerBookKey}`;
   $: ttsOwnershipStorageKey = `br1.reader.tts.ownership:${readerBookKey}`;
+  $: ttsReadAloudModeStorageKey = `br1.reader.tts.mode:${readerBookKey}`;
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -552,13 +552,31 @@
     }
   };
 
-  const persistReaderSettingPatch = (patch: Partial<ReaderSettings>) => {
+  const persistCurrentBookTtsReadAloudMode = () => {
     if (typeof localStorage === 'undefined') return;
-    const nextSettings = {
-      ...loadReaderSettings(localStorage),
-      ...patch
-    };
-    saveReaderSettings(localStorage, nextSettings);
+    if (!ttsReadAloudModeStorageKey) return;
+    localStorage.setItem(ttsReadAloudModeStorageKey, ttsReadAloudTextMode);
+  };
+
+  const restoreCurrentBookTtsReadAloudMode = () => {
+    const defaultMode =
+      typeof localStorage === 'undefined'
+        ? 'source'
+        : loadReaderSettings(localStorage).ttsReadAloudText;
+    if (typeof localStorage === 'undefined') {
+      return defaultMode;
+    }
+    if (!ttsReadAloudModeStorageKey) {
+      return defaultMode;
+    }
+    const rawMode = localStorage.getItem(ttsReadAloudModeStorageKey)?.trim() ?? '';
+    if (rawMode === 'source' || rawMode === 'translated') {
+      return rawMode satisfies ReaderTtsReadAloudTextMode;
+    }
+    if (rawMode) {
+      localStorage.removeItem(ttsReadAloudModeStorageKey);
+    }
+    return defaultMode;
   };
 
   function resolveReaderTtsSpeechTarget(): ReaderTtsSpeechTarget | null {
@@ -755,6 +773,8 @@
     if ($ttsState.status === 'speaking' || $ttsState.status === 'paused') {
       ttsController.stop();
     }
+    ttsReadAloudTextMode = restoreCurrentBookTtsReadAloudMode();
+    lastRestoredTtsReadAloudModeBookKey = readerBookKey;
     const restoredTtsOwnership = restoreTtsOwnership();
     ttsFollowsCurrentLocation = restoredTtsOwnership.followsCurrentLocation;
     pinnedTtsTarget = restoredTtsOwnership.pinnedTarget;
@@ -964,6 +984,18 @@
     assistanceSelectionStorageKey;
     if (typeof localStorage !== 'undefined') {
       persistAssistanceSelection();
+    }
+  }
+  $: {
+    readerBookKey;
+    ttsReadAloudModeStorageKey;
+    ttsReadAloudTextMode;
+    if (
+      typeof localStorage !== 'undefined' &&
+      readerBookKey &&
+      readerBookKey === lastRestoredTtsReadAloudModeBookKey
+    ) {
+      persistCurrentBookTtsReadAloudMode();
     }
   }
   $: {
@@ -1378,13 +1410,13 @@
   const setTtsReadAloudTextMode = (mode: ReaderTtsReadAloudTextMode) => {
     if (ttsReadAloudTextMode === mode) return;
     ttsReadAloudTextMode = mode;
-    persistReaderSettingPatch({ ttsReadAloudText: mode });
+    persistCurrentBookTtsReadAloudMode();
     if (!ttsFollowsCurrentLocation) {
       pinnedTtsTarget = null;
       ttsFollowsCurrentLocation = true;
     }
     applyTtsRetarget(resolveReaderTtsSpeechTarget());
-    if (routeOpenState.workspaceMode === 'tts' || notebookTab === 'tts') {
+    if (routeOpenState.workspaceMode === 'tts' || (notebookVisible && notebookTab === 'tts')) {
       void syncReaderWorkspaceModeToRoute('tts', mode);
     }
   };
