@@ -1407,6 +1407,74 @@ test('reader restores dedicated translation ownership for the same book across r
   await expect(translationInput).toHaveValue('第 1 / 3 节');
 });
 
+test('reader restores dedicated tts ownership for the same book across reload', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+    window.localStorage.removeItem('br1.reader.tts.ownership:/samples/sample-book.txt');
+    window.localStorage.removeItem('br1.reader.tts.ownership:/samples/sample-book.epub');
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.txt',
+    label: '朗读模式归属持久化测试',
+    workspace: 'tts'
+  }).toString()}`;
+  const otherBookHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '另一册朗读模式测试',
+    workspace: 'tts'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
+  const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
+
+  await page.locator('.plain-text-surface').evaluate((element) => {
+    const maxScroll = element.scrollHeight - element.clientHeight;
+    if (maxScroll <= 0) {
+      throw new Error('expected the TXT fixture to produce a scrollable plain-text surface');
+    }
+    element.scrollTop = maxScroll * 0.82;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+
+  await expect(currentTargetPanel).toContainText('Depth line');
+  await page.getByRole('button', { name: '锁定当前朗读目标' }).click();
+  await expect(page.getByLabel('朗读模式状态')).toContainText('已锁定朗读目标');
+  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByLabel('朗读模式状态')).toContainText('已锁定朗读目标');
+  await expect(currentTargetPanel).toContainText('Depth line');
+  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
+
+  await page.getByRole('button', { name: '回到当前阅读位置' }).click();
+  await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
+
+  await page.goto(otherBookHref);
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
+  await expect(page.getByLabel('朗读模式状态')).not.toContainText('已锁定朗读目标');
+  await expect(currentTargetPanel).not.toContainText('Depth line');
+});
+
 test('reader restores dedicated translation archive selection from route state in web mode', async ({
   page
 }) => {

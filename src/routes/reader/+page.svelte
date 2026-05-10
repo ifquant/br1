@@ -59,6 +59,7 @@
     getReaderTtsSessionStatusLabel,
     getReaderTtsTranslatedWaitingTargetLabel,
     normalizeAssistanceText,
+    normalizeReaderTtsSpeechTarget,
     normalizeAssistanceTerm,
     getReaderTranslationProviderDisplayLabel,
     openReaderParallelSecondaryPaneFromPrimary,
@@ -178,6 +179,7 @@
     createEmptyReaderAssistanceWorkspaceSelection();
   let assistanceRequestNonce = 0;
   let lastAssistanceBookKey = '';
+  let lastRestoredTtsOwnershipBookKey = '';
   let translationProviderStatuses: ReaderTranslationProviderStatus[] =
     createDefaultReaderTranslationProviderStatuses();
   const ttsController = createReaderTtsController();
@@ -203,6 +205,7 @@
   $: assistanceHistoryStorageKey = `br1.reader.assistance.history:${readerBookKey}`;
   $: assistanceSelectionStorageKey = `br1.reader.assistance.selection:${readerBookKey}`;
   $: translationOwnershipStorageKey = `br1.reader.translation.ownership:${readerBookKey}`;
+  $: ttsOwnershipStorageKey = `br1.reader.tts.ownership:${readerBookKey}`;
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -486,6 +489,69 @@
     }
   };
 
+  const persistTtsOwnership = () => {
+    if (typeof localStorage === 'undefined') return;
+    if (!ttsOwnershipStorageKey) return;
+    localStorage.setItem(
+      ttsOwnershipStorageKey,
+      JSON.stringify({
+        followsCurrentLocation: ttsFollowsCurrentLocation,
+        pinnedTarget: normalizeReaderTtsSpeechTarget(pinnedTtsTarget)
+      })
+    );
+  };
+
+  const restoreTtsOwnership = () => {
+    if (typeof localStorage === 'undefined') {
+      return {
+        followsCurrentLocation: true,
+        pinnedTarget: null as ReaderTtsSpeechTarget | null
+      };
+    }
+    if (!ttsOwnershipStorageKey) {
+      return {
+        followsCurrentLocation: true,
+        pinnedTarget: null as ReaderTtsSpeechTarget | null
+      };
+    }
+    const rawOwnership = localStorage.getItem(ttsOwnershipStorageKey);
+    if (!rawOwnership) {
+      return {
+        followsCurrentLocation: true,
+        pinnedTarget: null as ReaderTtsSpeechTarget | null
+      };
+    }
+
+    try {
+      const parsed = JSON.parse(rawOwnership) as {
+        followsCurrentLocation?: unknown;
+        pinnedTarget?: ReaderTtsSpeechTarget | null;
+      };
+      const normalizedPinnedTarget = normalizeReaderTtsSpeechTarget(parsed.pinnedTarget ?? null);
+      if (parsed.followsCurrentLocation === false && !normalizedPinnedTarget) {
+        localStorage.removeItem(ttsOwnershipStorageKey);
+        return {
+          followsCurrentLocation: true,
+          pinnedTarget: null as ReaderTtsSpeechTarget | null
+        };
+      }
+      return {
+        followsCurrentLocation:
+          typeof parsed.followsCurrentLocation === 'boolean'
+            ? parsed.followsCurrentLocation
+            : !normalizedPinnedTarget,
+        pinnedTarget: normalizedPinnedTarget
+      };
+    } catch (error) {
+      console.warn('Failed to restore reader TTS ownership', error);
+      localStorage.removeItem(ttsOwnershipStorageKey);
+      return {
+        followsCurrentLocation: true,
+        pinnedTarget: null as ReaderTtsSpeechTarget | null
+      };
+    }
+  };
+
   const persistReaderSettingPatch = (patch: Partial<ReaderSettings>) => {
     if (typeof localStorage === 'undefined') return;
     const nextSettings = {
@@ -689,8 +755,10 @@
     if ($ttsState.status === 'speaking' || $ttsState.status === 'paused') {
       ttsController.stop();
     }
-    ttsFollowsCurrentLocation = true;
-    pinnedTtsTarget = null;
+    const restoredTtsOwnership = restoreTtsOwnership();
+    ttsFollowsCurrentLocation = restoredTtsOwnership.followsCurrentLocation;
+    pinnedTtsTarget = restoredTtsOwnership.pinnedTarget;
+    lastRestoredTtsOwnershipBookKey = readerBookKey;
     const restoredTranslationOwnership = restoreTranslationOwnership();
     translationFollowsCurrentSource = restoredTranslationOwnership.followsCurrentSource;
     pinnedTranslationSource = restoredTranslationOwnership.pinnedSource;
@@ -896,6 +964,19 @@
     assistanceSelectionStorageKey;
     if (typeof localStorage !== 'undefined') {
       persistAssistanceSelection();
+    }
+  }
+  $: {
+    readerBookKey;
+    ttsOwnershipStorageKey;
+    ttsFollowsCurrentLocation;
+    pinnedTtsTarget;
+    if (
+      typeof localStorage !== 'undefined' &&
+      readerBookKey &&
+      readerBookKey === lastRestoredTtsOwnershipBookKey
+    ) {
+      persistTtsOwnership();
     }
   }
   $: {
@@ -1283,12 +1364,14 @@
         }
       : null;
     ttsFollowsCurrentLocation = false;
+    persistTtsOwnership();
     applyTtsRetarget(pinnedTtsTarget);
   };
 
   const resumeFollowingCurrentTtsTarget = () => {
     ttsFollowsCurrentLocation = true;
     pinnedTtsTarget = null;
+    persistTtsOwnership();
     applyTtsRetarget(resolvedTtsTarget);
   };
 
