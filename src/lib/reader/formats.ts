@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 type ReaderFormatSupportStatus = 'supported' | 'planned' | 'unsupported';
 
 type ReaderFormatCapability = {
@@ -24,6 +28,8 @@ const getReaderFormatCapability = (label: string) => {
   const normalized = normalizeReaderFormatToken(label);
   if (!normalized || normalized === 'book') return null;
 
+  // Boundary: every reader surface should reason from the same capability table
+  // rather than re-encoding extension rules in UI conditionals.
   return READER_FORMAT_CAPABILITIES.find(({ extension }) => extension === normalized) ?? null;
 };
 

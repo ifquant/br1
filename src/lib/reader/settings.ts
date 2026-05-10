@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import type {
   ReaderChromeMode,
   ReaderFocusAidMode,
@@ -156,6 +160,8 @@ export const normalizeReaderSettings = (value: unknown): ReaderSettings => {
   const defaults = createDefaultReaderSettings();
   if (typeof value !== 'object' || value === null) return defaults;
   const candidate = value as Partial<ReaderSettings>;
+  // Boundary: settings restore must clamp every enum-like field back onto the
+  // supported reader contract before those values reach Foliate styling or UI chrome.
   return {
     flowMode: isFlowMode(candidate.flowMode) ? candidate.flowMode : defaults.flowMode,
     fontFamily: isFontFamily(candidate.fontFamily) ? candidate.fontFamily : defaults.fontFamily,
@@ -190,6 +196,8 @@ export const loadReaderSettings = (storage: Storage | undefined): ReaderSettings
 export const hydrateReaderSettings = (storage: Storage | undefined): ReaderSettings => {
   const settings = loadReaderSettings(storage);
   if (storage) {
+    // Boundary: write back the normalized snapshot so future restores and older
+    // builds converge on the same persisted shape.
     saveReaderSettings(storage, settings);
   }
   return settings;

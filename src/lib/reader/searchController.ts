@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { get, writable } from 'svelte/store';
 import type {
   ReaderSearchConfig,
@@ -104,6 +108,8 @@ const normalizeSearchHistoryEntry = (value: unknown): ReaderSearchHistoryEntry |
 const normalizeSearchHistory = (value: unknown): ReaderSearchHistoryEntry[] => {
   if (!Array.isArray(value)) return [];
 
+  // Boundary: search history is restore-only user memory. Deduplicate here so
+  // repeated searches or older payload shapes do not fan out into duplicate UI rows.
   const deduped = new Map<string, ReaderSearchHistoryEntry>();
   for (const item of value) {
     const normalized = normalizeSearchHistoryEntry(item);
@@ -194,6 +200,8 @@ export const createReaderSearchController = ({
     const storage = getStorage();
     if (!canPersistPrefs || !storage) return;
 
+    // Boundary: config and history are persisted together because replaying an
+    // entry without its original flags changes search semantics for the same term.
     storage.setItem('br1.reader.search.config', JSON.stringify(current.config));
     storage.setItem(getHistoryKey(), JSON.stringify(current.history.slice(0, 12)));
   };

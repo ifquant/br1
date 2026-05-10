@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 export type ReaderAssistanceProvider = 'wikipedia' | 'dictionary' | 'deepl' | 'yandex';
 
 export type ReaderLookupProvider = 'wikipedia' | 'dictionary';
@@ -122,6 +126,8 @@ export const canRequestAssistanceForText = (value: string): boolean =>
 export const normalizeReaderAssistanceRequest = (
   request: ReaderAssistanceRequest
 ): ReaderAssistanceRequest => {
+  // Boundary: assistance history, sidebar state, and persisted workspace picks all
+  // share this shape. Normalize once here so those callers do not drift apart.
   if (request.kind === 'lookup') {
     return {
       ...request,
@@ -273,6 +279,9 @@ export const parseReaderAssistanceHistory = (
 
   if (!Array.isArray(parsed)) return [];
 
+  // Boundary: persisted history is untrusted input from old builds and manual
+  // storage edits. Drop malformed records here before the sidebar treats them
+  // as recoverable reader activity.
   const entries = parsed.flatMap((candidate) => {
     if (!candidate || typeof candidate !== 'object') return [];
 
@@ -320,6 +329,9 @@ export const serializeReaderAssistanceWorkspaceSelection = (
 export const parseReaderAssistanceWorkspaceSelection = (
   raw: string
 ): ReaderAssistanceWorkspaceSelection => {
+  // Boundary: workspace selection only stores stable history ids. The actual
+  // lookup or translation payload stays in history/current-book persistence so
+  // this helper remains a mode-selection contract instead of a content cache.
   const parsed = JSON.parse(raw) as unknown;
 
   if (!parsed || typeof parsed !== 'object') {

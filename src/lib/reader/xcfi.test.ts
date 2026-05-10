@@ -1,3 +1,7 @@
+// Ownership: these reader-domain tests pin helper invariants that multiple UI
+// surfaces restore from. Keep explicit normalization expectations here so later
+// refactors do not quietly change persisted contracts.
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

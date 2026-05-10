@@ -3,6 +3,10 @@
  * This is the minimal reader-side substrate required for KOReader parity work.
  */
 
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { parse, fake, collapse, fromRange, toRange, toElement } from 'foliate-js/epubcfi.js';
 import type { ReaderBookDocument } from './foliate';
 
@@ -230,6 +234,9 @@ export class XCFI {
   }
 
   private resolveXPointerPath(path: string): Element | null {
+    // Boundary: KOReader paths are rooted at CREngine's DocFragment/body shape.
+    // Reject anything else here so later conversions do not silently point at the
+    // wrong spine item or a DOM node outside the rendered chapter.
     const pathMatch = path.match(/^\/body\/DocFragment\[\d+\]\/body(.*)$/);
     if (!pathMatch) {
       throw new Error(`Invalid XPointer format: ${path}`);
@@ -312,6 +319,9 @@ export class XCFI {
   }
 
   private adjustSpineIndex(cfi: string): string {
+    // Boundary: foliate-js emits CFIs relative to the chapter document. Reattach
+    // the outer spine step here so persisted locators still identify the book-wide
+    // position that KOReader metadata expects.
     const cfiMatch = cfi.match(/^epubcfi\((.+)\)$/);
     if (!cfiMatch) {
       throw new Error(`Invalid CFI format: ${cfi}`);

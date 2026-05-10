@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import type { ReaderControlRequest, ReaderTtsReadAloudTextMode } from './types';
 import type { ReaderTranslationProvider } from './assistance';
 
@@ -38,6 +42,9 @@ const parseRouteFraction = (value: string | null) => {
 };
 
 export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
+  // Boundary: route state carries compact identifiers only. Raw payload text
+  // stays in current-book persistence because deep-linking arbitrary text would
+  // turn this helper into a transport for content rather than a mode-selection contract.
   const source = url.searchParams.get('source') ?? '';
   const label = url.searchParams.get('label') ?? '';
   const isWindowMode = url.searchParams.get('mode') === 'window';
@@ -169,6 +176,8 @@ export const toReaderWorkspaceModeHref = (
   translationHistoryEntryId: string | null = null
 ) => {
   const nextUrl = new URL(url);
+  // Boundary: only keep the params that are valid for the selected workspace
+  // mode so stale translation/TTS state does not survive mode switches.
   if (workspaceMode) {
     nextUrl.searchParams.set('workspace', workspaceMode);
   } else {

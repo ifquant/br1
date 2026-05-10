@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { writable } from 'svelte/store';
 import type { SidebarTab } from './types';
 
@@ -134,6 +138,8 @@ export const createReaderSidebarController = ({
     const handleUp = () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
+      // Boundary: persist only after the drag settles so restore sees one stable
+      // width instead of a trail of transient mousemove values.
       state.update((current) => {
         persist(current);
         return current;

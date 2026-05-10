@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 export type ReaderTtsRuntimeSpeakHandlers = {
   onEnd: () => void;
   onError: (message: string) => void;
@@ -70,7 +74,8 @@ export const createWebSpeechReaderTtsRuntime = (): ReaderTtsRuntime => {
     try {
       mediaSession.setActionHandler(action, handler);
     } catch {
-      // Some browsers expose mediaSession but reject unsupported handlers.
+      // Boundary: browsers expose uneven Media Session support. Treat rejected
+      // handlers as optional capability gaps instead of hard runtime failures.
     }
   };
 
@@ -141,7 +146,8 @@ export const createWebSpeechReaderTtsRuntime = (): ReaderTtsRuntime => {
               ? 'paused'
               : 'none';
       } catch {
-        // Some browsers expose readonly or partial mediaSession implementations.
+        // Boundary: playback-state sync is best-effort metadata, not a reader
+        // correctness requirement. Ignore partial implementations here.
       }
 
       if (!MediaMetadataCtor || !snapshot.title.trim()) {

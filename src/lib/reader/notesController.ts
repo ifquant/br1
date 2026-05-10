@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { get, writable } from 'svelte/store';
 import type { ReaderAnnotationKind, ReaderNote, ReaderSelectionState, ReaderSidebarNotesState } from './types';
 
@@ -20,6 +24,8 @@ const defaultNotesState = (): ReaderSidebarNotesState => ({
 const normalizeReaderNotes = (notes: ReaderNote[]): ReaderNote[] =>
   notes.map((note) => ({
     ...note,
+    // Boundary: older payloads can omit the new `highlight` kind. Collapse that
+    // migration here so the sidebar and export code only see the current shape.
     kind: note.kind === 'highlight' ? 'highlight' : 'note'
   }));
 
@@ -86,6 +92,9 @@ export const createReaderNotesController = ({
         const storage = getStorage();
 
         if (canPersistNotes()) {
+          // Boundary: persisted notes are the source of truth, but local storage
+          // still contains legacy snapshots. Migrate once here so restore order is
+          // deterministic for every surface that consumes notes.
           const persistedNotes = normalizeReaderNotes(await loadPersistedNotes(storageKey));
           if (persistedNotes.length > 0) {
             nextNotes = persistedNotes;

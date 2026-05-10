@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { writable } from 'svelte/store';
 import {
   createWebSpeechReaderTtsRuntime,
@@ -60,6 +64,9 @@ export const READER_TTS_LOCKED_TARGET_LABEL = '固定朗读目标';
 const trimReaderTtsLabel = (value?: string | null): string => value?.trim() || '';
 
 const createReaderTtsSessionTargetState = (target: ReaderTtsSpeechTarget | null) => {
+  // Refactor risk: source/translated ownership, provenance labels, and playback
+  // location must move together. Splitting those fields apart usually creates UI
+  // states that look valid but describe the wrong active session.
   const normalizedTarget = target?.text.trim() ? target : null;
   const speechTargetLabel = trimReaderTtsLabel(
     normalizedTarget?.targetLabel || normalizedTarget?.label
@@ -338,6 +345,8 @@ export const isReaderTtsPlaybackLocationDrifted = (
   state: ReaderTtsSessionState,
   preview: ReaderPreviewState
 ): boolean => {
+  // Boundary: raw progress locations can drift across formats and relayouts, so
+  // fall back to chapter/location/progress labels before declaring the session stale.
   const speechProgressLocation = trimReaderTtsLabel(state.speechProgressLocation);
   const previewProgressLocation = trimReaderTtsLabel(preview.progressLocation);
   if (!speechProgressLocation || !previewProgressLocation) return false;
@@ -451,6 +460,9 @@ export const resolveReaderTtsSpeechTargetForMode = ({
   source: ReaderTtsSourceTargetInput;
   translated?: ReaderTtsTranslatedTargetInput | null;
 }): ReaderTtsSpeechTarget | null => {
+  // Refactor risk: the order below defines reader-owned provenance. Translation,
+  // live selection, live excerpt, chapter, and title are not interchangeable
+  // fallbacks because each one drives different mini-bar copy and restore behavior.
   const normalizedSelectedText = source.selectedText?.trim() || '';
   const normalizedExcerptText = source.excerptText?.trim() || '';
   const normalizedExcerptSourceLabel = source.excerptSourceLabel?.trim() || '';
@@ -687,6 +699,9 @@ export const createReaderTtsController = ({
   };
 
   const settleSpeechEnd = (sessionToken: number) => {
+    // Boundary: Web Speech callbacks can arrive after the user retargets or
+    // stops playback. Ignore stale completions so an older utterance cannot
+    // overwrite the newer session state.
     if (sessionToken !== speechSessionToken) return;
 
     updateState(
@@ -810,6 +825,9 @@ export const createReaderTtsController = ({
   };
 
   const syncRuntimeMediaSession = () => {
+    // Boundary: media-session controls are a projection of current reader state,
+    // never a second source of truth. Route all callbacks back through controller
+    // actions so browser chrome and in-app chrome stay aligned.
     runtime.syncMediaSession(createReaderTtsRuntimeMediaSessionSnapshot(currentState), {
       onPlay: () => {
         if (currentState.status === 'paused') {

@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import type { ReaderLookupProvider, ReaderTranslationProvider } from './assistance';
 
 export type ReaderEngineMountState = 'idle' | 'loading' | 'ready' | 'error';
@@ -34,6 +38,8 @@ export const READER_WAITING_LAYOUT_LABEL = 'WAITING';
 export const createEmptyReaderPreviewState = (
   overrides: Partial<ReaderPreviewState> = {}
 ): ReaderPreviewState => ({
+  // Boundary: this preview state is the neutral reader shell snapshot shared by
+  // initial mount, restore gaps, and parallel-pane placeholders.
   title: READER_EMPTY_TITLE,
   author: '从书库选择一本书开始阅读',
   chapterLabel: '等待打开书籍',

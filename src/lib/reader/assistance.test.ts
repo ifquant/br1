@@ -1,3 +1,7 @@
+// Ownership: these reader-domain tests pin helper invariants that multiple UI
+// surfaces restore from. Keep explicit normalization expectations here so later
+// refactors do not quietly change persisted contracts.
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -131,6 +135,8 @@ test('assistance helpers expose reader-facing provider and subject labels', () =
 });
 
 test('assistance history serialization restores sorted valid records and drops invalid ones', () => {
+  // These test fixtures are deliberately explicit because restore behavior depends
+  // on ordering between route state, current-book persistence, and live session state.
   const raw = JSON.stringify([
     {
       id: 'invalid',

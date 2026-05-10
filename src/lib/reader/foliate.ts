@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { getReaderThemePalette } from './settings';
 import type { ReaderSettings } from './types';
 
@@ -166,6 +170,9 @@ export const installReaderBookTransformGuards = (book: ReaderBookDocument | unde
 
   guardedTransformTargets.add(target);
   target.addEventListener('data', ((event: Event) => {
+    // Boundary: Foliate resource transforms can reject long after the reader UI
+    // has moved on. Convert those failures into empty content here so one bad
+    // asset does not take down the whole reading session.
     const detail = (event as CustomEvent<{ data?: unknown; name?: string }>).detail;
     if (!detail) return;
 
@@ -195,6 +202,9 @@ export const loadReaderBookDocument = async (
 export const wrapFoliateViewElement = (originalView: FoliateViewElement): FoliateViewElement => {
   const originalAddAnnotation = originalView.addAnnotation.bind(originalView);
   originalView.addAnnotation = (annotation: Record<string, unknown>, remove = false) => {
+    // Refactor risk: upstream call sites pass either `value` or `cfi` depending
+    // on which annotation path produced the payload. Keep the fallback merge here
+    // so annotation writes stay compatible with both reader-owned shapes.
     const value =
       typeof annotation.value === 'string'
         ? annotation.value

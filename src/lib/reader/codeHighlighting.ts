@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 export type ReaderCodeTokenKind =
   | 'comment'
   | 'keyword'
@@ -192,6 +196,9 @@ export const parsePlainTextCodeBlocks = (content: string): ReaderPlainTextBlock[
   for (const line of lines) {
     const fence = line.match(CODE_FENCE_PATTERN);
     if (fence) {
+      // Boundary: fence handling decides whether plain text stays literal or
+      // becomes syntax-highlighted HTML. Keep that split centralized here so
+      // readers and exporters render the same block structure.
       if (codeBuffer) {
         const lines = highlightReaderCode(codeBuffer.join('\n'), codeLanguage);
         blocks.push({
@@ -267,6 +274,9 @@ const renderHighlightedCodeElement = (doc: Document, element: HTMLElement, langu
 };
 
 export const applyReaderCodeHighlightingToDocument = (doc: Document) => {
+  // Refactor risk: some books wrap code in `pre > code`, others expose a bare
+  // `pre`. Normalize that DOM shape here so UI callers do not need format-
+  // specific branching when they rehydrate plain-text excerpts.
   const codeElements = Array.from(doc.querySelectorAll<HTMLElement>('pre code, pre'));
   for (const element of codeElements) {
     const target =

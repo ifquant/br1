@@ -1,3 +1,7 @@
+// Ownership: these reader-domain tests pin helper invariants that multiple UI
+// surfaces restore from. Keep explicit normalization expectations here so later
+// refactors do not quietly change persisted contracts.
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -149,6 +153,8 @@ test('TTS follow-current helper distinguishes fixed targets', () => {
 });
 
 test('translated TTS mode prefers the current translation result', () => {
+  // These test fixtures are deliberately explicit because restore behavior depends
+  // on ordering between route state, current-book persistence, and live session state.
   const target = resolveReaderTtsSpeechTargetForMode({
     mode: 'translated',
     source: {

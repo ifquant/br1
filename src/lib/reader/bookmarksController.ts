@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { get, writable } from 'svelte/store';
 import {
   READER_OPENING_LOCATION_LABEL,
@@ -21,6 +25,8 @@ const defaultBookmarksState = (): ReaderBookmarksState => ({
 });
 
 const buildBookmarkLocator = (preview: ReaderPreviewState): string => {
+  // Boundary: the locator must stay stable across format-specific progress
+  // schemes, so callers compare bookmarks against one normalized identity.
   const normalizedLocation = preview.progressLocation.trim();
   if (normalizedLocation) return normalizedLocation;
 
@@ -85,6 +91,9 @@ export const createReaderBookmarksController = ({
     const storageKey = getStorageKey();
     if (storageKey === lastHydratedStorageKey) return;
 
+    // Boundary: switching books invalidates both the active marker and the
+    // loaded bookmark list. Clear them before async hydration to avoid showing
+    // the previous book's state as if it belonged to the next one.
     state.update((current) => ({
       ...current,
       activeLocator: '',

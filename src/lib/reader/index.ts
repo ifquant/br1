@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import type { ReaderEngineMountState, ReaderMountBoundary } from './types';
 
 export type { ReaderEngineMountState, ReaderMountBoundary } from './types';

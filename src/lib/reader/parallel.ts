@@ -1,3 +1,7 @@
+// Ownership: this helper module defines one reader-domain contract that multiple
+// UI surfaces depend on. Keep low-level normalization and invariants here so UI
+// code can stay focused on reading semantics rather than format/runtime quirks.
+
 import { createEmptyReaderPreviewState, READER_EMPTY_TITLE, READER_NOT_OPENED_LOCATION_LABEL, READER_OPENING_LOCATION_LABEL } from './types';
 import type { ReaderControlRequest, ReaderEngineMountState, ReaderPreviewState } from './types';
 import type { ReaderRouteOpenState, ReaderRouteOpenTarget } from './route';
@@ -60,6 +64,8 @@ const createReaderParallelPaneSourceStateFromRoute = (
 ): ReaderParallelPaneSourceState => {
   const target = routeOpenState.target;
 
+  // Boundary: pane source identity must stay serializable and route-derived so
+  // window-mode restore can rebuild the same session without live DOM state.
   if (!target) {
     return {
       kind: 'empty',
@@ -275,6 +281,9 @@ export const updateReaderParallelPaneControlRequest = (
   controlRequest: ReaderControlRequest | null
 ): ReaderParallelSessionState =>
   updateReaderParallelPaneState(session, paneId, (pane) => {
+    // Refactor risk: pane source, open target, and mount state need to advance
+    // together. Updating only one of them usually creates a pane that looks open
+    // in chrome while the embedded reader is still pointed at older content.
     const nextOpenTarget =
       controlRequest && isOpeningReaderControlRequest(controlRequest)
         ? toOpenTargetFromControlRequest(controlRequest, pane.source.bookKey, pane.source.label)
