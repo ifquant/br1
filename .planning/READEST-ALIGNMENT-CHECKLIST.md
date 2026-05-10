@@ -1062,7 +1062,7 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Outcome: once the notebook is collapsed, the reading-canvas mini bar can now switch directly between `朗读原文` and `朗读译文` instead of forcing the reader to reopen the dedicated TTS workspace first.
   - Touches: in-reader mini-bar actions, stage/route-owned TTS read-aloud mode switching, focused reader smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab|reader lets translated tts mode consume the selected translation archive in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `68e6fa1`.
   - Tutorial: `tutorials/commit/0615-let-the-mini-tts-bar-switch-between-source-and-translated-playback.md`.
   - Notes: this slice does not add new translation persistence or playback runtime behavior. It only projects the existing read-aloud mode toggle onto the collapsed playback surface.
 
