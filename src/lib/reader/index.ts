@@ -172,9 +172,17 @@ export {
   isSupportedReaderFormatLabel,
   READER_FILE_INPUT_ACCEPT
 } from './formats';
-export { parseReaderRouteOpenState, toReaderOpenControlRequest } from './route';
+export {
+  parseReaderRouteOpenState,
+  toReaderOpenControlRequest,
+  toReaderWorkspaceModeHref
+} from './route';
 export type { FoliateViewElement, ReaderBookDocument } from './foliate';
-export type { ReaderRouteOpenState, ReaderRouteOpenTarget } from './route';
+export type {
+  ReaderRouteOpenState,
+  ReaderRouteOpenTarget,
+  ReaderRouteWorkspaceMode
+} from './route';
 export type {
   ReaderControlRequest,
   ReaderBookmark,

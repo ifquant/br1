@@ -11,6 +11,7 @@
     ReaderLookupProvider,
     ReaderPreviewState,
     ReaderRouteOpenState,
+    ReaderRouteWorkspaceMode,
     ReaderSidebarCallbacks,
     ReaderSearchHistoryEntry,
     ReaderSearchResult,
@@ -74,7 +75,8 @@
     updateReaderParallelPanePreview,
     upsertReaderAssistanceHistoryEntry,
     type ReaderTtsSpeechTarget,
-    toReaderOpenControlRequest
+    toReaderOpenControlRequest,
+    toReaderWorkspaceModeHref
   } from '$lib/reader';
   import { supportsTextAnnotationsForFormat } from '$lib/reader/formats';
   import {
@@ -114,6 +116,7 @@
   let notebookVisible = false;
   let notebookPinned = false;
   let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync' = 'notes';
+  let lastAppliedRouteWorkspaceMode: ReaderRouteWorkspaceMode | null = null;
   let ttsFollowsCurrentLocation = true;
   let pinnedTtsTarget: ReaderTtsSpeechTarget | null = null;
   let resolvedTtsTarget: ReaderTtsSpeechTarget | null = null;
@@ -295,22 +298,20 @@
   const addNoteFromSelection = () => {
     const added = notesController.addFromSelection();
     if (!added) return;
-    notebookTab = 'notes';
-    notebookVisible = true;
+    void openNotebookWorkspaceTab('notes');
     sidebarController.openTab('notes');
   };
 
   const addHighlightFromSelection = () => {
     const added = notesController.addHighlightFromSelection();
     if (!added) return;
-    notebookTab = 'highlights';
-    notebookVisible = true;
+    void openNotebookWorkspaceTab('highlights');
     sidebarController.openTab('notes');
   };
 
   const openNote = (cfi: string) => {
     notesController.open(cfi);
-    notebookVisible = true;
+    void openNotebookWorkspaceTab('notes');
     sidebarController.openTab('notes');
     searchController.clearRecentResultCfi();
     issueHrefControl(cfi);
@@ -488,6 +489,32 @@
     });
   }
 
+  const syncReaderWorkspaceModeToRoute = async (workspaceMode: ReaderRouteWorkspaceMode | null) => {
+    const nextHref = toReaderWorkspaceModeHref($page.url, workspaceMode);
+    const currentHref = `${$page.url.pathname}${$page.url.search}`;
+    if (nextHref === currentHref) return;
+    await goto(nextHref, {
+      replaceState: true,
+      noScroll: true,
+      keepFocus: true
+    });
+  };
+
+  const openNotebookWorkspaceTab = async (
+    tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync'
+  ) => {
+    notebookVisible = true;
+    notebookTab = tab;
+    await syncReaderWorkspaceModeToRoute(
+      tab === 'translation' || tab === 'tts' ? tab : null
+    );
+  };
+
+  const closeNotebookWorkspace = async () => {
+    notebookVisible = false;
+    await syncReaderWorkspaceModeToRoute(null);
+  };
+
   onMount(() => {
     void (async () => {
       translationProviderStatuses = await loadReaderTranslationProviderStatuses();
@@ -516,6 +543,10 @@
                 : persisted.activeTab === 'assistant'
                   ? 'assistant'
                   : 'notes';
+        if (routeOpenState.workspaceMode) {
+          notebookVisible = true;
+          notebookTab = routeOpenState.workspaceMode;
+        }
       } catch (error) {
         console.warn('Failed to restore reader notebook shell state', error);
       }
@@ -541,6 +572,17 @@
     translationFollowsCurrentSource = true;
     pinnedTranslationSource = null;
     lastAssistanceBookKey = readerBookKey;
+  }
+  $: if (
+    routeOpenState.workspaceMode &&
+    routeOpenState.workspaceMode !== lastAppliedRouteWorkspaceMode
+  ) {
+    lastAppliedRouteWorkspaceMode = routeOpenState.workspaceMode;
+    notebookVisible = true;
+    notebookTab = routeOpenState.workspaceMode;
+  }
+  $: if (!routeOpenState.workspaceMode && lastAppliedRouteWorkspaceMode) {
+    lastAppliedRouteWorkspaceMode = null;
   }
   $: {
     currentPreview;
@@ -1077,13 +1119,11 @@
   };
 
   const openTtsWorkspace = () => {
-    notebookVisible = true;
-    notebookTab = 'tts';
+    void openNotebookWorkspaceTab('tts');
   };
 
   const openTranslationMode = () => {
-    notebookVisible = true;
-    notebookTab = 'translation';
+    void openNotebookWorkspaceTab('translation');
   };
 
   const pinCurrentTranslationSource = (source?: { text: string; label: string }) => {
@@ -1206,16 +1246,14 @@
           status: 'empty'
         })
       );
-      notebookTab = 'assistant';
-      notebookVisible = true;
+      void openNotebookWorkspaceTab('assistant');
       return;
     }
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
     assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
-    notebookTab = 'assistant';
-    notebookVisible = true;
+    void openNotebookWorkspaceTab('assistant');
 
     try {
       const nextState = await requestReaderAssistance(request);
@@ -1279,16 +1317,14 @@
           status: 'empty'
         })
       );
-      notebookTab = 'translation';
-      notebookVisible = true;
+      void openNotebookWorkspaceTab('translation');
       return;
     }
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
     assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
-    notebookTab = 'translation';
-    notebookVisible = true;
+    void openNotebookWorkspaceTab('translation');
 
     try {
       const nextState = await requestReaderAssistance(request);
@@ -1457,10 +1493,11 @@
             aria-pressed={notebookVisible}
             aria-label={notebookVisible ? '收起笔记工作台' : '切换笔记工作台'}
             on:click={() => {
-              notebookVisible = !notebookVisible;
-              if (notebookVisible && notebookTab !== 'highlights') {
-                notebookTab = 'notes';
+              if (notebookVisible) {
+                void closeNotebookWorkspace();
+                return;
               }
+              void openNotebookWorkspaceTab(notebookTab === 'highlights' ? 'highlights' : 'notes');
             }}
           >
             {notebookVisible ? '关闭工作台' : '打开工作台'}
@@ -1475,8 +1512,7 @@
               aria-pressed={notebookVisible && notebookTab === 'notes'}
               aria-label="打开笔记工作台"
               on:click={() => {
-                notebookVisible = true;
-                notebookTab = 'notes';
+                void openNotebookWorkspaceTab('notes');
               }}
             >
               笔记
@@ -1487,8 +1523,7 @@
               aria-pressed={notebookVisible && notebookTab === 'assistant'}
               aria-label="打开 AI 工作台"
               on:click={() => {
-                notebookVisible = true;
-                notebookTab = 'assistant';
+                void openNotebookWorkspaceTab('assistant');
               }}
             >
               AI
@@ -1499,8 +1534,7 @@
               aria-pressed={notebookVisible && notebookTab === 'translation'}
               aria-label="打开翻译模式"
               on:click={() => {
-                notebookVisible = true;
-                notebookTab = 'translation';
+                void openNotebookWorkspaceTab('translation');
               }}
             >
               翻译
@@ -1511,8 +1545,7 @@
               aria-pressed={notebookVisible && notebookTab === 'tts'}
               aria-label="打开朗读模式"
               on:click={() => {
-                notebookVisible = true;
-                notebookTab = 'tts';
+                void openNotebookWorkspaceTab('tts');
               }}
             >
               朗读
@@ -1523,8 +1556,7 @@
               aria-pressed={notebookVisible && notebookTab === 'sync'}
               aria-label="打开同步工作台"
               on:click={() => {
-                notebookVisible = true;
-                notebookTab = 'sync';
+                void openNotebookWorkspaceTab('sync');
               }}
             >
               同步
@@ -1694,19 +1726,25 @@
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
         onClearAssistanceHistory={clearAssistanceHistory}
         onClose={() => {
-          notebookVisible = false;
+          void closeNotebookWorkspace();
         }}
         onTogglePin={() => {
           notebookPinned = !notebookPinned;
           if (notebookPinned) notebookVisible = true;
         }}
         onTabChange={(tab) => {
-          notebookTab = tab;
+          void openNotebookWorkspaceTab(tab);
         }}
       />
     {:else}
       <aside class="notebook-tab" aria-label="笔记工作台已收起">
-        <button type="button" aria-label="打开笔记工作台" on:click={() => (notebookVisible = true)}>
+        <button
+          type="button"
+          aria-label="打开笔记工作台"
+          on:click={() => {
+            void openNotebookWorkspaceTab(notebookTab);
+          }}
+        >
           <span>记</span>
         </button>
       </aside>

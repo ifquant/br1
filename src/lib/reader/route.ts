@@ -16,12 +16,15 @@ export type ReaderRouteOpenTarget =
       bookKey: string;
     };
 
+export type ReaderRouteWorkspaceMode = 'translation' | 'tts';
+
 export type ReaderRouteOpenState = {
   isWindowMode: boolean;
   pickerRequested: boolean;
   autoOpenKey: string;
   bookKey: string;
   target: ReaderRouteOpenTarget | null;
+  workspaceMode: ReaderRouteWorkspaceMode | null;
 };
 
 const parseRouteFraction = (value: string | null) => {
@@ -33,6 +36,9 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
   const source = url.searchParams.get('source') ?? '';
   const label = url.searchParams.get('label') ?? '';
   const isWindowMode = url.searchParams.get('mode') === 'window';
+  const workspaceParam = url.searchParams.get('workspace');
+  const workspaceMode: ReaderRouteWorkspaceMode | null =
+    workspaceParam === 'translation' || workspaceParam === 'tts' ? workspaceParam : null;
 
   if (source === 'asset') {
     const sourceUrl = url.searchParams.get('url') ?? '';
@@ -42,7 +48,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         pickerRequested: false,
         autoOpenKey: '',
         bookKey: label || 'default',
-        target: null
+        target: null,
+        workspaceMode
       };
     }
 
@@ -58,7 +65,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       pickerRequested: false,
       autoOpenKey: `asset:${target.url}:${target.label}`,
       bookKey: target.bookKey,
-      target
+      target,
+      workspaceMode
     };
   }
 
@@ -70,7 +78,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         pickerRequested: false,
         autoOpenKey: '',
         bookKey: label || 'default',
-        target: null
+        target: null,
+        workspaceMode
       };
     }
 
@@ -89,7 +98,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       pickerRequested: false,
       autoOpenKey: `library-file:${target.path}:${target.label}:${target.restoreLocation ?? ''}:${target.restoreFraction ?? ''}`,
       bookKey: target.bookKey,
-      target
+      target,
+      workspaceMode
     };
   }
 
@@ -98,8 +108,22 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     pickerRequested: source === 'picker',
     autoOpenKey: source,
     bookKey: label || 'default',
-    target: null
+    target: null,
+    workspaceMode
   };
+};
+
+export const toReaderWorkspaceModeHref = (
+  url: URL,
+  workspaceMode: ReaderRouteWorkspaceMode | null
+) => {
+  const nextUrl = new URL(url);
+  if (workspaceMode) {
+    nextUrl.searchParams.set('workspace', workspaceMode);
+  } else {
+    nextUrl.searchParams.delete('workspace');
+  }
+  return `${nextUrl.pathname}${nextUrl.search}`;
 };
 
 export const toReaderOpenControlRequest = (

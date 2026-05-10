@@ -1,6 +1,6 @@
 # Readest Alignment Checklist
 
-Last updated: 2026-05-05
+Last updated: 2026-05-10
 
 ## Purpose
 
@@ -1161,6 +1161,18 @@ Intentionally not included in `P12`:
 
 Closeout review verdict:
 - P12 has no remaining structural blocker. The translation-mode playback strip, dedicated TTS translation jump surface, mini-bar translation jump guard, and focused rebound smokes now close the cross-mode playback loop, so the next step should move to a new reading-mode or playback line instead of more P12 micro-slices.
+
+## P13 Reader Playback Route-State Parity
+
+Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route state, reload, and notebook tab switches all preserve the same reader playback workspace contract.
+
+- [x] P13-1.1 Make dedicated translation and TTS notebook modes URL-addressable
+  - Outcome: opening the reader with `workspace=translation` selects `翻译模式`; translation-mode jumps into translated TTS update the route to `workspace=tts`; reload preserves dedicated TTS mode; switching to non-dedicated notebook tabs clears the workspace query param.
+  - Touches: reader route parsing and href sync, notebook tab switching, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader restores dedicated translation and tts modes from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `pending`.
+  - Tutorial: `tutorials/commit/0623-make-dedicated-translation-and-tts-modes-url-addressable.md`.
+  - Notes: this slice is route-state parity only. It does not widen notebook persistence beyond the dedicated `translation` and `tts` deep-link contract, and non-dedicated tabs such as `笔记`, `AI`, and `同步` remain query-param free.
 
 
 ## Service Security Gate
