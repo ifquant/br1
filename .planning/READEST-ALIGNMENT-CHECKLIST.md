@@ -1210,7 +1210,7 @@ Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route 
   - Outcome: the repo now explicitly states which dedicated translation/TTS route-state guarantees count as shipped in `P13`, and which larger reading-mode payload/state ideas remain intentionally outside this line.
   - Touches: checklist/tutorial docs only.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `16b1318`.
   - Tutorial: `tutorials/commit/0628-close-the-p13-reader-route-state-line.md`.
   - Notes: this closeout does not add route-owned pinned translation-source text, pinned TTS target text, or broader notebook browsing state. It only makes the stopping point durable inside the repo.
 
@@ -1218,7 +1218,7 @@ Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route 
   - Outcome: the repo now records whether `P13` still has a structural blocker and whether the next recommended step is more `P13` micro-slices or a new reader playback/reading-mode line.
   - Touches: checklist/tutorial docs only.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `16b1318`.
   - Tutorial: `tutorials/commit/0629-record-the-p13-closeout-review.md`.
   - Notes: this review does not widen `P13` scope. It only records the verdict on the already-landed route-state slices.
 
