@@ -8,15 +8,16 @@
     PersistedLibraryBook,
     RestoreKoReaderSyncExchangeDialogResult
   } from '$lib/services';
-  import type {
-    ReaderAssistanceHistoryEntry,
-    ReaderAssistanceState,
-    ReaderPreviewState,
-    ReaderSidebarCallbacks,
-    ReaderSidebarNotesState,
-    ReaderTtsReadAloudTextMode,
-    ReaderTranslationProviderStatus,
-    ReaderTtsSessionState,
+import type {
+  ReaderAssistanceHistoryEntry,
+  ReaderAssistanceState,
+  ReaderPreviewState,
+  ReaderSidebarCallbacks,
+  ReaderSidebarNotesState,
+  ReaderTranslationProvider,
+  ReaderTtsReadAloudTextMode,
+  ReaderTranslationProviderStatus,
+  ReaderTtsSessionState,
     ReaderTtsSpeechTarget
   } from '$lib/reader';
   import {
@@ -71,6 +72,7 @@
   export let translationModeSourceLabel = '';
   export let translationModeFollowsCurrentSource = true;
   export let translationTargetLanguage = 'zh';
+  export let translationProvider: ReaderTranslationProvider = 'deepl';
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let desktopSyncAvailable = false;
   export let currentManagedBook: PersistedLibraryBook | null = null;
@@ -136,6 +138,7 @@
     | null = null;
   export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
   export let onSetTranslationTargetLanguage: ((language: string) => void) | null = null;
+  export let onSetTranslationProvider: ((provider: ReaderTranslationProvider) => void) | null = null;
 
   $: noteEntries = notesState.notes.filter((note) => note.kind !== 'highlight');
   $: highlightEntries = notesState.notes.filter((note) => note.kind === 'highlight');
@@ -409,6 +412,7 @@
           translationReadingModeSourceLabel={translationModeSourceLabel}
           translationReadingModeFollowsCurrent={translationModeFollowsCurrentSource}
           {translationTargetLanguage}
+          {translationProvider}
           {ttsReadAloudTextMode}
           {translatedTtsSourceKind}
           translatedTtsSourceContextLabel={translatedTtsSourceContextLabel}
@@ -425,6 +429,7 @@
           onPinCurrentTranslationSource={onPinCurrentTranslationSource}
           onResumeFollowingCurrentTranslationSource={onResumeFollowingCurrentTranslationSource}
           onSetTranslationTargetLanguage={onSetTranslationTargetLanguage}
+          onSetTranslationProvider={onSetTranslationProvider}
           onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
           onClearHistory={onClearAssistanceHistory}
         />

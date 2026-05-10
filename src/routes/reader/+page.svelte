@@ -124,6 +124,7 @@
   let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
   let translationFollowsCurrentSource = true;
   let translationTargetLanguage = 'zh';
+  let translationProvider: ReaderTranslationProvider = 'deepl';
   let pinnedTranslationSource: {
     text: string;
     label: string;
@@ -493,13 +494,15 @@
   const syncReaderWorkspaceModeToRoute = async (
     workspaceMode: ReaderRouteWorkspaceMode | null,
     nextTtsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = ttsReadAloudTextMode,
-    nextTranslationTargetLanguage: string | null = translationTargetLanguage
+    nextTranslationTargetLanguage: string | null = translationTargetLanguage,
+    nextTranslationProvider: ReaderTranslationProvider | null = translationProvider
   ) => {
     const nextHref = toReaderWorkspaceModeHref(
       $page.url,
       workspaceMode,
       nextTtsReadAloudTextMode,
-      nextTranslationTargetLanguage
+      nextTranslationTargetLanguage,
+      nextTranslationProvider
     );
     const currentHref = `${$page.url.pathname}${$page.url.search}`;
     if (nextHref === currentHref) return;
@@ -518,7 +521,8 @@
     await syncReaderWorkspaceModeToRoute(
       tab === 'translation' || tab === 'tts' ? tab : null,
       tab === 'tts' ? ttsReadAloudTextMode : null,
-      tab === 'translation' ? translationTargetLanguage : null
+      tab === 'translation' ? translationTargetLanguage : null,
+      tab === 'translation' ? translationProvider : null
     );
   };
 
@@ -539,6 +543,9 @@
     }
     if (routeOpenState.workspaceMode === 'translation' && routeOpenState.translationTargetLanguage) {
       translationTargetLanguage = routeOpenState.translationTargetLanguage;
+    }
+    if (routeOpenState.workspaceMode === 'translation' && routeOpenState.translationProvider) {
+      translationProvider = routeOpenState.translationProvider;
     }
     const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
     if (rawNotebookShell) {
@@ -612,6 +619,13 @@
     routeOpenState.translationTargetLanguage !== translationTargetLanguage
   ) {
     translationTargetLanguage = routeOpenState.translationTargetLanguage;
+  }
+  $: if (
+    routeOpenState.workspaceMode === 'translation' &&
+    routeOpenState.translationProvider &&
+    routeOpenState.translationProvider !== translationProvider
+  ) {
+    translationProvider = routeOpenState.translationProvider;
   }
   $: if (!routeOpenState.workspaceMode && lastAppliedRouteWorkspaceMode) {
     lastAppliedRouteWorkspaceMode = null;
@@ -1166,7 +1180,15 @@
     if (translationTargetLanguage === normalizedLanguage) return;
     translationTargetLanguage = normalizedLanguage;
     if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
-      void syncReaderWorkspaceModeToRoute('translation', null, normalizedLanguage);
+      void syncReaderWorkspaceModeToRoute('translation', null, normalizedLanguage, translationProvider);
+    }
+  };
+
+  const setTranslationProvider = (provider: ReaderTranslationProvider) => {
+    if (translationProvider === provider) return;
+    translationProvider = provider;
+    if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
+      void syncReaderWorkspaceModeToRoute('translation', null, translationTargetLanguage, provider);
     }
   };
 
@@ -1732,6 +1754,7 @@
         translationModeSourceLabel={effectiveTranslationSource.label}
         translationModeFollowsCurrentSource={translationFollowsCurrentSource}
         {translationTargetLanguage}
+        {translationProvider}
         translationProviderStatuses={translationProviderStatuses}
         desktopSyncAvailable={canPersistLibrary()}
         {currentManagedBook}
@@ -1769,6 +1792,7 @@
         onPinCurrentTranslationSource={pinCurrentTranslationSource}
         onResumeFollowingCurrentTranslationSource={resumeFollowingCurrentTranslationSource}
         onSetTranslationTargetLanguage={setTranslationTargetLanguage}
+        onSetTranslationProvider={setTranslationProvider}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
         onClearAssistanceHistory={clearAssistanceHistory}
         onClose={() => {

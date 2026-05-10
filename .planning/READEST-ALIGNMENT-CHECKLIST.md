@@ -1190,6 +1190,14 @@ Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route 
   - Tutorial: `tutorials/commit/0625-make-dedicated-translation-target-language-route-addressable.md`.
   - Notes: this slice only routes the dedicated translation target language. It does not make translation provider choice route-owned, and it does not widen route state into broader translation history or runtime semantics.
 
+- [x] P13-1.4 Make dedicated translation provider route-addressable
+  - Outcome: `workspace=translation` now also carries `tp=deepl|yandex`, so direct translation opens, provider switches, and reload all preserve the same dedicated translation-provider contract instead of falling back to workspace-local provider state.
+  - Touches: reader route parsing and href sync, dedicated translation-provider wiring, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation provider from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `pending`.
+  - Tutorial: `tutorials/commit/0626-make-dedicated-translation-provider-route-addressable.md`.
+  - Notes: this slice only routes the dedicated translation provider choice. It does not make translation history selection or broader provider/runtime state route-owned.
+
 
 ## Service Security Gate
 

@@ -1311,6 +1311,50 @@ test('reader restores dedicated translation target language from route state in 
   await expect(page).not.toHaveURL(/\/reader\?.*tl=/);
 });
 
+test('reader restores dedicated translation provider from route state in web mode', async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '路由翻译提供方测试',
+    workspace: 'translation',
+    tp: 'yandex'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(page.getByRole('button', { name: 'Yandex' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('第 1 / 3 节', {
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*workspace=translation(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*tp=yandex(?:&|$)/);
+  await expect(page.getByRole('button', { name: 'Yandex' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'DeepL' }).click();
+  await expect(page.getByRole('button', { name: 'DeepL' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page).toHaveURL(/\/reader\?.*tp=deepl(?:&|$)/);
+
+  await page.reload();
+
+  await expect(page.getByRole('button', { name: 'DeepL' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('第 1 / 3 节', {
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*tp=deepl(?:&|$)/);
+  await expect(page.getByRole('button', { name: 'DeepL' })).toHaveAttribute('aria-pressed', 'true');
+
+  await notebook.getByRole('tab', { name: '笔记' }).click();
+  await expect(page.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/reader\?.*workspace=/);
+  await expect(page).not.toHaveURL(/\/reader\?.*tp=/);
+});
+
 test('reader can switch translated playback back to source from translation mode in web mode', async ({
   page
 }) => {

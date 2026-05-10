@@ -1,4 +1,5 @@
 import type { ReaderControlRequest, ReaderTtsReadAloudTextMode } from './types';
+import type { ReaderTranslationProvider } from './assistance';
 
 export type ReaderRouteOpenTarget =
   | {
@@ -27,6 +28,7 @@ export type ReaderRouteOpenState = {
   workspaceMode: ReaderRouteWorkspaceMode | null;
   ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null;
   translationTargetLanguage: string | null;
+  translationProvider: ReaderTranslationProvider | null;
 };
 
 const parseRouteFraction = (value: string | null) => {
@@ -50,6 +52,12 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     (translationTargetLanguageParam === 'zh' || translationTargetLanguageParam === 'en')
       ? translationTargetLanguageParam
       : null;
+  const translationProviderParam = url.searchParams.get('tp');
+  const translationProvider: ReaderTranslationProvider | null =
+    workspaceMode === 'translation' &&
+    (translationProviderParam === 'deepl' || translationProviderParam === 'yandex')
+      ? translationProviderParam
+      : null;
 
   if (source === 'asset') {
     const sourceUrl = url.searchParams.get('url') ?? '';
@@ -62,7 +70,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         target: null,
         workspaceMode,
         ttsReadAloudTextMode,
-        translationTargetLanguage
+        translationTargetLanguage,
+        translationProvider
       };
     }
 
@@ -81,7 +90,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       target,
       workspaceMode,
       ttsReadAloudTextMode,
-      translationTargetLanguage
+      translationTargetLanguage,
+      translationProvider
     };
   }
 
@@ -96,7 +106,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         target: null,
         workspaceMode,
         ttsReadAloudTextMode,
-        translationTargetLanguage
+        translationTargetLanguage,
+        translationProvider
       };
     }
 
@@ -118,7 +129,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       target,
       workspaceMode,
       ttsReadAloudTextMode,
-      translationTargetLanguage
+      translationTargetLanguage,
+      translationProvider
     };
   }
 
@@ -130,7 +142,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     target: null,
     workspaceMode,
     ttsReadAloudTextMode,
-    translationTargetLanguage
+    translationTargetLanguage,
+    translationProvider
   };
 };
 
@@ -138,7 +151,8 @@ export const toReaderWorkspaceModeHref = (
   url: URL,
   workspaceMode: ReaderRouteWorkspaceMode | null,
   ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = null,
-  translationTargetLanguage: string | null = null
+  translationTargetLanguage: string | null = null,
+  translationProvider: ReaderTranslationProvider | null = null
 ) => {
   const nextUrl = new URL(url);
   if (workspaceMode) {
@@ -155,6 +169,11 @@ export const toReaderWorkspaceModeHref = (
     nextUrl.searchParams.set('tl', translationTargetLanguage);
   } else {
     nextUrl.searchParams.delete('tl');
+  }
+  if (workspaceMode === 'translation' && translationProvider) {
+    nextUrl.searchParams.set('tp', translationProvider);
+  } else {
+    nextUrl.searchParams.delete('tp');
   }
   return `${nextUrl.pathname}${nextUrl.search}`;
 };

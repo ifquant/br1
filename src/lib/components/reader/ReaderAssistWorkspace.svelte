@@ -31,6 +31,7 @@
   export let translationReadingModeSourceLabel = '';
   export let translationReadingModeFollowsCurrent = true;
   export let translationTargetLanguage = 'zh';
+  export let translationProvider: ReaderTranslationProvider = 'deepl';
   export let ttsReadAloudTextMode: 'source' | 'translated' = 'source';
   export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   export let translatedTtsSourceContextLabel = '';
@@ -50,6 +51,7 @@
     | null = null;
   export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
   export let onSetTranslationTargetLanguage: ((language: string) => void) | null = null;
+  export let onSetTranslationProvider: ((provider: ReaderTranslationProvider) => void) | null = null;
   export let onOpenTtsMode: (() => void) | null = null;
   export let onSetTtsReadAloudTextMode: ((mode: 'source' | 'translated') => void) | null = null;
   export let title = 'AI 阅读助手';
@@ -73,7 +75,9 @@
 
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
-    translationProviderStatuses.find((status) => status.provider === assistTranslationProvider) || null;
+    translationProviderStatuses.find(
+      (status) => status.provider === (lockedMode === 'translation' ? translationProvider : assistTranslationProvider)
+    ) || null;
   $: activeAssistanceRequest = assistance.activeRequest;
   $: assistanceResultProvider =
     assistance.result?.provider ||
@@ -111,6 +115,8 @@
         );
   $: effectiveTranslationTargetLanguage =
     lockedMode === 'translation' ? translationTargetLanguage : assistTranslationTargetLanguage;
+  $: effectiveTranslationProvider =
+    lockedMode === 'translation' ? translationProvider : assistTranslationProvider;
   $: translationReadingModeHasLiveSource =
     lockedMode === 'translation' &&
     translationReadingModeFollowsCurrent &&
@@ -287,7 +293,11 @@
     onSelectHistoryEntry?.(entry.request.kind, entry.id);
     if (entry.request.kind === 'translation') {
       assistMode = 'translation';
-      assistTranslationProvider = entry.request.provider;
+      if (lockedMode === 'translation') {
+        onSetTranslationProvider?.(entry.request.provider);
+      } else {
+        assistTranslationProvider = entry.request.provider;
+      }
       assistTranslationText = entry.request.text;
       if (lockedMode === 'translation') {
         onSetTranslationTargetLanguage?.(entry.request.targetLanguage);
@@ -312,7 +322,11 @@
     onSelectHistoryEntry?.(entry.request.kind, entry.id);
     if (entry.request.kind === 'translation') {
       assistMode = 'translation';
-      assistTranslationProvider = entry.request.provider;
+      if (lockedMode === 'translation') {
+        onSetTranslationProvider?.(entry.request.provider);
+      } else {
+        assistTranslationProvider = entry.request.provider;
+      }
       assistTranslationText = entry.request.text;
       if (lockedMode === 'translation') {
         onSetTranslationTargetLanguage?.(entry.request.targetLanguage);
@@ -345,7 +359,7 @@
   const requestAssistTranslation = () => {
     const text = normalizeAssistanceText(effectiveTranslationSourceText);
     callbacks.onRequestTranslation?.(
-      assistTranslationProvider,
+      effectiveTranslationProvider,
       text,
       effectiveTranslationTargetLanguage.trim() || 'zh'
     );
@@ -667,11 +681,15 @@
       {#each TRANSLATION_PROVIDER_OPTIONS as provider}
         <button
           type="button"
-          class:active={assistTranslationProvider === provider}
+          class:active={effectiveTranslationProvider === provider}
           class="assist-chip"
-          aria-pressed={assistTranslationProvider === provider}
+          aria-pressed={effectiveTranslationProvider === provider}
           on:click={() => {
-            assistTranslationProvider = provider;
+            if (lockedMode === 'translation') {
+              onSetTranslationProvider?.(provider);
+            } else {
+              assistTranslationProvider = provider;
+            }
           }}
         >
           {getReaderTranslationProviderDisplayLabel(provider)}
