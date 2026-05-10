@@ -1150,10 +1150,52 @@ test('reader can jump from translation mode into translated tts in web mode', as
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
   await expect(page.getByLabel('翻译模式朗读去向')).toContainText('可直接切到朗读译文');
-  await page.getByLabel('翻译模式朗读去向').getByRole('button', { name: '在朗读模式中查看' }).click();
+  await expect(
+    page.getByLabel('翻译模式朗读去向').getByRole('button', { name: '在朗读模式中查看' })
+  ).toBeVisible();
+  await page
+    .getByLabel('翻译模式朗读去向')
+    .getByRole('button', { name: '在朗读模式中查看' })
+    .click({ force: true });
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(notebook.getByLabel('译文朗读来源')).toContainText('正在跟随当前章节');
+});
+
+test('reader can switch translated playback back to source from translation mode in web mode', async ({
+  page
+}) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '翻译模式切回原文朗读测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: '打开翻译模式' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '打开翻译模式' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const translationPlaybackStrip = page.getByLabel('翻译模式朗读去向');
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
+  await expect(translationPlaybackStrip).toContainText('可直接切到朗读译文');
+  await translationPlaybackStrip.getByRole('button', { name: '在朗读模式中查看' }).click();
+
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('tab', { name: '翻译模式' }).click();
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
+  await expect(translationPlaybackStrip).toContainText('当前朗读会复用这条翻译来源');
+  await translationPlaybackStrip.getByRole('button', { name: '切换到朗读原文' }).click();
+  await expect(translationPlaybackStrip).toContainText('可直接切到朗读译文');
+  await expect(translationPlaybackStrip.getByRole('button', { name: '切换到朗读原文' })).toHaveCount(0);
+
+  await page.getByRole('tab', { name: '朗读模式' }).click();
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '朗读原文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(notebook.getByLabel('朗读模式状态')).toContainText('原文朗读');
 });
 
 test('reader can open tts mode as a dedicated notebook tab', async ({ page }) => {

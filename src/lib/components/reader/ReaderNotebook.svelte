@@ -418,6 +418,7 @@
             onSetTtsReadAloudTextMode?.('translated');
             onTabChange?.('tts');
           }}
+          onSetTtsReadAloudTextMode={onSetTtsReadAloudTextMode}
           onPinCurrentTranslationSource={onPinCurrentTranslationSource}
           onResumeFollowingCurrentTranslationSource={onResumeFollowingCurrentTranslationSource}
           onSelectHistoryEntry={onSelectAssistanceHistoryEntry}

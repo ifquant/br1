@@ -49,6 +49,7 @@
     | null = null;
   export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
   export let onOpenTtsMode: (() => void) | null = null;
+  export let onSetTtsReadAloudTextMode: ((mode: 'source' | 'translated') => void) | null = null;
   export let title = 'AI 阅读助手';
   export let summary =
     '把词典、维基百科和翻译请求收成一个工作台，而不是继续挤在 sidebar result panel 里。';
@@ -470,6 +471,15 @@
       <button type="button" class="assist-chip" on:click={() => onOpenTtsMode?.()}>
         在朗读模式中查看
       </button>
+      {#if ttsReadAloudTextMode === 'translated'}
+        <button
+          type="button"
+          class="assist-chip assist-chip-secondary"
+          on:click={() => onSetTtsReadAloudTextMode?.('source')}
+        >
+          切换到朗读原文
+        </button>
+      {/if}
     </div>
   {/if}
 
