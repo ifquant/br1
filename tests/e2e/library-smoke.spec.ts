@@ -1282,6 +1282,9 @@ test('reader restores dedicated translation target language from route state in 
   await page.goto(readerHref);
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
   await expect(page.getByRole('button', { name: 'English' })).toBeVisible({ timeout: 15000 });
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('第 1 / 3 节', {
     timeout: 15000
@@ -1328,6 +1331,9 @@ test('reader restores dedicated translation provider from route state in web mod
   await page.goto(readerHref);
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
   await expect(page.getByRole('button', { name: 'Yandex' })).toBeVisible({ timeout: 15000 });
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('第 1 / 3 节', {
     timeout: 15000
@@ -1405,6 +1411,62 @@ test('reader restores dedicated translation ownership for the same book across r
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
   await expect(translationInput).toHaveAttribute('readonly', '');
   await expect(translationInput).toHaveValue('第 1 / 3 节');
+});
+
+test('reader restores dedicated translation mode config per book across reload', async ({
+  page
+}) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+    window.localStorage.removeItem('br1.reader.translation.mode:/samples/sample-book.epub');
+    window.localStorage.removeItem('br1.reader.translation.mode:/samples/sample-book.txt');
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '翻译模式配置持久化测试',
+    workspace: 'translation'
+  }).toString()}`;
+  const otherBookHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.txt',
+    label: '另一册翻译模式配置测试',
+    workspace: 'translation'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '中文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'DeepL' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'English' }).click();
+  await page.getByRole('button', { name: 'Yandex' }).click();
+  await expect(page.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Yandex' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Yandex' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '翻译为 EN' })).toBeVisible();
+
+  await page.goto(otherBookHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '中文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'DeepL' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('reader restores live translation snapshots for the same book across reload', async ({

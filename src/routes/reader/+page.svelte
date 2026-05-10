@@ -177,6 +177,7 @@
     createEmptyReaderAssistanceWorkspaceSelection();
   let assistanceRequestNonce = 0;
   let lastAssistanceBookKey = '';
+  let lastRestoredTranslationModeConfigBookKey = '';
   let lastRestoredTranslationLiveSnapshotBookKey = '';
   let lastRestoredTtsOwnershipBookKey = '';
   let lastRestoredTtsReadAloudModeBookKey = '';
@@ -242,6 +243,7 @@
   $: assistanceHistoryStorageKey = `br1.reader.assistance.history:${readerBookKey}`;
   $: assistanceSelectionStorageKey = `br1.reader.assistance.selection:${readerBookKey}`;
   $: translationOwnershipStorageKey = `br1.reader.translation.ownership:${readerBookKey}`;
+  $: translationModeConfigStorageKey = `br1.reader.translation.mode:${readerBookKey}`;
   $: translationLiveSnapshotStorageKey = `br1.reader.translation.live-result:${readerBookKey}`;
   $: ttsOwnershipStorageKey = `br1.reader.tts.ownership:${readerBookKey}`;
   $: ttsReadAloudModeStorageKey = `br1.reader.tts.mode:${readerBookKey}`;
@@ -567,6 +569,58 @@
       console.warn('Failed to restore reader translation live snapshot', error);
       localStorage.removeItem(translationLiveSnapshotStorageKey);
       return null as typeof translationLiveSnapshot;
+    }
+  };
+
+  const persistCurrentBookTranslationModeConfig = () => {
+    if (typeof localStorage === 'undefined') return;
+    if (!translationModeConfigStorageKey) return;
+    localStorage.setItem(
+      translationModeConfigStorageKey,
+      JSON.stringify({
+        targetLanguage: translationTargetLanguage.trim().toLowerCase() || 'zh',
+        provider: translationProvider
+      })
+    );
+  };
+
+  const restoreCurrentBookTranslationModeConfig = (): {
+    targetLanguage: string;
+    provider: ReaderTranslationProvider;
+  } => {
+    if (typeof localStorage === 'undefined' || !translationModeConfigStorageKey) {
+      return {
+        targetLanguage: 'zh',
+        provider: 'deepl' satisfies ReaderTranslationProvider
+      };
+    }
+    const rawConfig = localStorage.getItem(translationModeConfigStorageKey);
+    if (!rawConfig) {
+      return {
+        targetLanguage: 'zh',
+        provider: 'deepl' satisfies ReaderTranslationProvider
+      };
+    }
+
+    try {
+      const parsed = JSON.parse(rawConfig) as {
+        targetLanguage?: unknown;
+        provider?: unknown;
+      };
+      const targetLanguage =
+        typeof parsed.targetLanguage === 'string' ? parsed.targetLanguage.trim().toLowerCase() : '';
+      const provider = parsed.provider === 'yandex' ? 'yandex' : 'deepl';
+      return {
+        targetLanguage: targetLanguage || 'zh',
+        provider: provider satisfies ReaderTranslationProvider
+      };
+    } catch (error) {
+      console.warn('Failed to restore reader translation mode config', error);
+      localStorage.removeItem(translationModeConfigStorageKey);
+      return {
+        targetLanguage: 'zh',
+        provider: 'deepl' satisfies ReaderTranslationProvider
+      };
     }
   };
 
@@ -1031,6 +1085,10 @@
     const restoredTranslationOwnership = restoreTranslationOwnership();
     translationFollowsCurrentSource = restoredTranslationOwnership.followsCurrentSource;
     pinnedTranslationSource = restoredTranslationOwnership.pinnedSource;
+    const restoredTranslationModeConfig = restoreCurrentBookTranslationModeConfig();
+    translationTargetLanguage = restoredTranslationModeConfig.targetLanguage;
+    translationProvider = restoredTranslationModeConfig.provider;
+    lastRestoredTranslationModeConfigBookKey = readerBookKey;
     translationLiveSnapshot = restoreCurrentBookTranslationLiveSnapshot();
     lastRestoredTranslationLiveSnapshotBookKey = readerBookKey;
     lastAssistanceBookKey = readerBookKey;
@@ -1366,6 +1424,19 @@
     assistanceSelectionStorageKey;
     if (typeof localStorage !== 'undefined') {
       persistAssistanceSelection();
+    }
+  }
+  $: {
+    readerBookKey;
+    translationModeConfigStorageKey;
+    translationTargetLanguage;
+    translationProvider;
+    if (
+      typeof localStorage !== 'undefined' &&
+      readerBookKey &&
+      readerBookKey === lastRestoredTranslationModeConfigBookKey
+    ) {
+      persistCurrentBookTranslationModeConfig();
     }
   }
   $: {
