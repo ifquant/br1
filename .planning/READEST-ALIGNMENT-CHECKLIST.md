@@ -1282,7 +1282,7 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Outcome: same-book translated playback now restores the most recent live translated body even when the live translation result is no longer reconstructable from `assistanceState` or a surviving exact-match history entry, so reload no longer drops a live-owner session into an empty/wrong translated target.
   - Touches: reader page-local live translated snapshot persistence, live translated target reconstruction, focused reader smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader lets translated tts mode consume the selected translation archive in web mode|reader restores live translated tts snapshot over archive selection across reload"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `1440d42`.
   - Tutorial: `tutorials/commit/0634-persist-current-book-live-translated-tts-snapshots.md`.
   - Notes: this slice only persists current-book live translated playback snapshots. It still does not make translated payload text route-owned deep-link state, and it does not widen translated playback into a cross-book archive system.
 
