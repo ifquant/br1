@@ -1103,6 +1103,18 @@ Closeout review verdict:
 - the remaining gaps are larger playback/runtime or notebook-product expansions, not unresolved contract failures in the current mini-bar and dedicated-TTS surfaces
 - the next recommended mainline is not more `P11` micro-slices, but the next reader workspace or playback line that still has a material parity gap
 
+## P12 Reader Cross-Mode Playback Navigation
+
+Goal: close the remaining navigation asymmetries between `翻译模式` and `朗读模式`, so readers can move between translation and translated playback without unnecessary notebook detours.
+
+- [x] P12-1.1 Let translation mode jump directly into translated TTS
+  - Outcome: when the reader is already in `翻译模式`, they can now jump directly into `朗读模式` with `朗读译文` active instead of manually reopening the TTS workspace and re-selecting translated playback.
+  - Touches: translation workspace playback strip, notebook tab switching, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can jump from translation mode into translated tts in web mode|reader lets translated tts mode consume the selected translation archive in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0618-let-translation-mode-jump-directly-into-translated-tts.md`.
+  - Notes: this slice does not add new translation persistence or TTS runtime behavior. It only closes the reverse navigation hop from translation mode back into translated playback.
+
 
 ## Service Security Gate
 

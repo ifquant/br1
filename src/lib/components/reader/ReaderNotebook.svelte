@@ -406,10 +406,17 @@
           translationReadingModeSourceText={translationModeSourceText}
           translationReadingModeSourceLabel={translationModeSourceLabel}
           translationReadingModeFollowsCurrent={translationModeFollowsCurrentSource}
+          {ttsReadAloudTextMode}
+          {translatedTtsSourceKind}
+          translatedTtsSourceContextLabel={translatedTtsSourceContextLabel}
           {translationProviderStatuses}
           callbacks={{
             onRequestLookup: callbacks.onRequestLookup,
             onRequestTranslation: callbacks.onRequestTranslation
+          }}
+          onOpenTtsMode={() => {
+            onSetTtsReadAloudTextMode?.('translated');
+            onTabChange?.('tts');
           }}
           onPinCurrentTranslationSource={onPinCurrentTranslationSource}
           onResumeFollowingCurrentTranslationSource={onResumeFollowingCurrentTranslationSource}

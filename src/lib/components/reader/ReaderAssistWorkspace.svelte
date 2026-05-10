@@ -30,6 +30,9 @@
   export let translationReadingModeSourceText = '';
   export let translationReadingModeSourceLabel = '';
   export let translationReadingModeFollowsCurrent = true;
+  export let ttsReadAloudTextMode: 'source' | 'translated' = 'source';
+  export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
+  export let translatedTtsSourceContextLabel = '';
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let callbacks: Pick<ReaderSidebarCallbacks, 'onRequestLookup' | 'onRequestTranslation'> = {
     onRequestLookup: null,
@@ -45,6 +48,7 @@
     | ((source: { text: string; label: string }) => void)
     | null = null;
   export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
+  export let onOpenTtsMode: (() => void) | null = null;
   export let title = 'AI 阅读助手';
   export let summary =
     '把词典、维基百科和翻译请求收成一个工作台，而不是继续挤在 sidebar result panel 里。';
@@ -112,6 +116,18 @@
         ? `正在跟随${translationReadingModeSourceLabel || '当前阅读位置'}`
         : `已锁定${translationReadingModeSourceLabel || '当前翻译目标'}`
       : '当前输入或正文选区';
+  $: translationPlaybackModeLabel =
+    ttsReadAloudTextMode === 'translated'
+      ? translatedTtsSourceKind === 'archived-translation'
+        ? '当前朗读会复用这条历史译文来源'
+        : translatedTtsSourceKind === 'live-translation'
+          ? '当前朗读会复用这条翻译来源'
+          : '当前朗读已切到译文模式'
+      : '可直接切到朗读译文';
+  $: translationPlaybackSourceSummary =
+    normalizeAssistanceText(translatedTtsSourceContextLabel) ||
+    normalizeAssistanceText(effectiveTranslationSourceText) ||
+    '当前还没有可用于译文朗读的翻译来源。';
   $: lookupHistory = history.filter((entry) => entry.request.kind === 'lookup');
   $: translationHistory = history.filter((entry) => entry.request.kind === 'translation');
   $: lookupSelectionStillVisible = lookupHistory.some(
@@ -447,6 +463,13 @@
     <div class="assist-reading-mode-strip" aria-label="翻译模式阅读来源状态">
       <span>{translationSourceModeLabel}</span>
       <span>{effectiveTranslationSourceText || '当前还没有可翻译的正文来源。'}</span>
+    </div>
+    <div class="assist-reading-mode-strip" aria-label="翻译模式朗读去向">
+      <span>{translationPlaybackModeLabel}</span>
+      <span>{translationPlaybackSourceSummary}</span>
+      <button type="button" class="assist-chip" on:click={() => onOpenTtsMode?.()}>
+        在朗读模式中查看
+      </button>
     </div>
   {/if}
 

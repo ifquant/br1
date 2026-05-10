@@ -1135,6 +1135,27 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
 });
 
+test('reader can jump from translation mode into translated tts in web mode', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '翻译到朗读模式测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  await expect(page.getByRole('button', { name: '打开翻译模式' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '打开翻译模式' }).click();
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
+  await expect(page.getByLabel('翻译模式朗读去向')).toContainText('可直接切到朗读译文');
+  await page.getByLabel('翻译模式朗读去向').getByRole('button', { name: '在朗读模式中查看' }).click();
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('正在跟随当前章节');
+});
+
 test('reader can open tts mode as a dedicated notebook tab', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.removeItem('br1.reader.notebook-shell');
@@ -1392,6 +1413,11 @@ test('reader lets translated tts mode consume the selected translation archive i
   await expect(notebook.getByLabel('最近翻译').locator('.assist-history-status-badge')).toHaveText(
     '当前正在查看'
   );
+  await expect(page.getByLabel('翻译模式朗读去向')).toContainText('当前朗读会复用这条历史译文来源');
+  await page.getByLabel('翻译模式朗读去向').getByRole('button', { name: '在朗读模式中查看' }).click();
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
 });
 
 test('reader can open sync workspace inside the notebook shell', async ({ page }) => {
