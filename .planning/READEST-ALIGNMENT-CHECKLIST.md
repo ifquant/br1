@@ -1070,7 +1070,7 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Outcome: the repo now explicitly states which playback-surface guarantees count as shipped in `P11`, and which larger playback/runtime ideas remain intentionally outside this line.
   - Touches: checklist/tutorial docs only.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `9b8ecd3`.
   - Tutorial: `tutorials/commit/0616-close-the-p11-reader-playback-surface-line.md`.
   - Notes: this closeout does not add sentence stepping, queueing, or new runtime work. It only makes the stopping point durable inside the repo.
 
@@ -1078,7 +1078,7 @@ Goal: productize the next reader playback surface after `P10` by making the acti
   - Outcome: the repo now records whether `P11` still has a structural blocker and whether the next recommended step is more `P11` micro-slices or a new reader workspace/playback line.
   - Touches: checklist/tutorial docs only.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `9b8ecd3`.
   - Tutorial: `tutorials/commit/0617-record-the-p11-closeout-review.md`.
   - Notes: this review does not widen `P11` scope. It only records the verdict on the already-landed playback-surface slices.
 
