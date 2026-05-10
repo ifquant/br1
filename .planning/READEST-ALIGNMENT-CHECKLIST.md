@@ -1270,6 +1270,14 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Tutorial: `tutorials/commit/0632-persist-current-book-tts-read-aloud-mode.md`.
   - Notes: this slice keeps route-owned `workspace=tts&tts=...` override semantics for visible dedicated TTS mode, but collapsed mini-bar mode switches no longer reopen the notebook just to rewrite route state. It still does not make pinned TTS payload text route-owned.
 
+- [x] P14-1.4 Persist current-book translated-TTS owner across reload
+  - Outcome: current-book translated playback now restores whether dedicated `朗读模式` belongs to a `历史译文` path or a `live translated` path, so the same book no longer silently snaps back to archive-backed playback just because an older translation history selection still exists.
+  - Touches: reader page-local translated-owner persistence, dedicated translation-to-TTS provenance handoff, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader lets translated tts mode consume the selected translation archive in web mode|reader preserves live translated tts ownership over archive selection across reload"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0633-persist-current-book-translated-tts-owner-across-reload.md`.
+  - Notes: this slice persists the translated-TTS owner decision and stops live owner from silently downgrading into archive-backed playback. It does not make pinned translation payload text route-owned, and it does not yet guarantee reconstruction of a live translated body when only source ownership survives.
+
 
 ## Service Security Gate
 

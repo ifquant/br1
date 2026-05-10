@@ -132,6 +132,7 @@ import type {
   export let onResumeFollowingCurrentTtsTarget: (() => void) | null = null;
   export let onJumpToCurrentTtsLocation: (() => void) | null = null;
   export let onSetTtsReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
+  export let onOpenTranslatedTtsMode: (() => void) | null = null;
   export let onOpenTranslationMode: (() => void) | null = null;
   export let onPinCurrentTranslationSource:
     | ((source: { text: string; label: string }) => void)
@@ -422,8 +423,7 @@ import type {
             onRequestTranslation: callbacks.onRequestTranslation
           }}
           onOpenTtsMode={() => {
-            onSetTtsReadAloudTextMode?.('translated');
-            onTabChange?.('tts');
+            onOpenTranslatedTtsMode?.();
           }}
           onSetTtsReadAloudTextMode={onSetTtsReadAloudTextMode}
           onPinCurrentTranslationSource={onPinCurrentTranslationSource}

@@ -295,11 +295,15 @@ export const getReaderTtsMiniBarContextSummary = ({
     return [modeLabel, sourceLabel].filter(Boolean).join(' · ');
   }
 
+  const sourceContext = trimReaderTtsLabel(translatedSourceContextLabel);
+  if (translatedSourceKind === 'live-translation' && sourceContext) {
+    return [modeLabel, sourceContext].filter(Boolean).join(' · ');
+  }
+
   if (sourceLabel) {
     return [modeLabel, sourceLabel].filter(Boolean).join(' · ');
   }
 
-  const sourceContext = trimReaderTtsLabel(translatedSourceContextLabel);
   const waitingProvenanceLabel =
     translatedSourceKind === 'archived-translation'
       ? '等待历史译文来源'

@@ -1965,6 +1965,137 @@ test('reader lets translated tts mode consume the selected translation archive i
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
+  await page.reload();
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
+  await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('历史译文 · DeepL');
+});
+
+test('reader preserves live translated tts ownership over archive selection across reload', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const selectionStorageKey = `br1.reader.assistance.selection:${sourceUrl}`;
+  const translationOwnershipStorageKey = `br1.reader.translation.ownership:${sourceUrl}`;
+  const translatedTtsOwnerStorageKey = `br1.reader.tts.translated-owner:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: '译文朗读 live owner 恢复测试',
+    workspace: 'tts',
+    tts: 'translated'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey, selectionKey, translationOwnershipKey, translatedTtsOwnerKey }) => {
+      window.localStorage.removeItem('br1.reader.notebook-shell');
+      window.localStorage.removeItem('br1.reader.tts.mode:/samples/sample-book.epub');
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-translation-archive-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Archive-owned translation text.',
+              targetLanguage: 'zh',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-archive-result-1',
+              provider: 'deepl',
+              title: '第二章',
+              body: '这是历史译文所有者。',
+              sourceLabel: 'DeepL',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          },
+          {
+            id: 'assist-translation-live-1',
+            request: {
+              kind: 'translation',
+              provider: 'deepl',
+              text: 'Live owner translation source text.',
+              targetLanguage: 'zh',
+              chapterLabel: '第二章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-translation-live-result-1',
+              provider: 'deepl',
+              title: '第二章',
+              body: '这是当前译文所有者。',
+              sourceLabel: 'DeepL',
+              createdAt: 20
+            },
+            error: '',
+            createdAt: 20,
+            updatedAt: 20
+          }
+        ])
+      );
+      window.localStorage.setItem(
+        selectionKey,
+        JSON.stringify({
+          lookupHistoryEntryId: '',
+          translationHistoryEntryId: 'assist-translation-archive-1'
+        })
+      );
+      window.localStorage.setItem(
+        translationOwnershipKey,
+        JSON.stringify({
+          followsCurrentSource: false,
+          pinnedSource: {
+            text: 'Live owner translation source text.',
+            label: '当前翻译目标',
+            chapterLabel: '第二章'
+          }
+        })
+      );
+      window.localStorage.setItem(translatedTtsOwnerKey, 'live');
+    },
+    {
+      historyKey: historyStorageKey,
+      selectionKey: selectionStorageKey,
+      translationOwnershipKey: translationOwnershipStorageKey,
+      translatedTtsOwnerKey: translatedTtsOwnerStorageKey
+    }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page).toHaveURL(/workspace=tts/);
+  await expect(page).toHaveURL(/tts=translated/);
+  await expect(page).not.toHaveURL(/(?:\?|&)ta=/);
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('译文朗读');
+  await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).not.toContainText('历史译文');
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('译文朗读');
+  await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).not.toContainText('历史译文');
 });
 
 test('reader can open sync workspace inside the notebook shell', async ({ page }) => {
