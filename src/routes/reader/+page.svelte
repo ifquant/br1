@@ -651,6 +651,8 @@
       translatedTtsSourceKind !== 'none' ||
       !!translatedTtsSourceContextLabel.trim());
   $: ttsMiniBarCanResumeFollowingCurrent = !notebookVisible && !ttsFollowsCurrentLocation;
+  $: ttsMiniBarCanPinCurrentTarget =
+    !notebookVisible && ttsFollowsCurrentLocation && !!effectiveTtsTarget?.text.trim();
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
   }
@@ -1585,10 +1587,12 @@
           ttsMiniBarCanJumpToPlaybackLocation={canJumpToCurrentTtsLocation}
           ttsMiniBarCanOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
           ttsMiniBarCanResumeFollowingCurrent={ttsMiniBarCanResumeFollowingCurrent}
+          ttsMiniBarCanPinCurrentTarget={ttsMiniBarCanPinCurrentTarget}
           onOpenTtsWorkspace={openTtsWorkspace}
           onJumpToTtsPlaybackLocation={jumpToCurrentTtsLocation}
           onOpenTranslationModeFromMiniBar={openTranslationMode}
           onResumeFollowingCurrentTtsTargetFromMiniBar={resumeFollowingCurrentTtsTarget}
+          onPinCurrentTtsTargetFromMiniBar={pinCurrentTtsTarget}
         />
 
         {#if parallelEnabled}

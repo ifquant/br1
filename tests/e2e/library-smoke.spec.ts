@@ -1268,7 +1268,14 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   await expect(lockTtsTargetButton).toBeVisible();
 
   if (await lockTtsTargetButton.isEnabled()) {
-    await lockTtsTargetButton.click();
+    await page.getByLabel('收起笔记工作台').click();
+    await expect(page.getByRole('complementary', { name: '笔记工作台已收起', exact: true })).toBeVisible();
+    const miniBarPinTargetButton = miniBar.getByRole('button', { name: '锁定当前朗读目标' });
+    await expect(miniBarPinTargetButton).toBeVisible();
+    await miniBarPinTargetButton.click();
+    await expect(miniBarPinTargetButton).toHaveCount(0);
+    await miniBar.getByRole('button', { name: '打开朗读工作台' }).click();
+    await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
     await expect(page.getByLabel('朗读模式状态')).toContainText('已锁定朗读目标');
     await page.locator('.plain-text-surface').evaluate((element) => {
       element.scrollTop = 0;

@@ -9,12 +9,14 @@
   export let canJumpToPlaybackLocation = false;
   export let canOpenTranslationMode = false;
   export let canResumeFollowingCurrent = false;
+  export let canPinCurrentTarget = false;
   export let onRunPrimaryAction: (() => void) | null = null;
   export let onStop: (() => void) | null = null;
   export let onOpenWorkspace: (() => void) | null = null;
   export let onJumpToPlaybackLocation: (() => void) | null = null;
   export let onOpenTranslationMode: (() => void) | null = null;
   export let onResumeFollowingCurrent: (() => void) | null = null;
+  export let onPinCurrentTarget: (() => void) | null = null;
 </script>
 
 <section class="tts-mini-bar" aria-label="阅读中的朗读控制条">
@@ -48,6 +50,16 @@
         on:click={() => onResumeFollowingCurrent?.()}
       >
         回到当前阅读位置
+      </button>
+    {/if}
+    {#if canPinCurrentTarget}
+      <button
+        type="button"
+        class="ghost-action"
+        aria-label="锁定当前朗读目标"
+        on:click={() => onPinCurrentTarget?.()}
+      >
+        锁定当前朗读目标
       </button>
     {/if}
     <button
