@@ -1,8 +1,13 @@
 <script lang="ts">
+  // Ownership: this route hosts the product-level state for its surface.
+  // It composes child components and services, but it must remain the visible
+  // boundary where navigation, persistence, and privileged actions are coordinated.
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
 
   onMount(() => {
+    // The root route intentionally owns only the redirect decision. Library
+    // remains the real landing surface so we do not grow a second product shell here.
     void goto('/library', { replaceState: true });
   });
 </script>

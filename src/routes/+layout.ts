@@ -1,3 +1,6 @@
+// Ownership: this route entry keeps the app shell in client-rendered mode so
+// desktop-only integrations and local-first route hosts can coordinate state in
+// one runtime instead of splitting behavior across SSR and hydration seams.
 // Tauri doesn't have a Node.js server to do proper SSR
 // so we use adapter-static with a fallback to index.html to put the site in SPA mode
 // See: https://svelte.dev/docs/kit/single-page-apps

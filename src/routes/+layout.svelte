@@ -38,6 +38,8 @@
   const ASSOCIATED_BOOK_OPEN_REJECTION_EVENT = 'br1:associated-book-open-inputs-rejected';
   const LIBRARY_DESKTOP_SUPPORT_CONTEXT = 'br1-library-desktop-support-context';
 
+  // This route keeps library/reader/catalog actions separate on purpose. Reusing
+  // helpers is fine, but do not collapse the product surfaces into one mixed owner.
   const navItems = [
     { href: '/library', label: '书库' },
     { href: '/catalogs', label: '书源' },
@@ -219,6 +221,8 @@
 
       const currentWindow = getCurrentWindow();
       if (currentWindow.label !== 'main') {
+        // Only the main desktop shell drains queued open requests. Reader popups
+        // can render the shared layout, but they must not steal library-owned work.
         libraryDesktopSupportState.set({
           ...createEmptyLibraryDesktopSupportState(),
           desktopAvailable: true,
@@ -278,6 +282,9 @@
   <meta name="apple-mobile-web-app-title" content="br1" />
 </svelte:head>
 
+<!-- Ownership: this shell component exists to place product chrome around the
+route surface. Keep behavior decisions in the route host, and keep this file
+focused on layout/composition unless a refactor deliberately changes ownership. -->
 <div class:reader-root={$isReaderRoute} class:reader-window-root={$isReaderWindowRoute} class="app-root">
   {#if associatedBookOpenNotice}
     <div class="associated-book-banner" role="status" aria-live="polite">

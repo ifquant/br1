@@ -1,4 +1,7 @@
 <script lang="ts">
+  // Ownership: this route hosts the product-level state for its surface.
+  // It composes child components and services, but it must remain the visible
+  // boundary where navigation, persistence, and privileged actions are coordinated.
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
@@ -374,6 +377,8 @@
 
   const getLibraryViewport = () => libraryScrollRef?.osInstance()?.elements().viewport ?? null;
 
+  // Desktop coordination is route-owned because import/repair/sync flows cross
+  // persistence and OS boundaries that the presentational library surface should not own.
   const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromPageStateAndEnv({
     state: {
       libraryNotice,
@@ -483,6 +488,8 @@
     );
   });
 
+  // Route-owned URL browse state is normalized before scroll/session restoration so
+  // deep links stay authoritative even when the user has older local UI residue.
   $: ({ groupBy: libraryGroupBy, groupScope: libraryGroupScope, trail: libraryBrowseTrail } =
     getLibraryBrowseStateFromUrl($page.url));
   $: {

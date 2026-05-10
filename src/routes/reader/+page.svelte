@@ -1,4 +1,7 @@
 <script lang="ts">
+  // Ownership: this route hosts the product-level state for its surface.
+  // It composes child components and services, but it must remain the visible
+  // boundary where navigation, persistence, and privileged actions are coordinated.
   import { goto } from '$app/navigation';
   import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/stores';
@@ -1010,6 +1013,8 @@
     })();
 
     if (typeof localStorage === 'undefined') return;
+    // Route-owned override ordering matters here: explicit URL state wins over
+    // restored local state, which in turn wins over global defaults.
     ttsReadAloudTextMode = loadReaderSettings(localStorage).ttsReadAloudText;
     if (routeOpenState.workspaceMode === 'tts' && routeOpenState.ttsReadAloudTextMode) {
       ttsReadAloudTextMode = routeOpenState.ttsReadAloudTextMode;
@@ -1066,6 +1071,8 @@
     searchController.refreshHistory();
   }
   $: if (readerBookKey !== lastAssistanceBookKey) {
+    // Book switches are a route boundary: restore persisted per-book workspace
+    // state first, then let route-owned overrides below clamp any shared shell UI.
     assistanceState = createEmptyReaderAssistanceState();
     assistanceHistory = restoreAssistanceHistory();
     assistanceSelection = restoreAssistanceSelection();

@@ -1,4 +1,7 @@
 <script lang="ts">
+  // Ownership: this route hosts the product-level state for its surface.
+  // It composes child components and services, but it must remain the visible
+  // boundary where navigation, persistence, and privileged actions are coordinated.
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import type {
@@ -81,6 +84,8 @@
           ? '当前书源返回了产品级错误状态；修正桌面端配置后可以重新浏览。'
           : '';
 
+  // This route keeps library/reader/catalog actions separate on purpose. Reusing
+  // helpers is fine, but do not collapse the product surfaces into one mixed owner.
   const refreshSources = async (preferredSourceId?: string) => {
     sources = await listCatalogSources();
     if (preferredSourceId && sources.some((source) => source.id === preferredSourceId)) {
@@ -114,6 +119,8 @@
   const browseSelectedSource = async (pageHref?: string) => {
     if (!selectedSourceId) return;
     pageBusy = true;
+    // A new browse/search step invalidates any previously prepared import intent.
+    // Import must stay tied to the exact page snapshot the user is looking at.
     currentImportIntent = null;
     currentImportRequest = null;
     currentImportResult = null;
