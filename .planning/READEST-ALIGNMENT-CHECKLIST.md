@@ -1266,7 +1266,7 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Outcome: dedicated `朗读模式` now restores `朗读原文 / 朗读译文` per book across reload, so switching one book into translated playback no longer silently leaks that mode into another book.
   - Touches: reader page-local TTS mode persistence, collapsed mini-bar route-sync guard, focused reader smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated tts read-aloud mode from route state in web mode|reader can open tts mode as a dedicated notebook tab|reader restores dedicated tts read-aloud mode per book across reload"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `94c267e`.
   - Tutorial: `tutorials/commit/0632-persist-current-book-tts-read-aloud-mode.md`.
   - Notes: this slice keeps route-owned `workspace=tts&tts=...` override semantics for visible dedicated TTS mode, but collapsed mini-bar mode switches no longer reopen the notebook just to rewrite route state. It still does not make pinned TTS payload text route-owned.
 
