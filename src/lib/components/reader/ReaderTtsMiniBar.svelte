@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   export let statusLabel = '空闲';
   export let contextSummary = '';
@@ -22,6 +25,9 @@
   export let onSwitchMode: (() => void) | null = null;
 </script>
 
+<!-- Dedicated TTS mode and the mini playback bar intentionally share playback
+ provenance semantics. If their labels/actions diverge, the reader starts showing
+ conflicting ownership on the same active session. -->
 <section class="tts-mini-bar" aria-label="阅读中的朗读控制条">
   <div class="mini-copy">
     <strong>朗读中枢</strong>

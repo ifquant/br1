@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import type {
     ReaderTtsReadAloudTextMode,
@@ -84,6 +87,9 @@
       ? translatedSourceContextLabel ||
         (translationModeFollowsCurrent ? '正在跟随当前阅读位置' : '已锁定当前翻译目标')
       : playbackOwnershipLabel;
+  // Dedicated TTS mode and the mini playback bar intentionally share playback
+  // provenance semantics. If their labels/actions diverge, the reader starts showing
+  // conflicting ownership on the same active session.
 
   const runPrimaryAction = () => {
     if (ttsSession.status === 'speaking') {

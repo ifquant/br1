@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import {
@@ -164,6 +167,8 @@
 
   const isPlainTextFormat = (formatLabel: string) => formatLabel === 'TXT';
 
+  // Boundary: this view-normalization logic keeps format-specific renderer quirks
+  // from leaking into notebook, sidebar, TTS, or translation surfaces.
   const getPlainTextLines = () => plainTextContent.split(/\r?\n/);
 
   const isPlainTextExcerptCandidate = (line: string) => {
@@ -251,6 +256,9 @@
       .replace(/&nbsp;/gi, ' ')
       .replace(/&amp;/gi, '&');
 
+  // Viewport excerpt selection is a degraded-fallback ladder. Body text should
+  // beat scaffold labels, and scaffold labels should beat empty state. That order
+  // matters more than the current rendering detail.
   const isFoliateExcerptCandidate = (line: string, chapterLabel: string, title: string) => {
     const normalized = normalizeFoliateExcerptLine(line);
     if (!normalized) return false;

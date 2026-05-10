@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import type {
@@ -165,6 +168,9 @@
     chromeTimer = null;
   };
 
+  // Stage chrome visibility is a presentation concern. Auto-hide may react to
+  // window mode and sidebar presence, but persistence and mode selection still
+  // belong to the route-owned reader state.
   const scheduleChromeHide = () => {
     if (!isWindowMode || sidebarVisible || settings.chromeMode === 'always') return;
     clearChromeTimer();

@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import type {
     ReaderAssistanceHistoryEntry,
@@ -74,6 +77,9 @@
   let lookupLaneViewMode: 'full' | 'focus' = 'full';
   let translationLaneViewMode: 'full' | 'focus' = 'full';
 
+  // Overview, focused lane, and archived entry states are separate browse modes,
+  // not styling variants. Keep the navigation contract explicit so archive replay
+  // does not collapse back into a generic assistant panel during refactors.
   $: bookKey = `${preview.title}::${preview.chapterLabel}`;
   $: activeTranslationProviderStatus =
     translationProviderStatuses.find(

@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   /**
    * @deprecated Prefer ReaderStage for active reader work. This component is kept
@@ -31,6 +34,9 @@
   let importInput: HTMLInputElement | null = null;
   let hasAttemptedAutoPicker = false;
 
+  // This legacy shell remains a preview wrapper around ReaderViewport. Keep any
+  // future reader semantics in ReaderStage rather than reviving a second active
+  // owner for reader workflow behavior here.
   const triggerImportPicker = async () => {
     if (!importInput) return;
     await tick();

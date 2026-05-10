@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
   import ReaderSyncWorkspace from './ReaderSyncWorkspace.svelte';
@@ -174,6 +177,9 @@ import type {
       ? '等待译文结果'
       : '还没有可朗读目标');
   $: ttsReadAloudSummary = ttsReadAloudTextMode === 'translated' ? '朗读译文' : '朗读原文';
+  // Notes, highlights, assistant, translation, TTS, and sync are separate reading
+  // work modes. The notebook can switch between them, but it should not flatten
+  // their contracts into one interchangeable panel model.
   $: notebookSummaryItems =
     activeTab === 'assistant'
       ? [

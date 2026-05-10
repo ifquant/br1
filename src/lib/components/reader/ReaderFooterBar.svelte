@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import {
@@ -26,6 +29,8 @@
   $: locationDisplayLabel = getReaderLocationDisplayLabel(preview.locationLabel);
   $: formatDisplayLabel = getReaderFormatDisplayLabel(preview.formatLabel);
   $: layoutDisplayLabel = getReaderLayoutDisplayLabel(preview.layoutLabel);
+  // The footer reflects current reading position, but it should stay a thin
+  // control/reporting surface rather than grow its own navigation semantics.
   $: chapterDisplayLabel = (() => {
     const chapterLabel = preview.chapterLabel.trim();
     if (chapterLabel && chapterLabel !== '等待打开书籍') return chapterLabel;

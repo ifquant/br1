@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import type {
     KoReaderSyncConflict,
@@ -74,6 +77,8 @@
   $: remoteStatusSummary = summarizeRemoteStatus(remoteSyncResult);
   $: remoteStatus = remoteSyncResult?.status ?? null;
   $: hasKnownRemoteState = remoteStatus !== null;
+  // Sync keeps current-book and whole-library work separate because their
+  // readiness, retry, and conflict semantics are different.
   $: libraryReadinessSummary = !desktopAvailable
     ? '当前环境不是桌面端，所以这里只能展示整库同步边界，不能执行交换文件导入或远端进度同步。'
     : !hasKnownRemoteState

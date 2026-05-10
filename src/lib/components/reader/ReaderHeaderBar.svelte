@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
   import type {
@@ -39,6 +42,9 @@
   $: ttsPrimaryActionLabel = getReaderTtsPrimaryActionLabel(ttsSession);
   $: ttsPrimaryAriaLabel =
     ttsSession.status === 'unavailable' ? ttsStatusDetail : ttsPrimaryActionLabel;
+  // Header controls are quick-entry affordances. They can expose reader modes,
+  // but the notebook/workspace surfaces remain the place where those modes own
+  // their detailed semantics.
   $: ttsPrimaryDisabled =
     ttsSession.status === 'unavailable' ||
     (ttsSession.status === 'idle' && !ttsSession.speechLabel) ||

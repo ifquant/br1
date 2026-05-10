@@ -1,3 +1,6 @@
+<!-- Ownership: this reader surface explains one part of the reading workflow
+ to the user. It may render state from the route or helper modules, but it should
+ not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
@@ -163,6 +166,9 @@
   let collapsedHighlightGroups = new Set<string>();
   let highlightsWorkspaceHydratedKey = '';
   let highlightsWorkspaceLoadToken = 0;
+  // The sidebar is not a generic tab shell. Notes, bookmarks, highlights, and
+  // search each carry different reading semantics, so refactors must preserve that
+  // meaning instead of flattening them into one interchangeable workspace list.
   $: supportsTextAnnotations = supportsTextAnnotationsForFormat(preview.formatLabel);
   $: textAnnotationSupportMessage = getTextAnnotationSupportMessage(preview.formatLabel);
   $: notesPanelSummary = (() => {
