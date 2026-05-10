@@ -123,6 +123,7 @@
   let effectiveTtsTarget: ReaderTtsSpeechTarget | null = null;
   let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
   let translationFollowsCurrentSource = true;
+  let translationTargetLanguage = 'zh';
   let pinnedTranslationSource: {
     text: string;
     label: string;
@@ -491,9 +492,15 @@
 
   const syncReaderWorkspaceModeToRoute = async (
     workspaceMode: ReaderRouteWorkspaceMode | null,
-    nextTtsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = ttsReadAloudTextMode
+    nextTtsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = ttsReadAloudTextMode,
+    nextTranslationTargetLanguage: string | null = translationTargetLanguage
   ) => {
-    const nextHref = toReaderWorkspaceModeHref($page.url, workspaceMode, nextTtsReadAloudTextMode);
+    const nextHref = toReaderWorkspaceModeHref(
+      $page.url,
+      workspaceMode,
+      nextTtsReadAloudTextMode,
+      nextTranslationTargetLanguage
+    );
     const currentHref = `${$page.url.pathname}${$page.url.search}`;
     if (nextHref === currentHref) return;
     await goto(nextHref, {
@@ -510,7 +517,8 @@
     notebookTab = tab;
     await syncReaderWorkspaceModeToRoute(
       tab === 'translation' || tab === 'tts' ? tab : null,
-      tab === 'tts' ? ttsReadAloudTextMode : null
+      tab === 'tts' ? ttsReadAloudTextMode : null,
+      tab === 'translation' ? translationTargetLanguage : null
     );
   };
 
@@ -528,6 +536,9 @@
     ttsReadAloudTextMode = loadReaderSettings(localStorage).ttsReadAloudText;
     if (routeOpenState.workspaceMode === 'tts' && routeOpenState.ttsReadAloudTextMode) {
       ttsReadAloudTextMode = routeOpenState.ttsReadAloudTextMode;
+    }
+    if (routeOpenState.workspaceMode === 'translation' && routeOpenState.translationTargetLanguage) {
+      translationTargetLanguage = routeOpenState.translationTargetLanguage;
     }
     const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
     if (rawNotebookShell) {
@@ -594,6 +605,13 @@
     routeOpenState.ttsReadAloudTextMode !== ttsReadAloudTextMode
   ) {
     ttsReadAloudTextMode = routeOpenState.ttsReadAloudTextMode;
+  }
+  $: if (
+    routeOpenState.workspaceMode === 'translation' &&
+    routeOpenState.translationTargetLanguage &&
+    routeOpenState.translationTargetLanguage !== translationTargetLanguage
+  ) {
+    translationTargetLanguage = routeOpenState.translationTargetLanguage;
   }
   $: if (!routeOpenState.workspaceMode && lastAppliedRouteWorkspaceMode) {
     lastAppliedRouteWorkspaceMode = null;
@@ -1141,6 +1159,15 @@
 
   const openTranslationMode = () => {
     void openNotebookWorkspaceTab('translation');
+  };
+
+  const setTranslationTargetLanguage = (language: string) => {
+    const normalizedLanguage = language.trim().toLowerCase() || 'zh';
+    if (translationTargetLanguage === normalizedLanguage) return;
+    translationTargetLanguage = normalizedLanguage;
+    if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
+      void syncReaderWorkspaceModeToRoute('translation', null, normalizedLanguage);
+    }
   };
 
   const pinCurrentTranslationSource = (source?: { text: string; label: string }) => {
@@ -1704,6 +1731,7 @@
         translationModeSourceText={effectiveTranslationSource.text}
         translationModeSourceLabel={effectiveTranslationSource.label}
         translationModeFollowsCurrentSource={translationFollowsCurrentSource}
+        {translationTargetLanguage}
         translationProviderStatuses={translationProviderStatuses}
         desktopSyncAvailable={canPersistLibrary()}
         {currentManagedBook}
@@ -1740,6 +1768,7 @@
         onOpenTranslationMode={openTranslationMode}
         onPinCurrentTranslationSource={pinCurrentTranslationSource}
         onResumeFollowingCurrentTranslationSource={resumeFollowingCurrentTranslationSource}
+        onSetTranslationTargetLanguage={setTranslationTargetLanguage}
         onSelectAssistanceHistoryEntry={selectAssistanceHistoryEntry}
         onClearAssistanceHistory={clearAssistanceHistory}
         onClose={() => {

@@ -1182,6 +1182,14 @@ Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route 
   - Tutorial: `tutorials/commit/0624-make-dedicated-tts-read-aloud-mode-route-addressable.md`.
   - Notes: this slice only routes the dedicated TTS playback mode. It does not make non-TTS reader settings route-owned, and it does not widen route state to cover broader playback/runtime session semantics.
 
+- [x] P13-1.3 Make dedicated translation target language route-addressable
+  - Outcome: `workspace=translation` now also carries `tl=zh|en`, so direct translation opens, target-language switches, and reload all preserve the same dedicated translation-mode language contract instead of falling back to component-local defaults.
+  - Touches: reader route parsing and href sync, dedicated translation-mode target-language wiring, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader can open translation mode as a dedicated notebook tab|reader restores dedicated translation target language from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `pending`.
+  - Tutorial: `tutorials/commit/0625-make-dedicated-translation-target-language-route-addressable.md`.
+  - Notes: this slice only routes the dedicated translation target language. It does not make translation provider choice route-owned, and it does not widen route state into broader translation history or runtime semantics.
+
 
 ## Service Security Gate
 

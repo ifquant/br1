@@ -70,6 +70,7 @@
   export let translationModeSourceText = '';
   export let translationModeSourceLabel = '';
   export let translationModeFollowsCurrentSource = true;
+  export let translationTargetLanguage = 'zh';
   export let translationProviderStatuses: ReaderTranslationProviderStatus[] = [];
   export let desktopSyncAvailable = false;
   export let currentManagedBook: PersistedLibraryBook | null = null;
@@ -134,6 +135,7 @@
     | ((source: { text: string; label: string }) => void)
     | null = null;
   export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
+  export let onSetTranslationTargetLanguage: ((language: string) => void) | null = null;
 
   $: noteEntries = notesState.notes.filter((note) => note.kind !== 'highlight');
   $: highlightEntries = notesState.notes.filter((note) => note.kind === 'highlight');
@@ -406,6 +408,7 @@
           translationReadingModeSourceText={translationModeSourceText}
           translationReadingModeSourceLabel={translationModeSourceLabel}
           translationReadingModeFollowsCurrent={translationModeFollowsCurrentSource}
+          {translationTargetLanguage}
           {ttsReadAloudTextMode}
           {translatedTtsSourceKind}
           translatedTtsSourceContextLabel={translatedTtsSourceContextLabel}
@@ -421,6 +424,7 @@
           onSetTtsReadAloudTextMode={onSetTtsReadAloudTextMode}
           onPinCurrentTranslationSource={onPinCurrentTranslationSource}
           onResumeFollowingCurrentTranslationSource={onResumeFollowingCurrentTranslationSource}
+          onSetTranslationTargetLanguage={onSetTranslationTargetLanguage}
           onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
           onClearHistory={onClearAssistanceHistory}
         />

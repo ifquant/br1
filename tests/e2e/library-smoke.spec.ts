@@ -1126,13 +1126,18 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(sourceCard.locator('.assist-card-header span')).toContainText('正在跟随');
   await expect(resultCard.locator('.assist-card-header span')).toHaveText('当前翻译结果');
   const translationInput = notebook.getByRole('textbox', { name: '翻译文本' });
-  await translationInput.fill('Translate this paragraph while keeping the current reading mode.');
+  await expect(translationInput).toHaveValue('第 1 / 3 节');
+  await expect(translationInput).toHaveAttribute('readonly', '');
   await page.getByRole('button', { name: '锁定当前翻译目标' }).click();
-  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定当前手动输入');
-  await expect(sourceCard.locator('.assist-card-header span')).toContainText('已锁定当前手动输入');
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
+  await expect(sourceCard.locator('.assist-card-header span')).toContainText('已锁定');
+  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
+  await expect(translationInput).not.toHaveAttribute('readonly', '');
+  await translationInput.fill('Translate this paragraph while keeping the current reading mode.');
   await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
   await page.getByRole('button', { name: '回到当前阅读位置' }).click();
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
+  await expect(translationInput).toHaveAttribute('readonly', '');
 });
 
 test('reader can jump from translation mode into translated tts in web mode', async ({ page }) => {
@@ -1258,6 +1263,52 @@ test('reader restores dedicated tts read-aloud mode from route state in web mode
   await expect(page.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
   await expect(page).not.toHaveURL(/\/reader\?.*workspace=/);
   await expect(page).not.toHaveURL(/\/reader\?.*tts=/);
+});
+
+test('reader restores dedicated translation target language from route state in web mode', async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '路由翻译目标语言测试',
+    workspace: 'translation',
+    tl: 'en'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(page.getByRole('button', { name: 'English' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('第 1 / 3 节', {
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*workspace=translation(?:&|$)/);
+  await expect(page).toHaveURL(/\/reader\?.*tl=en(?:&|$)/);
+  await expect(page.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(notebook.getByRole('button', { name: '翻译为 EN' })).toBeVisible();
+
+  await page.getByRole('button', { name: '中文' }).click();
+  await expect(page.getByRole('button', { name: '中文' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page).toHaveURL(/\/reader\?.*tl=zh(?:&|$)/);
+  await expect(notebook.getByRole('button', { name: '翻译为 ZH' })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole('button', { name: '中文' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('第 1 / 3 节', {
+    timeout: 15000
+  });
+  await expect(page).toHaveURL(/\/reader\?.*tl=zh(?:&|$)/);
+  await expect(page.getByRole('button', { name: '中文' })).toHaveAttribute('aria-pressed', 'true');
+
+  await notebook.getByRole('tab', { name: '笔记' }).click();
+  await expect(page.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/reader\?.*workspace=/);
+  await expect(page).not.toHaveURL(/\/reader\?.*tl=/);
 });
 
 test('reader can switch translated playback back to source from translation mode in web mode', async ({

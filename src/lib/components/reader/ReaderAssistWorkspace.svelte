@@ -30,6 +30,7 @@
   export let translationReadingModeSourceText = '';
   export let translationReadingModeSourceLabel = '';
   export let translationReadingModeFollowsCurrent = true;
+  export let translationTargetLanguage = 'zh';
   export let ttsReadAloudTextMode: 'source' | 'translated' = 'source';
   export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   export let translatedTtsSourceContextLabel = '';
@@ -48,6 +49,7 @@
     | ((source: { text: string; label: string }) => void)
     | null = null;
   export let onResumeFollowingCurrentTranslationSource: (() => void) | null = null;
+  export let onSetTranslationTargetLanguage: ((language: string) => void) | null = null;
   export let onOpenTtsMode: (() => void) | null = null;
   export let onSetTtsReadAloudTextMode: ((mode: 'source' | 'translated') => void) | null = null;
   export let title = 'AI 阅读助手';
@@ -107,6 +109,8 @@
       : normalizeAssistanceText(
           assistTranslationText || notesState.selection?.text || preview.chapterLabel || preview.title
         );
+  $: effectiveTranslationTargetLanguage =
+    lockedMode === 'translation' ? translationTargetLanguage : assistTranslationTargetLanguage;
   $: translationReadingModeHasLiveSource =
     lockedMode === 'translation' &&
     translationReadingModeFollowsCurrent &&
@@ -285,7 +289,11 @@
       assistMode = 'translation';
       assistTranslationProvider = entry.request.provider;
       assistTranslationText = entry.request.text;
-      assistTranslationTargetLanguage = entry.request.targetLanguage;
+      if (lockedMode === 'translation') {
+        onSetTranslationTargetLanguage?.(entry.request.targetLanguage);
+      } else {
+        assistTranslationTargetLanguage = entry.request.targetLanguage;
+      }
       callbacks.onRequestTranslation?.(
         entry.request.provider,
         entry.request.text,
@@ -306,7 +314,11 @@
       assistMode = 'translation';
       assistTranslationProvider = entry.request.provider;
       assistTranslationText = entry.request.text;
-      assistTranslationTargetLanguage = entry.request.targetLanguage;
+      if (lockedMode === 'translation') {
+        onSetTranslationTargetLanguage?.(entry.request.targetLanguage);
+      } else {
+        assistTranslationTargetLanguage = entry.request.targetLanguage;
+      }
       return;
     }
 
@@ -335,7 +347,7 @@
     callbacks.onRequestTranslation?.(
       assistTranslationProvider,
       text,
-      assistTranslationTargetLanguage.trim() || 'zh'
+      effectiveTranslationTargetLanguage.trim() || 'zh'
     );
   };
 
@@ -624,22 +636,30 @@
     {#if assistMode === 'translation'}
       <button
         type="button"
-        class:active={assistTranslationTargetLanguage === 'zh'}
+        class:active={effectiveTranslationTargetLanguage === 'zh'}
         class="assist-chip"
-        aria-pressed={assistTranslationTargetLanguage === 'zh'}
+        aria-pressed={effectiveTranslationTargetLanguage === 'zh'}
         on:click={() => {
-          assistTranslationTargetLanguage = 'zh';
+          if (lockedMode === 'translation') {
+            onSetTranslationTargetLanguage?.('zh');
+          } else {
+            assistTranslationTargetLanguage = 'zh';
+          }
         }}
       >
         中文
       </button>
       <button
         type="button"
-        class:active={assistTranslationTargetLanguage === 'en'}
+        class:active={effectiveTranslationTargetLanguage === 'en'}
         class="assist-chip"
-        aria-pressed={assistTranslationTargetLanguage === 'en'}
+        aria-pressed={effectiveTranslationTargetLanguage === 'en'}
         on:click={() => {
-          assistTranslationTargetLanguage = 'en';
+          if (lockedMode === 'translation') {
+            onSetTranslationTargetLanguage?.('en');
+          } else {
+            assistTranslationTargetLanguage = 'en';
+          }
         }}
       >
         English
@@ -692,7 +712,7 @@
       on:click={assistMode === 'translation' ? requestAssistTranslation : requestAssistLookup}
     >
       {#if assistMode === 'translation'}
-        翻译为 {assistTranslationTargetLanguage.toUpperCase()}
+        翻译为 {effectiveTranslationTargetLanguage.toUpperCase()}
       {:else if assistLookupProvider === 'dictionary'}
         查词典
       {:else}

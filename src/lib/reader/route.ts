@@ -26,6 +26,7 @@ export type ReaderRouteOpenState = {
   target: ReaderRouteOpenTarget | null;
   workspaceMode: ReaderRouteWorkspaceMode | null;
   ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null;
+  translationTargetLanguage: string | null;
 };
 
 const parseRouteFraction = (value: string | null) => {
@@ -43,6 +44,12 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
   const ttsParam = url.searchParams.get('tts');
   const ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null =
     workspaceMode === 'tts' && (ttsParam === 'source' || ttsParam === 'translated') ? ttsParam : null;
+  const translationTargetLanguageParam = url.searchParams.get('tl');
+  const translationTargetLanguage =
+    workspaceMode === 'translation' &&
+    (translationTargetLanguageParam === 'zh' || translationTargetLanguageParam === 'en')
+      ? translationTargetLanguageParam
+      : null;
 
   if (source === 'asset') {
     const sourceUrl = url.searchParams.get('url') ?? '';
@@ -54,7 +61,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         bookKey: label || 'default',
         target: null,
         workspaceMode,
-        ttsReadAloudTextMode
+        ttsReadAloudTextMode,
+        translationTargetLanguage
       };
     }
 
@@ -72,7 +80,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       bookKey: target.bookKey,
       target,
       workspaceMode,
-      ttsReadAloudTextMode
+      ttsReadAloudTextMode,
+      translationTargetLanguage
     };
   }
 
@@ -86,7 +95,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
         bookKey: label || 'default',
         target: null,
         workspaceMode,
-        ttsReadAloudTextMode
+        ttsReadAloudTextMode,
+        translationTargetLanguage
       };
     }
 
@@ -107,7 +117,8 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
       bookKey: target.bookKey,
       target,
       workspaceMode,
-      ttsReadAloudTextMode
+      ttsReadAloudTextMode,
+      translationTargetLanguage
     };
   }
 
@@ -118,14 +129,16 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     bookKey: label || 'default',
     target: null,
     workspaceMode,
-    ttsReadAloudTextMode
+    ttsReadAloudTextMode,
+    translationTargetLanguage
   };
 };
 
 export const toReaderWorkspaceModeHref = (
   url: URL,
   workspaceMode: ReaderRouteWorkspaceMode | null,
-  ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = null
+  ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = null,
+  translationTargetLanguage: string | null = null
 ) => {
   const nextUrl = new URL(url);
   if (workspaceMode) {
@@ -137,6 +150,11 @@ export const toReaderWorkspaceModeHref = (
     nextUrl.searchParams.set('tts', ttsReadAloudTextMode);
   } else {
     nextUrl.searchParams.delete('tts');
+  }
+  if (workspaceMode === 'translation' && translationTargetLanguage) {
+    nextUrl.searchParams.set('tl', translationTargetLanguage);
+  } else {
+    nextUrl.searchParams.delete('tl');
   }
   return `${nextUrl.pathname}${nextUrl.search}`;
 };
