@@ -1242,6 +1242,18 @@ Closeout review verdict:
 - the remaining local reading-mode states now depend on text payloads such as pinned translation source or pinned TTS target, which do not fit the existing compact deep-link contract
 - the next recommended mainline is not more `P13` micro-slices, but a new reader playback or reading-mode line if those payload-heavy ownership states need to be productized further
 
+## P14 Reader Mode Ownership Persistence
+
+Goal: make pinned reading-mode ownership behave like a trustworthy per-book reader state instead of a fragile live-session toggle.
+
+- [x] P14-1.1 Persist current-book translation-mode ownership across reload
+  - Outcome: dedicated `翻译模式` now restores its current-book ownership state across reload for the same book, including whether it is following the current source or locked to a pinned translation source, so reload no longer silently snaps the mode back to follow-current.
+  - Touches: reader page-local translation ownership persistence, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation ownership for the same book across reload"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0630-persist-current-book-translation-mode-ownership.md`.
+  - Notes: this slice only persists translation-mode ownership for the current book. It does not make pinned translation payload route-owned, and it does not yet persist pinned TTS target ownership.
+
 
 ## Service Security Gate
 

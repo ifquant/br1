@@ -1355,6 +1355,58 @@ test('reader restores dedicated translation provider from route state in web mod
   await expect(page).not.toHaveURL(/\/reader\?.*tp=/);
 });
 
+test('reader restores dedicated translation ownership for the same book across reload', async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+  });
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '翻译模式归属持久化测试',
+    workspace: 'translation'
+  }).toString()}`;
+  const lockedSourceText = 'Locked translation source after reload.';
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
+  await page.getByRole('button', { name: '锁定当前翻译目标' }).click();
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
+
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const translationPanels = page.getByLabel('翻译阅读面板');
+  const sourceCard = translationPanels.locator('.assist-translation-card').first();
+  const translationInput = notebook.getByRole('textbox', { name: '翻译文本' });
+
+  await expect(sourceCard.locator('.assist-card-header span')).toContainText('已锁定');
+  await expect(translationInput).not.toHaveAttribute('readonly', '');
+  await translationInput.fill(lockedSourceText);
+  await expect(translationInput).toHaveValue(lockedSourceText);
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
+  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
+  await expect(sourceCard.locator('.assist-card-header span')).toContainText('已锁定');
+  await expect(translationInput).toHaveValue(lockedSourceText);
+  await expect(translationInput).not.toHaveAttribute('readonly', '');
+
+  await page.getByRole('button', { name: '回到当前阅读位置' }).click();
+  await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
+  await expect(translationInput).toHaveAttribute('readonly', '');
+  await expect(translationInput).toHaveValue('第 1 / 3 节');
+});
+
 test('reader restores dedicated translation archive selection from route state in web mode', async ({
   page
 }) => {

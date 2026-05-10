@@ -202,6 +202,7 @@
   $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
   $: assistanceHistoryStorageKey = `br1.reader.assistance.history:${readerBookKey}`;
   $: assistanceSelectionStorageKey = `br1.reader.assistance.selection:${readerBookKey}`;
+  $: translationOwnershipStorageKey = `br1.reader.translation.ownership:${readerBookKey}`;
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -400,6 +401,89 @@
         activeTab: notebookTab
       })
     );
+  };
+
+  const persistTranslationOwnership = () => {
+    if (typeof localStorage === 'undefined') return;
+    if (!translationOwnershipStorageKey) return;
+    localStorage.setItem(
+      translationOwnershipStorageKey,
+      JSON.stringify({
+        followsCurrentSource: translationFollowsCurrentSource,
+        pinnedSource: pinnedTranslationSource
+          ? {
+              text: normalizeAssistanceText(pinnedTranslationSource.text),
+              label: pinnedTranslationSource.label.trim(),
+              chapterLabel: pinnedTranslationSource.chapterLabel.trim()
+            }
+          : null
+      })
+    );
+  };
+
+  const restoreTranslationOwnership = () => {
+    if (typeof localStorage === 'undefined') {
+      return {
+        followsCurrentSource: true,
+        pinnedSource: null as typeof pinnedTranslationSource
+      };
+    }
+    if (!translationOwnershipStorageKey) {
+      return {
+        followsCurrentSource: true,
+        pinnedSource: null as typeof pinnedTranslationSource
+      };
+    }
+    const rawOwnership = localStorage.getItem(translationOwnershipStorageKey);
+    if (!rawOwnership) {
+      return {
+        followsCurrentSource: true,
+        pinnedSource: null as typeof pinnedTranslationSource
+      };
+    }
+
+    try {
+      const parsed = JSON.parse(rawOwnership) as {
+        followsCurrentSource?: unknown;
+        pinnedSource?: {
+          text?: unknown;
+          label?: unknown;
+          chapterLabel?: unknown;
+        } | null;
+      };
+      const normalizedPinnedText =
+        typeof parsed.pinnedSource?.text === 'string'
+          ? normalizeAssistanceText(parsed.pinnedSource.text)
+          : '';
+      const normalizedPinnedLabel =
+        typeof parsed.pinnedSource?.label === 'string' ? parsed.pinnedSource.label.trim() : '';
+      const normalizedPinnedChapterLabel =
+        typeof parsed.pinnedSource?.chapterLabel === 'string'
+          ? parsed.pinnedSource.chapterLabel.trim()
+          : '';
+      const pinnedSource = normalizedPinnedText
+        ? {
+            text: normalizedPinnedText,
+            label: normalizedPinnedLabel || '当前翻译目标',
+            chapterLabel: normalizedPinnedChapterLabel
+          }
+        : null;
+
+      return {
+        followsCurrentSource:
+          typeof parsed.followsCurrentSource === 'boolean'
+            ? parsed.followsCurrentSource
+            : !pinnedSource,
+        pinnedSource
+      };
+    } catch (error) {
+      console.warn('Failed to restore reader translation ownership', error);
+      localStorage.removeItem(translationOwnershipStorageKey);
+      return {
+        followsCurrentSource: true,
+        pinnedSource: null as typeof pinnedTranslationSource
+      };
+    }
   };
 
   const persistReaderSettingPatch = (patch: Partial<ReaderSettings>) => {
@@ -607,8 +691,9 @@
     }
     ttsFollowsCurrentLocation = true;
     pinnedTtsTarget = null;
-    translationFollowsCurrentSource = true;
-    pinnedTranslationSource = null;
+    const restoredTranslationOwnership = restoreTranslationOwnership();
+    translationFollowsCurrentSource = restoredTranslationOwnership.followsCurrentSource;
+    pinnedTranslationSource = restoredTranslationOwnership.pinnedSource;
     lastAssistanceBookKey = readerBookKey;
   }
   $: if (
@@ -811,6 +896,14 @@
     assistanceSelectionStorageKey;
     if (typeof localStorage !== 'undefined') {
       persistAssistanceSelection();
+    }
+  }
+  $: {
+    translationOwnershipStorageKey;
+    translationFollowsCurrentSource;
+    pinnedTranslationSource;
+    if (typeof localStorage !== 'undefined') {
+      persistTranslationOwnership();
     }
   }
   $: searchController.persist($searchState);

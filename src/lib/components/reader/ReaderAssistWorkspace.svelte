@@ -98,7 +98,9 @@
   $: if (assistLookupTermSeededForBookKey !== bookKey) {
     assistLookupTerm = normalizeAssistanceTerm(notesState.selection?.text || preview.chapterLabel);
     assistTranslationText = normalizeAssistanceText(
-      notesState.selection?.text || preview.chapterLabel || preview.title
+      lockedMode === 'translation' && !translationReadingModeFollowsCurrent
+        ? translationReadingModeSourceText
+        : notesState.selection?.text || preview.chapterLabel || preview.title
     );
     assistMode = lockedMode ?? 'lookup';
     assistLookupProvider = 'wikipedia';
@@ -553,8 +555,17 @@
             ? effectiveTranslationSourceText
             : assistTranslationText
         }
-        on:input={(event) =>
-          fillAssistTranslationText((event.currentTarget as HTMLTextAreaElement).value)}
+        on:input={(event) => {
+          const nextTranslationText = (event.currentTarget as HTMLTextAreaElement).value;
+          fillAssistTranslationText(nextTranslationText);
+          if (lockedMode === 'translation' && !translationReadingModeFollowsCurrent) {
+            const normalizedPinnedText = normalizeAssistanceText(nextTranslationText);
+            onPinCurrentTranslationSource?.({
+              text: normalizedPinnedText,
+              label: translationReadingModeSourceLabel || '当前翻译目标'
+            });
+          }
+        }}
       ></textarea>
     </label>
   {:else}
