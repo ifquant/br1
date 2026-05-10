@@ -1202,7 +1202,7 @@ Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route 
   - Outcome: dedicated `翻译模式` and translated `朗读模式` now also carry `ta=<translation-history-entry-id>`, so direct route opens, translation-to-TTS jumps, and reload all preserve the same archived translation provenance instead of depending on ambient current-book selection state.
   - Touches: reader route parsing and href sync, route-owned translation history selection wiring, focused reader smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation archive selection from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `d24613f`.
   - Tutorial: `tutorials/commit/0627-make-dedicated-translation-archive-selection-route-addressable.md`.
   - Notes: this slice only routes the selected translation archive that already drives dedicated translation and translated-TTS provenance. It does not route-own lookup selection, broad notebook browse state, or pinned/follow-current translation-source text.
 
