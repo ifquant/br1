@@ -1131,6 +1131,37 @@ Goal: close the remaining navigation asymmetries between `翻译模式` and `朗
   - Tutorial: `tutorials/commit/0620-lock-the-translation-to-tts-rebound-hop.md`.
   - Notes: this slice is intentionally test-only. It does not change TTS runtime or notebook behavior; it only hardens the already-shipped cross-mode contract so future refactors cannot silently break the rebound path.
 
+- [x] P12-1.4 Close the P12 cross-mode playback navigation line
+  - Outcome: `P12` is explicitly treated as closed now that the translation-to-TTS forward hop, reverse mode switch, and rebound contract are all landed and verified.
+  - Touches: parity checklist and tutorial ledger only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0621-close-the-p12-cross-mode-playback-line.md`.
+  - Notes: this closeout does not claim broader playback/runtime or notebook-surface parity. It only closes the `translation mode <-> translated TTS` navigation line itself.
+
+- [x] P12-1.5 Record the P12 closeout review
+  - Outcome: the repo now explicitly records that no structural blocker remains inside `P12`, so the next slice should move to a new reading-mode or playback line instead of continuing to micro-slice this one.
+  - Touches: parity checklist and tutorial ledger only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `pending`.
+  - Tutorial: `tutorials/commit/0622-record-the-p12-closeout-review.md`.
+  - Notes: this review does not reopen `P12` scope. It only records the verdict and keeps the next-mainline boundary explicit.
+
+## P12 Closeout
+
+Included in `P12`:
+- `翻译模式 -> 朗读译文` direct jump
+- `翻译模式 -> 朗读原文` direct recovery while staying in translation mode
+- rebound proof that the same translation-mode strip can send the reader back into translated playback after that recovery
+
+Intentionally not included in `P12`:
+- new TTS runtime semantics or provenance rules
+- new notebook or mini-bar playback controls outside the existing cross-mode hop
+- broader playback-history, queueing, or media-session work
+
+Closeout review verdict:
+- P12 has no remaining structural blocker. The translation-mode playback strip, dedicated TTS translation jump surface, mini-bar translation jump guard, and focused rebound smokes now close the cross-mode playback loop, so the next step should move to a new reading-mode or playback line instead of more P12 micro-slices.
+
 
 ## Service Security Gate
 
@@ -1237,3 +1268,5 @@ Use this log when completing each item.
 | 2026-05-09 | Keep the in-reader TTS mini bar visible during translated waiting states | pending | `pnpm check`; `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-tts-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-tts-tests --noEmit false && perl -0pi -e "s#from './tts';#from './tts.js';#g; s#from './ttsRuntime';#from './ttsRuntime.js';#g" ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/tts.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js && node --test ./.tmp-tts-tests/src/lib/reader/tts.test.js ./.tmp-tts-tests/src/lib/reader/ttsRuntime.test.js`; `CI=1 pnpm test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can open tts mode as a dedicated notebook tab"`; `git diff --check` | keeps the in-reader mini playback bar visible while translated TTS is waiting on a selected live or archived translation source, and replaces the generic empty-target fallback with source-tied waiting copy |
 | 2026-05-10 | Let translation mode switch translated playback back to source | `b1ff0e2` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can switch translated playback back to source from translation mode in web mode|reader can jump from translation mode into translated tts in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | adds the missing reverse cross-mode edge inside `翻译模式`, so readers can undo translated playback in place without changing the existing `jump into translated TTS` contract |
 | 2026-05-10 | Lock the translation-to-TTS rebound hop after source recovery | `eedf705` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can switch translated playback back to source from translation mode in web mode|reader can jump from translation mode into translated tts in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | proves the same translation-mode strip can still rebound back into translated TTS after the reader has already switched playback back to source, without changing shipped runtime behavior |
+| 2026-05-10 | Close the P12 cross-mode playback navigation line | `this commit` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | records that the current translation-to-TTS navigation line has no remaining structural blocker and should now give way to a new playback or reader-workspace mainline instead of more P12 micro-slices |
+| 2026-05-10 | Record the P12 closeout review | `pending` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | records the explicit closeout verdict that P12 no longer has a structural blocker and that future work should move to a new playback or reader-workspace line |
