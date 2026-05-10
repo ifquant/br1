@@ -1276,7 +1276,15 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader lets translated tts mode consume the selected translation archive in web mode|reader preserves live translated tts ownership over archive selection across reload"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
   - Done commit: `a792920`.
   - Tutorial: `tutorials/commit/0633-persist-current-book-translated-tts-owner-across-reload.md`.
-  - Notes: this slice persists the translated-TTS owner decision and stops live owner from silently downgrading into archive-backed playback. It does not make pinned translation payload text route-owned, and it does not yet guarantee reconstruction of a live translated body when only source ownership survives.
+  - Notes: this slice persists the translated-TTS owner decision and stops live owner from silently downgrading into archive-backed playback. It does not make pinned translation payload text route-owned.
+
+- [x] P14-1.5 Persist current-book live translated-TTS snapshots across reload
+  - Outcome: same-book translated playback now restores the most recent live translated body even when the live translation result is no longer reconstructable from `assistanceState` or a surviving exact-match history entry, so reload no longer drops a live-owner session into an empty/wrong translated target.
+  - Touches: reader page-local live translated snapshot persistence, live translated target reconstruction, focused reader smoke coverage, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader lets translated tts mode consume the selected translation archive in web mode|reader restores live translated tts snapshot over archive selection across reload"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0634-persist-current-book-live-translated-tts-snapshots.md`.
+  - Notes: this slice only persists current-book live translated playback snapshots. It still does not make translated payload text route-owned deep-link state, and it does not widen translated playback into a cross-book archive system.
 
 
 ## Service Security Gate

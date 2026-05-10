@@ -1933,10 +1933,11 @@ test('reader lets translated tts mode consume the selected translation archive i
 
   await page.goto(readerHref);
 
-  await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible({ timeout: 15000 });
-  await page.getByRole('button', { name: '打开朗读模式' }).click();
-
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  if (!(await notebook.isVisible().catch(() => false))) {
+    await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: '打开朗读模式' }).click();
+  }
   await expect(notebook).toBeVisible();
   await page.getByRole('button', { name: '朗读译文' }).click();
   await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读译文');
@@ -1975,7 +1976,7 @@ test('reader lets translated tts mode consume the selected translation archive i
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('历史译文 · DeepL');
 });
 
-test('reader preserves live translated tts ownership over archive selection across reload', async ({
+test('reader restores live translated tts snapshot over archive selection across reload', async ({
   page
 }) => {
   const sourceUrl = '/samples/sample-book.epub';
@@ -2083,9 +2084,44 @@ test('reader preserves live translated tts ownership over archive selection acro
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
     timeout: 15000
   });
+  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  await expect(notebook).toBeVisible();
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('译文朗读');
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).not.toContainText('历史译文');
+  await expect(notebook.getByText('这是当前译文所有者。')).toBeVisible();
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('已锁定当前翻译目标');
+
+  await page.evaluate((historyKey) => {
+    window.localStorage.setItem(
+      historyKey,
+      JSON.stringify([
+        {
+          id: 'assist-translation-archive-1',
+          request: {
+            kind: 'translation',
+            provider: 'deepl',
+            text: 'Archive-owned translation text.',
+            targetLanguage: 'zh',
+            chapterLabel: '第二章',
+            bookKey: '/samples/sample-book.epub'
+          },
+          status: 'ready',
+          result: {
+            id: 'assist-translation-archive-result-1',
+            provider: 'deepl',
+            title: '第二章',
+            body: '这是历史译文所有者。',
+            sourceLabel: 'DeepL',
+            createdAt: 10
+          },
+          error: '',
+          createdAt: 10,
+          updatedAt: 10
+        }
+      ])
+    );
+  }, historyStorageKey);
 
   await page.reload();
 
@@ -2093,9 +2129,12 @@ test('reader preserves live translated tts ownership over archive selection acro
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
     timeout: 15000
   });
+  await expect(notebook).toBeVisible();
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('译文朗读');
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).not.toContainText('历史译文');
+  await expect(notebook.getByText('这是当前译文所有者。')).toBeVisible();
+  await expect(notebook.getByLabel('译文朗读来源')).toContainText('已锁定当前翻译目标');
 });
 
 test('reader can open sync workspace inside the notebook shell', async ({ page }) => {
