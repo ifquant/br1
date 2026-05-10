@@ -1088,6 +1088,22 @@
     const restoredTranslationModeConfig = restoreCurrentBookTranslationModeConfig();
     translationTargetLanguage = restoredTranslationModeConfig.targetLanguage;
     translationProvider = restoredTranslationModeConfig.provider;
+    const restoredSelectedTranslationEntryId = assistanceSelection.translationHistoryEntryId.trim();
+    const restoredSelectedTranslationEntry = restoredSelectedTranslationEntryId
+      ? assistanceHistory.find(
+          (entry) =>
+            entry.id === restoredSelectedTranslationEntryId && entry.request.kind === 'translation'
+        ) || null
+      : null;
+    if (
+      restoredSelectedTranslationEntry?.request.kind === 'translation' &&
+      !routeOpenState.translationTargetLanguage &&
+      !routeOpenState.translationProvider &&
+      !routeOpenState.translationHistoryEntryId
+    ) {
+      translationTargetLanguage = restoredSelectedTranslationEntry.request.targetLanguage;
+      translationProvider = restoredSelectedTranslationEntry.request.provider;
+    }
     lastRestoredTranslationModeConfigBookKey = readerBookKey;
     translationLiveSnapshot = restoreCurrentBookTranslationLiveSnapshot();
     lastRestoredTranslationLiveSnapshotBookKey = readerBookKey;

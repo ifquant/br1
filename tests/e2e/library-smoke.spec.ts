@@ -1469,6 +1469,98 @@ test('reader restores dedicated translation mode config per book across reload',
   await expect(page.getByRole('button', { name: 'DeepL' })).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('reader restores current-book archived translation provenance across reload', async ({
+  page
+}) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const selectionStorageKey = `br1.reader.assistance.selection:${sourceUrl}`;
+  const translationModeConfigStorageKey = `br1.reader.translation.mode:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: '历史译文 provenance 恢复测试',
+    workspace: 'translation'
+  }).toString()}`;
+
+  await page.goto('/');
+  await page.evaluate(({ historyKey, selectionKey, configKey }) => {
+    window.localStorage.removeItem('br1.reader.notebook-shell');
+    window.localStorage.setItem(
+      historyKey,
+      JSON.stringify([
+        {
+          id: 'assist-translation-archive-1',
+          request: {
+            kind: 'translation',
+            provider: 'yandex',
+            text: 'Archived translation source text.',
+            targetLanguage: 'en',
+            chapterLabel: '第二章',
+            bookKey: '/samples/sample-book.epub'
+          },
+          status: 'ready',
+          result: {
+            id: 'assist-translation-archive-result-1',
+            provider: 'yandex',
+            title: '第二章',
+            body: 'This is the restored archived translation.',
+            sourceLabel: 'Yandex',
+            createdAt: 10
+          },
+          error: '',
+          createdAt: 10,
+          updatedAt: 10
+        }
+      ])
+    );
+    window.localStorage.setItem(
+      selectionKey,
+      JSON.stringify({
+        lookupHistoryEntryId: '',
+        translationHistoryEntryId: 'assist-translation-archive-1'
+      })
+    );
+    window.localStorage.setItem(
+      configKey,
+      JSON.stringify({
+        targetLanguage: 'zh',
+        provider: 'deepl'
+      })
+    );
+  }, {
+    historyKey: historyStorageKey,
+    selectionKey: selectionStorageKey,
+    configKey: translationModeConfigStorageKey
+  });
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Yandex' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('翻译阅读面板')).toContainText('历史记录');
+  await expect(page.getByLabel('翻译阅读面板')).toContainText(
+    'This is the restored archived translation.'
+  );
+
+  await page.reload();
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
+    timeout: 15000
+  });
+  await expect(page.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Yandex' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('翻译阅读面板')).toContainText('历史记录');
+  await expect(page.getByLabel('翻译阅读面板')).toContainText(
+    'This is the restored archived translation.'
+  );
+});
+
 test('reader restores live translation snapshots for the same book across reload', async ({
   page
 }) => {
