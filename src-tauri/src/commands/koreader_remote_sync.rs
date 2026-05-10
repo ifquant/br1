@@ -1,3 +1,7 @@
+// Ownership: this module is the desktop-owned KOReader remote sync bridge. It
+// resolves credentials, network transport, and record-to-progress matching so
+// the renderer can stay limited to sync intent and result presentation.
+
 use crate::models::{
     KoReaderRemoteProgressEntry, KoReaderRemoteSyncRequest, KoReaderRemoteSyncResult,
     LibraryBookRecord,
@@ -10,6 +14,9 @@ const KOREADER_REMOTE_SYNC_TIMEOUT: Duration = Duration::from_secs(15);
 const KO_READER_XPOINTER_PREFIX: &str = "/body/DocFragment[";
 const EPUB_CFI_PREFIX: &str = "epubcfi(";
 const PLAIN_TEXT_PROGRESS_PREFIX: &str = "txt:";
+
+// Refactor risk: locator normalization is format-sensitive. If these prefixes
+// drift, sync can silently map one book's progress into another restore shape.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum KoReaderRemoteSyncOperation {
@@ -76,6 +83,8 @@ fn resolve_config() -> Option<KoReaderRemoteSyncConfig> {
         base_url.set_path(&next_path);
     }
 
+    // Boundary: environment resolution stays here so the renderer never gains
+    // direct knowledge of credential names or remote device defaults.
     Some(KoReaderRemoteSyncConfig {
         base_url,
         username,

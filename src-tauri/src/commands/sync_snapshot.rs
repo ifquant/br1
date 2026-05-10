@@ -1,3 +1,7 @@
+// Ownership: this module is the desktop source of truth for local sync
+// snapshots and KOReader exchange archives. The renderer may choose when to
+// export or restore, but snapshot classification and replay ordering stay here.
+
 use crate::models::{
     ApplyKoReaderSyncExchangeResult, ApplySyncSnapshotRequest, ApplySyncSnapshotResult,
     KoReaderSyncConflictResult, KoReaderSyncExchangeExportDialogResult,
@@ -25,6 +29,9 @@ use tauri_plugin_dialog::DialogExt;
 const SYNC_SNAPSHOT_DIALOG_EXTENSIONS: &[&str] = &["json"];
 const KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION: u64 = 1;
 const READER_SETTINGS_STORAGE_KEY: &str = "br1.reader.settings";
+
+// Refactor risk: snapshot restore crosses library substrate, per-book overlays,
+// and singleton reader settings. Keep replay ordering centralized here.
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

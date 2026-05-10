@@ -1,3 +1,7 @@
+// Ownership: this crate root wires the desktop runtime together. It owns Tauri
+// setup, window/event coordination, and command registration; child modules
+// should not become competing runtime entrypoints.
+
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -10,6 +14,9 @@ mod util;
 const ASSOCIATED_BOOK_OPEN_REJECTION_EVENT: &str = "br1:associated-book-open-inputs-rejected";
 const SUPPORTED_ASSOCIATED_BOOK_EXTENSIONS: &[&str] =
     &["epub", "pdf", "mobi", "azw3", "fb2", "cbz", "txt"];
+
+// Refactor risk: associated-book open inputs can arrive from CLI, file-open
+// events, or secondary windows. Keep the rejection/reporting path centralized.
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +43,8 @@ fn append_associated_book_open_diagnostic<R: tauri::Runtime>(
     stage: &str,
     detail: impl Into<String>,
 ) {
+    // Boundary: diagnostics are intentionally best-effort. They aid human audit
+    // and support flows, but should never block the open-request path.
     let diagnostics = app.state::<models::AssociatedBookOpenDiagnostics>();
     let Ok(mut entries) = diagnostics.0.lock() else {
         return;

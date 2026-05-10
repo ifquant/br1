@@ -1,3 +1,7 @@
+// Ownership: this module is the desktop execution layer for lookup and
+// translation providers. Renderer code may pick provider and text, but API
+// credentials, timeouts, and external payload normalization stay owned here.
+
 use crate::util::now_millis;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -22,6 +26,9 @@ const DEEPL_TRANSLATE_API_ENDPOINT: &str = "https://api.deepl.com/v2/translate";
 const DEEPL_TRANSLATE_API_FREE_ENDPOINT: &str = "https://api-free.deepl.com/v2/translate";
 const YANDEX_TRANSLATE_API_ENDPOINT: &str =
     "https://translate.api.cloud.yandex.net/translate/v2/translate";
+
+// Boundary: provider constants and size limits stay centralized here so
+// renderer-facing workflows cannot diverge from actual backend constraints.
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]

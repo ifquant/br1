@@ -1,3 +1,7 @@
+// Ownership: this module is the desktop-owned remote snapshot sync bridge. It
+// resolves provider config, computes fingerprints, and applies snapshots so the
+// renderer can stay limited to navigation and sync intent.
+
 use crate::models::{RemoteSyncRequest, RemoteSyncResult, SyncSnapshotDocument};
 use crate::commands::sync_snapshot::{
     apply_sync_snapshot_document, load_current_sync_snapshot, validate_sync_snapshot_restore,
@@ -8,6 +12,9 @@ use std::time::Duration;
 
 const READEST_CLOUD_PROVIDER: &str = "readestCloud";
 const REMOTE_SYNC_TIMEOUT: Duration = Duration::from_secs(12);
+
+// Refactor risk: push/pull status semantics are part of the user-visible sync
+// contract. Keep result shaping in one place so retryability does not drift.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RemoteSyncOperation {
@@ -29,6 +36,8 @@ struct RemoteSnapshotEnvelope {
 }
 
 fn snapshot_fingerprint(snapshot: &SyncSnapshotDocument) -> Result<String, String> {
+    // Boundary: fingerprint generation must stay content-based and transport
+    // agnostic so both local and remote comparisons speak the same language.
     let raw = serde_json::to_vec(snapshot).map_err(|error| error.to_string())?;
     let digest = Sha256::digest(raw);
     Ok(format!("{digest:x}"))

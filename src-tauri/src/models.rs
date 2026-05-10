@@ -1,7 +1,14 @@
+// Boundary: this module declares the transport-safe desktop data contracts
+// shared by commands, persistence helpers, and tests. Keep runtime behavior out
+// of these types so storage migrations remain auditable.
+
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
+
+// Refactor risk: these record structs are persisted to disk and bridged across
+// Tauri commands. Field changes are schema changes even when Rust compiles.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

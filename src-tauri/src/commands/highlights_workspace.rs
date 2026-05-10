@@ -1,3 +1,7 @@
+// Ownership: this command module is the desktop source of truth for persisted
+// highlights-workspace state. Renderer code may choose when to save, but file
+// layout and schema compatibility remain owned here.
+
 use crate::models::{
     ReaderHighlightsWorkspaceEntry, ReaderHighlightsWorkspaceStateRecord,
     READER_HIGHLIGHTS_WORKSPACE_SCHEMA_VERSION,

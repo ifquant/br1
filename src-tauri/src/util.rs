@@ -1,3 +1,7 @@
+// Ownership: this module is the desktop-only utility seam for filesystem roots,
+// record normalization, and imported-book metadata extraction. Keep pure helper
+// behavior here and leave user-facing policy decisions to command modules.
+
 use crate::models::{
     LibraryBookRecord, ReaderSearchCacheEntry, ReaderSearchCacheFileInfo, ReadestBookConfig,
     ReadestBookMetadata, ReadestBookMetadataSummary, ReadestBookRecord,
@@ -11,6 +15,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
 pub(crate) fn ensure_library_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    // Boundary: every desktop persistence path fans out from this root. Keep
+    // path construction centralized so migrations stay reviewable.
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -32,6 +38,8 @@ pub(crate) fn readest_books_root(app: &tauri::AppHandle) -> Result<PathBuf, Stri
     let support_root = app_data_dir
         .parent()
         .ok_or_else(|| "Unable to locate application support root".to_string())?;
+    // Refactor risk: Readest import compatibility depends on mirroring the
+    // upstream support-directory layout instead of guessing per-platform paths.
     Ok(support_root
         .join("com.bilingify.readest")
         .join("Readest")

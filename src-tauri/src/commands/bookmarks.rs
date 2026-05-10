@@ -1,3 +1,7 @@
+// Ownership: this command module is the desktop source of truth for persisted
+// reader bookmarks. The renderer may shape bookmark intent, but file migration
+// and durable storage compatibility stay owned here.
+
 use crate::models::{ReaderBookmarkRecord, ReaderBookmarksEntry, READER_BOOKMARKS_SCHEMA_VERSION};
 use crate::util::{legacy_reader_bookmarks_file, reader_bookmarks_file};
 use std::fs;
@@ -16,6 +20,8 @@ pub(crate) fn load_reader_bookmarks(
     }
 
     let legacy_bookmarks_path = legacy_reader_bookmarks_file(&app, &book_key)?;
+    // Refactor risk: older reader builds stored bookmarks under the legacy path.
+    // Keep this fallback until an explicit storage migration removes that debt.
     if !legacy_bookmarks_path.exists() {
         return Ok(Vec::new());
     }
@@ -45,6 +51,8 @@ pub(crate) fn save_reader_bookmarks(
     fs::write(&bookmarks_path, raw).map_err(|error| error.to_string())?;
 
     let legacy_bookmarks_path = legacy_reader_bookmarks_file(&app, &book_key)?;
+    // Boundary: successful writes promote the new location and quietly retire
+    // the legacy file so newer restores stop reading two competing owners.
     if legacy_bookmarks_path != bookmarks_path && legacy_bookmarks_path.exists() {
         let _ = fs::remove_file(legacy_bookmarks_path);
     }

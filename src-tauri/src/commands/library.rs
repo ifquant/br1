@@ -1,3 +1,7 @@
+// Ownership: this module is the desktop source of truth for library records,
+// import/repair flows, and associated-book opening. The renderer may request
+// actions, but file-system mutation and migration policy stay owned here.
+
 use crate::models::{
     AssociatedBookOpenDiagnostics, AssociatedBookOpenRequest, LibraryBookBinary, LibraryBookRecord,
     LibraryRepairCandidatePreview, PendingAssociatedBookOpenRequests, ReadestImportResult,
@@ -28,11 +32,16 @@ pub(crate) const ASSOCIATED_BOOK_OPEN_EVENT: &str = "br1:associated-book-open-re
 const SUPPORTED_BOOK_DIALOG_EXTENSIONS: &[&str] =
     &["epub", "pdf", "fb2", "mobi", "azw3", "cbz", "txt"];
 
+// Refactor risk: associated-book open requests cross windows, persisted
+// diagnostics, and trusted-path state. Keep that handshake centralized here.
+
 fn append_associated_book_open_diagnostic<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     stage: &str,
     detail: impl Into<String>,
 ) {
+    // Boundary: diagnostics are append-only breadcrumbs for a human audit trail.
+    // Keep them loss-bounded but avoid turning them into business state.
     let diagnostics = app.state::<AssociatedBookOpenDiagnostics>();
     let Ok(mut entries) = diagnostics.0.lock() else {
         return;
@@ -73,6 +82,9 @@ fn is_supported_associated_book_path(path: &Path) -> bool {
 
     SUPPORTED_BOOK_DIALOG_EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
 }
+
+// Boundary: extension allowlists stay desktop-owned so renderer file inputs and
+// native dialog paths cannot drift into different importability rules.
 
 fn is_supported_cover_path(path: &Path) -> bool {
     let Some(extension) = path.extension().and_then(|value| value.to_str()) else {

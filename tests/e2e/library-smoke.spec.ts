@@ -1,3 +1,7 @@
+// These smoke tests intentionally keep fixtures explicit because br1's audit
+// surface depends on current-book ownership, dedicated workspaces, and restore
+// flows that are easy to hide behind ambient browser state.
+
 import { expect, test } from '@playwright/test';
 
 const readerLayoutLabel = (layout: 'PAGINATED' | 'SCROLL' | 'FIXED') =>
@@ -8,6 +12,8 @@ const readerLayoutLabel = (layout: 'PAGINATED' | 'SCROLL' | 'FIXED') =>
   })[layout];
 
 test('library renders the reading-first shell in web mode', async ({ page }) => {
+  // Boundary: this anchors the product shell contract before narrower reader
+  // flows run, so later failures are easier to classify as library vs reader.
   await page.goto('/library');
 
   const searchbox = page.getByRole('searchbox', { name: '搜索书籍' });

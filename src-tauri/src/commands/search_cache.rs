@@ -1,3 +1,7 @@
+// Ownership: this module is the desktop source of truth for disk-backed reader
+// search cache entries. The renderer may decide cache keys, but expiration and
+// pruning policy remain owned here.
+
 use crate::models::{
     ReaderSearchCacheEntry, ReaderSearchCacheResult, READER_SEARCH_CACHE_SCHEMA_VERSION,
     READER_SEARCH_CACHE_TTL_MS,
@@ -24,6 +28,8 @@ pub(crate) fn load_reader_search_cache(
     let now = now_millis()?;
 
     if let Ok(mut entry) = serde_json::from_str::<ReaderSearchCacheEntry>(&raw) {
+        // Refactor risk: reads also refresh access time so later pruning keeps
+        // genuinely hot caches alive instead of treating them as stale payloads.
         if entry.expires_at <= now {
             let _ = fs::remove_file(&cache_path);
             return Ok(None);
@@ -35,6 +41,8 @@ pub(crate) fn load_reader_search_cache(
         return Ok(Some(entry.results));
     }
 
+    // Boundary: this upgrades legacy raw-result files into the richer cache
+    // envelope on demand, without forcing an out-of-band migration step.
     let legacy_results = serde_json::from_str::<Vec<ReaderSearchCacheResult>>(&raw)
         .map_err(|error| error.to_string())?;
     let entry = ReaderSearchCacheEntry {

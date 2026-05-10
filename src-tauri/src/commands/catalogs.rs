@@ -1,5 +1,9 @@
 #![allow(dead_code)]
 
+// Ownership: this module is the desktop-owned catalog connector seam. It
+// normalizes fixture, OPDS, and Calibre sources into one import contract while
+// leaving renderer code responsible only for request/response UX.
+
 use crate::commands::library::{import_library_books, register_trusted_library_import_path};
 use crate::models::LibraryBookRecord;
 use crate::util::{now_millis, reader_storage_component_key, sanitize_filename};
@@ -18,6 +22,10 @@ const OPDS_FIXTURE_NEXT: &str = include_str!("../../tests/fixtures/catalogs/opds
 const CALIBRE_FIXTURE_ROOT: &str = include_str!("../../tests/fixtures/catalogs/calibre-root.xml");
 const SAMPLE_FIXTURE_EPUB: &[u8] = include_bytes!("../../../static/samples/sample-book.epub");
 const SAMPLE_FIXTURE_PDF: &[u8] = include_bytes!("../../../static/samples/sample-outline.pdf");
+
+// Boundary: these structs define the transport-safe catalog contract returned to
+// the renderer. Keep connector quirks normalized here instead of leaking parser
+// details into library surfaces.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
