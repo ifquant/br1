@@ -1111,7 +1111,7 @@ Goal: close the remaining navigation asymmetries between `翻译模式` and `朗
   - Outcome: when the reader is already in `翻译模式`, they can now jump directly into `朗读模式` with `朗读译文` active instead of manually reopening the TTS workspace and re-selecting translated playback.
   - Touches: translation workspace playback strip, notebook tab switching, focused reader smoke coverage, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `CI=1 pnpm -C /Users/dev/workspace2/hc_apps/br1 test:e2e tests/e2e/library-smoke.spec.ts --grep "reader can jump from translation mode into translated tts in web mode|reader lets translated tts mode consume the selected translation archive in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
-  - Done commit: `this commit`.
+  - Done commit: `16b119b`.
   - Tutorial: `tutorials/commit/0618-let-translation-mode-jump-directly-into-translated-tts.md`.
   - Notes: this slice does not add new translation persistence or TTS runtime behavior. It only closes the reverse navigation hop from translation mode back into translated playback.
 
