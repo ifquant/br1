@@ -1310,6 +1310,31 @@ Goal: make pinned reading-mode ownership behave like a trustworthy per-book read
   - Tutorial: `tutorials/commit/0637-persist-current-book-archived-translation-provenance.md`.
   - Notes: this slice only aligns same-book restored archive provenance with dedicated `翻译模式` when the route does not explicitly own `ta/tl/tp`. Explicit route-owned archive/language/provider state still wins, and this slice does not introduce cross-book archive browsing.
 
+- [x] P14-1.9 Close the P14 reader mode ownership persistence line
+  - Outcome: `P14` is now explicitly bounded as the current-book restore line for dedicated translation/TTS ownership, config, live bodies, and archive provenance, so follow-up work no longer needs to guess whether more micro-slices still belong here.
+  - Touches: reader parity checklist, closeout tutorial.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0638-close-the-p14-reader-mode-ownership-line.md`.
+  - Notes: this closeout keeps payload-heavy deep-link state and cross-book archive browsing out of `P14`.
+
+- [x] P14-1.10 Record the P14 closeout review
+  - Outcome: the repo now records that no remaining structural blocker was found inside the current-book ownership persistence line, and it names the residuals that are intentionally outside this phase.
+  - Touches: reader parity checklist, closeout review tutorial.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `pending`.
+  - Tutorial: `tutorials/commit/0639-record-the-p14-closeout-review.md`.
+  - Notes: route-owned payload text, cross-book archive/replay, and broader workspace-shell persistence are left for a different mainline if they become worth productizing.
+
+### P14 Closeout
+
+Closeout review verdict:
+- no remaining structural blocker was found inside the current-book reading-mode ownership persistence line
+- dedicated `翻译模式` now restores same-book ownership, config, live translated body, and archived provenance without depending on an explicit route-owned `ta/tl/tp`
+- dedicated `朗读模式` now restores same-book ownership, read-aloud mode, translated owner, and live translated body without silently collapsing back to follow-current or archive defaults
+- the remaining unsolved state is no longer “current-book ownership persistence”; it is payload-heavy deep-link state such as pinned text bodies, or broader cross-book archive/replay behavior
+- the next recommended mainline is not more `P14` micro-slices, but a new reader playback / reading-mode line if those payload-heavy or cross-book states need to become explicit product surface
+
 
 ## Service Security Gate
 
