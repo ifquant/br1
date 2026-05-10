@@ -1206,6 +1206,42 @@ Goal: make dedicated `翻译模式` and `朗读模式` URL-addressable so route 
   - Tutorial: `tutorials/commit/0627-make-dedicated-translation-archive-selection-route-addressable.md`.
   - Notes: this slice only routes the selected translation archive that already drives dedicated translation and translated-TTS provenance. It does not route-own lookup selection, broad notebook browse state, or pinned/follow-current translation-source text.
 
+- [x] P13-1.6 Record the P13 closeout boundary
+  - Outcome: the repo now explicitly states which dedicated translation/TTS route-state guarantees count as shipped in `P13`, and which larger reading-mode payload/state ideas remain intentionally outside this line.
+  - Touches: checklist/tutorial docs only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0628-close-the-p13-reader-route-state-line.md`.
+  - Notes: this closeout does not add route-owned pinned translation-source text, pinned TTS target text, or broader notebook browsing state. It only makes the stopping point durable inside the repo.
+
+- [x] P13-1.7 Run the P13 closeout review
+  - Outcome: the repo now records whether `P13` still has a structural blocker and whether the next recommended step is more `P13` micro-slices or a new reader playback/reading-mode line.
+  - Touches: checklist/tutorial docs only.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check`.
+  - Done commit: `this commit`.
+  - Tutorial: `tutorials/commit/0629-record-the-p13-closeout-review.md`.
+  - Notes: this review does not widen `P13` scope. It only records the verdict on the already-landed route-state slices.
+
+### P13 Closeout
+
+Included in P13:
+- dedicated `翻译模式` and `朗读模式` are URL-addressable through `workspace=translation|tts`
+- dedicated TTS read-aloud mode is route-owned through `tts=source|translated`
+- dedicated translation target language is route-owned through `tl=zh|en`
+- dedicated translation provider is route-owned through `tp=deepl|yandex`
+- the selected archived translation that drives dedicated translation and translated TTS provenance is route-owned through `ta=<translation-history-entry-id>`
+
+Explicitly not included in P13:
+- route-owned pinned translation-source text or labels
+- route-owned pinned TTS target text or labels
+- route-owned notebook browse/view state beyond the selected translation archive
+- arbitrary current-book assistance history replay through URL payloads
+
+Closeout review verdict:
+- no remaining structural blocker was found inside the current route-state parity line
+- the remaining local reading-mode states now depend on text payloads such as pinned translation source or pinned TTS target, which do not fit the existing compact deep-link contract
+- the next recommended mainline is not more `P13` micro-slices, but a new reader playback or reading-mode line if those payload-heavy ownership states need to be productized further
+
 
 ## Service Security Gate
 
