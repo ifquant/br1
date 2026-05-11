@@ -37,8 +37,6 @@
     createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
     createReaderAssistanceHistoryEntry,
-    parseReaderAssistanceHistory,
-    parseReaderAssistanceWorkspaceSelection,
     createReaderBookmarksController,
     createReaderParallelSessionFromRoute,
     createReaderNotesController,
@@ -61,15 +59,31 @@
     getReaderTtsSessionStatusLabel,
     getReaderTtsTranslatedWaitingTargetLabel,
     normalizeAssistanceText,
-    normalizeReaderTtsSpeechTarget,
     normalizeAssistanceTerm,
     getReaderTranslationProviderDisplayLabel,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     planReaderTtsRetargetAction,
     loadReaderSettings,
-    serializeReaderAssistanceHistory,
-    serializeReaderAssistanceWorkspaceSelection,
+    getReaderCurrentBookPersistenceKeys,
+    persistReaderCurrentBookAssistanceHistory,
+    restoreReaderCurrentBookAssistanceHistory,
+    persistReaderCurrentBookAssistanceSelection,
+    restoreReaderCurrentBookAssistanceSelection,
+    persistReaderTranslationOwnership,
+    restoreReaderTranslationOwnership,
+    persistReaderCurrentBookTranslationLiveSnapshot,
+    restoreReaderCurrentBookTranslationLiveSnapshot,
+    persistReaderCurrentBookTranslationModeConfig,
+    restoreReaderCurrentBookTranslationModeConfig,
+    persistReaderTtsOwnership,
+    restoreReaderTtsOwnership,
+    persistReaderCurrentBookTtsReadAloudMode,
+    restoreReaderCurrentBookTtsReadAloudMode,
+    persistReaderCurrentBookTranslatedTtsOwner,
+    restoreReaderCurrentBookTranslatedTtsOwner,
+    persistReaderCurrentBookTranslatedTtsLiveSnapshot,
+    restoreReaderCurrentBookTranslatedTtsLiveSnapshot,
     shouldShowReaderTtsMiniBar,
     resolveReaderTtsSpeechTargetForMode,
     updateReaderAssistanceHistoryEntry,
@@ -173,6 +187,17 @@
     parseReaderRouteOpenState($page.url)
   );
   let parallelEnabled = false;
+  let notesStorageKey = '';
+  let bookmarksStorageKey = '';
+  let assistanceHistoryStorageKey = '';
+  let assistanceSelectionStorageKey = '';
+  let translationOwnershipStorageKey = '';
+  let translationModeConfigStorageKey = '';
+  let translationLiveSnapshotStorageKey = '';
+  let ttsOwnershipStorageKey = '';
+  let ttsReadAloudModeStorageKey = '';
+  let translatedTtsOwnerStorageKey = '';
+  let translatedTtsLiveSnapshotStorageKey = '';
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
@@ -241,17 +266,19 @@
   }
   $: parallelEnabled = parallelSession.panes.secondary.openTarget !== null;
   $: canOpenParallelSurface = parallelEnabled || parallelSession.panes.primary.openTarget !== null;
-  $: notesStorageKey = `br1.reader.notes:${readerBookKey}`;
-  $: bookmarksStorageKey = `br1.reader.bookmarks:${readerBookKey}`;
-  $: assistanceHistoryStorageKey = `br1.reader.assistance.history:${readerBookKey}`;
-  $: assistanceSelectionStorageKey = `br1.reader.assistance.selection:${readerBookKey}`;
-  $: translationOwnershipStorageKey = `br1.reader.translation.ownership:${readerBookKey}`;
-  $: translationModeConfigStorageKey = `br1.reader.translation.mode:${readerBookKey}`;
-  $: translationLiveSnapshotStorageKey = `br1.reader.translation.live-result:${readerBookKey}`;
-  $: ttsOwnershipStorageKey = `br1.reader.tts.ownership:${readerBookKey}`;
-  $: ttsReadAloudModeStorageKey = `br1.reader.tts.mode:${readerBookKey}`;
-  $: translatedTtsOwnerStorageKey = `br1.reader.tts.translated-owner:${readerBookKey}`;
-  $: translatedTtsLiveSnapshotStorageKey = `br1.reader.tts.translated-live:${readerBookKey}`;
+  $: ({
+    notesStorageKey,
+    bookmarksStorageKey,
+    assistanceHistoryStorageKey,
+    assistanceSelectionStorageKey,
+    translationOwnershipStorageKey,
+    translationModeConfigStorageKey,
+    translationLiveSnapshotStorageKey,
+    ttsOwnershipStorageKey,
+    ttsReadAloudModeStorageKey,
+    translatedTtsOwnerStorageKey,
+    translatedTtsLiveSnapshotStorageKey
+  } = getReaderCurrentBookPersistenceKeys(readerBookKey));
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
@@ -388,57 +415,33 @@
   const NOTEBOOK_STORAGE_KEY = 'br1.reader.notebook-shell';
 
   const persistAssistanceHistory = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!assistanceHistoryStorageKey) return;
-    localStorage.setItem(
+    persistReaderCurrentBookAssistanceHistory(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
       assistanceHistoryStorageKey,
-      serializeReaderAssistanceHistory(assistanceHistory)
+      assistanceHistory
     );
   };
 
   const restoreAssistanceHistory = () => {
-    if (typeof localStorage === 'undefined') return [];
-    if (!assistanceHistoryStorageKey) return [];
-    const rawHistory = localStorage.getItem(assistanceHistoryStorageKey);
-    if (!rawHistory) return [];
-
-    try {
-      return parseReaderAssistanceHistory(rawHistory);
-    } catch (error) {
-      console.warn('Failed to restore reader assistance history', error);
-      localStorage.removeItem(assistanceHistoryStorageKey);
-      return [];
-    }
+    return restoreReaderCurrentBookAssistanceHistory(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      assistanceHistoryStorageKey
+    );
   };
 
   const persistAssistanceSelection = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!assistanceSelectionStorageKey) return;
-    localStorage.setItem(
+    persistReaderCurrentBookAssistanceSelection(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
       assistanceSelectionStorageKey,
-      serializeReaderAssistanceWorkspaceSelection(assistanceSelection)
+      assistanceSelection
     );
   };
 
   const restoreAssistanceSelection = () => {
-    if (typeof localStorage === 'undefined') {
-      return createEmptyReaderAssistanceWorkspaceSelection();
-    }
-    if (!assistanceSelectionStorageKey) {
-      return createEmptyReaderAssistanceWorkspaceSelection();
-    }
-    const rawSelection = localStorage.getItem(assistanceSelectionStorageKey);
-    if (!rawSelection) {
-      return createEmptyReaderAssistanceWorkspaceSelection();
-    }
-
-    try {
-      return parseReaderAssistanceWorkspaceSelection(rawSelection);
-    } catch (error) {
-      console.warn('Failed to restore reader assistance selection', error);
-      localStorage.removeItem(assistanceSelectionStorageKey);
-      return createEmptyReaderAssistanceWorkspaceSelection();
-    }
+    return restoreReaderCurrentBookAssistanceSelection(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      assistanceSelectionStorageKey
+    );
   };
 
   const persistNotebookShell = () => {
@@ -453,247 +456,82 @@
   };
 
   const persistTranslationOwnership = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!translationOwnershipStorageKey) return;
-    localStorage.setItem(
+    persistReaderTranslationOwnership(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
       translationOwnershipStorageKey,
-      JSON.stringify({
+      {
         followsCurrentSource: translationFollowsCurrentSource,
         pinnedSource: pinnedTranslationSource
-          ? {
-              text: normalizeAssistanceText(pinnedTranslationSource.text),
-              label: pinnedTranslationSource.label.trim(),
-              chapterLabel: pinnedTranslationSource.chapterLabel.trim()
-            }
-          : null
-      })
+      }
     );
   };
 
   const restoreTranslationOwnership = () => {
-    if (typeof localStorage === 'undefined') {
-      return {
-        followsCurrentSource: true,
-        pinnedSource: null as typeof pinnedTranslationSource
-      };
-    }
-    if (!translationOwnershipStorageKey) {
-      return {
-        followsCurrentSource: true,
-        pinnedSource: null as typeof pinnedTranslationSource
-      };
-    }
-    const rawOwnership = localStorage.getItem(translationOwnershipStorageKey);
-    if (!rawOwnership) {
-      return {
-        followsCurrentSource: true,
-        pinnedSource: null as typeof pinnedTranslationSource
-      };
-    }
-
-    try {
-      const parsed = JSON.parse(rawOwnership) as {
-        followsCurrentSource?: unknown;
-        pinnedSource?: {
-          text?: unknown;
-          label?: unknown;
-          chapterLabel?: unknown;
-        } | null;
-      };
-      const normalizedPinnedText =
-        typeof parsed.pinnedSource?.text === 'string'
-          ? normalizeAssistanceText(parsed.pinnedSource.text)
-          : '';
-      const normalizedPinnedLabel =
-        typeof parsed.pinnedSource?.label === 'string' ? parsed.pinnedSource.label.trim() : '';
-      const normalizedPinnedChapterLabel =
-        typeof parsed.pinnedSource?.chapterLabel === 'string'
-          ? parsed.pinnedSource.chapterLabel.trim()
-          : '';
-      const pinnedSource = normalizedPinnedText
-        ? {
-            text: normalizedPinnedText,
-            label: normalizedPinnedLabel || '当前翻译目标',
-            chapterLabel: normalizedPinnedChapterLabel
-          }
-        : null;
-
-      return {
-        followsCurrentSource:
-          typeof parsed.followsCurrentSource === 'boolean'
-            ? parsed.followsCurrentSource
-            : !pinnedSource,
-        pinnedSource
-      };
-    } catch (error) {
-      console.warn('Failed to restore reader translation ownership', error);
-      localStorage.removeItem(translationOwnershipStorageKey);
-      return {
-        followsCurrentSource: true,
-        pinnedSource: null as typeof pinnedTranslationSource
-      };
-    }
+    return restoreReaderTranslationOwnership(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      translationOwnershipStorageKey
+    );
   };
 
   const persistCurrentBookTranslationLiveSnapshot = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!translationLiveSnapshotStorageKey) return;
-    if (!translationLiveSnapshot) {
-      localStorage.removeItem(translationLiveSnapshotStorageKey);
-      return;
-    }
-    localStorage.setItem(translationLiveSnapshotStorageKey, JSON.stringify(translationLiveSnapshot));
+    persistReaderCurrentBookTranslationLiveSnapshot(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      translationLiveSnapshotStorageKey,
+      translationLiveSnapshot
+    );
   };
 
   const restoreCurrentBookTranslationLiveSnapshot = () => {
-    if (typeof localStorage === 'undefined' || !translationLiveSnapshotStorageKey) {
-      return null as typeof translationLiveSnapshot;
-    }
-    const rawSnapshot = localStorage.getItem(translationLiveSnapshotStorageKey);
-    if (!rawSnapshot) {
-      return null as typeof translationLiveSnapshot;
-    }
-
-    try {
-      const parsed = JSON.parse(rawSnapshot) as typeof translationLiveSnapshot;
-      const sourceText = normalizeAssistanceText(parsed?.sourceText || '');
-      const translatedText = normalizeAssistanceText(parsed?.translatedText || '');
-      const providerLabel = (parsed?.providerLabel || '').trim();
-      if (!sourceText || !translatedText || !providerLabel) {
-        localStorage.removeItem(translationLiveSnapshotStorageKey);
-        return null as typeof translationLiveSnapshot;
-      }
-      return {
-        sourceText,
-        translatedText,
-        providerLabel
-      };
-    } catch (error) {
-      console.warn('Failed to restore reader translation live snapshot', error);
-      localStorage.removeItem(translationLiveSnapshotStorageKey);
-      return null as typeof translationLiveSnapshot;
-    }
+    return restoreReaderCurrentBookTranslationLiveSnapshot(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      translationLiveSnapshotStorageKey
+    );
   };
 
   const persistCurrentBookTranslationModeConfig = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!translationModeConfigStorageKey) return;
-    localStorage.setItem(
+    persistReaderCurrentBookTranslationModeConfig(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
       translationModeConfigStorageKey,
-      JSON.stringify({
+      {
         targetLanguage: translationTargetLanguage.trim().toLowerCase() || 'zh',
         provider: translationProvider
-      })
+      }
     );
   };
 
   const restoreCurrentBookTranslationModeConfig = (): {
     targetLanguage: string;
     provider: ReaderTranslationProvider;
-  } => {
-    if (typeof localStorage === 'undefined' || !translationModeConfigStorageKey) {
-      return {
-        targetLanguage: 'zh',
-        provider: 'deepl' satisfies ReaderTranslationProvider
-      };
-    }
-    const rawConfig = localStorage.getItem(translationModeConfigStorageKey);
-    if (!rawConfig) {
-      return {
-        targetLanguage: 'zh',
-        provider: 'deepl' satisfies ReaderTranslationProvider
-      };
-    }
-
-    try {
-      const parsed = JSON.parse(rawConfig) as {
-        targetLanguage?: unknown;
-        provider?: unknown;
-      };
-      const targetLanguage =
-        typeof parsed.targetLanguage === 'string' ? parsed.targetLanguage.trim().toLowerCase() : '';
-      const provider = parsed.provider === 'yandex' ? 'yandex' : 'deepl';
-      return {
-        targetLanguage: targetLanguage || 'zh',
-        provider: provider satisfies ReaderTranslationProvider
-      };
-    } catch (error) {
-      console.warn('Failed to restore reader translation mode config', error);
-      localStorage.removeItem(translationModeConfigStorageKey);
-      return {
-        targetLanguage: 'zh',
-        provider: 'deepl' satisfies ReaderTranslationProvider
-      };
-    }
-  };
+  } =>
+    restoreReaderCurrentBookTranslationModeConfig(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      translationModeConfigStorageKey
+    );
 
   const persistTtsOwnership = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!ttsOwnershipStorageKey) return;
-    localStorage.setItem(
+    persistReaderTtsOwnership(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
       ttsOwnershipStorageKey,
-      JSON.stringify({
+      {
         followsCurrentLocation: ttsFollowsCurrentLocation,
-        pinnedTarget: normalizeReaderTtsSpeechTarget(pinnedTtsTarget)
-      })
+        pinnedTarget: pinnedTtsTarget
+      }
     );
   };
 
   const restoreTtsOwnership = () => {
-    if (typeof localStorage === 'undefined') {
-      return {
-        followsCurrentLocation: true,
-        pinnedTarget: null as ReaderTtsSpeechTarget | null
-      };
-    }
-    if (!ttsOwnershipStorageKey) {
-      return {
-        followsCurrentLocation: true,
-        pinnedTarget: null as ReaderTtsSpeechTarget | null
-      };
-    }
-    const rawOwnership = localStorage.getItem(ttsOwnershipStorageKey);
-    if (!rawOwnership) {
-      return {
-        followsCurrentLocation: true,
-        pinnedTarget: null as ReaderTtsSpeechTarget | null
-      };
-    }
-
-    try {
-      const parsed = JSON.parse(rawOwnership) as {
-        followsCurrentLocation?: unknown;
-        pinnedTarget?: ReaderTtsSpeechTarget | null;
-      };
-      const normalizedPinnedTarget = normalizeReaderTtsSpeechTarget(parsed.pinnedTarget ?? null);
-      if (parsed.followsCurrentLocation === false && !normalizedPinnedTarget) {
-        localStorage.removeItem(ttsOwnershipStorageKey);
-        return {
-          followsCurrentLocation: true,
-          pinnedTarget: null as ReaderTtsSpeechTarget | null
-        };
-      }
-      return {
-        followsCurrentLocation:
-          typeof parsed.followsCurrentLocation === 'boolean'
-            ? parsed.followsCurrentLocation
-            : !normalizedPinnedTarget,
-        pinnedTarget: normalizedPinnedTarget
-      };
-    } catch (error) {
-      console.warn('Failed to restore reader TTS ownership', error);
-      localStorage.removeItem(ttsOwnershipStorageKey);
-      return {
-        followsCurrentLocation: true,
-        pinnedTarget: null as ReaderTtsSpeechTarget | null
-      };
-    }
+    return restoreReaderTtsOwnership(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      ttsOwnershipStorageKey
+    );
   };
 
   const persistCurrentBookTtsReadAloudMode = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!ttsReadAloudModeStorageKey) return;
-    localStorage.setItem(ttsReadAloudModeStorageKey, ttsReadAloudTextMode);
+    persistReaderCurrentBookTtsReadAloudMode(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      ttsReadAloudModeStorageKey,
+      ttsReadAloudTextMode
+    );
   };
 
   const restoreCurrentBookTtsReadAloudMode = () => {
@@ -701,26 +539,19 @@
       typeof localStorage === 'undefined'
         ? 'source'
         : loadReaderSettings(localStorage).ttsReadAloudText;
-    if (typeof localStorage === 'undefined') {
-      return defaultMode;
-    }
-    if (!ttsReadAloudModeStorageKey) {
-      return defaultMode;
-    }
-    const rawMode = localStorage.getItem(ttsReadAloudModeStorageKey)?.trim() ?? '';
-    if (rawMode === 'source' || rawMode === 'translated') {
-      return rawMode satisfies ReaderTtsReadAloudTextMode;
-    }
-    if (rawMode) {
-      localStorage.removeItem(ttsReadAloudModeStorageKey);
-    }
-    return defaultMode;
+    return restoreReaderCurrentBookTtsReadAloudMode(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      ttsReadAloudModeStorageKey,
+      defaultMode
+    );
   };
 
   const persistCurrentBookTranslatedTtsOwner = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!translatedTtsOwnerStorageKey) return;
-    localStorage.setItem(translatedTtsOwnerStorageKey, translatedTtsOwner);
+    persistReaderCurrentBookTranslatedTtsOwner(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      translatedTtsOwnerStorageKey,
+      translatedTtsOwner
+    );
   };
 
   const restoreCurrentBookTranslatedTtsOwner = () => {
@@ -729,71 +560,26 @@
       routeOpenState.ttsReadAloudTextMode === 'translated' &&
       !!routeOpenState.translationHistoryEntryId?.trim();
     const currentBookHasSelectedArchive = !!assistanceSelection.translationHistoryEntryId.trim();
-    const rawOwner =
-      typeof localStorage === 'undefined' || !translatedTtsOwnerStorageKey
-        ? ''
-        : localStorage.getItem(translatedTtsOwnerStorageKey)?.trim() ?? '';
-
-    if (rawOwner === 'live' || rawOwner === 'archive') {
-      return rawOwner;
-    }
-    if (rawOwner && typeof localStorage !== 'undefined') {
-      localStorage.removeItem(translatedTtsOwnerStorageKey);
-    }
-    return routeOwnsArchivedTranslation || currentBookHasSelectedArchive ? 'archive' : 'live';
+    return restoreReaderCurrentBookTranslatedTtsOwner(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      translatedTtsOwnerStorageKey,
+      routeOwnsArchivedTranslation || currentBookHasSelectedArchive ? 'archive' : 'live'
+    );
   };
 
   const persistCurrentBookTranslatedTtsLiveSnapshot = () => {
-    if (typeof localStorage === 'undefined') return;
-    if (!translatedTtsLiveSnapshotStorageKey) return;
-    if (!translatedTtsLiveSnapshot) {
-      localStorage.removeItem(translatedTtsLiveSnapshotStorageKey);
-      return;
-    }
-    localStorage.setItem(
+    persistReaderCurrentBookTranslatedTtsLiveSnapshot(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
       translatedTtsLiveSnapshotStorageKey,
-      JSON.stringify(translatedTtsLiveSnapshot)
+      translatedTtsLiveSnapshot
     );
   };
 
   const restoreCurrentBookTranslatedTtsLiveSnapshot = () => {
-    if (typeof localStorage === 'undefined' || !translatedTtsLiveSnapshotStorageKey) {
-      return null as typeof translatedTtsLiveSnapshot;
-    }
-    const rawSnapshot = localStorage.getItem(translatedTtsLiveSnapshotStorageKey);
-    if (!rawSnapshot) {
-      return null as typeof translatedTtsLiveSnapshot;
-    }
-
-    try {
-      const parsed = JSON.parse(rawSnapshot) as typeof translatedTtsLiveSnapshot;
-      const normalizedSourceText = normalizeAssistanceText(parsed?.sourceText || '');
-      const normalizedTranslatedText = normalizeAssistanceText(parsed?.translatedText || '');
-      if (!normalizedSourceText || !normalizedTranslatedText) {
-        localStorage.removeItem(translatedTtsLiveSnapshotStorageKey);
-        return null as typeof translatedTtsLiveSnapshot;
-      }
-
-      return {
-        sourceText: normalizedSourceText,
-        translatedText: normalizedTranslatedText,
-        targetLanguage: (parsed?.targetLanguage || '').trim(),
-        providerLabel: (parsed?.providerLabel || '').trim(),
-        chapterLabel: (parsed?.chapterLabel || '').trim(),
-        locationLabel: (parsed?.locationLabel || '').trim(),
-        progressLabel: (parsed?.progressLabel || '').trim(),
-        progressLocation: (parsed?.progressLocation || '').trim(),
-        progressFraction:
-          typeof parsed?.progressFraction === 'number' && Number.isFinite(parsed.progressFraction)
-            ? parsed.progressFraction
-            : null,
-        chapterHref: (parsed?.chapterHref || '').trim()
-      };
-    } catch (error) {
-      console.warn('Failed to restore reader translated TTS live snapshot', error);
-      localStorage.removeItem(translatedTtsLiveSnapshotStorageKey);
-      return null as typeof translatedTtsLiveSnapshot;
-    }
+    return restoreReaderCurrentBookTranslatedTtsLiveSnapshot(
+      typeof localStorage === 'undefined' ? undefined : localStorage,
+      translatedTtsLiveSnapshotStorageKey
+    );
   };
 
   const resolveLiveTranslatedTtsResult = (

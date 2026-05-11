@@ -181,12 +181,42 @@ export {
   toReaderOpenControlRequest,
   toReaderWorkspaceModeHref
 } from './route';
+export {
+  getReaderCurrentBookPersistenceKeys,
+  persistReaderCurrentBookAssistanceHistory,
+  restoreReaderCurrentBookAssistanceHistory,
+  persistReaderCurrentBookAssistanceSelection,
+  restoreReaderCurrentBookAssistanceSelection,
+  persistReaderTranslationOwnership,
+  restoreReaderTranslationOwnership,
+  persistReaderCurrentBookTranslationLiveSnapshot,
+  restoreReaderCurrentBookTranslationLiveSnapshot,
+  persistReaderCurrentBookTranslationModeConfig,
+  restoreReaderCurrentBookTranslationModeConfig,
+  persistReaderTtsOwnership,
+  restoreReaderTtsOwnership,
+  persistReaderCurrentBookTtsReadAloudMode,
+  restoreReaderCurrentBookTtsReadAloudMode,
+  persistReaderCurrentBookTranslatedTtsOwner,
+  restoreReaderCurrentBookTranslatedTtsOwner,
+  persistReaderCurrentBookTranslatedTtsLiveSnapshot,
+  restoreReaderCurrentBookTranslatedTtsLiveSnapshot
+} from './currentBookPersistence';
 export type { FoliateViewElement, ReaderBookDocument } from './foliate';
 export type {
   ReaderRouteOpenState,
   ReaderRouteOpenTarget,
   ReaderRouteWorkspaceMode
 } from './route';
+export type {
+  ReaderCurrentBookPersistenceKeys,
+  ReaderTranslatedTtsLiveSnapshot,
+  ReaderTranslatedTtsOwner,
+  ReaderTranslationLiveSnapshot,
+  ReaderTranslationModeConfig,
+  ReaderTranslationOwnership,
+  ReaderTtsOwnership
+} from './currentBookPersistence';
 export type {
   ReaderControlRequest,
   ReaderBookmark,
