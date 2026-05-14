@@ -6,11 +6,13 @@ import test from 'node:test';
 
 import {
   createEmptyReaderAssistanceState,
+  createReadyReaderAssistanceState,
   createReaderAssistanceHistoryEntry
 } from './assistance';
 import {
   resolveReaderEffectiveTranslationSource,
   resolveReaderLiveTranslationPanelResult,
+  resolveReaderNextTranslationLiveSnapshot,
   resolveReaderTranslationModeConfigRestore
 } from './translationOwnership';
 import type { ReaderRouteOpenState } from './route';
@@ -198,6 +200,36 @@ test('live translation panel reuses persisted snapshot only while source text st
         translatedText: '当前段落',
         providerLabel: 'DeepL'
       }
+    }),
+    null
+  );
+});
+
+test('live snapshot ignores stale active translation requests after the source changes', () => {
+  const staleActiveRequest = {
+    kind: 'translation' as const,
+    provider: 'deepl' as const,
+    text: 'old paragraph',
+    targetLanguage: 'zh',
+    bookKey: '/books/sample.epub'
+  };
+  const assistanceState = createReadyReaderAssistanceState(staleActiveRequest, {
+    id: 'stale-result',
+    provider: 'deepl',
+    title: 'Translation',
+    body: '旧段落译文',
+    createdAt: 1
+  });
+
+  assert.equal(
+    resolveReaderNextTranslationLiveSnapshot({
+      source: {
+        text: 'new paragraph',
+        label: '当前阅读位置',
+        chapterLabel: 'Chapter 1'
+      },
+      assistanceState,
+      assistanceHistory: []
     }),
     null
   );

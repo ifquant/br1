@@ -7,8 +7,7 @@ import {
   normalizeAssistanceText,
   type ReaderAssistanceHistoryEntry,
   type ReaderAssistanceState,
-  type ReaderAssistanceWorkspaceSelection,
-  type ReaderTranslationProvider
+  type ReaderAssistanceWorkspaceSelection
 } from './assistance';
 import type {
   ReaderTranslationLiveSnapshot,
@@ -142,6 +141,7 @@ export const resolveReaderNextTranslationLiveSnapshot = (input: {
   if (
     input.assistanceState.status === 'ready' &&
     input.assistanceState.activeRequest?.kind === 'translation' &&
+    normalizeAssistanceText(input.assistanceState.activeRequest.text) === normalizedSourceText &&
     input.assistanceState.result
   ) {
     return toTranslationLiveSnapshot(normalizedSourceText, {
