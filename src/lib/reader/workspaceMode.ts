@@ -140,7 +140,7 @@ export const resolveReaderTranslatedTtsWorkspaceRequest = ({
   routeRequest: ReaderWorkspaceModeRouteRequest;
 } => {
   const selectedArchiveId =
-    selectedTranslationHistoryEntryId.trim() || routeOpenState.translationHistoryEntryId?.trim() || '';
+    routeOpenState.translationHistoryEntryId?.trim() || selectedTranslationHistoryEntryId.trim() || '';
   const prefersArchivedTranslation =
     routeOpenState.workspaceMode === 'translation'
       ? !!selectedArchiveId
