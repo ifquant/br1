@@ -271,6 +271,15 @@ export type {
   ReaderLiveTranslationPanelResult,
   ReaderTranslationSource
 } from './translationOwnership';
+export {
+  createEmptyReaderInlineTranslationState,
+  getReaderInlineTranslationSummary,
+  markReaderInlineTranslationError,
+  markReaderInlineTranslationTranslated,
+  markReaderInlineTranslationTranslating,
+  toggleReaderInlineTranslationVisibility,
+  upsertReaderInlineTranslationCandidate
+} from './inlineTranslation';
 export type {
   ReaderControlRequest,
   ReaderBookmark,
@@ -300,6 +309,10 @@ export type {
   ReaderChromeMode,
   ReaderViewWidthMode,
   ReaderFocusAidMode,
+  ReaderInlineTranslationBlock,
+  ReaderInlineTranslationBlockStatus,
+  ReaderInlineTranslationState,
+  ReaderInlineTranslationTargetLanguage,
   ReaderSearchExcerpt,
   ReaderSearchResult,
   ReaderSearchState,

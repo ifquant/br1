@@ -88,6 +88,25 @@ export type ReaderThemePreset = ReaderAtmosphereMode;
 export type ReaderReadingRulerMode = 'off' | 'on';
 export type ReaderFocusAidMode = 'off' | 'line' | 'paragraph';
 export type ReaderTtsReadAloudTextMode = 'source' | 'translated';
+export type ReaderInlineTranslationTargetLanguage = 'zh' | 'en';
+export type ReaderInlineTranslationBlockStatus = 'queued' | 'translating' | 'translated' | 'error';
+export type ReaderInlineTranslationBlock = {
+  id: string;
+  sourceText: string;
+  translatedText: string;
+  sourceLabel: string;
+  status: ReaderInlineTranslationBlockStatus;
+  error: string;
+  updatedAt: number;
+};
+export type ReaderInlineTranslationState = {
+  enabled: boolean;
+  showSource: boolean;
+  showTranslation: boolean;
+  targetLanguage: ReaderInlineTranslationTargetLanguage;
+  provider: ReaderTranslationProvider;
+  blocks: ReaderInlineTranslationBlock[];
+};
 export type ReaderSettings = {
   flowMode: ReaderFlowMode;
   fontFamily: ReaderFontFamily;

@@ -1,6 +1,6 @@
 # Readest Alignment Checklist
 
-Last updated: 2026-05-10
+Last updated: 2026-05-14
 
 ## Purpose
 
@@ -70,6 +70,7 @@ Planning consequence:
 - P5, P6, P7, and P8 are functionally closed as shipped workspace/library/catalog/sync lines
 - the next main execution line is `P9 reader reading-mode parity`
 - new parity work should prefer tighter reading-mode ownership and source-follow semantics over deeper provider expansion unless a new correctness blocker appears
+- the active maturity line is now `P16+ reader maturity pass`, starting with inline translation state before UI integration
 
 ## Execution Rules
 
@@ -1346,6 +1347,19 @@ Goal: make source-side TTS prefer real reading text before scaffold labels acros
   - Done commit: `bc5cfa2`.
   - Tutorial: `tutorials/commit/0640-prefer-current-chapter-body-excerpts-for-epub-source-tts.md`.
   - Notes: this slice only promotes real chapter body text ahead of chapter-title fallback for Foliate-backed source playback. It does not yet guarantee heading-free excerpts in every preloaded renderer state, and it does not widen source excerpt extraction into PDF or other non-Foliate formats.
+
+
+## P16 Reader Inline Translation And Reading-Mode Surface
+
+Goal: move translation toward a real reading-surface mode without weakening the existing Tauri-owned provider boundary or replacing the dedicated notebook translation workspace.
+
+- [x] P16-1.1 Define the inline translation domain contract
+  - Outcome: inline translation now has a pure state contract for visible text candidates, block status, source/translation visibility, translated text retention, and retryable failures before any DOM or provider integration lands.
+  - Touches: reader inline-translation helper, reader shared types/index exports, focused helper tests, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && rm -rf .tmp-inline-translation-tests && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-inline-translation-tests --noEmit false && node --test ./.tmp-inline-translation-tests/src/lib/reader/inlineTranslation.test.js` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: this commit.
+  - Tutorial: `tutorials/commit/0649-define-reader-inline-translation-contract.md`.
+  - Notes: this slice intentionally does not observe renderer DOM, call DeepL/Yandex, or show inline UI. It only creates the auditable state machine that later viewport and workspace slices can share.
 
 
 ## Service Security Gate
