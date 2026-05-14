@@ -206,6 +206,16 @@ export {
   toReaderWorkspaceModeHref
 } from './route';
 export {
+  getReaderDedicatedWorkspaceModeForNotebookTab,
+  normalizeReaderNotebookWorkspaceTab,
+  resolveReaderNotebookShellState,
+  resolveReaderNotebookTabRouteRequest,
+  resolveReaderRouteTtsReadAloudTextMode,
+  resolveReaderRouteWorkspaceApplication,
+  resolveReaderTranslatedTtsWorkspaceRequest,
+  resolveReaderWorkspaceModeRouteRequest
+} from './workspaceMode';
+export {
   getReaderCurrentBookPersistenceKeys,
   persistReaderCurrentBookAssistanceHistory,
   restoreReaderCurrentBookAssistanceHistory,
@@ -242,6 +252,12 @@ export type {
   ReaderRouteOpenTarget,
   ReaderRouteWorkspaceMode
 } from './route';
+export type {
+  ReaderNotebookShellState,
+  ReaderNotebookWorkspaceTab,
+  ReaderRouteWorkspaceApplication,
+  ReaderWorkspaceModeRouteRequest
+} from './workspaceMode';
 export type {
   ReaderCurrentBookPersistenceKeys,
   ReaderTranslatedTtsLiveSnapshot,

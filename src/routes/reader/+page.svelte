@@ -12,6 +12,7 @@
     ReaderAssistanceWorkspaceSelection,
     ReaderControlRequest,
     ReaderLookupProvider,
+    ReaderNotebookWorkspaceTab,
     ReaderPreviewState,
     ReaderRouteOpenState,
     ReaderRouteWorkspaceMode,
@@ -24,7 +25,8 @@
     ReaderTranslationProvider,
     ReaderTranslationProviderStatus,
     ReaderTranslationSource,
-    ReaderTocItem
+    ReaderTocItem,
+    ReaderWorkspaceModeRouteRequest
   } from '$lib/reader';
   import type {
     Br1KoReaderRemoteSyncResult,
@@ -86,14 +88,20 @@
     resolveReaderEffectiveTtsTarget,
     resolveReaderLiveTranslatedTtsResult,
     resolveReaderRouteTranslatedTtsOwner,
+    resolveReaderRouteTtsReadAloudTextMode,
+    resolveReaderRouteWorkspaceApplication,
+    resolveReaderNotebookShellState,
+    resolveReaderNotebookTabRouteRequest,
     resolveReaderTranslatedTtsLiveSnapshotState,
     resolveReaderTranslatedTtsOwnerFallback,
     resolveReaderTranslatedTtsSourceState,
+    resolveReaderTranslatedTtsWorkspaceRequest,
     resolveReaderTtsMiniBarContextSummary,
     resolveReaderTtsMiniBarLocationSummary,
     resolveReaderTtsMiniBarVisible,
     resolveReaderTtsSpeechTarget,
     resolveReaderTtsTranslatedWaitingTargetLabel,
+    resolveReaderWorkspaceModeRouteRequest,
     restoreReaderTtsOwnershipState,
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
@@ -140,7 +148,7 @@
   let currentCoverUrl = '';
   let notebookVisible = false;
   let notebookPinned = false;
-  let notebookTab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync' = 'notes';
+  let notebookTab: ReaderNotebookWorkspaceTab = 'notes';
   let lastAppliedRouteWorkspaceMode: ReaderRouteWorkspaceMode | null = null;
   let ttsFollowsCurrentLocation = true;
   let pinnedTtsTarget: ReaderTtsSpeechTarget | null = null;
@@ -562,23 +570,15 @@
     });
 
   const syncReaderWorkspaceModeToRoute = async (
-    workspaceMode: ReaderRouteWorkspaceMode | null,
-    nextTtsReadAloudTextMode: ReaderTtsReadAloudTextMode | null = ttsReadAloudTextMode,
-    nextTranslationTargetLanguage: string | null = translationTargetLanguage,
-    nextTranslationProvider: ReaderTranslationProvider | null = translationProvider,
-    nextTranslationHistoryEntryId: string | null = assistanceSelection.translationHistoryEntryId
+    request: ReaderWorkspaceModeRouteRequest
   ) => {
-    const normalizedTranslationHistoryEntryId = nextTranslationHistoryEntryId?.trim() || null;
     const nextHref = toReaderWorkspaceModeHref(
       $page.url,
-      workspaceMode,
-      nextTtsReadAloudTextMode,
-      nextTranslationTargetLanguage,
-      nextTranslationProvider,
-      (workspaceMode === 'translation' ||
-        (workspaceMode === 'tts' && nextTtsReadAloudTextMode === 'translated'))
-        ? normalizedTranslationHistoryEntryId
-        : null
+      request.workspaceMode,
+      request.ttsReadAloudTextMode,
+      request.translationTargetLanguage,
+      request.translationProvider,
+      request.translationHistoryEntryId
     );
     const currentHref = `${$page.url.pathname}${$page.url.search}`;
     if (nextHref === currentHref) return;
@@ -589,22 +589,31 @@
     });
   };
 
-  const openNotebookWorkspaceTab = async (
-    tab: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync'
-  ) => {
+  const openNotebookWorkspaceTab = async (tab: ReaderNotebookWorkspaceTab) => {
     notebookVisible = true;
     notebookTab = tab;
     await syncReaderWorkspaceModeToRoute(
-      tab === 'translation' || tab === 'tts' ? tab : null,
-      tab === 'tts' ? ttsReadAloudTextMode : null,
-      tab === 'translation' ? translationTargetLanguage : null,
-      tab === 'translation' ? translationProvider : null
+      resolveReaderNotebookTabRouteRequest({
+        tab,
+        currentTtsReadAloudTextMode: ttsReadAloudTextMode,
+        currentTranslationTargetLanguage: translationTargetLanguage,
+        currentTranslationProvider: translationProvider,
+        currentTranslationHistoryEntryId: assistanceSelection.translationHistoryEntryId
+      })
     );
   };
 
   const closeNotebookWorkspace = async () => {
     notebookVisible = false;
-    await syncReaderWorkspaceModeToRoute(null);
+    await syncReaderWorkspaceModeToRoute(
+      resolveReaderWorkspaceModeRouteRequest({
+        workspaceMode: null,
+        ttsReadAloudTextMode: null,
+        translationTargetLanguage: null,
+        translationProvider: null,
+        translationHistoryEntryId: null
+      })
+    );
   };
 
   onMount(() => {
@@ -616,9 +625,10 @@
     // Route-owned override ordering matters here: explicit URL state wins over
     // restored local state, which in turn wins over global defaults.
     ttsReadAloudTextMode = loadReaderSettings(localStorage).ttsReadAloudText;
-    if (routeOpenState.workspaceMode === 'tts' && routeOpenState.ttsReadAloudTextMode) {
-      ttsReadAloudTextMode = routeOpenState.ttsReadAloudTextMode;
-    }
+    ttsReadAloudTextMode = resolveReaderRouteTtsReadAloudTextMode({
+      routeOpenState,
+      currentMode: ttsReadAloudTextMode
+    });
     if (routeOpenState.workspaceMode === 'translation' && routeOpenState.translationTargetLanguage) {
       translationTargetLanguage = routeOpenState.translationTargetLanguage;
     }
@@ -635,31 +645,24 @@
     const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
     if (rawNotebookShell) {
       try {
-        const persisted = JSON.parse(rawNotebookShell) as {
-          pinned?: boolean;
-          activeTab?: 'notes' | 'highlights' | 'assistant' | 'translation' | 'tts' | 'sync';
-        };
-        notebookPinned = !!persisted.pinned;
-        notebookVisible = !!persisted.pinned;
-        notebookTab =
-          persisted.activeTab === 'highlights'
-            ? 'highlights'
-            : persisted.activeTab === 'translation'
-              ? 'translation'
-              : persisted.activeTab === 'tts'
-                ? 'tts'
-                : persisted.activeTab === 'sync'
-                  ? 'sync'
-                : persisted.activeTab === 'assistant'
-                  ? 'assistant'
-                  : 'notes';
-        if (routeOpenState.workspaceMode) {
-          notebookVisible = true;
-          notebookTab = routeOpenState.workspaceMode;
-        }
+        const restoredNotebookShell = resolveReaderNotebookShellState({
+          persisted: JSON.parse(rawNotebookShell) as { pinned?: unknown; activeTab?: unknown },
+          routeOpenState
+        });
+        notebookPinned = restoredNotebookShell.pinned;
+        notebookVisible = restoredNotebookShell.visible;
+        notebookTab = restoredNotebookShell.activeTab;
       } catch (error) {
         console.warn('Failed to restore reader notebook shell state', error);
       }
+    } else if (routeOpenState.workspaceMode) {
+      const restoredNotebookShell = resolveReaderNotebookShellState({
+        persisted: null,
+        routeOpenState
+      });
+      notebookPinned = restoredNotebookShell.pinned;
+      notebookVisible = restoredNotebookShell.visible;
+      notebookTab = restoredNotebookShell.activeTab;
     }
     searchController.restoreConfig();
     searchController.enablePersistence();
@@ -706,20 +709,27 @@
     lastRestoredTranslationLiveSnapshotBookKey = readerBookKey;
     lastAssistanceBookKey = readerBookKey;
   }
-  $: if (
-    routeOpenState.workspaceMode &&
-    routeOpenState.workspaceMode !== lastAppliedRouteWorkspaceMode
-  ) {
-    lastAppliedRouteWorkspaceMode = routeOpenState.workspaceMode;
-    notebookVisible = true;
-    notebookTab = routeOpenState.workspaceMode;
+  $: {
+    const routeWorkspaceApplication = resolveReaderRouteWorkspaceApplication({
+      routeOpenState,
+      lastAppliedRouteWorkspaceMode
+    });
+    if (routeWorkspaceApplication.kind === 'open') {
+      lastAppliedRouteWorkspaceMode = routeWorkspaceApplication.lastAppliedRouteWorkspaceMode;
+      notebookVisible = routeWorkspaceApplication.notebookVisible;
+      notebookTab = routeWorkspaceApplication.notebookTab;
+    } else if (routeWorkspaceApplication.kind === 'clear') {
+      lastAppliedRouteWorkspaceMode = routeWorkspaceApplication.lastAppliedRouteWorkspaceMode;
+    }
   }
-  $: if (
-    routeOpenState.workspaceMode === 'tts' &&
-    routeOpenState.ttsReadAloudTextMode &&
-    routeOpenState.ttsReadAloudTextMode !== ttsReadAloudTextMode
-  ) {
-    ttsReadAloudTextMode = routeOpenState.ttsReadAloudTextMode;
+  $: {
+    const routeTtsReadAloudTextMode = resolveReaderRouteTtsReadAloudTextMode({
+      routeOpenState,
+      currentMode: ttsReadAloudTextMode
+    });
+    if (routeTtsReadAloudTextMode !== ttsReadAloudTextMode) {
+      ttsReadAloudTextMode = routeTtsReadAloudTextMode;
+    }
   }
   $: if (routeOpenState.workspaceMode === 'translation') {
     const routeTranslationConfig = resolveReaderRouteTranslationModeConfig({
@@ -755,9 +765,6 @@
     if (translatedTtsOwner !== nextTranslatedTtsOwner) {
       translatedTtsOwner = nextTranslatedTtsOwner;
     }
-  }
-  $: if (!routeOpenState.workspaceMode && lastAppliedRouteWorkspaceMode) {
-    lastAppliedRouteWorkspaceMode = null;
   }
   $: {
     currentPreview;
@@ -1381,7 +1388,15 @@
     }
     applyTtsRetarget(resolveCurrentReaderTtsSpeechTarget());
     if (routeOpenState.workspaceMode === 'tts' || (notebookVisible && notebookTab === 'tts')) {
-      void syncReaderWorkspaceModeToRoute('tts', mode);
+      void syncReaderWorkspaceModeToRoute(
+        resolveReaderWorkspaceModeRouteRequest({
+          workspaceMode: 'tts',
+          ttsReadAloudTextMode: mode,
+          translationTargetLanguage,
+          translationProvider,
+          translationHistoryEntryId: assistanceSelection.translationHistoryEntryId
+        })
+      );
     }
   };
 
@@ -1390,12 +1405,14 @@
   };
 
   const openTranslatedTtsWorkspace = () => {
-    const selectedTranslationHistoryEntryId = assistanceSelection.translationHistoryEntryId.trim();
-    const prefersArchivedTranslation =
-      routeOpenState.workspaceMode === 'translation'
-        ? !!routeOpenState.translationHistoryEntryId?.trim()
-        : translatedTtsSourceKind === 'archived-translation' && !!selectedTranslationHistoryEntryId;
-    setTranslatedTtsOwner(prefersArchivedTranslation ? 'archive' : 'live');
+    const translatedTtsWorkspaceRequest = resolveReaderTranslatedTtsWorkspaceRequest({
+      routeOpenState,
+      translatedTtsSourceKind,
+      selectedTranslationHistoryEntryId: assistanceSelection.translationHistoryEntryId,
+      currentTranslationTargetLanguage: translationTargetLanguage,
+      currentTranslationProvider: translationProvider
+    });
+    setTranslatedTtsOwner(translatedTtsWorkspaceRequest.translatedOwner);
     if (ttsReadAloudTextMode !== 'translated') {
       ttsReadAloudTextMode = 'translated';
       persistCurrentBookTtsOwnershipState();
@@ -1407,13 +1424,7 @@
     }
     notebookVisible = true;
     notebookTab = 'tts';
-    void syncReaderWorkspaceModeToRoute(
-      'tts',
-      'translated',
-      translationTargetLanguage,
-      translationProvider,
-      prefersArchivedTranslation ? selectedTranslationHistoryEntryId : ''
-    );
+    void syncReaderWorkspaceModeToRoute(translatedTtsWorkspaceRequest.routeRequest);
   };
 
   const openTranslationMode = () => {
@@ -1425,7 +1436,15 @@
     if (translationTargetLanguage === normalizedLanguage) return;
     translationTargetLanguage = normalizedLanguage;
     if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
-      void syncReaderWorkspaceModeToRoute('translation', null, normalizedLanguage, translationProvider);
+      void syncReaderWorkspaceModeToRoute(
+        resolveReaderWorkspaceModeRouteRequest({
+          workspaceMode: 'translation',
+          ttsReadAloudTextMode: null,
+          translationTargetLanguage: normalizedLanguage,
+          translationProvider,
+          translationHistoryEntryId: assistanceSelection.translationHistoryEntryId
+        })
+      );
     }
   };
 
@@ -1433,7 +1452,15 @@
     if (translationProvider === provider) return;
     translationProvider = provider;
     if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
-      void syncReaderWorkspaceModeToRoute('translation', null, translationTargetLanguage, provider);
+      void syncReaderWorkspaceModeToRoute(
+        resolveReaderWorkspaceModeRouteRequest({
+          workspaceMode: 'translation',
+          ttsReadAloudTextMode: null,
+          translationTargetLanguage,
+          translationProvider: provider,
+          translationHistoryEntryId: assistanceSelection.translationHistoryEntryId
+        })
+      );
     }
   };
 
@@ -1696,11 +1723,13 @@
 
     if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
       void syncReaderWorkspaceModeToRoute(
-        'translation',
-        null,
-        translationTargetLanguage,
-        translationProvider,
-        normalizedEntryId
+        resolveReaderWorkspaceModeRouteRequest({
+          workspaceMode: 'translation',
+          ttsReadAloudTextMode: null,
+          translationTargetLanguage,
+          translationProvider,
+          translationHistoryEntryId: normalizedEntryId
+        })
       );
       return;
     }
@@ -1710,11 +1739,13 @@
       ttsReadAloudTextMode === 'translated'
     ) {
       void syncReaderWorkspaceModeToRoute(
-        'tts',
-        'translated',
-        translationTargetLanguage,
-        translationProvider,
-        normalizedEntryId
+        resolveReaderWorkspaceModeRouteRequest({
+          workspaceMode: 'tts',
+          ttsReadAloudTextMode: 'translated',
+          translationTargetLanguage,
+          translationProvider,
+          translationHistoryEntryId: normalizedEntryId
+        })
       );
     }
   };
@@ -1742,11 +1773,13 @@
 
     if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
       void syncReaderWorkspaceModeToRoute(
-        'translation',
-        null,
-        translationTargetLanguage,
-        translationProvider,
-        ''
+        resolveReaderWorkspaceModeRouteRequest({
+          workspaceMode: 'translation',
+          ttsReadAloudTextMode: null,
+          translationTargetLanguage,
+          translationProvider,
+          translationHistoryEntryId: null
+        })
       );
       return;
     }
@@ -1756,11 +1789,13 @@
       ttsReadAloudTextMode === 'translated'
     ) {
       void syncReaderWorkspaceModeToRoute(
-        'tts',
-        'translated',
-        translationTargetLanguage,
-        translationProvider,
-        ''
+        resolveReaderWorkspaceModeRouteRequest({
+          workspaceMode: 'tts',
+          ttsReadAloudTextMode: 'translated',
+          translationTargetLanguage,
+          translationProvider,
+          translationHistoryEntryId: null
+        })
       );
     }
   };
