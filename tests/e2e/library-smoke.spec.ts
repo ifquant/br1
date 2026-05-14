@@ -2,7 +2,7 @@
 // surface depends on current-book ownership, dedicated workspaces, and restore
 // flows that are easy to hide behind ambient browser state.
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 const readerLayoutLabel = (layout: 'PAGINATED' | 'SCROLL' | 'FIXED') =>
   ({
@@ -10,6 +10,57 @@ const readerLayoutLabel = (layout: 'PAGINATED' | 'SCROLL' | 'FIXED') =>
     SCROLL: '滚动',
     FIXED: '固定版式'
   })[layout];
+
+const openLookupHistoryLane = async (notebook: Locator, expectedHistoryText?: string) => {
+  const overview = notebook.getByLabel('本书 AI 记录摘要');
+  await expect(overview).toBeVisible();
+  const lookupEntry = overview
+    .getByLabel('本书 AI 记录入口')
+    .getByRole('button', { name: /^查找记录/ });
+  await expect(lookupEntry).toBeVisible();
+
+  const historyLane = notebook.getByLabel('最近求助');
+  const historyHeading = historyLane.locator('.assist-history-head > strong');
+  await expect
+    .poll(
+      async () => {
+        const headingText = ((await historyHeading.textContent({ timeout: 100 }).catch(() => '')) ?? '').trim();
+        const expectedRecordVisible = expectedHistoryText
+          ? await historyLane
+              .getByText(expectedHistoryText)
+              .first()
+              .isVisible({ timeout: 100 })
+              .catch(() => false)
+          : true;
+        if (headingText === '本书查找记录' && expectedRecordVisible) return 'open';
+        if (await lookupEntry.isVisible({ timeout: 100 }).catch(() => false)) {
+          await lookupEntry.click({ timeout: 1000 }).catch(() => undefined);
+        }
+        return 'pending';
+      },
+      { timeout: 15000 }
+    )
+    .toBe('open');
+  return historyLane;
+};
+
+const selectLastLookupHistoryRecord = async (historyLane: Locator) => {
+  const historyRecordButton = historyLane.getByRole('button', { name: '查看记录' }).last();
+  const activeRecord = historyLane.getByLabel('当前正在查看的 AI 记录');
+  await expect
+    .poll(
+      async () => {
+        if (await activeRecord.isVisible({ timeout: 100 }).catch(() => false)) return 'selected';
+        if (await historyRecordButton.isVisible({ timeout: 100 }).catch(() => false)) {
+          await historyRecordButton.click({ timeout: 1000 }).catch(() => undefined);
+        }
+        return 'pending';
+      },
+      { timeout: 15000 }
+    )
+    .toBe('selected');
+  return activeRecord;
+};
 
 test('library renders the reading-first shell in web mode', async ({ page }) => {
   // Boundary: this anchors the product shell contract before narrower reader
@@ -23,7 +74,6 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
     /在 5 本书籍中搜索/i
   );
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '最近阅读' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '你的书库' })).toBeVisible();
   await page.getByRole('button', { name: '筛选 更多' }).click();
   await expect(page.getByLabel('书库格式摘要')).toContainText('格式 2 种 · 主 EPUB 4 本');
@@ -59,14 +109,13 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
     page.getByLabel('书库标签筛选').getByRole('button', { name: '政治哲学 2 本' })
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /继续阅读《政治秩序与政治衰败》/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /继续阅读《胡雪岩》/ })).toBeVisible();
   await expect(page.getByRole('button', { name: '导入书籍' })).toBeVisible();
   await expect(page.locator('input.import-input[type="file"]').first()).toHaveAttribute(
     'accept',
     '.epub,.pdf,.mobi,.azw3,.fb2,.cbz,.txt'
   );
 
-  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('button', { name: '浏览选项' }).click();
   await page.getByRole('menuitemradio', { name: '书名' }).click();
   await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible();
 
@@ -122,8 +171,9 @@ test('library renders the reading-first shell in web mode', async ({ page }) => 
   await sampleMetadataPanel.getByRole('button', { name: '筛选 EPUB 格式' }).click();
   await expect(page.getByLabel('书库当前筛选详情')).toContainText('当前筛选：格式 EPUB');
   await expect(page.getByRole('link', { name: /在阅读器打开《A Theory of Justice》/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /在阅读器打开《胡雪岩》/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /在阅读器打开《论法的精神》/ })).toHaveCount(0);
-  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 1 / 5 本');
+  await expect(page.getByLabel('书库筛选摘要')).toContainText('筛选命中 2 / 5 本');
   await page.getByRole('button', { name: '移除书库筛选：格式 EPUB' }).click();
   await expect(page.getByLabel('书库当前筛选详情')).toHaveCount(0);
 
@@ -279,11 +329,14 @@ test('reader can open a notebook workspace without collapsing navigation', async
 
   await page.goto(readerHref);
 
-  await expect(page.getByRole('button', { name: '打开笔记工作台' })).toBeVisible();
+  const notebookModeToggle = page
+    .getByLabel('工作台模式切换')
+    .getByRole('button', { name: '打开笔记工作台' });
+  await expect(notebookModeToggle).toBeVisible();
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
   await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
 
-  await page.getByRole('button', { name: '打开笔记工作台' }).click();
+  await notebookModeToggle.click();
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台', exact: true });
   await expect(notebook).toBeVisible();
@@ -296,7 +349,7 @@ test('reader can open a notebook workspace without collapsing navigation', async
   await expect(page.getByRole('button', { name: '取消固定笔记工作台' })).toBeVisible();
 
   await page.getByRole('button', { name: '关闭笔记工作台' }).click();
-  await expect(page.getByRole('button', { name: '打开笔记工作台' })).toBeVisible();
+  await expect(notebookModeToggle).toBeVisible();
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
 
@@ -388,7 +441,7 @@ test('reader restores ai workspace history for the current book in web mode', as
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
-  const historyLane = notebook.getByLabel('最近求助');
+  const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   await expect(historyLane.getByText('bridge reader', { exact: true })).toBeVisible();
   await expect(historyLane.getByText('第一章 · 维基百科', { exact: true })).toBeVisible();
   await historyLane.getByRole('button', { name: '查看记录' }).click();
@@ -671,9 +724,8 @@ test('reader keeps the active ai archive summary visible when the history list i
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
-  const historyLane = notebook.getByLabel('最近求助');
-  await historyLane.getByRole('button', { name: '查看记录' }).click();
-  const activeRecord = historyLane.getByLabel('当前正在查看的 AI 记录');
+  const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
+  const activeRecord = await selectLastLookupHistoryRecord(historyLane);
   await expect(activeRecord).toContainText('bridge reader');
   await historyLane.getByRole('button', { name: '收起记录列表' }).click();
   await expect(activeRecord).toContainText('bridge reader');
@@ -750,14 +802,9 @@ test('reader shows notebook-style action hierarchy inside ai archive lanes', asy
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
-  const overview = notebook.getByLabel('本书 AI 记录摘要');
-  await overview.getByRole('button', { name: /查找记录/ }).click();
-
-  const historyLane = notebook.getByLabel('最近求助');
-  await expect(historyLane.locator('.assist-history-head > strong')).toHaveText('本书查找记录');
+  const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   await expect(historyLane.getByLabel('记录分区维护操作')).toBeVisible();
-  await expect(historyLane.getByRole('button', { name: '查看记录' }).last()).toBeVisible();
-  await historyLane.getByRole('button', { name: '查看记录' }).last().click();
+  await selectLastLookupHistoryRecord(historyLane);
   const activeSection = historyLane.getByLabel('当前记录 section');
   await expect(activeSection.locator('.assist-history-section-head > strong')).toHaveText('当前记录');
   await expect(activeSection.getByLabel('当前正在查看的 AI 记录')).toBeVisible();
@@ -841,10 +888,8 @@ test('reader can switch a focused ai lane between current-record and full-histor
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
-  await notebook.getByLabel('本书 AI 记录摘要').getByRole('button', { name: /查找记录/ }).click();
-
-  const historyLane = notebook.getByLabel('最近求助');
-  await historyLane.getByRole('button', { name: '查看记录' }).last().click();
+  const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
+  await selectLastLookupHistoryRecord(historyLane);
   await historyLane.getByRole('button', { name: '只看当前记录' }).click();
   await expect(historyLane.getByRole('button', { name: '只看当前记录' })).toHaveAttribute(
     'aria-pressed',
@@ -915,9 +960,7 @@ test('reader shows breadcrumb and grouped browse controls inside focused ai lane
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
-  await notebook.getByLabel('本书 AI 记录摘要').getByRole('button', { name: /查找记录/ }).click();
-
-  const historyLane = notebook.getByLabel('最近求助');
+  const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   const navSection = historyLane.getByLabel('AI 浏览导航 section');
   await expect(navSection).toContainText('浏览导航');
   await expect(navSection).toContainText('当前位置 本书查找记录');
@@ -1074,7 +1117,7 @@ test('reader can clear current-book ai history in web mode', async ({ page }) =>
 
   const notebook = page.getByRole('complementary', { name: '笔记工作台' });
   await expect(notebook).toBeVisible();
-  const historyLane = notebook.getByLabel('最近求助');
+  const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   await expect(historyLane.getByText('bridge reader', { exact: true })).toBeVisible();
   await historyLane.getByRole('button', { name: '清除本书求助记录' }).click();
   await expect(historyLane.getByText('还没有这本书的查找记录。发起一次查词或百科后，这里会保留最近请求。')).toBeVisible();
