@@ -2339,7 +2339,7 @@ test('reader lets translated tts mode consume the selected translation archive i
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('历史译文 · DeepL');
 });
 
-test('reader restores live translated tts snapshot over archive selection across reload', async ({
+test('reader preserves live translated tts ownership over archive selection across reload', async ({
   page
 }) => {
   const sourceUrl = '/samples/sample-book.epub';
