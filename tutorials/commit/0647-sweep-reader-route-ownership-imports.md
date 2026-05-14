@@ -25,7 +25,7 @@ Task 1 到 Task 4 已经把 current-book persistence、translation ownership、T
 
 - `wc -l src/routes/reader/+page.svelte` PASS，2501 lines，低于原始 3073 lines。
 - `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` PASS，0 errors and 0 warnings。
-- `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation ownership for the same book across reload|reader restores dedicated tts ownership for the same book across reload|reader restores live translation snapshots for the same book across reload|reader preserves live translated tts ownership over archive selection across reload|reader restores dedicated translation and tts modes from route state in web mode|reader can jump from translation mode into translated tts in web mode"` PASS，5 passed。该 grep 中 `reader preserves live translated tts ownership over archive selection across reload` 当前没有匹配到测试名，所以实际运行 5 个匹配测试。
+- `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation ownership for the same book across reload|reader restores dedicated tts ownership for the same book across reload|reader restores live translation snapshots for the same book across reload|reader preserves live translated tts ownership over archive selection across reload|reader restores dedicated translation and tts modes from route state in web mode|reader can jump from translation mode into translated tts in web mode"` PASS，6 passed。`01de90e` 已将 live translated TTS 覆盖的测试标题对齐到该 grep 分支，所以现在 6 个目标测试都会运行。
 - `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` PASS。
 
 ## 未覆盖项
