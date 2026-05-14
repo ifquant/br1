@@ -34,48 +34,62 @@
     PersistedLibraryBook,
     RestoreKoReaderSyncExchangeDialogResult
   } from '$lib/services';
+  // Route composition and controller helpers remain grouped separately from the
+  // extracted ownership families below.
   import {
-    createEmptyReaderPreviewState,
-    createEmptyReaderAssistanceWorkspaceSelection,
-    createEmptyReaderAssistanceState,
+    READER_EMPTY_TITLE,
+    READER_NOT_OPENED_LOCATION_LABEL,
+    READER_OPENING_LOCATION_LABEL,
+    activateReaderParallelPane,
+    canRequestAssistanceForText,
+    closeReaderParallelSecondaryPane,
     createEmptyReaderAssistanceResultState,
+    createEmptyReaderAssistanceState,
+    createEmptyReaderAssistanceWorkspaceSelection,
+    createEmptyReaderPreviewState,
     createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
     createReaderAssistanceHistoryEntry,
     createReaderBookmarksController,
-    createReaderParallelSessionFromRoute,
     createReaderNotesController,
+    createReaderParallelSessionFromRoute,
     createReaderSearchController,
     createReaderSidebarController,
     createReaderTtsController,
-    activateReaderParallelPane,
-    closeReaderParallelSecondaryPane,
-    READER_EMPTY_TITLE,
-    READER_NOT_OPENED_LOCATION_LABEL,
-    READER_OPENING_LOCATION_LABEL,
-    canRequestAssistanceForText,
     getReaderLocationDisplayLabel,
-    isReaderTtsPlaybackLocationDrifted,
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel,
-    normalizeAssistanceText,
+    isReaderTtsPlaybackLocationDrifted,
     normalizeAssistanceTerm,
+    normalizeAssistanceText,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     planReaderTtsRetargetAction,
-    loadReaderSettings,
+    toReaderOpenControlRequest,
+    toReaderWorkspaceModeHref,
+    updateReaderAssistanceHistoryEntry,
+    updateReaderParallelPaneControlRequest,
+    updateReaderParallelPanePreview,
+    upsertReaderAssistanceHistoryEntry,
+    type ReaderTtsSpeechTarget
+  } from '$lib/reader';
+  // Current-book persistence owns storage keys plus typed localStorage payloads.
+  import {
     getReaderCurrentBookPersistenceKeys,
     persistReaderCurrentBookAssistanceHistory,
-    restoreReaderCurrentBookAssistanceHistory,
     persistReaderCurrentBookAssistanceSelection,
-    restoreReaderCurrentBookAssistanceSelection,
-    persistReaderTranslationOwnership,
-    restoreReaderTranslationOwnership,
     persistReaderCurrentBookTranslationLiveSnapshot,
-    restoreReaderCurrentBookTranslationLiveSnapshot,
     persistReaderCurrentBookTranslationModeConfig,
+    persistReaderTranslationOwnership,
+    restoreReaderCurrentBookAssistanceHistory,
+    restoreReaderCurrentBookAssistanceSelection,
+    restoreReaderCurrentBookTranslationLiveSnapshot,
     restoreReaderCurrentBookTranslationModeConfig,
+    restoreReaderTranslationOwnership
+  } from '$lib/reader';
+  // Translation ownership owns follow-vs-pinned source and live result restore.
+  import {
     createPinnedReaderTranslationSource,
     normalizeReaderTranslationSource,
     resolveReaderEffectiveTranslationSource,
@@ -83,34 +97,34 @@
     resolveReaderNextTranslationLiveSnapshot,
     resolveReaderRouteTranslationModeConfig,
     resolveReaderTranslationLiveSnapshotState,
-    resolveReaderTranslationModeConfigRestore,
+    resolveReaderTranslationModeConfigRestore
+  } from '$lib/reader';
+  // TTS ownership owns source-vs-translated playback and translated snapshots.
+  import {
     persistReaderTtsOwnershipState,
     resolveReaderEffectiveTtsTarget,
     resolveReaderLiveTranslatedTtsResult,
     resolveReaderRouteTranslatedTtsOwner,
-    resolveReaderRouteTtsReadAloudTextMode,
-    resolveReaderRouteWorkspaceApplication,
-    resolveReaderNotebookShellState,
-    resolveReaderNotebookTabRouteRequest,
     resolveReaderTranslatedTtsLiveSnapshotState,
     resolveReaderTranslatedTtsOwnerFallback,
     resolveReaderTranslatedTtsSourceState,
-    resolveReaderTranslatedTtsWorkspaceRequest,
     resolveReaderTtsMiniBarContextSummary,
     resolveReaderTtsMiniBarLocationSummary,
     resolveReaderTtsMiniBarVisible,
     resolveReaderTtsSpeechTarget,
     resolveReaderTtsTranslatedWaitingTargetLabel,
-    resolveReaderWorkspaceModeRouteRequest,
-    restoreReaderTtsOwnershipState,
-    updateReaderAssistanceHistoryEntry,
-    updateReaderParallelPaneControlRequest,
-    updateReaderParallelPanePreview,
-    upsertReaderAssistanceHistoryEntry,
-    type ReaderTtsSpeechTarget,
-    toReaderOpenControlRequest,
-    toReaderWorkspaceModeHref
+    restoreReaderTtsOwnershipState
   } from '$lib/reader';
+  // Workspace mode owns the URL-to-notebook tab contract for dedicated modes.
+  import {
+    resolveReaderNotebookShellState,
+    resolveReaderNotebookTabRouteRequest,
+    resolveReaderRouteTtsReadAloudTextMode,
+    resolveReaderRouteWorkspaceApplication,
+    resolveReaderTranslatedTtsWorkspaceRequest,
+    resolveReaderWorkspaceModeRouteRequest
+  } from '$lib/reader';
+  import { loadReaderSettings } from '$lib/reader';
   import { supportsTextAnnotationsForFormat } from '$lib/reader/formats';
   import {
     createDefaultReaderTranslationProviderStatuses,
@@ -410,36 +424,6 @@
 
   const NOTEBOOK_STORAGE_KEY = 'br1.reader.notebook-shell';
 
-  const persistAssistanceHistory = () => {
-    persistReaderCurrentBookAssistanceHistory(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      assistanceHistoryStorageKey,
-      assistanceHistory
-    );
-  };
-
-  const restoreAssistanceHistory = () => {
-    return restoreReaderCurrentBookAssistanceHistory(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      assistanceHistoryStorageKey
-    );
-  };
-
-  const persistAssistanceSelection = () => {
-    persistReaderCurrentBookAssistanceSelection(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      assistanceSelectionStorageKey,
-      assistanceSelection
-    );
-  };
-
-  const restoreAssistanceSelection = () => {
-    return restoreReaderCurrentBookAssistanceSelection(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      assistanceSelectionStorageKey
-    );
-  };
-
   const persistNotebookShell = () => {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(
@@ -451,72 +435,17 @@
     );
   };
 
-  const persistTranslationOwnership = () => {
-    persistReaderTranslationOwnership(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translationOwnershipStorageKey,
-      {
-        followsCurrentSource: translationFollowsCurrentSource,
-        pinnedSource: pinnedTranslationSource
-      }
-    );
-  };
-
-  const restoreTranslationOwnership = () => {
-    return restoreReaderTranslationOwnership(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translationOwnershipStorageKey
-    );
-  };
-
-  const persistCurrentBookTranslationLiveSnapshot = () => {
-    persistReaderCurrentBookTranslationLiveSnapshot(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translationLiveSnapshotStorageKey,
-      translationLiveSnapshot
-    );
-  };
-
-  const restoreCurrentBookTranslationLiveSnapshot = () => {
-    return restoreReaderCurrentBookTranslationLiveSnapshot(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translationLiveSnapshotStorageKey
-    );
-  };
-
-  const persistCurrentBookTranslationModeConfig = () => {
-    persistReaderCurrentBookTranslationModeConfig(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translationModeConfigStorageKey,
-      {
-        targetLanguage: translationTargetLanguage.trim().toLowerCase() || 'zh',
-        provider: translationProvider
-      }
-    );
-  };
-
-  const restoreCurrentBookTranslationModeConfig = (): {
-    targetLanguage: string;
-    provider: ReaderTranslationProvider;
-  } =>
-    restoreReaderCurrentBookTranslationModeConfig(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translationModeConfigStorageKey
-    );
-
   const getReaderStorage = () => (typeof localStorage === 'undefined' ? undefined : localStorage);
-
-  const getTtsPersistenceKeys = () => ({
-    ttsOwnershipStorageKey,
-    ttsReadAloudModeStorageKey,
-    translatedTtsOwnerStorageKey,
-    translatedTtsLiveSnapshotStorageKey
-  });
 
   const persistCurrentBookTtsOwnershipState = () => {
     persistReaderTtsOwnershipState({
       storage: getReaderStorage(),
-      keys: getTtsPersistenceKeys(),
+      keys: {
+        ttsOwnershipStorageKey,
+        ttsReadAloudModeStorageKey,
+        translatedTtsOwnerStorageKey,
+        translatedTtsLiveSnapshotStorageKey
+      },
       ownership: {
         followsCurrentLocation: ttsFollowsCurrentLocation,
         pinnedTarget: pinnedTtsTarget
@@ -531,7 +460,12 @@
     const storage = getReaderStorage();
     return restoreReaderTtsOwnershipState({
       storage,
-      keys: getTtsPersistenceKeys(),
+      keys: {
+        ttsOwnershipStorageKey,
+        ttsReadAloudModeStorageKey,
+        translatedTtsOwnerStorageKey,
+        translatedTtsLiveSnapshotStorageKey
+      },
       defaultReadAloudTextMode: storage ? loadReaderSettings(storage).ttsReadAloudText : 'source',
       fallbackTranslatedOwner: resolveReaderTranslatedTtsOwnerFallback({
         routeOpenState,
@@ -677,8 +611,14 @@
     // Book switches are a route boundary: restore persisted per-book workspace
     // state first, then let route-owned overrides below clamp any shared shell UI.
     assistanceState = createEmptyReaderAssistanceState();
-    assistanceHistory = restoreAssistanceHistory();
-    assistanceSelection = restoreAssistanceSelection();
+    assistanceHistory = restoreReaderCurrentBookAssistanceHistory(
+      getReaderStorage(),
+      assistanceHistoryStorageKey
+    );
+    assistanceSelection = restoreReaderCurrentBookAssistanceSelection(
+      getReaderStorage(),
+      assistanceSelectionStorageKey
+    );
     if ($ttsState.status === 'speaking' || $ttsState.status === 'paused') {
       ttsController.stop();
     }
@@ -692,10 +632,16 @@
     ttsFollowsCurrentLocation = restoredTtsState.ownership.followsCurrentLocation;
     pinnedTtsTarget = restoredTtsState.ownership.pinnedTarget;
     lastRestoredTtsOwnershipBookKey = readerBookKey;
-    const restoredTranslationOwnership = restoreTranslationOwnership();
+    const restoredTranslationOwnership = restoreReaderTranslationOwnership(
+      getReaderStorage(),
+      translationOwnershipStorageKey
+    );
     translationFollowsCurrentSource = restoredTranslationOwnership.followsCurrentSource;
     pinnedTranslationSource = restoredTranslationOwnership.pinnedSource;
-    const restoredTranslationModeConfig = restoreCurrentBookTranslationModeConfig();
+    const restoredTranslationModeConfig = restoreReaderCurrentBookTranslationModeConfig(
+      getReaderStorage(),
+      translationModeConfigStorageKey
+    );
     const restoredTranslationConfig = resolveReaderTranslationModeConfigRestore({
       restoredConfig: restoredTranslationModeConfig,
       assistanceHistory,
@@ -705,7 +651,10 @@
     translationTargetLanguage = restoredTranslationConfig.targetLanguage;
     translationProvider = restoredTranslationConfig.provider;
     lastRestoredTranslationModeConfigBookKey = readerBookKey;
-    translationLiveSnapshot = restoreCurrentBookTranslationLiveSnapshot();
+    translationLiveSnapshot = restoreReaderCurrentBookTranslationLiveSnapshot(
+      getReaderStorage(),
+      translationLiveSnapshotStorageKey
+    );
     lastRestoredTranslationLiveSnapshotBookKey = readerBookKey;
     lastAssistanceBookKey = readerBookKey;
   }
@@ -819,7 +768,11 @@
       readerBookKey &&
       readerBookKey === lastRestoredTranslationLiveSnapshotBookKey
     ) {
-      persistCurrentBookTranslationLiveSnapshot();
+      persistReaderCurrentBookTranslationLiveSnapshot(
+        getReaderStorage(),
+        translationLiveSnapshotStorageKey,
+        translationLiveSnapshot
+      );
     }
   }
   $: {
@@ -915,14 +868,22 @@
     assistanceHistory;
     assistanceHistoryStorageKey;
     if (typeof localStorage !== 'undefined') {
-      persistAssistanceHistory();
+      persistReaderCurrentBookAssistanceHistory(
+        getReaderStorage(),
+        assistanceHistoryStorageKey,
+        assistanceHistory
+      );
     }
   }
   $: {
     assistanceSelection;
     assistanceSelectionStorageKey;
     if (typeof localStorage !== 'undefined') {
-      persistAssistanceSelection();
+      persistReaderCurrentBookAssistanceSelection(
+        getReaderStorage(),
+        assistanceSelectionStorageKey,
+        assistanceSelection
+      );
     }
   }
   $: {
@@ -935,7 +896,14 @@
       readerBookKey &&
       readerBookKey === lastRestoredTranslationModeConfigBookKey
     ) {
-      persistCurrentBookTranslationModeConfig();
+      persistReaderCurrentBookTranslationModeConfig(
+        getReaderStorage(),
+        translationModeConfigStorageKey,
+        {
+          targetLanguage: translationTargetLanguage.trim().toLowerCase() || 'zh',
+          provider: translationProvider
+        }
+      );
     }
   }
   $: {
@@ -981,7 +949,10 @@
     translationFollowsCurrentSource;
     pinnedTranslationSource;
     if (typeof localStorage !== 'undefined') {
-      persistTranslationOwnership();
+      persistReaderTranslationOwnership(getReaderStorage(), translationOwnershipStorageKey, {
+        followsCurrentSource: translationFollowsCurrentSource,
+        pinnedSource: pinnedTranslationSource
+      });
     }
   }
   $: searchController.persist($searchState);
@@ -1763,8 +1734,16 @@
             lookupHistoryEntryId: ''
           };
     if (typeof localStorage !== 'undefined') {
-      persistAssistanceHistory();
-      persistAssistanceSelection();
+      persistReaderCurrentBookAssistanceHistory(
+        getReaderStorage(),
+        assistanceHistoryStorageKey,
+        assistanceHistory
+      );
+      persistReaderCurrentBookAssistanceSelection(
+        getReaderStorage(),
+        assistanceSelectionStorageKey,
+        assistanceSelection
+      );
     }
 
     if (mode !== 'translation') return;
