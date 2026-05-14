@@ -258,6 +258,7 @@ export const resolveReaderLiveTranslatedTtsResult = (input: {
   if (
     input.assistanceState.status === 'ready' &&
     input.assistanceState.activeRequest?.kind === 'translation' &&
+    normalizeAssistanceText(input.assistanceState.activeRequest.text) === normalizedSourceText &&
     input.assistanceState.result
   ) {
     return {

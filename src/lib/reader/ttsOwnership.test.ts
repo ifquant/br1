@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
   createEmptyReaderAssistanceState,
+  createReadyReaderAssistanceState,
   createReaderAssistanceHistoryEntry
 } from './assistance';
 import {
@@ -19,6 +20,8 @@ import { createEmptyReaderPreviewState } from './types';
 import { createEmptyReaderTtsSessionState } from './tts';
 import {
   resolveReaderEffectiveTtsTarget,
+  resolveReaderLiveTranslatedTtsResult,
+  resolveReaderTranslatedTtsLiveSnapshotState,
   resolveReaderTranslatedTtsOwnerFallback,
   resolveReaderTranslatedTtsSourceState,
   resolveReaderTtsMiniBarContextSummary,
@@ -252,6 +255,80 @@ test('translated owner restore can prefer live snapshots over ambient archive se
   assert.equal(target?.sourceLabel, '当前译文 · DeepL');
 });
 
+test('stale ready active translation is not used or persisted for translated tts', () => {
+  const staleAssistanceState = createReadyReaderAssistanceState(
+    {
+      kind: 'translation',
+      provider: 'deepl',
+      text: 'old paragraph',
+      targetLanguage: 'zh',
+      bookKey: '/books/sample.epub',
+      cfi: 'cfi-old',
+      chapterLabel: 'Old Chapter'
+    },
+    {
+      id: 'stale-result',
+      provider: 'deepl',
+      title: 'Translation',
+      body: '旧段落译文',
+      createdAt: 1
+    }
+  );
+  const preview = createEmptyReaderPreviewState({
+    title: 'Sample',
+    chapterLabel: 'New Chapter',
+    locationLabel: '第 2 页',
+    progressLabel: '20%',
+    progressLocation: 'cfi-new',
+    progressFraction: 0.2,
+    chapterHref: '#new'
+  });
+  const effectiveTranslationSource = {
+    text: 'new paragraph',
+    label: '当前阅读位置',
+    chapterLabel: 'New Chapter'
+  };
+
+  const liveResult = resolveReaderLiveTranslatedTtsResult({
+    normalizedTranslationSourceText: effectiveTranslationSource.text,
+    chapterLabel: preview.chapterLabel,
+    locationLabel: preview.locationLabel,
+    progressLabel: preview.progressLabel,
+    progressLocation: preview.progressLocation,
+    progressFraction: preview.progressFraction,
+    chapterHref: preview.chapterHref,
+    effectiveTranslationSource,
+    assistanceState: staleAssistanceState,
+    assistanceHistory: [],
+    translatedLiveSnapshot: null
+  });
+  const target = resolveReaderTtsSpeechTarget({
+    readAloudTextMode: 'translated',
+    selectedText: '',
+    preview,
+    getLocationDisplayLabel: (label) => label,
+    effectiveTranslationSource,
+    assistanceSelection: {
+      lookupHistoryEntryId: '',
+      translationHistoryEntryId: ''
+    },
+    assistanceHistory: [],
+    assistanceState: staleAssistanceState,
+    translatedOwner: 'live',
+    translatedLiveSnapshot: null
+  });
+  const nextSnapshot = resolveReaderTranslatedTtsLiveSnapshotState({
+    translatedOwner: 'live',
+    currentSnapshot: null,
+    sourceText: effectiveTranslationSource.text,
+    liveTranslationResult: liveResult
+  });
+
+  assert.equal(liveResult, null);
+  assert.equal(target, null);
+  assert.equal(nextSnapshot, null);
+});
+
 test('archive translated owner continues to point at the selected translation archive', () => {
   const archivedEntry = createReadyTranslationEntry({
     id: 'archive-entry',
@@ -312,7 +389,7 @@ test('archive translated owner continues to point at the selected translation ar
 
   assert.equal(target?.text, '历史译文');
   assert.equal(target?.lang, 'en-US');
-  assert.equal(target?.sourceLabel, '历史译文 · DeepL 翻译结果');
+  assert.equal(target?.sourceLabel, '历史译文 · DeepL');
   assert.equal(sourceState.kind, 'archived-translation');
   assert.equal(sourceState.text, 'archived paragraph');
   assert.match(sourceState.contextLabel, /历史记录/);
