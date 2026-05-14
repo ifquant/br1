@@ -154,6 +154,30 @@ export type {
   ReaderTtsSpeechTarget,
   ReaderTtsTranslatedTargetInput
 } from './tts';
+export {
+  getReaderTtsPreviewLocationLabel,
+  getReaderTtsPreviewPlaybackLocationSummary,
+  persistReaderTtsOwnershipState,
+  resolveReaderEffectiveTtsTarget,
+  resolveReaderLiveTranslatedTtsResult,
+  resolveReaderRouteTranslatedTtsOwner,
+  resolveReaderTranslatedTtsLiveSnapshotState,
+  resolveReaderTranslatedTtsOwnerFallback,
+  resolveReaderTranslatedTtsResult,
+  resolveReaderTranslatedTtsSourceState,
+  resolveReaderTtsMiniBarContextSummary,
+  resolveReaderTtsMiniBarLocationSummary,
+  resolveReaderTtsMiniBarVisible,
+  resolveReaderTtsSpeechTarget,
+  resolveReaderTtsTranslatedWaitingTargetLabel,
+  restoreReaderTtsOwnershipState
+} from './ttsOwnership';
+export type {
+  ReaderTranslatedTtsResult,
+  ReaderTranslatedTtsSourceKind,
+  ReaderTranslatedTtsSourceState,
+  ReaderTtsOwnershipState
+} from './ttsOwnership';
 export type { ReaderTtsRuntime } from './ttsRuntime';
 export {
   createDefaultReaderSettings,

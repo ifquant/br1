@@ -52,18 +52,13 @@
     READER_NOT_OPENED_LOCATION_LABEL,
     READER_OPENING_LOCATION_LABEL,
     canRequestAssistanceForText,
-    getReaderAssistanceRequestContextLabel,
     getReaderLocationDisplayLabel,
-    getReaderTtsCompactPlaybackLocationSummary,
     isReaderTtsPlaybackLocationDrifted,
-    getReaderTtsMiniBarContextSummary,
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel,
-    getReaderTtsTranslatedWaitingTargetLabel,
     normalizeAssistanceText,
     normalizeAssistanceTerm,
-    getReaderTranslationProviderDisplayLabel,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     planReaderTtsRetargetAction,
@@ -79,14 +74,6 @@
     restoreReaderCurrentBookTranslationLiveSnapshot,
     persistReaderCurrentBookTranslationModeConfig,
     restoreReaderCurrentBookTranslationModeConfig,
-    persistReaderTtsOwnership,
-    restoreReaderTtsOwnership,
-    persistReaderCurrentBookTtsReadAloudMode,
-    restoreReaderCurrentBookTtsReadAloudMode,
-    persistReaderCurrentBookTranslatedTtsOwner,
-    restoreReaderCurrentBookTranslatedTtsOwner,
-    persistReaderCurrentBookTranslatedTtsLiveSnapshot,
-    restoreReaderCurrentBookTranslatedTtsLiveSnapshot,
     createPinnedReaderTranslationSource,
     normalizeReaderTranslationSource,
     resolveReaderEffectiveTranslationSource,
@@ -95,8 +82,19 @@
     resolveReaderRouteTranslationModeConfig,
     resolveReaderTranslationLiveSnapshotState,
     resolveReaderTranslationModeConfigRestore,
-    shouldShowReaderTtsMiniBar,
-    resolveReaderTtsSpeechTargetForMode,
+    persistReaderTtsOwnershipState,
+    resolveReaderEffectiveTtsTarget,
+    resolveReaderLiveTranslatedTtsResult,
+    resolveReaderRouteTranslatedTtsOwner,
+    resolveReaderTranslatedTtsLiveSnapshotState,
+    resolveReaderTranslatedTtsOwnerFallback,
+    resolveReaderTranslatedTtsSourceState,
+    resolveReaderTtsMiniBarContextSummary,
+    resolveReaderTtsMiniBarLocationSummary,
+    resolveReaderTtsMiniBarVisible,
+    resolveReaderTtsSpeechTarget,
+    resolveReaderTtsTranslatedWaitingTargetLabel,
+    restoreReaderTtsOwnershipState,
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
@@ -498,244 +496,70 @@
       translationModeConfigStorageKey
     );
 
-  const persistTtsOwnership = () => {
-    persistReaderTtsOwnership(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      ttsOwnershipStorageKey,
-      {
+  const getReaderStorage = () => (typeof localStorage === 'undefined' ? undefined : localStorage);
+
+  const getTtsPersistenceKeys = () => ({
+    ttsOwnershipStorageKey,
+    ttsReadAloudModeStorageKey,
+    translatedTtsOwnerStorageKey,
+    translatedTtsLiveSnapshotStorageKey
+  });
+
+  const persistCurrentBookTtsOwnershipState = () => {
+    persistReaderTtsOwnershipState({
+      storage: getReaderStorage(),
+      keys: getTtsPersistenceKeys(),
+      ownership: {
         followsCurrentLocation: ttsFollowsCurrentLocation,
         pinnedTarget: pinnedTtsTarget
-      }
-    );
-  };
-
-  const restoreTtsOwnership = () => {
-    return restoreReaderTtsOwnership(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      ttsOwnershipStorageKey
-    );
-  };
-
-  const persistCurrentBookTtsReadAloudMode = () => {
-    persistReaderCurrentBookTtsReadAloudMode(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      ttsReadAloudModeStorageKey,
-      ttsReadAloudTextMode
-    );
-  };
-
-  const restoreCurrentBookTtsReadAloudMode = () => {
-    const defaultMode =
-      typeof localStorage === 'undefined'
-        ? 'source'
-        : loadReaderSettings(localStorage).ttsReadAloudText;
-    return restoreReaderCurrentBookTtsReadAloudMode(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      ttsReadAloudModeStorageKey,
-      defaultMode
-    );
-  };
-
-  const persistCurrentBookTranslatedTtsOwner = () => {
-    persistReaderCurrentBookTranslatedTtsOwner(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translatedTtsOwnerStorageKey,
-      translatedTtsOwner
-    );
-  };
-
-  const restoreCurrentBookTranslatedTtsOwner = () => {
-    const routeOwnsArchivedTranslation =
-      routeOpenState.workspaceMode === 'tts' &&
-      routeOpenState.ttsReadAloudTextMode === 'translated' &&
-      !!routeOpenState.translationHistoryEntryId?.trim();
-    const currentBookHasSelectedArchive = !!assistanceSelection.translationHistoryEntryId.trim();
-    return restoreReaderCurrentBookTranslatedTtsOwner(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translatedTtsOwnerStorageKey,
-      routeOwnsArchivedTranslation || currentBookHasSelectedArchive ? 'archive' : 'live'
-    );
-  };
-
-  const persistCurrentBookTranslatedTtsLiveSnapshot = () => {
-    persistReaderCurrentBookTranslatedTtsLiveSnapshot(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translatedTtsLiveSnapshotStorageKey,
-      translatedTtsLiveSnapshot
-    );
-  };
-
-  const restoreCurrentBookTranslatedTtsLiveSnapshot = () => {
-    return restoreReaderCurrentBookTranslatedTtsLiveSnapshot(
-      typeof localStorage === 'undefined' ? undefined : localStorage,
-      translatedTtsLiveSnapshotStorageKey
-    );
-  };
-
-  const resolveLiveTranslatedTtsResult = (
-    normalizedTranslationSourceText: string,
-    chapterLabel: string,
-    locationLabel: string,
-    progressLabel: string
-  ) => {
-    if (!normalizedTranslationSourceText) {
-      return null;
-    }
-
-    if (
-      assistanceState.status === 'ready' &&
-      assistanceState.activeRequest?.kind === 'translation' &&
-      assistanceState.result
-    ) {
-      return {
-        translatedText: normalizeAssistanceText(assistanceState.result.body),
-        targetLanguage: assistanceState.activeRequest.targetLanguage,
-        providerLabel:
-          `当前译文 · ${
-            assistanceState.result.sourceLabel ||
-            getReaderTranslationProviderDisplayLabel(assistanceState.activeRequest.provider)
-          }`,
-        chapterLabel: assistanceState.activeRequest.chapterLabel || chapterLabel,
-        locationLabel,
-        progressLabel,
-        progressLocation: assistanceState.activeRequest.cfi || currentPreview.progressLocation,
-        progressFraction: currentPreview.progressFraction,
-        chapterHref: currentPreview.chapterHref
-      };
-    }
-
-    const matchingLiveTranslationHistoryEntry = assistanceHistory.find(
-      (entry) =>
-        entry.request.kind === 'translation' &&
-        entry.status === 'ready' &&
-        !!entry.result &&
-        normalizeAssistanceText(entry.request.text) === normalizedTranslationSourceText
-    );
-
-    if (
-      matchingLiveTranslationHistoryEntry?.request.kind === 'translation' &&
-      matchingLiveTranslationHistoryEntry.result
-    ) {
-      return {
-        translatedText: normalizeAssistanceText(matchingLiveTranslationHistoryEntry.result.body),
-        targetLanguage: matchingLiveTranslationHistoryEntry.request.targetLanguage,
-        providerLabel:
-          `当前译文 · ${
-            matchingLiveTranslationHistoryEntry.result.sourceLabel ||
-            getReaderTranslationProviderDisplayLabel(
-              matchingLiveTranslationHistoryEntry.request.provider
-            )
-          }`,
-        chapterLabel:
-          effectiveTranslationSource.chapterLabel ||
-          matchingLiveTranslationHistoryEntry.request.chapterLabel ||
-          chapterLabel,
-        locationLabel,
-        progressLabel,
-        progressLocation:
-          currentPreview.progressLocation || matchingLiveTranslationHistoryEntry.request.cfi,
-        progressFraction: currentPreview.progressFraction,
-        chapterHref: currentPreview.chapterHref
-      };
-    }
-
-    if (
-      translatedTtsLiveSnapshot &&
-      translatedTtsLiveSnapshot.sourceText === normalizedTranslationSourceText
-    ) {
-      return {
-        translatedText: translatedTtsLiveSnapshot.translatedText,
-        targetLanguage: translatedTtsLiveSnapshot.targetLanguage,
-        providerLabel: translatedTtsLiveSnapshot.providerLabel,
-        chapterLabel:
-          translatedTtsLiveSnapshot.chapterLabel ||
-          effectiveTranslationSource.chapterLabel ||
-          chapterLabel,
-        locationLabel: translatedTtsLiveSnapshot.locationLabel || locationLabel,
-        progressLabel: translatedTtsLiveSnapshot.progressLabel || progressLabel,
-        progressLocation:
-          translatedTtsLiveSnapshot.progressLocation || currentPreview.progressLocation,
-        progressFraction:
-          translatedTtsLiveSnapshot.progressFraction ?? currentPreview.progressFraction,
-        chapterHref: translatedTtsLiveSnapshot.chapterHref || currentPreview.chapterHref
-      };
-    }
-
-    return null;
-  };
-
-  function resolveReaderTtsSpeechTarget(): ReaderTtsSpeechTarget | null {
-    const chapterLabel = currentPreview.chapterLabel.trim();
-    const title = currentPreview.title.trim();
-    const locationLabel =
-      currentPreview.locationLabel === READER_NOT_OPENED_LOCATION_LABEL ||
-      currentPreview.locationLabel === READER_OPENING_LOCATION_LABEL
-        ? ''
-        : getReaderLocationDisplayLabel(currentPreview.locationLabel).trim();
-    const progressLabel = currentPreview.progressLabel.trim();
-    const normalizedEffectiveTranslationSourceText = normalizeAssistanceText(
-      effectiveTranslationSource.text
-    );
-    const selectedTranslationHistoryEntryId = assistanceSelection.translationHistoryEntryId.trim();
-    const selectedTranslationHistoryEntry = selectedTranslationHistoryEntryId
-      ? assistanceHistory.find(
-          (entry) =>
-            entry.id === selectedTranslationHistoryEntryId && entry.request.kind === 'translation'
-        ) || null
-      : null;
-    const selectedTranslationResult =
-      selectedTranslationHistoryEntry?.status === 'ready' &&
-      selectedTranslationHistoryEntry.result &&
-      selectedTranslationHistoryEntry.request.kind === 'translation'
-        ? {
-            translatedText: normalizeAssistanceText(selectedTranslationHistoryEntry.result.body),
-            targetLanguage: selectedTranslationHistoryEntry.request.targetLanguage,
-            providerLabel:
-              `历史译文 · ${
-                selectedTranslationHistoryEntry.result.sourceLabel ||
-                getReaderTranslationProviderDisplayLabel(selectedTranslationHistoryEntry.request.provider)
-              }`,
-            chapterLabel: selectedTranslationHistoryEntry.request.chapterLabel,
-            progressLocation: selectedTranslationHistoryEntry.request.cfi,
-            chapterHref: ''
-          }
-        : null;
-    const liveTranslationResult = resolveLiveTranslatedTtsResult(
-      normalizedEffectiveTranslationSourceText,
-      chapterLabel,
-      locationLabel,
-      progressLabel
-    );
-
-    const preferredTranslatedResult =
-      translatedTtsOwner === 'archive'
-        ? selectedTranslationResult || liveTranslationResult
-        : liveTranslationResult;
-
-    return resolveReaderTtsSpeechTargetForMode({
-      mode: ttsReadAloudTextMode,
-      source: {
-        selectedText: $notesState.selection?.text,
-        excerptText: currentPreview.ttsSourceText,
-        excerptSourceLabel: currentPreview.ttsSourceLabel,
-        sourceLanguage: currentPreview.ttsSourceLanguage,
-        locationLabel,
-        progressLabel,
-        progressLocation: currentPreview.progressLocation,
-        progressFraction: currentPreview.progressFraction,
-        chapterHref: currentPreview.chapterHref,
-        chapterLabel:
-          chapterLabel &&
-          chapterLabel !== READER_NOT_OPENED_LOCATION_LABEL &&
-          chapterLabel !== READER_OPENING_LOCATION_LABEL &&
-          chapterLabel !== '等待打开书籍'
-            ? chapterLabel
-            : '',
-        title: title && title !== READER_EMPTY_TITLE ? title : ''
       },
-      translated: preferredTranslatedResult
+      readAloudTextMode: ttsReadAloudTextMode,
+      translatedOwner: translatedTtsOwner,
+      translatedLiveSnapshot: translatedTtsLiveSnapshot
     });
-  }
+  };
+
+  const restoreCurrentBookTtsOwnershipState = () => {
+    const storage = getReaderStorage();
+    return restoreReaderTtsOwnershipState({
+      storage,
+      keys: getTtsPersistenceKeys(),
+      defaultReadAloudTextMode: storage ? loadReaderSettings(storage).ttsReadAloudText : 'source',
+      fallbackTranslatedOwner: resolveReaderTranslatedTtsOwnerFallback({
+        routeOpenState,
+        assistanceSelection
+      })
+    });
+  };
+
+  const resolveCurrentLiveTranslatedTtsResult = () =>
+    resolveReaderLiveTranslatedTtsResult({
+      normalizedTranslationSourceText: normalizeAssistanceText(effectiveTranslationSource.text),
+      chapterLabel: currentPreview.chapterLabel.trim(),
+      locationLabel: getReaderLocationDisplayLabel(currentPreview.locationLabel).trim(),
+      progressLabel: currentPreview.progressLabel.trim(),
+      progressLocation: currentPreview.progressLocation,
+      progressFraction: currentPreview.progressFraction,
+      chapterHref: currentPreview.chapterHref,
+      effectiveTranslationSource,
+      assistanceState,
+      assistanceHistory,
+      translatedLiveSnapshot: translatedTtsLiveSnapshot
+    });
+
+  const resolveCurrentReaderTtsSpeechTarget = () =>
+    resolveReaderTtsSpeechTarget({
+      readAloudTextMode: ttsReadAloudTextMode,
+      selectedText: $notesState.selection?.text,
+      preview: currentPreview,
+      getLocationDisplayLabel: getReaderLocationDisplayLabel,
+      effectiveTranslationSource,
+      assistanceSelection,
+      assistanceHistory,
+      assistanceState,
+      translatedOwner: translatedTtsOwner,
+      translatedLiveSnapshot: translatedTtsLiveSnapshot
+    });
 
   const syncReaderWorkspaceModeToRoute = async (
     workspaceMode: ReaderRouteWorkspaceMode | null,
@@ -855,15 +679,15 @@
     if ($ttsState.status === 'speaking' || $ttsState.status === 'paused') {
       ttsController.stop();
     }
-    ttsReadAloudTextMode = restoreCurrentBookTtsReadAloudMode();
+    const restoredTtsState = restoreCurrentBookTtsOwnershipState();
+    ttsReadAloudTextMode = restoredTtsState.readAloudTextMode;
     lastRestoredTtsReadAloudModeBookKey = readerBookKey;
-    translatedTtsOwner = restoreCurrentBookTranslatedTtsOwner();
+    translatedTtsOwner = restoredTtsState.translatedOwner;
     lastRestoredTranslatedTtsOwnerBookKey = readerBookKey;
-    translatedTtsLiveSnapshot = restoreCurrentBookTranslatedTtsLiveSnapshot();
+    translatedTtsLiveSnapshot = restoredTtsState.translatedLiveSnapshot;
     lastRestoredTranslatedTtsLiveSnapshotBookKey = readerBookKey;
-    const restoredTtsOwnership = restoreTtsOwnership();
-    ttsFollowsCurrentLocation = restoredTtsOwnership.followsCurrentLocation;
-    pinnedTtsTarget = restoredTtsOwnership.pinnedTarget;
+    ttsFollowsCurrentLocation = restoredTtsState.ownership.followsCurrentLocation;
+    pinnedTtsTarget = restoredTtsState.ownership.pinnedTarget;
     lastRestoredTtsOwnershipBookKey = readerBookKey;
     const restoredTranslationOwnership = restoreTranslationOwnership();
     translationFollowsCurrentSource = restoredTranslationOwnership.followsCurrentSource;
@@ -923,21 +747,14 @@
       translationHistoryEntryId: routeOpenState.translationHistoryEntryId
     };
   }
-  $: if (routeOpenState.workspaceMode === 'translation') {
-    const nextTranslatedTtsOwner = routeOpenState.translationHistoryEntryId?.trim()
-      ? 'archive'
-      : 'live';
+  $: if (routeOpenState.workspaceMode === 'translation' || routeOpenState.workspaceMode === 'tts') {
+    const nextTranslatedTtsOwner = resolveReaderRouteTranslatedTtsOwner({
+      currentOwner: translatedTtsOwner,
+      routeOpenState
+    });
     if (translatedTtsOwner !== nextTranslatedTtsOwner) {
       translatedTtsOwner = nextTranslatedTtsOwner;
     }
-  }
-  $: if (
-    routeOpenState.workspaceMode === 'tts' &&
-    routeOpenState.ttsReadAloudTextMode === 'translated' &&
-    routeOpenState.translationHistoryEntryId &&
-    translatedTtsOwner !== 'archive'
-  ) {
-    translatedTtsOwner = 'archive';
   }
   $: if (!routeOpenState.workspaceMode && lastAppliedRouteWorkspaceMode) {
     lastAppliedRouteWorkspaceMode = null;
@@ -951,11 +768,13 @@
     effectiveTranslationSource;
     translatedTtsOwner;
     $notesState.selection;
-    resolvedTtsTarget = resolveReaderTtsSpeechTarget();
+    resolvedTtsTarget = resolveCurrentReaderTtsSpeechTarget();
   }
-  $: effectiveTtsTarget = ttsFollowsCurrentLocation
-    ? resolvedTtsTarget
-    : pinnedTtsTarget || resolvedTtsTarget;
+  $: effectiveTtsTarget = resolveReaderEffectiveTtsTarget({
+    followsCurrentLocation: ttsFollowsCurrentLocation,
+    pinnedTarget: pinnedTtsTarget,
+    resolvedTarget: resolvedTtsTarget
+  });
   $: {
     currentPreview;
     $notesState.selection;
@@ -1008,44 +827,16 @@
     }
   }
   $: {
-    const selectedTranslationHistoryEntryId = assistanceSelection.translationHistoryEntryId.trim();
-    const selectedTranslationHistoryEntry = selectedTranslationHistoryEntryId
-      ? assistanceHistory.find(
-          (entry) =>
-            entry.id === selectedTranslationHistoryEntryId && entry.request.kind === 'translation'
-        ) || null
-      : null;
-    const selectedTranslationRequest =
-      selectedTranslationHistoryEntry?.request.kind === 'translation'
-        ? selectedTranslationHistoryEntry.request
-        : null;
-    const prefersArchivedTranslation = translatedTtsOwner === 'archive';
-    const hasArchivedTranslation = !!selectedTranslationRequest;
-    const normalizedLiveTranslationSourceText = normalizeAssistanceText(effectiveTranslationSource.text);
-
-    if (prefersArchivedTranslation && hasArchivedTranslation) {
-      translatedTtsSourceKind = 'archived-translation';
-      translatedTtsSourceContextLabel = `历史记录 · ${getReaderAssistanceRequestContextLabel(
-        selectedTranslationRequest
-      )}`;
-      translatedTtsSourceText = normalizeAssistanceText(selectedTranslationRequest.text);
-    } else if (normalizedLiveTranslationSourceText) {
-      translatedTtsSourceKind = 'live-translation';
-      translatedTtsSourceContextLabel = translationFollowsCurrentSource
-        ? `正在跟随${effectiveTranslationSource.label || '当前阅读位置'}`
-        : `已锁定${effectiveTranslationSource.label || '当前翻译目标'}`;
-      translatedTtsSourceText = normalizedLiveTranslationSourceText;
-    } else if (hasArchivedTranslation) {
-      translatedTtsSourceKind = 'archived-translation';
-      translatedTtsSourceContextLabel = `历史记录 · ${getReaderAssistanceRequestContextLabel(
-        selectedTranslationRequest
-      )}`;
-      translatedTtsSourceText = normalizeAssistanceText(selectedTranslationRequest.text);
-    } else {
-      translatedTtsSourceKind = 'none';
-      translatedTtsSourceContextLabel = '';
-      translatedTtsSourceText = '';
-    }
+    const translatedSourceState = resolveReaderTranslatedTtsSourceState({
+      owner: translatedTtsOwner,
+      assistanceSelection,
+      assistanceHistory,
+      effectiveTranslationSource,
+      translationFollowsCurrentSource
+    });
+    translatedTtsSourceKind = translatedSourceState.kind;
+    translatedTtsSourceContextLabel = translatedSourceState.contextLabel;
+    translatedTtsSourceText = translatedSourceState.text;
   }
   $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
     ttsController.setSpeechTarget(effectiveTtsTarget);
@@ -1056,36 +847,27 @@
     !!activeTtsProgressLocation &&
     !!currentPreviewProgressLocation &&
     isReaderTtsPlaybackLocationDrifted($ttsState, currentPreview);
-  $: previewPlaybackLocationSummary = [
-    currentPreview.chapterLabel.trim() && currentPreview.chapterLabel.trim() !== '等待打开书籍'
-      ? currentPreview.chapterLabel.trim()
-      : '',
-    currentPreview.locationLabel.trim() &&
-    currentPreview.locationLabel.trim() !== READER_OPENING_LOCATION_LABEL &&
-    currentPreview.locationLabel.trim() !== READER_NOT_OPENED_LOCATION_LABEL
-      ? getReaderLocationDisplayLabel(currentPreview.locationLabel).trim()
-      : '',
-    currentPreview.progressLabel.trim()
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  $: ttsMiniBarLocationSummary =
-    getReaderTtsCompactPlaybackLocationSummary($ttsState, effectiveTtsTarget) ||
-    (ttsReadAloudTextMode === 'translated' ? previewPlaybackLocationSummary : '');
-  $: ttsMiniBarTranslatedWaitingTargetLabel =
-    ttsReadAloudTextMode === 'translated' &&
-    !getReaderTtsReadableTargetLabel($ttsState) &&
-    !effectiveTtsTarget?.text.trim() &&
-    translatedTtsSourceKind !== 'none'
-      ? getReaderTtsTranslatedWaitingTargetLabel(translatedTtsSourceContextLabel)
-      : '';
-  $: ttsMiniBarVisible = shouldShowReaderTtsMiniBar(
-    $ttsState,
-    effectiveTtsTarget,
-    ttsMiniBarTranslatedWaitingTargetLabel
-  );
+  $: ttsMiniBarLocationSummary = resolveReaderTtsMiniBarLocationSummary({
+    state: $ttsState,
+    target: effectiveTtsTarget,
+    readAloudTextMode: ttsReadAloudTextMode,
+    preview: currentPreview,
+    getLocationDisplayLabel: getReaderLocationDisplayLabel
+  });
+  $: ttsMiniBarTranslatedWaitingTargetLabel = resolveReaderTtsTranslatedWaitingTargetLabel({
+    state: $ttsState,
+    target: effectiveTtsTarget,
+    readAloudTextMode: ttsReadAloudTextMode,
+    translatedSourceKind: translatedTtsSourceKind,
+    translatedSourceContextLabel: translatedTtsSourceContextLabel
+  });
+  $: ttsMiniBarVisible = resolveReaderTtsMiniBarVisible({
+    state: $ttsState,
+    target: effectiveTtsTarget,
+    translatedWaitingTargetLabel: ttsMiniBarTranslatedWaitingTargetLabel
+  });
   $: ttsMiniBarStatusLabel = getReaderTtsSessionStatusLabel($ttsState);
-  $: ttsMiniBarContextSummary = getReaderTtsMiniBarContextSummary({
+  $: ttsMiniBarContextSummary = resolveReaderTtsMiniBarContextSummary({
     state: $ttsState,
     readAloudTextMode: ttsReadAloudTextMode,
     translatedSourceKind: translatedTtsSourceKind,
@@ -1150,105 +932,41 @@
     }
   }
   $: {
-    readerBookKey;
-    ttsReadAloudModeStorageKey;
-    ttsReadAloudTextMode;
-    if (
-      typeof localStorage !== 'undefined' &&
-      readerBookKey &&
-      readerBookKey === lastRestoredTtsReadAloudModeBookKey
-    ) {
-      persistCurrentBookTtsReadAloudMode();
-    }
-  }
-  $: {
-    readerBookKey;
-    translatedTtsOwnerStorageKey;
-    translatedTtsOwner;
-    if (
-      typeof localStorage !== 'undefined' &&
-      readerBookKey &&
-      readerBookKey === lastRestoredTranslatedTtsOwnerBookKey
-    ) {
-      persistCurrentBookTranslatedTtsOwner();
-    }
-  }
-  $: {
     currentPreview;
     assistanceState;
     assistanceHistory;
     effectiveTranslationSource;
     translatedTtsOwner;
-    if (translatedTtsOwner === 'archive') {
-      translatedTtsLiveSnapshot = null;
-    } else {
-      const normalizedTranslationSourceText = normalizeAssistanceText(effectiveTranslationSource.text);
-      const nextSnapshot = resolveLiveTranslatedTtsResult(
-        normalizedTranslationSourceText,
-        currentPreview.chapterLabel.trim(),
-        getReaderLocationDisplayLabel(currentPreview.locationLabel).trim(),
-        currentPreview.progressLabel.trim()
-      );
-
-      if (
-        nextSnapshot &&
-        normalizedTranslationSourceText &&
-        nextSnapshot.translatedText &&
-        nextSnapshot.providerLabel
-      ) {
-        const normalizedSnapshot = {
-          sourceText: normalizedTranslationSourceText,
-          translatedText: nextSnapshot.translatedText,
-          targetLanguage: nextSnapshot.targetLanguage,
-          providerLabel: nextSnapshot.providerLabel,
-          chapterLabel: nextSnapshot.chapterLabel || '',
-          locationLabel: nextSnapshot.locationLabel || '',
-          progressLabel: nextSnapshot.progressLabel || '',
-          progressLocation: nextSnapshot.progressLocation || '',
-          progressFraction: nextSnapshot.progressFraction ?? null,
-          chapterHref: nextSnapshot.chapterHref || ''
-        };
-        const snapshotChanged =
-          !translatedTtsLiveSnapshot ||
-          translatedTtsLiveSnapshot.sourceText !== normalizedSnapshot.sourceText ||
-          translatedTtsLiveSnapshot.translatedText !== normalizedSnapshot.translatedText ||
-          translatedTtsLiveSnapshot.targetLanguage !== normalizedSnapshot.targetLanguage ||
-          translatedTtsLiveSnapshot.providerLabel !== normalizedSnapshot.providerLabel ||
-          translatedTtsLiveSnapshot.chapterLabel !== normalizedSnapshot.chapterLabel ||
-          translatedTtsLiveSnapshot.locationLabel !== normalizedSnapshot.locationLabel ||
-          translatedTtsLiveSnapshot.progressLabel !== normalizedSnapshot.progressLabel ||
-          translatedTtsLiveSnapshot.progressLocation !== normalizedSnapshot.progressLocation ||
-          translatedTtsLiveSnapshot.progressFraction !== normalizedSnapshot.progressFraction ||
-          translatedTtsLiveSnapshot.chapterHref !== normalizedSnapshot.chapterHref;
-        if (snapshotChanged) {
-          translatedTtsLiveSnapshot = normalizedSnapshot;
-        }
-      }
-    }
-  }
-  $: {
-    readerBookKey;
-    translatedTtsLiveSnapshotStorageKey;
-    translatedTtsLiveSnapshot;
-    if (
-      typeof localStorage !== 'undefined' &&
-      readerBookKey &&
-      readerBookKey === lastRestoredTranslatedTtsLiveSnapshotBookKey
-    ) {
-      persistCurrentBookTranslatedTtsLiveSnapshot();
+    const nextTranslatedTtsLiveSnapshot = resolveReaderTranslatedTtsLiveSnapshotState({
+      translatedOwner: translatedTtsOwner,
+      currentSnapshot: translatedTtsLiveSnapshot,
+      sourceText: effectiveTranslationSource.text,
+      liveTranslationResult: resolveCurrentLiveTranslatedTtsResult()
+    });
+    if (nextTranslatedTtsLiveSnapshot !== translatedTtsLiveSnapshot) {
+      translatedTtsLiveSnapshot = nextTranslatedTtsLiveSnapshot;
     }
   }
   $: {
     readerBookKey;
     ttsOwnershipStorageKey;
+    ttsReadAloudModeStorageKey;
+    translatedTtsOwnerStorageKey;
+    translatedTtsLiveSnapshotStorageKey;
     ttsFollowsCurrentLocation;
     pinnedTtsTarget;
+    ttsReadAloudTextMode;
+    translatedTtsOwner;
+    translatedTtsLiveSnapshot;
     if (
       typeof localStorage !== 'undefined' &&
       readerBookKey &&
-      readerBookKey === lastRestoredTtsOwnershipBookKey
+      readerBookKey === lastRestoredTtsOwnershipBookKey &&
+      readerBookKey === lastRestoredTtsReadAloudModeBookKey &&
+      readerBookKey === lastRestoredTranslatedTtsOwnerBookKey &&
+      readerBookKey === lastRestoredTranslatedTtsLiveSnapshotBookKey
     ) {
-      persistTtsOwnership();
+      persistCurrentBookTtsOwnershipState();
     }
   }
   $: {
@@ -1556,7 +1274,7 @@
 
     window.addEventListener('pagehide', handlePageHide);
     ttsController.refreshAvailability();
-    ttsController.setSpeechTarget(resolveReaderTtsSpeechTarget());
+    ttsController.setSpeechTarget(resolveCurrentReaderTtsSpeechTarget());
 
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
@@ -1636,32 +1354,32 @@
         }
       : null;
     ttsFollowsCurrentLocation = false;
-    persistTtsOwnership();
+    persistCurrentBookTtsOwnershipState();
     applyTtsRetarget(pinnedTtsTarget);
   };
 
   const resumeFollowingCurrentTtsTarget = () => {
     ttsFollowsCurrentLocation = true;
     pinnedTtsTarget = null;
-    persistTtsOwnership();
+    persistCurrentBookTtsOwnershipState();
     applyTtsRetarget(resolvedTtsTarget);
   };
 
   const setTranslatedTtsOwner = (owner: 'live' | 'archive') => {
     if (translatedTtsOwner === owner) return;
     translatedTtsOwner = owner;
-    persistCurrentBookTranslatedTtsOwner();
+    persistCurrentBookTtsOwnershipState();
   };
 
   const setTtsReadAloudTextMode = (mode: ReaderTtsReadAloudTextMode) => {
     if (ttsReadAloudTextMode === mode) return;
     ttsReadAloudTextMode = mode;
-    persistCurrentBookTtsReadAloudMode();
+    persistCurrentBookTtsOwnershipState();
     if (!ttsFollowsCurrentLocation) {
       pinnedTtsTarget = null;
       ttsFollowsCurrentLocation = true;
     }
-    applyTtsRetarget(resolveReaderTtsSpeechTarget());
+    applyTtsRetarget(resolveCurrentReaderTtsSpeechTarget());
     if (routeOpenState.workspaceMode === 'tts' || (notebookVisible && notebookTab === 'tts')) {
       void syncReaderWorkspaceModeToRoute('tts', mode);
     }
@@ -1680,12 +1398,12 @@
     setTranslatedTtsOwner(prefersArchivedTranslation ? 'archive' : 'live');
     if (ttsReadAloudTextMode !== 'translated') {
       ttsReadAloudTextMode = 'translated';
-      persistCurrentBookTtsReadAloudMode();
+      persistCurrentBookTtsOwnershipState();
       if (!ttsFollowsCurrentLocation) {
         pinnedTtsTarget = null;
         ttsFollowsCurrentLocation = true;
       }
-      applyTtsRetarget(resolveReaderTtsSpeechTarget());
+      applyTtsRetarget(resolveCurrentReaderTtsSpeechTarget());
     }
     notebookVisible = true;
     notebookTab = 'tts';
