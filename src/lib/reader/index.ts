@@ -202,6 +202,16 @@ export {
   persistReaderCurrentBookTranslatedTtsLiveSnapshot,
   restoreReaderCurrentBookTranslatedTtsLiveSnapshot
 } from './currentBookPersistence';
+export {
+  createPinnedReaderTranslationSource,
+  normalizeReaderTranslationSource,
+  resolveReaderEffectiveTranslationSource,
+  resolveReaderLiveTranslationPanelResult,
+  resolveReaderNextTranslationLiveSnapshot,
+  resolveReaderRouteTranslationModeConfig,
+  resolveReaderTranslationLiveSnapshotState,
+  resolveReaderTranslationModeConfigRestore
+} from './translationOwnership';
 export type { FoliateViewElement, ReaderBookDocument } from './foliate';
 export type {
   ReaderRouteOpenState,
@@ -217,6 +227,10 @@ export type {
   ReaderTranslationOwnership,
   ReaderTtsOwnership
 } from './currentBookPersistence';
+export type {
+  ReaderLiveTranslationPanelResult,
+  ReaderTranslationSource
+} from './translationOwnership';
 export type {
   ReaderControlRequest,
   ReaderBookmark,
