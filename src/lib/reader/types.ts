@@ -3,6 +3,7 @@
 // code can stay focused on reading semantics rather than format/runtime quirks.
 
 import type { ReaderLookupProvider, ReaderTranslationProvider } from './assistance';
+import type { ReaderTtsSpeechTarget } from './tts';
 
 export type ReaderEngineMountState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -106,6 +107,28 @@ export type ReaderInlineTranslationState = {
   targetLanguage: ReaderInlineTranslationTargetLanguage;
   provider: ReaderTranslationProvider;
   blocks: ReaderInlineTranslationBlock[];
+};
+export type ReaderPlaybackSegment = {
+  id: string;
+  target: ReaderTtsSpeechTarget;
+};
+export type ReaderPlaybackQueueState = {
+  segments: ReaderPlaybackSegment[];
+  activeIndex: number;
+  playbackRate: number;
+  timeoutAt: number | null;
+};
+export type ReaderPlaybackQueueSummary = {
+  hasTarget: boolean;
+  currentSegment: ReaderPlaybackSegment | null;
+  currentLabel: string;
+  currentSourceLabel: string;
+  positionLabel: string;
+  rate: number;
+  rateLabel: string;
+  timeoutAt: number | null;
+  timeoutRemainingMs: number | null;
+  timeoutLabel: string;
 };
 export type ReaderSettings = {
   flowMode: ReaderFlowMode;

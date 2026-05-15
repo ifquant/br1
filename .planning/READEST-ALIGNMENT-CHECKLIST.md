@@ -1377,6 +1377,18 @@ Goal: move translation toward a real reading-surface mode without weakening the 
   - Tutorial: `tutorials/commit/0651-add-focused-reading-mode-shell.md`.
   - Notes: this first slice stays intentionally small. It does not add Readest's fuller RSVP controller, saved stop position, or temporary Foliate highlight ownership, and PDF/CBZ still show capability copy instead of pretending to extract text.
 
+## P17 TTS Playback Runtime And Panel Maturity
+
+Goal: move dedicated TTS closer to a fuller reader playback surface by giving later UI slices a pure queue/rate/timeout contract before they touch route state or notebook panels.
+
+- [x] P17-1.1 Add a playback queue and timeout model
+  - Outcome: reader playback now has a pure helper for segment queues, boundary-safe previous/next stepping, rate clamping, timeout expiry, and no-target summaries before any playback-panel UI lands.
+  - Touches: playback queue helper, reader shared types/index exports, focused helper tests, helper test script, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-playback-queue-tests --noEmit false && node --test ./.tmp-playback-queue-tests/src/lib/reader/playbackQueue.test.js` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed; user requested a dirty working tree only.
+  - Tutorial: `tutorials/commit/0652-add-reader-playback-queue-model.md`.
+  - Notes: this slice intentionally does not modify `+page.svelte`, `ReaderTtsWorkspace.svelte`, or any playback UI. It only turns `ReaderTtsSpeechTarget` inputs into an auditable queue model that Task 5 can wire into real controls.
+
 
 ## Service Security Gate
 
@@ -1490,3 +1502,4 @@ Use this log when completing each item.
 | 2026-05-10 | Make dedicated translation target language route-addressable | `339cbb7` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader can open translation mode as a dedicated notebook tab|reader restores dedicated translation target language from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | turns `workspace=translation` into a self-describing target-language contract so direct opens, target-language switches, and reload no longer fall back to the workspace-local translation default |
 | 2026-05-10 | Make dedicated translation provider route-addressable | `821c8f6` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation provider from route state in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | turns `workspace=translation` into a self-describing provider-choice contract so direct opens, provider switches, and reload no longer fall back to workspace-local translation provider state |
 | 2026-05-10 | Prefer current chapter body excerpts for EPUB source TTS | `bc5cfa2` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader uses current chapter body excerpts as the EPUB source tts target in web mode|reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | promotes real EPUB/Foliate chapter body sentences ahead of chapter-title fallback for source-side TTS and aligns the focused smoke contract with the current translated-waiting copy |
+| 2026-05-15 | Add the reader playback queue model | not committed; user requested a dirty working tree only | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cd /Users/dev/workspace2/hc_apps/br1 && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-playback-queue-tests --noEmit false && node --test ./.tmp-playback-queue-tests/src/lib/reader/playbackQueue.test.js`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | adds a pure queue/rate/timeout state machine derived from `ReaderTtsSpeechTarget`, so Task 5 can wire playback-panel controls without inventing a second TTS target model |

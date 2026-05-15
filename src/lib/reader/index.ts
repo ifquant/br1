@@ -204,6 +204,19 @@ export type {
   ReaderFocusedReadingState
 } from './readingMode';
 export {
+  createReaderPlaybackQueue,
+  getReaderPlaybackQueueSummary,
+  moveReaderPlaybackQueueNext,
+  moveReaderPlaybackQueuePrevious,
+  setReaderPlaybackRate,
+  setReaderPlaybackTimeout
+} from './playbackQueue';
+export type {
+  ReaderPlaybackQueueState,
+  ReaderPlaybackQueueSummary,
+  ReaderPlaybackSegment
+} from './types';
+export {
   getDesktopBookDialogExtensions,
   getSearchSupportMessage,
   getReaderFormatSupportStatus,
