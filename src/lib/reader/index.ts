@@ -191,6 +191,19 @@ export {
 } from './settings';
 export type { ReaderShellPalette, ReaderThemePalette } from './settings';
 export {
+  canStartReaderFocusedReading,
+  createReaderFocusedReadingState,
+  advanceReaderRsvpWord,
+  exitReaderFocusedReading,
+  getReaderFocusedReadingSummary,
+  startReaderParagraphFocus,
+  startReaderRsvpLite
+} from './readingMode';
+export type {
+  ReaderFocusedReadingMode,
+  ReaderFocusedReadingState
+} from './readingMode';
+export {
   getDesktopBookDialogExtensions,
   getSearchSupportMessage,
   getReaderFormatSupportStatus,

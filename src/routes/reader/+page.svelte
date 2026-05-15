@@ -11,6 +11,7 @@
     ReaderAssistanceHistoryEntry,
     ReaderAssistanceWorkspaceSelection,
     ReaderControlRequest,
+    ReaderFocusedReadingState,
     ReaderInlineTranslationState,
     ReaderInlineTranslationTargetLanguage,
     ReaderLookupProvider,
@@ -21,6 +22,7 @@
     ReaderSidebarCallbacks,
     ReaderSearchHistoryEntry,
     ReaderSearchResult,
+    ReaderSelectionState,
     ReaderTtsReadAloudTextMode,
     ReaderLiveTranslationPanelResult,
     ReaderTranslationLiveSnapshot,
@@ -54,6 +56,7 @@
     createLoadingReaderAssistanceState,
     createReaderAssistanceHistoryEntry,
     createReaderBookmarksController,
+    createReaderFocusedReadingState,
     createReaderNotesController,
     createReaderParallelSessionFromRoute,
     createReaderSearchController,
@@ -61,6 +64,7 @@
     createReaderTtsController,
     getReaderLocationDisplayLabel,
     getReaderInlineTranslationSummary,
+    getReaderFocusedReadingSummary,
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel,
@@ -70,11 +74,15 @@
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     planReaderTtsRetargetAction,
+    startReaderParagraphFocus,
+    startReaderRsvpLite,
     toReaderOpenControlRequest,
     toReaderWorkspaceModeHref,
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
+    advanceReaderRsvpWord,
+    exitReaderFocusedReading,
     toggleReaderInlineTranslationVisibility,
     upsertReaderInlineTranslationCandidate,
     upsertReaderAssistanceHistoryEntry,
@@ -238,6 +246,9 @@
   let translatedTtsOwnerStorageKey = '';
   let translatedTtsLiveSnapshotStorageKey = '';
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
+  let currentReaderSelection: ReaderSelectionState | null = null;
+  let focusedReadingState: ReaderFocusedReadingState = createReaderFocusedReadingState();
+  let focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
   let assistanceSelection: ReaderAssistanceWorkspaceSelection =
@@ -686,6 +697,8 @@
     inlineTranslationStatusMessage = '等待可翻译正文。';
     inlineTranslationCapabilityMessage = '正文内译文会等待阅读视窗提供安全正文候选。';
     latestInlineTranslationCandidates = null;
+    currentReaderSelection = null;
+    focusedReadingState = createReaderFocusedReadingState();
     lastAssistanceBookKey = readerBookKey;
   }
   $: {
@@ -742,6 +755,7 @@
     }
   }
   $: inlineTranslationSummary = getReaderInlineTranslationSummary(inlineTranslationState);
+  $: focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
   $: if (
     routeOpenState.translationHistoryEntryId &&
     routeOpenState.translationHistoryEntryId !== assistanceSelection.translationHistoryEntryId
@@ -1013,6 +1027,7 @@
   }
 
   $: if (!supportsTextAnnotationsForFormat(currentPreview.formatLabel)) {
+    currentReaderSelection = null;
     notesController.setSelection(null);
   }
   const refreshCurrentManagedBookState = async () => {
@@ -1492,6 +1507,30 @@
     }
 
     applyInlineTranslationCandidates(detail);
+  };
+
+  // Focused reading is route-owned on purpose: the overlay should reuse the
+  // same preview/selection contract as translation and TTS instead of letting a
+  // canvas-local component infer extra reader state from DOM.
+  const getFocusedReadingInput = () => ({
+    preview: currentPreview,
+    selection: currentReaderSelection
+  });
+
+  const startParagraphFocusMode = () => {
+    focusedReadingState = startReaderParagraphFocus(focusedReadingState, getFocusedReadingInput());
+  };
+
+  const startRsvpLiteMode = () => {
+    focusedReadingState = startReaderRsvpLite(focusedReadingState, getFocusedReadingInput());
+  };
+
+  const exitFocusedReadingMode = () => {
+    focusedReadingState = exitReaderFocusedReading(focusedReadingState);
+  };
+
+  const moveFocusedReadingWord = (delta: number) => {
+    focusedReadingState = advanceReaderRsvpWord(focusedReadingState, delta);
   };
 
   const toggleInlineTranslationSourceVisibility = () => {
@@ -2098,6 +2137,7 @@
             sidebarController.openTab('notes');
           }}
           on:selectionchange={({ detail }) => {
+            currentReaderSelection = detail;
             notesController.setSelection(detail);
           }}
           on:searchchange={({ detail }) => {
@@ -2127,6 +2167,8 @@
           ttsMiniBarCanPinCurrentTarget={ttsMiniBarCanPinCurrentTarget}
           ttsMiniBarModeSwitchLabel={ttsMiniBarModeSwitchLabel}
           ttsMiniBarCanSwitchMode={ttsMiniBarCanSwitchMode}
+          {focusedReadingState}
+          {focusedReadingSummary}
           inlineTranslationVisible={notebookVisible && notebookTab === 'translation'}
           inlineTranslationState={inlineTranslationState}
           inlineTranslationSummary={inlineTranslationSummary}
@@ -2137,6 +2179,11 @@
           onOpenTranslationModeFromMiniBar={openTranslationMode}
           onResumeFollowingCurrentTtsTargetFromMiniBar={resumeFollowingCurrentTtsTarget}
           onPinCurrentTtsTargetFromMiniBar={pinCurrentTtsTarget}
+          onStartParagraphFocus={startParagraphFocusMode}
+          onStartRsvpLite={startRsvpLiteMode}
+          onExitFocusedReading={exitFocusedReadingMode}
+          onFocusedReadingPreviousWord={() => moveFocusedReadingWord(-1)}
+          onFocusedReadingNextWord={() => moveFocusedReadingWord(1)}
           onToggleInlineTranslationEnabled={toggleInlineTranslationEnabled}
           onToggleInlineTranslationSourceVisibility={toggleInlineTranslationSourceVisibility}
           onToggleInlineTranslationTranslationVisibility={toggleInlineTranslationTranslationVisibility}

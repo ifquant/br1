@@ -5,6 +5,8 @@
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import type {
     ReaderControlRequest,
+    ReaderFocusedReadingMode,
+    ReaderFocusedReadingState,
     ReaderInlineTranslationState,
     ReaderNote,
     ReaderPreviewState,
@@ -24,6 +26,7 @@
   } from '$lib/reader';
   import type { ReaderTtsSessionState } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
+  import ReaderFocusedReadingOverlay from './ReaderFocusedReadingOverlay.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
   import ReaderInlineTranslationLayer from './ReaderInlineTranslationLayer.svelte';
   import ReaderTtsMiniBar from './ReaderTtsMiniBar.svelte';
@@ -79,6 +82,8 @@
   export let ttsMiniBarCanPinCurrentTarget = false;
   export let ttsMiniBarModeSwitchLabel = '';
   export let ttsMiniBarCanSwitchMode = false;
+  export let focusedReadingState: ReaderFocusedReadingState | null = null;
+  export let focusedReadingSummary = '';
   export let inlineTranslationVisible = false;
   export let inlineTranslationState: ReaderInlineTranslationState | null = null;
   export let inlineTranslationSummary = '';
@@ -95,6 +100,11 @@
   export let onResumeFollowingCurrentTtsTargetFromMiniBar: (() => void) | null = null;
   export let onPinCurrentTtsTargetFromMiniBar: (() => void) | null = null;
   export let onSwitchTtsModeFromMiniBar: (() => void) | null = null;
+  export let onStartParagraphFocus: (() => void) | null = null;
+  export let onStartRsvpLite: (() => void) | null = null;
+  export let onExitFocusedReading: (() => void) | null = null;
+  export let onFocusedReadingPreviousWord: (() => void) | null = null;
+  export let onFocusedReadingNextWord: (() => void) | null = null;
   export let onToggleInlineTranslationEnabled: (() => void) | null = null;
   export let onToggleInlineTranslationSourceVisibility: (() => void) | null = null;
   export let onToggleInlineTranslationTranslationVisibility: (() => void) | null = null;
@@ -105,6 +115,7 @@
   let chromeVisible = true;
   let chromeTimer: ReturnType<typeof setTimeout> | null = null;
   let settings: ReaderSettings = createDefaultReaderSettings();
+  let focusedReadingMode: ReaderFocusedReadingMode = 'off';
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -237,6 +248,8 @@
     scheduleChromeHide();
   }
 
+  $: focusedReadingMode = focusedReadingState?.mode ?? 'off';
+
   const getStageThemeVars = () => {
     const shell = getReaderShellPalette(settings.themePreset);
     return [
@@ -284,34 +297,42 @@
     on:change={handleImportChange}
   />
 
-  <ReaderHeaderBar
-    preview={readerPreview}
-    {isWindowMode}
-    {sidebarVisible}
-    isVisible={chromeVisible}
-    {activeSidebarTab}
-    {isCurrentLocationBookmarked}
-    {settings}
-    {ttsSession}
-    onGoToLibrary={goToLibrary}
-    onToggleBookmark={toggleBookmark}
-    onOpenPicker={triggerImportPicker}
-    onToggleSidebar={toggleSidebar}
-    onTogglePin={isWindowMode ? togglePinned : null}
-    onOpenSidebarTab={openSidebarTab}
-    onUpdateSettings={updateSettings}
-    onSetChromeMode={setChromeMode}
-    {onTtsStart}
-    {onTtsPause}
-    {onTtsResume}
-    {onTtsStop}
-  />
+  <div aria-hidden={focusedReadingMode !== 'off'} inert={focusedReadingMode !== 'off'}>
+    <ReaderHeaderBar
+      preview={readerPreview}
+      {isWindowMode}
+      {sidebarVisible}
+      isVisible={chromeVisible}
+      {activeSidebarTab}
+      {isCurrentLocationBookmarked}
+      {settings}
+      {ttsSession}
+      {focusedReadingMode}
+      onGoToLibrary={goToLibrary}
+      onToggleBookmark={toggleBookmark}
+      onOpenPicker={triggerImportPicker}
+      onToggleSidebar={toggleSidebar}
+      onTogglePin={isWindowMode ? togglePinned : null}
+      onOpenSidebarTab={openSidebarTab}
+      onUpdateSettings={updateSettings}
+      onSetChromeMode={setChromeMode}
+      {onTtsStart}
+      {onTtsPause}
+      {onTtsResume}
+      {onTtsStop}
+      {onStartParagraphFocus}
+      {onStartRsvpLite}
+      {onExitFocusedReading}
+    />
+  </div>
 
   <article
+    aria-hidden={focusedReadingMode !== 'off'}
     class:window-mode={isWindowMode}
     class:focus-width={settings.viewWidthMode === 'focus'}
     class:wide-width={settings.viewWidthMode === 'wide'}
     class="canvas"
+    inert={focusedReadingMode !== 'off'}
   >
     <ReaderViewport
       title="阅读表面"
@@ -356,51 +377,63 @@
     {/if}
   </article>
 
-  {#if ttsMiniBarVisible}
-    <ReaderTtsMiniBar
-      statusLabel={ttsMiniBarStatusLabel}
-      contextSummary={ttsMiniBarContextSummary}
-      targetLabel={ttsMiniBarTargetLabel}
-      locationSummary={ttsMiniBarLocationSummary}
-      primaryActionLabel={ttsMiniBarPrimaryActionLabel}
-      canRunPrimaryAction={ttsMiniBarCanRunPrimaryAction}
-      canStop={ttsMiniBarCanStop}
-      canJumpToPlaybackLocation={ttsMiniBarCanJumpToPlaybackLocation}
-      canOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
-      canResumeFollowingCurrent={ttsMiniBarCanResumeFollowingCurrent}
-      canPinCurrentTarget={ttsMiniBarCanPinCurrentTarget}
-      modeSwitchLabel={ttsMiniBarModeSwitchLabel}
-      canSwitchMode={ttsMiniBarCanSwitchMode}
-      onRunPrimaryAction={() => {
-        if (ttsSession.status === 'speaking') {
-          onTtsPause?.();
-          return;
-        }
-        if (ttsSession.status === 'paused') {
-          onTtsResume?.();
-          return;
-        }
-        onTtsStart?.();
-      }}
-      onStop={onTtsStop}
-      onOpenWorkspace={onOpenTtsWorkspace}
-      onJumpToPlaybackLocation={onJumpToTtsPlaybackLocation}
-      onOpenTranslationMode={onOpenTranslationModeFromMiniBar}
-      onResumeFollowingCurrent={onResumeFollowingCurrentTtsTargetFromMiniBar}
-      onPinCurrentTarget={onPinCurrentTtsTargetFromMiniBar}
-      onSwitchMode={onSwitchTtsModeFromMiniBar}
+  {#if focusedReadingState && focusedReadingState.mode !== 'off'}
+    <ReaderFocusedReadingOverlay
+      state={focusedReadingState}
+      summary={focusedReadingSummary}
+      onExit={onExitFocusedReading}
+      onPreviousWord={onFocusedReadingPreviousWord}
+      onNextWord={onFocusedReadingNextWord}
     />
   {/if}
 
-  <ReaderFooterBar
-    preview={readerPreview}
-    {isWindowMode}
-    isVisible={chromeVisible}
-    viewWidthMode={settings.viewWidthMode}
-    on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
-      dispatch('controlrequest', detail);
-    }}
-  />
+  <div aria-hidden={focusedReadingMode !== 'off'} inert={focusedReadingMode !== 'off'}>
+    {#if ttsMiniBarVisible}
+      <ReaderTtsMiniBar
+        statusLabel={ttsMiniBarStatusLabel}
+        contextSummary={ttsMiniBarContextSummary}
+        targetLabel={ttsMiniBarTargetLabel}
+        locationSummary={ttsMiniBarLocationSummary}
+        primaryActionLabel={ttsMiniBarPrimaryActionLabel}
+        canRunPrimaryAction={ttsMiniBarCanRunPrimaryAction}
+        canStop={ttsMiniBarCanStop}
+        canJumpToPlaybackLocation={ttsMiniBarCanJumpToPlaybackLocation}
+        canOpenTranslationMode={ttsMiniBarCanOpenTranslationMode}
+        canResumeFollowingCurrent={ttsMiniBarCanResumeFollowingCurrent}
+        canPinCurrentTarget={ttsMiniBarCanPinCurrentTarget}
+        modeSwitchLabel={ttsMiniBarModeSwitchLabel}
+        canSwitchMode={ttsMiniBarCanSwitchMode}
+        onRunPrimaryAction={() => {
+          if (ttsSession.status === 'speaking') {
+            onTtsPause?.();
+            return;
+          }
+          if (ttsSession.status === 'paused') {
+            onTtsResume?.();
+            return;
+          }
+          onTtsStart?.();
+        }}
+        onStop={onTtsStop}
+        onOpenWorkspace={onOpenTtsWorkspace}
+        onJumpToPlaybackLocation={onJumpToTtsPlaybackLocation}
+        onOpenTranslationMode={onOpenTranslationModeFromMiniBar}
+        onResumeFollowingCurrent={onResumeFollowingCurrentTtsTargetFromMiniBar}
+        onPinCurrentTarget={onPinCurrentTtsTargetFromMiniBar}
+        onSwitchMode={onSwitchTtsModeFromMiniBar}
+      />
+    {/if}
+
+    <ReaderFooterBar
+      preview={readerPreview}
+      {isWindowMode}
+      isVisible={chromeVisible}
+      viewWidthMode={settings.viewWidthMode}
+      on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
+        dispatch('controlrequest', detail);
+      }}
+    />
+  </div>
 </section>
 
 <style>
@@ -408,6 +441,7 @@
     --reader-stage-fill:
       linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0)),
       color-mix(in srgb, var(--surface-reader) 94%, white 6%);
+    position: relative;
     display: grid;
     gap: 12px;
     min-width: 0;

@@ -2621,6 +2621,46 @@ test('reader opens txt assets in web mode', async ({ page }) => {
   await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
 
+test('reader opens paragraph focus and rsvp-lite reading modes in web mode', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toContainText('段落聚焦');
+  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toContainText(
+    'This plain text file exists to verify'
+  );
+  await page.getByRole('button', { name: '退出专注阅读' }).click();
+  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开 RSVP-lite' }).click();
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toContainText('RSVP-lite');
+  await expect(overlay.getByLabel('RSVP-lite 当前词')).toBeVisible();
+  await overlay.getByRole('button', { name: '下一个词' }).click();
+  await expect(overlay.getByLabel('RSVP-lite 进度')).toContainText(/2 \/ \d+/);
+
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20Outline%20PDF'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible();
+  await expect(page.getByLabel('当前阅读状态').getByText('第 1 / 4 页')).toBeVisible();
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+  const unsupportedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(unsupportedOverlay).toBeVisible();
+  await expect(unsupportedOverlay).toContainText('PDF 正文暂时不能进入专注阅读');
+});
+
 test('reader search states read like one product surface across txt and epub', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

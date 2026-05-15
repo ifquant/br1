@@ -757,7 +757,10 @@
   };
 
   // Boundary: the viewport may report only text it already owns for reader/TTS
-  // previews. Provider calls and translated DOM insertion stay outside this file.
+  // previews. The focused-reading helpers and inline-translation lane both
+  // reuse this same safe excerpt instead of asking the helper layer to inspect
+  // renderer DOM on its own. Provider calls and translated DOM insertion stay
+  // outside this file.
   const emitInlineTranslationCandidates = (previewState: ReaderPreviewState) => {
     if (openStatus !== 'open') {
       const hasKnownUnsupportedFormat =

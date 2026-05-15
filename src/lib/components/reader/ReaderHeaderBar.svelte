@@ -4,6 +4,7 @@
 <script lang="ts">
   import { startCurrentWindowDrag } from '$lib/services';
   import type {
+    ReaderFocusedReadingMode,
     ReaderPreviewState,
     ReaderSettings,
     SidebarTab,
@@ -23,6 +24,7 @@
   export let isCurrentLocationBookmarked = false;
   export let settings: ReaderSettings;
   export let ttsSession: ReaderTtsSessionState;
+  export let focusedReadingMode: ReaderFocusedReadingMode = 'off';
   export let onGoToLibrary: (() => void) | null = null;
   export let onToggleBookmark: (() => void) | null = null;
   export let onOpenPicker: (() => void) | null = null;
@@ -35,6 +37,9 @@
   export let onTtsPause: (() => void) | null = null;
   export let onTtsResume: (() => void) | null = null;
   export let onTtsStop: (() => void) | null = null;
+  export let onStartParagraphFocus: (() => void) | null = null;
+  export let onStartRsvpLite: (() => void) | null = null;
+  export let onExitFocusedReading: (() => void) | null = null;
 
   let menuOpen = false;
   $: ttsStatusLabel = getReaderTtsSessionStatusLabel(ttsSession);
@@ -534,6 +539,29 @@
                       >
                         段落聚焦
                       </button>
+                    </div>
+                    <div class="menu-option-group" role="group" aria-label="专注阅读">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class:active-option={focusedReadingMode === 'paragraph'}
+                        on:click={() => runMenuAction(onStartParagraphFocus)}
+                      >
+                        {focusedReadingMode === 'paragraph' ? '重新打开段落聚焦' : '打开段落聚焦'}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class:active-option={focusedReadingMode === 'rsvp'}
+                        on:click={() => runMenuAction(onStartRsvpLite)}
+                      >
+                        {focusedReadingMode === 'rsvp' ? '重新打开 RSVP-lite' : '打开 RSVP-lite'}
+                      </button>
+                      {#if focusedReadingMode !== 'off'}
+                        <button type="button" role="menuitem" on:click={() => runMenuAction(onExitFocusedReading)}>
+                          退出专注阅读
+                        </button>
+                      {/if}
                     </div>
                   </div>
                 </div>

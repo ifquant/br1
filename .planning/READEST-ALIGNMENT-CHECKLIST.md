@@ -1,6 +1,6 @@
 # Readest Alignment Checklist
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 ## Purpose
 
@@ -1368,6 +1368,14 @@ Goal: move translation toward a real reading-surface mode without weakening the 
   - Done commit: pending user commit.
   - Tutorial: `tutorials/commit/0650-surface-inline-translation-candidates.md`.
   - Notes: this slice intentionally does not walk arbitrary iframe DOM, call translation providers from the renderer, or insert translated DOM into Foliate content. PDF/CBZ and unsupported formats report waiting/unsupported copy instead.
+
+- [x] P16-1.3 Add a focused paragraph/RSVP reading-mode shell
+  - Outcome: the reader now exposes a temporary focused-reading overlay with paragraph focus and RSVP-lite entry points that reuse the existing reader preview/selection contract without mutating persisted focus-aid settings.
+  - Touches: focused-reading helper state, reader stage/header overlay wiring, route-owned temporary mode state, focused web smoke, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-reading-mode-tests --noEmit false && node --test ./.tmp-reading-mode-tests/src/lib/reader/readingMode.test.js` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader opens paragraph focus and rsvp-lite reading modes in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed; user requested a dirty working tree only.
+  - Tutorial: `tutorials/commit/0651-add-focused-reading-mode-shell.md`.
+  - Notes: this first slice stays intentionally small. It does not add Readest's fuller RSVP controller, saved stop position, or temporary Foliate highlight ownership, and PDF/CBZ still show capability copy instead of pretending to extract text.
 
 
 ## Service Security Gate
