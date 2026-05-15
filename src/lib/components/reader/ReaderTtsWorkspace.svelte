@@ -2,7 +2,9 @@
  to the user. It may render state from the route or helper modules, but it should
  not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
+  import ReaderPlaybackPanel from './ReaderPlaybackPanel.svelte';
   import type {
+    ReaderPlaybackQueueSummary,
     ReaderTtsReadAloudTextMode,
     ReaderTtsSessionState,
     ReaderTtsSpeechTarget
@@ -28,6 +30,12 @@
   export let translationModeSourceText = '';
   export let translationModeSourceLabel = '';
   export let translationModeFollowsCurrent = true;
+  export let playbackSummary: ReaderPlaybackQueueSummary;
+  export let playbackSupportsSegmentNavigation = false;
+  export let canGoToPreviousPlaybackSegment = false;
+  export let canGoToNextPlaybackSegment = false;
+  export let playbackVoiceCapabilityLabel = '当前浏览器没有暴露可选语音列表。';
+  export let playbackSelectedVoiceLabel = '';
   export let onStart: (() => void) | null = null;
   export let onPause: (() => void) | null = null;
   export let onResume: (() => void) | null = null;
@@ -37,6 +45,10 @@
   export let onJumpToCurrentTtsLocation: (() => void) | null = null;
   export let onSetReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
   export let onOpenTranslationMode: (() => void) | null = null;
+  export let onGoToPreviousPlaybackSegment: (() => void) | null = null;
+  export let onGoToNextPlaybackSegment: (() => void) | null = null;
+  export let onSetPlaybackRate: ((rate: number) => void) | null = null;
+  export let onTogglePlaybackTimeout: (() => void) | null = null;
 
   $: ttsStatusLabel = getReaderTtsSessionStatusLabel(ttsSession);
   $: ttsStatusDetail = getReaderTtsStatusDetail(ttsSession);
@@ -120,54 +132,31 @@
     <span>{effectivePlaybackLocationSummary || '朗读位置待定'}</span>
   </div>
 
-  <div class="tts-actions">
-    <button
-      type="button"
-      class:active={readAloudTextMode === 'source'}
-      class="ghost-action"
-      aria-pressed={readAloudTextMode === 'source'}
-      on:click={() => onSetReadAloudTextMode?.('source')}
-    >
-      朗读原文
-    </button>
-    <button
-      type="button"
-      class:active={readAloudTextMode === 'translated'}
-      class="ghost-action"
-      aria-pressed={readAloudTextMode === 'translated'}
-      on:click={() => onSetReadAloudTextMode?.('translated')}
-    >
-      朗读译文
-    </button>
-    <button
-      type="button"
-      class="primary-action"
-      disabled={!hasTarget || ttsSession.status === 'unavailable'}
-      aria-label={ttsPrimaryActionLabel}
-      on:click={runPrimaryAction}
-    >
-      {ttsPrimaryActionLabel}
-    </button>
-    {#if canStop}
-      <button type="button" class="ghost-action" on:click={() => onStop?.()}>
-        停止朗读
-      </button>
-    {/if}
-    {#if followsCurrentLocation}
-      <button type="button" class="ghost-action" disabled={!hasTarget} on:click={() => onPinCurrentTarget?.()}>
-        锁定当前朗读目标
-      </button>
-    {:else}
-      <button type="button" class="ghost-action" on:click={() => onResumeFollowingCurrent?.()}>
-        回到当前阅读位置
-      </button>
-    {/if}
-    {#if canJumpToCurrentTtsLocation}
-      <button type="button" class="ghost-action" on:click={() => onJumpToCurrentTtsLocation?.()}>
-        回到朗读位置
-      </button>
-    {/if}
-  </div>
+  <ReaderPlaybackPanel
+    summary={playbackSummary}
+    {readAloudTextMode}
+    supportsSegmentNavigation={playbackSupportsSegmentNavigation}
+    canGoPrevious={canGoToPreviousPlaybackSegment}
+    canGoNext={canGoToNextPlaybackSegment}
+    canRunPrimaryAction={hasTarget && ttsSession.status !== 'unavailable'}
+    {canStop}
+    {followsCurrentLocation}
+    {hasTarget}
+    {canJumpToCurrentTtsLocation}
+    voiceCapabilityLabel={playbackVoiceCapabilityLabel}
+    selectedVoiceLabel={playbackSelectedVoiceLabel}
+    primaryActionLabel={ttsPrimaryActionLabel}
+    onPrevious={onGoToPreviousPlaybackSegment}
+    onNext={onGoToNextPlaybackSegment}
+    onRunPrimaryAction={runPrimaryAction}
+    {onStop}
+    onPinCurrentTarget={onPinCurrentTarget}
+    onResumeFollowingCurrent={onResumeFollowingCurrent}
+    onJumpToCurrentTtsLocation={onJumpToCurrentTtsLocation}
+    onSetReadAloudTextMode={onSetReadAloudTextMode}
+    onSetRate={onSetPlaybackRate}
+    onToggleTimeout={onTogglePlaybackTimeout}
+  />
 
   <div class="tts-panels">
     <article class="tts-panel">
@@ -266,13 +255,6 @@
     background: color-mix(in srgb, var(--surface-reader) 86%, white 14%);
   }
 
-  .tts-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .primary-action,
   .ghost-action {
     min-height: 34px;
     border: 1px solid var(--border-light);
@@ -283,17 +265,11 @@
     cursor: pointer;
   }
 
-  .primary-action {
-    background: color-mix(in srgb, var(--accent-warm, #8c6a3b) 20%, var(--surface-reader) 80%);
-    color: color-mix(in srgb, var(--accent-warm, #8c6a3b) 78%, black 22%);
-  }
-
   .ghost-action {
     background: color-mix(in srgb, var(--surface-reader) 88%, white 12%);
     color: var(--text-secondary);
   }
 
-  .primary-action:disabled,
   .ghost-action:disabled {
     opacity: 0.65;
     cursor: not-allowed;
@@ -308,7 +284,6 @@
     justify-self: start;
   }
 
-  .primary-action:focus-visible,
   .ghost-action:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--accent-warm, #8c6a3b) 72%, white 28%);
     outline-offset: 3px;

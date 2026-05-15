@@ -2299,6 +2299,18 @@ test('reader uses current chapter body excerpts as the EPUB source tts target in
   await expect(miniBar).toContainText('当前章节正文');
 });
 
+test('reader tts workspace exposes mature playback controls in web mode', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book&workspace=tts'
+  );
+
+  const ttsRegion = page.getByRole('region', { name: '朗读模式' });
+  await expect(ttsRegion.getByRole('region', { name: '播放控制' })).toBeVisible();
+  await expect(ttsRegion.getByRole('slider', { name: '朗读速度' })).toBeVisible();
+  await expect(ttsRegion.getByRole('button', { name: '定时关闭' })).toBeVisible();
+  await expect(ttsRegion.getByText('正文多段分段还没有接入这条 route-local 队列')).toBeVisible();
+});
+
 test('reader lets translated tts mode consume the selected translation archive in web mode', async ({
   page
 }) => {

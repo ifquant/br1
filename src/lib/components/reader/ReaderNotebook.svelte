@@ -13,6 +13,7 @@
   } from '$lib/services';
 import type {
   ReaderAssistanceHistoryEntry,
+  ReaderPlaybackQueueSummary,
   ReaderAssistanceState,
   ReaderPreviewState,
   ReaderSidebarCallbacks,
@@ -68,6 +69,12 @@ import type {
   export let ttsTarget: ReaderTtsSpeechTarget | null = null;
   export let ttsFollowsCurrentLocation = true;
   export let ttsReadAloudTextMode: ReaderTtsReadAloudTextMode = 'source';
+  export let ttsPlaybackSummary: ReaderPlaybackQueueSummary;
+  export let ttsPlaybackSupportsSegmentNavigation = false;
+  export let ttsCanGoToPreviousPlaybackSegment = false;
+  export let ttsCanGoToNextPlaybackSegment = false;
+  export let ttsPlaybackVoiceCapabilityLabel = '当前浏览器没有暴露可选语音列表。';
+  export let ttsPlaybackSelectedVoiceLabel = '';
   export let canJumpToCurrentTtsLocation = false;
   export let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   export let translatedTtsSourceContextLabel = '';
@@ -138,6 +145,10 @@ import type {
   export let onSetTtsReadAloudTextMode: ((mode: ReaderTtsReadAloudTextMode) => void) | null = null;
   export let onOpenTranslatedTtsMode: (() => void) | null = null;
   export let onOpenTranslationMode: (() => void) | null = null;
+  export let onGoToPreviousPlaybackSegment: (() => void) | null = null;
+  export let onGoToNextPlaybackSegment: (() => void) | null = null;
+  export let onSetPlaybackRate: ((rate: number) => void) | null = null;
+  export let onTogglePlaybackTimeout: (() => void) | null = null;
   export let onPinCurrentTranslationSource:
     | ((source: { text: string; label: string }) => void)
     | null = null;
@@ -448,6 +459,12 @@ import type {
           target={ttsTarget}
           followsCurrentLocation={ttsFollowsCurrentLocation}
           readAloudTextMode={ttsReadAloudTextMode}
+          playbackSummary={ttsPlaybackSummary}
+          playbackSupportsSegmentNavigation={ttsPlaybackSupportsSegmentNavigation}
+          canGoToPreviousPlaybackSegment={ttsCanGoToPreviousPlaybackSegment}
+          canGoToNextPlaybackSegment={ttsCanGoToNextPlaybackSegment}
+          playbackVoiceCapabilityLabel={ttsPlaybackVoiceCapabilityLabel}
+          playbackSelectedVoiceLabel={ttsPlaybackSelectedVoiceLabel}
           {canJumpToCurrentTtsLocation}
           {translatedTtsSourceKind}
           fallbackPlaybackLocationSummary={previewPlaybackLocationSummary}
@@ -465,6 +482,10 @@ import type {
           onJumpToCurrentTtsLocation={onJumpToCurrentTtsLocation}
           onSetReadAloudTextMode={onSetTtsReadAloudTextMode}
           onOpenTranslationMode={onOpenTranslationMode}
+          onGoToPreviousPlaybackSegment={onGoToPreviousPlaybackSegment}
+          onGoToNextPlaybackSegment={onGoToNextPlaybackSegment}
+          onSetPlaybackRate={onSetPlaybackRate}
+          onTogglePlaybackTimeout={onTogglePlaybackTimeout}
         />
       {:else}
         <ReaderSyncWorkspace

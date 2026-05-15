@@ -16,6 +16,7 @@
     ReaderInlineTranslationTargetLanguage,
     ReaderLookupProvider,
     ReaderNotebookWorkspaceTab,
+    ReaderPlaybackQueueState,
     ReaderPreviewState,
     ReaderRouteOpenState,
     ReaderRouteWorkspaceMode,
@@ -59,21 +60,27 @@
     createReaderFocusedReadingState,
     createReaderNotesController,
     createReaderParallelSessionFromRoute,
+    createReaderPlaybackQueue,
     createReaderSearchController,
     createReaderSidebarController,
     createReaderTtsController,
     getReaderLocationDisplayLabel,
     getReaderInlineTranslationSummary,
+    getReaderPlaybackQueueSummary,
     getReaderFocusedReadingSummary,
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel,
     isReaderTtsPlaybackLocationDrifted,
+    moveReaderPlaybackQueueNext,
+    moveReaderPlaybackQueuePrevious,
     normalizeAssistanceTerm,
     normalizeAssistanceText,
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     planReaderTtsRetargetAction,
+    setReaderPlaybackRate,
+    setReaderPlaybackTimeout,
     startReaderParagraphFocus,
     startReaderRsvpLite,
     toReaderOpenControlRequest,
@@ -206,6 +213,17 @@
   let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   let translatedTtsSourceContextLabel = '';
   let translatedTtsSourceText = '';
+  let ttsPlaybackQueueState: ReaderPlaybackQueueState = createReaderPlaybackQueue([]);
+  let ttsPlaybackQueueSummary = getReaderPlaybackQueueSummary(ttsPlaybackQueueState);
+  let ttsPlaybackTarget: ReaderTtsSpeechTarget | null = null;
+  let ttsPlaybackSupportsSegmentNavigation = false;
+  let ttsPlaybackCanGoToPreviousSegment = false;
+  let ttsPlaybackCanGoToNextSegment = false;
+  let lastPlaybackQueueTargetKey = '';
+  let ttsPlaybackNow = Date.now();
+  let playbackTimeoutTicker: ReturnType<typeof setInterval> | null = null;
+  let ttsPlaybackVoiceCapabilityLabel = '浏览器语音列表仍由当前运行时按能力暴露。';
+  let ttsPlaybackSelectedVoiceLabel = '';
   let currentManagedBook: PersistedLibraryBook | null = null;
   let readerSyncBusyAction: 'export-current' | 'import-exchange' | 'push-remote' | 'pull-remote' | null =
     null;
@@ -294,6 +312,7 @@
   };
   const ttsController = createReaderTtsController();
   const ttsState = ttsController.state;
+  const READER_PLAYBACK_TIMEOUT_PRESET_MS = 15 * 60 * 1000;
 
   $: routeOpenState = parseReaderRouteOpenState($page.url) satisfies ReaderRouteOpenState;
   $: isWindowMode = routeOpenState.isWindowMode;
@@ -791,6 +810,60 @@
     pinnedTarget: pinnedTtsTarget,
     resolvedTarget: resolvedTtsTarget
   });
+  // Route-local playback panel state stays separate from persisted TTS
+  // ownership. Rebuilding from the current effective target keeps Task 4's pure
+  // queue helper as the single source of queue/rate/timeout semantics.
+  $: {
+    effectiveTtsTarget;
+    const nextPlaybackQueueTargetKey = JSON.stringify(effectiveTtsTarget ?? null);
+    if (nextPlaybackQueueTargetKey !== lastPlaybackQueueTargetKey) {
+      const now = Date.now();
+      const timeoutRemainingMs =
+        typeof ttsPlaybackQueueState.timeoutAt === 'number' && ttsPlaybackQueueState.timeoutAt > now
+          ? ttsPlaybackQueueState.timeoutAt - now
+          : null;
+      ttsPlaybackQueueState = createReaderPlaybackQueue([effectiveTtsTarget], {
+        playbackRate: ttsPlaybackQueueState.playbackRate,
+        timeoutMs: timeoutRemainingMs,
+        now
+      });
+      lastPlaybackQueueTargetKey = nextPlaybackQueueTargetKey;
+    }
+  }
+  $: ttsPlaybackQueueSummary = getReaderPlaybackQueueSummary(ttsPlaybackQueueState, ttsPlaybackNow);
+  $: ttsPlaybackTarget = ttsPlaybackQueueSummary.currentSegment?.target ?? effectiveTtsTarget;
+  $: ttsPlaybackSupportsSegmentNavigation = ttsPlaybackQueueState.segments.length > 1;
+  $: ttsPlaybackCanGoToPreviousSegment =
+    ttsPlaybackQueueState.segments.length > 1 && ttsPlaybackQueueState.activeIndex > 0;
+  $: ttsPlaybackCanGoToNextSegment =
+    ttsPlaybackQueueState.segments.length > 1 &&
+    ttsPlaybackQueueState.activeIndex < ttsPlaybackQueueState.segments.length - 1;
+  $: {
+    const timeoutAt = ttsPlaybackQueueState.timeoutAt;
+    if (playbackTimeoutTicker) {
+      clearInterval(playbackTimeoutTicker);
+      playbackTimeoutTicker = null;
+    }
+
+    if (typeof timeoutAt !== 'number' || timeoutAt <= Date.now()) {
+      ttsPlaybackNow = Date.now();
+    } else {
+      ttsPlaybackNow = Date.now();
+      playbackTimeoutTicker = setInterval(() => {
+        const now = Date.now();
+        ttsPlaybackNow = now;
+        if (typeof ttsPlaybackQueueState.timeoutAt === 'number' && ttsPlaybackQueueState.timeoutAt <= now) {
+          ttsPlaybackQueueState = setReaderPlaybackTimeout(ttsPlaybackQueueState, {
+            durationMs: null,
+            now
+          });
+          if ($ttsState.status === 'speaking' || $ttsState.status === 'paused') {
+            ttsController.stop();
+          }
+        }
+      }, 1000);
+    }
+  }
   $: {
     currentPreview;
     $notesState.selection;
@@ -859,7 +932,7 @@
     translatedTtsSourceText = translatedSourceState.text;
   }
   $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
-    ttsController.setSpeechTarget(effectiveTtsTarget);
+    ttsController.setSpeechTarget(ttsPlaybackTarget);
   }
   $: activeTtsProgressLocation = $ttsState.speechProgressLocation.trim();
   $: currentPreviewProgressLocation = currentPreview.progressLocation.trim();
@@ -1321,6 +1394,10 @@
   });
 
   onDestroy(() => {
+    if (playbackTimeoutTicker) {
+      clearInterval(playbackTimeoutTicker);
+      playbackTimeoutTicker = null;
+    }
     flushLibraryReadingStatePersist();
     ttsController.stop();
     searchController.destroy();
@@ -1342,7 +1419,7 @@
   };
 
   const handleTtsStart = () => {
-    ttsController.start(effectiveTtsTarget);
+    ttsController.start(ttsPlaybackTarget);
   };
 
   const handleTtsPause = () => {
@@ -1383,6 +1460,32 @@
     }
 
     ttsController.setSpeechTarget(nextTarget);
+  };
+
+  const retargetPlaybackQueue = (nextState: ReaderPlaybackQueueState) => {
+    ttsPlaybackQueueState = nextState;
+    applyTtsRetarget(getReaderPlaybackQueueSummary(nextState).currentSegment?.target ?? null);
+  };
+
+  const goToPreviousPlaybackSegment = () => {
+    if (!ttsPlaybackCanGoToPreviousSegment) return;
+    retargetPlaybackQueue(moveReaderPlaybackQueuePrevious(ttsPlaybackQueueState));
+  };
+
+  const goToNextPlaybackSegment = () => {
+    if (!ttsPlaybackCanGoToNextSegment) return;
+    retargetPlaybackQueue(moveReaderPlaybackQueueNext(ttsPlaybackQueueState));
+  };
+
+  const setPlaybackRateForRoute = (rate: number) => {
+    ttsPlaybackQueueState = setReaderPlaybackRate(ttsPlaybackQueueState, rate);
+  };
+
+  const togglePlaybackTimeoutForRoute = () => {
+    ttsPlaybackQueueState = setReaderPlaybackTimeout(ttsPlaybackQueueState, {
+      durationMs: ttsPlaybackQueueState.timeoutAt ? null : READER_PLAYBACK_TIMEOUT_PRESET_MS,
+      now: Date.now()
+    });
   };
 
   const pinCurrentTtsTarget = () => {
@@ -2232,9 +2335,15 @@
         selectedTranslationHistoryEntryId={assistanceSelection.translationHistoryEntryId}
         {liveTranslationPanelResult}
         ttsSession={$ttsState}
-        ttsTarget={effectiveTtsTarget}
+        ttsTarget={ttsPlaybackTarget}
         ttsFollowsCurrentLocation={ttsFollowsCurrentLocation}
         ttsReadAloudTextMode={ttsReadAloudTextMode}
+        ttsPlaybackSummary={ttsPlaybackQueueSummary}
+        ttsPlaybackSupportsSegmentNavigation={ttsPlaybackSupportsSegmentNavigation}
+        ttsCanGoToPreviousPlaybackSegment={ttsPlaybackCanGoToPreviousSegment}
+        ttsCanGoToNextPlaybackSegment={ttsPlaybackCanGoToNextSegment}
+        ttsPlaybackVoiceCapabilityLabel={ttsPlaybackVoiceCapabilityLabel}
+        ttsPlaybackSelectedVoiceLabel={ttsPlaybackSelectedVoiceLabel}
         {canJumpToCurrentTtsLocation}
         {translatedTtsSourceKind}
         translatedTtsSourceContextLabel={translatedTtsSourceContextLabel}
@@ -2276,6 +2385,10 @@
         onPinCurrentTtsTarget={pinCurrentTtsTarget}
         onResumeFollowingCurrentTtsTarget={resumeFollowingCurrentTtsTarget}
         onJumpToCurrentTtsLocation={jumpToCurrentTtsLocation}
+        onGoToPreviousPlaybackSegment={goToPreviousPlaybackSegment}
+        onGoToNextPlaybackSegment={goToNextPlaybackSegment}
+        onSetPlaybackRate={setPlaybackRateForRoute}
+        onTogglePlaybackTimeout={togglePlaybackTimeoutForRoute}
         onSetTtsReadAloudTextMode={setTtsReadAloudTextMode}
         onOpenTranslatedTtsMode={openTranslatedTtsWorkspace}
         onOpenTranslationMode={openTranslationMode}
