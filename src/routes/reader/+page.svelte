@@ -248,6 +248,11 @@
         recordedAt: number;
       }
     | null = null;
+  let annotationPopupSelectionSummary = '';
+  let annotationPopupSelectionDetail = '';
+  let annotationPopupSupportMessage = '';
+  let currentFormatSupportsTextAnnotations = false;
+  let annotationPopupSupportsActions = false;
   let parallelSession = createReaderParallelSessionFromRoute(
     parseReaderRouteOpenState($page.url)
   );
@@ -1099,10 +1104,37 @@
     void bookmarksController.refresh();
   }
 
-  $: if (!supportsTextAnnotationsForFormat(currentPreview.formatLabel)) {
-    currentReaderSelection = null;
+  $: if (!currentFormatSupportsTextAnnotations) {
     notesController.setSelection(null);
   }
+  // The popup can still mirror a PDF/CBZ selection for copy, but route-owned
+  // note/highlight state should stay off until the format has a trustworthy
+  // annotation locator instead of a presentation-only text selection.
+  $: currentFormatSupportsTextAnnotations =
+    supportsTextAnnotationsForFormat(currentPreview.formatLabel) &&
+    currentPreview.formatLabel !== 'PDF' &&
+    currentPreview.formatLabel !== 'CBZ';
+  $: annotationPopupSupportsActions = currentFormatSupportsTextAnnotations;
+  $: {
+    const normalizedSelectionText = normalizeAssistanceText(currentReaderSelection?.text || '');
+    annotationPopupSelectionSummary = normalizedSelectionText
+      ? normalizedSelectionText.length > 72
+        ? `${normalizedSelectionText.slice(0, 69).trimEnd()}...`
+        : normalizedSelectionText
+      : '';
+    annotationPopupSelectionDetail = normalizedSelectionText
+      ? [
+          currentReaderSelection?.chapterLabel?.trim() || '',
+          `${normalizedSelectionText.length} 个字符`
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : '';
+  }
+  $: annotationPopupSupportMessage =
+    currentPreview.formatLabel === 'PDF' || currentPreview.formatLabel === 'CBZ'
+      ? `${currentPreview.formatLabel} 选区暂时只保留复制，避免把还不稳定的正文选区伪装成可写标注。`
+      : '当前格式暂时只保留复制。';
   const refreshCurrentManagedBookState = async () => {
     if (!sourcePath || !autoOpenLibraryFile) {
       currentManagedBook = null;
@@ -1432,6 +1464,34 @@
 
   const handleTtsStop = () => {
     ttsController.stop();
+  };
+
+  const copyCurrentSelection = async () => {
+    const selectionText = normalizeAssistanceText(currentReaderSelection?.text || '');
+    if (!selectionText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
+
+    try {
+      await navigator.clipboard.writeText(selectionText);
+    } catch (error) {
+      console.warn('Failed to copy the current reader selection', error);
+    }
+  };
+
+  const lookupCurrentSelection = () => {
+    const selectionText = normalizeAssistanceTerm(currentReaderSelection?.text || '');
+    if (!selectionText) return;
+    void requestAssistanceLookup('wikipedia', selectionText);
+  };
+
+  const translateCurrentSelection = () => {
+    const selectionText = normalizeAssistanceText(currentReaderSelection?.text || '');
+    if (!selectionText) return;
+    void requestAssistanceTranslation(translationProvider, selectionText, translationTargetLanguage);
+  };
+
+  const readCurrentSelectionAloud = () => {
+    handleTtsStart();
+    void openNotebookWorkspaceTab('tts');
   };
 
   const jumpToCurrentTtsLocation = () => {
@@ -2241,7 +2301,7 @@
           }}
           on:selectionchange={({ detail }) => {
             currentReaderSelection = detail;
-            notesController.setSelection(detail);
+            notesController.setSelection(currentFormatSupportsTextAnnotations ? detail : null);
           }}
           on:searchchange={({ detail }) => {
             searchController.handleSearchChange(detail);
@@ -2277,6 +2337,11 @@
           inlineTranslationSummary={inlineTranslationSummary}
           inlineTranslationStatusMessage={inlineTranslationStatusMessage}
           inlineTranslationCapabilityMessage={inlineTranslationCapabilityMessage}
+          annotationSelection={currentReaderSelection}
+          annotationSelectionSummary={annotationPopupSelectionSummary}
+          annotationSelectionDetail={annotationPopupSelectionDetail}
+          annotationSupportsActions={annotationPopupSupportsActions}
+          annotationSupportMessage={annotationPopupSupportMessage}
           onOpenTtsWorkspace={openTtsWorkspace}
           onJumpToTtsPlaybackLocation={jumpToCurrentTtsLocation}
           onOpenTranslationModeFromMiniBar={openTranslationMode}
@@ -2290,6 +2355,14 @@
           onToggleInlineTranslationEnabled={toggleInlineTranslationEnabled}
           onToggleInlineTranslationSourceVisibility={toggleInlineTranslationSourceVisibility}
           onToggleInlineTranslationTranslationVisibility={toggleInlineTranslationTranslationVisibility}
+          onAddHighlightFromSelection={addHighlightFromSelection}
+          onAddNoteFromSelection={addNoteFromSelection}
+          onLookupSelection={lookupCurrentSelection}
+          onTranslateSelection={translateCurrentSelection}
+          onReadAloudSelection={readCurrentSelectionAloud}
+          onCopySelection={() => {
+            void copyCurrentSelection();
+          }}
           onSwitchTtsModeFromMiniBar={() =>
             setTtsReadAloudTextMode(ttsReadAloudTextMode === 'translated' ? 'source' : 'translated')}
           on:inlinetranslationcandidates={({ detail }) => {
@@ -2327,7 +2400,7 @@
         activeTab={notebookTab}
         preview={currentPreview}
         notesState={$notesState}
-        supportsTextAnnotations={supportsTextAnnotationsForFormat(currentPreview.formatLabel)}
+        supportsTextAnnotations={currentFormatSupportsTextAnnotations}
         textAnnotationSupportMessage="当前格式暂不支持正文批注。"
         assistance={assistanceState}
         {assistanceHistory}

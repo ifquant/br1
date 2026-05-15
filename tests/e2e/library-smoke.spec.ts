@@ -3417,6 +3417,45 @@ const sampleReaderCases = [
   }
 ] as const;
 
+test('reader shows selection-near annotation actions in web mode', async ({ page }) => {
+  await page.goto('/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book');
+  await page.getByLabel('工作台模式切换').getByRole('button', { name: '打开笔记工作台' }).click();
+
+  await page.evaluate(() => {
+    const reader = document.querySelector('.plain-text-reader');
+    if (!(reader instanceof HTMLElement)) {
+      throw new Error('expected the plain-text reader surface to exist');
+    }
+
+    const pre = reader.querySelector('pre');
+    const textNode = pre?.firstChild;
+    if (!(textNode instanceof Text)) {
+      throw new Error('expected the TXT reader text node to exist');
+    }
+
+    const raw = textNode.textContent ?? '';
+    const targetText = 'plain text file exists';
+    const start = raw.indexOf(targetText);
+    if (start < 0) {
+      throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, start);
+    range.setEnd(textNode, start + targetText.length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+
+  const toolbar = page.getByRole('toolbar', { name: '选中文本操作' });
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: '高亮' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: '翻译' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: '朗读' })).toBeVisible();
+});
+
 for (const sample of sampleReaderCases) {
   test(`reader opens and reopens ${sample.format} sample assets in web mode`, async ({ page }) => {
     await page.goto(

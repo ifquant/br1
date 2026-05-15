@@ -1397,6 +1397,18 @@ Goal: move dedicated TTS closer to a fuller reader playback surface by giving la
   - Tutorial: `tutorials/commit/0653-extract-reader-playback-panel.md`.
   - Notes: this first panel slice keeps playback queue state local to the reader route and derives it from the current `effectiveTtsTarget`. It does not persist voice choice, expose multi-segment chapter slicing yet, or claim that the current Web Speech runtime already consumes the panel's rate/voice settings.
 
+## P18 Annotation And Footnote Interaction Maturity
+
+Goal: make selection and footnote interactions feel like a mature reading surface without letting popup UI become a second owner of annotation, assistance, or playback state.
+
+- [x] P18-1.1 Add a selection-near annotation popup
+  - Outcome: the reader now exposes a selection-near action toolbar for TXT and a conservative bottom-center fallback for other reader surfaces, while keeping note/highlight/lookup/translation/TTS side effects inside the route.
+  - Touches: `ReaderAnnotationPopup.svelte`, `ReaderViewport.svelte`, `ReaderStage.svelte`, `+page.svelte`, focused web smoke, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader shows selection-near annotation actions in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed; user requested a dirty working tree only.
+  - Tutorial: `tutorials/commit/0654-add-reader-annotation-popup.md`.
+  - Notes: this slice does not add footnote previews, cross-iframe exact popup geometry, or new annotation persistence. PDF/CBZ still keep a copy-only popup so the UI does not overclaim unstable in-place actions.
+
 
 ## Service Security Gate
 
@@ -1512,3 +1524,4 @@ Use this log when completing each item.
 | 2026-05-10 | Prefer current chapter body excerpts for EPUB source TTS | `bc5cfa2` | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader uses current chapter body excerpts as the EPUB source tts target in web mode|reader uses visible plain-text excerpts as the source tts target in web mode|reader can open tts mode as a dedicated notebook tab"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | promotes real EPUB/Foliate chapter body sentences ahead of chapter-title fallback for source-side TTS and aligns the focused smoke contract with the current translated-waiting copy |
 | 2026-05-15 | Add the reader playback queue model | not committed; user requested a dirty working tree only | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `cd /Users/dev/workspace2/hc_apps/br1 && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-playback-queue-tests --noEmit false && node --test ./.tmp-playback-queue-tests/src/lib/reader/playbackQueue.test.js`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | adds a pure queue/rate/timeout state machine derived from `ReaderTtsSpeechTarget`, so Task 5 can wire playback-panel controls without inventing a second TTS target model |
 | 2026-05-15 | Extract the reader playback panel | not committed; user requested a dirty working tree only | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader tts workspace exposes mature playback controls in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | extracts queue/rate/timeout/voice controls into a dedicated playback panel and keeps the queue state route-local so `ReaderTtsWorkspace` no longer owns the mature playback UI directly |
+| 2026-05-15 | Add a selection-near annotation popup | pending current slice commit | `pnpm -C /Users/dev/workspace2/hc_apps/br1 check`; `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader shows selection-near annotation actions in web mode"`; `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` | adds a route-owned annotation action toolbar that anchors near TXT selections, falls back conservatively for other formats, and keeps PDF/CBZ on a copy-only popup instead of fake inline actions |

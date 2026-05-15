@@ -2,7 +2,7 @@
  to the user. It may render state from the route or helper modules, but it should
  not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
   import type {
     ReaderControlRequest,
     ReaderFocusedReadingMode,
@@ -28,6 +28,7 @@
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderFocusedReadingOverlay from './ReaderFocusedReadingOverlay.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
+  import ReaderAnnotationPopup from './ReaderAnnotationPopup.svelte';
   import ReaderInlineTranslationLayer from './ReaderInlineTranslationLayer.svelte';
   import ReaderTtsMiniBar from './ReaderTtsMiniBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
@@ -89,6 +90,11 @@
   export let inlineTranslationSummary = '';
   export let inlineTranslationStatusMessage = '等待可翻译正文。';
   export let inlineTranslationCapabilityMessage = '';
+  export let annotationSelection: ReaderSelectionState | null = null;
+  export let annotationSelectionSummary = '';
+  export let annotationSelectionDetail = '';
+  export let annotationSupportsActions = true;
+  export let annotationSupportMessage = '';
   export let notes: ReaderNote[] = [];
   export let onTtsStart: (() => void) | null = null;
   export let onTtsPause: (() => void) | null = null;
@@ -108,14 +114,24 @@
   export let onToggleInlineTranslationEnabled: (() => void) | null = null;
   export let onToggleInlineTranslationSourceVisibility: (() => void) | null = null;
   export let onToggleInlineTranslationTranslationVisibility: (() => void) | null = null;
+  export let onAddHighlightFromSelection: (() => void) | null = null;
+  export let onAddNoteFromSelection: (() => void) | null = null;
+  export let onLookupSelection: (() => void) | null = null;
+  export let onTranslateSelection: (() => void) | null = null;
+  export let onReadAloudSelection: (() => void) | null = null;
+  export let onCopySelection: (() => void) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
+  let stageShell: HTMLElement | null = null;
   let hasAttemptedAutoPicker = false;
   let chromeVisible = true;
   let chromeTimer: ReturnType<typeof setTimeout> | null = null;
   let settings: ReaderSettings = createDefaultReaderSettings();
   let focusedReadingMode: ReaderFocusedReadingMode = 'off';
+  let annotationPopupPlacement: 'selection' | 'bottom-center' = 'bottom-center';
+  let annotationPopupPosition: { top: number; left: number } | null = null;
+  let annotationPopupRefreshNonce = 0;
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -249,6 +265,12 @@
   }
 
   $: focusedReadingMode = focusedReadingState?.mode ?? 'off';
+  $: {
+    annotationSelection;
+    annotationSupportsActions;
+    readerPreview.formatLabel;
+    scheduleAnnotationPopupRefresh();
+  }
 
   const getStageThemeVars = () => {
     const shell = getReaderShellPalette(settings.themePreset);
@@ -270,13 +292,85 @@
     ].join(';');
   };
 
+  // TXT selections live in the same DOM tree as the Svelte stage, so we can
+  // anchor near the actual range rect. Foliate-backed selections may cross
+  // iframe boundaries, so other formats intentionally fall back to a stable
+  // bottom-center placement instead of pretending the coordinates are exact.
+  const measureTxtSelectionPopupPosition = () => {
+    if (!stageShell) return null;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+    const range = selection.getRangeAt(0);
+    const commonNode =
+      range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentElement
+        : (range.commonAncestorContainer as Element | null);
+    const reader = stageShell.querySelector('.plain-text-reader');
+    if (!(reader instanceof HTMLElement) || !(commonNode instanceof Node) || !reader.contains(commonNode)) {
+      return null;
+    }
+
+    const selectionRect = range.getBoundingClientRect();
+    if (selectionRect.width === 0 && selectionRect.height === 0) return null;
+    const stageRect = stageShell.getBoundingClientRect();
+    return {
+      left: Math.min(
+        stageRect.right - 28,
+        Math.max(stageRect.left + 28, selectionRect.left + selectionRect.width / 2)
+      ),
+      top: Math.max(stageRect.top + 18, selectionRect.top - 14)
+    };
+  };
+
+  const measureBottomCenterPopupPosition = () => {
+    if (!stageShell) return null;
+    const stageRect = stageShell.getBoundingClientRect();
+    return {
+      left: stageRect.left + stageRect.width / 2,
+      top: stageRect.bottom - 26
+    };
+  };
+
+  const updateAnnotationPopupPresentation = () => {
+    if (!annotationSelection?.text.trim()) {
+      annotationPopupPosition = null;
+      return;
+    }
+
+    if (readerPreview.formatLabel === 'TXT') {
+      annotationPopupPlacement = 'selection';
+      annotationPopupPosition = measureTxtSelectionPopupPosition() ?? measureBottomCenterPopupPosition();
+      return;
+    }
+
+    annotationPopupPlacement = 'bottom-center';
+    annotationPopupPosition = measureBottomCenterPopupPosition();
+  };
+
+  const scheduleAnnotationPopupRefresh = () => {
+    const refreshNonce = ++annotationPopupRefreshNonce;
+    void tick().then(() => {
+      if (refreshNonce !== annotationPopupRefreshNonce) return;
+      updateAnnotationPopupPresentation();
+    });
+  };
+
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
     settings = hydrateReaderSettings(localStorage);
   });
+
+  onMount(() => {
+    window.addEventListener('resize', scheduleAnnotationPopupRefresh);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('resize', scheduleAnnotationPopupRefresh);
+  });
 </script>
 
 <section
+  bind:this={stageShell}
   class:paper-atmosphere={settings.themePreset === 'paper'}
   class:warm-atmosphere={settings.themePreset === 'warm'}
   class:soft-atmosphere={settings.themePreset === 'soft'}
@@ -352,6 +446,7 @@
         dispatch('notefocus', detail);
       }}
       on:selectionchange={({ detail }) => {
+        scheduleAnnotationPopupRefresh();
         dispatch('selectionchange', detail);
       }}
       on:tocchange={({ detail }) => {
@@ -375,6 +470,23 @@
         onToggleTranslationVisibility={onToggleInlineTranslationTranslationVisibility}
       />
     {/if}
+    <!-- The stage owns popup presentation, but the route still owns the real
+     selection actions so highlights/notes/TTS keep using one coordination path. -->
+    <ReaderAnnotationPopup
+      visible={!!annotationSelection?.text.trim() && focusedReadingMode === 'off'}
+      placement={annotationPopupPlacement}
+      position={annotationPopupPosition}
+      selectionSummary={annotationSelectionSummary}
+      selectionDetail={annotationSelectionDetail}
+      supportsAnnotationActions={annotationSupportsActions}
+      supportMessage={annotationSupportMessage}
+      onHighlight={onAddHighlightFromSelection}
+      onNote={onAddNoteFromSelection}
+      onLookup={onLookupSelection}
+      onTranslate={onTranslateSelection}
+      onTts={onReadAloudSelection}
+      onCopy={onCopySelection}
+    />
   </article>
 
   {#if focusedReadingState && focusedReadingState.mode !== 'off'}

@@ -66,6 +66,7 @@
   const dispatch = createEventDispatcher<{
     notefocus: string;
     selectionchange: ReaderSelectionState | null;
+    selectionpopupchange: ReaderSelectionPopupState | null;
     readerstate: ReaderPreviewState;
     inlinetranslationcandidates: ReaderInlineTranslationCandidatesEvent;
     tocchange: ReaderTocItem[];
@@ -84,6 +85,14 @@
     status: 'ready' | 'waiting' | 'unsupported';
     message: string;
     formatLabel: string;
+  };
+
+  type ReaderSelectionPopupState = {
+    text: string;
+    formatLabel: string;
+    placement: 'selection' | 'bottom';
+    top: number;
+    left: number;
   };
 
   let hostElement: HTMLDivElement | null = null;
@@ -568,6 +577,45 @@
     dispatch('selectionchange', detail);
   };
 
+  const emitSelectionPopupState = (detail: ReaderSelectionPopupState | null) => {
+    dispatch('selectionpopupchange', detail);
+  };
+
+  const clampSelectionPopupLeft = (value: number) => {
+    if (typeof window === 'undefined') return value;
+    return Math.max(56, Math.min(window.innerWidth - 56, value));
+  };
+
+  // TXT selections live directly in the outer document, so they can anchor near
+  // the real DOM range. Other engines fall back to a stable bottom placement
+  // instead of claiming iframe/text-layer coordinates are universally reliable.
+  const createSelectionPopupAnchor = (
+    text: string,
+    placement: ReaderSelectionPopupState['placement'],
+    rect?: DOMRect | null
+  ): ReaderSelectionPopupState | null => {
+    const normalizedText = text.trim();
+    if (!normalizedText) return null;
+
+    if (placement === 'selection' && rect && rect.width > 0 && rect.height > 0) {
+      return {
+        text: normalizedText,
+        formatLabel: currentFormatLabel,
+        placement,
+        top: Math.max(20, rect.top - 12),
+        left: clampSelectionPopupLeft(rect.left + rect.width / 2)
+      };
+    }
+
+    return {
+      text: normalizedText,
+      formatLabel: currentFormatLabel,
+      placement: 'bottom',
+      top: 0,
+      left: clampSelectionPopupLeft(typeof window === 'undefined' ? 0 : window.innerWidth / 2)
+    };
+  };
+
   const getPlainTextSelectionState = (): ReaderSelectionState | null => {
     if (!plainTextScroller) return null;
     const selection = window.getSelection();
@@ -593,7 +641,17 @@
   };
 
   const emitPlainTextSelectionState = () => {
-    emitSelectionState(getPlainTextSelectionState());
+    const detail = getPlainTextSelectionState();
+    emitSelectionState(detail);
+
+    if (!detail) {
+      emitSelectionPopupState(null);
+      return;
+    }
+
+    const selection = window.getSelection();
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    emitSelectionPopupState(createSelectionPopupAnchor(detail.text, 'selection', range?.getBoundingClientRect()));
   };
 
   const getSelectionState = (doc: Document, index: number): ReaderSelectionState | null => {
@@ -648,6 +706,9 @@
       const nextSelection = getSelectionState(doc, index);
       const dispatchNonce = ++selectionDispatchNonce;
       emitSelectionState(nextSelection);
+      emitSelectionPopupState(
+        nextSelection ? createSelectionPopupAnchor(nextSelection.text, 'bottom') : null
+      );
       if (!nextSelection) {
         return;
       }
@@ -1461,7 +1522,7 @@
         <div class="engine-stage window-stage" bind:this={stageElement}>
           {#if openStatus === 'open' && openEngineMode === 'plain-text'}
             <div
-              class="plain-text-surface"
+              class="plain-text-surface plain-text-reader"
               bind:this={plainTextScroller}
               on:scroll={() => emitPlainTextReaderState()}
               aria-label="plain text reading surface"
@@ -1522,7 +1583,7 @@
           <div class="engine-stage" bind:this={stageElement}>
             {#if openStatus === 'open' && openEngineMode === 'plain-text'}
               <div
-                class="plain-text-surface inline-surface"
+                class="plain-text-surface plain-text-reader inline-surface"
                 bind:this={plainTextScroller}
                 on:scroll={() => emitPlainTextReaderState()}
                 aria-label="plain text reading surface"
