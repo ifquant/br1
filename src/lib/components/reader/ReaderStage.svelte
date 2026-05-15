@@ -29,6 +29,7 @@
   import ReaderFocusedReadingOverlay from './ReaderFocusedReadingOverlay.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
   import ReaderAnnotationPopup from './ReaderAnnotationPopup.svelte';
+  import ReaderFootnotePopup from './ReaderFootnotePopup.svelte';
   import ReaderInlineTranslationLayer from './ReaderInlineTranslationLayer.svelte';
   import ReaderTtsMiniBar from './ReaderTtsMiniBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
@@ -44,6 +45,14 @@
     formatLabel: string;
   };
 
+  type ReaderFootnoteRequest = {
+    label: string;
+    href: string;
+    excerptHtml: string;
+    excerptText: string;
+    fallbackNavigationTarget: string;
+  };
+
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
     gotolibrary: void;
@@ -51,6 +60,7 @@
     selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
     inlinetranslationcandidates: ReaderInlineTranslationCandidatesEvent;
+    footnoterequest: ReaderFootnoteRequest | null;
     searchchange: ReaderSearchState;
     searchcachekeychange: string;
     tocchange: ReaderTocItem[];
@@ -131,7 +141,9 @@
   let focusedReadingMode: ReaderFocusedReadingMode = 'off';
   let annotationPopupPlacement: 'selection' | 'bottom-center' = 'bottom-center';
   let annotationPopupPosition: { top: number; left: number } | null = null;
-  let annotationPopupRefreshNonce = 0;
+  let popupRefreshNonce = 0;
+  let footnoteRequest: ReaderFootnoteRequest | null = null;
+  let handledControlRequestNonce = 0;
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -193,6 +205,21 @@
 
   const openSidebarTab = (tab: SidebarTab) => {
     dispatch('switchsidebartab', tab);
+  };
+
+  const closeFootnotePopup = () => {
+    footnoteRequest = null;
+  };
+
+  const jumpToFootnoteLocation = () => {
+    const href = footnoteRequest?.fallbackNavigationTarget.trim();
+    if (!href) return;
+    closeFootnotePopup();
+    dispatch('controlrequest', {
+      type: 'href',
+      nonce: ++controlNonce,
+      href
+    });
   };
 
   const updateSettings = (patch: Partial<ReaderSettings>) => {
@@ -265,11 +292,21 @@
   }
 
   $: focusedReadingMode = focusedReadingState?.mode ?? 'off';
+  $: if (controlRequest && controlRequest.nonce !== handledControlRequestNonce) {
+    handledControlRequestNonce = controlRequest.nonce;
+    closeFootnotePopup();
+  }
+
   $: {
     annotationSelection;
     annotationSupportsActions;
     readerPreview.formatLabel;
-    scheduleAnnotationPopupRefresh();
+    schedulePopupRefresh();
+  }
+
+  $: {
+    footnoteRequest;
+    schedulePopupRefresh();
   }
 
   const getStageThemeVars = () => {
@@ -347,10 +384,10 @@
     annotationPopupPosition = measureBottomCenterPopupPosition();
   };
 
-  const scheduleAnnotationPopupRefresh = () => {
-    const refreshNonce = ++annotationPopupRefreshNonce;
+  const schedulePopupRefresh = () => {
+    const refreshNonce = ++popupRefreshNonce;
     void tick().then(() => {
-      if (refreshNonce !== annotationPopupRefreshNonce) return;
+      if (refreshNonce !== popupRefreshNonce) return;
       updateAnnotationPopupPresentation();
     });
   };
@@ -361,11 +398,11 @@
   });
 
   onMount(() => {
-    window.addEventListener('resize', scheduleAnnotationPopupRefresh);
+    window.addEventListener('resize', schedulePopupRefresh);
   });
 
   onDestroy(() => {
-    window.removeEventListener('resize', scheduleAnnotationPopupRefresh);
+    window.removeEventListener('resize', schedulePopupRefresh);
   });
 </script>
 
@@ -434,8 +471,12 @@
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
       {notes}
+      onFootnoteRequest={(detail) => {
+        footnoteRequest = detail ?? null;
+      }}
       {settings}
       on:readerstate={({ detail }) => {
+        closeFootnotePopup();
         readerPreview = detail;
         dispatch('readerstate', detail);
       }}
@@ -445,8 +486,11 @@
       on:notefocus={({ detail }) => {
         dispatch('notefocus', detail);
       }}
+      on:footnoterequest={({ detail }) => {
+        footnoteRequest = detail ?? null;
+      }}
       on:selectionchange={({ detail }) => {
-        scheduleAnnotationPopupRefresh();
+        schedulePopupRefresh();
         dispatch('selectionchange', detail);
       }}
       on:tocchange={({ detail }) => {
@@ -486,6 +530,15 @@
       onTranslate={onTranslateSelection}
       onTts={onReadAloudSelection}
       onCopy={onCopySelection}
+    />
+    <ReaderFootnotePopup
+      visible={!!footnoteRequest && focusedReadingMode === 'off'}
+      label={footnoteRequest?.label ?? '脚注'}
+      excerptHtml={footnoteRequest?.excerptHtml ?? ''}
+      excerptText={footnoteRequest?.excerptText ?? ''}
+      fallbackHref={footnoteRequest?.fallbackNavigationTarget ?? ''}
+      onClose={closeFootnotePopup}
+      onJump={jumpToFootnoteLocation}
     />
   </article>
 

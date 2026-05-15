@@ -3456,6 +3456,23 @@ test('reader shows selection-near annotation actions in web mode', async ({ page
   await expect(toolbar.getByRole('button', { name: '朗读' })).toBeVisible();
 });
 
+test('reader opens footnote links in a reader popup in web mode', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-footnote.epub&label=Sample%20Footnote%20Book'
+  );
+
+  const footnoteFrame = page.frameLocator('iframe').first();
+  await expect(footnoteFrame.getByRole('link', { name: /footnote|注/i }).first()).toBeVisible();
+  await footnoteFrame.getByRole('link', { name: /footnote|注/i }).first().click();
+
+  const footnoteDialog = page.getByRole('dialog', { name: '脚注预览' });
+  await expect(footnoteDialog).toBeVisible();
+  await expect(footnoteDialog).toContainText(
+    'This is the preview text that should appear inside the reader footnote popup.'
+  );
+  await expect(footnoteDialog.getByRole('button', { name: '关闭脚注' })).toBeVisible();
+});
+
 for (const sample of sampleReaderCases) {
   test(`reader opens and reopens ${sample.format} sample assets in web mode`, async ({ page }) => {
     await page.goto(

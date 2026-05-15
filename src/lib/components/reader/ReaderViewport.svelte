@@ -61,10 +61,12 @@
   export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
   export let isWindowMode = false;
   export let notes: ReaderNote[] = [];
+  export let onFootnoteRequest: ((detail: ReaderFootnoteRequest | null) => void) | null = null;
   export let settings: ReaderSettings;
 
   const dispatch = createEventDispatcher<{
     notefocus: string;
+    footnoterequest: ReaderFootnoteRequest | null;
     selectionchange: ReaderSelectionState | null;
     selectionpopupchange: ReaderSelectionPopupState | null;
     readerstate: ReaderPreviewState;
@@ -95,6 +97,26 @@
     left: number;
   };
 
+  type ReaderFootnoteRequest = {
+    label: string;
+    href: string;
+    excerptHtml: string;
+    excerptText: string;
+    fallbackNavigationTarget: string;
+  };
+
+  type ReaderAnchorLike = Element & {
+    ownerDocument: Document;
+    textContent: string | null;
+    dataset: DOMStringMap;
+    getAttribute(name: string): string | null;
+    addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions
+    ): void;
+  };
+
   let hostElement: HTMLDivElement | null = null;
   let stageElement: HTMLDivElement | null = null;
   let adapterStatus: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
@@ -108,6 +130,7 @@
   let lastSearchToken = 0;
   let searchCache = new Map<string, ReaderSearchResult[]>();
   let boundSelectionDocs = new WeakSet<Document>();
+  let boundFootnoteDocs = new WeakSet<Document>();
   let syncedNoteValues = new Set<string>();
   let stageResizeObserver: ResizeObserver | null = null;
   let currentFormatLabel = READER_UNKNOWN_FORMAT_LABEL;
@@ -572,13 +595,17 @@
   };
 
   const NOTE_PREFIX = 'foliate-note:';
-
   const emitSelectionState = (detail: ReaderSelectionState | null) => {
     dispatch('selectionchange', detail);
   };
 
   const emitSelectionPopupState = (detail: ReaderSelectionPopupState | null) => {
     dispatch('selectionpopupchange', detail);
+  };
+
+  const emitFootnoteRequest = (detail: ReaderFootnoteRequest | null) => {
+    onFootnoteRequest?.(detail);
+    dispatch('footnoterequest', detail);
   };
 
   const clampSelectionPopupLeft = (value: number) => {
@@ -732,6 +759,8 @@
       emitPlainTextReaderState(partial);
       return;
     }
+
+    bindOpenRendererDocs();
 
     const book = foliateViewElement?.book;
     const lastLocation = foliateViewElement?.lastLocation;
@@ -924,9 +953,189 @@
   const bindOpenRendererDocs = () => {
     const docs = foliateViewElement?.renderer?.getContents?.() ?? [];
     for (const { doc, index } of docs) {
-      if (!(doc instanceof Document) || typeof index !== 'number') continue;
+      if (!doc || typeof doc.addEventListener !== 'function' || typeof doc.querySelectorAll !== 'function') {
+        continue;
+      }
+      if (typeof index !== 'number') continue;
       applyReaderCodeHighlightingToDocument(doc);
       bindSelectionTracking(doc, index);
+      bindFootnoteTracking(doc);
+    }
+  };
+
+  const normalizeFootnoteLabel = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+  const isAnchorLike = (value: unknown): value is ReaderAnchorLike =>
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as ReaderAnchorLike).dataset === 'object' &&
+    typeof (value as ReaderAnchorLike).getAttribute === 'function' &&
+    typeof (value as Element).closest === 'function' &&
+    String((value as Element).tagName || '').toLowerCase() === 'a';
+
+  const resolveFootnoteFallbackHref = (href: string) => {
+    const normalizedHref = href.trim();
+    if (!normalizedHref) return '';
+    if (!normalizedHref.startsWith('#')) return normalizedHref;
+    const chapterHref = foliateViewElement?.lastLocation?.tocItem?.href?.trim() || '';
+    const chapterBase = chapterHref.split('#')[0] || '';
+    return `${chapterBase}${normalizedHref}`;
+  };
+
+  const isFootnoteLikeLink = (link: ReaderAnchorLike) => {
+    const href = link.getAttribute('href')?.trim() || '';
+    if (!href || href.startsWith('http:') || href.startsWith('https:') || href.startsWith('mailto:')) {
+      return false;
+    }
+
+    const text = normalizeFootnoteLabel(link.textContent || '');
+    const footnoteType = link.getAttribute('epub:type')?.toLowerCase() || '';
+    const role = link.getAttribute('role')?.toLowerCase() || '';
+    const targetId = href.split('#')[1]?.toLowerCase() || '';
+    return (
+      footnoteType.includes('noteref') ||
+      role.includes('doc-noteref') ||
+      /footnote|note|注/.test(text) ||
+      /^fn|^note|footnote/.test(targetId)
+    );
+  };
+
+  const resolveFootnoteTarget = (doc: Document, href: string) => {
+    const hash = href.split('#')[1] || '';
+    if (!hash) return null;
+    let decoded = hash;
+    try {
+      decoded = decodeURIComponent(hash);
+    } catch {
+      decoded = hash;
+    }
+    return (
+      doc.getElementById(decoded) ||
+      doc.querySelector(`[id="${CSS.escape(decoded)}"]`) ||
+      doc.querySelector(`[name="${CSS.escape(decoded)}"]`)
+    );
+  };
+
+  const FOOTNOTE_PREVIEW_ALLOWED_TAGS = new Set([
+    'p',
+    'ol',
+    'ul',
+    'li',
+    'blockquote',
+    'em',
+    'strong',
+    'b',
+    'i',
+    'code',
+    'sup',
+    'sub',
+    'span',
+    'br'
+  ]);
+
+  const sanitizeFootnoteExcerptHtml = (container: Element) => {
+    const preview = container.cloneNode(true);
+    if (!(preview instanceof Element)) return '';
+
+    for (const node of Array.from(preview.querySelectorAll('*'))) {
+      const tagName = node.tagName.toLowerCase();
+      if (tagName === 'script' || tagName === 'style') {
+        node.remove();
+        continue;
+      }
+
+      if (!FOOTNOTE_PREVIEW_ALLOWED_TAGS.has(tagName)) {
+        node.replaceWith(...Array.from(node.childNodes));
+        continue;
+      }
+
+      for (const attributeName of node.getAttributeNames()) {
+        node.removeAttribute(attributeName);
+      }
+    }
+
+    return preview.innerHTML.trim();
+  };
+
+  const resolveFootnoteExcerpt = (target: Element | null) => {
+    if (!target) {
+      return {
+        excerptHtml: '',
+        excerptText: ''
+      };
+    }
+
+    const container =
+      target.closest('aside, li, p, section, div') ||
+      target;
+    return {
+      // Keep a little structural markup for readability, but strip unknown tags
+      // and attributes so the stage popup does not replay arbitrary book DOM.
+      excerptHtml: sanitizeFootnoteExcerptHtml(container),
+      excerptText: normalizeFootnoteLabel(container.textContent || '')
+    };
+  };
+
+  const maybeOpenFootnotePopupFromViewLink = (
+    event: CustomEvent<{
+      a: ReaderAnchorLike;
+      href: string;
+    }>
+  ) => {
+    const link = event.detail?.a;
+    const href = event.detail?.href?.trim() || '';
+    if (!isAnchorLike(link) || !isFootnoteLikeLink(link)) return;
+
+    const fallbackHref = resolveFootnoteFallbackHref(href);
+    if (!fallbackHref) return;
+
+    event.preventDefault();
+    const excerpt = resolveFootnoteExcerpt(resolveFootnoteTarget(link.ownerDocument, href));
+    emitFootnoteRequest({
+      label: normalizeFootnoteLabel(link.textContent || '') || '脚注',
+      href,
+      fallbackNavigationTarget: fallbackHref,
+      excerptHtml: excerpt.excerptHtml,
+      excerptText: excerpt.excerptText
+    });
+  };
+
+  // Footnote interception stays in the viewport because only the renderer layer
+  // knows which iframe/document actually owns the clicked internal link. The
+  // stage can then present the popup without reverse-engineering renderer DOM.
+  const bindFootnoteTracking = (doc: Document) => {
+    if (boundFootnoteDocs.has(doc)) return;
+    boundFootnoteDocs.add(doc);
+    const interceptFootnoteClick = (event: Event, link: ReaderAnchorLike) => {
+      const href = link.getAttribute('href')?.trim() || '';
+      const fallbackHref = resolveFootnoteFallbackHref(href);
+      if (!fallbackHref) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+
+      const excerpt = resolveFootnoteExcerpt(resolveFootnoteTarget(doc, href));
+      emitFootnoteRequest({
+        label: normalizeFootnoteLabel(link.textContent || '') || '脚注',
+        href,
+        fallbackNavigationTarget: fallbackHref,
+        excerptHtml: excerpt.excerptHtml,
+        excerptText: excerpt.excerptText
+      });
+    };
+
+    for (const link of Array.from(doc.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
+      if (!isFootnoteLikeLink(link)) continue;
+      if (link.dataset.br1FootnoteBound === 'true') continue;
+      link.dataset.br1FootnoteBound = 'true';
+      link.addEventListener(
+        'click',
+        (event) => {
+          interceptFootnoteClick(event, link);
+        },
+        { capture: true }
+      );
     }
   };
 
@@ -972,6 +1181,7 @@
   ) => {
     if (!foliateViewElement || openStatus === 'loading') return;
 
+    emitFootnoteRequest(null);
     openStatus = 'loading';
     openSourceLabel = sourceLabel;
     openFailureSource = '';
@@ -1422,6 +1632,14 @@
         } else {
           const view = wrapFoliateViewElement(createFoliateViewElement());
           view.className = 'foliate-preview';
+          view.addEventListener('link', (event: Event) => {
+            maybeOpenFootnotePopupFromViewLink(
+              event as CustomEvent<{
+                a: HTMLAnchorElement;
+                href: string;
+              }>
+            );
+          });
           view.addEventListener('load', () => {
             bindOpenRendererDocs();
             emitReaderState();
@@ -1429,6 +1647,7 @@
           view.addEventListener('relocate', () => {
             bindOpenRendererDocs();
             emitReaderState();
+            emitFootnoteRequest(null);
           });
           view.addEventListener('draw-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{
@@ -1450,11 +1669,15 @@
           });
           view.addEventListener('load', (event: Event) => {
             const detail = (event as CustomEvent<{ doc: Document; index: number }>).detail;
-            if (detail?.doc) bindSelectionTracking(detail.doc, detail.index);
+            if (detail?.doc) {
+              bindSelectionTracking(detail.doc, detail.index);
+              bindFootnoteTracking(detail.doc);
+            }
           });
           view.addEventListener('relocate', () => {
             bindOpenRendererDocs();
             emitSelectionState(null);
+            emitFootnoteRequest(null);
           });
           stageElement.append(view);
           foliateViewElement = view;
