@@ -1189,6 +1189,21 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await expect(translationInput).toHaveAttribute('readonly', '');
 });
 
+test('reader exposes inline translation mode without replacing the notebook translation workspace', async ({
+  page
+}) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+  await page.getByRole('button', { name: '翻译模式' }).click();
+  await expect(page.getByRole('region', { name: '翻译模式' })).toBeVisible();
+  await page.getByRole('button', { name: '开启正文内译文' }).click();
+  await expect(page.getByRole('region', { name: '正文内译文状态' })).toContainText(
+    '等待可翻译正文'
+  );
+  await expect(page.getByRole('region', { name: '翻译模式' })).toBeVisible();
+});
+
 test('reader can jump from translation mode into translated tts in web mode', async ({ page }) => {
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',

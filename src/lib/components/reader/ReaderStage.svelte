@@ -5,6 +5,7 @@
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import type {
     ReaderControlRequest,
+    ReaderInlineTranslationState,
     ReaderNote,
     ReaderPreviewState,
     ReaderSettings,
@@ -24,14 +25,28 @@
   import type { ReaderTtsSessionState } from '$lib/reader';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
+  import ReaderInlineTranslationLayer from './ReaderInlineTranslationLayer.svelte';
   import ReaderTtsMiniBar from './ReaderTtsMiniBar.svelte';
   import ReaderViewport from './ReaderViewport.svelte';
+
+  type ReaderInlineTranslationCandidatesEvent = {
+    candidates: Array<{
+      id: string;
+      sourceText: string;
+      sourceLabel: string;
+    }>;
+    status: 'ready' | 'waiting' | 'unsupported';
+    message: string;
+    formatLabel: string;
+  };
+
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
     gotolibrary: void;
     notefocus: string;
     selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
+    inlinetranslationcandidates: ReaderInlineTranslationCandidatesEvent;
     searchchange: ReaderSearchState;
     searchcachekeychange: string;
     tocchange: ReaderTocItem[];
@@ -64,6 +79,11 @@
   export let ttsMiniBarCanPinCurrentTarget = false;
   export let ttsMiniBarModeSwitchLabel = '';
   export let ttsMiniBarCanSwitchMode = false;
+  export let inlineTranslationVisible = false;
+  export let inlineTranslationState: ReaderInlineTranslationState | null = null;
+  export let inlineTranslationSummary = '';
+  export let inlineTranslationStatusMessage = '等待可翻译正文。';
+  export let inlineTranslationCapabilityMessage = '';
   export let notes: ReaderNote[] = [];
   export let onTtsStart: (() => void) | null = null;
   export let onTtsPause: (() => void) | null = null;
@@ -75,6 +95,9 @@
   export let onResumeFollowingCurrentTtsTargetFromMiniBar: (() => void) | null = null;
   export let onPinCurrentTtsTargetFromMiniBar: (() => void) | null = null;
   export let onSwitchTtsModeFromMiniBar: (() => void) | null = null;
+  export let onToggleInlineTranslationEnabled: (() => void) | null = null;
+  export let onToggleInlineTranslationSourceVisibility: (() => void) | null = null;
+  export let onToggleInlineTranslationTranslationVisibility: (() => void) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
@@ -301,6 +324,9 @@
         readerPreview = detail;
         dispatch('readerstate', detail);
       }}
+      on:inlinetranslationcandidates={({ detail }) => {
+        dispatch('inlinetranslationcandidates', detail);
+      }}
       on:notefocus={({ detail }) => {
         dispatch('notefocus', detail);
       }}
@@ -317,6 +343,17 @@
         dispatch('searchcachekeychange', detail);
       }}
     />
+    {#if inlineTranslationVisible && inlineTranslationState}
+      <ReaderInlineTranslationLayer
+        state={inlineTranslationState}
+        summary={inlineTranslationSummary}
+        statusMessage={inlineTranslationStatusMessage}
+        capabilityMessage={inlineTranslationCapabilityMessage}
+        onToggleEnabled={onToggleInlineTranslationEnabled}
+        onToggleSourceVisibility={onToggleInlineTranslationSourceVisibility}
+        onToggleTranslationVisibility={onToggleInlineTranslationTranslationVisibility}
+      />
+    {/if}
   </article>
 
   {#if ttsMiniBarVisible}
@@ -412,6 +449,7 @@
   }
 
   .canvas {
+    position: relative;
     display: grid;
     min-height: 0;
     width: 100%;

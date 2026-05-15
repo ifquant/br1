@@ -11,6 +11,8 @@
     ReaderAssistanceHistoryEntry,
     ReaderAssistanceWorkspaceSelection,
     ReaderControlRequest,
+    ReaderInlineTranslationState,
+    ReaderInlineTranslationTargetLanguage,
     ReaderLookupProvider,
     ReaderNotebookWorkspaceTab,
     ReaderPreviewState,
@@ -47,6 +49,7 @@
     createEmptyReaderAssistanceState,
     createEmptyReaderAssistanceWorkspaceSelection,
     createEmptyReaderPreviewState,
+    createEmptyReaderInlineTranslationState,
     createErrorReaderAssistanceState,
     createLoadingReaderAssistanceState,
     createReaderAssistanceHistoryEntry,
@@ -57,6 +60,7 @@
     createReaderSidebarController,
     createReaderTtsController,
     getReaderLocationDisplayLabel,
+    getReaderInlineTranslationSummary,
     getReaderTtsPrimaryActionLabel,
     getReaderTtsReadableTargetLabel,
     getReaderTtsSessionStatusLabel,
@@ -71,6 +75,8 @@
     updateReaderAssistanceHistoryEntry,
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
+    toggleReaderInlineTranslationVisibility,
+    upsertReaderInlineTranslationCandidate,
     upsertReaderAssistanceHistoryEntry,
     type ReaderTtsSpeechTarget
   } from '$lib/reader';
@@ -172,6 +178,12 @@
   let translationFollowsCurrentSource = true;
   let translationTargetLanguage = 'zh';
   let translationProvider: ReaderTranslationProvider = 'deepl';
+  let inlineTranslationState: ReaderInlineTranslationState =
+    createEmptyReaderInlineTranslationState();
+  let inlineTranslationSummary = getReaderInlineTranslationSummary(inlineTranslationState);
+  let inlineTranslationStatusMessage = '等待可翻译正文。';
+  let inlineTranslationCapabilityMessage = '正文内译文会等待阅读视窗提供安全正文候选。';
+  let latestInlineTranslationCandidates: ReaderInlineTranslationCandidatesEvent | null = null;
   let pinnedTranslationSource: ReaderTranslationSource | null = null;
   let resolvedTranslationSource: ReaderTranslationSource = {
     text: '',
@@ -258,6 +270,17 @@
   let nextTranslationLiveSnapshot: ReaderTranslationLiveSnapshot | null = null;
   let translationProviderStatuses: ReaderTranslationProviderStatus[] =
     createDefaultReaderTranslationProviderStatuses();
+
+  type ReaderInlineTranslationCandidatesEvent = {
+    candidates: Array<{
+      id: string;
+      sourceText: string;
+      sourceLabel: string;
+    }>;
+    status: 'ready' | 'waiting' | 'unsupported';
+    message: string;
+    formatLabel: string;
+  };
   const ttsController = createReaderTtsController();
   const ttsState = ttsController.state;
 
@@ -656,6 +679,13 @@
       translationLiveSnapshotStorageKey
     );
     lastRestoredTranslationLiveSnapshotBookKey = readerBookKey;
+    inlineTranslationState = createEmptyReaderInlineTranslationState({
+      provider: translationProvider,
+      targetLanguage: translationTargetLanguage.trim().toLowerCase() === 'en' ? 'en' : 'zh'
+    });
+    inlineTranslationStatusMessage = '等待可翻译正文。';
+    inlineTranslationCapabilityMessage = '正文内译文会等待阅读视窗提供安全正文候选。';
+    latestInlineTranslationCandidates = null;
     lastAssistanceBookKey = readerBookKey;
   }
   $: {
@@ -696,6 +726,22 @@
       translationProvider = routeTranslationConfig.provider;
     }
   }
+  $: {
+    const nextInlineTargetLanguage = (
+      translationTargetLanguage.trim().toLowerCase() === 'en' ? 'en' : 'zh'
+    ) satisfies ReaderInlineTranslationTargetLanguage;
+    if (
+      inlineTranslationState.targetLanguage !== nextInlineTargetLanguage ||
+      inlineTranslationState.provider !== translationProvider
+    ) {
+      inlineTranslationState = {
+        ...inlineTranslationState,
+        targetLanguage: nextInlineTargetLanguage,
+        provider: translationProvider
+      };
+    }
+  }
+  $: inlineTranslationSummary = getReaderInlineTranslationSummary(inlineTranslationState);
   $: if (
     routeOpenState.translationHistoryEntryId &&
     routeOpenState.translationHistoryEntryId !== assistanceSelection.translationHistoryEntryId
@@ -1402,6 +1448,64 @@
     void openNotebookWorkspaceTab('translation');
   };
 
+  const applyInlineTranslationCandidates = (detail: ReaderInlineTranslationCandidatesEvent) => {
+    if (!detail.candidates.length) {
+      inlineTranslationStatusMessage = detail.message || '等待可翻译正文。';
+      return;
+    }
+
+    inlineTranslationState = detail.candidates.reduce(
+      (state, candidate) =>
+        upsertReaderInlineTranslationCandidate(state, {
+          id: candidate.id,
+          sourceText: candidate.sourceText,
+          sourceLabel: candidate.sourceLabel
+        }),
+      inlineTranslationState
+    );
+    inlineTranslationStatusMessage = `等待可翻译正文；已接收 ${detail.candidates.length} 段正文候选，等待 provider 工作流翻译。`;
+  };
+
+  const toggleInlineTranslationEnabled = () => {
+    const nextEnabled = !inlineTranslationState.enabled;
+    inlineTranslationState = {
+      ...inlineTranslationState,
+      enabled: nextEnabled
+    };
+    inlineTranslationStatusMessage = nextEnabled ? '等待可翻译正文。' : '正文内译文已关闭。';
+    inlineTranslationCapabilityMessage = nextEnabled
+      ? '候选只来自当前视窗已暴露给 reader 的安全正文摘录。'
+      : '正文内译文会等待阅读视窗提供安全正文候选。';
+    if (nextEnabled && latestInlineTranslationCandidates) {
+      // Enabling happens after the viewport may already have emitted its current
+      // reader-state event, so replay the last safe candidate instead of waiting
+      // for the user to scroll or turn the page.
+      applyInlineTranslationCandidates(latestInlineTranslationCandidates);
+    }
+  };
+
+  const handleInlineTranslationCandidates = (detail: ReaderInlineTranslationCandidatesEvent) => {
+    latestInlineTranslationCandidates = detail;
+    inlineTranslationCapabilityMessage = detail.message || '等待可翻译正文。';
+    if (!inlineTranslationState.enabled) {
+      return;
+    }
+
+    applyInlineTranslationCandidates(detail);
+  };
+
+  const toggleInlineTranslationSourceVisibility = () => {
+    inlineTranslationState = toggleReaderInlineTranslationVisibility(inlineTranslationState, {
+      showSource: !inlineTranslationState.showSource
+    });
+  };
+
+  const toggleInlineTranslationTranslationVisibility = () => {
+    inlineTranslationState = toggleReaderInlineTranslationVisibility(inlineTranslationState, {
+      showTranslation: !inlineTranslationState.showTranslation
+    });
+  };
+
   const setTranslationTargetLanguage = (language: string) => {
     const normalizedLanguage = language.trim().toLowerCase() || 'zh';
     if (translationTargetLanguage === normalizedLanguage) return;
@@ -2023,13 +2127,24 @@
           ttsMiniBarCanPinCurrentTarget={ttsMiniBarCanPinCurrentTarget}
           ttsMiniBarModeSwitchLabel={ttsMiniBarModeSwitchLabel}
           ttsMiniBarCanSwitchMode={ttsMiniBarCanSwitchMode}
+          inlineTranslationVisible={notebookVisible && notebookTab === 'translation'}
+          inlineTranslationState={inlineTranslationState}
+          inlineTranslationSummary={inlineTranslationSummary}
+          inlineTranslationStatusMessage={inlineTranslationStatusMessage}
+          inlineTranslationCapabilityMessage={inlineTranslationCapabilityMessage}
           onOpenTtsWorkspace={openTtsWorkspace}
           onJumpToTtsPlaybackLocation={jumpToCurrentTtsLocation}
           onOpenTranslationModeFromMiniBar={openTranslationMode}
           onResumeFollowingCurrentTtsTargetFromMiniBar={resumeFollowingCurrentTtsTarget}
           onPinCurrentTtsTargetFromMiniBar={pinCurrentTtsTarget}
+          onToggleInlineTranslationEnabled={toggleInlineTranslationEnabled}
+          onToggleInlineTranslationSourceVisibility={toggleInlineTranslationSourceVisibility}
+          onToggleInlineTranslationTranslationVisibility={toggleInlineTranslationTranslationVisibility}
           onSwitchTtsModeFromMiniBar={() =>
             setTtsReadAloudTextMode(ttsReadAloudTextMode === 'translated' ? 'source' : 'translated')}
+          on:inlinetranslationcandidates={({ detail }) => {
+            handleInlineTranslationCandidates(detail);
+          }}
         />
 
         {#if parallelEnabled}

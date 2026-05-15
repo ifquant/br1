@@ -1361,6 +1361,14 @@ Goal: move translation toward a real reading-surface mode without weakening the 
   - Tutorial: `tutorials/commit/0649-define-reader-inline-translation-contract.md`.
   - Notes: this slice intentionally does not observe renderer DOM, call DeepL/Yandex, or show inline UI. It only creates the auditable state machine that later viewport and workspace slices can share.
 
+- [x] P16-1.2 Surface inline translation candidates from the viewport
+  - Outcome: translation mode now exposes a route-owned 正文内译文 layer while `ReaderViewport` emits conservative TXT and Foliate body excerpt candidates through reader-state updates.
+  - Touches: reader viewport candidate event, reader stage inline layer mount, route-owned inline translation state, focused web smoke, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader exposes inline translation mode without replacing the notebook translation workspace"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending user commit.
+  - Tutorial: `tutorials/commit/0650-surface-inline-translation-candidates.md`.
+  - Notes: this slice intentionally does not walk arbitrary iframe DOM, call translation providers from the renderer, or insert translated DOM into Foliate content. PDF/CBZ and unsupported formats report waiting/unsupported copy instead.
+
 
 ## Service Security Gate
 

@@ -67,10 +67,24 @@
     notefocus: string;
     selectionchange: ReaderSelectionState | null;
     readerstate: ReaderPreviewState;
+    inlinetranslationcandidates: ReaderInlineTranslationCandidatesEvent;
     tocchange: ReaderTocItem[];
     searchchange: ReaderSearchState;
     searchcachekeychange: string;
   }>();
+
+  type ReaderInlineTranslationCandidate = {
+    id: string;
+    sourceText: string;
+    sourceLabel: string;
+  };
+
+  type ReaderInlineTranslationCandidatesEvent = {
+    candidates: ReaderInlineTranslationCandidate[];
+    status: 'ready' | 'waiting' | 'unsupported';
+    message: string;
+    formatLabel: string;
+  };
 
   let hostElement: HTMLDivElement | null = null;
   let stageElement: HTMLDivElement | null = null;
@@ -372,7 +386,9 @@
   };
 
   const emitPlainTextReaderState = (partial?: Partial<ReaderPreviewState>) => {
-    dispatch('readerstate', getPlainTextReaderState(partial));
+    const previewState = getPlainTextReaderState(partial);
+    dispatch('readerstate', previewState);
+    emitInlineTranslationCandidates(previewState);
   };
 
   const resolveKoReaderProgressLocation = async (
@@ -659,7 +675,9 @@
     const book = foliateViewElement?.book;
     const lastLocation = foliateViewElement?.lastLocation;
     if (!book || openStatus !== 'open') {
-      dispatch('readerstate', getFallbackReaderState(partial));
+      const fallbackState = getFallbackReaderState(partial);
+      dispatch('readerstate', fallbackState);
+      emitInlineTranslationCandidates(fallbackState);
       return;
     }
     const fraction = typeof lastLocation?.fraction === 'number' ? lastLocation.fraction : 0;
@@ -702,6 +720,7 @@
     };
 
     dispatch('readerstate', previewState);
+    emitInlineTranslationCandidates(previewState);
 
     if (!previewState.progressLocation.startsWith('epubcfi(')) {
       return;
@@ -717,6 +736,79 @@
         ...previewState,
         koreaderProgressLocation
       });
+      emitInlineTranslationCandidates({
+        ...previewState,
+        koreaderProgressLocation
+      });
+    });
+  };
+
+  const getInlineTranslationUnsupportedMessage = () => {
+    if (currentFormatLabel === 'PDF') {
+      return 'PDF 正文内译文还在等待安全文本层接入。';
+    }
+    if (currentFormatLabel === 'CBZ') {
+      return 'CBZ 图片页暂时不能提供可翻译正文。';
+    }
+    if (currentFormatLabel === READER_UNKNOWN_FORMAT_LABEL) {
+      return '等待可翻译正文。';
+    }
+    return `${currentFormatLabel} 当前还不能提供安全正文内译文候选。`;
+  };
+
+  // Boundary: the viewport may report only text it already owns for reader/TTS
+  // previews. Provider calls and translated DOM insertion stay outside this file.
+  const emitInlineTranslationCandidates = (previewState: ReaderPreviewState) => {
+    if (openStatus !== 'open') {
+      const hasKnownUnsupportedFormat =
+        openStatus === 'error' && currentFormatLabel !== READER_UNKNOWN_FORMAT_LABEL;
+      dispatch('inlinetranslationcandidates', {
+        candidates: [],
+        status: hasKnownUnsupportedFormat ? 'unsupported' : 'waiting',
+        message: hasKnownUnsupportedFormat ? getInlineTranslationUnsupportedMessage() : '等待可翻译正文。',
+        formatLabel: currentFormatLabel
+      });
+      return;
+    }
+
+    if (currentFormatLabel === 'PDF' || currentFormatLabel === 'CBZ') {
+      dispatch('inlinetranslationcandidates', {
+        candidates: [],
+        status: 'unsupported',
+        message: getInlineTranslationUnsupportedMessage(),
+        formatLabel: currentFormatLabel
+      });
+      return;
+    }
+
+    const sourceText = previewState.ttsSourceText.trim();
+    if (!sourceText) {
+      dispatch('inlinetranslationcandidates', {
+        candidates: [],
+        status: 'waiting',
+        message: '等待可翻译正文。',
+        formatLabel: currentFormatLabel
+      });
+      return;
+    }
+
+    const locationKey =
+      previewState.progressLocation ||
+      previewState.chapterHref ||
+      previewState.locationLabel ||
+      previewState.progressLabel ||
+      'current';
+    dispatch('inlinetranslationcandidates', {
+      candidates: [
+        {
+          id: `${currentFormatLabel}:${locationKey}`,
+          sourceText,
+          sourceLabel: previewState.ttsSourceLabel || previewState.chapterLabel || '当前正文'
+        }
+      ],
+      status: 'ready',
+      message: '已发现当前视窗正文候选。',
+      formatLabel: currentFormatLabel
     });
   };
 
