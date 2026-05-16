@@ -6,6 +6,9 @@ import test from 'node:test';
 
 import {
   consumeReaderFocusedReadingLaunchSelection,
+  resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChange,
+  resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequest,
+  resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange,
   resolveReaderFocusedReadingLaunchSelectionGuardForBookChange,
   resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest,
   resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange
@@ -239,6 +242,94 @@ test('focused-reading route launch guard clears after same-book fraction navigat
     }),
     null
   );
+});
+
+test('focused-reading route keeps the menu-triggered epub clear path armed for one launch', () => {
+  const liveSelection = buildSelection('Keep this excerpt for the menu-triggered paragraph-focus launch.');
+
+  const guardBoundary = resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange({
+    formatLabel: 'EPUB',
+    currentSelectionGuard: null,
+    currentRearmSuppressed: false,
+    previousSelection: liveSelection,
+    nextSelection: null
+  });
+
+  assert.equal(guardBoundary.nextSelectionGuard?.selection, liveSelection);
+  assert.equal(guardBoundary.nextSelectionGuard?.armed, true);
+  assert.equal(guardBoundary.nextRearmSuppressed, false);
+});
+
+test('focused-reading route suppresses delayed epub selection clears after same-book navigation', () => {
+  const liveSelection = buildSelection('Do not let a delayed clear rebuild this stale same-book excerpt.');
+  const stagedBoundary = resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange({
+    formatLabel: 'EPUB',
+    currentSelectionGuard: null,
+    currentRearmSuppressed: false,
+    previousSelection: null,
+    nextSelection: liveSelection
+  });
+
+  assert.equal(stagedBoundary.nextSelectionGuard?.selection, liveSelection);
+  assert.equal(stagedBoundary.nextSelectionGuard?.armed, false);
+  assert.equal(stagedBoundary.nextRearmSuppressed, false);
+
+  const clearedBoundary = resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequest({
+    currentSelectionGuard: stagedBoundary.nextSelectionGuard,
+    currentRearmSuppressed: stagedBoundary.nextRearmSuppressed,
+    request: {
+      type: 'next',
+      nonce: 8
+    }
+  });
+
+  assert.equal(clearedBoundary.nextSelectionGuard, null);
+  assert.equal(clearedBoundary.nextRearmSuppressed, true);
+
+  const delayedClearBoundary = resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange({
+    formatLabel: 'EPUB',
+    currentSelectionGuard: clearedBoundary.nextSelectionGuard,
+    currentRearmSuppressed: clearedBoundary.nextRearmSuppressed,
+    previousSelection: liveSelection,
+    nextSelection: null
+  });
+
+  assert.equal(delayedClearBoundary.nextSelectionGuard, null);
+  assert.equal(delayedClearBoundary.nextRearmSuppressed, true);
+
+  const launch = consumeReaderFocusedReadingLaunchSelection({
+    launchMode: 'paragraph',
+    formatLabel: 'EPUB',
+    currentSelection: null,
+    currentSelectionGuard: delayedClearBoundary.nextSelectionGuard
+  });
+  assert.equal(launch.selection, null);
+  assert.equal(launch.nextSelectionGuard, null);
+
+  const newLiveSelection = buildSelection('A fresh post-navigation excerpt should clear the suppression.');
+  const refreshedBoundary = resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange({
+    formatLabel: 'EPUB',
+    currentSelectionGuard: delayedClearBoundary.nextSelectionGuard,
+    currentRearmSuppressed: delayedClearBoundary.nextRearmSuppressed,
+    previousSelection: null,
+    nextSelection: newLiveSelection
+  });
+
+  assert.equal(refreshedBoundary.nextSelectionGuard?.selection, newLiveSelection);
+  assert.equal(refreshedBoundary.nextSelectionGuard?.armed, false);
+  assert.equal(refreshedBoundary.nextRearmSuppressed, false);
+});
+
+test('focused-reading route clears delayed-clear suppression when another book opens', () => {
+  const boundary = resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChange({
+    currentSelectionGuard: null,
+    currentRearmSuppressed: true,
+    previousBookKey: '/books/first.epub',
+    nextBookKey: '/books/second.epub'
+  });
+
+  assert.equal(boundary.nextSelectionGuard, null);
+  assert.equal(boundary.nextRearmSuppressed, false);
 });
 
 test('rsvp-lite mode splits a selected/current excerpt into words without mutating reader progress', () => {

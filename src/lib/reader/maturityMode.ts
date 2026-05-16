@@ -71,8 +71,29 @@ type ReaderFocusedReadingLaunchSelectionGuardForControlRequestInput = {
   request: ReaderControlRequest;
 };
 
+type ReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChangeInput = {
+  formatLabel: string;
+  currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+  previousSelection: ReaderSelectionState | null;
+  nextSelection: ReaderSelectionState | null;
+  currentRearmSuppressed: boolean;
+};
+
+type ReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequestInput = {
+  currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+  currentRearmSuppressed: boolean;
+  request: ReaderControlRequest;
+};
+
 type ReaderFocusedReadingLaunchSelectionGuardBookChangeInput = {
   currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+  previousBookKey: string;
+  nextBookKey: string;
+};
+
+type ReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChangeInput = {
+  currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+  currentRearmSuppressed: boolean;
   previousBookKey: string;
   nextBookKey: string;
 };
@@ -89,6 +110,11 @@ export type ReaderFocusedReadingLaunchSelectionGuard = {
 export type ReaderFocusedReadingLaunchSelectionResolution = {
   selection: ReaderSelectionState | null;
   nextSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+};
+
+export type ReaderFocusedReadingLaunchSelectionGuardBoundaryResolution = {
+  nextSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+  nextRearmSuppressed: boolean;
 };
 
 type ReaderMaturityBookRestoreTtsState = {
@@ -275,10 +301,70 @@ export const resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest = 
     ? null
     : input.currentSelectionGuard;
 
+// The route owns one extra bit of state for the delayed Foliate clear race.
+// Same-book navigation can intentionally clear the one-shot guard before the
+// EPUB iframe reports `selectionchange(null)`. This boundary keeps that
+// explicit sticky-clear suppression separate from the actual staged selection
+// payload so a later null event cannot silently rebuild the guard.
+export const resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange = (
+  input: ReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChangeInput
+): ReaderFocusedReadingLaunchSelectionGuardBoundaryResolution => {
+  if (hasReaderSelectionText(input.nextSelection)) {
+    return {
+      nextSelectionGuard: resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange({
+        formatLabel: input.formatLabel,
+        currentSelectionGuard: input.currentSelectionGuard,
+        previousSelection: input.previousSelection,
+        nextSelection: input.nextSelection
+      }),
+      nextRearmSuppressed: false
+    };
+  }
+  if (input.currentRearmSuppressed && isEpubReaderSelectionLatchFormat(input.formatLabel)) {
+    return {
+      nextSelectionGuard: null,
+      nextRearmSuppressed: true
+    };
+  }
+  return {
+    nextSelectionGuard: resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange({
+      formatLabel: input.formatLabel,
+      currentSelectionGuard: input.currentSelectionGuard,
+      previousSelection: input.previousSelection,
+      nextSelection: input.nextSelection
+    }),
+    nextRearmSuppressed: false
+  };
+};
+
+export const resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequest = (
+  input: ReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequestInput
+): ReaderFocusedReadingLaunchSelectionGuardBoundaryResolution => ({
+  nextSelectionGuard: resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+    currentSelectionGuard: input.currentSelectionGuard,
+    request: input.request
+  }),
+  nextRearmSuppressed: doesReaderControlRequestChangeReadingContext(input.request)
+    ? true
+    : input.currentRearmSuppressed
+});
+
 export const resolveReaderFocusedReadingLaunchSelectionGuardForBookChange = (
   input: ReaderFocusedReadingLaunchSelectionGuardBookChangeInput
 ): ReaderFocusedReadingLaunchSelectionGuard | null =>
   input.previousBookKey !== input.nextBookKey ? null : input.currentSelectionGuard;
+
+export const resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChange = (
+  input: ReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChangeInput
+): ReaderFocusedReadingLaunchSelectionGuardBoundaryResolution => ({
+  nextSelectionGuard: resolveReaderFocusedReadingLaunchSelectionGuardForBookChange({
+    currentSelectionGuard: input.currentSelectionGuard,
+    previousBookKey: input.previousBookKey,
+    nextBookKey: input.nextBookKey
+  }),
+  nextRearmSuppressed:
+    input.previousBookKey !== input.nextBookKey ? false : input.currentRearmSuppressed
+});
 
 export const resolveReaderMaturityBookRestoreState = (
   input: ReaderMaturityBookRestoreInput

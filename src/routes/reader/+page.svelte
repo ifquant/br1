@@ -106,9 +106,9 @@
   } from '$lib/reader/route';
   import {
     consumeReaderFocusedReadingLaunchSelection,
-    resolveReaderFocusedReadingLaunchSelectionGuardForBookChange,
-    resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest,
-    resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange,
+    resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChange,
+    resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequest,
+    resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange,
     type ReaderFocusedReadingLaunchSelectionGuard
   } from '$lib/reader/maturityMode';
   // Current-book persistence owns storage keys plus typed localStorage payloads.
@@ -303,6 +303,10 @@
   // route boundary instead of acting like a same-book selection cache.
   let focusedReadingLaunchSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null =
     null;
+  // Same-book navigation can clear the guard before Foliate finishes reporting
+  // `selectionchange(null)`. This sticky route flag blocks that delayed clear
+  // from rebuilding the guard out of the stale pre-navigation selection.
+  let focusedReadingLaunchSelectionGuardRearmSuppressed = false;
   let focusedReadingState: ReaderFocusedReadingState = createReaderFocusedReadingState();
   let focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
   let focusedReadingRsvpPlaying = false;
@@ -413,11 +417,15 @@
     // jumps, and TTS jump-back all funnel through this boundary. Clearing the
     // one-shot guard here keeps same-book href/fraction/start/prev/next moves
     // consistent even when the request did not originate from `on:controlrequest`.
-    focusedReadingLaunchSelectionGuard =
-      resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+    const launchSelectionGuardBoundary =
+      resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequest({
         currentSelectionGuard: focusedReadingLaunchSelectionGuard,
+        currentRearmSuppressed: focusedReadingLaunchSelectionGuardRearmSuppressed,
         request
       });
+    focusedReadingLaunchSelectionGuard = launchSelectionGuardBoundary.nextSelectionGuard;
+    focusedReadingLaunchSelectionGuardRearmSuppressed =
+      launchSelectionGuardBoundary.nextRearmSuppressed;
     parallelSession = updateReaderParallelPaneControlRequest(parallelSession, 'primary', request);
     parallelSession = activateReaderParallelPane(parallelSession, 'primary');
   };
@@ -764,12 +772,16 @@
       restoredMaturityState.inlineTranslationCapabilityMessage;
     latestInlineTranslationCandidates = restoredMaturityState.latestInlineTranslationCandidates;
     currentReaderSelection = restoredMaturityState.currentReaderSelection;
-    focusedReadingLaunchSelectionGuard =
-      resolveReaderFocusedReadingLaunchSelectionGuardForBookChange({
+    const launchSelectionGuardBoundary =
+      resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChange({
         currentSelectionGuard: focusedReadingLaunchSelectionGuard,
+        currentRearmSuppressed: focusedReadingLaunchSelectionGuardRearmSuppressed,
         previousBookKey: lastAssistanceBookKey,
         nextBookKey: restoredMaturityState.restoredBookKey
       });
+    focusedReadingLaunchSelectionGuard = launchSelectionGuardBoundary.nextSelectionGuard;
+    focusedReadingLaunchSelectionGuardRearmSuppressed =
+      launchSelectionGuardBoundary.nextRearmSuppressed;
     // Focused-reading resume is per-book and text-only. The route still owns
     // the storage IO and timing; the helper only restores the plain state shape
     // that the overlay can render without asking the reader surface for DOM.
@@ -2490,13 +2502,17 @@
           on:selectionchange={({ detail }) => {
             const previousSelection = currentReaderSelection;
             currentReaderSelection = detail;
-            focusedReadingLaunchSelectionGuard =
-              resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange({
+            const launchSelectionGuardBoundary =
+              resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange({
                 formatLabel: currentPreview.formatLabel,
                 currentSelectionGuard: focusedReadingLaunchSelectionGuard,
+                currentRearmSuppressed: focusedReadingLaunchSelectionGuardRearmSuppressed,
                 previousSelection,
                 nextSelection: detail
               });
+            focusedReadingLaunchSelectionGuard = launchSelectionGuardBoundary.nextSelectionGuard;
+            focusedReadingLaunchSelectionGuardRearmSuppressed =
+              launchSelectionGuardBoundary.nextRearmSuppressed;
             notesController.setSelection(currentFormatSupportsTextAnnotations ? detail : null);
           }}
           on:searchchange={({ detail }) => {
