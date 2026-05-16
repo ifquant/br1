@@ -3343,19 +3343,25 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
     .toBe(true);
   await expect(selectionToolbar).toHaveCount(0);
   let movedProgress = '';
+  let movedProgressPercent = '';
   await expect
     .poll(async () => {
-      movedProgress = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
-      return movedProgress;
+      const footerText = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+      const footerPercent = footerText.match(/\d+%/)?.[0] ?? '';
+      if (footerText !== startingProgress && footerPercent && footerPercent !== startingProgressPercent) {
+        movedProgress = footerText;
+        movedProgressPercent = footerPercent;
+        return true;
+      }
+      return false;
     }, {
       message: 'expected EPUB reading progress to move after exit before focused-reading reopen'
     })
-    .not.toBe(startingProgress);
-  const movedProgressPercent = movedProgress.match(/\d+%/)?.[0] ?? '';
+    .toBe(true);
   expect(
-    movedProgressPercent,
-    'expected the shifted reopen progress text to expose a real EPUB percentage before manual reopen'
-  ).toMatch(/\d+%/);
+    movedProgress,
+    'expected the shifted reopen progress text to stay away from the original starting progress before manual reopen'
+  ).not.toBe(startingProgress);
   expect(
     movedProgressPercent,
     'expected the visible EPUB progress percentage to stay away from the original starting percentage before manual reopen'
@@ -3529,19 +3535,25 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt afte
   await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
   await expect(selectionToolbar).toHaveCount(0);
   let reloadedProgress = '';
+  let reloadedProgressPercent = '';
   await expect
     .poll(async () => {
-      reloadedProgress = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
-      return reloadedProgress;
+      const footerText = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+      const footerPercent = footerText.match(/\d+%/)?.[0] ?? '';
+      if (footerText !== startingProgress && footerPercent && footerPercent !== startingProgressPercent) {
+        reloadedProgress = footerText;
+        reloadedProgressPercent = footerPercent;
+        return true;
+      }
+      return false;
     }, {
       message: 'expected the visible EPUB progress to stay away from the original starting progress after reload before manual reopen'
     })
-    .not.toBe(startingProgress);
-  const reloadedProgressPercent = reloadedProgress.match(/\d+%/)?.[0] ?? '';
+    .toBe(true);
   expect(
-    reloadedProgressPercent,
-    'expected the shifted reload progress text to expose a real EPUB percentage before manual reopen'
-  ).toMatch(/\d+%/);
+    reloadedProgress,
+    'expected the shifted reload progress text to stay away from the original starting progress before manual reopen'
+  ).not.toBe(startingProgress);
   expect(
     reloadedProgressPercent,
     'expected the visible EPUB progress percentage to stay away from the original starting percentage after reload before manual reopen'
