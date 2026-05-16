@@ -2,17 +2,17 @@
 
 ## Why
 
-`readingMode.ts` already prefers `selection.text` and labels that path as `当前选区`, but the first-open EPUB flow still had a route-boundary race. When the reader opened paragraph focus from the header menu, the menu interaction could steal focus from the Foliate iframe, clear the live DOM selection, and leave `currentReaderSelection` empty just before the route called `startReaderParagraphFocus(...)`. That made the first open fall back to the preview-owned `当前章节正文` path even though the reader had explicitly selected text a moment earlier.
+`readingMode.ts` already prefers `selection.text` and labels that path as `当前选区`, but EPUB paragraph-focus launch still had a route-boundary gap once the live Foliate selection disappeared. The smoke evidence for this slice reproduces the header-menu focus-clear path: the menu steals focus from the Foliate iframe, clears the live DOM selection, and leaves `currentReaderSelection` empty just before the route launches paragraph focus. Without a route-owned fallback, that launch would fall back to the preview-owned `当前章节正文` path even though the reader had explicitly selected text a moment earlier.
 
 ## What changed
 
 - added a pure `resolveReaderFocusedReadingLaunchSelection(...)` helper in `src/lib/reader/maturityMode.ts`
-- narrowed that helper so the latched fallback only runs for the EPUB/Foliate path; other formats still rely on the live selection or ordinary preview fallback
+- narrowed that helper so the latched fallback only runs for EPUB paragraph-focus launches through the shared route handler after the live selection has already vanished; other formats still rely on the live selection or ordinary preview fallback
 - added focused helper tests in `src/lib/reader/readingMode.test.ts` that pin both the EPUB-only fallback contract and the book-switch clear boundary
 - added a route-owned `lastNonEmptyReaderSelection` latch in `src/routes/reader/+page.svelte`
 - updated the route to refresh that latch only from non-empty EPUB reader selections, so selection-clear events do not erase the last explicit EPUB excerpt and non-EPUB paths never start populating the latch
 - reset the latch through a pure helper on book switches, with a matching unit assertion for that clear branch
-- changed focused-reading launch input to prefer the live selection first and then the latched EPUB route selection only for first-open EPUB launch
+- changed paragraph-focus launch input to prefer the live selection first and then the latched EPUB route selection only when that shared route-owned launch runs after the live selection is already gone
 - added a Playwright smoke that reproduces the header-menu race by clearing the live Foliate selection after opening the menu and before launching paragraph focus
 
 ## Verification
@@ -27,4 +27,4 @@
 - no TTS, translation, notebook, sidebar, or broader route refactor
 - no new PDF or CBZ focused-reading behavior
 - no change to hidden focused-reading reopen ownership; that still comes from `focusedReadingState`, not from the new route latch
-- no claim that every menu interaction preserves the browser selection itself; the fix only preserves the last explicit selection for focused-reading launch
+- no claim that every menu interaction preserves the browser selection itself; the fix only preserves the last explicit selection for EPUB paragraph-focus launch after the live selection has already vanished
