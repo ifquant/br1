@@ -3305,6 +3305,7 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
   await expect(overlay).toContainText(selectedExcerpt);
   await expect(overlayContext).toContainText('摘录来源');
   await expect(overlayContext).toContainText('进度');
+  await expect(overlaySourceValue).toHaveText(/\S+/);
   const initialOverlaySourceValue = ((await overlaySourceValue.textContent()) ?? '').trim();
   expect(initialOverlaySourceValue).toMatch(/\S+/);
   expect(initialOverlaySourceValue).not.toMatch(/^(epubcfi\(|txt:|page:|pdf:)/);
@@ -3337,8 +3338,12 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
     })
     .toBe(true);
   await expect(selectionToolbar).toHaveCount(0);
+  let movedProgress = '';
   await expect
-    .poll(async () => ((await readingProgress.textContent()) ?? '').trim(), {
+    .poll(async () => {
+      movedProgress = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+      return movedProgress;
+    }, {
       message: 'expected EPUB reading progress to move after exit before focused-reading reopen'
     })
     .not.toBe(startingProgress);
