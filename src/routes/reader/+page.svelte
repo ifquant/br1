@@ -1044,6 +1044,10 @@
     readerBookKey;
     lastRestoredTranslationLiveSnapshotBookKey;
     translationLiveSnapshot;
+    // Live translation snapshot is book-scoped and route-derived, so it uses
+    // the same restore gate as other per-book translated state. Without this
+    // gate, the empty/default snapshot on first render could overwrite a book's
+    // last usable live translation before restore finished.
     if (
       typeof localStorage !== 'undefined' &&
       canPersistReaderCurrentBookTranslationLiveSnapshot({
@@ -1100,6 +1104,9 @@
   $: {
     assistanceHistory;
     assistanceHistoryStorageKey;
+    // Assistance history persists immediately because it is already restored as
+    // a whole current-book collection before these reactive writes begin. There
+    // is no separate staged restore marker for each later append/remove action.
     if (typeof localStorage !== 'undefined') {
       persistReaderCurrentBookAssistanceHistory(
         getReaderStorage(),
@@ -1111,6 +1118,9 @@
   $: {
     assistanceSelection;
     assistanceSelectionStorageKey;
+    // Assistance selection follows the same rule as history: once the current
+    // book is restored, later route/UI changes can safely write the latest
+    // selection state back without another per-field restore gate.
     if (typeof localStorage !== 'undefined') {
       persistReaderCurrentBookAssistanceSelection(
         getReaderStorage(),
@@ -1124,6 +1134,10 @@
     translationModeConfigStorageKey;
     translationTargetLanguage;
     translationProvider;
+    // Translation mode config is route-sensitive and book-scoped, so it waits
+    // for the matching book's config restore marker before persisting. That
+    // stops default provider/language values from clobbering restored config
+    // while route-owned translation mode is still being reconciled.
     if (
       typeof localStorage !== 'undefined' &&
       canPersistReaderCurrentBookTranslationModeConfig({
@@ -1152,6 +1166,10 @@
     ttsReadAloudTextMode;
     translatedTtsOwner;
     translatedTtsLiveSnapshot;
+    // TTS persistence is intentionally bundled. Follow-current vs pinned
+    // ownership, source-vs-translated mode, archive-vs-live translated owner,
+    // and the translated snapshot must all belong to the same restored book
+    // before any one of them is written back.
     if (
       typeof localStorage !== 'undefined' &&
       canPersistReaderCurrentBookTtsOwnershipState({
@@ -1169,6 +1187,10 @@
     translationOwnershipStorageKey;
     translationFollowsCurrentSource;
     pinnedTranslationSource;
+    // Translation ownership can persist without an extra restore gate because
+    // the current book's follow-current vs pinned-source policy is already
+    // restored during the book-switch boundary before later writes run here.
+    // When no current-book key exists yet, the storage helper is a no-op.
     if (typeof localStorage !== 'undefined') {
       persistReaderTranslationOwnership(getReaderStorage(), translationOwnershipStorageKey, {
         followsCurrentSource: translationFollowsCurrentSource,
