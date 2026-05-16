@@ -373,6 +373,10 @@
   $: sourceLabel = autoOpenTarget?.label ?? '';
   $: readerBookKey = routeOpenState.bookKey;
   $: if (routeOpenState.autoOpenKey !== parallelSession.panes.primary.source.sourceKey) {
+    // Route parsing can recreate the primary pane wholesale, so a changed
+    // route-derived primary source identity resets the session back to
+    // "route-derived primary plus empty in-memory secondary" before any later
+    // local pane cloning runs.
     parallelSession = createReaderParallelSessionFromRoute(routeOpenState);
   }
   $: parallelEnabled = parallelSession.panes.secondary.openTarget !== null;
@@ -394,6 +398,9 @@
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
     controlNonce += 1;
+    // Auto-open reseeds only the primary pane. Secondary remains an in-memory
+    // companion view so route changes do not accidentally persist or restore
+    // two independent reader sessions.
     parallelSession = updateReaderParallelPaneControlRequest(
       parallelSession,
       'primary',
@@ -405,6 +412,8 @@
 
   $: if (!autoOpenTarget) {
     lastAutoKey = '';
+    // Clearing route open intent collapses the session back to the route-derived
+    // baseline instead of trying to preserve stale pane state in local memory.
     parallelSession = createReaderParallelSessionFromRoute(routeOpenState);
   }
 
@@ -438,6 +447,9 @@
   };
 
   const issueSecondaryControlRequest = (request: ReaderControlRequest) => {
+    // Secondary control stays inside `parallelSession` on purpose. The route
+    // still owns outer notebook/sidebar/TTS/bookmark workflows, so the second
+    // pane does not widen the persisted route contract.
     parallelSession = updateReaderParallelPaneControlRequest(parallelSession, 'secondary', request);
     parallelSession = activateReaderParallelPane(parallelSession, 'secondary');
   };
@@ -2741,6 +2753,10 @@
             controlRequest={parallelSession.panes.secondary.controlRequest}
             landmarkRole="region"
             landmarkLabel="并行阅读窗格"
+            // The companion stage renders its own preview/control flow, but it
+            // only reuses shared sidebar/TTS shell inputs from the outer route.
+            // It does not get independent note/bookmark ownership or a second
+            // persisted reader workflow of its own.
             autoOpenPicker={false}
             {isWindowMode}
             sidebarVisible={$sidebarState.visible}

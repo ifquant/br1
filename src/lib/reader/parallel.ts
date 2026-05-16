@@ -65,7 +65,8 @@ const createReaderParallelPaneSourceStateFromRoute = (
   const target = routeOpenState.target;
 
   // Boundary: pane source identity must stay serializable and route-derived so
-  // window-mode restore can rebuild the same session without live DOM state.
+  // window-mode restore can rebuild the same primary-pane session identity
+  // without depending on live DOM state.
   if (!target) {
     return {
       kind: 'empty',
@@ -112,6 +113,9 @@ const createReaderParallelPaneStateFromRoute = (
   const source = createReaderParallelPaneSourceStateFromRoute(routeOpenState);
   const openTarget = routeOpenState.target;
 
+  // Only the primary pane is rebuilt from route-derived open intent. The
+  // helper uses the same empty/open shape for both panes, but secondary never
+  // gets its own persisted route session.
   return {
     ...createEmptyReaderParallelPaneState(id, source),
     openTarget,
@@ -186,7 +190,12 @@ export const createReaderParallelSessionFromRoute = (
 ): ReaderParallelSessionState => ({
   activePaneId: READER_PARALLEL_PRIMARY_PANE_ID,
   panes: {
+    // Primary is the durable pane: route parsing can always recreate it from
+    // URL-owned open intent plus the current book key.
     primary: createReaderParallelPaneStateFromRoute(READER_PARALLEL_PRIMARY_PANE_ID, routeOpenState),
+    // Secondary starts empty on every route rebuild. It is an in-memory
+    // companion pane opened from the live primary session, not a second route
+    // restoration target.
     secondary: createEmptyReaderParallelPaneState(
       READER_PARALLEL_SECONDARY_PANE_ID,
       createReaderParallelPaneEmptySourceState(READER_PARALLEL_SECONDARY_PANE_ID)
@@ -201,6 +210,9 @@ export const openReaderParallelSecondaryPaneFromPrimary = (
   const primaryPane = session.panes.primary;
   if (!primaryPane.openTarget) return session;
 
+  // Opening the companion pane snapshots the current primary target into a new
+  // in-memory pane. It reuses the same open target while issuing a fresh open
+  // request, but it does not mint an independent persisted session contract.
   const nextSecondaryPane = {
     ...createEmptyReaderParallelPaneState(
       READER_PARALLEL_SECONDARY_PANE_ID,
@@ -254,6 +266,9 @@ export const updateReaderParallelPanePreview = (
   preview: ReaderPreviewState
 ): ReaderParallelSessionState =>
   updateReaderParallelPaneState(session, paneId, (pane) => {
+    // Preview, progress summary, and mount state have to move together because
+    // the parallel chrome reads all three as one "what is this pane showing?"
+    // snapshot.
     const nextProgress = createReaderParallelPaneProgressState(preview);
     const nextMountState = deriveReaderParallelPaneMountState(preview);
 
