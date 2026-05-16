@@ -384,6 +384,9 @@ export const isReaderTtsPlaybackLocationDrifted = (
 export const planReaderTtsRetargetAction = (
   status: ReaderTtsSessionStatus
 ): ReaderTtsRetargetAction => {
+  // Retargeting is status-sensitive: active speech restarts immediately, paused
+  // speech must first collapse the old runtime session, and idle/error states can
+  // just replace the cached target without forcing another transition.
   if (status === 'speaking') return 'restart-session';
   if (status === 'paused') return 'stop-and-arm-target';
   return 'replace-target';
@@ -492,6 +495,10 @@ export const resolveReaderTtsSpeechTargetForMode = ({
 
   if (mode === 'translated') {
     if (!normalizedTranslatedText) return null;
+    // Preserve translated provenance when possible, but reuse the source chapter,
+    // location, and progress labels when the translated payload does not carry
+    // those reader-facing fields. `progressLocation`, `progressFraction`, and
+    // `chapterHref` still stay translation-owned here.
     const translatedSourceLabel = normalizedProviderLabel
       ? normalizedProviderLabel.includes('译文')
         ? normalizedProviderLabel
@@ -626,6 +633,9 @@ export const createReaderTtsController = ({
   getNow = () => Date.now(),
   runtime = createWebSpeechReaderTtsRuntime()
 }: ReaderTtsControllerOptions = {}) => {
+  // This controller owns only the live speech-runtime contract: normalized active
+  // target, session tokening, and Web Speech/media-session transitions. Route
+  // persistence and restore precedence still live in the reader page.
   let available = isAvailable;
   let activeSpeechTarget: ReaderTtsSpeechTarget | null = null;
   let speechSessionToken = 0;
@@ -648,6 +658,8 @@ export const createReaderTtsController = ({
   const setSpeechTarget = (target: ReaderTtsSpeechTarget | null) => {
     activeSpeechTarget = normalizeReaderTtsSpeechTarget(target);
     state.update((current) => {
+      // Cache the next target even before playback restarts so UI surfaces can
+      // explain what will be spoken without pretending a new utterance already exists.
       const next = {
         ...current,
         ...createReaderTtsSessionTargetState(activeSpeechTarget)
@@ -734,6 +746,8 @@ export const createReaderTtsController = ({
     activeSpeechTarget = nextTarget;
     const sessionToken = ++speechSessionToken;
     setSpeechTarget(nextTarget);
+    // Publish the speaking state before entering the runtime so any synchronous
+    // browser callbacks observe the same target the user just selected.
     updateState(
       stamp(
         createSpeakingReaderTtsSessionState({
@@ -812,6 +826,8 @@ export const createReaderTtsController = ({
       return;
     }
 
+    // Invalidate the current token before stopping so trailing callbacks from the
+    // previous utterance cannot drag the controller back into a stale completion state.
     speechSessionToken += 1;
     runtime.stop();
     updateState(
