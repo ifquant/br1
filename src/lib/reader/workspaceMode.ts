@@ -72,6 +72,9 @@ export const resolveReaderNotebookShellState = ({
   const routeWorkspaceTab = routeOpenState.workspaceMode;
   const pinned = !!persisted?.pinned;
 
+  // Notebook shell restore is intentionally hybrid. Local persistence still
+  // owns pinned state and the last remembered tab, but an explicit route
+  // workspace mode must force the notebook open on the matching dedicated tab.
   return {
     pinned,
     visible: pinned || !!routeWorkspaceTab,
@@ -91,6 +94,9 @@ export const resolveReaderWorkspaceModeRouteRequest = ({
     workspaceMode === 'translation' ||
     (workspaceMode === 'tts' && ttsReadAloudTextMode === 'translated');
 
+  // The route contract only owns the dedicated translation/TTS slice. This
+  // sanitizer drops payload that does not belong to the destination mode so
+  // local notebook UI state does not accidentally leak stale route params.
   return {
     workspaceMode,
     ttsReadAloudTextMode: workspaceMode === 'tts' ? ttsReadAloudTextMode : null,
@@ -115,6 +121,8 @@ export const resolveReaderNotebookTabRouteRequest = ({
   currentTranslationProvider: ReaderTranslationProvider;
   currentTranslationHistoryEntryId: string;
 }): ReaderWorkspaceModeRouteRequest =>
+  // Most notebook tabs stay route-neutral. Only tabs that map to dedicated
+  // workspace modes publish a partial route owner for deep-link / reopen flows.
   resolveReaderWorkspaceModeRouteRequest({
     workspaceMode: getReaderDedicatedWorkspaceModeForNotebookTab(tab),
     ttsReadAloudTextMode: tab === 'tts' ? currentTtsReadAloudTextMode : null,
@@ -166,6 +174,10 @@ export const resolveReaderRouteWorkspaceApplication = ({
   routeOpenState: ReaderRouteOpenState;
   lastAppliedRouteWorkspaceMode: ReaderRouteWorkspaceMode | null;
 }): ReaderRouteWorkspaceApplication => {
+  // Route re-application is one-way and edge-triggered. The notebook should
+  // react when the URL enters or clears a dedicated workspace mode, but local
+  // shell toggles should not keep replaying the same route-open instruction on
+  // every reactive pass.
   if (
     routeOpenState.workspaceMode &&
     routeOpenState.workspaceMode !== lastAppliedRouteWorkspaceMode

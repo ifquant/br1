@@ -652,6 +652,9 @@
   };
 
   const openNotebookWorkspaceTab = async (tab: ReaderNotebookWorkspaceTab) => {
+    // Opening a notebook tab always updates local shell state first, but only
+    // dedicated tabs publish a matching route owner. Notes, highlights,
+    // assistant, and sync remain notebook-local within this handoff model.
     notebookVisible = true;
     notebookTab = tab;
     await syncReaderWorkspaceModeToRoute(
@@ -666,6 +669,9 @@
   };
 
   const closeNotebookWorkspace = async () => {
+    // Closing the notebook is not the inverse of "open any tab". It clears the
+    // partial route owner for dedicated workspaces, but the local shell still
+    // keeps its pinned/last-tab memory for the next reopen.
     notebookVisible = false;
     await syncReaderWorkspaceModeToRoute(
       resolveReaderWorkspaceModeRouteRequest({
@@ -703,6 +709,10 @@
     const rawNotebookShell = localStorage.getItem(NOTEBOOK_STORAGE_KEY);
     if (rawNotebookShell) {
       try {
+        // Persisted notebook shell is the baseline, then any explicit route
+        // workspace mode clamps visibility/tab to the dedicated surface the URL
+        // asked for. This keeps deep links and manual reopen state consistent
+        // without turning every notebook tab into a route-owned concept.
         const restoredNotebookShell = resolveReaderNotebookShellState({
           persisted: JSON.parse(rawNotebookShell) as { pinned?: unknown; activeTab?: unknown },
           routeOpenState
@@ -714,6 +724,8 @@
         console.warn('Failed to restore reader notebook shell state', error);
       }
     } else if (routeOpenState.workspaceMode) {
+      // Without persisted shell state there is still enough route intent to
+      // open the dedicated workspace tab requested by the URL.
       const restoredNotebookShell = resolveReaderNotebookShellState({
         persisted: null,
         routeOpenState
@@ -831,10 +843,15 @@
       lastAppliedRouteWorkspaceMode
     });
     if (routeWorkspaceApplication.kind === 'open') {
+      // Remember which dedicated route mode already claimed the notebook so the
+      // same URL state is not re-applied over later local tab toggles.
       lastAppliedRouteWorkspaceMode = routeWorkspaceApplication.lastAppliedRouteWorkspaceMode;
       notebookVisible = routeWorkspaceApplication.notebookVisible;
       notebookTab = routeWorkspaceApplication.notebookTab;
     } else if (routeWorkspaceApplication.kind === 'clear') {
+      // Clearing the route owner only drops the "already applied" marker. It
+      // does not force-close the notebook, because local shell state may still
+      // want it visible or pinned after the dedicated route mode goes away.
       lastAppliedRouteWorkspaceMode = routeWorkspaceApplication.lastAppliedRouteWorkspaceMode;
     }
   }
