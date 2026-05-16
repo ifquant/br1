@@ -95,6 +95,11 @@
     upsertReaderAssistanceHistoryEntry,
     type ReaderTtsSpeechTarget
   } from '$lib/reader';
+  import {
+    resolveReaderAnnotationPopupSelectionForBookChange,
+    resolveReaderMaturityRouteTranslationConfig,
+    resolveReaderPlaybackQueueForEffectiveTtsTarget
+  } from '$lib/reader/route';
   // Current-book persistence owns storage keys plus typed localStorage payloads.
   import {
     getReaderCurrentBookPersistenceKeys,
@@ -116,7 +121,6 @@
     resolveReaderEffectiveTranslationSource,
     resolveReaderLiveTranslationPanelResult,
     resolveReaderNextTranslationLiveSnapshot,
-    resolveReaderRouteTranslationModeConfig,
     resolveReaderTranslationLiveSnapshotState,
     resolveReaderTranslationModeConfigRestore
   } from '$lib/reader';
@@ -621,12 +625,6 @@
       routeOpenState,
       currentMode: ttsReadAloudTextMode
     });
-    if (routeOpenState.workspaceMode === 'translation' && routeOpenState.translationTargetLanguage) {
-      translationTargetLanguage = routeOpenState.translationTargetLanguage;
-    }
-    if (routeOpenState.workspaceMode === 'translation' && routeOpenState.translationProvider) {
-      translationProvider = routeOpenState.translationProvider;
-    }
     if (routeOpenState.translationHistoryEntryId) {
       assistanceSelection = {
         ...assistanceSelection,
@@ -721,7 +719,14 @@
     inlineTranslationStatusMessage = '等待可翻译正文。';
     inlineTranslationCapabilityMessage = '正文内译文会等待阅读视窗提供安全正文候选。';
     latestInlineTranslationCandidates = null;
-    currentReaderSelection = null;
+    // Annotation popup visibility is derived from the active selection, so a
+    // new book source must clear the old selection before the next renderer
+    // event arrives.
+    currentReaderSelection = resolveReaderAnnotationPopupSelectionForBookChange({
+      currentSelection: currentReaderSelection,
+      previousBookKey: lastAssistanceBookKey,
+      nextBookKey: readerBookKey
+    });
     focusedReadingState = createReaderFocusedReadingState();
     lastAssistanceBookKey = readerBookKey;
   }
@@ -747,8 +752,11 @@
       ttsReadAloudTextMode = routeTtsReadAloudTextMode;
     }
   }
-  $: if (routeOpenState.workspaceMode === 'translation') {
-    const routeTranslationConfig = resolveReaderRouteTranslationModeConfig({
+  $: {
+    // Only dedicated translation routes are allowed to retune the shared
+    // translation config. Inline translation reuses that config, but it must
+    // not become a second route owner.
+    const routeTranslationConfig = resolveReaderMaturityRouteTranslationConfig({
       currentConfig: {
         targetLanguage: translationTargetLanguage,
         provider: translationProvider
@@ -820,19 +828,14 @@
   // queue helper as the single source of queue/rate/timeout semantics.
   $: {
     effectiveTtsTarget;
-    const nextPlaybackQueueTargetKey = JSON.stringify(effectiveTtsTarget ?? null);
-    if (nextPlaybackQueueTargetKey !== lastPlaybackQueueTargetKey) {
-      const now = Date.now();
-      const timeoutRemainingMs =
-        typeof ttsPlaybackQueueState.timeoutAt === 'number' && ttsPlaybackQueueState.timeoutAt > now
-          ? ttsPlaybackQueueState.timeoutAt - now
-          : null;
-      ttsPlaybackQueueState = createReaderPlaybackQueue([effectiveTtsTarget], {
-        playbackRate: ttsPlaybackQueueState.playbackRate,
-        timeoutMs: timeoutRemainingMs,
-        now
-      });
-      lastPlaybackQueueTargetKey = nextPlaybackQueueTargetKey;
+    const playbackQueueRetarget = resolveReaderPlaybackQueueForEffectiveTtsTarget({
+      effectiveTtsTarget,
+      currentState: ttsPlaybackQueueState,
+      lastTargetKey: lastPlaybackQueueTargetKey
+    });
+    if (playbackQueueRetarget.didReset) {
+      ttsPlaybackQueueState = playbackQueueRetarget.state;
+      lastPlaybackQueueTargetKey = playbackQueueRetarget.targetKey;
     }
   }
   $: ttsPlaybackQueueSummary = getReaderPlaybackQueueSummary(ttsPlaybackQueueState, ttsPlaybackNow);

@@ -1417,6 +1417,27 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Tutorial: `tutorials/commit/0655-add-reader-footnote-popup.md`.
   - Notes: interception/extraction stays in `ReaderViewport` because only the renderer boundary knows which loaded document owns the clicked internal link. Popup placement stays in `ReaderStage`, and fallback navigation still runs through the existing `controlrequest -> href` path instead of creating a second navigation owner.
 
+- [x] P18-1.3 Extract reader sidebar annotation presentation
+  - Outcome: the reader annotation/sidebar slice now renders bookmarks, highlights, and notes through a dedicated presentation child while `ReaderSidebar.svelte` keeps all reactive derivation, localStorage-backed highlight workspace state, and mutation helpers.
+  - Touches: `ReaderSidebarAnnotations.svelte`, `ReaderSidebar.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader supports txt notes through selection, persistence, and note reopen in web mode|reader productizes bookmarks as current reading positions in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`2980`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed; user requested no commit.
+  - Tutorial: `tutorials/commit/0656-extract-reader-sidebar-annotation-presentation.md`.
+  - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `4178`. The extraction stays intentionally conservative: the child accepts a wide prop surface, preserves existing strings/ARIA copy, and leaves the saved-highlight-selection panel in the parent through the `highlights-extra` slot so cross-book import/export and refresh state do not change owners.
+
+
+## P19 Reader File Boundary Reduction
+
+Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surface precedence and reset rules into auditable pure helpers instead of growing more route-local reactive branches.
+
+- [x] P19-1.1 Extract route coordination helpers for maturity surfaces
+  - Outcome: route coordination for dedicated translation precedence, book-change annotation-popup clearing, and effective-TTS-target playback queue resets now lives in `maturityMode.ts`, with focused helper tests covering the same maturity invariants plus the stage-matching footnote reset rule.
+  - Touches: `src/lib/reader/maturityMode.ts`, `src/lib/reader/maturityMode.test.ts`, `src/lib/reader/route.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-maturity-mode-tests --noEmit false && node --test ./.tmp-maturity-mode-tests/src/lib/reader/maturityMode.test.js` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode|reader exposes inline translation mode without replacing the notebook translation workspace|reader shows selection-near annotation actions in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/routes/reader/+page.svelte` (`2853`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0657-extract-reader-maturity-route-coordination.md`.
+  - Notes: Svelte navigation, localStorage restore/persist, and event handlers intentionally remain inside `+page.svelte`. The footnote reset rule is covered in the new pure helper tests so it stays documented alongside the route-owned maturity decisions, but the live popup owner still remains `ReaderStage.svelte`.
+
 
 ## Service Security Gate
 

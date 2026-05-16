@@ -229,3 +229,9 @@ export const toReaderOpenControlRequest = (
         restoreFraction: target.restoreFraction,
         restoreLocation: target.restoreLocation
       };
+
+export {
+  resolveReaderAnnotationPopupSelectionForBookChange,
+  resolveReaderMaturityRouteTranslationConfig,
+  resolveReaderPlaybackQueueForEffectiveTtsTarget
+} from './maturityMode';

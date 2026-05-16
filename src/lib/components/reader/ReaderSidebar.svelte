@@ -5,6 +5,7 @@
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
+  import ReaderSidebarAnnotations from './ReaderSidebarAnnotations.svelte';
   import type {
     ReaderAssistanceHistoryEntry,
     ReaderAssistanceState,
@@ -1863,332 +1864,94 @@
             onClearHistory={onClearAssistanceHistory}
           />
         </section>
-      {:else if activeTab === 'bookmarks'}
-        <section class="sidebar-panel" aria-label="书签面板">
-        <div class="bookmarks-summary">
-          <strong>阅读位置</strong>
-          <span>{bookmarksPanelSummary}</span>
-        </div>
-
-        <div class="bookmarks-meta-row">
-          <span>{bookmarksState.bookmarks.length} 书签</span>
-          <span>{isCurrentLocationBookmarked ? '当前页已入书签' : '当前页未入书签'}</span>
-          <span>{bookmarksFilter === 'chapter' ? `${sortedBookmarks.length} 当前章节` : '查看全部章节'}</span>
-          <span>{bookmarksSort === 'recent' ? '按最近保存' : '按章节浏览'}</span>
-        </div>
-
-        <div class="bookmarks-actions">
-          <button
-            type="button"
-            class="primary-bookmark-action"
-            on:click={() => callbacks.onToggleCurrentBookmark?.()}
-          >
-            {isCurrentLocationBookmarked ? '移除当前页书签' : '保存当前页位置'}
-          </button>
-        </div>
-
-        <div class="bookmarks-filter-row" aria-label="书签筛选控制">
-          <div class="bookmarks-filter-chips">
-            <button
-              type="button"
-              class:active={bookmarksFilter === 'all'}
-              class="bookmarks-filter-chip"
-              on:click={() => {
-                bookmarksFilter = 'all';
-              }}
-            >
-              全部
-            </button>
-            <button
-              type="button"
-              class:active={bookmarksFilter === 'chapter'}
-              class="bookmarks-filter-chip"
-              disabled={!activeHref}
-              on:click={() => {
-                bookmarksFilter = 'chapter';
-              }}
-            >
-              当前章节
-            </button>
-          </div>
-          <div class="bookmarks-sort-chips">
-            <button
-              type="button"
-              class:active={bookmarksSort === 'recent'}
-              class="bookmarks-filter-chip"
-              on:click={() => {
-                bookmarksSort = 'recent';
-              }}
-            >
-              最近添加
-            </button>
-            <button
-              type="button"
-              class:active={bookmarksSort === 'chapter'}
-              class="bookmarks-filter-chip"
-              on:click={() => {
-                bookmarksSort = 'chapter';
-              }}
-            >
-              章节顺序
-            </button>
-          </div>
-          <div class="bookmarks-group-actions">
-            <button
-              type="button"
-              class="bookmarks-filter-chip"
-              disabled={bookmarksSort !== 'chapter' || !groupedBookmarks.length || areAllBookmarkGroupsExpanded}
-              on:click={expandAllBookmarkGroups}
-            >
-              全部展开
-            </button>
-            <button
-              type="button"
-              class="bookmarks-filter-chip"
-              disabled={bookmarksSort !== 'chapter' || !groupedBookmarks.length || areAllBookmarkGroupsCollapsed}
-              on:click={collapseAllBookmarkGroups}
-            >
-              全部折叠
-            </button>
-          </div>
-        </div>
-
-        <div class="bookmark-list">
-          {#if sortedBookmarks.length}
-            {#if bookmarksSort === 'chapter'}
-              {#each groupedBookmarks as group}
-                <section class="bookmark-group" aria-label={`${group.chapterLabel} 的书签`}>
-                  <button
-                    type="button"
-                    class="bookmark-group-head"
-                    aria-expanded={!isBookmarkGroupCollapsed(group.chapterHref)}
-                    on:click={() => toggleBookmarkGroup(group.chapterHref)}
-                  >
-                    <strong>{group.chapterLabel}</strong>
-                    <span>{group.bookmarks.length} 条 {!isBookmarkGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
-                  </button>
-
-                  {#if !isBookmarkGroupCollapsed(group.chapterHref)}
-                    {#each group.bookmarks as bookmark}
-                      <article
-                        class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
-                        class="bookmark-card"
-                        data-bookmark-locator={bookmark.locator}
-                      >
-                        <div class="bookmark-head">
-                          <button
-                            type="button"
-                            class="bookmark-link"
-                            on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
-                          >
-                            <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
-                            <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
-                            <time>{formatTimestamp(bookmark.createdAt)}</time>
-                          </button>
-                          <button
-                            type="button"
-                            class="bookmark-action danger"
-                            on:click={() => callbacks.onDeleteBookmark?.(bookmark.id)}
-                          >
-                            删除
-                          </button>
-                        </div>
-                      </article>
-                    {/each}
-                  {/if}
-                </section>
-              {/each}
-            {:else}
-              {#each sortedBookmarks as bookmark}
-                <article
-                  class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
-                  class="bookmark-card"
-                  data-bookmark-locator={bookmark.locator}
-                >
-                  <div class="bookmark-head">
-                    <button
-                      type="button"
-                      class="bookmark-link"
-                      on:click={() => callbacks.onOpenBookmark?.(bookmark.targetHref)}
-                    >
-                      <strong>{bookmark.chapterLabel || '未命名位置'}</strong>
-                      <span>{bookmark.progressLabel} · {bookmark.locationLabel}</span>
-                      <time>{formatTimestamp(bookmark.createdAt)}</time>
-                    </button>
-                    <button
-                      type="button"
-                      class="bookmark-action danger"
-                      on:click={() => callbacks.onDeleteBookmark?.(bookmark.id)}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </article>
-              {/each}
-            {/if}
-          {:else if bookmarksState.bookmarks.length && bookmarksFilter === 'chapter'}
-            <p class="empty">当前章节还没有保存的阅读位置，可以切回“全部”查看其他位置。</p>
-          {:else}
-            <p class="empty">还没有保存的阅读位置，先把当前页存成书签。</p>
-          {/if}
-        </div>
-        </section>
-      {:else if activeTab === 'highlights'}
-        <section class="sidebar-panel" aria-label="高亮面板">
-          <div class="notes-summary">
-            <strong>高亮</strong>
-            <span>{highlightsPanelSummary}</span>
-          </div>
-
-          <div class="notes-meta-row">
-            <span>{allHighlights.length} 高亮</span>
-            <span>
-              {highlightsFilter === 'chapter'
-                ? `${highlightsByScope.length} 当前章节`
-                : highlightsFilter === 'selected'
-                  ? `${highlightsByScope.length} 已选高亮`
-                  : '全部章节'}
-            </span>
-            <span>{highlightsSort === 'recent' ? '最近添加优先' : '最早添加优先'}</span>
-            <span>{selectedVisibleHighlights.length ? `已选 ${selectedVisibleHighlights.length} 条` : '未选高亮'}</span>
-            <span>{notesState.activeCfi ? '可跳回当前高亮' : '未聚焦高亮'}</span>
-          </div>
-
-          <div class="notes-actions">
-            <button
-              type="button"
-              class="secondary-note-action"
-              disabled={!selectedHighlightIds.size}
-              on:click={saveCurrentHighlightSelection}
-            >
-              保存当前选择集
-            </button>
-            <button
-              type="button"
-              class="secondary-note-action"
-              disabled={!sortedHighlights.length || areAllVisibleHighlightsSelected}
-              on:click={selectAllVisibleHighlights}
-            >
-              选中当前视图高亮
-            </button>
-            <button
-              type="button"
-              class="secondary-note-action"
-              disabled={!sortedHighlights.length}
-              on:click={invertVisibleHighlightsSelection}
-            >
-              反选当前视图高亮
-            </button>
-            <button
-              type="button"
-              class="secondary-note-action"
-              disabled={!selectedVisibleHighlights.length}
-              on:click={clearSelectedHighlights}
-            >
-              清空选中
-            </button>
-            <button
-              type="button"
-              class="secondary-note-action danger-action"
-              disabled={!selectedVisibleHighlights.length}
-              on:click={deleteSelectedHighlights}
-            >
-              删除选中高亮
-            </button>
-            <button
-              type="button"
-              class="secondary-note-action danger-action"
-              disabled={!highlightsByScope.length}
-              on:click={deleteVisibleHighlights}
-            >
-              {highlightsFilter === 'chapter'
-                ? '删除当前章节高亮'
-                : highlightsFilter === 'selected'
-                  ? '删除当前已选高亮'
-                  : '删除当前视图高亮'}
-            </button>
-          </div>
-
-          <div class="notes-filter-row" aria-label="高亮筛选控制">
-            <div class="notes-filter-chips">
-              <button
-                type="button"
-                class:active={highlightsFilter === 'all'}
-                class="notes-filter-chip"
-                on:click={() => {
-                  highlightsFilter = 'all';
-                }}
-              >
-                全部
-              </button>
-              <button
-                type="button"
-                class:active={highlightsFilter === 'chapter'}
-                class="notes-filter-chip"
-                disabled={!activeHref}
-                on:click={() => {
-                  highlightsFilter = 'chapter';
-                }}
-              >
-                当前章节
-              </button>
-              <button
-                type="button"
-                class:active={highlightsFilter === 'selected'}
-                class="notes-filter-chip"
-                disabled={!selectedHighlightIds.size}
-                on:click={() => {
-                  highlightsFilter = 'selected';
-                }}
-              >
-                已选高亮
-              </button>
-            </div>
-            <div class="notes-filter-chips" aria-label="高亮排序控制">
-              <button
-                type="button"
-                class:active={highlightsSort === 'recent'}
-                class="notes-filter-chip"
-                disabled={highlightsByScope.length <= 1}
-                on:click={() => {
-                  highlightsSort = 'recent';
-                }}
-              >
-                最近添加
-              </button>
-              <button
-                type="button"
-                class:active={highlightsSort === 'oldest'}
-                class="notes-filter-chip"
-                disabled={highlightsByScope.length <= 1}
-                on:click={() => {
-                  highlightsSort = 'oldest';
-                }}
-              >
-                最早添加
-              </button>
-            </div>
-            <div class="notes-group-actions">
-              <button
-                type="button"
-                class="notes-filter-chip"
-                disabled={!groupedHighlights.length || areAllHighlightGroupsExpanded}
-                on:click={expandAllHighlightGroups}
-              >
-                全部展开
-              </button>
-              <button
-                type="button"
-                class="notes-filter-chip"
-                disabled={!groupedHighlights.length || areAllHighlightGroupsCollapsed}
-                on:click={collapseAllHighlightGroups}
-              >
-                全部折叠
-              </button>
-            </div>
-          </div>
-
-          <div class="note-list">
+      {:else}
+        <ReaderSidebarAnnotations
+          {activeTab}
+          {activeHref}
+          {supportsTextAnnotations}
+          {textAnnotationSupportMessage}
+          {notesPanelSummary}
+          {bookmarksPanelSummary}
+          {highlightsPanelSummary}
+          {notesState}
+          {bookmarksState}
+          {callbacks}
+          {formatTimestamp}
+          {isCurrentLocationBookmarked}
+          {bookmarksFilter}
+          {bookmarksSort}
+          {sortedBookmarks}
+          {groupedBookmarks}
+          {areAllBookmarkGroupsExpanded}
+          {areAllBookmarkGroupsCollapsed}
+          {allHighlights}
+          hasSavedHighlightSelections={savedHighlightSelections.length > 0}
+          {highlightsFilter}
+          {highlightsSort}
+          {groupedHighlights}
+          {sortedHighlights}
+          {selectedHighlightIds}
+          {selectedVisibleHighlights}
+          {areAllVisibleHighlightsSelected}
+          {areAllHighlightGroupsExpanded}
+          {areAllHighlightGroupsCollapsed}
+          {notesFilter}
+          {notesKindFilter}
+          {notesByScope}
+          {filteredNotes}
+          {groupedNotes}
+          {areAllNoteGroupsExpanded}
+          {areAllNoteGroupsCollapsed}
+          isBookmarkGroupCollapsed={isBookmarkGroupCollapsed}
+          onSetBookmarksFilter={(value) => {
+            bookmarksFilter = value;
+          }}
+          onSetBookmarksSort={(value) => {
+            bookmarksSort = value;
+          }}
+          onToggleBookmarkGroup={toggleBookmarkGroup}
+          onExpandAllBookmarkGroups={expandAllBookmarkGroups}
+          onCollapseAllBookmarkGroups={collapseAllBookmarkGroups}
+          isHighlightGroupCollapsed={isHighlightGroupCollapsed}
+          isHighlightGroupFullySelected={isHighlightGroupFullySelected}
+          isHighlightGroupPartiallySelected={isHighlightGroupPartiallySelected}
+          onSetHighlightsFilter={(value) => {
+            highlightsFilter = value;
+          }}
+          onSetHighlightsSort={(value) => {
+            highlightsSort = value;
+          }}
+          onToggleHighlightGroup={toggleHighlightGroup}
+          onExpandAllHighlightGroups={expandAllHighlightGroups}
+          onCollapseAllHighlightGroups={collapseAllHighlightGroups}
+          onSelectAllVisibleHighlights={selectAllVisibleHighlights}
+          onClearSelectedHighlights={clearSelectedHighlights}
+          onInvertVisibleHighlightsSelection={invertVisibleHighlightsSelection}
+          onDeleteVisibleHighlights={deleteVisibleHighlights}
+          onDeleteSelectedHighlights={deleteSelectedHighlights}
+          onSaveCurrentHighlightSelection={saveCurrentHighlightSelection}
+          onToggleHighlightSelection={toggleHighlightSelection}
+          onSelectHighlightGroup={selectHighlightGroup}
+          onClearHighlightGroupSelection={clearHighlightGroupSelection}
+          onInvertHighlightGroupSelection={invertHighlightGroupSelection}
+          onDeleteHighlightGroup={deleteHighlightGroup}
+          isNoteGroupCollapsed={isNoteGroupCollapsed}
+          getAnnotationKindLabel={getAnnotationKindLabel}
+          onSetNotesFilter={(value) => {
+            notesFilter = value;
+          }}
+          onSetNotesKindFilter={(value) => {
+            notesKindFilter = value;
+          }}
+          onExpandAllNoteGroups={expandAllNoteGroups}
+          onCollapseAllNoteGroups={collapseAllNoteGroups}
+          onToggleNoteGroup={toggleNoteGroup}
+          onDeleteVisibleNotes={deleteVisibleNotes}
+          onDeleteNoteGroup={deleteNoteGroup}
+        >
+          <svelte:fragment slot="highlights-extra">
+            <!-- Cross-book selection sets stay in the parent because they own
+             import/export state, refresh summaries, and persisted workspace data. -->
             <section class="saved-highlight-selections" aria-label="已保存高亮选择集">
               <div class="saved-highlight-selections-head">
                 <div class="saved-highlight-selections-summary">
@@ -2197,14 +1960,14 @@
                   <span>按书保留跨书映射结果</span>
                 </div>
                 <div class="saved-highlight-selections-toolbar">
-                  <button type="button" class="notes-filter-chip" on:click={importSavedHighlightSelection}>
+                  <button type="button" class="notes-filter-chip" on:click={() => importSavedHighlightSelection()}>
                     导入
                   </button>
                   <button
                     type="button"
                     class="notes-filter-chip"
                     disabled={!importedSavedHighlightSelections.length}
-                    on:click={refreshAllCrossBookImportedSelections}
+                    on:click={() => refreshAllCrossBookImportedSelections()}
                   >
                     刷新全部跨书映射
                   </button>
@@ -2213,7 +1976,9 @@
                       type="button"
                       class:active={savedHighlightSelectionsSort === 'recent'}
                       class="notes-filter-chip"
-                      on:click={() => (savedHighlightSelectionsSort = 'recent')}
+                      on:click={() => {
+                        savedHighlightSelectionsSort = 'recent';
+                      }}
                     >
                       最近保存
                     </button>
@@ -2221,7 +1986,9 @@
                       type="button"
                       class:active={savedHighlightSelectionsSort === 'oldest'}
                       class="notes-filter-chip"
-                      on:click={() => (savedHighlightSelectionsSort = 'oldest')}
+                      on:click={() => {
+                        savedHighlightSelectionsSort = 'oldest';
+                      }}
                     >
                       最早保存
                     </button>
@@ -2260,7 +2027,9 @@
                       type="button"
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'all'}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'all')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'all';
+                      }}
                     >
                       全部选择集
                     </button>
@@ -2269,7 +2038,9 @@
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'full'}
                       disabled={!savedHighlightSelectionsRefreshCounts.full}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'full')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'full';
+                      }}
                     >
                       完全匹配 {savedHighlightSelectionsRefreshCounts.full}
                     </button>
@@ -2278,7 +2049,9 @@
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'partial'}
                       disabled={!savedHighlightSelectionsRefreshCounts.partial}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'partial')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'partial';
+                      }}
                     >
                       部分匹配 {savedHighlightSelectionsRefreshCounts.partial}
                     </button>
@@ -2287,7 +2060,9 @@
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'missed'}
                       disabled={!savedHighlightSelectionsRefreshCounts.missed}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'missed')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'missed';
+                      }}
                     >
                       未匹配 {savedHighlightSelectionsRefreshCounts.missed}
                     </button>
@@ -2302,7 +2077,9 @@
                       type="button"
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'all'}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'all')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'all';
+                      }}
                     >
                       全部选择集
                     </button>
@@ -2311,7 +2088,9 @@
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'full'}
                       disabled={!savedHighlightSelectionsRefreshCounts.full}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'full')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'full';
+                      }}
                     >
                       完全匹配 {savedHighlightSelectionsRefreshCounts.full}
                     </button>
@@ -2320,7 +2099,9 @@
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'partial'}
                       disabled={!savedHighlightSelectionsRefreshCounts.partial}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'partial')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'partial';
+                      }}
                     >
                       部分匹配 {savedHighlightSelectionsRefreshCounts.partial}
                     </button>
@@ -2329,7 +2110,9 @@
                       class="notes-filter-chip"
                       class:active={savedHighlightSelectionsRefreshFilter === 'missed'}
                       disabled={!savedHighlightSelectionsRefreshCounts.missed}
-                      on:click={() => (savedHighlightSelectionsRefreshFilter = 'missed')}
+                      on:click={() => {
+                        savedHighlightSelectionsRefreshFilter = 'missed';
+                      }}
                     >
                       未匹配 {savedHighlightSelectionsRefreshCounts.missed}
                     </button>
@@ -2341,17 +2124,17 @@
                   <div class="saved-highlight-selection-import-preview-head">
                     <div class="saved-highlight-selection-import-preview-copy">
                       <strong>跨书兼容预检</strong>
-                      <span>来源：{savedHighlightSelectionImportPreview.sourceBookTitle} · {savedHighlightSelectionImportPreview.sourceFormatLabel}</span>
+                      <span>
+                        来源：{savedHighlightSelectionImportPreview.sourceBookTitle} · {savedHighlightSelectionImportPreview.sourceFormatLabel}
+                      </span>
                       <span>来源选择集：{savedHighlightSelectionImportPreview.selectionName}</span>
-                      <span>当前书可映射 {savedHighlightSelectionImportPreview.matchedCount} / {savedHighlightSelectionImportPreview.totalCount} 条高亮</span>
+                      <span>
+                        当前书可映射 {savedHighlightSelectionImportPreview.matchedCount} / {savedHighlightSelectionImportPreview.totalCount} 条高亮
+                      </span>
                     </div>
                     {#if savedHighlightSelectionImportPreview.importedIds.length}
                       <div class="saved-highlight-selection-import-preview-actions">
-                        <button
-                          type="button"
-                          class="notes-filter-chip"
-                          on:click={importMatchedHighlightsFromPreview}
-                        >
+                        <button type="button" class="notes-filter-chip" on:click={() => importMatchedHighlightsFromPreview()}>
                           导入已匹配高亮
                         </button>
                       </div>
@@ -2382,10 +2165,7 @@
                           </span>
                           {@const unmatchedTexts = getSavedHighlightSelectionUnmatchedTexts(selectionSet)}
                           {#if unmatchedTexts.length}
-                            <div
-                              class="saved-highlight-selection-unmatched"
-                              aria-label={`${selectionSet.name} 未映射高亮`}
-                            >
+                            <div class="saved-highlight-selection-unmatched" aria-label={`${selectionSet.name} 未映射高亮`}>
                               <span>未映射片段</span>
                               <ul>
                                 {#each unmatchedTexts as unmatchedText}
@@ -2394,35 +2174,24 @@
                               </ul>
                             </div>
                           {/if}
+                          {@const refreshOutcome = getSavedHighlightSelectionRefreshOutcome(selectionSet)}
+                          {@const displayOutcome =
+                            refreshOutcome === 'full' ? 'full' : refreshOutcome === 'missed' ? 'missed' : 'partial'}
                           <span
                             class="saved-highlight-selection-status"
-                            class:saved-highlight-selection-status-full={getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'full'}
-                            class:saved-highlight-selection-status-missed={getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'missed'}
+                            class:saved-highlight-selection-status-full={displayOutcome === 'full'}
+                            class:saved-highlight-selection-status-missed={displayOutcome === 'missed'}
                           >
-                            {getSavedHighlightSelectionRefreshLabel(
-                              getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'full'
-                                ? 'full'
-                                : getSavedHighlightSelectionRefreshOutcome(selectionSet) === 'missed'
-                                  ? 'missed'
-                                  : 'partial'
-                            )}
+                            {getSavedHighlightSelectionRefreshLabel(displayOutcome)}
                           </span>
                         {/if}
                         <time>{formatTimestamp(selectionSet.createdAt)}</time>
                       </div>
                       <div class="saved-highlight-selection-actions">
-                        <button
-                          type="button"
-                          class="notes-filter-chip"
-                          on:click={() => applySavedHighlightSelection(selectionSet)}
-                        >
+                        <button type="button" class="notes-filter-chip" on:click={() => applySavedHighlightSelection(selectionSet)}>
                           套用
                         </button>
-                        <button
-                          type="button"
-                          class="notes-filter-chip"
-                          on:click={() => exportSavedHighlightSelection(selectionSet)}
-                        >
+                        <button type="button" class="notes-filter-chip" on:click={() => exportSavedHighlightSelection(selectionSet)}>
                           导出
                         </button>
                         {#if selectionSet.importSource}
@@ -2434,11 +2203,7 @@
                             刷新映射
                           </button>
                         {/if}
-                        <button
-                          type="button"
-                          class="notes-filter-chip"
-                          on:click={() => renameSavedHighlightSelection(selectionSet.id)}
-                        >
+                        <button type="button" class="notes-filter-chip" on:click={() => renameSavedHighlightSelection(selectionSet.id)}>
                           重命名
                         </button>
                         <button
@@ -2474,10 +2239,10 @@
                       <span>{exportedHighlightSelection.selectionSet.name}</span>
                     </div>
                     <div class="saved-highlight-selection-export-actions">
-                      <button type="button" class="notes-filter-chip" on:click={copyExportedHighlightSelection}>
+                      <button type="button" class="notes-filter-chip" on:click={() => copyExportedHighlightSelection()}>
                         复制导出内容
                       </button>
-                      <button type="button" class="notes-filter-chip" on:click={closeExportedHighlightSelection}>
+                      <button type="button" class="notes-filter-chip" on:click={() => closeExportedHighlightSelection()}>
                         关闭
                       </button>
                     </div>
@@ -2493,338 +2258,8 @@
                 </section>
               {/if}
             </section>
-
-            {#if groupedHighlights.length}
-              {#each groupedHighlights as group}
-                <section class="note-group" aria-label={`${group.chapterLabel} 的高亮`}>
-                  <button
-                    type="button"
-                    class="note-group-head"
-                    aria-expanded={!isHighlightGroupCollapsed(group.chapterHref)}
-                    on:click={() => toggleHighlightGroup(group.chapterHref)}
-                  >
-                    <strong>{group.chapterLabel}</strong>
-                    <span>{group.notes.length} 条 {!isHighlightGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
-                  </button>
-
-                  {#if !isHighlightGroupCollapsed(group.chapterHref)}
-                    <div class="note-group-actions">
-                      <button
-                        type="button"
-                        class="notes-filter-chip"
-                        disabled={isHighlightGroupFullySelected(group.notes)}
-                        on:click={() => selectHighlightGroup(group.notes)}
-                      >
-                        选中本组高亮
-                      </button>
-                      <button
-                        type="button"
-                        class="notes-filter-chip"
-                        disabled={!isHighlightGroupPartiallySelected(group.notes)}
-                        on:click={() => clearHighlightGroupSelection(group.notes)}
-                      >
-                        清空本组选择
-                      </button>
-                      <button
-                        type="button"
-                        class="notes-filter-chip"
-                        on:click={() => invertHighlightGroupSelection(group.notes)}
-                      >
-                        反选本组高亮
-                      </button>
-                      <button
-                        type="button"
-                        class="notes-filter-chip danger-action"
-                        on:click={() => deleteHighlightGroup(group.notes, group.chapterLabel)}
-                      >
-                        删除本组高亮
-                      </button>
-                    </div>
-
-                    {#each group.notes as note}
-                      <article
-                        class:active-note={note.cfi === notesState.activeCfi}
-                        class="note-card highlight-card"
-                        data-note-cfi={note.cfi}
-                      >
-                        <div class="note-head">
-                          <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
-                            <strong>{note.chapterLabel || '未命名章节'}</strong>
-                            <span class="annotation-kind-badge highlight-badge">高亮</span>
-                            <time>{formatTimestamp(note.createdAt)}</time>
-                          </button>
-                          <div class="note-actions">
-                            <button
-                              type="button"
-                              class:selected={selectedHighlightIds.has(note.id)}
-                              class="note-action highlight-selection-toggle"
-                              aria-pressed={selectedHighlightIds.has(note.id)}
-                              aria-label={selectedHighlightIds.has(note.id) ? '取消选中高亮' : '选中高亮'}
-                              on:click={() => toggleHighlightSelection(note.id)}
-                            >
-                              {selectedHighlightIds.has(note.id) ? '已选' : '选中'}
-                            </button>
-                            <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
-                              删除
-                            </button>
-                          </div>
-                        </div>
-                        <p class="note-text">{note.text}</p>
-                      </article>
-                    {/each}
-                  {/if}
-                </section>
-              {/each}
-            {:else if allHighlights.length && highlightsFilter === 'chapter'}
-              <p class="empty">当前章节还没有高亮，可以切回“全部”查看其他章节标记。</p>
-            {:else if allHighlights.length && highlightsFilter === 'selected'}
-              <p class="empty">还没有选中的高亮，可以先选中几条再切回“已选高亮”查看。</p>
-            {:else if savedHighlightSelections.length}
-              <p class="empty">当前书还没有高亮，但跨书高亮选择集还保留在上面，可以继续整理或导入匹配结果。</p>
-            {:else}
-              <p class="empty">还没有高亮，先选中一段正文再用“先高亮当前选中内容”。</p>
-            {/if}
-          </div>
-        </section>
-      {:else}
-        <section class="sidebar-panel" aria-label="笔记面板">
-        <div class="notes-summary">
-          <strong>标注</strong>
-          <span>{notesPanelSummary}</span>
-        </div>
-
-        <div class="notes-meta-row">
-          <span>{notesState.notes.length} 标注</span>
-          <span>{notesState.notes.filter((note) => note.kind === 'highlight').length} 高亮</span>
-          <span>{notesState.notes.filter((note) => note.kind !== 'highlight').length} 笔记</span>
-          <span>{notesFilter === 'chapter' ? `${notesByScope.length} 当前章节` : '全部章节'}</span>
-          <span>
-            {#if notesKindFilter === 'highlight'}
-              仅看高亮
-            {:else if notesKindFilter === 'note'}
-              仅看笔记
-            {:else}
-              全部类型
-            {/if}
-          </span>
-          <span>
-            {#if !supportsTextAnnotations}
-              当前格式未开放正文批注
-            {:else if notesState.selection}
-              已选中文本
-            {:else}
-              未选中文本
-            {/if}
-          </span>
-        </div>
-
-        <div class="notes-filter-row" aria-label="笔记筛选控制">
-          <div class="notes-filter-chips">
-            <button
-              type="button"
-              class:active={notesFilter === 'all'}
-              class="notes-filter-chip"
-              on:click={() => {
-                notesFilter = 'all';
-              }}
-            >
-              全部
-            </button>
-            <button
-              type="button"
-              class:active={notesFilter === 'chapter'}
-              class="notes-filter-chip"
-              disabled={!activeHref}
-              on:click={() => {
-                notesFilter = 'chapter';
-              }}
-            >
-              当前章节
-            </button>
-          </div>
-          <div class="notes-filter-chips" aria-label="标注类型筛选控制">
-            <button
-              type="button"
-              class:active={notesKindFilter === 'all'}
-              class="notes-filter-chip"
-              on:click={() => {
-                notesKindFilter = 'all';
-              }}
-            >
-              全部类型
-            </button>
-            <button
-              type="button"
-              class:active={notesKindFilter === 'highlight'}
-              class="notes-filter-chip"
-              disabled={!notesState.notes.some((note) => note.kind === 'highlight')}
-              on:click={() => {
-                notesKindFilter = 'highlight';
-              }}
-            >
-              高亮
-            </button>
-            <button
-              type="button"
-              class:active={notesKindFilter === 'note'}
-              class="notes-filter-chip"
-              disabled={!notesState.notes.some((note) => note.kind !== 'highlight')}
-              on:click={() => {
-                notesKindFilter = 'note';
-              }}
-            >
-              笔记
-            </button>
-          </div>
-          <div class="notes-group-actions">
-            <button
-              type="button"
-              class="notes-filter-chip"
-              disabled={!groupedNotes.length || areAllNoteGroupsExpanded}
-              on:click={expandAllNoteGroups}
-            >
-              全部展开
-            </button>
-            <button
-              type="button"
-              class="notes-filter-chip"
-              disabled={!groupedNotes.length || areAllNoteGroupsCollapsed}
-              on:click={collapseAllNoteGroups}
-            >
-              全部折叠
-            </button>
-          </div>
-        </div>
-
-        {#if supportsTextAnnotations && notesState.selection}
-          <div class="selection-card" aria-label="当前选中文本预览">
-            <strong>{notesState.selection.chapterLabel || '当前选中内容'}</strong>
-            <p>{notesState.selection.text}</p>
-          </div>
-        {:else if !supportsTextAnnotations}
-          <div class="selection-card unsupported-selection" aria-label="正文批注支持提示">
-            <strong>当前格式暂不支持正文批注</strong>
-            <p>{textAnnotationSupportMessage}</p>
-          </div>
-        {/if}
-
-        <div class="notes-actions">
-          <button
-            type="button"
-            class="secondary-note-action"
-            disabled={!supportsTextAnnotations || !notesState.selection}
-            on:click={() => callbacks.onAddHighlight?.()}
-          >
-            {#if !supportsTextAnnotations}
-              当前格式暂不支持高亮
-            {:else if notesState.selection}
-              先高亮当前选中内容
-            {:else}
-              先选中文本
-            {/if}
-          </button>
-          <button
-            type="button"
-            class="primary-note-action"
-            disabled={!supportsTextAnnotations || !notesState.selection}
-            on:click={() => callbacks.onAddNote?.()}
-          >
-            {#if !supportsTextAnnotations}
-              当前格式暂不支持批注
-            {:else if notesState.selection}
-              为当前选中内容记笔记
-            {:else}
-              先选中文本
-            {/if}
-          </button>
-          <button
-            type="button"
-            class="secondary-note-action danger-action"
-            disabled={!filteredNotes.length}
-            on:click={deleteVisibleNotes}
-          >
-            {notesFilter === 'chapter'
-              ? notesKindFilter === 'highlight'
-                ? '删除当前章节高亮'
-                : notesKindFilter === 'note'
-                  ? '删除当前章节笔记'
-                  : '删除当前章节标注'
-              : notesKindFilter === 'highlight'
-                ? '删除当前视图高亮'
-                : notesKindFilter === 'note'
-                  ? '删除当前视图笔记'
-                  : '删除当前视图标注'}
-          </button>
-        </div>
-
-        <div class="note-list">
-          {#if groupedNotes.length}
-            {#each groupedNotes as group}
-              <section class="note-group" aria-label={`${group.chapterLabel} 的标注`}>
-                <button
-                  type="button"
-                  class="note-group-head"
-                  aria-expanded={!isNoteGroupCollapsed(group.chapterHref)}
-                  on:click={() => toggleNoteGroup(group.chapterHref)}
-                  >
-                    <strong>{group.chapterLabel}</strong>
-                    <span>{group.notes.length} 条 {!isNoteGroupCollapsed(group.chapterHref) ? '−' : '+'}</span>
-                  </button>
-
-                {#if !isNoteGroupCollapsed(group.chapterHref)}
-                    <div class="note-group-actions">
-                      <button
-                        type="button"
-                        class="notes-filter-chip danger-action"
-                        on:click={() => deleteNoteGroup(group.notes, group.chapterLabel)}
-                      >
-                        删除本组{getAnnotationKindLabel(group.notes)}
-                      </button>
-                    </div>
-
-                  {#each group.notes as note}
-                    <article class:active-note={note.cfi === notesState.activeCfi} class="note-card" data-note-cfi={note.cfi}>
-                      <div class="note-head">
-                        <button type="button" class="note-link" on:click={() => callbacks.onOpenNote?.(note.cfi)}>
-                          <strong>{note.chapterLabel || '未命名章节'}</strong>
-                          <span class:highlight-badge={note.kind === 'highlight'} class="annotation-kind-badge">
-                            {note.kind === 'highlight' ? '高亮' : '笔记'}
-                          </span>
-                          <time>{formatTimestamp(note.createdAt)}</time>
-                        </button>
-                        <div class="note-actions">
-                          {#if note.kind !== 'highlight'}
-                            <button type="button" class="note-action" on:click={() => callbacks.onEditNote?.(note.id)}>
-                              编辑
-                            </button>
-                          {/if}
-                          <button type="button" class="note-action danger" on:click={() => callbacks.onDeleteNote?.(note.id)}>
-                            删除
-                          </button>
-                        </div>
-                      </div>
-                      <p class="note-text">{note.text}</p>
-                      {#if note.note}
-                        <p class="note-body">{note.note}</p>
-                      {/if}
-                    </article>
-                  {/each}
-                {/if}
-              </section>
-            {/each}
-          {:else if notesByScope.length && notesKindFilter !== 'all'}
-            <p class="empty">
-              当前筛选下还没有{notesKindFilter === 'highlight' ? '高亮' : '笔记'}，可以切回“全部类型”查看其他标注。
-            </p>
-          {:else if notesState.notes.length && notesFilter === 'chapter'}
-            <p class="empty">
-              当前章节还没有{notesKindFilter === 'highlight' ? '高亮' : notesKindFilter === 'note' ? '笔记' : '标注'}，可以切回“全部”查看其他章节内容。
-            </p>
-          {:else}
-            <p class="empty">打开书并选中一段正文后，这里会出现当前书的笔记和高亮。</p>
-          {/if}
-        </div>
-        </section>
+          </svelte:fragment>
+        </ReaderSidebarAnnotations>
       {/if}
     </div>
   </OverlayScrollbarsComponent>
@@ -3062,18 +2497,14 @@
   }
 
   .book-stats,
-  .book-meta-row,
-  .notes-meta-row,
-  .bookmarks-meta-row {
+  .book-meta-row {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
   }
 
-  .book-meta-row span,
-  .notes-meta-row span,
-  .bookmarks-meta-row span {
+  .book-meta-row span {
     padding: 3px 6px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
@@ -3442,487 +2873,29 @@
     background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
   }
 
-  .search-summary,
-  .notes-summary,
-  .bookmarks-summary {
+  .search-summary {
     display: grid;
     gap: 2px;
     padding: 0 2px;
   }
 
-  .search-summary strong,
-  .notes-summary strong,
-  .bookmarks-summary strong {
+  .search-summary strong {
     font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.3;
   }
 
-  .search-summary span,
-  .notes-summary span,
-  .bookmarks-summary span {
+  .search-summary span {
     color: var(--text-muted);
     font-size: 12px;
     line-height: 1.5;
   }
 
-  .search-results,
-  .note-list,
-  .bookmark-list {
+  .search-results {
     display: grid;
     gap: 8px;
   }
 
-  .note-group {
-    display: grid;
-    gap: 8px;
-  }
-
-  .note-group-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    align-items: center;
-    padding: 0 2px;
-    border: 0;
-    background: transparent;
-    text-align: left;
-    font: inherit;
-  }
-
-  .note-group-head strong {
-    font-family: var(--font-chrome);
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--text-primary);
-  }
-
-  .note-group-head span {
-    color: var(--text-muted);
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .bookmarks-filter-row,
-  .notes-filter-row {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .bookmarks-filter-chips,
-  .bookmarks-sort-chips,
-  .bookmarks-group-actions,
-  .notes-filter-chips,
-  .notes-group-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .bookmarks-actions {
-    display: flex;
-    justify-content: flex-start;
-  }
-
-  .primary-bookmark-action {
-    min-height: 34px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 12px;
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .primary-bookmark-action:hover {
-    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
-  }
-
-  .bookmarks-filter-chip,
-  .notes-filter-chip {
-    min-height: 28px;
-    padding: 0 10px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .bookmarks-filter-chip.active,
-  .notes-filter-chip.active {
-    background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
-    color: var(--text-primary);
-  }
-
-  .bookmarks-filter-chip:disabled,
-  .notes-filter-chip:disabled {
-    opacity: 0.55;
-  }
-
-  .selection-card {
-    display: grid;
-    gap: 6px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-light) 88%, transparent 12%);
-  }
-
-  .selection-card strong {
-    font-family: var(--font-chrome);
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--text-primary);
-  }
-
-  .selection-card p {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 12px;
-    line-height: 1.5;
-    line-clamp: 4;
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .notes-actions {
-    display: flex;
-    justify-content: flex-start;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .saved-highlight-selections {
-    display: grid;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-  }
-
-  .saved-highlight-selections-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-    color: var(--text-secondary);
-    font-size: 12px;
-    flex-wrap: wrap;
-  }
-
-  .saved-highlight-selections-summary {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .saved-highlight-selections-sort {
-    display: inline-flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .saved-highlight-selections-toolbar {
-    display: inline-flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .saved-highlight-selections-list {
-    display: grid;
-    gap: 8px;
-  }
-
-  .saved-highlight-selection-import-notice {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
-  .saved-highlight-selection-refresh-summary {
-    display: grid;
-    gap: 4px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
-    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
-  .saved-highlight-selection-refresh-summary strong {
-    color: var(--text-primary);
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .saved-highlight-selection-refresh-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 2px;
-  }
-
-  .saved-highlight-selection-import-preview {
-    display: grid;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
-    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
-  }
-
-  .saved-highlight-selection-import-preview-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .saved-highlight-selection-import-preview-copy {
-    display: grid;
-    gap: 2px;
-  }
-
-  .saved-highlight-selection-import-preview-actions {
-    display: inline-flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .saved-highlight-selection-import-preview-copy strong {
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .saved-highlight-selection-import-preview-copy span,
-  .saved-highlight-selection-import-preview-list {
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
-  .saved-highlight-selection-import-preview-list {
-    margin: 0;
-    padding-left: 18px;
-    line-height: 1.5;
-  }
-
-  .saved-highlight-selection-empty {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .saved-highlight-selection-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
-    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
-  }
-
-  .saved-highlight-selection-copy {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .saved-highlight-selection-copy strong {
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .saved-highlight-selection-copy span,
-  .saved-highlight-selection-copy time {
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
-  .saved-highlight-selection-detail {
-    color: var(--text-primary);
-    font-size: 11px;
-    line-height: 1.35;
-  }
-
-  .saved-highlight-selection-unmatched {
-    display: grid;
-    gap: 4px;
-    margin-top: 4px;
-    padding: 8px 10px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--surface-panel) 64%, #f7d6bd 36%);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-light) 70%, #bc6c31 30%);
-  }
-
-  .saved-highlight-selection-unmatched span {
-    color: var(--text-primary);
-    font: 600 11px/1.3 var(--font-chrome);
-  }
-
-  .saved-highlight-selection-unmatched ul {
-    display: grid;
-    gap: 3px;
-    margin: 0;
-    padding-left: 16px;
-  }
-
-  .saved-highlight-selection-unmatched li {
-    color: var(--text-secondary);
-    font-size: 11px;
-    line-height: 1.35;
-  }
-
-  .saved-highlight-selection-origin {
-    color: var(--text-primary);
-  }
-
-  .saved-highlight-selection-status {
-    display: inline-flex;
-    width: fit-content;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 72%, white 28%);
-    color: var(--text-secondary);
-    font-size: 11px;
-    line-height: 1.3;
-  }
-
-  .saved-highlight-selection-status-full {
-    background: color-mix(in srgb, #d7f6e6 72%, white 28%);
-    color: #17603c;
-  }
-
-  .saved-highlight-selection-status-missed {
-    background: color-mix(in srgb, #fde2e2 78%, white 22%);
-    color: #8f2f2f;
-  }
-
-  .saved-highlight-selection-actions {
-    display: inline-flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .saved-highlight-selection-export {
-    display: grid;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--border-light) 72%, transparent 28%);
-    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
-  }
-
-  .saved-highlight-selection-export-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .saved-highlight-selection-export-copy {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .saved-highlight-selection-export-copy strong {
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .saved-highlight-selection-export-copy span,
-  .saved-highlight-selection-export-notice {
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
-  .saved-highlight-selection-export-actions {
-    display: inline-flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .saved-highlight-selection-export-notice {
-    margin: 0;
-  }
-
-  .saved-highlight-selection-export-payload {
-    min-height: 192px;
-    width: 100%;
-    resize: vertical;
-    border: 1px solid color-mix(in srgb, var(--border-light) 80%, transparent 20%);
-    border-radius: 10px;
-    background: color-mix(in srgb, white 92%, var(--surface-reader) 8%);
-    color: var(--text-primary);
-    font-family: 'SFMono-Regular', 'SF Mono', 'Consolas', monospace;
-    font-size: 12px;
-    line-height: 1.55;
-    padding: 10px 12px;
-  }
-
-  .primary-note-action {
-    min-height: 34px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 84%, white 16%);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 12px;
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .primary-note-action:disabled {
-    color: var(--text-muted);
-    opacity: 0.7;
-  }
-
-  .primary-note-action:not(:disabled):hover {
-    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
-  }
-
-  .secondary-note-action {
-    min-height: 34px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-reader) 92%, white 8%);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 12px;
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .secondary-note-action:disabled {
-    color: var(--text-muted);
-    opacity: 0.7;
-  }
-
-  .secondary-note-action:not(:disabled):hover {
-    background: color-mix(in srgb, var(--surface-panel) 72%, white 28%);
-  }
 
   .search-notice {
     padding: 8px 10px;
@@ -3940,9 +2913,7 @@
     box-shadow: inset 0 0 0 1px rgba(123, 58, 49, 0.12);
   }
 
-  .search-result,
-  .note-card,
-  .bookmark-card {
+  .search-result {
     display: grid;
     gap: 3px;
     padding: 10px 12px;
@@ -3953,48 +2924,13 @@
     text-align: left;
   }
 
-  .bookmark-group {
-    display: grid;
-    gap: 8px;
-  }
-
-  .bookmark-group-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    text-align: left;
-  }
-
-  .bookmark-group-head strong {
-    font-family: var(--font-chrome);
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--text-primary);
-  }
-
-  .bookmark-group-head span {
-    color: var(--text-muted);
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .search-result strong,
-  .note-card strong,
-  .bookmark-card strong {
+  .search-result strong {
     font-family: var(--font-chrome);
     font-size: 12px;
     line-height: 1.35;
   }
 
-  .search-result span,
-  .note-card p,
-  .bookmark-card span,
-  .bookmark-card time {
+  .search-result span {
     margin: 0;
     color: var(--text-muted);
     font-size: 12px;
@@ -4023,140 +2959,6 @@
     box-shadow:
       inset 0 0 0 1px rgba(177, 137, 82, 0.22),
       0 0 0 1px rgba(177, 137, 82, 0.08);
-  }
-
-  .note-card.active-note {
-    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
-    box-shadow:
-      inset 2px 0 0 #b18952,
-      inset 0 0 0 1px var(--border-light);
-  }
-
-  .bookmark-card.active-bookmark {
-    background: color-mix(in srgb, var(--surface-panel) 78%, white 22%);
-    box-shadow:
-      inset 2px 0 0 #b18952,
-      inset 0 0 0 1px var(--border-light);
-  }
-
-  .note-link {
-    display: grid;
-    gap: 6px;
-    border: 0;
-    padding: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    font: inherit;
-  }
-
-  .bookmark-link {
-    display: grid;
-    gap: 4px;
-    min-width: 0;
-    border: 0;
-    padding: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    font: inherit;
-  }
-
-  .bookmark-head {
-    display: grid;
-    gap: 8px;
-  }
-
-  .bookmark-action {
-    min-height: 24px;
-    width: fit-content;
-    padding: 0 8px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .bookmark-action:hover {
-    color: var(--text-primary);
-  }
-
-  .bookmark-action.danger {
-    color: #8a4c40;
-  }
-
-  .note-head {
-    display: grid;
-    gap: 8px;
-  }
-
-  .note-actions {
-    display: inline-flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .note-action {
-    min-height: 24px;
-    padding: 0 8px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 88%, white 12%);
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .note-action:hover {
-    color: var(--text-primary);
-  }
-
-  .note-action.highlight-selection-toggle.selected {
-    background: color-mix(in srgb, var(--surface-panel) 76%, white 24%);
-    color: var(--text-primary);
-    box-shadow: inset 0 0 0 1px var(--border-light);
-  }
-
-  .note-action.danger {
-    color: #8a4c40;
-  }
-
-  .note-link time {
-    color: var(--text-muted);
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .annotation-kind-badge {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-panel) 82%, white 18%);
-    color: var(--text-muted);
-    font-size: 10px;
-    line-height: 1.2;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .annotation-kind-badge.highlight-badge {
-    background: rgba(190, 150, 78, 0.18);
-    color: color-mix(in srgb, #7a5626 84%, black 16%);
-  }
-
-  .note-text {
-    color: var(--text-primary);
-  }
-
-  .note-body {
-    padding-top: 6px;
-    border-top: 1px solid rgba(64, 47, 24, 0.06);
   }
 
   .reader-sidebar :is(button, input):focus-visible {

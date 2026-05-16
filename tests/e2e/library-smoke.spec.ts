@@ -2996,6 +2996,7 @@ test('reader productizes bookmarks as current reading positions in web mode', as
   await expect(bookmarksPanel).toContainText('阅读位置');
   await expect(bookmarksPanel).toContainText('还没有保存的阅读位置，可以先把当前页存成书签。');
   await expect(bookmarksPanel).toContainText('当前页未入书签');
+  await expect(bookmarksPanel.getByRole('button', { name: '最近添加' })).toBeVisible();
 
   const bookmarkAction = page.getByRole('button', { name: '保存当前页位置' });
   await expect(bookmarkAction).toBeVisible();
@@ -3032,6 +3033,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   const notesPanel = page.getByRole('region', { name: '笔记面板' });
   await expect(notesPanel).toContainText('标注');
   await expect(notesPanel).toContainText('先在正文里选中一段文本，再把它存成当前书的笔记或高亮。');
+  await expect(notesPanel.getByRole('button', { name: '全部类型' })).toBeVisible();
   const noteButton = page.locator('.primary-note-action');
   const highlightButton = page.locator('.secondary-note-action').first();
   await expect(noteButton).toBeDisabled();
