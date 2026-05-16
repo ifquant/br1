@@ -2773,7 +2773,7 @@ test('reader opens txt assets in web mode', async ({ page }) => {
   await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
 
-test('reader opens paragraph focus and rsvp-lite reading modes in web mode', async ({ page }) => {
+test('reader can autoplay rsvp-lite with pause and pace controls in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
   );
@@ -2788,6 +2788,9 @@ test('reader opens paragraph focus and rsvp-lite reading modes in web mode', asy
   await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toContainText(
     'This plain text file exists to verify'
   );
+  await expect(
+    page.getByRole('dialog', { name: '专注阅读浮层' }).getByRole('button', { name: '暂停自动播放' })
+  ).toHaveCount(0);
   await page.getByRole('button', { name: '退出专注阅读' }).click();
   await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
   await expect(page.getByLabel('plain text reading surface')).toBeVisible();
@@ -2795,11 +2798,28 @@ test('reader opens paragraph focus and rsvp-lite reading modes in web mode', asy
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitem', { name: '打开 RSVP-lite' }).click();
   const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const progress = overlay.getByLabel('RSVP-lite 进度');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('RSVP-lite');
   await expect(overlay.getByLabel('RSVP-lite 当前词')).toBeVisible();
-  await overlay.getByRole('button', { name: '下一个词' }).click();
-  await expect(overlay.getByLabel('RSVP-lite 进度')).toContainText(/2 \/ \d+/);
+  await expect(overlay.getByRole('button', { name: '暂停自动播放' })).toBeVisible();
+  await expect(progress).toContainText(/1 \/ \d+/);
+  const initialProgress = ((await progress.textContent()) ?? '').trim();
+  await expect
+    .poll(async () => ((await progress.textContent()) ?? '').trim(), { timeout: 8000 })
+    .not.toBe(initialProgress);
+
+  await overlay.getByRole('button', { name: '暂停自动播放' }).click();
+  const pausedProgress = ((await progress.textContent()) ?? '').trim();
+  await page.waitForTimeout(700);
+  await expect(progress).toHaveText(pausedProgress);
+  await expect(overlay).toContainText('240 词/分钟');
+  await overlay.getByRole('button', { name: '更快' }).click();
+  await expect(overlay).toContainText('280 词/分钟');
+  await overlay.getByRole('button', { name: '继续自动播放' }).click();
+  await expect
+    .poll(async () => ((await progress.textContent()) ?? '').trim(), { timeout: 8000 })
+    .not.toBe(pausedProgress);
 
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20Outline%20PDF'

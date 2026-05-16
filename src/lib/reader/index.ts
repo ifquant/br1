@@ -195,11 +195,18 @@ export {
 } from './settings';
 export type { ReaderShellPalette, ReaderThemePalette } from './settings';
 export {
+  READER_RSVP_LITE_DEFAULT_WPM,
+  READER_RSVP_LITE_MAX_WPM,
+  READER_RSVP_LITE_MIN_WPM,
+  canAdvanceReaderRsvpWord,
   canStartReaderFocusedReading,
   createReaderFocusedReadingState,
   advanceReaderRsvpWord,
+  decreaseReaderRsvpLitePace,
   exitReaderFocusedReading,
+  getReaderRsvpLiteIntervalMs,
   getReaderFocusedReadingSummary,
+  increaseReaderRsvpLitePace,
   parseReaderFocusedReadingPersistedState,
   serializeReaderFocusedReadingState,
   startReaderParagraphFocus,

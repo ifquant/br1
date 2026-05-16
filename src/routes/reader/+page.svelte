@@ -64,10 +64,12 @@
     createReaderSearchController,
     createReaderSidebarController,
     createReaderTtsController,
+    canAdvanceReaderRsvpWord,
     getReaderLocationDisplayLabel,
     getReaderInlineTranslationSummary,
     getReaderPlaybackQueueSummary,
     getReaderFocusedReadingSummary,
+    getReaderRsvpLiteIntervalMs,
     isReaderTtsPlaybackLocationDrifted,
     moveReaderPlaybackQueueNext,
     moveReaderPlaybackQueuePrevious,
@@ -86,7 +88,9 @@
     updateReaderParallelPaneControlRequest,
     updateReaderParallelPanePreview,
     advanceReaderRsvpWord,
+    decreaseReaderRsvpLitePace,
     exitReaderFocusedReading,
+    increaseReaderRsvpLitePace,
     toggleReaderInlineTranslationVisibility,
     upsertReaderInlineTranslationCandidate,
     upsertReaderAssistanceHistoryEntry,
@@ -285,6 +289,9 @@
   let currentReaderSelection: ReaderSelectionState | null = null;
   let focusedReadingState: ReaderFocusedReadingState = createReaderFocusedReadingState();
   let focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
+  let focusedReadingRsvpPlaying = false;
+  let focusedReadingRsvpAutoplayTimer: ReturnType<typeof setTimeout> | null = null;
+  let focusedReadingRsvpAutoplayKey = '';
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
   let assistanceSelection: ReaderAssistanceWorkspaceSelection =
@@ -739,6 +746,8 @@
     // Focused-reading resume is per-book and text-only. The route still owns
     // the storage IO and timing; the helper only restores the plain state shape
     // that the overlay can render without asking the reader surface for DOM.
+    clearFocusedReadingRsvpAutoplayTimer();
+    focusedReadingRsvpPlaying = false;
     focusedReadingState = restoreReaderCurrentBookFocusedReadingState(
       getReaderStorage(),
       focusedReadingStorageKey
@@ -804,6 +813,21 @@
   }
   $: inlineTranslationSummary = getReaderInlineTranslationSummary(inlineTranslationState);
   $: focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
+  $: {
+    const nextAutoplayKey =
+      focusedReadingRsvpPlaying &&
+      canPlayFocusedReadingRsvpAutoplay(focusedReadingState)
+        ? `${focusedReadingState.activeWordIndex}:${focusedReadingState.paceWpm}:${focusedReadingState.words.length}`
+        : '';
+
+    if (nextAutoplayKey !== focusedReadingRsvpAutoplayKey) {
+      focusedReadingRsvpAutoplayKey = nextAutoplayKey;
+      clearFocusedReadingRsvpAutoplayTimer();
+      if (nextAutoplayKey) {
+        scheduleFocusedReadingRsvpAutoplayTick();
+      }
+    }
+  }
   $: {
     readerBookKey;
     focusedReadingStorageKey;
@@ -1420,6 +1444,7 @@
       clearInterval(playbackTimeoutTicker);
       playbackTimeoutTicker = null;
     }
+    clearFocusedReadingRsvpAutoplayTimer();
     flushLibraryReadingStatePersist();
     ttsController.stop();
     searchController.destroy();
@@ -1698,20 +1723,82 @@
     selection: currentReaderSelection
   });
 
+  const clearFocusedReadingRsvpAutoplayTimer = () => {
+    if (!focusedReadingRsvpAutoplayTimer) return;
+    clearTimeout(focusedReadingRsvpAutoplayTimer);
+    focusedReadingRsvpAutoplayTimer = null;
+  };
+
+  const canPlayFocusedReadingRsvpAutoplay = (state: ReaderFocusedReadingState) =>
+    state.mode === 'rsvp' &&
+    !state.capabilityMessage &&
+    state.words.length > 0 &&
+    canAdvanceReaderRsvpWord(state);
+
+  // Timer ownership stays in the route so the overlay can remain a plain view.
+  // The helper decides pace and boundary semantics; the route decides when the
+  // clock exists and when it must stop during exit/book switches.
+  const scheduleFocusedReadingRsvpAutoplayTick = () => {
+    clearFocusedReadingRsvpAutoplayTimer();
+    if (!focusedReadingRsvpPlaying || !canPlayFocusedReadingRsvpAutoplay(focusedReadingState)) {
+      return;
+    }
+
+    focusedReadingRsvpAutoplayTimer = setTimeout(() => {
+      if (!focusedReadingRsvpPlaying || focusedReadingState.mode !== 'rsvp') {
+        return;
+      }
+      if (!canPlayFocusedReadingRsvpAutoplay(focusedReadingState)) {
+        focusedReadingRsvpPlaying = false;
+        return;
+      }
+
+      focusedReadingState = advanceReaderRsvpWord(focusedReadingState, 1);
+      if (!canAdvanceReaderRsvpWord(focusedReadingState)) {
+        focusedReadingRsvpPlaying = false;
+      }
+    }, getReaderRsvpLiteIntervalMs(focusedReadingState.paceWpm));
+  };
+
   const startParagraphFocusMode = () => {
+    focusedReadingRsvpPlaying = false;
     focusedReadingState = startReaderParagraphFocus(focusedReadingState, getFocusedReadingInput());
   };
 
   const startRsvpLiteMode = () => {
     focusedReadingState = startReaderRsvpLite(focusedReadingState, getFocusedReadingInput());
+    focusedReadingRsvpPlaying = canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
   };
 
   const exitFocusedReadingMode = () => {
+    focusedReadingRsvpPlaying = false;
     focusedReadingState = exitReaderFocusedReading(focusedReadingState);
   };
 
   const moveFocusedReadingWord = (delta: number) => {
     focusedReadingState = advanceReaderRsvpWord(focusedReadingState, delta);
+    if (focusedReadingState.mode !== 'rsvp' || !canAdvanceReaderRsvpWord(focusedReadingState)) {
+      focusedReadingRsvpPlaying = false;
+    }
+  };
+
+  const toggleFocusedReadingRsvpPlayback = () => {
+    if (focusedReadingState.mode !== 'rsvp' || focusedReadingState.words.length === 0) {
+      focusedReadingRsvpPlaying = false;
+      return;
+    }
+    if (!focusedReadingRsvpPlaying && !canPlayFocusedReadingRsvpAutoplay(focusedReadingState)) {
+      return;
+    }
+    focusedReadingRsvpPlaying = !focusedReadingRsvpPlaying;
+  };
+
+  const slowFocusedReadingRsvpPace = () => {
+    focusedReadingState = decreaseReaderRsvpLitePace(focusedReadingState);
+  };
+
+  const speedFocusedReadingRsvpPace = () => {
+    focusedReadingState = increaseReaderRsvpLitePace(focusedReadingState);
   };
 
   const toggleInlineTranslationSourceVisibility = () => {
@@ -2350,6 +2437,7 @@
           ttsMiniBarCanSwitchMode={ttsMiniBarCanSwitchMode}
           {focusedReadingState}
           {focusedReadingSummary}
+          focusedReadingRsvpPlaying={focusedReadingRsvpPlaying}
           inlineTranslationVisible={notebookVisible && notebookTab === 'translation'}
           inlineTranslationState={inlineTranslationState}
           inlineTranslationSummary={inlineTranslationSummary}
@@ -2368,6 +2456,9 @@
           onStartParagraphFocus={startParagraphFocusMode}
           onStartRsvpLite={startRsvpLiteMode}
           onExitFocusedReading={exitFocusedReadingMode}
+          onToggleFocusedReadingRsvpPlayback={toggleFocusedReadingRsvpPlayback}
+          onFocusedReadingSlowerPace={slowFocusedReadingRsvpPace}
+          onFocusedReadingFasterPace={speedFocusedReadingRsvpPace}
           onFocusedReadingPreviousWord={() => moveFocusedReadingWord(-1)}
           onFocusedReadingNextWord={() => moveFocusedReadingWord(1)}
           onToggleInlineTranslationEnabled={toggleInlineTranslationEnabled}

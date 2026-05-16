@@ -7,7 +7,11 @@
 
   export let state: ReaderFocusedReadingState;
   export let summary = '';
+  export let isRsvpPlaying = false;
   export let onExit: (() => void) | null = null;
+  export let onTogglePlayback: (() => void) | null = null;
+  export let onSlowerPace: (() => void) | null = null;
+  export let onFasterPace: (() => void) | null = null;
   export let onPreviousWord: (() => void) | null = null;
   export let onNextWord: (() => void) | null = null;
 
@@ -16,6 +20,8 @@
   $: isRsvpMode = state.mode === 'rsvp';
   $: currentWord = state.words[state.activeWordIndex] ?? '';
   $: hasCapabilityGap = Boolean(state.capabilityMessage) || !state.sourceText.trim();
+  $: rsvpCanAutoplay = isRsvpMode && state.words.length > 0 && (isRsvpPlaying || state.activeWordIndex < state.words.length - 1);
+  $: rsvpPaceLabel = `${state.paceWpm} 词/分钟`;
 
   onMount(() => {
     overlayElement?.focus();
@@ -70,6 +76,9 @@
           {currentWord || '...'}
         </div>
         <div class="rsvp-controls">
+          <button type="button" disabled={!rsvpCanAutoplay} on:click={() => onTogglePlayback?.()}>
+            {isRsvpPlaying ? '暂停自动播放' : '继续自动播放'}
+          </button>
           <button
             type="button"
             disabled={state.activeWordIndex === 0}
@@ -87,6 +96,12 @@
           >
             下一个词
           </button>
+        </div>
+        <div class="rsvp-pace-controls" aria-label="RSVP-lite 播放速度">
+          <span class="rsvp-pace-label">阅读速度</span>
+          <button type="button" on:click={() => onSlowerPace?.()}>更慢</button>
+          <strong>{rsvpPaceLabel}</strong>
+          <button type="button" on:click={() => onFasterPace?.()}>更快</button>
         </div>
         <p class="rsvp-source">{state.sourceText}</p>
       </div>
@@ -212,6 +227,20 @@
   .rsvp-controls {
     justify-content: center;
     flex-wrap: wrap;
+  }
+
+  .rsvp-pace-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .rsvp-pace-label {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    color: var(--reader-shell-muted, #78644a);
   }
 
   .rsvp-source,

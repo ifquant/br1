@@ -1554,6 +1554,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0671-persist-reader-focused-reading-resume.md`.
   - Notes: `+page.svelte` still owns current-book restore timing and localStorage IO. The helper stores the excerpt/selection text currently shown in the overlay as the honest restorable anchor for TXT/EPUB-like surfaces; exact PDF/CBZ segment restore remains out of scope until those surfaces expose a stable text locator.
 
+- [x] P20-1.2 Add a route-owned RSVP-lite autoplay controller
+  - Outcome: RSVP-lite now starts autoplay from the current word on supported text surfaces, lets the reader pause/resume and adjust a bounded visible pace, and stops at the last word instead of wrapping.
+  - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, `src/lib/components/reader/ReaderStage.svelte`, `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, helper tests, focused Playwright smoke, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader can autoplay rsvp-lite with pause and pace controls in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0672-add-reader-rsvp-lite-controller.md`.
+  - Notes: the route still owns the autoplay timer and only restores plain focused-reading state. Pace is persisted because the overlay can honestly reopen with the same bounded speed, but autoplay does not auto-resume across reload because the timer/runtime side effect is route-owned and intentionally transient.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

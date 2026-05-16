@@ -7,9 +7,14 @@ import test from 'node:test';
 import {
   advanceReaderRsvpWord,
   createReaderFocusedReadingState,
+  decreaseReaderRsvpLitePace,
   exitReaderFocusedReading,
   getReaderFocusedReadingSummary,
+  increaseReaderRsvpLitePace,
   parseReaderFocusedReadingPersistedState,
+  READER_RSVP_LITE_DEFAULT_WPM,
+  READER_RSVP_LITE_MAX_WPM,
+  READER_RSVP_LITE_MIN_WPM,
   serializeReaderFocusedReadingState,
   startReaderParagraphFocus,
   startReaderRsvpLite
@@ -72,7 +77,38 @@ test('rsvp-lite mode splits a selected/current excerpt into words without mutati
   const advanced = advanceReaderRsvpWord(state, 2);
   assert.equal(advanced.activeWordIndex, 2);
   assert.equal(advanced.progressLocation, preview.progressLocation);
+  assert.equal(state.paceWpm, READER_RSVP_LITE_DEFAULT_WPM);
   assert.equal(state.activeWordIndex, 0);
+});
+
+test('rsvp-lite pace controls clamp to a readable range', () => {
+  const started = startReaderRsvpLite(createReaderFocusedReadingState(), {
+    preview: buildPreview(),
+    selection: buildSelection('pace controls should stay readable')
+  });
+
+  const slower = Array.from({ length: 10 }).reduce(
+    (state: typeof started) => decreaseReaderRsvpLitePace(state),
+    started
+  );
+  assert.equal(slower.paceWpm, READER_RSVP_LITE_MIN_WPM);
+
+  const faster = Array.from({ length: 20 }).reduce(
+    (state: typeof started) => increaseReaderRsvpLitePace(state),
+    slower
+  );
+  assert.equal(faster.paceWpm, READER_RSVP_LITE_MAX_WPM);
+});
+
+test('rsvp-lite word stepping stops at the end instead of wrapping', () => {
+  const started = startReaderRsvpLite(createReaderFocusedReadingState(), {
+    preview: buildPreview(),
+    selection: buildSelection('one two three')
+  });
+
+  const ended = advanceReaderRsvpWord(started, 99);
+  assert.equal(ended.activeWordIndex, 2);
+  assert.equal(advanceReaderRsvpWord(ended, 1).activeWordIndex, 2);
 });
 
 test('unsupported formats return a visible capability message', () => {
@@ -93,18 +129,21 @@ test('unsupported formats return a visible capability message', () => {
 });
 
 test('focused reading persistence round-trips supported rsvp-lite text state', () => {
-  const active = advanceReaderRsvpWord(
-    startReaderRsvpLite(createReaderFocusedReadingState(), {
-      preview: buildPreview(),
-      selection: buildSelection('Resume should restore this exact visible segment.')
-    }),
-    3
+  const active = increaseReaderRsvpLitePace(
+    advanceReaderRsvpWord(
+      startReaderRsvpLite(createReaderFocusedReadingState(), {
+        preview: buildPreview(),
+        selection: buildSelection('Resume should restore this exact visible segment.')
+      }),
+      3
+    )
   );
 
   const persisted = serializeReaderFocusedReadingState(active);
   assert.equal(persisted?.mode, 'rsvp');
   assert.equal(persisted?.formatLabel, 'EPUB');
   assert.equal(persisted?.activeWordIndex, 3);
+  assert.equal(persisted?.paceWpm, READER_RSVP_LITE_DEFAULT_WPM + 40);
 
   const restored = parseReaderFocusedReadingPersistedState(persisted);
 
@@ -112,6 +151,24 @@ test('focused reading persistence round-trips supported rsvp-lite text state', (
   assert.equal(restored.sourceText, 'Resume should restore this exact visible segment.');
   assert.deepEqual(restored.words, ['Resume', 'should', 'restore', 'this', 'exact', 'visible', 'segment.']);
   assert.equal(restored.activeWordIndex, 3);
+  assert.equal(restored.paceWpm, READER_RSVP_LITE_DEFAULT_WPM + 40);
+});
+
+test('focused reading restore backfills the default pace for older rsvp-lite payloads', () => {
+  const restored = parseReaderFocusedReadingPersistedState({
+    schemaVersion: 1,
+    mode: 'rsvp',
+    formatLabel: 'TXT',
+    sourceText: 'one two three',
+    sourceLabel: '当前正文',
+    progressLabel: '10%',
+    progressLocation: 'txt:0',
+    words: ['one', 'two', 'three'],
+    activeWordIndex: 1
+  });
+
+  assert.equal(restored.mode, 'rsvp');
+  assert.equal(restored.paceWpm, READER_RSVP_LITE_DEFAULT_WPM);
 });
 
 test('focused reading persistence refuses unsupported pdf and cbz surfaces', () => {

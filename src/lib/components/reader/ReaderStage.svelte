@@ -95,6 +95,7 @@
   export let ttsMiniBarCanSwitchMode = false;
   export let focusedReadingState: ReaderFocusedReadingState | null = null;
   export let focusedReadingSummary = '';
+  export let focusedReadingRsvpPlaying = false;
   export let inlineTranslationVisible = false;
   export let inlineTranslationState: ReaderInlineTranslationState | null = null;
   export let inlineTranslationSummary = '';
@@ -119,6 +120,9 @@
   export let onStartParagraphFocus: (() => void) | null = null;
   export let onStartRsvpLite: (() => void) | null = null;
   export let onExitFocusedReading: (() => void) | null = null;
+  export let onToggleFocusedReadingRsvpPlayback: (() => void) | null = null;
+  export let onFocusedReadingSlowerPace: (() => void) | null = null;
+  export let onFocusedReadingFasterPace: (() => void) | null = null;
   export let onFocusedReadingPreviousWord: (() => void) | null = null;
   export let onFocusedReadingNextWord: (() => void) | null = null;
   export let onToggleInlineTranslationEnabled: (() => void) | null = null;
@@ -546,7 +550,11 @@
     <ReaderFocusedReadingOverlay
       state={focusedReadingState}
       summary={focusedReadingSummary}
+      isRsvpPlaying={focusedReadingRsvpPlaying}
       onExit={onExitFocusedReading}
+      onTogglePlayback={onToggleFocusedReadingRsvpPlayback}
+      onSlowerPace={onFocusedReadingSlowerPace}
+      onFasterPace={onFocusedReadingFasterPace}
       onPreviousWord={onFocusedReadingPreviousWord}
       onNextWord={onFocusedReadingNextWord}
     />

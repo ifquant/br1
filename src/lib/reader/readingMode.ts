@@ -15,6 +15,7 @@ export type ReaderFocusedReadingState = {
   progressLocation: string;
   words: string[];
   activeWordIndex: number;
+  paceWpm: number;
   capabilityMessage: string;
 };
 
@@ -28,6 +29,7 @@ export type ReaderFocusedReadingPersistedState = {
   progressLocation: string;
   words: string[];
   activeWordIndex: number;
+  paceWpm?: number;
 };
 
 type ReaderFocusedReadingSourceInput = {
@@ -36,6 +38,11 @@ type ReaderFocusedReadingSourceInput = {
 };
 
 const normalizeExcerptText = (value: string | null | undefined) => value?.trim() ?? '';
+
+export const READER_RSVP_LITE_MIN_WPM = 120;
+export const READER_RSVP_LITE_DEFAULT_WPM = 240;
+export const READER_RSVP_LITE_MAX_WPM = 480;
+const READER_RSVP_LITE_PACE_STEP_WPM = 40;
 
 const normalizeFocusedReadingFormatLabel = (value: string | null | undefined) =>
   value?.trim().toUpperCase() ?? '';
@@ -71,7 +78,8 @@ const createFocusedReadingPayload = (
   preview: ReaderPreviewState,
   sourceText: string,
   sourceLabel: string,
-  words: string[] = []
+  words: string[] = [],
+  paceWpm = READER_RSVP_LITE_DEFAULT_WPM
 ): ReaderFocusedReadingState => ({
   mode,
   formatLabel: preview.formatLabel,
@@ -81,6 +89,7 @@ const createFocusedReadingPayload = (
   progressLocation: preview.progressLocation,
   words,
   activeWordIndex: 0,
+  paceWpm,
   capabilityMessage: getFocusedReadingCapabilityMessage(preview.formatLabel, sourceText.length > 0)
 });
 
@@ -146,6 +155,16 @@ const clampReaderRsvpWordIndex = (words: string[], activeWordIndex: number) => {
   return Math.min(words.length - 1, Math.max(0, Math.trunc(activeWordIndex)));
 };
 
+const normalizeReaderRsvpLitePace = (paceWpm: number) => {
+  if (!Number.isFinite(paceWpm)) {
+    return READER_RSVP_LITE_DEFAULT_WPM;
+  }
+  return Math.min(
+    READER_RSVP_LITE_MAX_WPM,
+    Math.max(READER_RSVP_LITE_MIN_WPM, Math.trunc(paceWpm))
+  );
+};
+
 export const createReaderFocusedReadingState = (
   overrides: Partial<ReaderFocusedReadingState> = {}
 ): ReaderFocusedReadingState => ({
@@ -157,6 +176,7 @@ export const createReaderFocusedReadingState = (
   progressLocation: '',
   words: [],
   activeWordIndex: 0,
+  paceWpm: READER_RSVP_LITE_DEFAULT_WPM,
   capabilityMessage: '',
   ...overrides
 });
@@ -170,12 +190,18 @@ export const startReaderParagraphFocus = (
 };
 
 export const startReaderRsvpLite = (
-  _state: ReaderFocusedReadingState,
+  state: ReaderFocusedReadingState,
   input: ReaderFocusedReadingSourceInput
 ) => {
   const source = getRsvpSource(input);
   const words = splitReaderRsvpWords(source.text);
-  return createFocusedReadingPayload('rsvp', input.preview, source.text, source.label, words);
+  return {
+    ...createFocusedReadingPayload('rsvp', input.preview, source.text, source.label, words),
+    paceWpm:
+      state.mode === 'rsvp'
+        ? normalizeReaderRsvpLitePace(state.paceWpm)
+        : READER_RSVP_LITE_DEFAULT_WPM
+  };
 };
 
 export const advanceReaderRsvpWord = (state: ReaderFocusedReadingState, delta: number) => {
@@ -191,6 +217,29 @@ export const advanceReaderRsvpWord = (state: ReaderFocusedReadingState, delta: n
     )
   };
 };
+
+const updateReaderRsvpLitePace = (state: ReaderFocusedReadingState, deltaWpm: number) => {
+  if (state.mode !== 'rsvp') {
+    return state;
+  }
+
+  return {
+    ...state,
+    paceWpm: normalizeReaderRsvpLitePace(state.paceWpm + deltaWpm)
+  };
+};
+
+export const increaseReaderRsvpLitePace = (state: ReaderFocusedReadingState) =>
+  updateReaderRsvpLitePace(state, READER_RSVP_LITE_PACE_STEP_WPM);
+
+export const decreaseReaderRsvpLitePace = (state: ReaderFocusedReadingState) =>
+  updateReaderRsvpLitePace(state, -READER_RSVP_LITE_PACE_STEP_WPM);
+
+export const getReaderRsvpLiteIntervalMs = (paceWpm: number) =>
+  Math.max(60, Math.round(60000 / normalizeReaderRsvpLitePace(paceWpm)));
+
+export const canAdvanceReaderRsvpWord = (state: ReaderFocusedReadingState) =>
+  state.mode === 'rsvp' && state.words.length > 0 && state.activeWordIndex < state.words.length - 1;
 
 export const exitReaderFocusedReading = (_state: ReaderFocusedReadingState) =>
   createReaderFocusedReadingState();
@@ -250,7 +299,8 @@ export const serializeReaderFocusedReadingState = (
     progressLabel: normalizeExcerptText(state.progressLabel),
     progressLocation: normalizeExcerptText(state.progressLocation),
     words,
-    activeWordIndex: state.mode === 'rsvp' ? clampReaderRsvpWordIndex(words, state.activeWordIndex) : 0
+    activeWordIndex: state.mode === 'rsvp' ? clampReaderRsvpWordIndex(words, state.activeWordIndex) : 0,
+    paceWpm: state.mode === 'rsvp' ? normalizeReaderRsvpLitePace(state.paceWpm) : undefined
   };
 };
 
@@ -308,6 +358,12 @@ export const parseReaderFocusedReadingPersistedState = (
             typeof payload.activeWordIndex === 'number' ? payload.activeWordIndex : 0
           )
         : 0,
+    paceWpm:
+      mode === 'rsvp'
+        ? normalizeReaderRsvpLitePace(
+            typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM
+          )
+        : READER_RSVP_LITE_DEFAULT_WPM,
     capabilityMessage: getFocusedReadingCapabilityMessage(formatLabel, sourceText.length > 0)
   });
 };
