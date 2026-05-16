@@ -3198,6 +3198,75 @@ test('reader annotation controller interactions stay legible in web mode', async
   await expect(highlightCards).toHaveCount(0);
 });
 
+test('reader saved-highlight helper flows stay legible in web mode', async ({ page }) => {
+  const readerUrl =
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
+  const selectText = async (needle: string) => {
+    await page.evaluate((targetText) => {
+      const pre = document.querySelector('.plain-text-paper pre');
+      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
+      const textNode = pre.firstChild;
+      const raw = textNode.textContent ?? '';
+      const start = raw.indexOf(targetText);
+      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
+      const range = document.createRange();
+      range.setStart(textNode, start);
+      range.setEnd(textNode, start + targetText.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    }, needle);
+  };
+
+  await page.goto(readerUrl);
+  const sidebarTabs = page.getByLabel('阅读侧栏标签');
+  await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
+  const highlightButton = page.locator('.secondary-note-action').first();
+
+  await selectText('plain text file exists');
+  await expect(highlightButton).toBeEnabled();
+  await highlightButton.click();
+
+  await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
+  const highlightsPanel = page.getByRole('region', { name: '高亮面板' });
+  const savedSelectionPanel = page.getByLabel('已保存高亮选择集');
+  await highlightsPanel.getByRole('button', { name: '选中当前视图高亮' }).click();
+  page.once('dialog', (dialog) => dialog.accept('Helper Flow Source'));
+  await highlightsPanel.getByRole('button', { name: '保存当前选择集' }).click();
+  await expect(savedSelectionPanel).toContainText('Helper Flow Source');
+
+  await savedSelectionPanel
+    .locator('.saved-highlight-selection-card')
+    .filter({ hasText: 'Helper Flow Source' })
+    .getByRole('button', { name: '导出' })
+    .click();
+  const exportPreview = page.getByLabel('高亮选择集导出预览');
+  const exportedPayload = await exportPreview.locator('textarea').inputValue();
+  const crossBookPayload = JSON.stringify({
+    ...JSON.parse(exportedPayload),
+    bookKey: 'helper-flow-other-book',
+    bookTitle: 'Helper Flow Other Book'
+  });
+  await exportPreview.getByRole('button', { name: '关闭' }).click();
+
+  page.once('dialog', (dialog) => dialog.accept(crossBookPayload));
+  await savedSelectionPanel.getByRole('button', { name: '导入' }).click();
+  await expect(savedSelectionPanel).toContainText('跨书预检：可映射 1/1 条高亮');
+  const importPreview = page.getByLabel('高亮选择集导入预检');
+  await expect(importPreview).toContainText('Helper Flow Other Book');
+  await importPreview.getByRole('button', { name: '导入已匹配高亮' }).click();
+  await expect(savedSelectionPanel).toContainText('已导入跨书选择集：Helper Flow Source (2)（1/1）');
+
+  const importedCard = savedSelectionPanel
+    .locator('.saved-highlight-selection-card')
+    .filter({ hasText: 'Helper Flow Source (2)' });
+  await expect(importedCard).toContainText('跨书导入 · Helper Flow Other Book / Helper Flow Source · 1/1');
+  await importedCard.getByRole('button', { name: '刷新映射' }).click();
+  await expect(savedSelectionPanel).toContainText('已刷新跨书选择集：Helper Flow Source (2)（1/1）');
+  await expect(importedCard).toContainText('完全匹配');
+});
+
 test('reader supports txt notes through selection, persistence, and note reopen in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';

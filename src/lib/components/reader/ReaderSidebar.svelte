@@ -73,6 +73,20 @@
     ReaderHighlightSelectionsRefreshFilter,
     ReaderHighlightSelectionsRefreshSummary
   } from '$lib/reader/sidebarHighlightSelections';
+  import {
+    createReaderHighlightSelectionImportPreview,
+    createReaderHighlightSelectionImportSource,
+    createReaderImportedSelectionSetName,
+    findExistingReaderCrossBookImportedSelection,
+    getReaderHighlightSelectionRefreshDetail,
+    getReaderHighlightSelectionRefreshLabel,
+    getReaderHighlightSelectionRefreshOutcome,
+    getReaderHighlightSelectionUnmatchedTexts,
+    parseReaderHighlightSelectionSetExportPayload,
+    refreshAllReaderCrossBookImportedSelections,
+    refreshReaderCrossBookImportedSelection,
+    resolveReaderImportedHighlightIds
+  } from '$lib/reader/sidebarHighlightSelections';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
@@ -186,61 +200,6 @@
     savedHighlightSelectionsRefreshFilter = 'all';
     selectedHighlightIds = new Set();
     savedHighlightSelections = [];
-  };
-
-  const buildRefreshOutcome = (name: string, matchedCount: number, totalCount: number) => ({
-    name,
-    matchedCount,
-    totalCount
-  });
-
-  const getSavedHighlightSelectionRefreshOutcome = (
-    selectionSet: ReaderHighlightSelectionSet
-  ): 'manual' | 'full' | 'partial' | 'missed' => {
-    if (!selectionSet.importSource) return 'manual';
-    if (selectionSet.importSource.matchedCount <= 0) return 'missed';
-    if (selectionSet.importSource.matchedCount >= selectionSet.importSource.totalCount) return 'full';
-    return 'partial';
-  };
-
-  const getSavedHighlightSelectionRefreshLabel = (outcome: 'full' | 'partial' | 'missed') => {
-    if (outcome === 'full') return '完全匹配';
-    if (outcome === 'partial') return '部分匹配';
-    return '未匹配';
-  };
-
-  const getSavedHighlightSelectionRefreshDetail = (selectionSet: ReaderHighlightSelectionSet) => {
-    const importSource = selectionSet.importSource;
-    if (!importSource) return '';
-
-    if (importSource.unmatchedCount <= 0) {
-      return `已全部映射 ${importSource.matchedCount}/${importSource.totalCount}`;
-    }
-
-    return `未命中 ${importSource.unmatchedCount} 条，可刷新映射`;
-  };
-
-  const getSavedHighlightSelectionUnmatchedTexts = (selectionSet: ReaderHighlightSelectionSet) => {
-    const importSource = selectionSet.importSource;
-    if (!importSource || importSource.unmatchedCount <= 0) return [];
-
-    const resolution = resolveImportedHighlightIds({
-      schemaVersion: 1,
-      bookKey: importSource.bookKey,
-      bookTitle: importSource.bookTitle,
-      bookAuthor: '',
-      formatLabel: importSource.formatLabel,
-      exportedAt: importSource.importedAt,
-      selectionSet: {
-        id: selectionSet.id,
-        name: selectionSet.name,
-        selectedIds: importSource.highlights.map((highlight) => highlight.id),
-        createdAt: selectionSet.createdAt
-      },
-      highlights: importSource.highlights
-    });
-
-    return resolution.unmatchedTexts.slice(0, 3);
   };
 
   const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
@@ -569,7 +528,7 @@
   $: importedSavedHighlightSelections = savedHighlightSelections.filter((selectionSet) => !!selectionSet.importSource);
   $: savedHighlightSelectionsRefreshCounts = importedSavedHighlightSelections.reduce(
     (counts, selectionSet) => {
-      const outcome = getSavedHighlightSelectionRefreshOutcome(selectionSet);
+      const outcome = getReaderHighlightSelectionRefreshOutcome(selectionSet);
       if (outcome !== 'manual') {
         counts[outcome] += 1;
       }
@@ -587,7 +546,7 @@
       : orderedSavedHighlightSelections.filter(
           (selectionSet) =>
             selectionSet.importSource &&
-            getSavedHighlightSelectionRefreshOutcome(selectionSet) === savedHighlightSelectionsRefreshFilter
+            getReaderHighlightSelectionRefreshOutcome(selectionSet) === savedHighlightSelectionsRefreshFilter
         );
   $: selectedVisibleHighlights = annotationState.selectedVisibleHighlights;
   $: areAllVisibleHighlightsSelected = annotationState.areAllVisibleHighlightsSelected;
@@ -814,132 +773,11 @@
     }
   };
 
-  const isReaderHighlightSelectionImportSource = (
-    value: unknown
-  ): value is NonNullable<ReaderHighlightSelectionSet['importSource']> =>
-    !!value &&
-    typeof value === 'object' &&
-    typeof (value as { bookKey?: unknown }).bookKey === 'string' &&
-    typeof (value as { bookTitle?: unknown }).bookTitle === 'string' &&
-    typeof (value as { formatLabel?: unknown }).formatLabel === 'string' &&
-    typeof (value as { selectionName?: unknown }).selectionName === 'string' &&
-    typeof (value as { matchedCount?: unknown }).matchedCount === 'number' &&
-    typeof (value as { totalCount?: unknown }).totalCount === 'number' &&
-    typeof (value as { unmatchedCount?: unknown }).unmatchedCount === 'number' &&
-    typeof (value as { importedAt?: unknown }).importedAt === 'number' &&
-    Array.isArray((value as { highlights?: unknown }).highlights) &&
-    (value as { highlights: unknown[] }).highlights.every(
-      (highlight) =>
-        !!highlight &&
-        typeof highlight === 'object' &&
-        typeof (highlight as { id?: unknown }).id === 'string' &&
-        typeof (highlight as { cfi?: unknown }).cfi === 'string' &&
-        typeof (highlight as { text?: unknown }).text === 'string' &&
-        typeof (highlight as { chapterLabel?: unknown }).chapterLabel === 'string' &&
-        typeof (highlight as { chapterHref?: unknown }).chapterHref === 'string' &&
-        typeof (highlight as { createdAt?: unknown }).createdAt === 'number'
-    );
-
-  const isReaderHighlightSelectionSet = (
-    value: unknown
-  ): value is ReaderHighlightSelectionSetExport => {
-    if (!value || typeof value !== 'object') return false;
-    const candidate = value as Partial<ReaderHighlightSelectionSetExport>;
-    const selectionSet = candidate.selectionSet as Partial<ReaderHighlightSelectionSet> | undefined;
-    const highlights = candidate.highlights as Partial<ReaderHighlightSelectionSetExportHighlight>[] | undefined;
-
-    return (
-      candidate.schemaVersion === 1 &&
-      typeof candidate.bookKey === 'string' &&
-      typeof candidate.bookTitle === 'string' &&
-      typeof candidate.bookAuthor === 'string' &&
-      typeof candidate.formatLabel === 'string' &&
-      typeof candidate.exportedAt === 'number' &&
-      !!selectionSet &&
-      typeof selectionSet.id === 'string' &&
-      typeof selectionSet.name === 'string' &&
-      typeof selectionSet.createdAt === 'number' &&
-      (selectionSet.importSource === undefined || isReaderHighlightSelectionImportSource(selectionSet.importSource)) &&
-      Array.isArray(selectionSet.selectedIds) &&
-      selectionSet.selectedIds.every((id) => typeof id === 'string') &&
-      Array.isArray(highlights) &&
-      highlights.every(
-        (highlight) =>
-          !!highlight &&
-          typeof highlight.id === 'string' &&
-          typeof highlight.cfi === 'string' &&
-          typeof highlight.text === 'string' &&
-          typeof highlight.chapterLabel === 'string' &&
-          typeof highlight.chapterHref === 'string' &&
-          typeof highlight.createdAt === 'number'
-      )
-    );
-  };
-
-  const createImportedSelectionSetName = (name: string) => {
-    if (!savedHighlightSelections.some((selectionSet) => selectionSet.name === name)) {
-      return name;
-    }
-
-    let suffix = 2;
-    while (savedHighlightSelections.some((selectionSet) => selectionSet.name === `${name} (${suffix})`)) {
-      suffix += 1;
-    }
-    return `${name} (${suffix})`;
-  };
-
-  const findExistingCrossBookImportedSelection = (sourceBookKey: string, sourceSelectionName: string) =>
-    savedHighlightSelections.find(
-      (selectionSet) =>
-        selectionSet.importSource?.bookKey === sourceBookKey &&
-        selectionSet.importSource?.selectionName === sourceSelectionName
-    );
-
-  const normalizeImportedHighlightText = (text: string) => text.replace(/\s+/g, ' ').trim();
-
-  const resolveImportedHighlightIds = (payload: ReaderHighlightSelectionSetExport) => {
-    const validHighlightIds = new Set(allHighlights.map((note) => note.id));
-    const importedIdSet = new Set(payload.selectionSet.selectedIds.filter((id) => validHighlightIds.has(id)));
-    const unmatchedTexts: string[] = [];
-
-    if (importedIdSet.size < payload.selectionSet.selectedIds.length) {
-      for (const exportedHighlight of payload.highlights) {
-        if (Array.from(importedIdSet).some((id) => id === exportedHighlight.id)) continue;
-
-        const matchedHighlight = allHighlights.find(
-          (note) =>
-            note.cfi === exportedHighlight.cfi &&
-            note.text === exportedHighlight.text &&
-            note.chapterHref === exportedHighlight.chapterHref
-        );
-        if (matchedHighlight) {
-          importedIdSet.add(matchedHighlight.id);
-          continue;
-        }
-
-        const matchedByTextAnchor = allHighlights.find((note) => {
-          const normalizedCurrentText = normalizeImportedHighlightText(note.text);
-          const normalizedExportedText = normalizeImportedHighlightText(exportedHighlight.text);
-          return (
-            normalizedCurrentText === normalizedExportedText &&
-            (note.chapterHref === exportedHighlight.chapterHref ||
-              note.chapterLabel === exportedHighlight.chapterLabel)
-          );
-        });
-        if (matchedByTextAnchor) {
-          importedIdSet.add(matchedByTextAnchor.id);
-          continue;
-        }
-
-        unmatchedTexts.push(exportedHighlight.text);
-      }
-    }
-
-    return {
-      importedIds: Array.from(importedIdSet),
-      unmatchedTexts
-    };
-  };
+  const getSavedHighlightSelectionRefreshDetail = getReaderHighlightSelectionRefreshDetail;
+  const getSavedHighlightSelectionRefreshOutcome = getReaderHighlightSelectionRefreshOutcome;
+  const getSavedHighlightSelectionRefreshLabel = getReaderHighlightSelectionRefreshLabel;
+  const getSavedHighlightSelectionUnmatchedTexts = (selectionSet: ReaderHighlightSelectionSet) =>
+    getReaderHighlightSelectionUnmatchedTexts(selectionSet, allHighlights);
 
   const importSavedHighlightSelection = () => {
     savedHighlightSelectionRefreshSummary = null;
@@ -947,35 +785,23 @@
     const payload = rawPayload?.trim();
     if (!payload) return;
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(payload);
-    } catch (error) {
-      console.warn('Failed to parse saved highlight selection import payload', error);
+    const parsedPayload = parseReaderHighlightSelectionSetExportPayload(payload);
+    if (!parsedPayload.ok && parsedPayload.reason === 'json') {
       savedHighlightSelectionImportNotice = '导入失败：JSON 解析错误';
       return;
     }
 
-    if (!isReaderHighlightSelectionSet(parsed)) {
+    if (!parsedPayload.ok) {
       savedHighlightSelectionImportNotice = '导入失败：导出对象结构不正确';
       savedHighlightSelectionImportPreview = null;
       return;
     }
 
-    const resolution = resolveImportedHighlightIds(parsed);
+    const parsed = parsedPayload.value;
+    const resolution = resolveReaderImportedHighlightIds(parsed, allHighlights);
     if (parsed.bookKey !== bookKey) {
-      savedHighlightSelectionImportPreview = {
-        selectionName: parsed.selectionSet.name,
-        selectionCreatedAt: parsed.selectionSet.createdAt,
-        sourceBookKey: parsed.bookKey,
-        sourceBookTitle: parsed.bookTitle,
-        sourceFormatLabel: parsed.formatLabel,
-        matchedCount: resolution.importedIds.length,
-        totalCount: parsed.highlights.length,
-        importedIds: resolution.importedIds,
-        unmatchedTexts: resolution.unmatchedTexts.slice(0, 3),
-        sourceHighlights: parsed.highlights.map((highlight) => ({ ...highlight }))
-      };
+      savedHighlightSelectionImportPreview =
+        createReaderHighlightSelectionImportPreview(parsed, resolution);
       savedHighlightSelectionImportNotice = `跨书预检：可映射 ${resolution.importedIds.length}/${parsed.highlights.length} 条高亮，当前还不能直接导入`;
       return;
     }
@@ -987,7 +813,10 @@
       return;
     }
 
-    const importedName = createImportedSelectionSetName(parsed.selectionSet.name);
+    const importedName = createReaderImportedSelectionSetName(
+      parsed.selectionSet.name,
+      savedHighlightSelections
+    );
     savedHighlightSelections = [
       {
         id: `selection-import-${Date.now()}`,
@@ -1007,21 +836,12 @@
     const preview = savedHighlightSelectionImportPreview;
     if (!preview?.importedIds.length) return;
 
-    const existingSelection = findExistingCrossBookImportedSelection(
+    const existingSelection = findExistingReaderCrossBookImportedSelection(
+      savedHighlightSelections,
       preview.sourceBookKey,
       preview.selectionName
     );
-    const importSource = {
-      bookKey: preview.sourceBookKey,
-      bookTitle: preview.sourceBookTitle,
-      formatLabel: preview.sourceFormatLabel,
-      selectionName: preview.selectionName,
-      matchedCount: preview.matchedCount,
-      totalCount: preview.totalCount,
-      unmatchedCount: preview.totalCount - preview.matchedCount,
-      importedAt: Date.now(),
-      highlights: preview.sourceHighlights.map((highlight) => ({ ...highlight }))
-    } satisfies NonNullable<ReaderHighlightSelectionSet['importSource']>;
+    const importSource = createReaderHighlightSelectionImportSource(preview, Date.now());
 
     if (existingSelection) {
       savedHighlightSelections = savedHighlightSelections.map((selectionSet) =>
@@ -1035,7 +855,10 @@
       );
       savedHighlightSelectionImportNotice = `已更新跨书选择集：${existingSelection.name}（${preview.matchedCount}/${preview.totalCount}）`;
     } else {
-      const importedName = createImportedSelectionSetName(preview.selectionName);
+      const importedName = createReaderImportedSelectionSetName(
+        preview.selectionName,
+        savedHighlightSelections
+      );
       savedHighlightSelections = [
         {
           id: `selection-import-cross-book-${Date.now()}`,
@@ -1055,106 +878,32 @@
     const importSource = selectionSet.importSource;
     if (!importSource) return;
 
-    const resolution = resolveImportedHighlightIds({
-      schemaVersion: 1,
-      bookKey: importSource.bookKey,
-      bookTitle: importSource.bookTitle,
-      bookAuthor: '',
-      formatLabel: importSource.formatLabel,
-      exportedAt: importSource.importedAt,
-      selectionSet: {
-        id: selectionSet.id,
-        name: selectionSet.name,
-        selectedIds: importSource.highlights.map((highlight) => highlight.id),
-        createdAt: selectionSet.createdAt
-      },
-      highlights: importSource.highlights
-    });
-
-    const nextImportSource = {
-      ...importSource,
-      matchedCount: resolution.importedIds.length,
-      unmatchedCount: importSource.totalCount - resolution.importedIds.length,
-      importedAt: Date.now()
-    } satisfies NonNullable<ReaderHighlightSelectionSet['importSource']>;
-
+    const refreshed = refreshReaderCrossBookImportedSelection(selectionSet, allHighlights, Date.now());
+    if (!refreshed) return;
     savedHighlightSelections = savedHighlightSelections.map((candidate) =>
       candidate.id === selectionSet.id
-        ? {
-            ...candidate,
-            selectedIds: resolution.importedIds,
-            importSource: nextImportSource
-          }
+        ? refreshed.selectionSet
         : candidate
     );
-    savedHighlightSelectionImportNotice = `已刷新跨书选择集：${selectionSet.name}（${resolution.importedIds.length}/${importSource.totalCount}）`;
-    savedHighlightSelectionRefreshSummary = {
-      refreshedCount: 1,
-      fullMatches: resolution.importedIds.length === importSource.totalCount ? [selectionSet.name] : [],
-      partialMatches:
-        resolution.importedIds.length > 0 && resolution.importedIds.length < importSource.totalCount
-          ? [buildRefreshOutcome(selectionSet.name, resolution.importedIds.length, importSource.totalCount)]
-          : [],
-      missedMatches:
-        resolution.importedIds.length === 0 ? [{ name: selectionSet.name, totalCount: importSource.totalCount }] : []
-    };
+    savedHighlightSelectionImportNotice = `已刷新跨书选择集：${selectionSet.name}（${refreshed.resolution.importedIds.length}/${importSource.totalCount}）`;
+    savedHighlightSelectionRefreshSummary = refreshed.summary;
   };
 
   const refreshAllCrossBookImportedSelections = () => {
     if (!importedSavedHighlightSelections.length) return;
 
-    let refreshedCount = 0;
-    const fullMatches: string[] = [];
-    const partialMatches: Array<{ name: string; matchedCount: number; totalCount: number }> = [];
-    const missedMatches: Array<{ name: string; totalCount: number }> = [];
-    savedHighlightSelections = savedHighlightSelections.map((selectionSet) => {
-      const importSource = selectionSet.importSource;
-      if (!importSource) return selectionSet;
-
-      const resolution = resolveImportedHighlightIds({
-        schemaVersion: 1,
-        bookKey: importSource.bookKey,
-        bookTitle: importSource.bookTitle,
-        bookAuthor: '',
-        formatLabel: importSource.formatLabel,
-        exportedAt: importSource.importedAt,
-        selectionSet: {
-          id: selectionSet.id,
-          name: selectionSet.name,
-          selectedIds: importSource.highlights.map((highlight) => highlight.id),
-          createdAt: selectionSet.createdAt
-        },
-        highlights: importSource.highlights
-      });
-
-      refreshedCount += 1;
-      if (resolution.importedIds.length === importSource.totalCount) {
-        fullMatches.push(selectionSet.name);
-      } else if (resolution.importedIds.length === 0) {
-        missedMatches.push({ name: selectionSet.name, totalCount: importSource.totalCount });
-      } else {
-        partialMatches.push(buildRefreshOutcome(selectionSet.name, resolution.importedIds.length, importSource.totalCount));
-      }
-      return {
-        ...selectionSet,
-        selectedIds: resolution.importedIds,
-        importSource: {
-          ...importSource,
-          matchedCount: resolution.importedIds.length,
-          unmatchedCount: importSource.totalCount - resolution.importedIds.length,
-          importedAt: Date.now()
-        }
-      };
-    });
+    const refreshed = refreshAllReaderCrossBookImportedSelections(
+      savedHighlightSelections,
+      allHighlights,
+      Date.now()
+    );
+    savedHighlightSelections = refreshed.selectionSets;
 
     savedHighlightSelectionImportNotice =
-      refreshedCount === 1 ? '已刷新 1 组跨书选择集' : `已刷新 ${refreshedCount} 组跨书选择集`;
-    savedHighlightSelectionRefreshSummary = {
-      refreshedCount,
-      fullMatches,
-      partialMatches,
-      missedMatches
-    };
+      refreshed.summary.refreshedCount === 1
+        ? '已刷新 1 组跨书选择集'
+        : `已刷新 ${refreshed.summary.refreshedCount} 组跨书选择集`;
+    savedHighlightSelectionRefreshSummary = refreshed.summary;
   };
 
   const invertVisibleHighlightsSelection = () => {

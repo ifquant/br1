@@ -1473,6 +1473,14 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Tutorial: `tutorials/commit/0663-extract-reader-sidebar-annotation-controller.md`.
   - Notes: this slice is intentionally about current-book controller logic only. It does not move cross-book selection import/export, route-tab ownership, or the existing `ReaderSidebarAnnotations.svelte` presentation contract. The smoke creates real TXT highlights and drives select-all, selected filtering, individual unselect, and clear-selection behavior through the extracted controller path.
 
+- [x] P18-1.10 Extract saved-highlight helper logic
+  - Outcome: saved-highlight refresh labels/details, export payload validation, imported-name generation, existing cross-book lookup, imported highlight matching, import preview shaping, import-source shaping, and refresh-summary shaping now live in `sidebarHighlightSelections.ts`.
+  - Touches: `src/lib/reader/sidebarHighlightSelections.ts`, `ReaderSidebar.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader saved-highlight helper flows stay legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1261`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0664-extract-reader-sidebar-saved-highlight-helpers.md`.
+  - Notes: `ReaderSidebar.svelte` still owns saved-highlight state fields, persistence/hydration, action entrypoints, notices, previews, active-tab routing, and the slot mount into `ReaderSidebarHighlightSelections.svelte`. The focused smoke exports a real TXT saved-highlight set, imports it as a cross-book payload, imports matched highlights, and refreshes the imported mapping.
+
 
 ## P19 Reader File Boundary Reduction
 
