@@ -194,15 +194,15 @@ import type {
   $: notebookSummaryItems =
     activeTab === 'assistant'
       ? [
-          `当前书查找 ${lookupHistoryCount} 条`,
-          `当前书翻译 ${translationHistoryCount} 条`,
+          `当前范围查找 ${lookupHistoryCount} 条`,
+          `当前范围翻译 ${translationHistoryCount} 条`,
           assistanceStatusSummary,
           selectionText ? '已选中文本' : '未选中文本'
         ]
       : activeTab === 'translation'
         ? [
-            `当前书翻译 ${translationHistoryCount} 条`,
-            assistance.status === 'loading' ? '翻译请求进行中' : '翻译模式待命',
+            `当前范围翻译 ${translationHistoryCount} 条`,
+            assistance.status === 'loading' ? '工作台请求进行中' : '翻译模式可用',
             translationModeFollowsCurrentSource ? `跟随${translationSourceSummary}` : `已锁定${translationSourceSummary}`,
             '原文 / 译文并排阅读'
           ]
@@ -242,11 +242,11 @@ import type {
 </script>
 
 {#if visible}
-  <aside class="reader-notebook" aria-label="笔记工作台">
+  <aside class="reader-notebook" aria-label="Reader Workspace">
     <header class="notebook-head">
       <div class="notebook-copy">
         <span class="notebook-kicker">Reader Workspace</span>
-        <strong>笔记工作台</strong>
+        <strong>Reader Workspace</strong>
         <span>{preview.title} · {preview.chapterLabel}</span>
       </div>
       <div class="notebook-actions">
@@ -254,25 +254,25 @@ import type {
           type="button"
           class:pinned={pinned}
           class="notebook-action"
-          aria-label={pinned ? '取消固定笔记工作台' : '固定笔记工作台'}
+          aria-label={pinned ? '取消固定 Reader Workspace' : '固定 Reader Workspace'}
           aria-pressed={pinned}
           on:click={() => onTogglePin?.()}
         >
           {pinned ? '已固定' : '固定'}
         </button>
-        <button type="button" class="notebook-action close" aria-label="关闭笔记工作台" on:click={() => onClose?.()}>
+        <button type="button" class="notebook-action close" aria-label="关闭 Reader Workspace" on:click={() => onClose?.()}>
           ×
         </button>
       </div>
     </header>
 
-    <div class="notebook-summary" aria-label="笔记工作台摘要">
+    <div class="notebook-summary" aria-label="Reader Workspace 摘要">
       {#each notebookSummaryItems as item}
         <span>{item}</span>
       {/each}
     </div>
 
-    <div class="notebook-tabs" role="tablist" aria-label="笔记工作台标签">
+    <div class="notebook-tabs" role="tablist" aria-label="Reader Workspace 标签">
       <button
         type="button"
         role="tab"
@@ -344,7 +344,7 @@ import type {
           </div>
         </section>
       {:else}
-        <section class="selection-card muted" aria-label="笔记工作台提示">
+        <section class="selection-card muted" aria-label="Reader Workspace 提示">
           <strong>{supportsTextAnnotations ? '先在正文里选中文本' : '当前格式暂不支持正文批注'}</strong>
           <p>{supportsTextAnnotations ? '工作台会围绕选区、高亮和笔记组织阅读痕迹。' : textAnnotationSupportMessage}</p>
         </section>
@@ -399,6 +399,10 @@ import type {
           {/if}
         </section>
       {:else if activeTab === 'assistant'}
+        <!-- `ReaderAssistWorkspace` is reused in two contracts: this generic
+         assistant tab keeps the overview/lane browser unlocked, while the
+         dedicated translation tab below clamps the same component into a
+         translation-owned reading surface. -->
         <ReaderAssistWorkspace
           title="AI 阅读助手"
           summary="把查词、百科和翻译结果放到 notebook 里的独立工作台，而不是只做一个 sidebar 结果区。"

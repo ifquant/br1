@@ -96,6 +96,10 @@
     : selectedLookupHistoryEntryId.trim()
       ? 'lookup'
       : null;
+  // Selected history ids are parent-owned durable selection. This local
+  // component may mirror them into the currently foregrounded lane and request
+  // deselection when a non-empty incoming slice no longer contains the chosen
+  // record, but it is not allowed to become a persistence owner of its own.
   $: if (lockedMode && assistMode !== lockedMode) {
     assistMode = lockedMode;
   }
@@ -116,6 +120,10 @@
     archiveOverviewVisible = lockedMode ? false : !restoredSelectedMode;
     assistLookupTermSeededForBookKey = bookKey;
   }
+  // Translation mode reuses this workspace component, but `lockedMode` narrows
+  // the contract substantially: provider/target and the follow-current source
+  // come from the parent-owned translation mode, while direct textarea edits to
+  // an unfollowed draft are mirrored back into the parent's pinned source.
   $: effectiveTranslationSourceText =
     lockedMode === 'translation' && translationReadingModeFollowsCurrent
       ? normalizeAssistanceText(translationReadingModeSourceText)
@@ -158,15 +166,22 @@
   );
   $: latestLookupHistoryEntry = lookupHistory[0] ?? null;
   $: latestTranslationHistoryEntry = translationHistory[0] ?? null;
+  // This workspace assumes the parent already supplied the history slice it
+  // wants rendered here. The component only partitions that incoming list into
+  // lookup vs translation lanes; it does not enforce book scoping itself.
   $: workspaceScopeSummary = lockedMode === 'translation'
-    ? `当前书范围：翻译 ${translationHistory.length} 条`
-    : `当前书范围：查找 ${lookupHistory.length} 条 · 翻译 ${translationHistory.length} 条`;
+    ? `当前工作台范围：翻译 ${translationHistory.length} 条`
+    : `当前工作台范围：查找 ${lookupHistory.length} 条 · 翻译 ${translationHistory.length} 条`;
   $: workspaceScopeNote = lockedMode === 'translation'
-    ? '这里只保留当前书的翻译记录，以及原文 / 译文并排的阅读结果。'
-    : '这里保留当前书的查找和翻译记录，并在摘要和分区之间切换浏览。';
+    ? '这里显示当前传入的翻译记录，以及原文 / 译文并排的阅读结果。'
+    : '这里显示当前传入的查找和翻译记录，并在摘要和分区之间切换浏览。';
   $: visibleHistory = history.filter((entry) =>
     assistMode === 'translation' ? entry.request.kind === 'translation' : entry.request.kind === 'lookup'
   );
+  // Expanded/collapsed sections and full-vs-focus lane state are ephemeral
+  // notebook browse choices only. They can react to selection changes, but they
+  // do not own which history record is selected or persisted for the current
+  // incoming history slice.
   $: archiveExpanded = assistMode === 'translation' ? translationArchiveExpanded : lookupArchiveExpanded;
   $: isFocusLaneView =
     (assistMode === 'translation' ? translationLaneViewMode : lookupLaneViewMode) === 'focus';
@@ -180,7 +195,7 @@
   $: currentEntrySummary = selectedHistoryEntry
     ? getReaderAssistanceRequestSubject(selectedHistoryEntry.request) || '未命名请求'
     : '';
-  $: laneBreadcrumbBase = lockedMode === 'translation' ? '翻译模式' : '本书 AI 记录摘要';
+  $: laneBreadcrumbBase = lockedMode === 'translation' ? '翻译模式' : 'AI 记录摘要';
   $: laneBreadcrumb =
     selectedHistoryEntryId && isFocusLaneView
       ? `${laneBreadcrumbBase} / ${getArchiveLaneTitle(assistMode)} / 当前记录`
@@ -228,14 +243,14 @@
   };
 
   const getArchiveLaneTitle = (mode: 'lookup' | 'translation'): string =>
-    mode === 'translation' ? '本书翻译记录' : '本书查找记录';
+    mode === 'translation' ? '翻译记录' : '查找记录';
 
   const getArchiveLaneSummary = (mode: 'lookup' | 'translation', count: number): string => {
     if (count > 0) {
-      return `当前书 ${count} 条${mode === 'translation' ? '翻译' : '查找'}记录`;
+      return `当前范围 ${count} 条${mode === 'translation' ? '翻译' : '查找'}记录`;
     }
 
-    return mode === 'translation' ? '当前书还没有翻译记录' : '当前书还没有查找记录';
+    return mode === 'translation' ? '当前范围还没有翻译记录' : '当前范围还没有查找记录';
   };
 
   const getActiveRecordSectionSummary = (entry: ReaderAssistanceHistoryEntry): string =>
@@ -243,10 +258,10 @@
 
   const getHistoryListSectionSummary = (mode: 'lookup' | 'translation', count: number): string => {
     if (count <= 0) {
-      return mode === 'translation' ? '当前书还没有翻译历史。' : '当前书还没有查找历史。';
+      return mode === 'translation' ? '当前范围还没有翻译历史。' : '当前范围还没有查找历史。';
     }
 
-    return mode === 'translation' ? `当前书 ${count} 条翻译历史` : `当前书 ${count} 条查找历史`;
+    return mode === 'translation' ? `当前范围 ${count} 条翻译历史` : `当前范围 ${count} 条查找历史`;
   };
 
 
@@ -393,6 +408,8 @@
   };
 
   const openArchiveLane = (mode: 'lookup' | 'translation') => {
+    // Opening a lane only changes local browse presentation. It does not select
+    // a history entry, rewrite persisted selection, or publish new route state.
     assistMode = mode;
     archiveOverviewVisible = false;
     setArchiveExpanded(mode, true);
@@ -414,15 +431,15 @@
   </div>
 
   {#if !lockedMode && archiveOverviewVisible}
-    <section class="assist-history-section assist-archive-overview" aria-label="本书 AI 记录摘要">
+    <section class="assist-history-section assist-archive-overview" aria-label="AI 记录摘要">
       <div class="assist-history-section-head">
-        <strong>本书 AI 记录摘要</strong>
+        <strong>AI 记录摘要</strong>
         <span>查找 {lookupHistory.length} 条 · 翻译 {translationHistory.length} 条</span>
       </div>
       <small class="assist-history-head-note">
-        先看这本书积累了哪些查找和翻译记录，再进入某一条 notebook lane 继续浏览。
+        先看当前传入范围里有哪些查找和翻译记录，再进入对应记录分区继续浏览。
       </small>
-      <div class="assist-archive-overview-cards" aria-label="本书 AI 记录入口">
+      <div class="assist-archive-overview-cards" aria-label="AI 记录入口">
         <button
           type="button"
           class:active={assistMode === 'lookup'}
@@ -430,12 +447,12 @@
           on:click={() => openArchiveLane('lookup')}
         >
           <strong>查找记录</strong>
-          <span>{lookupHistory.length > 0 ? `当前书 ${lookupHistory.length} 条` : '当前书还没有查找记录'}</span>
+          <span>{lookupHistory.length > 0 ? `当前范围 ${lookupHistory.length} 条` : '当前范围还没有查找记录'}</span>
           <small>
             {#if latestLookupHistoryEntry}
               最近一条：{getReaderAssistanceRequestSubject(latestLookupHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestLookupHistoryEntry.updatedAt)}
             {:else}
-              查词和百科结果会按当前书保留在这里。
+              当前传入范围内的查词和百科结果会显示在这里。
             {/if}
           </small>
         </button>
@@ -447,13 +464,13 @@
         >
           <strong>翻译记录</strong>
           <span>
-            {translationHistory.length > 0 ? `当前书 ${translationHistory.length} 条` : '当前书还没有翻译记录'}
+            {translationHistory.length > 0 ? `当前范围 ${translationHistory.length} 条` : '当前范围还没有翻译记录'}
           </span>
           <small>
             {#if latestTranslationHistoryEntry}
               最近一条：{getReaderAssistanceRequestSubject(latestTranslationHistoryEntry.request) || '未命名请求'} · {formatHistoryTimestamp(latestTranslationHistoryEntry.updatedAt)}
             {:else}
-              当前书的翻译请求和结果会按语言上下文保留在这里。
+              当前传入范围内的翻译请求和结果会显示在这里。
             {/if}
           </small>
         </button>
@@ -483,11 +500,11 @@
     <span>当前章节：{preview.chapterLabel}</span>
     {#if assistMode === 'translation'}
       <span>
-        目标语言：{assistTranslationTargetLanguage.toUpperCase()}。
+        目标语言：{effectiveTranslationTargetLanguage.toUpperCase()}。
         {#if activeTranslationProviderStatus && !activeTranslationProviderStatus.configured}
           {activeTranslationProviderStatus.label}
         {:else}
-          当前 provider：{getReaderTranslationProviderDisplayLabel(assistTranslationProvider)}。
+          当前 provider：{getReaderTranslationProviderDisplayLabel(effectiveTranslationProvider)}。
         {/if}
       </span>
     {:else if assistLookupProvider === 'dictionary'}
@@ -661,7 +678,7 @@
             onResumeFollowingCurrentTranslationSource?.();
           }}
         >
-          回到当前阅读位置
+          回到当前来源
         </button>
       {/if}
     {/if}
@@ -759,13 +776,13 @@
 
   <div class="assist-result" aria-label={assistMode === 'translation' ? '翻译结果' : '查找结果'}>
     {#if lockedMode || !archiveOverviewVisible}
-      <div class="assist-history" aria-label={assistMode === 'translation' ? '最近翻译' : '最近求助'}>
+      <div class="assist-history" aria-label={assistMode === 'translation' ? '翻译记录浏览' : '查找记录浏览'}>
       <div class="assist-history-head">
         <strong>{getArchiveLaneTitle(assistMode)}</strong>
         <span>
           {getArchiveLaneSummary(assistMode, visibleHistory.length)}
         </span>
-        <section class="assist-history-section assist-history-nav-section" aria-label="AI 浏览导航 section">
+        <section class="assist-history-section assist-history-nav-section" aria-label="AI 浏览导航">
           <div class="assist-history-section-head">
             <strong>浏览导航</strong>
             <span>
@@ -786,8 +803,8 @@
           </div>
           <small class="assist-history-head-note">
             {assistMode === 'translation'
-              ? '保留本书最近的翻译请求，方便回看和再次发起。'
-              : '保留本书最近的查词和百科请求，方便回看和再次发起。'}
+              ? '浏览当前传入范围内的翻译请求，并从这里回看或再次发起。'
+              : '浏览当前传入范围内的查词和百科请求，并从这里回看或再次发起。'}
           </small>
           <div class="assist-history-nav-actions" aria-label="记录分区导航">
             {#if !lockedMode && !archiveOverviewVisible}
@@ -799,7 +816,7 @@
                     archiveOverviewVisible = true;
                   }}
                 >
-                  返回本书 AI 记录摘要
+                  返回 AI 记录摘要
                 </button>
               </div>
             {/if}
@@ -842,14 +859,14 @@
                 class="assist-chip assist-chip-danger clear-history"
                 on:click={() => onClearHistory?.(assistMode)}
               >
-                {assistMode === 'translation' ? '清除本书翻译记录' : '清除本书求助记录'}
+                {assistMode === 'translation' ? '清除当前范围翻译记录' : '清除当前范围查找记录'}
               </button>
             </div>
           {/if}
         </div>
       </div>
       {#if selectedHistoryEntry}
-        <section class="assist-history-section" aria-label="当前记录 section">
+        <section class="assist-history-section" aria-label="当前记录">
           <div class="assist-history-section-head">
             <strong>当前记录</strong>
             <span>{getActiveRecordSectionSummary(selectedHistoryEntry)}</span>
@@ -863,7 +880,7 @@
           </article>
         </section>
       {/if}
-      <section class="assist-history-section" aria-label="历史记录列表 section">
+      <section class="assist-history-section" aria-label="历史记录列表">
         <div class="assist-history-section-head">
           <strong>历史记录列表</strong>
           <span>{getHistoryListSectionSummary(assistMode, visibleHistory.length)}</span>
@@ -871,8 +888,8 @@
         {#if isFocusLaneView}
           <p class="assist-history-collapsed-copy">
             {assistMode === 'translation'
-              ? '当前处于只看当前记录模式；切回完整历史后，可以继续浏览这本书的翻译记录。'
-              : '当前处于只看当前记录模式；切回完整历史后，可以继续浏览这本书的查找记录。'}
+              ? '当前处于只看当前记录模式；切回完整历史后，可以继续浏览当前范围的翻译记录。'
+              : '当前处于只看当前记录模式；切回完整历史后，可以继续浏览当前范围的查找记录。'}
           </p>
         {:else if visibleHistory.length > 0 && archiveExpanded}
           <div class="assist-history-list">
@@ -922,14 +939,14 @@
         {:else if visibleHistory.length > 0}
           <p class="assist-history-collapsed-copy">
             {assistMode === 'translation'
-              ? '翻译记录列表已收起；当前书的最近翻译仍然保留在这个 section 里。'
-              : '查找记录列表已收起；当前书的最近求助仍然保留在这个 section 里。'}
+              ? '翻译记录列表已收起；重新展开后，可以继续浏览当前范围内的翻译记录。'
+              : '查找记录列表已收起；重新展开后，可以继续浏览当前范围内的查找记录。'}
           </p>
         {:else}
           <p class="assist-history-empty">
             {assistMode === 'translation'
-              ? '还没有这本书的翻译记录。发起一次翻译后，这里会保留最近请求。'
-              : '还没有这本书的查找记录。发起一次查词或百科后，这里会保留最近请求。'}
+              ? '当前范围还没有翻译记录。发起一次翻译后，这里会显示对应记录。'
+              : '当前范围还没有查找记录。发起一次查词或百科后，这里会显示对应记录。'}
           </p>
         {/if}
       </section>
@@ -941,13 +958,13 @@
           <span>先从摘要进入一条记录分区，再继续浏览当前记录和历史记录列表。</span>
         </div>
         <p class="assist-history-empty">
-          当前停留在本书 AI 记录摘要。选择 `查找记录` 或 `翻译记录` 后，才会展开对应 notebook lane 的导航、当前记录和历史记录列表。
+          当前停留在 AI 记录摘要。选择 `查找记录` 或 `翻译记录` 后，才会展开对应记录分区的导航、当前记录和历史记录列表。
         </p>
       </section>
     {/if}
     <div class="assist-translation-status">
       <strong>翻译提供方状态</strong>
-      <span>翻译配置由桌面端托管，renderer 只读取状态，不保存密钥。</span>
+      <span>翻译配置由桌面端托管，这里只读取状态，不保存密钥。</span>
       <div class="assist-translation-status-list">
         {#each translationProviderStatuses as provider}
           <div class:missing-key={!provider.configured} class="assist-translation-status-row">
@@ -1006,13 +1023,13 @@
               <p>{selectedHistoryEntry.error || '这条历史请求失败了。'}</p>
             {/if}
           {:else if assistance.status === 'loading'}
-            <p>
-              正在向{getReaderTranslationProviderDisplayLabel(
-                activeAssistanceRequest?.kind === 'translation'
-                  ? activeAssistanceRequest.provider
-                  : assistTranslationProvider
-              )}请求翻译结果。
-            </p>
+            {#if activeAssistanceRequest?.kind === 'translation'}
+              <p>
+                正在向{getReaderTranslationProviderDisplayLabel(activeAssistanceRequest.provider)}请求翻译结果。
+              </p>
+            {:else}
+              <p>当前有其他请求进行中。发起翻译后，新的译文会显示在这里。</p>
+            {/if}
           {:else if
             assistance.status === 'ready' &&
             assistance.result &&
@@ -1027,14 +1044,14 @@
           {:else if liveTranslationPanelResult}
             <span>{liveTranslationPanelResult.providerLabel}</span>
             <p>{liveTranslationPanelResult.translatedText}</p>
-          {:else if assistance.status === 'empty'}
+          {:else if assistance.status === 'empty' && activeAssistanceRequest?.kind === 'translation'}
             <p>没有可翻译的内容。</p>
-          {:else if assistance.status === 'offline'}
+          {:else if assistance.status === 'offline' && activeAssistanceRequest?.kind === 'translation'}
             <p>{assistance.error || '桌面运行时或网络不可用。'}</p>
-          {:else if assistance.status === 'error'}
+          {:else if assistance.status === 'error' && activeAssistanceRequest?.kind === 'translation'}
             <p>{assistance.error || '翻译请求失败。'}</p>
           {:else}
-            <p>发起翻译后，译文会显示在这里；如果没有选区，会回退到当前章节标题。</p>
+            <p>发起翻译后，译文会显示在这里；没有显式选区时，会按当前来源链回退到可解释的文本上下文。</p>
           {/if}
         </article>
       </div>
