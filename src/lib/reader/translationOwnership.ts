@@ -61,6 +61,10 @@ export const resolveReaderEffectiveTranslationSource = (
     chapterLabel: (resolvedSource.chapterLabel || '').trim()
   };
 
+  // "Follow current" means the translation surface should track whatever
+  // excerpt the reader currently exposes. Once the reader pins a source, the
+  // pinned excerpt wins until that ownership flag is cleared, even if the
+  // visible paragraph has moved on.
   if (ownership.followsCurrentSource) {
     return normalizedResolvedSource;
   }
@@ -75,6 +79,10 @@ export const createPinnedReaderTranslationSource = (
   source: Partial<ReaderTranslationSource> | null | undefined,
   fallbackSource: ReaderTranslationSource
 ): ReaderTranslationSource | null => {
+  // Pinning is allowed to start from a partial route/UI payload, but the saved
+  // source still needs one normalized shape. Falling back through the currently
+  // resolved source keeps pinning honest when the caller only supplies part of
+  // the excerpt metadata.
   const normalizedFallback = normalizeReaderTranslationSource(
     fallbackSource,
     DEFAULT_TRANSLATION_SOURCE_LABEL
@@ -138,6 +146,10 @@ export const resolveReaderNextTranslationLiveSnapshot = (input: {
   const normalizedSourceText = normalizeAssistanceText(input.source.text);
   if (!normalizedSourceText) return null;
 
+  // This helper answers one narrow question: "if the active translation source
+  // has a fresh ready result right now, what snapshot should we cache for it?"
+  // It prefers the live assistance result first, then a matching ready history
+  // entry for the exact same source text.
   if (
     input.assistanceState.status === 'ready' &&
     input.assistanceState.activeRequest?.kind === 'translation' &&
@@ -171,6 +183,11 @@ export const resolveReaderLiveTranslationPanelResult = (input: {
   const normalizedSourceText = normalizeAssistanceText(input.source.text);
   if (!normalizedSourceText) return null;
 
+  // The panel result is what the reader may show now. It reuses the freshest
+  // matching live/history result when possible, then falls back to the
+  // persisted snapshot only if that snapshot still belongs to this exact source
+  // text. That keeps reload useful without letting old translations bleed into
+  // a new excerpt.
   const nextLiveSnapshot = resolveReaderNextTranslationLiveSnapshot({
     source: input.source,
     assistanceState: input.assistanceState,
@@ -201,6 +218,11 @@ export const resolveReaderTranslationLiveSnapshotState = (input: {
   currentSnapshot: ReaderTranslationLiveSnapshot | null;
   nextSnapshot: ReaderTranslationLiveSnapshot | null;
 }): ReaderTranslationLiveSnapshot | null => {
+  // Snapshot state is intentionally stickier than the visible panel result. If
+  // the source text still exists but there is no fresher ready translation yet,
+  // keep the current snapshot value in place so reload and mode switches can
+  // reuse the previously accepted cache. Clearing only happens when the active
+  // source itself disappears.
   if (input.nextSnapshot) return input.nextSnapshot;
   if (!normalizeAssistanceText(input.source.text)) return null;
   return input.currentSnapshot;
@@ -244,6 +266,13 @@ export const resolveReaderTranslationModeConfigRestore = (input: {
   assistanceSelection: ReaderAssistanceWorkspaceSelection;
   routeOpenState: TranslationConfigRouteState;
 }): ReaderTranslationModeConfig => {
+  // Restore has three precedence layers:
+  // 1. explicit translation-route params/history entry
+  // 2. per-book restored config
+  // 3. ambient current-book selected translation history entry when no explicit
+  //    route-owned translation state exists
+  // Only the explicit route-owned layer is allowed to block ambient
+  // current-book selection from re-deriving the config.
   const routeOwnsTranslationMode = input.routeOpenState.workspaceMode === 'translation';
   const routeTargetLanguage = routeOwnsTranslationMode
     ? input.routeOpenState.translationTargetLanguage
@@ -293,6 +322,10 @@ export const resolveReaderRouteTranslationModeConfig = (input: {
   assistanceHistory: ReaderAssistanceHistoryEntry[];
   routeOpenState: TranslationConfigRouteState;
 }): ReaderTranslationModeConfig => {
+  // This is narrower than restore: it only re-derives config while the route is
+  // actively in translation mode. Outside that dedicated mode, current config
+  // remains local so TTS or ordinary reading flows do not silently retune the
+  // translation workspace.
   if (input.routeOpenState.workspaceMode !== 'translation') {
     return input.currentConfig;
   }
