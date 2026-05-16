@@ -244,6 +244,9 @@ export const resolveReaderAnnotationPopupSelectionForBookChange = (
 export const consumeReaderFocusedReadingLaunchSelection = (
   input: ReaderFocusedReadingLaunchSelectionInput
 ): ReaderFocusedReadingLaunchSelectionResolution => {
+  // Normal launches always prefer a still-live selection. The one-shot guard is
+  // only a fallback for the narrow EPUB paragraph-focus race where focus moved
+  // away first and the live selection already vanished.
   if (hasReaderSelectionText(input.currentSelection)) {
     return {
       selection: input.currentSelection,
@@ -256,6 +259,9 @@ export const consumeReaderFocusedReadingLaunchSelection = (
     input.currentSelectionGuard?.armed &&
     hasReaderSelectionText(input.currentSelectionGuard.selection)
   ) {
+    // Only paragraph focus is allowed to reuse the vanished EPUB excerpt once.
+    // RSVP and other flows must not treat the guard as a generic same-book
+    // selection cache.
     return {
       selection: input.currentSelectionGuard.selection,
       nextSelectionGuard: null
@@ -283,6 +289,9 @@ export const resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange =
       selection: input.nextSelection!
     };
   }
+  // A null selection does not immediately mean "forget everything". If EPUB
+  // just emitted a clear event after header/menu focus moved away, preserve the
+  // most recent real excerpt and flip it into an armed one-shot guard.
   const stagedSelection = hasReaderSelectionText(input.previousSelection)
     ? input.previousSelection
     : hasReaderSelectionText(input.currentSelectionGuard?.selection ?? null)
@@ -338,6 +347,9 @@ export const resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelection
       nextRearmSuppressed: false
     };
   }
+  // Same-book navigation can deliberately clear the guard before Foliate later
+  // reports `selectionchange(null)`. While suppression is set, that delayed
+  // null event must not rebuild the guard from the previous excerpt.
   if (input.currentRearmSuppressed && isEpubReaderSelectionLatchFormat(input.formatLabel)) {
     return {
       nextSelectionGuard: null,
@@ -358,6 +370,10 @@ export const resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelection
 export const resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequest = (
   input: ReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequestInput
 ): ReaderFocusedReadingLaunchSelectionGuardBoundaryResolution => ({
+  // Navigation-like control requests do two separate things:
+  // 1. clear the staged/armed guard itself
+  // 2. remember that a delayed EPUB null-selection event is no longer allowed
+  //    to rearm it
   nextSelectionGuard: resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
     currentSelectionGuard: input.currentSelectionGuard,
     request: input.request
@@ -375,6 +391,10 @@ export const resolveReaderFocusedReadingLaunchSelectionGuardForBookChange = (
 export const resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChange = (
   input: ReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChangeInput
 ): ReaderFocusedReadingLaunchSelectionGuardBoundaryResolution => ({
+  // Book switches are stronger than same-book navigation: they clear both the
+  // guard and any sticky suppression bit because the next book starts a fresh
+  // selection lifecycle instead of inheriting EPUB timing debt from the last
+  // one.
   nextSelectionGuard: resolveReaderFocusedReadingLaunchSelectionGuardForBookChange({
     currentSelectionGuard: input.currentSelectionGuard,
     previousBookKey: input.previousBookKey,

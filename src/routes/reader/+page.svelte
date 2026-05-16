@@ -1777,6 +1777,10 @@
   // same preview/selection contract as translation and TTS instead of letting a
   // canvas-local component infer extra reader state from DOM.
   const getFocusedReadingInput = (launchMode: 'paragraph' | 'rsvp') => {
+    // This helper is the route-side consumer of the guard state machine in
+    // maturityMode.ts: it asks for the best launch selection, then immediately
+    // applies the returned clear/consume result so the vanished EPUB excerpt
+    // cannot survive as a same-book cache after launch.
     const launchSelection = consumeReaderFocusedReadingLaunchSelection({
       launchMode,
       formatLabel: currentPreview.formatLabel,
