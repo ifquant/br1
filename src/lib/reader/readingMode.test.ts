@@ -11,7 +11,8 @@ import {
   resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange,
   resolveReaderFocusedReadingLaunchSelectionGuardForBookChange,
   resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest,
-  resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange
+  resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange,
+  resolveReaderSelectionBoundaryForControlRequest
 } from './maturityMode.js';
 import {
   advanceReaderRsvpWord,
@@ -330,6 +331,38 @@ test('focused-reading route clears delayed-clear suppression when another book o
 
   assert.equal(boundary.nextSelectionGuard, null);
   assert.equal(boundary.nextRearmSuppressed, false);
+});
+
+test('focused-reading route clears the live selection immediately on same-book navigation', () => {
+  const liveSelection = buildSelection('Do not reuse this excerpt after the reader moves away.');
+
+  assert.equal(
+    resolveReaderSelectionBoundaryForControlRequest({
+      formatLabel: 'EPUB',
+      currentSelection: liveSelection,
+      request: {
+        type: 'next',
+        nonce: 9
+      }
+    }),
+    null
+  );
+});
+
+test('focused-reading route keeps non-epub selections out of the epub-only navigation fix', () => {
+  const liveSelection = buildSelection('Do not widen this guard beyond EPUB.');
+
+  assert.equal(
+    resolveReaderSelectionBoundaryForControlRequest({
+      formatLabel: 'TXT',
+      currentSelection: liveSelection,
+      request: {
+        type: 'next',
+        nonce: 10
+      }
+    }),
+    liveSelection
+  );
 });
 
 test('rsvp-lite mode splits a selected/current excerpt into words without mutating reader progress', () => {

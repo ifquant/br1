@@ -3582,7 +3582,7 @@ test('reader clears the armed epub paragraph-focus guard after same-book navigat
   await expect(overlaySourceValue).not.toHaveText('当前选区');
 });
 
-test('reader does not re-arm the epub paragraph-focus guard after same-book navigation delays the live selection clear in web mode', async ({
+test('reader does not reuse the pre-navigation epub selection after same-book navigation in web mode', async ({
   page
 }) => {
   const bookUrl = '/samples/sample-book.epub';
@@ -3612,7 +3612,7 @@ test('reader does not re-arm the epub paragraph-focus guard after same-book navi
         );
       }, hiddenExcerpt);
     }, {
-      message: 'expected the EPUB reader to mount the target text before reproducing the delayed selection-clear race'
+      message: 'expected the EPUB reader to mount the target text before reproducing the same-book navigation seam'
     })
     .toBe(true);
 
@@ -3657,21 +3657,13 @@ test('reader does not re-arm the epub paragraph-focus guard after same-book navi
   await expect(nextPageButton).toBeVisible();
   await nextPageButton.click();
 
-  // Foliate can report the selection clear slightly after the route already
-  // handled the same-book navigation request. This reproducer keeps that
-  // ordering explicit so the route cannot silently rebuild the one-shot guard
-  // from the stale pre-navigation excerpt.
-  await page.evaluate(() => {
-    const view = document.querySelector('foliate-view') as any;
-    const contents = view?.renderer?.getContents?.() ?? [];
-    for (const { doc } of contents) {
-      doc.getSelection()?.removeAllRanges();
-      doc.dispatchEvent(new Event('selectionchange'));
-    }
-  });
-  await expect(selectionToolbar).toHaveCount(0);
-
+  // Same-book navigation can move the reader before Foliate finishes
+  // publishing follow-up selection events. The route now clears its own
+  // currentReaderSelection boundary immediately so the next paragraph-focus
+  // launch cannot reuse pre-navigation text even if the DOM selection teardown
+  // is still catching up.
   await page.getByRole('button', { name: '更多操作' }).click();
+  await expect(selectionToolbar).toHaveCount(0);
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
 
   const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });

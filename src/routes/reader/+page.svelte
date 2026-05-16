@@ -109,6 +109,7 @@
     resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForBookChange,
     resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForControlRequest,
     resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange,
+    resolveReaderSelectionBoundaryForControlRequest,
     type ReaderFocusedReadingLaunchSelectionGuard
   } from '$lib/reader/maturityMode';
   // Current-book persistence owns storage keys plus typed localStorage payloads.
@@ -426,6 +427,12 @@
     focusedReadingLaunchSelectionGuard = launchSelectionGuardBoundary.nextSelectionGuard;
     focusedReadingLaunchSelectionGuardRearmSuppressed =
       launchSelectionGuardBoundary.nextRearmSuppressed;
+    currentReaderSelection = resolveReaderSelectionBoundaryForControlRequest({
+      formatLabel: currentPreview.formatLabel,
+      currentSelection: currentReaderSelection,
+      request
+    });
+    notesController.setSelection(currentFormatSupportsTextAnnotations ? currentReaderSelection : null);
     parallelSession = updateReaderParallelPaneControlRequest(parallelSession, 'primary', request);
     parallelSession = activateReaderParallelPane(parallelSession, 'primary');
   };

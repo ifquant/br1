@@ -71,6 +71,12 @@ type ReaderFocusedReadingLaunchSelectionGuardForControlRequestInput = {
   request: ReaderControlRequest;
 };
 
+type ReaderSelectionBoundaryForControlRequestInput = {
+  formatLabel: string;
+  currentSelection: ReaderSelectionState | null;
+  request: ReaderControlRequest;
+};
+
 type ReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChangeInput = {
   formatLabel: string;
   currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
@@ -300,6 +306,18 @@ export const resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest = 
   input.currentSelectionGuard && doesReaderControlRequestChangeReadingContext(input.request)
     ? null
     : input.currentSelectionGuard;
+
+// Route-owned reader selections are only trustworthy for the current reading
+// surface. Once the reader intentionally changes page/chapter/book, keeping the
+// old excerpt around would let focused-reading, notes, or popup actions reuse a
+// stale location before the renderer publishes its follow-up `selectionchange`.
+export const resolveReaderSelectionBoundaryForControlRequest = (
+  input: ReaderSelectionBoundaryForControlRequestInput
+): ReaderSelectionState | null =>
+  doesReaderControlRequestChangeReadingContext(input.request) &&
+  isEpubReaderSelectionLatchFormat(input.formatLabel)
+    ? null
+    : input.currentSelection;
 
 // The route owns one extra bit of state for the delayed Foliate clear race.
 // Same-book navigation can intentionally clear the one-shot guard before the
