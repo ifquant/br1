@@ -99,17 +99,20 @@
   } from '$lib/reader/route';
   // Current-book persistence owns storage keys plus typed localStorage payloads.
   import {
+    canPersistReaderCurrentBookFocusedReadingState,
     canPersistReaderCurrentBookTranslationLiveSnapshot,
     canPersistReaderCurrentBookTranslationModeConfig,
     canPersistReaderCurrentBookTtsOwnershipState,
     getReaderCurrentBookPersistenceKeys,
     persistReaderCurrentBookAssistanceHistory,
     persistReaderCurrentBookAssistanceSelection,
+    persistReaderCurrentBookFocusedReadingState,
     persistReaderCurrentBookTranslationLiveSnapshot,
     persistReaderCurrentBookTranslationModeConfig,
     persistReaderTranslationOwnership,
     restoreReaderCurrentBookAssistanceHistory,
     restoreReaderCurrentBookAssistanceSelection,
+    restoreReaderCurrentBookFocusedReadingState,
     restoreReaderCurrentBookTranslationLiveSnapshot,
     restoreReaderCurrentBookTranslationModeConfig,
     restoreReaderTranslationOwnership
@@ -277,6 +280,7 @@
   let ttsReadAloudModeStorageKey = '';
   let translatedTtsOwnerStorageKey = '';
   let translatedTtsLiveSnapshotStorageKey = '';
+  let focusedReadingStorageKey = '';
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let currentReaderSelection: ReaderSelectionState | null = null;
   let focusedReadingState: ReaderFocusedReadingState = createReaderFocusedReadingState();
@@ -293,6 +297,7 @@
   let lastRestoredTtsReadAloudModeBookKey = '';
   let lastRestoredTranslatedTtsOwnerBookKey = '';
   let lastRestoredTranslatedTtsLiveSnapshotBookKey = '';
+  let lastRestoredFocusedReadingBookKey = '';
   let translatedTtsOwner: 'live' | 'archive' = 'live';
   let translationLiveSnapshot: ReaderTranslationLiveSnapshot | null = null;
   let liveTranslationPanelResult: ReaderLiveTranslationPanelResult | null = null;
@@ -354,7 +359,8 @@
     ttsOwnershipStorageKey,
     ttsReadAloudModeStorageKey,
     translatedTtsOwnerStorageKey,
-    translatedTtsLiveSnapshotStorageKey
+    translatedTtsLiveSnapshotStorageKey,
+    focusedReadingStorageKey
   } = getReaderCurrentBookPersistenceKeys(readerBookKey));
 
   $: if (autoOpenTarget && routeOpenState.autoOpenKey !== lastAutoKey) {
@@ -730,7 +736,14 @@
       restoredMaturityState.inlineTranslationCapabilityMessage;
     latestInlineTranslationCandidates = restoredMaturityState.latestInlineTranslationCandidates;
     currentReaderSelection = restoredMaturityState.currentReaderSelection;
-    focusedReadingState = restoredMaturityState.focusedReadingState;
+    // Focused-reading resume is per-book and text-only. The route still owns
+    // the storage IO and timing; the helper only restores the plain state shape
+    // that the overlay can render without asking the reader surface for DOM.
+    focusedReadingState = restoreReaderCurrentBookFocusedReadingState(
+      getReaderStorage(),
+      focusedReadingStorageKey
+    );
+    lastRestoredFocusedReadingBookKey = restoredMaturityState.restoredBookKey;
     lastAssistanceBookKey = restoredMaturityState.restoredBookKey;
   }
   $: {
@@ -791,6 +804,24 @@
   }
   $: inlineTranslationSummary = getReaderInlineTranslationSummary(inlineTranslationState);
   $: focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
+  $: {
+    readerBookKey;
+    focusedReadingStorageKey;
+    focusedReadingState;
+    if (
+      typeof localStorage !== 'undefined' &&
+      canPersistReaderCurrentBookFocusedReadingState({
+        readerBookKey,
+        lastRestoredBookKey: lastRestoredFocusedReadingBookKey
+      })
+    ) {
+      persistReaderCurrentBookFocusedReadingState(
+        getReaderStorage(),
+        focusedReadingStorageKey,
+        focusedReadingState
+      );
+    }
+  }
   $: if (
     routeOpenState.translationHistoryEntryId &&
     routeOpenState.translationHistoryEntryId !== assistanceSelection.translationHistoryEntryId

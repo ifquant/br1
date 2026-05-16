@@ -13,6 +13,12 @@ import {
   type ReaderAssistanceWorkspaceSelection,
   type ReaderTranslationProvider
 } from './assistance.js';
+import {
+  createReaderFocusedReadingState,
+  parseReaderFocusedReadingPersistedState,
+  serializeReaderFocusedReadingState,
+  type ReaderFocusedReadingState
+} from './readingMode.js';
 import { normalizeReaderTtsSpeechTarget, type ReaderTtsSpeechTarget } from './tts.js';
 import type { ReaderTtsReadAloudTextMode } from './types.js';
 
@@ -68,6 +74,7 @@ export type ReaderCurrentBookPersistenceKeys = {
   ttsReadAloudModeStorageKey: string;
   translatedTtsOwnerStorageKey: string;
   translatedTtsLiveSnapshotStorageKey: string;
+  focusedReadingStorageKey: string;
 };
 
 type ReaderCurrentBookRestoredPersistGateInput = {
@@ -163,7 +170,8 @@ export const getReaderCurrentBookPersistenceKeys = (
   ttsOwnershipStorageKey: `br1.reader.tts.ownership:${readerBookKey}`,
   ttsReadAloudModeStorageKey: `br1.reader.tts.mode:${readerBookKey}`,
   translatedTtsOwnerStorageKey: `br1.reader.tts.translated-owner:${readerBookKey}`,
-  translatedTtsLiveSnapshotStorageKey: `br1.reader.tts.translated-live:${readerBookKey}`
+  translatedTtsLiveSnapshotStorageKey: `br1.reader.tts.translated-live:${readerBookKey}`,
+  focusedReadingStorageKey: `br1.reader.focused-reading:${readerBookKey}`
 });
 
 const canPersistRestoredCurrentBookState = (
@@ -190,6 +198,10 @@ export const canPersistReaderCurrentBookTtsOwnershipState = (
   input.readerBookKey === input.lastRestoredTtsReadAloudModeBookKey &&
   input.readerBookKey === input.lastRestoredTranslatedTtsOwnerBookKey &&
   input.readerBookKey === input.lastRestoredTranslatedTtsLiveSnapshotBookKey;
+
+export const canPersistReaderCurrentBookFocusedReadingState = (
+  input: ReaderCurrentBookRestoredPersistGateInput
+): boolean => canPersistRestoredCurrentBookState(input);
 
 export const persistReaderCurrentBookAssistanceHistory = (
   storage: Storage | undefined,
@@ -511,5 +523,40 @@ export const restoreReaderCurrentBookTranslatedTtsLiveSnapshot = (
   } catch {
     removeStorageItem(storage, storageKey);
     return null;
+  }
+};
+
+export const persistReaderCurrentBookFocusedReadingState = (
+  storage: Storage | undefined,
+  storageKey: string,
+  state: ReaderFocusedReadingState
+) => {
+  const persistedState = serializeReaderFocusedReadingState(state);
+  if (!persistedState) {
+    removeStorageItem(storage, storageKey);
+    return;
+  }
+
+  setJsonStorageItem(storage, storageKey, persistedState);
+};
+
+export const restoreReaderCurrentBookFocusedReadingState = (
+  storage: Storage | undefined,
+  storageKey: string
+): ReaderFocusedReadingState => {
+  const rawState = getStorageItem(storage, storageKey);
+  if (!rawState) {
+    return createReaderFocusedReadingState();
+  }
+
+  try {
+    const restoredState = parseReaderFocusedReadingPersistedState(JSON.parse(rawState));
+    if (restoredState.mode === 'off') {
+      removeStorageItem(storage, storageKey);
+    }
+    return restoredState;
+  } catch {
+    removeStorageItem(storage, storageKey);
+    return createReaderFocusedReadingState();
   }
 };

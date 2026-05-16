@@ -7,14 +7,17 @@ import test from 'node:test';
 import {
   getReaderCurrentBookPersistenceKeys,
   persistReaderCurrentBookAssistanceHistory,
+  persistReaderCurrentBookFocusedReadingState,
   persistReaderCurrentBookTranslatedTtsLiveSnapshot,
   restoreReaderCurrentBookAssistanceHistory,
   restoreReaderCurrentBookAssistanceSelection,
+  restoreReaderCurrentBookFocusedReadingState,
   restoreReaderCurrentBookTranslatedTtsLiveSnapshot,
   restoreReaderCurrentBookTranslationLiveSnapshot,
   restoreReaderTtsOwnership
-} from './currentBookPersistence';
-import { createReaderAssistanceHistoryEntry } from './assistance';
+} from './currentBookPersistence.js';
+import { createReaderAssistanceHistoryEntry } from './assistance.js';
+import { createReaderFocusedReadingState } from './readingMode.js';
 
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
@@ -53,7 +56,8 @@ test('current-book persistence derives the full storage-key family from readerBo
     ttsOwnershipStorageKey: 'br1.reader.tts.ownership:/samples/sample-book.epub',
     ttsReadAloudModeStorageKey: 'br1.reader.tts.mode:/samples/sample-book.epub',
     translatedTtsOwnerStorageKey: 'br1.reader.tts.translated-owner:/samples/sample-book.epub',
-    translatedTtsLiveSnapshotStorageKey: 'br1.reader.tts.translated-live:/samples/sample-book.epub'
+    translatedTtsLiveSnapshotStorageKey: 'br1.reader.tts.translated-live:/samples/sample-book.epub',
+    focusedReadingStorageKey: 'br1.reader.focused-reading:/samples/sample-book.epub'
   });
 });
 
@@ -163,4 +167,35 @@ test('current-book persistence keeps different readerBookKey payloads isolated',
     'assist-txt'
   );
   assert.notEqual(epubKeys.assistanceHistoryStorageKey, txtKeys.assistanceHistoryStorageKey);
+});
+
+test('focused reading persistence removes unsupported or exited sessions', () => {
+  const storage = createMemoryStorage();
+  const keys = getReaderCurrentBookPersistenceKeys('/samples/sample-book.txt');
+
+  persistReaderCurrentBookFocusedReadingState(
+    storage,
+    keys.focusedReadingStorageKey,
+    createReaderFocusedReadingState({
+      mode: 'rsvp',
+      formatLabel: 'TXT',
+      sourceText: 'plain text focused reading',
+      sourceLabel: '当前正文',
+      words: ['plain', 'text', 'focused', 'reading'],
+      activeWordIndex: 2
+    })
+  );
+  assert.equal(
+    restoreReaderCurrentBookFocusedReadingState(storage, keys.focusedReadingStorageKey)
+      .activeWordIndex,
+    2
+  );
+
+  persistReaderCurrentBookFocusedReadingState(
+    storage,
+    keys.focusedReadingStorageKey,
+    createReaderFocusedReadingState()
+  );
+
+  assert.equal(storage.getItem(keys.focusedReadingStorageKey), null);
 });

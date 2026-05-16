@@ -1542,6 +1542,18 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Tutorial: `tutorials/commit/0670-close-reader-route-boundary-reduction-line.md`.
   - Notes: Future P19-style work should resume only when a concrete new pure policy cluster appears. Further splitting today would mostly move route-owned sequencing into artificial wrappers, increasing risk without reducing product complexity.
 
+## P20 Reader Focused Reading Resume
+
+Goal: make focused reading feel like a real reading mode on supported text surfaces by restoring the last focused segment for the same book without pretending PDF/CBZ have a durable text anchor.
+
+- [x] P20-1.1 Persist focused reading for supported text surfaces
+  - Outcome: focused reading now serializes and restores per-book paragraph/RSVP state for supported text surfaces, including RSVP word position, while unsupported PDF/CBZ payloads are discarded instead of reopened from an unreliable presentation-only text layer.
+  - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/currentBookPersistence.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, helper tests, focused Playwright smoke, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores focused reading position for supported text surfaces"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0671-persist-reader-focused-reading-resume.md`.
+  - Notes: `+page.svelte` still owns current-book restore timing and localStorage IO. The helper stores the excerpt/selection text currently shown in the overlay as the honest restorable anchor for TXT/EPUB-like surfaces; exact PDF/CBZ segment restore remains out of scope until those surfaces expose a stable text locator.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

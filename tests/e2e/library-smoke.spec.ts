@@ -2813,6 +2813,39 @@ test('reader opens paragraph focus and rsvp-lite reading modes in web mode', asy
   await expect(unsupportedOverlay).toContainText('PDF 正文暂时不能进入专注阅读');
 });
 
+test('reader restores focused reading position for supported text surfaces', async ({ page }) => {
+  const bookUrl = '/samples/sample-book.txt';
+  await page.addInitScript((key) => {
+    const resetMarker = `br1.reader.focused-reading-reset:${key}`;
+    if (!window.sessionStorage.getItem(resetMarker)) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.setItem(resetMarker, '1');
+    }
+  }, `br1.reader.focused-reading:${bookUrl}`);
+
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开 RSVP-lite' }).click();
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(overlay).toBeVisible();
+  await overlay.getByRole('button', { name: '下一个词' }).click();
+  await expect(overlay.getByLabel('RSVP-lite 进度')).toContainText(/2 \/ \d+/);
+
+  await page.reload();
+
+  const restoredOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(restoredOverlay).toBeVisible();
+  await expect(restoredOverlay).toContainText('RSVP-lite');
+  await expect(restoredOverlay.getByLabel('RSVP-lite 进度')).toContainText(/2 \/ \d+/);
+  await expect(restoredOverlay).toContainText('This plain text file exists to verify');
+});
+
 test('reader search states read like one product surface across txt and epub', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

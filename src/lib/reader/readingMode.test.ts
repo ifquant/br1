@@ -9,6 +9,8 @@ import {
   createReaderFocusedReadingState,
   exitReaderFocusedReading,
   getReaderFocusedReadingSummary,
+  parseReaderFocusedReadingPersistedState,
+  serializeReaderFocusedReadingState,
   startReaderParagraphFocus,
   startReaderRsvpLite
 } from './readingMode.js';
@@ -88,6 +90,71 @@ test('unsupported formats return a visible capability message', () => {
   assert.equal(state.sourceText, 'PDF text that should still stay behind capability copy.');
   assert.match(state.capabilityMessage, /PDF/);
   assert.match(getReaderFocusedReadingSummary(state), /PDF/);
+});
+
+test('focused reading persistence round-trips supported rsvp-lite text state', () => {
+  const active = advanceReaderRsvpWord(
+    startReaderRsvpLite(createReaderFocusedReadingState(), {
+      preview: buildPreview(),
+      selection: buildSelection('Resume should restore this exact visible segment.')
+    }),
+    3
+  );
+
+  const persisted = serializeReaderFocusedReadingState(active);
+  assert.equal(persisted?.mode, 'rsvp');
+  assert.equal(persisted?.formatLabel, 'EPUB');
+  assert.equal(persisted?.activeWordIndex, 3);
+
+  const restored = parseReaderFocusedReadingPersistedState(persisted);
+
+  assert.equal(restored.mode, 'rsvp');
+  assert.equal(restored.sourceText, 'Resume should restore this exact visible segment.');
+  assert.deepEqual(restored.words, ['Resume', 'should', 'restore', 'this', 'exact', 'visible', 'segment.']);
+  assert.equal(restored.activeWordIndex, 3);
+});
+
+test('focused reading persistence refuses unsupported pdf and cbz surfaces', () => {
+  const pdfState = startReaderParagraphFocus(createReaderFocusedReadingState(), {
+    preview: createEmptyReaderPreviewState({
+      formatLabel: 'PDF',
+      ttsSourceText: 'PDF text remains presentation-only for focused resume.'
+    }),
+    selection: null
+  });
+
+  assert.equal(serializeReaderFocusedReadingState(pdfState), null);
+  assert.deepEqual(
+    parseReaderFocusedReadingPersistedState({
+      schemaVersion: 1,
+      mode: 'paragraph',
+      formatLabel: 'CBZ',
+      sourceText: 'image page OCR-ish text',
+      sourceLabel: '当前正文',
+      progressLabel: '',
+      progressLocation: '',
+      words: [],
+      activeWordIndex: 0
+    }),
+    createReaderFocusedReadingState()
+  );
+});
+
+test('focused reading restore clamps stale rsvp word positions', () => {
+  const restored = parseReaderFocusedReadingPersistedState({
+    schemaVersion: 1,
+    mode: 'rsvp',
+    formatLabel: 'TXT',
+    sourceText: 'one two three',
+    sourceLabel: '当前正文',
+    progressLabel: '10%',
+    progressLocation: 'txt:0',
+    words: ['one', 'two', 'three'],
+    activeWordIndex: 99
+  });
+
+  assert.equal(restored.mode, 'rsvp');
+  assert.equal(restored.activeWordIndex, 2);
 });
 
 test('exiting a focused reading mode restores the ordinary reader canvas state', () => {

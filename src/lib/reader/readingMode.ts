@@ -18,6 +18,18 @@ export type ReaderFocusedReadingState = {
   capabilityMessage: string;
 };
 
+export type ReaderFocusedReadingPersistedState = {
+  schemaVersion: 1;
+  mode: Exclude<ReaderFocusedReadingMode, 'off'>;
+  formatLabel: string;
+  sourceText: string;
+  sourceLabel: string;
+  progressLabel: string;
+  progressLocation: string;
+  words: string[];
+  activeWordIndex: number;
+};
+
 type ReaderFocusedReadingSourceInput = {
   preview: ReaderPreviewState;
   selection?: ReaderSelectionState | null;
@@ -25,17 +37,27 @@ type ReaderFocusedReadingSourceInput = {
 
 const normalizeExcerptText = (value: string | null | undefined) => value?.trim() ?? '';
 
+const normalizeFocusedReadingFormatLabel = (value: string | null | undefined) =>
+  value?.trim().toUpperCase() ?? '';
+
 const isUnsupportedFocusedReadingFormat = (formatLabel: string) =>
-  formatLabel === 'PDF' || formatLabel === 'CBZ';
+  normalizeFocusedReadingFormatLabel(formatLabel) === 'PDF' ||
+  normalizeFocusedReadingFormatLabel(formatLabel) === 'CBZ';
+
+const canPersistFocusedReadingFormat = (formatLabel: string) => {
+  const normalizedFormatLabel = normalizeFocusedReadingFormatLabel(formatLabel);
+  return !!normalizedFormatLabel && !isUnsupportedFocusedReadingFormat(normalizedFormatLabel);
+};
 
 const getFocusedReadingCapabilityMessage = (
   formatLabel: string,
   hasText: boolean
 ) => {
-  if (formatLabel === 'PDF') {
+  const normalizedFormatLabel = normalizeFocusedReadingFormatLabel(formatLabel);
+  if (normalizedFormatLabel === 'PDF') {
     return 'PDF 正文暂时不能进入专注阅读，因为安全文本层还没有接入这条临时模式。';
   }
-  if (formatLabel === 'CBZ') {
+  if (normalizedFormatLabel === 'CBZ') {
     return 'CBZ 图片页暂时不能进入专注阅读，因为当前没有可复用的正文文本。';
   }
   if (!hasText) {
@@ -114,6 +136,16 @@ const splitReaderRsvpWords = (text: string) =>
     .map((word) => word.trim())
     .filter(Boolean);
 
+const clampReaderRsvpWordIndex = (words: string[], activeWordIndex: number) => {
+  if (words.length === 0) {
+    return 0;
+  }
+  if (!Number.isFinite(activeWordIndex)) {
+    return 0;
+  }
+  return Math.min(words.length - 1, Math.max(0, Math.trunc(activeWordIndex)));
+};
+
 export const createReaderFocusedReadingState = (
   overrides: Partial<ReaderFocusedReadingState> = {}
 ): ReaderFocusedReadingState => ({
@@ -185,3 +217,97 @@ export const getReaderFocusedReadingSummary = (state: ReaderFocusedReadingState)
 
 export const canStartReaderFocusedReading = (preview: ReaderPreviewState) =>
   !isUnsupportedFocusedReadingFormat(preview.formatLabel);
+
+export const serializeReaderFocusedReadingState = (
+  state: ReaderFocusedReadingState
+): ReaderFocusedReadingPersistedState | null => {
+  if (state.mode === 'off') {
+    return null;
+  }
+
+  const formatLabel = normalizeFocusedReadingFormatLabel(state.formatLabel);
+  const sourceText = normalizeExcerptText(state.sourceText);
+  if (!sourceText || !canPersistFocusedReadingFormat(formatLabel)) {
+    return null;
+  }
+
+  // This first resume slice stores the actual text shown in the overlay as the
+  // durable anchor. That is honest for TXT/EPUB-like text surfaces, but not for
+  // PDF/CBZ where the visible selection is not yet a stable reader locator.
+  const words =
+    state.mode === 'rsvp'
+      ? (state.words.length > 0 ? state.words : splitReaderRsvpWords(sourceText))
+          .map((word) => word.trim())
+          .filter(Boolean)
+      : [];
+
+  return {
+    schemaVersion: 1,
+    mode: state.mode,
+    formatLabel,
+    sourceText,
+    sourceLabel: normalizeExcerptText(state.sourceLabel) || '当前正文',
+    progressLabel: normalizeExcerptText(state.progressLabel),
+    progressLocation: normalizeExcerptText(state.progressLocation),
+    words,
+    activeWordIndex: state.mode === 'rsvp' ? clampReaderRsvpWordIndex(words, state.activeWordIndex) : 0
+  };
+};
+
+export const parseReaderFocusedReadingPersistedState = (
+  value: unknown
+): ReaderFocusedReadingState => {
+  if (!value || typeof value !== 'object') {
+    return createReaderFocusedReadingState();
+  }
+
+  const payload = value as Partial<ReaderFocusedReadingPersistedState>;
+  const mode = payload.mode === 'paragraph' || payload.mode === 'rsvp' ? payload.mode : 'off';
+  const formatLabel =
+    typeof payload.formatLabel === 'string'
+      ? normalizeFocusedReadingFormatLabel(payload.formatLabel)
+      : '';
+  const sourceText = typeof payload.sourceText === 'string' ? normalizeExcerptText(payload.sourceText) : '';
+  if (payload.schemaVersion !== 1 || mode === 'off' || !sourceText || !canPersistFocusedReadingFormat(formatLabel)) {
+    return createReaderFocusedReadingState();
+  }
+
+  const persistedWords =
+    mode === 'rsvp' && Array.isArray(payload.words)
+      ? payload.words
+          .filter((word): word is string => typeof word === 'string')
+          .map((word) => word.trim())
+          .filter(Boolean)
+      : [];
+  const restoredWords =
+    mode === 'rsvp'
+      ? persistedWords.length > 0
+        ? persistedWords
+        : splitReaderRsvpWords(sourceText)
+      : [];
+
+  return createReaderFocusedReadingState({
+    mode,
+    formatLabel,
+    sourceText,
+    sourceLabel:
+      typeof payload.sourceLabel === 'string'
+        ? normalizeExcerptText(payload.sourceLabel) || '当前正文'
+        : '当前正文',
+    progressLabel:
+      typeof payload.progressLabel === 'string' ? normalizeExcerptText(payload.progressLabel) : '',
+    progressLocation:
+      typeof payload.progressLocation === 'string'
+        ? normalizeExcerptText(payload.progressLocation)
+        : '',
+    words: restoredWords,
+    activeWordIndex:
+      mode === 'rsvp'
+        ? clampReaderRsvpWordIndex(
+            restoredWords,
+            typeof payload.activeWordIndex === 'number' ? payload.activeWordIndex : 0
+          )
+        : 0,
+    capabilityMessage: getFocusedReadingCapabilityMessage(formatLabel, sourceText.length > 0)
+  });
+};

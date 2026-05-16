@@ -200,11 +200,14 @@ export {
   advanceReaderRsvpWord,
   exitReaderFocusedReading,
   getReaderFocusedReadingSummary,
+  parseReaderFocusedReadingPersistedState,
+  serializeReaderFocusedReadingState,
   startReaderParagraphFocus,
   startReaderRsvpLite
 } from './readingMode';
 export type {
   ReaderFocusedReadingMode,
+  ReaderFocusedReadingPersistedState,
   ReaderFocusedReadingState
 } from './readingMode';
 export {
@@ -249,6 +252,7 @@ export {
   canPersistReaderCurrentBookTranslationLiveSnapshot,
   canPersistReaderCurrentBookTranslationModeConfig,
   canPersistReaderCurrentBookTtsOwnershipState,
+  canPersistReaderCurrentBookFocusedReadingState,
   getReaderCurrentBookPersistenceKeys,
   persistReaderCurrentBookAssistanceHistory,
   restoreReaderCurrentBookAssistanceHistory,
@@ -267,7 +271,9 @@ export {
   persistReaderCurrentBookTranslatedTtsOwner,
   restoreReaderCurrentBookTranslatedTtsOwner,
   persistReaderCurrentBookTranslatedTtsLiveSnapshot,
-  restoreReaderCurrentBookTranslatedTtsLiveSnapshot
+  restoreReaderCurrentBookTranslatedTtsLiveSnapshot,
+  persistReaderCurrentBookFocusedReadingState,
+  restoreReaderCurrentBookFocusedReadingState
 } from './currentBookPersistence';
 export {
   createPinnedReaderTranslationSource,

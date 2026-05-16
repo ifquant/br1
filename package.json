@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "test:reader-helpers": "pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-reader-helper-tests --noEmit false && node --test ./.tmp-reader-helper-tests/src/lib/reader/inlineTranslation.test.js ./.tmp-reader-helper-tests/src/lib/reader/readingMode.test.js ./.tmp-reader-helper-tests/src/lib/reader/playbackQueue.test.js ./.tmp-reader-helper-tests/src/lib/reader/maturityMode.test.js ./.tmp-reader-helper-tests/src/lib/reader/ttsOwnership.test.js && rm -rf .tmp-reader-helper-tests",
+    "test:reader-helpers": "pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-reader-helper-tests --noEmit false && node --test ./.tmp-reader-helper-tests/src/lib/reader/inlineTranslation.test.js ./.tmp-reader-helper-tests/src/lib/reader/readingMode.test.js ./.tmp-reader-helper-tests/src/lib/reader/playbackQueue.test.js ./.tmp-reader-helper-tests/src/lib/reader/maturityMode.test.js ./.tmp-reader-helper-tests/src/lib/reader/currentBookPersistence.test.js ./.tmp-reader-helper-tests/src/lib/reader/ttsOwnership.test.js && rm -rf .tmp-reader-helper-tests",
     "test:e2e": "playwright test",
     "test:e2e:tauri": "bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts",
     "test:e2e:tauri:startup-associated-open": "bash scripts/automation/test-tauri-webdriver-startup-associated-open.sh",
