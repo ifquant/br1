@@ -7,12 +7,17 @@ import type { ReaderTranslationProvider } from './assistance';
 
 export type ReaderRouteOpenTarget =
   | {
+      // `asset` opens an external/import-style source. The route only carries
+      // the minimal handle needed to reopen it; deeper reader state still lives
+      // in per-book persistence after the asset is loaded.
       kind: 'asset';
       label: string;
       url: string;
       bookKey: string;
     }
   | {
+      // `library-file` reopens a known library item and may also carry one
+      // restore anchor owned by the reader surface itself.
       kind: 'library-file';
       label: string;
       path: string;
@@ -29,6 +34,9 @@ export type ReaderRouteOpenState = {
   autoOpenKey: string;
   bookKey: string;
   target: ReaderRouteOpenTarget | null;
+  // Workspace params are intentionally partial. The route may say "open TTS in
+  // translated mode with this archive id", but deeper text payloads and most
+  // current-book UI state still restore from local persistence.
   workspaceMode: ReaderRouteWorkspaceMode | null;
   ttsReadAloudTextMode: ReaderTtsReadAloudTextMode | null;
   translationTargetLanguage: string | null;
@@ -73,6 +81,9 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     translationHistoryEntryParam
       ? translationHistoryEntryParam
       : null;
+  // The `ta` archive id is only meaningful for dedicated translation routes or
+  // translated-TTS routes. Source-side TTS and non-translation workspaces do
+  // not get to carry archived translation provenance through the URL.
 
   if (source === 'asset') {
     const sourceUrl = url.searchParams.get('url') ?? '';
@@ -203,6 +214,9 @@ export const toReaderWorkspaceModeHref = (
       (workspaceMode === 'tts' && ttsReadAloudTextMode === 'translated')) &&
     translationHistoryEntryId?.trim()
   ) {
+    // Archived translation provenance survives only on surfaces that can
+    // actually consume it. Switching back to source TTS or closing the
+    // workspace drops `ta` on purpose so old archive ids do not leak forward.
     nextUrl.searchParams.set('ta', translationHistoryEntryId.trim());
   } else {
     nextUrl.searchParams.delete('ta');
@@ -214,6 +228,8 @@ export const toReaderOpenControlRequest = (
   target: ReaderRouteOpenTarget,
   nonce: number
 ): ReaderControlRequest =>
+  // Route parsing stops at a neutral open target; this helper is the only place
+  // that turns that target back into a concrete renderer control request.
   target.kind === 'asset'
     ? {
         type: 'asset',

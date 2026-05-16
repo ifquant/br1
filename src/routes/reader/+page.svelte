@@ -622,6 +622,10 @@
   const syncReaderWorkspaceModeToRoute = async (
     request: ReaderWorkspaceModeRouteRequest
   ) => {
+    // This is a route-state sanitizer, not a dumb serializer. The request may
+    // come from notebook UI intents, but `toReaderWorkspaceModeHref` is still
+    // responsible for dropping params that are invalid for the destination
+    // workspace before `goto` publishes the new partial route owner.
     const nextHref = toReaderWorkspaceModeHref(
       $page.url,
       request.workspaceMode,
@@ -672,8 +676,10 @@
     })();
 
     if (typeof localStorage === 'undefined') return;
-    // Route-owned override ordering matters here: explicit URL state wins over
-    // restored local state, which in turn wins over global defaults.
+    // Mount restore is one of the route/local handoff seams: explicit
+    // URL-owned workspace intent can shape notebook/TTS shell restore here,
+    // while later reactive restore/application blocks keep notebook,
+    // translation, and TTS state aligned with the same partial route owner.
     ttsReadAloudTextMode = loadReaderSettings(localStorage).ttsReadAloudText;
     ttsReadAloudTextMode = resolveReaderRouteTtsReadAloudTextMode({
       routeOpenState,
@@ -807,6 +813,11 @@
     lastAssistanceBookKey = restoredMaturityState.restoredBookKey;
   }
   $: {
+    // Route application stays split on purpose: notebook shell, TTS mode,
+    // translation config, translation archive selection, and translated-TTS
+    // owner each have different ownership rules. These reactive blocks keep the
+    // partial route contract authoritative where intended without turning every
+    // reader surface into a route owner.
     const routeWorkspaceApplication = resolveReaderRouteWorkspaceApplication({
       routeOpenState,
       lastAppliedRouteWorkspaceMode
