@@ -1,4 +1,4 @@
-# 0687 Latch the last EPUB selection for focused-reading launch
+# 0687 Latch the last EPUB selection for paragraph-focus launch
 
 ## Why
 
