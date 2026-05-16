@@ -1648,6 +1648,10 @@
   };
 
   const applyTtsRetarget = (nextTarget: ReaderTtsSpeechTarget | null) => {
+    // Retargeting is a runtime concern, not a persistence concern. The route
+    // first asks the runtime what kind of handoff is safe for the current
+    // speech session, then applies that retarget plan without mutating the
+    // broader ownership state by itself.
     const action = planReaderTtsRetargetAction($ttsState.status);
 
     if (action === 'restart-session') {
@@ -1710,12 +1714,20 @@
   };
 
   const setTranslatedTtsOwner = (owner: 'live' | 'archive') => {
+    // Owner changes are persisted immediately because archive-vs-live choice is
+    // part of the same current-book TTS bundle as read-aloud mode and pinned
+    // target state. The route does not wait for a later mode switch to make
+    // that ownership durable.
     if (translatedTtsOwner === owner) return;
     translatedTtsOwner = owner;
     persistCurrentBookTtsOwnershipState();
   };
 
   const setTtsReadAloudTextMode = (mode: ReaderTtsReadAloudTextMode) => {
+    // Switching between source and translated playback is a coordinated route
+    // action: write the new mode into the persisted TTS bundle, clean up any
+    // stale pinned-current playback in local route state, then retarget the
+    // runtime and sync the route when TTS still owns the URL contract.
     if (ttsReadAloudTextMode === mode) return;
     ttsReadAloudTextMode = mode;
     persistCurrentBookTtsOwnershipState();
@@ -2217,6 +2229,10 @@
       id: `assist-${Date.now()}-${assistanceRequestNonce + 1}`
     });
 
+    // Translation requests always create a history entry, even for empty-state
+    // outcomes. That keeps translation mode, archive replay, and translated-TTS
+    // ownership aligned around one history contract instead of special-casing
+    // "nothing to translate" as a separate non-history path.
     if (!normalizedText) {
       assistanceState = createEmptyReaderAssistanceResultState(request);
       assistanceHistory = upsertReaderAssistanceHistoryEntry(
@@ -2279,9 +2295,10 @@
 
     if (mode !== 'translation') return;
     // Choosing a translation history entry upgrades translated TTS ownership to
-    // `archive` immediately. If translation mode is the visible owner, the same
-    // archived selection also has to flow into the route so reload/deep-link
-    // semantics stay aligned with the notebook selection.
+    // `archive` immediately. If translation mode currently owns the route, or
+    // the notebook tab is still parked on translation, the same archived
+    // selection also has to flow into the URL so reload/deep-link semantics
+    // stay aligned with the notebook selection.
     setTranslatedTtsOwner('archive');
 
     if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
@@ -2301,6 +2318,10 @@
       (routeOpenState.workspaceMode === 'tts' || notebookTab === 'tts') &&
       ttsReadAloudTextMode === 'translated'
     ) {
+      // Translated TTS is the other route surface allowed to carry archived
+      // translation provenance. Keep its `ta` param aligned here when that
+      // translated-TTS surface still owns the route contract, even if the
+      // notebook is only parked on the TTS tab.
       void syncReaderWorkspaceModeToRoute(
         resolveReaderWorkspaceModeRouteRequest({
           workspaceMode: 'tts',
