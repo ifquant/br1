@@ -169,7 +169,7 @@ test('current-book persistence keeps different readerBookKey payloads isolated',
   assert.notEqual(epubKeys.assistanceHistoryStorageKey, txtKeys.assistanceHistoryStorageKey);
 });
 
-test('focused reading persistence removes unsupported or exited sessions', () => {
+test('focused reading persistence keeps hidden same-book resume payloads but removes empty off states', () => {
   const storage = createMemoryStorage();
   const keys = getReaderCurrentBookPersistenceKeys('/samples/sample-book.txt');
 
@@ -184,6 +184,39 @@ test('focused reading persistence removes unsupported or exited sessions', () =>
       words: ['plain', 'text', 'focused', 'reading'],
       activeWordIndex: 2
     })
+  );
+  assert.equal(
+    restoreReaderCurrentBookFocusedReadingState(storage, keys.focusedReadingStorageKey)
+      .activeWordIndex,
+    2
+  );
+
+  persistReaderCurrentBookFocusedReadingState(
+    storage,
+    keys.focusedReadingStorageKey,
+    createReaderFocusedReadingState({
+      mode: 'off',
+      formatLabel: 'TXT',
+      sourceText: 'plain text focused reading',
+      sourceLabel: '当前正文',
+      progressLabel: '12%',
+      progressLocation: 'txt:12',
+      words: ['plain', 'text', 'focused', 'reading'],
+      activeWordIndex: 2,
+      paceWpm: 280,
+      sameExcerptRsvpResume: {
+        words: ['plain', 'text', 'focused', 'reading'],
+        activeWordIndex: 2,
+        paceWpm: 280,
+        playbackIntent: 'paused'
+      }
+    })
+  );
+
+  assert.notEqual(storage.getItem(keys.focusedReadingStorageKey), null);
+  assert.equal(
+    restoreReaderCurrentBookFocusedReadingState(storage, keys.focusedReadingStorageKey).mode,
+    'off'
   );
   assert.equal(
     restoreReaderCurrentBookFocusedReadingState(storage, keys.focusedReadingStorageKey)

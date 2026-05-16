@@ -329,13 +329,79 @@ test('focused reading restore clamps stale rsvp word positions', () => {
 });
 
 test('exiting a focused reading mode restores the ordinary reader canvas state', () => {
-  const active = startReaderRsvpLite(createReaderFocusedReadingState(), {
-    preview: buildPreview(),
-    selection: null
-  });
+  const active = increaseReaderRsvpLitePace(
+    advanceReaderRsvpWord(
+      startReaderRsvpLite(createReaderFocusedReadingState(), {
+        preview: buildPreview(),
+        selection: buildSelection('Exit should hide the overlay but keep this same-book excerpt.')
+      }),
+      3
+    )
+  );
 
   const exited = exitReaderFocusedReading(active);
 
-  assert.deepEqual(exited, createReaderFocusedReadingState());
+  assert.equal(exited.mode, 'off');
+  assert.equal(exited.sourceText, 'Exit should hide the overlay but keep this same-book excerpt.');
+  assert.equal(exited.activeWordIndex, active.activeWordIndex);
+  assert.equal(exited.paceWpm, active.paceWpm);
+  assert.equal(getReaderFocusedReadingRsvpPlaybackIntent(exited), 'paused');
   assert.equal(getReaderFocusedReadingSummary(exited), '专注阅读未开启。');
+});
+
+test('reopening paragraph focus after exit prefers the hidden same-book excerpt', () => {
+  const exited = exitReaderFocusedReading(
+    startReaderParagraphFocus(createReaderFocusedReadingState(), {
+      preview: buildPreview(),
+      selection: buildSelection('Keep this excerpt even if the live selection changes before reopen.')
+    })
+  );
+
+  const reopened = startReaderParagraphFocus(exited, {
+    preview: buildPreview(),
+    selection: buildSelection('A different live selection should not replace the exited excerpt.')
+  });
+
+  assert.equal(reopened.mode, 'paragraph');
+  assert.equal(
+    reopened.sourceText,
+    'Keep this excerpt even if the live selection changes before reopen.'
+  );
+  assert.equal(reopened.sourceLabel, '当前选区');
+});
+
+test('reopening rsvp-lite after exit restores the hidden same-book excerpt paused', () => {
+  const exited = exitReaderFocusedReading(
+    increaseReaderRsvpLitePace(
+      advanceReaderRsvpWord(
+        startReaderRsvpLite(createReaderFocusedReadingState(), {
+          preview: buildPreview(),
+          selection: buildSelection('Resume this hidden excerpt instead of sampling a new paragraph.')
+        }),
+        2
+      )
+    )
+  );
+
+  const reopened = startReaderRsvpLite(exited, {
+    preview: createEmptyReaderPreviewState({
+      title: 'Sample Book',
+      chapterLabel: '第二章',
+      formatLabel: 'EPUB',
+      progressLabel: '52%',
+      progressLocation: 'epubcfi(/6/4!/2/8)',
+      ttsSourceText: 'A newer visible paragraph should not win over the hidden same-book resume slice.',
+      ttsSourceLabel: '当前正文'
+    }),
+    selection: null
+  });
+
+  assert.equal(reopened.mode, 'rsvp');
+  assert.equal(
+    reopened.sourceText,
+    'Resume this hidden excerpt instead of sampling a new paragraph.'
+  );
+  assert.equal(reopened.activeWordIndex, 2);
+  assert.equal(reopened.paceWpm, READER_RSVP_LITE_DEFAULT_WPM + 40);
+  assert.equal(getReaderFocusedReadingRsvpPlaybackIntent(reopened), 'paused');
 });

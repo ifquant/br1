@@ -1610,6 +1610,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0678-persist-focused-reading-rsvp-return-state-across-paragraph-reloads.md`.
   - Notes: the persisted paragraph payload only carries the same-excerpt RSVP cursor and pace for this exact supported text excerpt. Reload restore still forces paused state, does not add autoplay reconstruction, and does not widen PDF/CBZ or cross-excerpt semantics.
 
+- [x] P20-1.9 Keep same-book focused-reading continuity across exit and reopen
+  - Outcome: exiting focused reading still closes the overlay immediately, but supported text surfaces now keep a hidden same-book resume payload so reopening paragraph focus or RSVP-lite prefers the last focused excerpt instead of sampling a new live paragraph; RSVP reopen still comes back paused.
+  - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `src/lib/reader/currentBookPersistence.ts`, `src/lib/reader/currentBookPersistence.test.ts`, `src/routes/reader/+page.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader reopens the last focused-reading excerpt after exit in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0679-keep-focused-reading-exit-reopen-continuity.md`.
+  - Notes: the hidden resume payload is still same-book only and only persists supported text excerpts. Exit does not add cross-book routing, cross-excerpt navigation, PDF/CBZ widening, or autoplay reconstruction.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

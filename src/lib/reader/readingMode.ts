@@ -34,7 +34,7 @@ export type ReaderFocusedReadingState = {
 
 export type ReaderFocusedReadingPersistedState = {
   schemaVersion: 1;
-  mode: Exclude<ReaderFocusedReadingMode, 'off'>;
+  mode: ReaderFocusedReadingMode;
   formatLabel: string;
   sourceText: string;
   sourceLabel: string;
@@ -126,6 +126,39 @@ const createSameExcerptRsvpResume = (
   paceWpm: normalizeReaderRsvpLitePace(paceWpm),
   playbackIntent
 });
+
+// Exit keeps the overlay visually closed, but supported text surfaces still
+// carry a hidden same-book resume slice so reopen can reuse the last excerpt
+// instead of sampling whatever paragraph happens to be live later.
+const hasHiddenFocusedReadingResume = (state: ReaderFocusedReadingState) =>
+  state.mode === 'off' &&
+  canPersistFocusedReadingFormat(state.formatLabel) &&
+  normalizeExcerptText(state.sourceText).length > 0;
+
+const normalizeHiddenFocusedReadingResume = (state: ReaderFocusedReadingState) => {
+  const words =
+    state.words.length > 0 ? state.words : splitReaderRsvpWords(normalizeExcerptText(state.sourceText));
+  const sameExcerptRsvpResume =
+    state.sameExcerptRsvpResume?.words.length
+      ? createSameExcerptRsvpResume(
+          state.sameExcerptRsvpResume.words,
+          state.sameExcerptRsvpResume.activeWordIndex,
+          state.sameExcerptRsvpResume.paceWpm,
+          'paused'
+        )
+      : state.mode === 'rsvp' || words.length > 0
+        ? createSameExcerptRsvpResume(words, state.activeWordIndex, state.paceWpm, 'paused')
+        : null;
+
+  return createReaderFocusedReadingState({
+    ...state,
+    mode: 'off',
+    words,
+    activeWordIndex: clampReaderRsvpWordIndex(words, state.activeWordIndex),
+    paceWpm: normalizeReaderRsvpLitePace(state.paceWpm),
+    sameExcerptRsvpResume
+  });
+};
 
 // Same-excerpt transitions intentionally do not accept a fresh preview or DOM
 // selection. Once the overlay is open, these helpers must keep reusing the
@@ -250,9 +283,13 @@ export const createReaderFocusedReadingState = (
 });
 
 export const startReaderParagraphFocus = (
-  _state: ReaderFocusedReadingState,
+  state: ReaderFocusedReadingState,
   input: ReaderFocusedReadingSourceInput
 ) => {
+  if (hasHiddenFocusedReadingResume(state)) {
+    return createFocusedReadingPayloadForSameExcerpt(state, 'paragraph');
+  }
+
   const source = getParagraphFocusSource(input);
   return createFocusedReadingPayload('paragraph', input.preview, source.text, source.label);
 };
@@ -261,6 +298,24 @@ export const startReaderRsvpLite = (
   state: ReaderFocusedReadingState,
   input: ReaderFocusedReadingSourceInput
 ) => {
+  if (hasHiddenFocusedReadingResume(state)) {
+    const resume = state.sameExcerptRsvpResume;
+    const words =
+      resume?.words.length
+        ? resume.words
+        : state.words.length > 0
+          ? state.words
+          : splitReaderRsvpWords(normalizeExcerptText(state.sourceText));
+    return createFocusedReadingPayloadForSameExcerpt(
+      state,
+      'rsvp',
+      words,
+      resume?.paceWpm ?? state.paceWpm,
+      resume?.activeWordIndex ?? state.activeWordIndex,
+      'paused'
+    );
+  }
+
   const source = getRsvpSource(input);
   const words = splitReaderRsvpWords(source.text);
   const paceWpm =
@@ -391,7 +446,7 @@ export const canAdvanceReaderRsvpWord = (state: ReaderFocusedReadingState) =>
   state.mode === 'rsvp' && state.words.length > 0 && state.activeWordIndex < state.words.length - 1;
 
 export const exitReaderFocusedReading = (_state: ReaderFocusedReadingState) =>
-  createReaderFocusedReadingState();
+  _state.mode === 'off' ? createReaderFocusedReadingState() : normalizeHiddenFocusedReadingResume(_state);
 
 export const getReaderFocusedReadingSummary = (state: ReaderFocusedReadingState) => {
   if (state.mode === 'off') {
@@ -419,10 +474,6 @@ export const canStartReaderFocusedReading = (preview: ReaderPreviewState) =>
 export const serializeReaderFocusedReadingState = (
   state: ReaderFocusedReadingState
 ): ReaderFocusedReadingPersistedState | null => {
-  if (state.mode === 'off') {
-    return null;
-  }
-
   const formatLabel = normalizeFocusedReadingFormatLabel(state.formatLabel);
   const sourceText = normalizeExcerptText(state.sourceText);
   if (!sourceText || !canPersistFocusedReadingFormat(formatLabel)) {
@@ -433,13 +484,13 @@ export const serializeReaderFocusedReadingState = (
   // durable anchor. That is honest for TXT/EPUB-like text surfaces, but not for
   // PDF/CBZ where the visible selection is not yet a stable reader locator.
   const words =
-    state.mode === 'rsvp'
+    state.mode === 'rsvp' || state.mode === 'off'
       ? (state.words.length > 0 ? state.words : splitReaderRsvpWords(sourceText))
           .map((word) => word.trim())
           .filter(Boolean)
       : [];
   const sameExcerptRsvpResume =
-    state.mode === 'paragraph' && state.sameExcerptRsvpResume
+    (state.mode === 'paragraph' || state.mode === 'off') && state.sameExcerptRsvpResume
       ? {
           words: state.sameExcerptRsvpResume.words.map((word) => word.trim()).filter(Boolean),
           activeWordIndex: clampReaderRsvpWordIndex(
@@ -459,8 +510,14 @@ export const serializeReaderFocusedReadingState = (
     progressLabel: normalizeExcerptText(state.progressLabel),
     progressLocation: normalizeExcerptText(state.progressLocation),
     words,
-    activeWordIndex: state.mode === 'rsvp' ? clampReaderRsvpWordIndex(words, state.activeWordIndex) : 0,
-    paceWpm: state.mode === 'rsvp' ? normalizeReaderRsvpLitePace(state.paceWpm) : undefined,
+    activeWordIndex:
+      state.mode === 'rsvp' || state.mode === 'off'
+        ? clampReaderRsvpWordIndex(words, state.activeWordIndex)
+        : 0,
+    paceWpm:
+      state.mode === 'rsvp' || state.mode === 'off'
+        ? normalizeReaderRsvpLitePace(state.paceWpm)
+        : undefined,
     // Paragraph restore is allowed to keep the hidden RSVP return cursor only
     // for this exact persisted excerpt. We still do not persist "playing"
     // intent, because reload cannot honestly recreate the route-owned timer.
@@ -479,31 +536,34 @@ export const parseReaderFocusedReadingPersistedState = (
   }
 
   const payload = value as Partial<ReaderFocusedReadingPersistedState>;
-  const mode = payload.mode === 'paragraph' || payload.mode === 'rsvp' ? payload.mode : 'off';
+  const mode =
+    payload.mode === 'paragraph' || payload.mode === 'rsvp' || payload.mode === 'off'
+      ? payload.mode
+      : 'off';
   const formatLabel =
     typeof payload.formatLabel === 'string'
       ? normalizeFocusedReadingFormatLabel(payload.formatLabel)
       : '';
   const sourceText = typeof payload.sourceText === 'string' ? normalizeExcerptText(payload.sourceText) : '';
-  if (payload.schemaVersion !== 1 || mode === 'off' || !sourceText || !canPersistFocusedReadingFormat(formatLabel)) {
+  if (payload.schemaVersion !== 1 || !sourceText || !canPersistFocusedReadingFormat(formatLabel)) {
     return createReaderFocusedReadingState();
   }
 
   const persistedWords =
-    mode === 'rsvp' && Array.isArray(payload.words)
+    (mode === 'rsvp' || mode === 'off') && Array.isArray(payload.words)
       ? payload.words
           .filter((word): word is string => typeof word === 'string')
           .map((word) => word.trim())
           .filter(Boolean)
       : [];
   const restoredWords =
-    mode === 'rsvp'
+    mode === 'rsvp' || mode === 'off'
       ? persistedWords.length > 0
         ? persistedWords
         : splitReaderRsvpWords(sourceText)
       : [];
   const persistedSameExcerptResume =
-    mode === 'paragraph' &&
+    (mode === 'paragraph' || mode === 'off') &&
     payload.sameExcerptRsvpResume &&
     typeof payload.sameExcerptRsvpResume === 'object'
       ? payload.sameExcerptRsvpResume
@@ -532,14 +592,14 @@ export const parseReaderFocusedReadingPersistedState = (
         : '',
     words: restoredWords,
     activeWordIndex:
-      mode === 'rsvp'
+      mode === 'rsvp' || mode === 'off'
         ? clampReaderRsvpWordIndex(
             restoredWords,
             typeof payload.activeWordIndex === 'number' ? payload.activeWordIndex : 0
           )
         : 0,
     paceWpm:
-      mode === 'rsvp'
+      mode === 'rsvp' || mode === 'off'
         ? normalizeReaderRsvpLitePace(
             typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM
           )
@@ -552,6 +612,13 @@ export const parseReaderFocusedReadingPersistedState = (
             typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM,
             'paused'
           )
+        : mode === 'off' && restoredSameExcerptResumeWords.length === 0 && restoredWords.length > 0
+          ? createSameExcerptRsvpResume(
+              restoredWords,
+              typeof payload.activeWordIndex === 'number' ? payload.activeWordIndex : 0,
+              typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM,
+              'paused'
+            )
         : restoredSameExcerptResumeWords.length > 0
           ? createSameExcerptRsvpResume(
               restoredSameExcerptResumeWords,

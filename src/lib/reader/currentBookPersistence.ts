@@ -551,7 +551,10 @@ export const restoreReaderCurrentBookFocusedReadingState = (
 
   try {
     const restoredState = parseReaderFocusedReadingPersistedState(JSON.parse(rawState));
-    if (restoredState.mode === 'off') {
+    // `mode === off` can now mean "overlay hidden, but same-book resume still
+    // exists for a supported text excerpt". Only purge payloads that restore to
+    // the truly empty default shape.
+    if (restoredState.mode === 'off' && !restoredState.sourceText) {
       removeStorageItem(storage, storageKey);
     }
     return restoredState;

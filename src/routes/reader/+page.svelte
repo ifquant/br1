@@ -1770,8 +1770,16 @@
   };
 
   const startRsvpLiteMode = () => {
+    // Exiting the overlay now leaves a hidden same-book excerpt behind for
+    // supported text surfaces. Reopening RSVP should reuse that excerpt, but it
+    // must come back paused because the route-owned autoplay timer was already
+    // torn down on exit and must not be reconstructed implicitly.
+    const isHiddenFocusedReadingResume =
+      focusedReadingState.mode === 'off' && focusedReadingState.sourceText.trim().length > 0;
     focusedReadingState = startReaderRsvpLite(focusedReadingState, getFocusedReadingInput());
-    focusedReadingRsvpPlaying = canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
+    focusedReadingRsvpPlaying = isHiddenFocusedReadingResume
+      ? false
+      : canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
   };
 
   const switchFocusedReadingToParagraphMode = () => {
