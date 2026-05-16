@@ -1421,7 +1421,7 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: the reader annotation/sidebar slice now renders bookmarks, highlights, and notes through a dedicated presentation child while `ReaderSidebar.svelte` keeps all reactive derivation, localStorage-backed highlight workspace state, and mutation helpers.
   - Touches: `ReaderSidebarAnnotations.svelte`, `ReaderSidebar.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader supports txt notes through selection, persistence, and note reopen in web mode|reader productizes bookmarks as current reading positions in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`2980`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed; user requested no commit.
+  - Done commit: 5e9dad4.
   - Tutorial: `tutorials/commit/0656-extract-reader-sidebar-annotation-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `4178`. The extraction stays intentionally conservative: the child accepts a wide prop surface, preserves existing strings/ARIA copy, and leaves the saved-highlight-selection panel in the parent through the `highlights-extra` slot so cross-book import/export and refresh state do not change owners.
 
@@ -1429,7 +1429,7 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: the reader sidebar search tab now renders through a dedicated presentation child while `ReaderSidebar.svelte` keeps the search controller wiring, history filter state, and all route-owned search mutations.
   - Touches: `ReaderSidebarSearch.svelte`, `ReaderSidebar.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader search states read like one product surface across txt and epub"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`2448`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet.
+  - Done commit: fd147de.
   - Tutorial: `tutorials/commit/0658-extract-reader-sidebar-search-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2980`. The extraction stays presentation-only on purpose: the parent still owns `searchHistoryFilter`, derived summary/result indexes, and all search-controller callbacks so cache/history/result navigation semantics do not split across components.
 
@@ -1437,7 +1437,7 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: the cross-book saved highlight-selection workspace now renders through a dedicated child while `ReaderSidebar.svelte` keeps import/export validation, cross-book matching heuristics, workspace persistence, and all mutation ownership.
   - Touches: `ReaderSidebarHighlightSelections.svelte`, `ReaderSidebar.svelte`, `ReaderSidebarAnnotations.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader supports txt notes through selection, persistence, and note reopen in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`2177`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet.
+  - Done commit: fce795b.
   - Tutorial: `tutorials/commit/0659-extract-reader-saved-highlight-selection-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2449`. The extraction intentionally keeps all cross-book import/export parsing, refresh summaries, and persisted workspace state in the parent. It also removes the old `ReaderSidebarAnnotations.svelte` global-style patching for slot content so the saved-selection markup and CSS share one owner again.
 
@@ -1445,7 +1445,7 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: the book-summary card, overflow menu, and TOC preview now render through a dedicated child while `ReaderSidebar.svelte` keeps sidebar shell ownership, tab routing, and all non-navigation workspace state.
   - Touches: `ReaderSidebarOverview.svelte`, `ReaderSidebar.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader keeps the overview sidebar surface legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1866`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet.
+  - Done commit: 89e3592.
   - Tutorial: `tutorials/commit/0660-extract-reader-overview-and-toc-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2162`. The extraction keeps `activeTab`, search/highlight owners, and the sidebar shell in the parent, but moves the local book-menu affordance and TOC rendering into one presentation child so the parent no longer carries that UI-only state. The focused smoke certifies overview visibility, overflow-menu presence, and that clicking a non-active TOC entry can still activate it; it does not certify broader metadata or label semantics beyond that surface.
 
@@ -1469,7 +1469,7 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: current-book annotation derived state, group open/close rules, and highlight-selection helpers move into `sidebarAnnotations.ts` while `ReaderSidebar.svelte` keeps persistence, cross-book saved-highlight ownership, tab routing, and scroll-to-active effects.
   - Touches: `src/lib/reader/sidebarAnnotations.ts`, `ReaderSidebar.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader annotation controller interactions stay legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1512`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet.
+  - Done commit: 337abfa.
   - Tutorial: `tutorials/commit/0663-extract-reader-sidebar-annotation-controller.md`.
   - Notes: this slice is intentionally about current-book controller logic only. It does not move cross-book selection import/export, route-tab ownership, or the existing `ReaderSidebarAnnotations.svelte` presentation contract. The smoke creates real TXT highlights and drives select-all, selected filtering, individual unselect, and clear-selection behavior through the extracted controller path.
 
@@ -1477,7 +1477,7 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: saved-highlight refresh labels/details, export payload validation, imported-name generation, existing cross-book lookup, imported highlight matching, import preview shaping, import-source shaping, and refresh-summary shaping now live in `sidebarHighlightSelections.ts`.
   - Touches: `src/lib/reader/sidebarHighlightSelections.ts`, `ReaderSidebar.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader saved-highlight helper flows stay legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1261`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet.
+  - Done commit: af4ee16.
   - Tutorial: `tutorials/commit/0664-extract-reader-sidebar-saved-highlight-helpers.md`.
   - Notes: `ReaderSidebar.svelte` still owns saved-highlight state fields, persistence/hydration, action entrypoints, notices, previews, active-tab routing, and the slot mount into `ReaderSidebarHighlightSelections.svelte`. The focused smoke exports a real TXT saved-highlight set, imports it as a cross-book payload, imports matched highlights, and refreshes the imported mapping.
 
@@ -1485,7 +1485,7 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: highlights workspace defaults, persisted payload normalization/validation, saved-selection payload cleanup, and local persistence payload shaping now live in `sidebarHighlightsWorkspace.ts`.
   - Touches: `src/lib/reader/sidebarHighlightsWorkspace.ts`, `ReaderSidebar.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader highlights workspace persistence stays legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1194`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet.
+  - Done commit: 638761b.
   - Tutorial: `tutorials/commit/0665-extract-reader-sidebar-highlights-workspace-persistence.md`.
   - Notes: `ReaderSidebar.svelte` still owns the mutable workspace fields, async load/save effects, token race guard, service/localStorage branches, active-tab routing, and every other sidebar state owner. The focused smoke persists highlight sort, selected-filter state, selected ids, and a saved highlight set across reload.
 
@@ -1498,7 +1498,7 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Outcome: route coordination for dedicated translation precedence, book-change annotation-popup clearing, and effective-TTS-target playback queue resets now lives in `maturityMode.ts`, with focused helper tests covering the same maturity invariants plus the stage-matching footnote reset rule.
   - Touches: `src/lib/reader/maturityMode.ts`, `src/lib/reader/maturityMode.test.ts`, `src/lib/reader/route.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm exec svelte-kit sync && pnpm exec tsc -p tsconfig.json --outDir .tmp-maturity-mode-tests --noEmit false && node --test ./.tmp-maturity-mode-tests/src/lib/reader/maturityMode.test.js` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode|reader exposes inline translation mode without replacing the notebook translation workspace|reader shows selection-near annotation actions in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/routes/reader/+page.svelte` (`2853`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 5e9dad4.
   - Tutorial: `tutorials/commit/0657-extract-reader-maturity-route-coordination.md`.
   - Notes: Svelte navigation, localStorage restore/persist, and event handlers intentionally remain inside `+page.svelte`. The footnote reset rule is covered in the new pure helper tests so it stays documented alongside the route-owned maturity decisions, but the live popup owner still remains `ReaderStage.svelte`.
 
@@ -1506,7 +1506,7 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Outcome: the current-book maturity restore/reset bundle now resolves through `resolveReaderMaturityBookRestoreState(...)`, so TTS ownership fields, translation ownership/config restore, inline translation reset state, annotation selection clearing, and focused-reading reset semantics are auditable in pure helper code.
   - Touches: `src/lib/reader/maturityMode.ts`, `src/lib/reader/maturityMode.test.ts`, `src/lib/reader/route.ts`, `src/lib/reader/translationOwnership.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: da7f10c.
   - Tutorial: `tutorials/commit/0666-extract-reader-route-maturity-book-restore.md`.
   - Notes: `+page.svelte` still owns localStorage restore calls, `ttsController.stop()`, reactive timing, state assignment, and last-restored book-key guards. The helper only shapes plain restored data and reset targets for the route to apply, and this slice also normalizes the reused translation-restore helper's ESM import path so helper tests remain runnable.
 
@@ -1514,7 +1514,7 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Outcome: the collapsed TTS mini-bar now resolves its visible/status/context/target/location/action/capability bundle through `resolveReaderTtsMiniBarState(...)`, so the route no longer open-codes the whole label and capability cluster.
   - Touches: `package.json`, `src/lib/reader/currentBookPersistence.ts`, `src/lib/reader/tts.ts`, `src/lib/reader/ttsOwnership.ts`, `src/lib/reader/ttsOwnership.test.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader tts workspace exposes mature playback controls in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 5ecc07d.
   - Tutorial: `tutorials/commit/0667-extract-reader-tts-mini-bar-derived-state.md`.
   - Notes: runtime actions, route sync, notebook ownership, effective TTS target ownership, and translated-source ownership remain in `+page.svelte`. The new helper only shapes plain mini-bar display/action state from already-owned inputs, and `test:reader-helpers` now includes `ttsOwnership.test.ts` directly instead of relying on an ad hoc command.
 
@@ -1522,7 +1522,7 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Outcome: the route now delegates the pure live translation snapshot, panel-result, translated-source, and translated-TTS snapshot derivation chain to `resolveReaderTranslationTtsDerivationState(...)` while keeping persistence and runtime ownership in `+page.svelte`.
   - Touches: `src/lib/reader/ttsOwnership.ts`, `src/lib/reader/ttsOwnership.test.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode|reader tts workspace exposes mature playback controls in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 18e04f5.
   - Tutorial: `tutorials/commit/0668-extract-reader-translation-tts-derivation.md`.
   - Notes: `+page.svelte` still owns current preview, assistance state/history, translated-TTS owner, current-book localStorage persistence, and the route-local `resolveCurrentLiveTranslatedTtsResult()` call. The helper only combines existing translation and TTS ownership helpers into one auditable plain-data result.
 
@@ -1530,7 +1530,7 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Outcome: current-book persist safety checks for translation live snapshots, translation mode config, and the bundled TTS ownership/read-aloud/translated-owner/translated-snapshot state now live in `currentBookPersistence.ts`.
   - Touches: `src/lib/reader/currentBookPersistence.ts`, `src/lib/reader/maturityMode.test.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: bd2730a.
   - Tutorial: `tutorials/commit/0669-extract-reader-current-book-persist-gates.md`.
   - Notes: `+page.svelte` still owns `localStorage`, `getReaderStorage()`, and the actual persist calls. The helpers only prevent default/pre-restore route state from clobbering per-book persisted state during boot or book switches.
 
@@ -1538,7 +1538,7 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Outcome: P19 is functionally closed for now. The remaining `+page.svelte` mass is mostly rightful route ownership: Svelte lifecycle, URL/workspace routing, controller side effects, localStorage/service writes, notebook/stage composition, and cross-owner event handlers.
   - Touches: checklist/tutorial docs only.
   - Verify: `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: ea38eb0.
   - Tutorial: `tutorials/commit/0670-close-reader-route-boundary-reduction-line.md`.
   - Notes: Future P19-style work should resume only when a concrete new pure policy cluster appears. Further splitting today would mostly move route-owned sequencing into artificial wrappers, increasing risk without reducing product complexity.
 
@@ -1550,7 +1550,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: focused reading now serializes and restores per-book paragraph/RSVP state for supported text surfaces, including RSVP word position, while unsupported PDF/CBZ payloads are discarded instead of reopened from an unreliable presentation-only text layer.
   - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/currentBookPersistence.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, helper tests, focused Playwright smoke, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores focused reading position for supported text surfaces"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: bc14703.
   - Tutorial: `tutorials/commit/0671-persist-reader-focused-reading-resume.md`.
   - Notes: `+page.svelte` still owns current-book restore timing and localStorage IO. The helper stores the excerpt/selection text currently shown in the overlay as the honest restorable anchor for TXT/EPUB-like surfaces; exact PDF/CBZ segment restore remains out of scope until those surfaces expose a stable text locator.
 
@@ -1558,7 +1558,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: RSVP-lite now starts autoplay from the current word on supported text surfaces, lets the reader pause/resume and adjust a bounded visible pace, and stops at the last word instead of wrapping.
   - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, `src/lib/components/reader/ReaderStage.svelte`, `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, helper tests, focused Playwright smoke, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader can autoplay rsvp-lite with pause and pace controls in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 0205fff.
   - Tutorial: `tutorials/commit/0672-add-reader-rsvp-lite-controller.md`.
   - Notes: the route still owns the autoplay timer and only restores plain focused-reading state. Pace is persisted because the overlay can honestly reopen with the same bounded speed, but autoplay does not auto-resume across reload because the timer/runtime side effect is route-owned and intentionally transient.
 
@@ -1566,7 +1566,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: while the focused-reading overlay owns focus, `Escape` still exits the mode and RSVP-lite can now pause/resume, step words, and adjust pace from the keyboard without moving autoplay ownership out of the route.
   - Touches: `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader focused-reading overlay supports keyboard transport in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 6f9575e.
   - Tutorial: `tutorials/commit/0673-add-focused-reading-overlay-keyboard-transport.md`.
   - Notes: the overlay only translates focused key presses into the existing route callbacks. Paragraph mode keeps the honest `Escape` exit hint only; RSVP-lite shows compact visible key hints instead of hidden transport behavior, and PDF/CBZ capability boundaries stay unchanged.
 
@@ -1574,7 +1574,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: the web reader can now open paragraph focus and RSVP-lite directly from the reader surface with discoverable `Shift+P` / `Shift+R` hints, without adding a second focused-reading controller path or widening PDF/CBZ claims.
   - Touches: `src/lib/components/reader/ReaderHeaderBar.svelte`, `src/lib/components/reader/ReaderStage.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader opens focused reading modes from keyboard in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 1a6842a.
   - Tutorial: `tutorials/commit/0674-add-reader-local-focused-reading-keyboard-entry.md`.
   - Notes: the reader stage listens only while the reader route is mounted and only when keyboard focus is still on the route body or inside the reader shell. Text inputs remain exempt so search/note editing does not accidentally trigger focused-reading entry, and the existing overlay callbacks, persistence behavior, and `Escape` exit semantics remain unchanged.
 
@@ -1582,7 +1582,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: while the focused-reading overlay is already open on a supported text excerpt, the reader can switch the same excerpt between paragraph focus and RSVP-lite in place, and RSVP-lite can restart from word 1 without exiting the overlay or re-querying the viewport for a new selection.
   - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `src/lib/reader/index.ts`, `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, `src/lib/components/reader/ReaderStage.svelte`, `src/routes/reader/+page.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader can switch focused-reading modes on the same excerpt in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 9e57a54.
   - Tutorial: `tutorials/commit/0675-switch-and-restart-focused-reading-in-place.md`.
   - Notes: same-excerpt transitions now go through pure helper state so the overlay never asks for a fresh DOM selection. The route still owns autoplay start/stop semantics: switching out of RSVP always stops autoplay, switching into RSVP reuses the existing entry behavior, and RSVP restart only continues autoplay when the excerpt was already playing before the restart.
 
@@ -1590,7 +1590,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: when the reader detours from RSVP-lite into paragraph focus on the same supported excerpt and then switches back, the focused-reading helper restores the last RSVP word index and pace instead of resetting to word 1; explicit replay from word 1 still overwrites that in-memory return point honestly.
   - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader preserves same-excerpt rsvp position across paragraph detours in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: e77ba75.
   - Tutorial: `tutorials/commit/0676-preserve-focused-reading-rsvp-detour-resume.md`.
   - Notes: the preserved return point stays inside focused-reading helper state as same-excerpt RSVP resume data. The route still owns autoplay timers, paragraph mode still does not pretend to own RSVP playback UI, and this slice does not add next-excerpt navigation, new locator semantics, or broader PDF/CBZ text support.
 
@@ -1598,7 +1598,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: when the reader pauses RSVP-lite on a same-excerpt word, detours into paragraph focus, and switches back, RSVP-lite restores the saved word and pace but stays paused; if the reader had left RSVP-lite playing, the route may keep autoplay running on return.
   - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader preserves same-excerpt rsvp play-pause intent across paragraph detours in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 3b80366.
   - Tutorial: `tutorials/commit/0677-preserve-focused-reading-rsvp-play-pause-intent.md`.
   - Notes: play/pause intent is stored only as transient same-excerpt helper state so the route can decide whether autoplay should exist after a paragraph detour. Reload restore still comes back paused, this slice does not add cross-excerpt resume semantics, and PDF/CBZ support remains unchanged.
 
@@ -1606,7 +1606,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: when the reader reloads while focused reading is showing paragraph mode for a supported text excerpt that was reached from RSVP-lite, the same book reopens in paragraph mode with the hidden same-excerpt RSVP return cursor and pace intact; switching back to RSVP-lite returns to that saved word/pace and still comes back paused.
   - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader preserves same-excerpt rsvp return state across paragraph-mode reloads in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 0b7bfe1.
   - Tutorial: `tutorials/commit/0678-persist-focused-reading-rsvp-return-state-across-paragraph-reloads.md`.
   - Notes: the persisted paragraph payload only carries the same-excerpt RSVP cursor and pace for this exact supported text excerpt. Reload restore still forces paused state, does not add autoplay reconstruction, and does not widen PDF/CBZ or cross-excerpt semantics.
 
@@ -1614,7 +1614,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: exiting focused reading still closes the overlay immediately, but supported text surfaces now keep a hidden same-book resume payload so reopening paragraph focus or RSVP-lite prefers the last focused excerpt instead of sampling a new live paragraph; RSVP reopen still comes back paused.
   - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `src/lib/reader/currentBookPersistence.ts`, `src/lib/reader/currentBookPersistence.test.ts`, `src/routes/reader/+page.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader reopens the last focused-reading excerpt after exit in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 935ef8e.
   - Tutorial: `tutorials/commit/0679-keep-focused-reading-exit-reopen-continuity.md`.
   - Notes: the hidden resume payload is still same-book only and only persists supported text excerpts. Exit does not add cross-book routing, cross-excerpt navigation, PDF/CBZ widening, or autoplay reconstruction.
 
@@ -1622,7 +1622,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: the focused-reading overlay now breaks the current excerpt context into readable metadata chips so the reader can see excerpt source and progress at a glance without relying on the denser summary sentence alone.
   - Touches: `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader focused-reading overlay shows chapter and progress context in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: a6b36da.
   - Tutorial: `tutorials/commit/0680-surface-focused-reading-context-in-the-overlay.md`.
   - Notes: this remains a presentation-only slice. The overlay reuses existing focused-reading labels, keeps raw restore locators out of the primary UI when they would read like machine state, and does not change continuity, autoplay, keyboard, entry, or exit semantics.
 
@@ -1630,7 +1630,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: this slice smoke-certifies one concrete per-book focused-reading path: TXT book A can keep its mode, excerpt, RSVP progress, and pace through a real TXT -> EPUB -> TXT switch, while the EPUB leg settles without inheriting TXT overlay state.
   - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores focused reading per book after switching between txt and epub in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: eabe7b2.
   - Tutorial: `tutorials/commit/0681-verify-focused-reading-per-book-restore-across-txt-epub-switch.md`.
   - Notes: this slice intentionally stays at one TXT RSVP -> EPUB -> TXT per-book seam only. It does not certify paragraph mode, EPUB-owned focused-reading state, reverse-direction book switches, cross-book workspace restore, route-boundary refactors, or any PDF/CBZ restore claim.
 
@@ -1638,7 +1638,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: this slice smoke-certifies a narrow same-book paragraph seam in web mode: after TXT book A exits focused reading and the reader surface progress changes, reopening paragraph focus still prefers the hidden same-book excerpt from before exit.
   - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader reopens paragraph focus on the hidden excerpt after exit in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: a6a3e48.
   - Tutorial: `tutorials/commit/0682-add-paragraph-focus-exit-reopen-smoke.md`.
   - Notes: this stays same-book and TXT-only on purpose. It certifies scroll-and-reopen precedence through the reader's own progress change, and it does not widen into RSVP, TTS, translation, cross-book restore, route-boundary refactors, or new focused-reading controls.
 
@@ -1646,7 +1646,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: this slice smoke-certifies the narrow TXT RSVP seam the earlier slices did not combine in one run: after the reader builds a non-default RSVP state, exits the overlay, reloads the page, and manually reopens focused reading from the menu, the same hidden excerpt returns with the saved word index and pace while autoplay still stays paused.
   - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores hidden focused-reading resume after exit and reload in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: 0682901.
   - Tutorial: `tutorials/commit/0683-verify-hidden-focused-reading-resume-after-exit-reload-reopen.md`.
   - Notes: this stays TXT-first and same-book on purpose. It does not widen into EPUB-specific restore, selection-precedence rules, route refactors, library restore, new UI, or any PDF/CBZ continuity claim.
 
