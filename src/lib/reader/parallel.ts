@@ -87,6 +87,9 @@ const createReaderParallelPaneSourceStateFromRoute = (
 const createReaderParallelPaneSourceStateFromTarget = (
   target: ReaderRouteOpenTarget
 ): ReaderParallelPaneSourceState => ({
+  // The companion pane currently reuses a route-shaped source identity derived
+  // from the primary target. "Secondary is in-memory" is expressed by session
+  // wiring, not by a separate source shape here.
   kind: 'route',
   sourceKey: target.bookKey,
   bookKey: target.bookKey,
@@ -210,9 +213,9 @@ export const openReaderParallelSecondaryPaneFromPrimary = (
   const primaryPane = session.panes.primary;
   if (!primaryPane.openTarget) return session;
 
-  // Opening the companion pane snapshots the current primary target into a new
-  // in-memory pane. It reuses the same open target while issuing a fresh open
-  // request, but it does not mint an independent persisted session contract.
+  // Opening the companion pane reuses the current primary open target inside a
+  // new in-memory pane and issues a fresh open request. It does not clone live
+  // preview/progress state or mint an independent persisted session contract.
   const nextSecondaryPane = {
     ...createEmptyReaderParallelPaneState(
       READER_PARALLEL_SECONDARY_PANE_ID,
@@ -296,9 +299,10 @@ export const updateReaderParallelPaneControlRequest = (
   controlRequest: ReaderControlRequest | null
 ): ReaderParallelSessionState =>
   updateReaderParallelPaneState(session, paneId, (pane) => {
-    // Refactor risk: pane source, open target, and mount state need to advance
-    // together. Updating only one of them usually creates a pane that looks open
-    // in chrome while the embedded reader is still pointed at older content.
+    // Refactor risk: opening control, open target, and mount state need to
+    // advance together. Updating only one of them usually creates a pane that
+    // looks open in chrome while the embedded reader is still pointed at older
+    // content.
     const nextOpenTarget =
       controlRequest && isOpeningReaderControlRequest(controlRequest)
         ? toOpenTargetFromControlRequest(controlRequest, pane.source.bookKey, pane.source.label)
