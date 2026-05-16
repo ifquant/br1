@@ -1651,10 +1651,10 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Notes: this stays TXT-first and same-book on purpose. It does not widen into EPUB-specific restore, selection-precedence rules, route refactors, library restore, new UI, or any PDF/CBZ continuity claim.
 
 - [x] P20-1.14 Verify EPUB selection-owned focused reading across exit -> reopen
-  - Outcome: this slice smoke-certifies a narrow EPUB-only selection-owned seam in real web reading mode: after the reader creates a real Foliate text selection, opens paragraph-focused reading from that selection-owned excerpt, exits the overlay, clears the live selection, and moves EPUB progress, a manual reopen still reuses the hidden same-book selection-owned excerpt as `当前选区`.
+  - Outcome: this slice smoke-certifies a narrow EPUB-only selection-owned seam in real web reading mode: after the reader creates a real Foliate text selection, opens paragraph-focused reading from that selection-owned excerpt, exits the overlay, clears the live selection, and moves EPUB progress, a manual reopen still reuses the hidden same-book selection-owned excerpt and the source chip reads `当前选区`.
   - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader reuses the exited epub selection-owned focused-reading excerpt on reopen in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet; user requested no commit.
+  - Done commit: a6250b8, 7fa718c.
   - Tutorial: `tutorials/commit/0684-verify-epub-selection-owned-focused-reading-reopen.md`.
   - Notes: this keeps the slice EPUB-only and smoke-only because the existing hidden same-book resume seam already behaved correctly. It certifies selection-clear plus progress-change reopen precedence, not a stronger visible-paragraph replacement contract. It does not add reload coverage, route-boundary refactors, dual-ownership semantics, Tauri reopen behavior, or broader TTS/translation/notebook assertions.
 
@@ -1670,7 +1670,7 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Outcome: this slice smoke-certifies the combined EPUB seam through the real Foliate selection-owned path: after paragraph-focused reading opens from a live EPUB selection, the reader exits the overlay, clears the live selection, moves progress, reloads the same book, and proves the visible reader progress still stays away from the original starting progress/percentage before manual reopen restores the hidden same-book excerpt.
   - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader reuses the exited epub selection-owned focused-reading excerpt after exit, reload, and reopen in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: pending current slice commit.
+  - Done commit: 96551d7, a85d7f4, 09d0057, 7fa718c.
   - Tutorial: `tutorials/commit/0686-verify-epub-hidden-focused-reading-resume-after-exit-reload-reopen.md`.
   - Notes: this remains same-book and EPUB-only on purpose. It proves reload does not auto-open the overlay, the live Foliate selection still stays empty, the visible reader progress stays away from the original starting progress/percentage before manual reopen, and the reopened overlay keeps the same selection-owned excerpt plus the same `当前选区` source chip and visible progress value captured before exit. It does not claim cross-book restore, new locator formats, or any broader TTS/translation/sidebar behavior.
 
