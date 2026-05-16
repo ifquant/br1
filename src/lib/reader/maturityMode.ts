@@ -27,6 +27,7 @@ import { resolveReaderTranslationModeConfigRestore } from './translationOwnershi
 import type {
   ReaderInlineTranslationState,
   ReaderPlaybackQueueState,
+  ReaderControlRequest,
   ReaderSelectionState,
   ReaderTtsReadAloudTextMode
 } from './types.js';
@@ -55,13 +56,39 @@ type ReaderFocusedReadingLaunchSelectionInput = {
   launchMode: 'paragraph' | 'rsvp';
   formatLabel: string;
   currentSelection: ReaderSelectionState | null;
-  lastNonEmptySelection: ReaderSelectionState | null;
+  currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
 };
 
-type ReaderFocusedReadingSelectionLatchBookChangeInput = {
-  currentLatchedSelection: ReaderSelectionState | null;
+type ReaderFocusedReadingLaunchSelectionGuardForSelectionChangeInput = {
+  formatLabel: string;
+  currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+  previousSelection: ReaderSelectionState | null;
+  nextSelection: ReaderSelectionState | null;
+};
+
+type ReaderFocusedReadingLaunchSelectionGuardForControlRequestInput = {
+  currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
+  request: ReaderControlRequest;
+};
+
+type ReaderFocusedReadingLaunchSelectionGuardBookChangeInput = {
+  currentSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
   previousBookKey: string;
   nextBookKey: string;
+};
+
+export type ReaderFocusedReadingLaunchSelectionGuard = {
+  // This guard only exists for the narrow "selection just vanished before
+  // paragraph-focus launch" boundary. `armed: false` means the route is merely
+  // staging the latest live EPUB selection; `armed: true` means the live
+  // selection has now cleared and the next launch may consume it once.
+  armed: boolean;
+  selection: ReaderSelectionState;
+};
+
+export type ReaderFocusedReadingLaunchSelectionResolution = {
+  selection: ReaderSelectionState | null;
+  nextSelectionGuard: ReaderFocusedReadingLaunchSelectionGuard | null;
 };
 
 type ReaderMaturityBookRestoreTtsState = {
@@ -132,6 +159,16 @@ const hasReaderSelectionText = (selection: ReaderSelectionState | null) =>
 const isEpubReaderSelectionLatchFormat = (formatLabel: string) =>
   formatLabel.trim().toUpperCase() === 'EPUB';
 
+const doesReaderControlRequestChangeReadingContext = (request: ReaderControlRequest) =>
+  request.type === 'asset' ||
+  request.type === 'library-file' ||
+  request.type === 'file' ||
+  request.type === 'prev' ||
+  request.type === 'next' ||
+  request.type === 'start' ||
+  request.type === 'fraction' ||
+  request.type === 'href';
+
 export const resolveReaderMaturityRouteTranslationConfig = (input: {
   currentConfig: ReaderTranslationModeConfig;
   assistanceHistory: ReaderAssistanceHistoryEntry[];
@@ -168,29 +205,80 @@ export const resolveReaderAnnotationPopupSelectionForBookChange = (
   input.previousBookKey !== input.nextBookKey ? null : input.currentSelection;
 
 // Focused-reading launch can start from header chrome that temporarily steals
-// focus from the EPUB iframe. The route therefore latches the last explicit
-// non-empty EPUB selection and asks this helper to prefer it only when the
-// live selection has already vanished on the EPUB paragraph-focus launch path.
-export const resolveReaderFocusedReadingLaunchSelection = (
+// focus from the EPUB iframe. The route therefore arms a one-shot guard only
+// when an EPUB selection clears, then consumes that guard from the next shared
+// focused-reading launch decision instead of caching the excerpt for the whole
+// book session.
+export const consumeReaderFocusedReadingLaunchSelection = (
   input: ReaderFocusedReadingLaunchSelectionInput
-): ReaderSelectionState | null => {
+): ReaderFocusedReadingLaunchSelectionResolution => {
   if (hasReaderSelectionText(input.currentSelection)) {
-    return input.currentSelection;
+    return {
+      selection: input.currentSelection,
+      nextSelectionGuard: null
+    };
   }
   if (
     input.launchMode === 'paragraph' &&
     isEpubReaderSelectionLatchFormat(input.formatLabel) &&
-    hasReaderSelectionText(input.lastNonEmptySelection)
+    input.currentSelectionGuard?.armed &&
+    hasReaderSelectionText(input.currentSelectionGuard.selection)
   ) {
-    return input.lastNonEmptySelection;
+    return {
+      selection: input.currentSelectionGuard.selection,
+      nextSelectionGuard: null
+    };
+  }
+  return {
+    selection: null,
+    nextSelectionGuard: null
+  };
+};
+
+// Only an EPUB selection-clear transition can arm this guard. A live
+// selection keeps the staged excerpt fresh, while a clear transition flips the
+// guard into one-shot armed mode. Non-EPUB renderers still clear the guard so
+// this route-owned fallback never turns into a generic selection cache.
+export const resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange = (
+  input: ReaderFocusedReadingLaunchSelectionGuardForSelectionChangeInput
+): ReaderFocusedReadingLaunchSelectionGuard | null => {
+  if (!isEpubReaderSelectionLatchFormat(input.formatLabel)) {
+    return null;
+  }
+  if (hasReaderSelectionText(input.nextSelection)) {
+    return {
+      armed: false,
+      selection: input.nextSelection!
+    };
+  }
+  const stagedSelection = hasReaderSelectionText(input.previousSelection)
+    ? input.previousSelection
+    : hasReaderSelectionText(input.currentSelectionGuard?.selection ?? null)
+      ? input.currentSelectionGuard?.selection ?? null
+      : null;
+  if (stagedSelection) {
+    return {
+      armed: true,
+      selection: stagedSelection
+    };
   }
   return null;
 };
 
-export const resolveReaderFocusedReadingSelectionLatchForBookChange = (
-  input: ReaderFocusedReadingSelectionLatchBookChangeInput
-): ReaderSelectionState | null =>
-  input.previousBookKey !== input.nextBookKey ? null : input.currentLatchedSelection;
+// Explicit reader navigation ends the narrow "selection just vanished before
+// launch" window. Clearing the guard here avoids keeping an old EPUB selection
+// alive after the reader has intentionally moved to another page/chapter.
+export const resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest = (
+  input: ReaderFocusedReadingLaunchSelectionGuardForControlRequestInput
+): ReaderFocusedReadingLaunchSelectionGuard | null =>
+  input.currentSelectionGuard && doesReaderControlRequestChangeReadingContext(input.request)
+    ? null
+    : input.currentSelectionGuard;
+
+export const resolveReaderFocusedReadingLaunchSelectionGuardForBookChange = (
+  input: ReaderFocusedReadingLaunchSelectionGuardBookChangeInput
+): ReaderFocusedReadingLaunchSelectionGuard | null =>
+  input.previousBookKey !== input.nextBookKey ? null : input.currentSelectionGuard;
 
 export const resolveReaderMaturityBookRestoreState = (
   input: ReaderMaturityBookRestoreInput

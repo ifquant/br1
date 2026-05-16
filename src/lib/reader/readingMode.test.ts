@@ -5,8 +5,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  resolveReaderFocusedReadingLaunchSelection,
-  resolveReaderFocusedReadingSelectionLatchForBookChange
+  consumeReaderFocusedReadingLaunchSelection,
+  resolveReaderFocusedReadingLaunchSelectionGuardForBookChange,
+  resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest,
+  resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange
 } from './maturityMode.js';
 import {
   advanceReaderRsvpWord,
@@ -70,50 +72,104 @@ test('paragraph focus mode prefers the current selection when the reader has one
   assert.equal(state.sourceLabel, '当前选区');
 });
 
-test('focused-reading launch falls back to the last non-empty route selection after live epub selection clears', () => {
-  const lastNonEmptySelection = buildSelection('Latched excerpt from the route boundary.');
+test('focused-reading launch guard arms after a live epub selection clears', () => {
+  const lastNonEmptySelection = buildSelection('Armed excerpt from the route boundary.');
 
-  assert.equal(
-    resolveReaderFocusedReadingLaunchSelection({
+  const armedGuard = resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange({
+    formatLabel: 'EPUB',
+    currentSelectionGuard: null,
+    previousSelection: lastNonEmptySelection,
+    nextSelection: null
+  });
+
+  assert.equal(armedGuard?.selection, lastNonEmptySelection);
+  assert.equal(armedGuard?.armed, true);
+});
+
+test('focused-reading launch consumes the armed epub selection once and then clears it', () => {
+  const armedSelection = buildSelection('Armed excerpt that should only survive one launch.');
+  const armedGuard = resolveReaderFocusedReadingLaunchSelectionGuardForSelectionChange({
+    formatLabel: 'EPUB',
+    currentSelectionGuard: null,
+    previousSelection: armedSelection,
+    nextSelection: null
+  });
+
+  const firstLaunch = consumeReaderFocusedReadingLaunchSelection({
       launchMode: 'paragraph',
       formatLabel: 'EPUB',
       currentSelection: null,
-      lastNonEmptySelection
-    }),
-    lastNonEmptySelection
-  );
+      currentSelectionGuard: armedGuard
+    });
+  assert.equal(firstLaunch.selection, armedSelection);
+  assert.equal(firstLaunch.nextSelectionGuard, null);
+
+  const secondLaunch = consumeReaderFocusedReadingLaunchSelection({
+    launchMode: 'paragraph',
+    formatLabel: 'EPUB',
+    currentSelection: null,
+    currentSelectionGuard: firstLaunch.nextSelectionGuard
+  });
+  assert.equal(secondLaunch.selection, null);
+  assert.equal(secondLaunch.nextSelectionGuard, null);
 });
 
 test('focused-reading launch does not reuse the latched route selection outside epub', () => {
-  assert.equal(
-    resolveReaderFocusedReadingLaunchSelection({
-      launchMode: 'paragraph',
-      formatLabel: 'TXT',
-      currentSelection: null,
-      lastNonEmptySelection: buildSelection('Latched excerpt that should stay epub-only.')
-    }),
-    null
-  );
+  const armedSelection = buildSelection('Armed excerpt that should stay epub-only.');
+  const launch = consumeReaderFocusedReadingLaunchSelection({
+    launchMode: 'paragraph',
+    formatLabel: 'TXT',
+    currentSelection: null,
+    currentSelectionGuard: {
+      armed: true,
+      selection: armedSelection
+    }
+  });
+
+  assert.equal(launch.selection, null);
+  assert.equal(launch.nextSelectionGuard, null);
 });
 
 test('focused-reading launch does not reuse the latched route selection for first-open rsvp', () => {
+  const launch = consumeReaderFocusedReadingLaunchSelection({
+    launchMode: 'rsvp',
+    formatLabel: 'EPUB',
+    currentSelection: null,
+    currentSelectionGuard: {
+      armed: true,
+      selection: buildSelection('Armed excerpt that paragraph focus may reuse.')
+    }
+  });
+
+  assert.equal(launch.selection, null);
+  assert.equal(launch.nextSelectionGuard, null);
+});
+
+test('focused-reading route launch guard clears when the reader switches to another book', () => {
   assert.equal(
-    resolveReaderFocusedReadingLaunchSelection({
-      launchMode: 'rsvp',
-      formatLabel: 'EPUB',
-      currentSelection: null,
-      lastNonEmptySelection: buildSelection('Latched excerpt that paragraph focus may reuse.')
+    resolveReaderFocusedReadingLaunchSelectionGuardForBookChange({
+      currentSelectionGuard: {
+        armed: true,
+        selection: buildSelection('Armed excerpt from the previous book.')
+      },
+      previousBookKey: '/books/first.epub',
+      nextBookKey: '/books/second.epub'
     }),
     null
   );
 });
 
-test('focused-reading route latch clears when the reader switches to another book', () => {
+test('focused-reading route launch guard clears after same-book navigation moves the reader', () => {
   assert.equal(
-    resolveReaderFocusedReadingSelectionLatchForBookChange({
-      currentLatchedSelection: buildSelection('Latched excerpt from the previous book.'),
-      previousBookKey: '/books/first.epub',
-      nextBookKey: '/books/second.epub'
+    resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+      currentSelectionGuard: {
+        armed: true,
+        selection: buildSelection('Armed excerpt from the previous location.')
+      },
+      request: {
+        type: 'next',
+        nonce: 1
+      }
     }),
     null
   );

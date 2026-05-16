@@ -3482,6 +3482,106 @@ test('reader latches the last epub selection before menu-triggered paragraph foc
   await expect(overlaySourceValue).toHaveText('当前选区');
 });
 
+test('reader clears the armed epub paragraph-focus guard after same-book navigation controls in web mode', async ({
+  page
+}) => {
+  const bookUrl = '/samples/sample-book.epub';
+  await page.addInitScript((key) => {
+    const resetMarker = `br1.reader.focused-reading-reset:${key}`;
+    if (!window.sessionStorage.getItem(resetMarker)) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.setItem(resetMarker, '1');
+    }
+  }, `br1.reader.focused-reading:${bookUrl}`);
+
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.epub&label=Sample%20EPUB%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+
+  const hiddenExcerpt = 'This prototype demonstrates a simple EPUB reading assistant.';
+  await expect
+    .poll(async () => {
+      return page.evaluate((targetText) => {
+        const view = document.querySelector('foliate-view') as any;
+        const contents = view?.renderer?.getContents?.() ?? [];
+        return contents.some(({ doc }: { doc?: Document }) =>
+          Boolean(doc?.body?.textContent?.includes(targetText))
+        );
+      }, hiddenExcerpt);
+    }, {
+      message: 'expected the EPUB reader to mount the target text before arming the paragraph-focus guard'
+    })
+    .toBe(true);
+
+  const selectionToolbar = page.getByRole('toolbar', { name: '选中文本操作' });
+  const highlightButton = selectionToolbar.getByRole('button', { name: '高亮' });
+  const applyEpubSelection = async () =>
+    page.evaluate((targetText) => {
+      const view = document.querySelector('foliate-view') as any;
+      const contents = view?.renderer?.getContents?.() ?? [];
+      for (const { doc } of contents) {
+        const candidates = Array.from(doc.body.querySelectorAll('p, li, blockquote, div')) as HTMLElement[];
+        for (const candidate of candidates) {
+          const candidateText = candidate.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+          if (!candidateText.includes(targetText)) {
+            continue;
+          }
+
+          const range = doc.createRange();
+          range.selectNodeContents(candidate);
+          const selection = doc.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+          doc.dispatchEvent(new Event('selectionchange'));
+          return selection?.toString().replace(/\s+/g, ' ').trim() ?? candidateText;
+        }
+      }
+
+      throw new Error(`expected the EPUB fixture text to contain "${targetText}"`);
+    }, hiddenExcerpt);
+
+  await expect
+    .poll(async () => {
+      await applyEpubSelection();
+      return await highlightButton.isVisible().catch(() => false);
+    }, {
+      message: 'expected the EPUB selection-owned popup to appear before arming the route guard'
+    })
+    .toBe(true);
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as any;
+    const contents = view?.renderer?.getContents?.() ?? [];
+    for (const { doc } of contents) {
+      doc.getSelection()?.removeAllRanges();
+      doc.dispatchEvent(new Event('selectionchange'));
+    }
+  });
+  await expect(selectionToolbar).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menuitem', { name: '打开段落聚焦' })).toHaveCount(0);
+
+  const readerFooter = page.getByLabel('阅读页脚控制');
+  const nextPageButton = readerFooter.getByRole('button', { name: '下一页' });
+  await expect(nextPageButton).toBeVisible();
+  await nextPageButton.click();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const overlaySourceValue = overlay
+    .getByLabel('当前阅读上下文')
+    .locator('.overlay-context-item', { hasText: '摘录来源' })
+    .locator('strong');
+  await expect(overlay).toBeVisible();
+  await expect(overlaySourceValue).not.toHaveText('当前选区');
+});
+
 test('reader reuses the exited epub selection-owned focused-reading excerpt after exit, reload, and reopen in web mode', async ({
   page
 }) => {
