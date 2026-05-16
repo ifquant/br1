@@ -3422,40 +3422,79 @@ const sampleReaderCases = [
 test('reader shows selection-near annotation actions in web mode', async ({ page }) => {
   await page.goto('/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book');
   await page.getByLabel('工作台模式切换').getByRole('button', { name: '打开笔记工作台' }).click();
+  const pinnedSelectionText = 'plain text file exists';
+  const replacementSelectionText = 'verify the current P0-1 downgrade contract';
 
-  await page.evaluate(() => {
-    const reader = document.querySelector('.plain-text-reader');
-    if (!(reader instanceof HTMLElement)) {
-      throw new Error('expected the plain-text reader surface to exist');
-    }
+  const selectText = async (targetText: string) => {
+    await page.evaluate((nextTargetText) => {
+      const reader = document.querySelector('.plain-text-reader');
+      if (!(reader instanceof HTMLElement)) {
+        throw new Error('expected the plain-text reader surface to exist');
+      }
 
-    const pre = reader.querySelector('pre');
-    const textNode = pre?.firstChild;
-    if (!(textNode instanceof Text)) {
-      throw new Error('expected the TXT reader text node to exist');
-    }
+      const pre = reader.querySelector('pre');
+      const textNode = pre?.firstChild;
+      if (!(textNode instanceof Text)) {
+        throw new Error('expected the TXT reader text node to exist');
+      }
 
-    const raw = textNode.textContent ?? '';
-    const targetText = 'plain text file exists';
-    const start = raw.indexOf(targetText);
-    if (start < 0) {
-      throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
-    }
+      const raw = textNode.textContent ?? '';
+      const start = raw.indexOf(nextTargetText);
+      if (start < 0) {
+        throw new Error(`expected the TXT fixture text to contain "${nextTargetText}"`);
+      }
 
-    const range = document.createRange();
-    range.setStart(textNode, start);
-    range.setEnd(textNode, start + targetText.length);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    document.dispatchEvent(new Event('selectionchange'));
-  });
+      const range = document.createRange();
+      range.setStart(textNode, start);
+      range.setEnd(textNode, start + nextTargetText.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    }, targetText);
+  };
+
+  await selectText(pinnedSelectionText);
 
   const toolbar = page.getByRole('toolbar', { name: '选中文本操作' });
   await expect(toolbar).toBeVisible();
   await expect(toolbar.getByRole('button', { name: '高亮' })).toBeVisible();
   await expect(toolbar.getByRole('button', { name: '翻译' })).toBeVisible();
   await expect(toolbar.getByRole('button', { name: '朗读' })).toBeVisible();
+  await toolbar.getByRole('button', { name: '朗读' }).click();
+
+  const ttsWorkspace = page.getByRole('region', { name: '朗读模式' });
+  const currentTargetPanel = ttsWorkspace.locator('article').filter({ hasText: '当前朗读目标' });
+  const ttsStatusStrip = page.getByLabel('朗读模式状态');
+
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(ttsWorkspace).toBeVisible();
+  await expect(currentTargetPanel.locator('p')).toHaveText(pinnedSelectionText);
+  await ttsWorkspace.getByRole('button', { name: '锁定当前朗读目标' }).click();
+  await expect(ttsStatusStrip).toContainText('已锁定朗读目标');
+
+  await selectText(replacementSelectionText);
+
+  await expect(toolbar).toBeVisible();
+  await toolbar.getByRole('button', { name: '朗读' }).click();
+
+  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+  await expect(page).toHaveURL(/workspace=tts/);
+  await expect(page).toHaveURL(/tts=source/);
+  await expect(ttsWorkspace).toBeVisible();
+  await expect(currentTargetPanel).toContainText('正文选区');
+  await expect(currentTargetPanel.locator('p')).toHaveText(replacementSelectionText);
+  await expect(ttsWorkspace.getByLabel('译文朗读来源')).toHaveCount(0);
+  await expect(ttsStatusStrip).toContainText('跟随当前阅读位置');
+  await expect(ttsStatusStrip).not.toContainText('已锁定朗读目标');
+  await expect(ttsWorkspace.getByRole('button', { name: '朗读原文' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(ttsWorkspace.getByRole('button', { name: '朗读译文' })).toHaveAttribute(
+    'aria-pressed',
+    'false'
+  );
 });
 
 test('reader opens footnote links in a reader popup in web mode', async ({ page }) => {

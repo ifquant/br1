@@ -1492,8 +1492,36 @@
     void requestAssistanceTranslation(translationProvider, selectionText, translationTargetLanguage);
   };
 
+  // The selection popup promises "read this selection", so it cannot reuse a
+  // pinned or translated playback target from the broader TTS workspace state.
+  const resolveCurrentSelectionTtsSpeechTarget = () =>
+    resolveReaderTtsSpeechTarget({
+      readAloudTextMode: 'source',
+      selectedText: currentReaderSelection?.text,
+      preview: currentPreview,
+      getLocationDisplayLabel: getReaderLocationDisplayLabel,
+      effectiveTranslationSource,
+      assistanceSelection,
+      assistanceHistory,
+      assistanceState,
+      translatedOwner: translatedTtsOwner,
+      translatedLiveSnapshot: translatedTtsLiveSnapshot
+    });
+
   const readCurrentSelectionAloud = () => {
-    handleTtsStart();
+    const selectionTarget = resolveCurrentSelectionTtsSpeechTarget();
+    if (!selectionTarget) return;
+
+    const shouldPersistOwnership =
+      ttsReadAloudTextMode !== 'source' || !ttsFollowsCurrentLocation || pinnedTtsTarget !== null;
+
+    ttsReadAloudTextMode = 'source';
+    pinnedTtsTarget = null;
+    ttsFollowsCurrentLocation = true;
+    if (shouldPersistOwnership) {
+      persistCurrentBookTtsOwnershipState();
+    }
+    applyTtsRetarget(selectionTarget);
     void openNotebookWorkspaceTab('tts');
   };
 
