@@ -3147,6 +3147,57 @@ test('reader productizes bookmarks as current reading positions in web mode', as
   await expect(page.getByRole('button', { name: '移除当前页书签' })).toBeVisible();
 });
 
+test('reader annotation controller interactions stay legible in web mode', async ({ page }) => {
+  const readerUrl =
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
+  const selectText = async (needle: string) => {
+    await page.evaluate((targetText) => {
+      const pre = document.querySelector('.plain-text-paper pre');
+      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
+      const textNode = pre.firstChild;
+      const raw = textNode.textContent ?? '';
+      const start = raw.indexOf(targetText);
+      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
+      const range = document.createRange();
+      range.setStart(textNode, start);
+      range.setEnd(textNode, start + targetText.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    }, needle);
+  };
+
+  await page.goto(readerUrl);
+  const sidebarTabs = page.getByLabel('阅读侧栏标签');
+  await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
+  const highlightButton = page.locator('.secondary-note-action').first();
+
+  await selectText('plain text file exists');
+  await expect(highlightButton).toBeEnabled();
+  await highlightButton.click();
+  await selectText('steady reading length');
+  await highlightButton.click();
+
+  await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
+  const highlightsPanel = page.getByRole('region', { name: '高亮面板' });
+  const highlightCards = page.locator('.highlight-card');
+  await expect(highlightsPanel).toContainText('当前书已保存 2 条高亮');
+  await expect(highlightCards).toHaveCount(2);
+
+  await highlightsPanel.getByRole('button', { name: '选中当前视图高亮' }).click();
+  await expect(highlightsPanel).toContainText('已选 2 条');
+  await highlightsPanel.getByRole('button', { name: '已选高亮' }).click();
+  await expect(highlightsPanel).toContainText('2 已选高亮');
+
+  await highlightCards.first().locator('.highlight-selection-toggle').click();
+  await expect(highlightsPanel).toContainText('1 已选高亮');
+  await expect(highlightCards).toHaveCount(1);
+  await highlightsPanel.getByRole('button', { name: '清空选中' }).click();
+  await expect(highlightsPanel).toContainText('未选高亮');
+  await expect(highlightCards).toHaveCount(0);
+});
+
 test('reader supports txt notes through selection, persistence, and note reopen in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';

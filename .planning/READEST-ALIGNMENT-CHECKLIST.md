@@ -1461,9 +1461,17 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Outcome: the sidebar `assist` tab now mounts a dedicated presentation child while `ReaderSidebar.svelte` keeps active-tab routing and all assistance history ownership aligned with the existing notebook workspace.
   - Touches: `ReaderSidebarAssist.svelte`, `ReaderSidebar.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
   - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader sidebar assist workspace stays legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1658`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
-  - Done commit: not committed yet.
+  - Done commit: `52c0bb5`.
   - Tutorial: `tutorials/commit/0662-extract-reader-sidebar-assist-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `1663`. The new child stays presentation-only on purpose: it wraps the `ReaderAssistWorkspace` host and forwards the existing request/history callbacks, but it does not become a second owner of active-tab routing, local assistance restore state, or notebook/archive semantics.
+
+- [x] P18-1.9 Extract reader sidebar annotation controller
+  - Outcome: current-book annotation derived state, group open/close rules, and highlight-selection helpers move into `sidebarAnnotations.ts` while `ReaderSidebar.svelte` keeps persistence, cross-book saved-highlight ownership, tab routing, and scroll-to-active effects.
+  - Touches: `src/lib/reader/sidebarAnnotations.ts`, `ReaderSidebar.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader annotation controller interactions stay legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1512`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0663-extract-reader-sidebar-annotation-controller.md`.
+  - Notes: this slice is intentionally about current-book controller logic only. It does not move cross-book selection import/export, route-tab ownership, or the existing `ReaderSidebarAnnotations.svelte` presentation contract. The smoke creates real TXT highlights and drives select-all, selected filtering, individual unselect, and clear-selection behavior through the extracted controller path.
 
 
 ## P19 Reader File Boundary Reduction
@@ -1477,7 +1485,6 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Done commit: not committed yet; user requested no commit.
   - Tutorial: `tutorials/commit/0657-extract-reader-maturity-route-coordination.md`.
   - Notes: Svelte navigation, localStorage restore/persist, and event handlers intentionally remain inside `+page.svelte`. The footnote reset rule is covered in the new pure helper tests so it stays documented alongside the route-owned maturity decisions, but the live popup owner still remains `ReaderStage.svelte`.
-
 
 ## Service Security Gate
 

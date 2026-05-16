@@ -37,6 +37,26 @@
     createEmptyReaderPreviewState
   } from '$lib/reader';
   import {
+    addReaderSidebarHighlightGroupSelection,
+    clearReaderSidebarHighlightSelection,
+    collapseReaderSidebarGroups,
+    dedupeReaderSidebarSavedHighlightSelections,
+    deriveReaderSidebarAnnotationState,
+    expandReaderSidebarGroups,
+    getReaderSidebarAnnotationKindLabel,
+    invertReaderSidebarHighlightSelection,
+    isReaderSidebarGroupCollapsed,
+    isReaderSidebarHighlightGroupFullySelected,
+    isReaderSidebarHighlightGroupPartiallySelected,
+    openReaderSidebarActiveAnnotationGroups,
+    pruneReaderSidebarHighlightSelectionState,
+    removeReaderSidebarHighlightGroupSelection,
+    selectAllReaderSidebarHighlights,
+    toggleReaderSidebarGroupCollapsed,
+    toggleReaderSidebarHighlightSelection,
+    type ReaderSidebarAnnotationNote
+  } from '$lib/reader/sidebarAnnotations';
+  import {
     getSearchSupportMessage,
     getTextAnnotationSupportMessage,
     READER_UNSUPPORTED_SEARCH_TITLE,
@@ -157,37 +177,6 @@
   // meaning instead of flattening them into one interchangeable workspace list.
   $: supportsTextAnnotations = supportsTextAnnotationsForFormat(preview.formatLabel);
   $: textAnnotationSupportMessage = getTextAnnotationSupportMessage(preview.formatLabel);
-  $: notesPanelSummary = (() => {
-    if (!supportsTextAnnotations) return textAnnotationSupportMessage;
-    if (notesState.selection) return '已选中一段正文，可以直接记笔记或高亮。';
-    if (notesState.notes.length) return '这里会一起显示当前书的笔记和高亮，可按章节或类型收窄。';
-    return '先在正文里选中一段文本，再把它存成当前书的笔记或高亮。';
-  })();
-  $: bookmarksPanelSummary = (() => {
-    if (bookmarksState.bookmarks.length) {
-      if (isCurrentLocationBookmarked) {
-        return `已保存 ${bookmarksState.bookmarks.length} 个阅读位置，当前页已经在书签里。`;
-      }
-      return `已保存 ${bookmarksState.bookmarks.length} 个阅读位置，可把当前页和已存位置来回切换。`;
-    }
-    if (bookmarksState.activeLocator) {
-      return '还没有保存的阅读位置，可以先把当前页存成书签。';
-    }
-    return '等正文定位稳定后，可以把当前页存成书签。';
-  })();
-  $: highlightsPanelSummary = (() => {
-    if (!supportsTextAnnotations) return textAnnotationSupportMessage;
-    if (allHighlights.length) {
-      if (savedHighlightSelections.length) {
-        return `当前书已保存 ${allHighlights.length} 条高亮，跨书高亮选择集也会在这里继续管理。`;
-      }
-      return `当前书已保存 ${allHighlights.length} 条高亮，可继续筛选、选中或整理成跨书选择集。`;
-    }
-    if (savedHighlightSelections.length) {
-      return '当前书还没有高亮，但已保存的跨书高亮选择集仍然可以在这里继续整理。';
-    }
-    return '先选中一段正文创建高亮；如果要跨书复用，再把当前选择存成选择集。';
-  })();
   $: highlightsWorkspaceStorageKey = bookKey ? `br1.reader.highlights.workspace:${bookKey}` : '';
 
   const applyDefaultHighlightsWorkspaceState = () => {
@@ -530,6 +519,7 @@
     search.cacheKey.length > 52
       ? `${search.cacheKey.slice(0, 24)}…${search.cacheKey.slice(-20)}`
       : search.cacheKey;
+  $: rawAllHighlights = notesState.notes.filter((note) => note.kind === 'highlight');
   $: recentSearchResultIndex = search.results.findIndex((item) => item.cfi === search.recentResultCfi);
   $: activeSearchResultIndex = search.results.findIndex((item) => item.cfi === search.activeResultCfi);
   $: currentSearchResultIndex = Math.max(
@@ -537,70 +527,41 @@
     recentSearchResultIndex >= 0 ? recentSearchResultIndex : activeSearchResultIndex
   );
   $: searchSummaryModel = getSearchSummaryModel(search, preview.formatLabel);
-  $: isCurrentLocationBookmarked =
-    !!bookmarksState.activeLocator &&
-    bookmarksState.bookmarks.some((bookmark) => bookmark.locator === bookmarksState.activeLocator);
-  $: filteredBookmarks =
-    bookmarksFilter === 'chapter' && activeHref
-      ? bookmarksState.bookmarks.filter((bookmark) => bookmark.chapterHref === activeHref)
-      : bookmarksState.bookmarks;
-  $: sortedBookmarks =
-    bookmarksSort === 'chapter'
-      ? [...filteredBookmarks].sort((left, right) => {
-          const chapterCompare = (left.chapterLabel || '').localeCompare(right.chapterLabel || '', 'zh-CN');
-          if (chapterCompare !== 0) return chapterCompare;
-          return right.createdAt - left.createdAt;
-        })
-      : filteredBookmarks;
-  $: groupedBookmarks = sortedBookmarks.reduce<
-    Array<{ chapterHref: string; chapterLabel: string; bookmarks: typeof sortedBookmarks }>
-  >((groups, bookmark) => {
-    const chapterHref = bookmark.chapterHref || '__unknown__';
-    const chapterLabel = bookmark.chapterLabel || '未命名章节';
-    const existingGroup = groups.find((group) => group.chapterHref === chapterHref);
-    if (existingGroup) {
-      existingGroup.bookmarks.push(bookmark);
-      return groups;
-    }
-
-    groups.push({
-      chapterHref,
-      chapterLabel,
-      bookmarks: [bookmark]
-    });
-    return groups;
-  }, []);
-  $: collapsibleBookmarkGroupKeys = groupedBookmarks
-    .map((group) => group.chapterHref)
-    .filter((chapterHref) => chapterHref && chapterHref !== '__unknown__');
-  $: areAllBookmarkGroupsExpanded =
-    collapsibleBookmarkGroupKeys.length > 0 &&
-    collapsibleBookmarkGroupKeys.every((chapterHref) => !collapsedBookmarkGroups.has(chapterHref));
-  $: areAllBookmarkGroupsCollapsed =
-    collapsibleBookmarkGroupKeys.length > 0 &&
-    collapsibleBookmarkGroupKeys.every((chapterHref) => collapsedBookmarkGroups.has(chapterHref));
-  $: {
-    const activeBookmark = bookmarksState.bookmarks.find((bookmark) => bookmark.locator === bookmarksState.activeLocator);
-    if (activeBookmark?.chapterHref) {
-      collapsedBookmarkGroups.delete(activeBookmark.chapterHref);
-      collapsedBookmarkGroups = new Set(collapsedBookmarkGroups);
-    }
-  }
-  $: notesByScope =
-    notesFilter === 'chapter' && activeHref
-      ? notesState.notes.filter((note) => note.chapterHref === activeHref)
-      : notesState.notes;
-  $: allHighlights = notesState.notes.filter((note) => note.kind === 'highlight');
-  $: highlightsByScope =
-    highlightsFilter === 'chapter' && activeHref
-      ? allHighlights.filter((note) => note.chapterHref === activeHref)
-      : highlightsFilter === 'selected'
-        ? allHighlights.filter((note) => selectedHighlightIds.has(note.id))
-        : allHighlights;
-  $: sortedHighlights =
-    highlightsSort === 'oldest'
-      ? [...highlightsByScope].sort((left, right) => left.createdAt - right.createdAt)
-      : [...highlightsByScope].sort((left, right) => right.createdAt - left.createdAt);
+  // Current-book annotation derivation lives in a pure helper so the sidebar
+  // can keep owning persistence and routing without also owning every grouping
+  // and selection rule inline.
+  $: annotationState = deriveReaderSidebarAnnotationState({
+    activeHref,
+    supportsTextAnnotations,
+    textAnnotationSupportMessage,
+    notesState,
+    allHighlights: rawAllHighlights,
+    bookmarksState,
+    notesFilter,
+    notesKindFilter,
+    highlightsFilter,
+    highlightsSort,
+    bookmarksFilter,
+    bookmarksSort,
+    selectedHighlightIds,
+    savedHighlightSelections,
+    collapsedBookmarkGroups,
+    collapsedNoteGroups,
+    collapsedHighlightGroups
+  });
+  $: isCurrentLocationBookmarked = annotationState.isCurrentLocationBookmarked;
+  $: notesPanelSummary = annotationState.notesPanelSummary;
+  $: bookmarksPanelSummary = annotationState.bookmarksPanelSummary;
+  $: highlightsPanelSummary = annotationState.highlightsPanelSummary;
+  $: sortedBookmarks = annotationState.sortedBookmarks;
+  $: groupedBookmarks = annotationState.groupedBookmarks;
+  $: collapsibleBookmarkGroupKeys = annotationState.collapsibleBookmarkGroupKeys;
+  $: areAllBookmarkGroupsExpanded = annotationState.areAllBookmarkGroupsExpanded;
+  $: areAllBookmarkGroupsCollapsed = annotationState.areAllBookmarkGroupsCollapsed;
+  $: notesByScope = annotationState.notesByScope;
+  $: allHighlights = annotationState.allHighlights;
+  $: highlightsByScope = annotationState.highlightsByScope;
+  $: sortedHighlights = annotationState.sortedHighlights;
   $: orderedSavedHighlightSelections =
     savedHighlightSelectionsSort === 'oldest'
       ? [...savedHighlightSelections].sort((left, right) => left.createdAt - right.createdAt)
@@ -628,137 +589,75 @@
             selectionSet.importSource &&
             getSavedHighlightSelectionRefreshOutcome(selectionSet) === savedHighlightSelectionsRefreshFilter
         );
-  $: selectedVisibleHighlights = sortedHighlights.filter((note) => selectedHighlightIds.has(note.id));
-  $: savedHighlightSelections = savedHighlightSelections.filter(
-    (set, index, allSets) =>
-      set.selectedIds.length > 0 &&
-      allSets.findIndex((candidate) => candidate.id === set.id) === index
-  );
-  $: areAllVisibleHighlightsSelected =
-    sortedHighlights.length > 0 && selectedVisibleHighlights.length === sortedHighlights.length;
-  $: filteredNotes =
-    notesKindFilter === 'highlight'
-      ? notesByScope.filter((note) => note.kind === 'highlight')
-      : notesKindFilter === 'note'
-        ? notesByScope.filter((note) => note.kind !== 'highlight')
-        : notesByScope;
-  $: groupedNotes = filteredNotes.reduce<Array<{ chapterHref: string; chapterLabel: string; notes: typeof filteredNotes }>>(
-    (groups, note) => {
-      const chapterHref = note.chapterHref || '__unknown__';
-      const chapterLabel = note.chapterLabel || '未命名章节';
-      const existingGroup = groups.find((group) => group.chapterHref === chapterHref);
-      if (existingGroup) {
-        existingGroup.notes.push(note);
-        return groups;
-      }
-
-      groups.push({
-        chapterHref,
-        chapterLabel,
-        notes: [note]
-      });
-      return groups;
-    },
-    []
-  );
-  $: groupedHighlights = sortedHighlights.reduce<
-    Array<{ chapterHref: string; chapterLabel: string; notes: typeof sortedHighlights }>
-  >((groups, note) => {
-    const chapterHref = note.chapterHref || '__unknown__';
-    const chapterLabel = note.chapterLabel || '未命名章节';
-    const existingGroup = groups.find((group) => group.chapterHref === chapterHref);
-    if (existingGroup) {
-      existingGroup.notes.push(note);
-      return groups;
-    }
-
-    groups.push({
-      chapterHref,
-      chapterLabel,
-      notes: [note]
+  $: selectedVisibleHighlights = annotationState.selectedVisibleHighlights;
+  $: areAllVisibleHighlightsSelected = annotationState.areAllVisibleHighlightsSelected;
+  $: filteredNotes = annotationState.filteredNotes;
+  $: groupedNotes = annotationState.groupedNotes;
+  $: groupedHighlights = annotationState.groupedHighlights;
+  $: collapsibleGroupKeys = annotationState.collapsibleNoteGroupKeys;
+  $: collapsibleHighlightGroupKeys = annotationState.collapsibleHighlightGroupKeys;
+  $: areAllNoteGroupsExpanded = annotationState.areAllNoteGroupsExpanded;
+  $: areAllNoteGroupsCollapsed = annotationState.areAllNoteGroupsCollapsed;
+  $: areAllHighlightGroupsExpanded = annotationState.areAllHighlightGroupsExpanded;
+  $: areAllHighlightGroupsCollapsed = annotationState.areAllHighlightGroupsCollapsed;
+  $: {
+    const openedGroups = openReaderSidebarActiveAnnotationGroups({
+      notesState,
+      bookmarksState,
+      allHighlights: rawAllHighlights,
+      collapsedBookmarkGroups,
+      collapsedNoteGroups,
+      collapsedHighlightGroups
     });
-    return groups;
-  }, []);
-  $: collapsibleGroupKeys = groupedNotes
-    .map((group) => group.chapterHref)
-    .filter((chapterHref) => chapterHref && chapterHref !== '__unknown__');
-  $: collapsibleHighlightGroupKeys = groupedHighlights
-    .map((group) => group.chapterHref)
-    .filter((chapterHref) => chapterHref && chapterHref !== '__unknown__');
-  $: areAllNoteGroupsExpanded =
-    collapsibleGroupKeys.length > 0 &&
-    collapsibleGroupKeys.every((chapterHref) => !collapsedNoteGroups.has(chapterHref));
-  $: areAllNoteGroupsCollapsed =
-    collapsibleGroupKeys.length > 0 &&
-    collapsibleGroupKeys.every((chapterHref) => collapsedNoteGroups.has(chapterHref));
-  $: {
-    const activeNote = notesState.notes.find((note) => note.cfi === notesState.activeCfi);
-    if (activeNote?.chapterHref) {
-      collapsedNoteGroups.delete(activeNote.chapterHref);
-      collapsedNoteGroups = new Set(collapsedNoteGroups);
+    if (openedGroups.collapsedBookmarkGroups.size !== collapsedBookmarkGroups.size) {
+      collapsedBookmarkGroups = openedGroups.collapsedBookmarkGroups;
+    }
+    if (openedGroups.collapsedNoteGroups.size !== collapsedNoteGroups.size) {
+      collapsedNoteGroups = openedGroups.collapsedNoteGroups;
+    }
+    if (openedGroups.collapsedHighlightGroups.size !== collapsedHighlightGroups.size) {
+      collapsedHighlightGroups = openedGroups.collapsedHighlightGroups;
     }
   }
   $: {
-    const activeHighlight = allHighlights.find((note) => note.cfi === notesState.activeCfi);
-    if (activeHighlight?.chapterHref) {
-      collapsedHighlightGroups.delete(activeHighlight.chapterHref);
-      collapsedHighlightGroups = new Set(collapsedHighlightGroups);
+    const pruned = pruneReaderSidebarHighlightSelectionState({
+      allHighlights: rawAllHighlights,
+      selectedHighlightIds,
+      savedHighlightSelections
+    });
+    if (pruned.selectedHighlightIds.size !== selectedHighlightIds.size) {
+      selectedHighlightIds = pruned.selectedHighlightIds;
+    }
+    if (JSON.stringify(pruned.savedHighlightSelections) !== JSON.stringify(savedHighlightSelections)) {
+      savedHighlightSelections = pruned.savedHighlightSelections;
     }
   }
   $: {
-    if (allHighlights.length > 0) {
-      const visibleHighlightIds = new Set(allHighlights.map((note) => note.id));
-      const nextSelection = new Set(Array.from(selectedHighlightIds).filter((id) => visibleHighlightIds.has(id)));
-      if (nextSelection.size !== selectedHighlightIds.size) {
-        selectedHighlightIds = nextSelection;
-      }
-
-      const nextSavedSelections = savedHighlightSelections
-        .map((set) => ({
-          ...set,
-          selectedIds: set.selectedIds.filter((id) => visibleHighlightIds.has(id))
-        }))
-        .filter((set) => set.selectedIds.length > 0);
-      if (JSON.stringify(nextSavedSelections) !== JSON.stringify(savedHighlightSelections)) {
-        savedHighlightSelections = nextSavedSelections;
-      }
+    const dedupedSavedSelections = dedupeReaderSidebarSavedHighlightSelections(savedHighlightSelections);
+    if (JSON.stringify(dedupedSavedSelections) !== JSON.stringify(savedHighlightSelections)) {
+      savedHighlightSelections = dedupedSavedSelections;
     }
   }
-  $: areAllHighlightGroupsExpanded =
-    collapsibleHighlightGroupKeys.length > 0 &&
-    collapsibleHighlightGroupKeys.every((chapterHref) => !collapsedHighlightGroups.has(chapterHref));
-  $: areAllHighlightGroupsCollapsed =
-    collapsibleHighlightGroupKeys.length > 0 &&
-    collapsibleHighlightGroupKeys.every((chapterHref) => collapsedHighlightGroups.has(chapterHref));
 
-  const isNoteGroupCollapsed = (chapterHref: string) => collapsedNoteGroups.has(chapterHref);
+  const isNoteGroupCollapsed = (chapterHref: string) =>
+    isReaderSidebarGroupCollapsed(collapsedNoteGroups, chapterHref);
 
-  const isHighlightGroupCollapsed = (chapterHref: string) => collapsedHighlightGroups.has(chapterHref);
+  const isHighlightGroupCollapsed = (chapterHref: string) =>
+    isReaderSidebarGroupCollapsed(collapsedHighlightGroups, chapterHref);
 
   const toggleNoteGroup = (chapterHref: string) => {
-    if (!chapterHref || chapterHref === '__unknown__') return;
-    if (collapsedNoteGroups.has(chapterHref)) {
-      collapsedNoteGroups.delete(chapterHref);
-    } else {
-      collapsedNoteGroups.add(chapterHref);
-    }
-    collapsedNoteGroups = new Set(collapsedNoteGroups);
+    collapsedNoteGroups = toggleReaderSidebarGroupCollapsed(collapsedNoteGroups, chapterHref);
   };
 
   const expandAllNoteGroups = () => {
-    collapsedNoteGroups = new Set();
+    collapsedNoteGroups = expandReaderSidebarGroups();
   };
 
   const collapseAllNoteGroups = () => {
-    collapsedNoteGroups = new Set(collapsibleGroupKeys);
+    collapsedNoteGroups = collapseReaderSidebarGroups(collapsibleGroupKeys);
   };
 
-  const getAnnotationKindLabel = (notes: ReaderSidebarNotesState['notes']) => {
-    const highlightCount = notes.filter((note) => note.kind === 'highlight').length;
-    if (highlightCount === notes.length) return '高亮';
-    if (highlightCount === 0) return '笔记';
-    return '标注';
-  };
+  const getAnnotationKindLabel = getReaderSidebarAnnotationKindLabel;
 
   const deleteVisibleNotes = () => {
     if (!filteredNotes.length) return;
@@ -781,21 +680,15 @@
   };
 
   const toggleHighlightGroup = (chapterHref: string) => {
-    if (!chapterHref || chapterHref === '__unknown__') return;
-    if (collapsedHighlightGroups.has(chapterHref)) {
-      collapsedHighlightGroups.delete(chapterHref);
-    } else {
-      collapsedHighlightGroups.add(chapterHref);
-    }
-    collapsedHighlightGroups = new Set(collapsedHighlightGroups);
+    collapsedHighlightGroups = toggleReaderSidebarGroupCollapsed(collapsedHighlightGroups, chapterHref);
   };
 
   const expandAllHighlightGroups = () => {
-    collapsedHighlightGroups = new Set();
+    collapsedHighlightGroups = expandReaderSidebarGroups();
   };
 
   const collapseAllHighlightGroups = () => {
-    collapsedHighlightGroups = new Set(collapsibleHighlightGroupKeys);
+    collapsedHighlightGroups = collapseReaderSidebarGroups(collapsibleHighlightGroupKeys);
   };
 
   const deleteVisibleHighlights = () => {
@@ -808,25 +701,19 @@
           : '删除当前视图中的全部高亮？';
     if (!window.confirm(confirmLabel)) return;
     callbacks.onDeleteNotes?.(highlightsByScope.map((note) => note.id));
-    selectedHighlightIds = new Set();
+    selectedHighlightIds = clearReaderSidebarHighlightSelection();
   };
 
   const toggleHighlightSelection = (id: string) => {
-    const nextSelection = new Set(selectedHighlightIds);
-    if (nextSelection.has(id)) {
-      nextSelection.delete(id);
-    } else {
-      nextSelection.add(id);
-    }
-    selectedHighlightIds = nextSelection;
+    selectedHighlightIds = toggleReaderSidebarHighlightSelection(selectedHighlightIds, id);
   };
 
   const selectAllVisibleHighlights = () => {
-    selectedHighlightIds = new Set(sortedHighlights.map((note) => note.id));
+    selectedHighlightIds = selectAllReaderSidebarHighlights(sortedHighlights);
   };
 
   const clearSelectedHighlights = () => {
-    selectedHighlightIds = new Set();
+    selectedHighlightIds = clearReaderSidebarHighlightSelection();
   };
 
   const saveCurrentHighlightSelection = () => {
@@ -1271,46 +1158,22 @@
   };
 
   const invertVisibleHighlightsSelection = () => {
-    const nextSelection = new Set(selectedHighlightIds);
-    for (const note of sortedHighlights) {
-      if (nextSelection.has(note.id)) {
-        nextSelection.delete(note.id);
-      } else {
-        nextSelection.add(note.id);
-      }
-    }
-    selectedHighlightIds = nextSelection;
+    selectedHighlightIds = invertReaderSidebarHighlightSelection(selectedHighlightIds, sortedHighlights);
   };
 
-  const selectHighlightGroup = (notes: typeof sortedHighlights) => {
-    const nextSelection = new Set(selectedHighlightIds);
-    for (const note of notes) {
-      nextSelection.add(note.id);
-    }
-    selectedHighlightIds = nextSelection;
+  const selectHighlightGroup = (notes: ReaderSidebarAnnotationNote[]) => {
+    selectedHighlightIds = addReaderSidebarHighlightGroupSelection(selectedHighlightIds, notes);
   };
 
-  const clearHighlightGroupSelection = (notes: typeof sortedHighlights) => {
-    const nextSelection = new Set(selectedHighlightIds);
-    for (const note of notes) {
-      nextSelection.delete(note.id);
-    }
-    selectedHighlightIds = nextSelection;
+  const clearHighlightGroupSelection = (notes: ReaderSidebarAnnotationNote[]) => {
+    selectedHighlightIds = removeReaderSidebarHighlightGroupSelection(selectedHighlightIds, notes);
   };
 
-  const invertHighlightGroupSelection = (notes: typeof sortedHighlights) => {
-    const nextSelection = new Set(selectedHighlightIds);
-    for (const note of notes) {
-      if (nextSelection.has(note.id)) {
-        nextSelection.delete(note.id);
-      } else {
-        nextSelection.add(note.id);
-      }
-    }
-    selectedHighlightIds = nextSelection;
+  const invertHighlightGroupSelection = (notes: ReaderSidebarAnnotationNote[]) => {
+    selectedHighlightIds = invertReaderSidebarHighlightSelection(selectedHighlightIds, notes);
   };
 
-  const deleteHighlightGroup = (notes: typeof sortedHighlights, chapterLabel: string) => {
+  const deleteHighlightGroup = (notes: ReaderSidebarAnnotationNote[], chapterLabel: string) => {
     if (!notes.length) return;
     const confirmLabel =
       notes.length === 1
@@ -1319,18 +1182,14 @@
     if (!window.confirm(confirmLabel)) return;
     callbacks.onDeleteNotes?.(notes.map((note) => note.id));
 
-    const nextSelection = new Set(selectedHighlightIds);
-    for (const note of notes) {
-      nextSelection.delete(note.id);
-    }
-    selectedHighlightIds = nextSelection;
+    selectedHighlightIds = removeReaderSidebarHighlightGroupSelection(selectedHighlightIds, notes);
   };
 
-  const isHighlightGroupFullySelected = (notes: typeof sortedHighlights) =>
-    notes.length > 0 && notes.every((note) => selectedHighlightIds.has(note.id));
+  const isHighlightGroupFullySelected = (notes: ReaderSidebarAnnotationNote[]) =>
+    isReaderSidebarHighlightGroupFullySelected(selectedHighlightIds, notes);
 
-  const isHighlightGroupPartiallySelected = (notes: typeof sortedHighlights) =>
-    notes.some((note) => selectedHighlightIds.has(note.id));
+  const isHighlightGroupPartiallySelected = (notes: ReaderSidebarAnnotationNote[]) =>
+    isReaderSidebarHighlightGroupPartiallySelected(selectedHighlightIds, notes);
 
   const deleteSelectedHighlights = () => {
     if (!selectedVisibleHighlights.length) return;
@@ -1340,27 +1199,22 @@
         : `删除选中的 ${selectedVisibleHighlights.length} 条高亮？`;
     if (!window.confirm(confirmLabel)) return;
     callbacks.onDeleteNotes?.(selectedVisibleHighlights.map((note) => note.id));
-    selectedHighlightIds = new Set();
+    selectedHighlightIds = clearReaderSidebarHighlightSelection();
   };
 
-  const isBookmarkGroupCollapsed = (chapterHref: string) => collapsedBookmarkGroups.has(chapterHref);
+  const isBookmarkGroupCollapsed = (chapterHref: string) =>
+    isReaderSidebarGroupCollapsed(collapsedBookmarkGroups, chapterHref);
 
   const toggleBookmarkGroup = (chapterHref: string) => {
-    if (!chapterHref || chapterHref === '__unknown__') return;
-    if (collapsedBookmarkGroups.has(chapterHref)) {
-      collapsedBookmarkGroups.delete(chapterHref);
-    } else {
-      collapsedBookmarkGroups.add(chapterHref);
-    }
-    collapsedBookmarkGroups = new Set(collapsedBookmarkGroups);
+    collapsedBookmarkGroups = toggleReaderSidebarGroupCollapsed(collapsedBookmarkGroups, chapterHref);
   };
 
   const expandAllBookmarkGroups = () => {
-    collapsedBookmarkGroups = new Set();
+    collapsedBookmarkGroups = expandReaderSidebarGroups();
   };
 
   const collapseAllBookmarkGroups = () => {
-    collapsedBookmarkGroups = new Set(collapsibleBookmarkGroupKeys);
+    collapsedBookmarkGroups = collapseReaderSidebarGroups(collapsibleBookmarkGroupKeys);
   };
 
   const runSearchHistory = (entry: ReaderSearchHistoryEntry) => {
