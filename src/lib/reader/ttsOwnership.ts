@@ -22,6 +22,7 @@ import {
   type ReaderCurrentBookPersistenceKeys,
   type ReaderTranslatedTtsLiveSnapshot,
   type ReaderTranslatedTtsOwner,
+  type ReaderTranslationLiveSnapshot,
   type ReaderTtsOwnership
 } from './currentBookPersistence.js';
 import type { ReaderRouteOpenState } from './route.js';
@@ -44,7 +45,13 @@ import {
   type ReaderTtsSessionState,
   type ReaderTtsSpeechTarget
 } from './tts.js';
-import type { ReaderTranslationSource } from './translationOwnership.js';
+import {
+  resolveReaderLiveTranslationPanelResult,
+  resolveReaderNextTranslationLiveSnapshot,
+  resolveReaderTranslationLiveSnapshotState,
+  type ReaderLiveTranslationPanelResult,
+  type ReaderTranslationSource
+} from './translationOwnership.js';
 
 export type ReaderTranslatedTtsSourceKind =
   | 'none'
@@ -90,6 +97,14 @@ export type ReaderTtsMiniBarState = {
   canPinCurrentTarget: boolean;
   canSwitchMode: boolean;
   modeSwitchLabel: string;
+};
+
+export type ReaderTranslationTtsDerivationState = {
+  nextTranslationLiveSnapshot: ReaderTranslationLiveSnapshot | null;
+  liveTranslationPanelResult: ReaderLiveTranslationPanelResult | null;
+  resolvedTranslationLiveSnapshot: ReaderTranslationLiveSnapshot | null;
+  translatedSourceState: ReaderTranslatedTtsSourceState;
+  nextTranslatedTtsLiveSnapshot: ReaderTranslatedTtsLiveSnapshot | null;
 };
 
 type ReaderTtsStorageKeys = Pick<
@@ -538,6 +553,59 @@ export const resolveReaderTranslatedTtsSourceState = (input: {
   }
 
   return EMPTY_TRANSLATED_TTS_SOURCE_STATE;
+};
+
+export const resolveReaderTranslationTtsDerivationState = (input: {
+  effectiveTranslationSource: ReaderTranslationSource;
+  assistanceState: ReaderAssistanceState;
+  assistanceHistory: ReaderAssistanceHistoryEntry[];
+  assistanceSelection: ReaderAssistanceWorkspaceSelection;
+  translationLiveSnapshot: ReaderTranslationLiveSnapshot | null;
+  translatedTtsOwner: ReaderTranslatedTtsOwner;
+  translatedTtsLiveSnapshot: ReaderTranslatedTtsLiveSnapshot | null;
+  translationFollowsCurrentSource: boolean;
+  liveTranslatedTtsResult: ReaderTranslatedTtsResult | null;
+}): ReaderTranslationTtsDerivationState => {
+  const nextTranslationLiveSnapshot = resolveReaderNextTranslationLiveSnapshot({
+    source: input.effectiveTranslationSource,
+    assistanceState: input.assistanceState,
+    assistanceHistory: input.assistanceHistory
+  });
+  const liveTranslationPanelResult = resolveReaderLiveTranslationPanelResult({
+    source: input.effectiveTranslationSource,
+    assistanceState: input.assistanceState,
+    assistanceHistory: input.assistanceHistory,
+    liveSnapshot: input.translationLiveSnapshot
+  });
+  // Translation live snapshots cache the translation panel's last matching
+  // source text. They are intentionally separate from translated-TTS snapshots,
+  // which carry speech provenance such as target language, chapter, and progress.
+  const resolvedTranslationLiveSnapshot = resolveReaderTranslationLiveSnapshotState({
+    source: input.effectiveTranslationSource,
+    currentSnapshot: input.translationLiveSnapshot,
+    nextSnapshot: nextTranslationLiveSnapshot
+  });
+  const translatedSourceState = resolveReaderTranslatedTtsSourceState({
+    owner: input.translatedTtsOwner,
+    assistanceSelection: input.assistanceSelection,
+    assistanceHistory: input.assistanceHistory,
+    effectiveTranslationSource: input.effectiveTranslationSource,
+    translationFollowsCurrentSource: input.translationFollowsCurrentSource
+  });
+  const nextTranslatedTtsLiveSnapshot = resolveReaderTranslatedTtsLiveSnapshotState({
+    translatedOwner: input.translatedTtsOwner,
+    currentSnapshot: input.translatedTtsLiveSnapshot,
+    sourceText: input.effectiveTranslationSource.text,
+    liveTranslationResult: input.liveTranslatedTtsResult
+  });
+
+  return {
+    nextTranslationLiveSnapshot,
+    liveTranslationPanelResult,
+    resolvedTranslationLiveSnapshot,
+    translatedSourceState,
+    nextTranslatedTtsLiveSnapshot
+  };
 };
 
 export const getReaderTtsPreviewPlaybackLocationSummary = (

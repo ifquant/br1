@@ -115,10 +115,7 @@
   import {
     createPinnedReaderTranslationSource,
     normalizeReaderTranslationSource,
-    resolveReaderEffectiveTranslationSource,
-    resolveReaderLiveTranslationPanelResult,
-    resolveReaderNextTranslationLiveSnapshot,
-    resolveReaderTranslationLiveSnapshotState
+    resolveReaderEffectiveTranslationSource
   } from '$lib/reader';
   // TTS ownership owns source-vs-translated playback and translated snapshots.
   import {
@@ -126,9 +123,8 @@
     resolveReaderEffectiveTtsTarget,
     resolveReaderLiveTranslatedTtsResult,
     resolveReaderRouteTranslatedTtsOwner,
-    resolveReaderTranslatedTtsLiveSnapshotState,
     resolveReaderTranslatedTtsOwnerFallback,
-    resolveReaderTranslatedTtsSourceState,
+    resolveReaderTranslationTtsDerivationState,
     resolveReaderTtsMiniBarState,
     resolveReaderTtsSpeechTarget,
     restoreReaderTtsOwnershipState
@@ -889,19 +885,32 @@
     resolvedTranslationSource
   );
   $: {
-    nextTranslationLiveSnapshot = resolveReaderNextTranslationLiveSnapshot({
-      source: effectiveTranslationSource,
-      assistanceState,
-      assistanceHistory
-    });
-  }
-  $: {
-    liveTranslationPanelResult = resolveReaderLiveTranslationPanelResult({
-      source: effectiveTranslationSource,
+    currentPreview;
+    const translationTtsDerivationState = resolveReaderTranslationTtsDerivationState({
+      effectiveTranslationSource,
       assistanceState,
       assistanceHistory,
-      liveSnapshot: translationLiveSnapshot
+      assistanceSelection,
+      translationLiveSnapshot,
+      translatedTtsOwner,
+      translatedTtsLiveSnapshot,
+      translationFollowsCurrentSource,
+      liveTranslatedTtsResult: resolveCurrentLiveTranslatedTtsResult()
     });
+    nextTranslationLiveSnapshot = translationTtsDerivationState.nextTranslationLiveSnapshot;
+    liveTranslationPanelResult = translationTtsDerivationState.liveTranslationPanelResult;
+    if (translationTtsDerivationState.resolvedTranslationLiveSnapshot !== translationLiveSnapshot) {
+      translationLiveSnapshot = translationTtsDerivationState.resolvedTranslationLiveSnapshot;
+    }
+    translatedTtsSourceKind = translationTtsDerivationState.translatedSourceState.kind;
+    translatedTtsSourceContextLabel =
+      translationTtsDerivationState.translatedSourceState.contextLabel;
+    translatedTtsSourceText = translationTtsDerivationState.translatedSourceState.text;
+    if (
+      translationTtsDerivationState.nextTranslatedTtsLiveSnapshot !== translatedTtsLiveSnapshot
+    ) {
+      translatedTtsLiveSnapshot = translationTtsDerivationState.nextTranslatedTtsLiveSnapshot;
+    }
   }
   $: {
     translationLiveSnapshotStorageKey;
@@ -919,29 +928,6 @@
         translationLiveSnapshot
       );
     }
-  }
-  $: {
-    nextTranslationLiveSnapshot;
-    const resolvedTranslationLiveSnapshot = resolveReaderTranslationLiveSnapshotState({
-      source: effectiveTranslationSource,
-      currentSnapshot: translationLiveSnapshot,
-      nextSnapshot: nextTranslationLiveSnapshot
-    });
-    if (resolvedTranslationLiveSnapshot !== translationLiveSnapshot) {
-      translationLiveSnapshot = resolvedTranslationLiveSnapshot;
-    }
-  }
-  $: {
-    const translatedSourceState = resolveReaderTranslatedTtsSourceState({
-      owner: translatedTtsOwner,
-      assistanceSelection,
-      assistanceHistory,
-      effectiveTranslationSource,
-      translationFollowsCurrentSource
-    });
-    translatedTtsSourceKind = translatedSourceState.kind;
-    translatedTtsSourceContextLabel = translatedSourceState.contextLabel;
-    translatedTtsSourceText = translatedSourceState.text;
   }
   $: if ($ttsState.status !== 'speaking' && $ttsState.status !== 'paused') {
     ttsController.setSpeechTarget(ttsPlaybackTarget);
@@ -1022,22 +1008,6 @@
           provider: translationProvider
         }
       );
-    }
-  }
-  $: {
-    currentPreview;
-    assistanceState;
-    assistanceHistory;
-    effectiveTranslationSource;
-    translatedTtsOwner;
-    const nextTranslatedTtsLiveSnapshot = resolveReaderTranslatedTtsLiveSnapshotState({
-      translatedOwner: translatedTtsOwner,
-      currentSnapshot: translatedTtsLiveSnapshot,
-      sourceText: effectiveTranslationSource.text,
-      liveTranslationResult: resolveCurrentLiveTranslatedTtsResult()
-    });
-    if (nextTranslatedTtsLiveSnapshot !== translatedTtsLiveSnapshot) {
-      translatedTtsLiveSnapshot = nextTranslatedTtsLiveSnapshot;
     }
   }
   $: {

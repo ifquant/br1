@@ -1518,6 +1518,14 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Tutorial: `tutorials/commit/0667-extract-reader-tts-mini-bar-derived-state.md`.
   - Notes: runtime actions, route sync, notebook ownership, effective TTS target ownership, and translated-source ownership remain in `+page.svelte`. The new helper only shapes plain mini-bar display/action state from already-owned inputs, and `test:reader-helpers` now includes `ttsOwnership.test.ts` directly instead of relying on an ad hoc command.
 
+- [x] P19-1.4 Extract translation-live and translated-TTS derivation
+  - Outcome: the route now delegates the pure live translation snapshot, panel-result, translated-source, and translated-TTS snapshot derivation chain to `resolveReaderTranslationTtsDerivationState(...)` while keeping persistence and runtime ownership in `+page.svelte`.
+  - Touches: `src/lib/reader/ttsOwnership.ts`, `src/lib/reader/ttsOwnership.test.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode|reader tts workspace exposes mature playback controls in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0668-extract-reader-translation-tts-derivation.md`.
+  - Notes: `+page.svelte` still owns current preview, assistance state/history, translated-TTS owner, current-book localStorage persistence, and the route-local `resolveCurrentLiveTranslatedTtsResult()` call. The helper only combines existing translation and TTS ownership helpers into one auditable plain-data result.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

@@ -24,6 +24,7 @@ import {
   resolveReaderTranslatedTtsLiveSnapshotState,
   resolveReaderTranslatedTtsOwnerFallback,
   resolveReaderTranslatedTtsSourceState,
+  resolveReaderTranslationTtsDerivationState,
   resolveReaderTtsMiniBarState,
   resolveReaderTtsMiniBarContextSummary,
   resolveReaderTtsMiniBarLocationSummary,
@@ -431,6 +432,128 @@ test('translated waiting-state summaries remain stable when translated text is m
     }),
     'Chapter 1 · 第 3 页 · 30%'
   );
+});
+
+test('translation tts derivation reuses and updates live translation snapshots', () => {
+  const source = {
+    text: 'current paragraph',
+    label: '当前阅读位置',
+    chapterLabel: 'Chapter 1'
+  };
+  const cachedSnapshot = {
+    sourceText: 'current paragraph',
+    translatedText: '缓存译文',
+    providerLabel: 'DeepL'
+  };
+  const reused = resolveReaderTranslationTtsDerivationState({
+    effectiveTranslationSource: source,
+    assistanceState: createEmptyReaderAssistanceState(),
+    assistanceHistory: [],
+    assistanceSelection: {
+      lookupHistoryEntryId: '',
+      translationHistoryEntryId: ''
+    },
+    translationLiveSnapshot: cachedSnapshot,
+    translatedTtsOwner: 'live',
+    translatedTtsLiveSnapshot: null,
+    translationFollowsCurrentSource: true,
+    liveTranslatedTtsResult: null
+  });
+
+  assert.equal(reused.nextTranslationLiveSnapshot, null);
+  assert.deepEqual(reused.liveTranslationPanelResult, {
+    translatedText: '缓存译文',
+    providerLabel: 'DeepL'
+  });
+  assert.equal(reused.resolvedTranslationLiveSnapshot, cachedSnapshot);
+
+  const readyEntry = createReadyTranslationEntry({
+    id: 'live-entry',
+    text: 'current paragraph',
+    body: '新的译文'
+  });
+  const updated = resolveReaderTranslationTtsDerivationState({
+    effectiveTranslationSource: source,
+    assistanceState: createEmptyReaderAssistanceState(),
+    assistanceHistory: [readyEntry],
+    assistanceSelection: {
+      lookupHistoryEntryId: '',
+      translationHistoryEntryId: ''
+    },
+    translationLiveSnapshot: cachedSnapshot,
+    translatedTtsOwner: 'live',
+    translatedTtsLiveSnapshot: null,
+    translationFollowsCurrentSource: true,
+    liveTranslatedTtsResult: {
+      translatedText: '新的译文',
+      targetLanguage: 'zh',
+      providerLabel: '当前译文 · DeepL',
+      chapterLabel: 'Chapter 1',
+      locationLabel: '第 1 页',
+      progressLabel: '10%',
+      progressLocation: 'cfi-live',
+      progressFraction: 0.1,
+      chapterHref: '#chapter-1'
+    }
+  });
+
+  assert.deepEqual(updated.nextTranslationLiveSnapshot, {
+    sourceText: 'current paragraph',
+    translatedText: '新的译文',
+    providerLabel: 'DeepL'
+  });
+  assert.deepEqual(updated.resolvedTranslationLiveSnapshot, updated.nextTranslationLiveSnapshot);
+  assert.equal(updated.nextTranslatedTtsLiveSnapshot?.translatedText, '新的译文');
+  assert.equal(updated.nextTranslatedTtsLiveSnapshot?.progressLocation, 'cfi-live');
+});
+
+test('translation tts derivation keeps archived source state distinct from live cache', () => {
+  const archivedEntry = createReadyTranslationEntry({
+    id: 'archive-entry',
+    text: 'archived paragraph',
+    body: '历史译文',
+    targetLanguage: 'en',
+    chapterLabel: 'Archived Chapter'
+  });
+  const derived = resolveReaderTranslationTtsDerivationState({
+    effectiveTranslationSource: {
+      text: 'current paragraph',
+      label: '当前阅读位置',
+      chapterLabel: 'Current Chapter'
+    },
+    assistanceState: createEmptyReaderAssistanceState(),
+    assistanceHistory: [archivedEntry],
+    assistanceSelection: {
+      lookupHistoryEntryId: '',
+      translationHistoryEntryId: 'archive-entry'
+    },
+    translationLiveSnapshot: null,
+    translatedTtsOwner: 'archive',
+    translatedTtsLiveSnapshot: {
+      sourceText: 'current paragraph',
+      translatedText: '实时译文缓存',
+      targetLanguage: 'zh',
+      providerLabel: '当前译文 · DeepL',
+      chapterLabel: 'Current Chapter',
+      locationLabel: '第 2 页',
+      progressLabel: '20%',
+      progressLocation: 'cfi-live',
+      progressFraction: 0.2,
+      chapterHref: '#current'
+    },
+    translationFollowsCurrentSource: true,
+    liveTranslatedTtsResult: {
+      translatedText: '实时译文缓存',
+      targetLanguage: 'zh',
+      providerLabel: '当前译文 · DeepL',
+      chapterLabel: 'Current Chapter'
+    }
+  });
+
+  assert.equal(derived.translatedSourceState.kind, 'archived-translation');
+  assert.equal(derived.translatedSourceState.text, 'archived paragraph');
+  assert.match(derived.translatedSourceState.contextLabel, /历史记录/);
+  assert.equal(derived.nextTranslatedTtsLiveSnapshot, null);
 });
 
 test('mini-bar state exposes translated waiting actions without runnable speech', () => {

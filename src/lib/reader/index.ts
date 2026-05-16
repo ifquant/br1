@@ -165,6 +165,7 @@ export {
   resolveReaderTranslatedTtsOwnerFallback,
   resolveReaderTranslatedTtsResult,
   resolveReaderTranslatedTtsSourceState,
+  resolveReaderTranslationTtsDerivationState,
   resolveReaderTtsMiniBarContextSummary,
   resolveReaderTtsMiniBarLocationSummary,
   resolveReaderTtsMiniBarState,
@@ -177,6 +178,7 @@ export type {
   ReaderTranslatedTtsResult,
   ReaderTranslatedTtsSourceKind,
   ReaderTranslatedTtsSourceState,
+  ReaderTranslationTtsDerivationState,
   ReaderTtsMiniBarState,
   ReaderTtsOwnershipState
 } from './ttsOwnership';
