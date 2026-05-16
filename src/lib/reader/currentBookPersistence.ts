@@ -70,6 +70,19 @@ export type ReaderCurrentBookPersistenceKeys = {
   translatedTtsLiveSnapshotStorageKey: string;
 };
 
+type ReaderCurrentBookRestoredPersistGateInput = {
+  readerBookKey: string;
+  lastRestoredBookKey: string;
+};
+
+type ReaderCurrentBookTtsPersistGateInput = {
+  readerBookKey: string;
+  lastRestoredTtsOwnershipBookKey: string;
+  lastRestoredTtsReadAloudModeBookKey: string;
+  lastRestoredTranslatedTtsOwnerBookKey: string;
+  lastRestoredTranslatedTtsLiveSnapshotBookKey: string;
+};
+
 const DEFAULT_TRANSLATION_OWNERSHIP: ReaderTranslationOwnership = {
   followsCurrentSource: true,
   pinnedSource: null
@@ -152,6 +165,31 @@ export const getReaderCurrentBookPersistenceKeys = (
   translatedTtsOwnerStorageKey: `br1.reader.tts.translated-owner:${readerBookKey}`,
   translatedTtsLiveSnapshotStorageKey: `br1.reader.tts.translated-live:${readerBookKey}`
 });
+
+const canPersistRestoredCurrentBookState = (
+  input: ReaderCurrentBookRestoredPersistGateInput
+): boolean =>
+  !!input.readerBookKey && input.readerBookKey === input.lastRestoredBookKey;
+
+// Current-book restore happens after the route first renders with default state.
+// These gates stop those defaults from overwriting a book's persisted payload
+// before that specific book has finished restoring.
+export const canPersistReaderCurrentBookTranslationLiveSnapshot = (
+  input: ReaderCurrentBookRestoredPersistGateInput
+): boolean => canPersistRestoredCurrentBookState(input);
+
+export const canPersistReaderCurrentBookTranslationModeConfig = (
+  input: ReaderCurrentBookRestoredPersistGateInput
+): boolean => canPersistRestoredCurrentBookState(input);
+
+export const canPersistReaderCurrentBookTtsOwnershipState = (
+  input: ReaderCurrentBookTtsPersistGateInput
+): boolean =>
+  !!input.readerBookKey &&
+  input.readerBookKey === input.lastRestoredTtsOwnershipBookKey &&
+  input.readerBookKey === input.lastRestoredTtsReadAloudModeBookKey &&
+  input.readerBookKey === input.lastRestoredTranslatedTtsOwnerBookKey &&
+  input.readerBookKey === input.lastRestoredTranslatedTtsLiveSnapshotBookKey;
 
 export const persistReaderCurrentBookAssistanceHistory = (
   storage: Storage | undefined,

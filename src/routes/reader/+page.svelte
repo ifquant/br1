@@ -99,6 +99,9 @@
   } from '$lib/reader/route';
   // Current-book persistence owns storage keys plus typed localStorage payloads.
   import {
+    canPersistReaderCurrentBookTranslationLiveSnapshot,
+    canPersistReaderCurrentBookTranslationModeConfig,
+    canPersistReaderCurrentBookTtsOwnershipState,
     getReaderCurrentBookPersistenceKeys,
     persistReaderCurrentBookAssistanceHistory,
     persistReaderCurrentBookAssistanceSelection,
@@ -919,8 +922,10 @@
     translationLiveSnapshot;
     if (
       typeof localStorage !== 'undefined' &&
-      readerBookKey &&
-      readerBookKey === lastRestoredTranslationLiveSnapshotBookKey
+      canPersistReaderCurrentBookTranslationLiveSnapshot({
+        readerBookKey,
+        lastRestoredBookKey: lastRestoredTranslationLiveSnapshotBookKey
+      })
     ) {
       persistReaderCurrentBookTranslationLiveSnapshot(
         getReaderStorage(),
@@ -997,8 +1002,10 @@
     translationProvider;
     if (
       typeof localStorage !== 'undefined' &&
-      readerBookKey &&
-      readerBookKey === lastRestoredTranslationModeConfigBookKey
+      canPersistReaderCurrentBookTranslationModeConfig({
+        readerBookKey,
+        lastRestoredBookKey: lastRestoredTranslationModeConfigBookKey
+      })
     ) {
       persistReaderCurrentBookTranslationModeConfig(
         getReaderStorage(),
@@ -1023,11 +1030,13 @@
     translatedTtsLiveSnapshot;
     if (
       typeof localStorage !== 'undefined' &&
-      readerBookKey &&
-      readerBookKey === lastRestoredTtsOwnershipBookKey &&
-      readerBookKey === lastRestoredTtsReadAloudModeBookKey &&
-      readerBookKey === lastRestoredTranslatedTtsOwnerBookKey &&
-      readerBookKey === lastRestoredTranslatedTtsLiveSnapshotBookKey
+      canPersistReaderCurrentBookTtsOwnershipState({
+        readerBookKey,
+        lastRestoredTtsOwnershipBookKey,
+        lastRestoredTtsReadAloudModeBookKey,
+        lastRestoredTranslatedTtsOwnerBookKey,
+        lastRestoredTranslatedTtsLiveSnapshotBookKey
+      })
     ) {
       persistCurrentBookTtsOwnershipState();
     }

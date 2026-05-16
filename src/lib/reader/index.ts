@@ -246,6 +246,9 @@ export {
   resolveReaderWorkspaceModeRouteRequest
 } from './workspaceMode';
 export {
+  canPersistReaderCurrentBookTranslationLiveSnapshot,
+  canPersistReaderCurrentBookTranslationModeConfig,
+  canPersistReaderCurrentBookTtsOwnershipState,
   getReaderCurrentBookPersistenceKeys,
   persistReaderCurrentBookAssistanceHistory,
   restoreReaderCurrentBookAssistanceHistory,

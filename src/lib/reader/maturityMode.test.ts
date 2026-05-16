@@ -10,6 +10,11 @@ import {
   createReaderAssistanceHistoryEntry
 } from './assistance.js';
 import {
+  canPersistReaderCurrentBookTranslationLiveSnapshot,
+  canPersistReaderCurrentBookTranslationModeConfig,
+  canPersistReaderCurrentBookTtsOwnershipState
+} from './currentBookPersistence.js';
+import {
   resolveReaderAnnotationPopupSelectionForBookChange,
   resolveReaderMaturityBookRestoreState,
   resolveReaderMaturityRouteTranslationConfig,
@@ -227,6 +232,56 @@ test('book restore state lets dedicated translation route archive precedence win
   assert.equal(restored.translationProvider, 'yandex');
   assert.equal(restored.inlineTranslationState.targetLanguage, 'en');
   assert.equal(restored.inlineTranslationState.provider, 'yandex');
+});
+
+test('current-book translation persist gates wait for same-book restore', () => {
+  assert.equal(
+    canPersistReaderCurrentBookTranslationLiveSnapshot({
+      readerBookKey: '/books/sample.epub',
+      lastRestoredBookKey: '/books/sample.epub'
+    }),
+    true
+  );
+  assert.equal(
+    canPersistReaderCurrentBookTranslationModeConfig({
+      readerBookKey: '/books/sample.epub',
+      lastRestoredBookKey: '/books/other.epub'
+    }),
+    false
+  );
+  assert.equal(
+    canPersistReaderCurrentBookTranslationModeConfig({
+      readerBookKey: '',
+      lastRestoredBookKey: ''
+    }),
+    false
+  );
+});
+
+test('current-book tts persist gate requires every restored tts key family', () => {
+  const readyGate = {
+    readerBookKey: '/books/sample.epub',
+    lastRestoredTtsOwnershipBookKey: '/books/sample.epub',
+    lastRestoredTtsReadAloudModeBookKey: '/books/sample.epub',
+    lastRestoredTranslatedTtsOwnerBookKey: '/books/sample.epub',
+    lastRestoredTranslatedTtsLiveSnapshotBookKey: '/books/sample.epub'
+  };
+
+  assert.equal(canPersistReaderCurrentBookTtsOwnershipState(readyGate), true);
+  assert.equal(
+    canPersistReaderCurrentBookTtsOwnershipState({
+      ...readyGate,
+      lastRestoredTranslatedTtsOwnerBookKey: '/books/other.epub'
+    }),
+    false
+  );
+  assert.equal(
+    canPersistReaderCurrentBookTtsOwnershipState({
+      ...readyGate,
+      lastRestoredTranslatedTtsLiveSnapshotBookKey: ''
+    }),
+    false
+  );
 });
 
 test('footnote popup state clears when control nonce changes', () => {
