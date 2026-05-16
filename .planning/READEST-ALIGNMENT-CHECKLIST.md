@@ -1642,6 +1642,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0682-add-paragraph-focus-exit-reopen-smoke.md`.
   - Notes: this stays same-book and TXT-only on purpose. It certifies scroll-and-reopen precedence through the reader's own progress change, and it does not widen into RSVP, TTS, translation, cross-book restore, route-boundary refactors, or new focused-reading controls.
 
+- [x] P20-1.13 Verify hidden focused-reading resume across exit -> reload -> reopen
+  - Outcome: this slice smoke-certifies the narrow TXT RSVP seam the earlier slices did not combine in one run: after the reader builds a non-default RSVP state, exits the overlay, reloads the page, and manually reopens focused reading from the menu, the same hidden excerpt returns with the saved word index and pace while autoplay still stays paused.
+  - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores hidden focused-reading resume after exit and reload in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0683-verify-hidden-focused-reading-resume-after-exit-reload-reopen.md`.
+  - Notes: this stays TXT-first and same-book on purpose. It does not widen into EPUB-specific restore, selection-precedence rules, route refactors, library restore, new UI, or any PDF/CBZ continuity claim.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

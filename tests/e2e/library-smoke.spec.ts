@@ -3160,6 +3160,59 @@ test('reader reopens paragraph focus on the hidden excerpt after exit in web mod
   await expect(reopenedOverlay).toContainText(hiddenExcerpt);
 });
 
+test('reader restores hidden focused-reading resume after exit and reload in web mode', async ({
+  page
+}) => {
+  const bookUrl = '/samples/sample-book.txt';
+  await page.addInitScript((key) => {
+    const resetMarker = `br1.reader.focused-reading-reset:${key}`;
+    if (!window.sessionStorage.getItem(resetMarker)) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.setItem(resetMarker, '1');
+    }
+  }, `br1.reader.focused-reading:${bookUrl}`);
+
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开 RSVP-lite' }).click();
+
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const progress = overlay.getByLabel('RSVP-lite 进度');
+  await expect(overlay).toContainText('RSVP-lite');
+  await overlay.getByRole('button', { name: '暂停自动播放' }).click();
+  await overlay.getByRole('button', { name: '更快' }).click();
+  await expect(overlay).toContainText('280 词/分钟');
+  await overlay.getByRole('button', { name: '下一个词' }).click();
+  await overlay.getByRole('button', { name: '下一个词' }).click();
+  await expect(progress).toContainText(/3 \/ \d+/);
+  await expect(overlay).toContainText('This plain text file exists to verify');
+
+  await overlay.getByRole('button', { name: '退出专注阅读' }).click();
+  await expect(overlay).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开 RSVP-lite' }).click();
+
+  const reopenedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(reopenedOverlay).toBeVisible();
+  await expect(reopenedOverlay).toContainText('RSVP-lite');
+  await expect(reopenedOverlay).toContainText('This plain text file exists to verify');
+  await expect(reopenedOverlay).toContainText('280 词/分钟');
+  await expect(reopenedOverlay.getByLabel('RSVP-lite 进度')).toContainText(/3 \/ \d+/);
+  await expect(reopenedOverlay.getByRole('button', { name: '继续自动播放' })).toBeVisible();
+  await expect(reopenedOverlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
+});
+
 test('reader opens focused reading modes from keyboard in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
