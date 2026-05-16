@@ -3213,6 +3213,166 @@ test('reader restores hidden focused-reading resume after exit and reload in web
   await expect(reopenedOverlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
 });
 
+test('reader reuses the exited epub selection-owned focused-reading excerpt on reopen in web mode', async ({
+  page
+}) => {
+  const bookUrl = '/samples/sample-book.epub';
+  await page.addInitScript((key) => {
+    const resetMarker = `br1.reader.focused-reading-reset:${key}`;
+    if (!window.sessionStorage.getItem(resetMarker)) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.setItem(resetMarker, '1');
+    }
+  }, `br1.reader.focused-reading:${bookUrl}`);
+
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.epub&label=Sample%20EPUB%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+
+  const hiddenExcerpt = 'This prototype demonstrates a simple EPUB reading assistant.';
+  const readingProgress = page.getByLabel('阅读进度');
+  await expect
+    .poll(async () => {
+      return page.evaluate((targetText) => {
+        const view = document.querySelector('foliate-view') as any;
+        const contents = view?.renderer?.getContents?.() ?? [];
+        return contents.some(({ doc }: { doc?: Document }) =>
+          Boolean(doc?.body?.textContent?.includes(targetText))
+        );
+      }, hiddenExcerpt);
+    }, {
+      message: 'expected the EPUB reader to mount the target text before building the real selection'
+    })
+    .toBe(true);
+  const selectionToolbar = page.getByRole('toolbar', { name: '选中文本操作' });
+  const highlightButton = selectionToolbar.getByRole('button', { name: '高亮' });
+  const applyEpubSelection = async () =>
+    page.evaluate((targetText) => {
+      const view = document.querySelector('foliate-view') as any;
+      const contents = view?.renderer?.getContents?.() ?? [];
+      for (const { doc } of contents) {
+        const candidates = Array.from(doc.body.querySelectorAll('p, li, blockquote, div')) as HTMLElement[];
+        for (const candidate of candidates) {
+          const candidateText = candidate.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+          if (!candidateText.includes(targetText)) {
+            continue;
+          }
+
+          const range = doc.createRange();
+          range.selectNodeContents(candidate);
+          const selection = doc.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+          doc.dispatchEvent(new Event('selectionchange'));
+          return selection?.toString().replace(/\s+/g, ' ').trim() ?? candidateText;
+        }
+      }
+
+      throw new Error(`expected the EPUB fixture text to contain "${targetText}"`);
+    }, hiddenExcerpt);
+  let selectedExcerpt = '';
+  await expect
+    .poll(async () => {
+      selectedExcerpt = await applyEpubSelection();
+      return await highlightButton.isVisible().catch(() => false);
+    }, {
+      message: 'expected the EPUB selection-owned popup to appear before opening focused reading'
+    })
+    .toBe(true);
+  let startingProgress = '';
+  await expect
+    .poll(async () => {
+      startingProgress = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+      return startingProgress;
+    }, {
+      message: 'expected EPUB footer progress to expose a human-readable percentage before opening focused reading'
+    })
+    .toMatch(/\d+%/);
+  const startingProgressPercent = startingProgress.match(/\d+%/)?.[0] ?? '';
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const overlayContext = overlay.getByLabel('当前阅读上下文');
+  const overlaySourceValue = overlayContext
+    .locator('.overlay-context-item', { hasText: '摘录来源' })
+    .locator('strong');
+  const overlayProgressValue = overlayContext
+    .locator('.overlay-context-item', { hasText: '进度' })
+    .locator('strong');
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toContainText('段落聚焦');
+  await expect(overlay).toContainText(selectedExcerpt);
+  await expect(overlayContext).toContainText('摘录来源');
+  await expect(overlayContext).toContainText('进度');
+  await expect(overlaySourceValue).toHaveText(/\S+/);
+  const initialOverlaySourceValue = ((await overlaySourceValue.textContent()) ?? '').trim();
+  expect(initialOverlaySourceValue).toMatch(/\S+/);
+  expect(initialOverlaySourceValue).not.toMatch(/^(epubcfi\(|txt:|page:|pdf:)/);
+  await expect(overlayProgressValue).toHaveText(startingProgressPercent);
+  await expect(overlay).not.toContainText('epubcfi(');
+
+  await overlay.getByRole('button', { name: '退出专注阅读' }).click();
+  await expect(overlay).toHaveCount(0);
+
+  await page.evaluate(async () => {
+    const view = document.querySelector('foliate-view') as any;
+    const contents = view?.renderer?.getContents?.() ?? [];
+    for (const { doc } of contents) {
+      doc.getSelection()?.removeAllRanges();
+      doc.dispatchEvent(new Event('selectionchange'));
+    }
+    await view?.goToFraction?.(0.82);
+  });
+  await expect
+    .poll(async () => {
+      return page.evaluate(() => {
+        const view = document.querySelector('foliate-view') as any;
+        const contents = view?.renderer?.getContents?.() ?? [];
+        return contents.every(
+          ({ doc }: { doc?: Document }) => (doc?.getSelection?.()?.toString().trim() ?? '') === ''
+        );
+      });
+    }, {
+      message: 'expected the live EPUB DOM selection to be cleared before focused-reading reopen'
+    })
+    .toBe(true);
+  await expect(selectionToolbar).toHaveCount(0);
+  let movedProgress = '';
+  await expect
+    .poll(async () => {
+      movedProgress = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+      return movedProgress;
+    }, {
+      message: 'expected EPUB reading progress to move after exit before focused-reading reopen'
+    })
+    .not.toBe(startingProgress);
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+
+  const reopenedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const reopenedContext = reopenedOverlay.getByLabel('当前阅读上下文');
+  const reopenedSourceValue = reopenedContext
+    .locator('.overlay-context-item', { hasText: '摘录来源' })
+    .locator('strong');
+  const reopenedProgressValue = reopenedContext
+    .locator('.overlay-context-item', { hasText: '进度' })
+    .locator('strong');
+  await expect(reopenedOverlay).toBeVisible();
+  await expect(reopenedOverlay).toContainText('段落聚焦');
+  await expect(reopenedOverlay).toContainText(selectedExcerpt);
+  await expect(reopenedContext).toContainText('摘录来源');
+  await expect(reopenedContext).toContainText('进度');
+  await expect(reopenedSourceValue).toHaveText(initialOverlaySourceValue);
+  await expect(reopenedProgressValue).toHaveText(startingProgressPercent);
+  await expect(reopenedOverlay).not.toContainText('epubcfi(');
+});
+
 test('reader reuses the exited epub selection-owned focused-reading excerpt after exit, reload, and reopen in web mode', async ({
   page
 }) => {
@@ -3358,6 +3518,19 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt afte
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
   await expect(selectionToolbar).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      return page.evaluate(() => {
+        const view = document.querySelector('foliate-view') as any;
+        const contents = view?.renderer?.getContents?.() ?? [];
+        return contents.every(
+          ({ doc }: { doc?: Document }) => (doc?.getSelection?.()?.toString().trim() ?? '') === ''
+        );
+      });
+    }, {
+      message: 'expected the live EPUB DOM selection to stay cleared after reload before manual reopen'
+    })
+    .toBe(true);
 
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
