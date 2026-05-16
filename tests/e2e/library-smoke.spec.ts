@@ -3282,8 +3282,15 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
       message: 'expected the EPUB selection-owned popup to appear before opening focused reading'
     })
     .toBe(true);
-  await expect(highlightButton).toBeVisible();
-  const startingProgress = ((await readingProgress.textContent()) ?? '').trim();
+  let startingProgress = '';
+  await expect
+    .poll(async () => {
+      startingProgress = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+      return startingProgress;
+    }, {
+      message: 'expected EPUB footer progress to expose a human-readable percentage before opening focused reading'
+    })
+    .toMatch(/\d+%/);
   const startingProgressPercent = startingProgress.match(/\d+%/)?.[0] ?? '';
 
   await page.getByRole('button', { name: '更多操作' }).click();
@@ -3291,15 +3298,17 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
 
   const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
   const overlayContext = overlay.getByLabel('当前阅读上下文');
+  const overlaySourceValue = overlayContext.locator('.overlay-context-item').nth(0).locator('strong');
+  const overlayProgressValue = overlayContext.locator('.overlay-context-item').nth(1).locator('strong');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('段落聚焦');
   await expect(overlay).toContainText(selectedExcerpt);
   await expect(overlayContext).toContainText('摘录来源');
-  await expect(overlayContext).toContainText('当前选区');
   await expect(overlayContext).toContainText('进度');
-  if (startingProgressPercent) {
-    await expect(overlayContext).toContainText(startingProgressPercent);
-  }
+  const initialOverlaySourceValue = ((await overlaySourceValue.textContent()) ?? '').trim();
+  expect(initialOverlaySourceValue).toMatch(/\S+/);
+  expect(initialOverlaySourceValue).not.toMatch(/^(epubcfi\(|txt:|page:|pdf:)/);
+  await expect(overlayProgressValue).toHaveText(startingProgressPercent);
   await expect(overlay).not.toContainText('epubcfi(');
 
   await overlay.getByRole('button', { name: '退出专注阅读' }).click();
@@ -3339,15 +3348,15 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
 
   const reopenedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
   const reopenedContext = reopenedOverlay.getByLabel('当前阅读上下文');
+  const reopenedSourceValue = reopenedContext.locator('.overlay-context-item').nth(0).locator('strong');
+  const reopenedProgressValue = reopenedContext.locator('.overlay-context-item').nth(1).locator('strong');
   await expect(reopenedOverlay).toBeVisible();
   await expect(reopenedOverlay).toContainText('段落聚焦');
   await expect(reopenedOverlay).toContainText(selectedExcerpt);
   await expect(reopenedContext).toContainText('摘录来源');
-  await expect(reopenedContext).toContainText('当前选区');
   await expect(reopenedContext).toContainText('进度');
-  if (startingProgressPercent) {
-    await expect(reopenedContext).toContainText(startingProgressPercent);
-  }
+  await expect(reopenedSourceValue).toHaveText(initialOverlaySourceValue);
+  await expect(reopenedProgressValue).toHaveText(startingProgressPercent);
   await expect(reopenedOverlay).not.toContainText('epubcfi(');
 });
 
