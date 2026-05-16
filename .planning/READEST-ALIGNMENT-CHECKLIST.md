@@ -1674,6 +1674,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0686-verify-epub-hidden-focused-reading-resume-after-exit-reload-reopen.md`.
   - Notes: this remains same-book and EPUB-only on purpose. It proves reload does not auto-open the overlay, the live Foliate selection still stays empty, the visible reader progress stays away from the original starting progress/percentage before manual reopen, and the reopened overlay keeps the same selection-owned excerpt plus the same `当前选区` source chip and visible progress value captured before exit. It does not claim cross-book restore, new locator formats, or any broader TTS/translation/sidebar behavior.
 
+- [x] P20-1.17 Latch the last non-empty EPUB selection for first-open focused reading
+  - Outcome: this slice fixes the adjacent first-open EPUB race at the route boundary: when header-menu focus clears the live Foliate selection immediately before paragraph focus launches, the reader still opens focused reading from the last explicit non-empty EPUB selection and keeps the `当前选区` source chip instead of falling back to `当前章节正文`.
+  - Touches: `src/lib/reader/maturityMode.ts`, `src/lib/reader/readingMode.test.ts`, `src/routes/reader/+page.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `cd /Users/dev/workspace2/hc_apps/br1 && pnpm exec tsc -p tsconfig.json --outDir .tmp-reader-helper-tests --noEmit false && node --test ./.tmp-reader-helper-tests/src/lib/reader/readingMode.test.js && rm -rf .tmp-reader-helper-tests` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader latches the last epub selection before menu-triggered paragraph focus in web mode|reader reuses the exited epub selection-owned focused-reading excerpt on reopen in web mode|reader reuses the exited epub selection-owned focused-reading excerpt after exit, reload, and reopen in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: pending current slice commit.
+  - Tutorial: `tutorials/commit/0687-latch-last-epub-selection-for-focused-reading-launch.md`.
+  - Notes: the latch stays route-owned on purpose because the race happens when route chrome steals focus from the EPUB iframe, not inside the pure focused-reading helper. The latch resets on book switches so a stale selection cannot leak across books, and hidden same-book focused-reading reopen semantics still come from `focusedReadingState` instead of this route latch.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

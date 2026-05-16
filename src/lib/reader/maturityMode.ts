@@ -51,6 +51,11 @@ type ReaderSelectionBookChangeInput = {
   nextBookKey: string;
 };
 
+type ReaderFocusedReadingLaunchSelectionInput = {
+  currentSelection: ReaderSelectionState | null;
+  lastNonEmptySelection: ReaderSelectionState | null;
+};
+
 type ReaderMaturityBookRestoreTtsState = {
   ownership: ReaderTtsOwnership;
   readAloudTextMode: ReaderTtsReadAloudTextMode;
@@ -113,6 +118,9 @@ const findReaderRouteTranslationHistoryEntry = (
       ) ?? null
     : null;
 
+const hasReaderSelectionText = (selection: ReaderSelectionState | null) =>
+  Boolean(selection?.text.trim());
+
 export const resolveReaderMaturityRouteTranslationConfig = (input: {
   currentConfig: ReaderTranslationModeConfig;
   assistanceHistory: ReaderAssistanceHistoryEntry[];
@@ -147,6 +155,22 @@ export const resolveReaderAnnotationPopupSelectionForBookChange = (
   input: ReaderSelectionBookChangeInput
 ): ReaderSelectionState | null =>
   input.previousBookKey !== input.nextBookKey ? null : input.currentSelection;
+
+// Focused-reading launch can start from header chrome that temporarily steals
+// focus from the EPUB iframe. The route therefore latches the last explicit
+// non-empty reader selection and asks this helper to prefer it only when the
+// live selection has already vanished.
+export const resolveReaderFocusedReadingLaunchSelection = (
+  input: ReaderFocusedReadingLaunchSelectionInput
+): ReaderSelectionState | null => {
+  if (hasReaderSelectionText(input.currentSelection)) {
+    return input.currentSelection;
+  }
+  if (hasReaderSelectionText(input.lastNonEmptySelection)) {
+    return input.lastNonEmptySelection;
+  }
+  return null;
+};
 
 export const resolveReaderMaturityBookRestoreState = (
   input: ReaderMaturityBookRestoreInput

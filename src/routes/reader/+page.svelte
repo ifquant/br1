@@ -104,6 +104,7 @@
     resolveReaderMaturityRouteTranslationConfig,
     resolveReaderPlaybackQueueForEffectiveTtsTarget
   } from '$lib/reader/route';
+  import { resolveReaderFocusedReadingLaunchSelection } from '$lib/reader/maturityMode';
   // Current-book persistence owns storage keys plus typed localStorage payloads.
   import {
     canPersistReaderCurrentBookFocusedReadingState,
@@ -290,6 +291,10 @@
   let focusedReadingStorageKey = '';
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let currentReaderSelection: ReaderSelectionState | null = null;
+  // EPUB selection can disappear when route-owned chrome takes focus. Keep the
+  // last non-empty selection here so focused-reading launch can still honor the
+  // excerpt the reader explicitly chose a moment earlier.
+  let lastNonEmptyReaderSelection: ReaderSelectionState | null = null;
   let focusedReadingState: ReaderFocusedReadingState = createReaderFocusedReadingState();
   let focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
   let focusedReadingRsvpPlaying = false;
@@ -747,6 +752,7 @@
       restoredMaturityState.inlineTranslationCapabilityMessage;
     latestInlineTranslationCandidates = restoredMaturityState.latestInlineTranslationCandidates;
     currentReaderSelection = restoredMaturityState.currentReaderSelection;
+    lastNonEmptyReaderSelection = null;
     // Focused-reading resume is per-book and text-only. The route still owns
     // the storage IO and timing; the helper only restores the plain state shape
     // that the overlay can render without asking the reader surface for DOM.
@@ -1724,7 +1730,13 @@
   // canvas-local component infer extra reader state from DOM.
   const getFocusedReadingInput = () => ({
     preview: currentPreview,
-    selection: currentReaderSelection
+    // Hidden focused-reading reopen still comes from focusedReadingState inside
+    // readingMode.ts. This latch is only for first-open launches where menu
+    // focus cleared the live EPUB DOM selection just before the route reads it.
+    selection: resolveReaderFocusedReadingLaunchSelection({
+      currentSelection: currentReaderSelection,
+      lastNonEmptySelection: lastNonEmptyReaderSelection
+    })
   });
 
   const clearFocusedReadingRsvpAutoplayTimer = () => {
@@ -2449,6 +2461,9 @@
           }}
           on:selectionchange={({ detail }) => {
             currentReaderSelection = detail;
+            if (detail?.text.trim()) {
+              lastNonEmptyReaderSelection = detail;
+            }
             notesController.setSelection(currentFormatSupportsTextAnnotations ? detail : null);
           }}
           on:searchchange={({ detail }) => {

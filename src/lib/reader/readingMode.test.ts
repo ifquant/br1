@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { resolveReaderFocusedReadingLaunchSelection } from './maturityMode.js';
 import {
   advanceReaderRsvpWord,
   changeReaderFocusedReadingModeForSameExcerpt,
@@ -64,6 +65,18 @@ test('paragraph focus mode prefers the current selection when the reader has one
   assert.equal(state.mode, 'paragraph');
   assert.equal(state.sourceText, 'Selected excerpt from the current reader selection.');
   assert.equal(state.sourceLabel, '当前选区');
+});
+
+test('focused-reading launch falls back to the last non-empty route selection after live epub selection clears', () => {
+  const lastNonEmptySelection = buildSelection('Latched excerpt from the route boundary.');
+
+  assert.equal(
+    resolveReaderFocusedReadingLaunchSelection({
+      currentSelection: null,
+      lastNonEmptySelection
+    }),
+    lastNonEmptySelection
+  );
 });
 
 test('rsvp-lite mode splits a selected/current excerpt into words without mutating reader progress', () => {
