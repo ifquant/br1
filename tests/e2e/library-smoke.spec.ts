@@ -2773,7 +2773,7 @@ test('reader opens txt assets in web mode', async ({ page }) => {
   await expect(page.getByText(/This plain text file exists to verify/i)).toBeVisible();
 });
 
-test('reader can autoplay rsvp-lite with pause and pace controls in web mode', async ({ page }) => {
+test('reader focused-reading overlay supports keyboard transport in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
   );
@@ -2783,16 +2783,16 @@ test('reader can autoplay rsvp-lite with pause and pace controls in web mode', a
 
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
-  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toBeVisible();
-  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toContainText('段落聚焦');
-  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toContainText(
+  const paragraphOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(paragraphOverlay).toBeVisible();
+  await expect(paragraphOverlay).toContainText('段落聚焦');
+  await expect(paragraphOverlay).toContainText(
     'This plain text file exists to verify'
   );
-  await expect(
-    page.getByRole('dialog', { name: '专注阅读浮层' }).getByRole('button', { name: '暂停自动播放' })
-  ).toHaveCount(0);
-  await page.getByRole('button', { name: '退出专注阅读' }).click();
-  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
+  await expect(paragraphOverlay.getByText('Esc 退出专注阅读')).toBeVisible();
+  await expect(paragraphOverlay.getByText('Space 暂停')).toHaveCount(0);
+  await paragraphOverlay.press('Escape');
+  await expect(paragraphOverlay).toHaveCount(0);
   await expect(page.getByLabel('plain text reading surface')).toBeVisible();
 
   await page.getByRole('button', { name: '更多操作' }).click();
@@ -2803,23 +2803,48 @@ test('reader can autoplay rsvp-lite with pause and pace controls in web mode', a
   await expect(overlay).toContainText('RSVP-lite');
   await expect(overlay.getByLabel('RSVP-lite 当前词')).toBeVisible();
   await expect(overlay.getByRole('button', { name: '暂停自动播放' })).toBeVisible();
+  await expect(overlay.getByText('Space 暂停 / 继续')).toBeVisible();
+  await expect(overlay.getByText('← → 上一个 / 下一个')).toBeVisible();
+  await expect(overlay.getByText('↑ ↓ 更快 / 更慢')).toBeVisible();
   await expect(progress).toContainText(/1 \/ \d+/);
   const initialProgress = ((await progress.textContent()) ?? '').trim();
   await expect
     .poll(async () => ((await progress.textContent()) ?? '').trim(), { timeout: 8000 })
     .not.toBe(initialProgress);
 
-  await overlay.getByRole('button', { name: '暂停自动播放' }).click();
+  await overlay.press('Space');
   const pausedProgress = ((await progress.textContent()) ?? '').trim();
+  const [pausedWordIndexText = '0', pausedWordTotalText = '0'] = pausedProgress
+    .split('/')
+    .map((value) => value.trim());
+  const pausedWordIndex = Number.parseInt(pausedWordIndexText, 10);
+  const pausedWordTotal = Number.parseInt(pausedWordTotalText, 10);
   await page.waitForTimeout(700);
   await expect(progress).toHaveText(pausedProgress);
   await expect(overlay).toContainText('240 词/分钟');
-  await overlay.getByRole('button', { name: '更快' }).click();
+  await overlay.press('ArrowUp');
   await expect(overlay).toContainText('280 词/分钟');
-  await overlay.getByRole('button', { name: '继续自动播放' }).click();
+  const fasterButton = overlay.getByRole('button', { name: '更快' });
+  await fasterButton.focus();
+  await fasterButton.press('Space');
+  await expect(overlay).toContainText('320 词/分钟');
+  await overlay.press('ArrowRight');
+  await expect(progress).toContainText(
+    new RegExp(`${Math.min(pausedWordIndex + 1, pausedWordTotal)} \\/ ${pausedWordTotal}`)
+  );
+  await overlay.press('ArrowLeft');
+  await expect(progress).toContainText(new RegExp(`${pausedWordIndex} \\/ ${pausedWordTotal}`));
+  await overlay.press('ArrowDown');
+  await expect(overlay).toContainText('280 词/分钟');
+  await overlay.press('ArrowDown');
+  await expect(overlay).toContainText('240 词/分钟');
+  await overlay.press('Space');
   await expect
     .poll(async () => ((await progress.textContent()) ?? '').trim(), { timeout: 8000 })
     .not.toBe(pausedProgress);
+  await overlay.press('Escape');
+  await expect(overlay).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
 
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20Outline%20PDF'

@@ -22,15 +22,61 @@
   $: hasCapabilityGap = Boolean(state.capabilityMessage) || !state.sourceText.trim();
   $: rsvpCanAutoplay = isRsvpMode && state.words.length > 0 && (isRsvpPlaying || state.activeWordIndex < state.words.length - 1);
   $: rsvpPaceLabel = `${state.paceWpm} 词/分钟`;
+  $: rsvpKeyboardTransportEnabled = isRsvpMode && !hasCapabilityGap;
 
   onMount(() => {
     overlayElement?.focus();
   });
 
+  const isInteractiveKeyboardTarget = (target: EventTarget | null) =>
+    target instanceof HTMLElement &&
+    Boolean(
+      target.closest(
+        'button, a, input, select, textarea, summary, [role="button"], [contenteditable="true"]'
+      )
+    );
+
+  const consumeOverlayKey = (event: KeyboardEvent, callback: (() => void) | null) => {
+    event.preventDefault();
+    if (event.repeat) {
+      return;
+    }
+    callback?.();
+  };
+
   const handleOverlayKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
-      event.preventDefault();
-      onExit?.();
+      consumeOverlayKey(event, onExit);
+      return;
+    }
+    if (!rsvpKeyboardTransportEnabled) {
+      return;
+    }
+    if (isInteractiveKeyboardTarget(event.target)) {
+      return;
+    }
+
+    // Keyboard transport stops at the overlay boundary: the route still owns
+    // autoplay timing and focused-reading state, while this view only maps
+    // focused key presses into the existing route callbacks.
+    if (event.code === 'Space') {
+      consumeOverlayKey(event, onTogglePlayback);
+      return;
+    }
+    if (event.key === 'ArrowLeft') {
+      consumeOverlayKey(event, onPreviousWord);
+      return;
+    }
+    if (event.key === 'ArrowRight') {
+      consumeOverlayKey(event, onNextWord);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      consumeOverlayKey(event, onFasterPace);
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      consumeOverlayKey(event, onSlowerPace);
     }
   };
 </script>
@@ -59,6 +105,14 @@
       <strong>{summary}</strong>
       {#if state.sourceLabel}
         <span>{state.sourceLabel}</span>
+      {/if}
+    </div>
+    <div class="overlay-hints" aria-label="专注阅读快捷键提示">
+      <span>Esc 退出专注阅读</span>
+      {#if rsvpKeyboardTransportEnabled}
+        <span>Space 暂停 / 继续</span>
+        <span>← → 上一个 / 下一个</span>
+        <span>↑ ↓ 更快 / 更慢</span>
       {/if}
     </div>
 
@@ -164,6 +218,23 @@
   .overlay-summary {
     display: grid;
     gap: 4px;
+  }
+
+  .overlay-hints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .overlay-hints span {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 11px;
+    color: var(--reader-shell-muted, #78644a);
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--reader-shell-raised, #f9f2e6) 90%, white 10%);
+    border: 1px solid
+      color-mix(in srgb, var(--reader-shell-border, rgba(80, 58, 28, 0.16)) 74%, transparent);
   }
 
   .overlay-summary strong {

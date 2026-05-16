@@ -1562,6 +1562,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0672-add-reader-rsvp-lite-controller.md`.
   - Notes: the route still owns the autoplay timer and only restores plain focused-reading state. Pace is persisted because the overlay can honestly reopen with the same bounded speed, but autoplay does not auto-resume across reload because the timer/runtime side effect is route-owned and intentionally transient.
 
+- [x] P20-1.3 Add focused-reading overlay keyboard transport
+  - Outcome: while the focused-reading overlay owns focus, `Escape` still exits the mode and RSVP-lite can now pause/resume, step words, and adjust pace from the keyboard without moving autoplay ownership out of the route.
+  - Touches: `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader focused-reading overlay supports keyboard transport in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0673-add-focused-reading-overlay-keyboard-transport.md`.
+  - Notes: the overlay only translates focused key presses into the existing route callbacks. Paragraph mode keeps the honest `Escape` exit hint only; RSVP-lite shows compact visible key hints instead of hidden transport behavior, and PDF/CBZ capability boundaries stay unchanged.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
