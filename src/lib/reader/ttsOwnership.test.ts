@@ -8,29 +8,30 @@ import {
   createEmptyReaderAssistanceState,
   createReadyReaderAssistanceState,
   createReaderAssistanceHistoryEntry
-} from './assistance';
+} from './assistance.js';
 import {
   getReaderCurrentBookPersistenceKeys,
   persistReaderCurrentBookTranslatedTtsLiveSnapshot,
   persistReaderCurrentBookTranslatedTtsOwner,
   persistReaderCurrentBookTtsReadAloudMode,
   persistReaderTtsOwnership
-} from './currentBookPersistence';
-import { createEmptyReaderPreviewState } from './types';
-import { createEmptyReaderTtsSessionState } from './tts';
+} from './currentBookPersistence.js';
+import { createEmptyReaderPreviewState } from './types.js';
+import { createEmptyReaderTtsSessionState } from './tts.js';
 import {
   resolveReaderEffectiveTtsTarget,
   resolveReaderLiveTranslatedTtsResult,
   resolveReaderTranslatedTtsLiveSnapshotState,
   resolveReaderTranslatedTtsOwnerFallback,
   resolveReaderTranslatedTtsSourceState,
+  resolveReaderTtsMiniBarState,
   resolveReaderTtsMiniBarContextSummary,
   resolveReaderTtsMiniBarLocationSummary,
   resolveReaderTtsSpeechTarget,
   resolveReaderTtsTranslatedWaitingTargetLabel,
   restoreReaderTtsOwnershipState
-} from './ttsOwnership';
-import type { ReaderRouteOpenState } from './route';
+} from './ttsOwnership.js';
+import type { ReaderRouteOpenState } from './route.js';
 
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
@@ -430,4 +431,78 @@ test('translated waiting-state summaries remain stable when translated text is m
     }),
     'Chapter 1 · 第 3 页 · 30%'
   );
+});
+
+test('mini-bar state exposes translated waiting actions without runnable speech', () => {
+  const miniBarState = resolveReaderTtsMiniBarState({
+    state: createEmptyReaderTtsSessionState({ status: 'idle' }),
+    target: null,
+    readAloudTextMode: 'translated',
+    preview: createEmptyReaderPreviewState({
+      chapterLabel: 'Chapter 1',
+      locationLabel: '第 3 页',
+      progressLabel: '30%'
+    }),
+    getLocationDisplayLabel: (label) => label,
+    translatedSourceKind: 'live-translation',
+    translatedSourceContextLabel: '正在跟随当前阅读位置',
+    translatedSourceText: 'source text waiting for translation',
+    notebookVisible: false,
+    ttsFollowsCurrentLocation: true
+  });
+
+  assert.equal(miniBarState.visible, true);
+  assert.equal(miniBarState.statusLabel, '空闲');
+  assert.equal(miniBarState.contextSummary, '译文朗读 · 正在跟随当前阅读位置');
+  assert.equal(miniBarState.targetLabel, '等待译文结果 · 正在跟随当前阅读位置');
+  assert.equal(miniBarState.locationSummary, 'Chapter 1 · 第 3 页 · 30%');
+  assert.equal(miniBarState.canRunPrimaryAction, false);
+  assert.equal(miniBarState.canOpenTranslationMode, true);
+  assert.equal(miniBarState.canSwitchMode, true);
+  assert.equal(miniBarState.modeSwitchLabel, '切换到朗读原文');
+});
+
+test('mini-bar state separates follow-current pinning from pinned-target resume', () => {
+  const target = {
+    text: 'current paragraph',
+    label: '当前段落',
+    targetLabel: '当前段落',
+    sourceLabel: '当前阅读位置',
+    chapterLabel: 'Chapter 2',
+    locationLabel: '第 4 页',
+    progressLabel: '40%',
+    followsCurrent: true
+  };
+
+  const followingState = resolveReaderTtsMiniBarState({
+    state: createEmptyReaderTtsSessionState({ status: 'idle' }),
+    target,
+    readAloudTextMode: 'source',
+    preview: createEmptyReaderPreviewState(),
+    getLocationDisplayLabel: (label) => label,
+    translatedSourceKind: 'none',
+    translatedSourceContextLabel: '',
+    translatedSourceText: '',
+    notebookVisible: false,
+    ttsFollowsCurrentLocation: true
+  });
+  const pinnedState = resolveReaderTtsMiniBarState({
+    state: createEmptyReaderTtsSessionState({ status: 'idle' }),
+    target,
+    readAloudTextMode: 'source',
+    preview: createEmptyReaderPreviewState(),
+    getLocationDisplayLabel: (label) => label,
+    translatedSourceKind: 'none',
+    translatedSourceContextLabel: '',
+    translatedSourceText: '',
+    notebookVisible: false,
+    ttsFollowsCurrentLocation: false
+  });
+
+  assert.equal(followingState.canPinCurrentTarget, true);
+  assert.equal(followingState.canResumeFollowingCurrent, false);
+  assert.equal(followingState.canRunPrimaryAction, true);
+  assert.equal(followingState.canSwitchMode, false);
+  assert.equal(pinnedState.canPinCurrentTarget, false);
+  assert.equal(pinnedState.canResumeFollowingCurrent, true);
 });

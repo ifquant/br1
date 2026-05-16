@@ -68,9 +68,6 @@
     getReaderInlineTranslationSummary,
     getReaderPlaybackQueueSummary,
     getReaderFocusedReadingSummary,
-    getReaderTtsPrimaryActionLabel,
-    getReaderTtsReadableTargetLabel,
-    getReaderTtsSessionStatusLabel,
     isReaderTtsPlaybackLocationDrifted,
     moveReaderPlaybackQueueNext,
     moveReaderPlaybackQueuePrevious,
@@ -132,11 +129,8 @@
     resolveReaderTranslatedTtsLiveSnapshotState,
     resolveReaderTranslatedTtsOwnerFallback,
     resolveReaderTranslatedTtsSourceState,
-    resolveReaderTtsMiniBarContextSummary,
-    resolveReaderTtsMiniBarLocationSummary,
-    resolveReaderTtsMiniBarVisible,
+    resolveReaderTtsMiniBarState,
     resolveReaderTtsSpeechTarget,
-    resolveReaderTtsTranslatedWaitingTargetLabel,
     restoreReaderTtsOwnershipState
   } from '$lib/reader';
   // Workspace mode owns the URL-to-notebook tab contract for dedicated modes.
@@ -216,6 +210,19 @@
   let translatedTtsSourceKind: 'none' | 'live-translation' | 'archived-translation' = 'none';
   let translatedTtsSourceContextLabel = '';
   let translatedTtsSourceText = '';
+  let ttsMiniBarVisible = false;
+  let ttsMiniBarStatusLabel = '';
+  let ttsMiniBarContextSummary = '';
+  let ttsMiniBarTargetLabel = '';
+  let ttsMiniBarLocationSummary = '';
+  let ttsMiniBarPrimaryActionLabel = '开始朗读';
+  let ttsMiniBarCanRunPrimaryAction = false;
+  let ttsMiniBarCanStop = false;
+  let ttsMiniBarCanOpenTranslationMode = false;
+  let ttsMiniBarCanResumeFollowingCurrent = false;
+  let ttsMiniBarCanPinCurrentTarget = false;
+  let ttsMiniBarCanSwitchMode = false;
+  let ttsMiniBarModeSwitchLabel = '';
   let ttsPlaybackQueueState: ReaderPlaybackQueueState = createReaderPlaybackQueue([]);
   let ttsPlaybackQueueSummary = getReaderPlaybackQueueSummary(ttsPlaybackQueueState);
   let ttsPlaybackTarget: ReaderTtsSpeechTarget | null = null;
@@ -945,60 +952,33 @@
     !!activeTtsProgressLocation &&
     !!currentPreviewProgressLocation &&
     isReaderTtsPlaybackLocationDrifted($ttsState, currentPreview);
-  $: ttsMiniBarLocationSummary = resolveReaderTtsMiniBarLocationSummary({
-    state: $ttsState,
-    target: effectiveTtsTarget,
-    readAloudTextMode: ttsReadAloudTextMode,
-    preview: currentPreview,
-    getLocationDisplayLabel: getReaderLocationDisplayLabel
-  });
-  $: ttsMiniBarTranslatedWaitingTargetLabel = resolveReaderTtsTranslatedWaitingTargetLabel({
-    state: $ttsState,
-    target: effectiveTtsTarget,
-    readAloudTextMode: ttsReadAloudTextMode,
-    translatedSourceKind: translatedTtsSourceKind,
-    translatedSourceContextLabel: translatedTtsSourceContextLabel
-  });
-  $: ttsMiniBarVisible = resolveReaderTtsMiniBarVisible({
-    state: $ttsState,
-    target: effectiveTtsTarget,
-    translatedWaitingTargetLabel: ttsMiniBarTranslatedWaitingTargetLabel
-  });
-  $: ttsMiniBarStatusLabel = getReaderTtsSessionStatusLabel($ttsState);
-  $: ttsMiniBarContextSummary = resolveReaderTtsMiniBarContextSummary({
-    state: $ttsState,
-    readAloudTextMode: ttsReadAloudTextMode,
-    translatedSourceKind: translatedTtsSourceKind,
-    translatedSourceContextLabel: translatedTtsSourceContextLabel
-  });
-  $: ttsMiniBarTargetLabel =
-    getReaderTtsReadableTargetLabel($ttsState) ||
-    effectiveTtsTarget?.targetLabel?.trim() ||
-    effectiveTtsTarget?.label?.trim() ||
-    ttsMiniBarTranslatedWaitingTargetLabel;
-  $: ttsMiniBarPrimaryActionLabel = getReaderTtsPrimaryActionLabel($ttsState);
-  $: ttsMiniBarCanStop = $ttsState.status === 'speaking' || $ttsState.status === 'paused';
-  $: ttsMiniBarCanRunPrimaryAction =
-    (!!effectiveTtsTarget?.text.trim() && $ttsState.status !== 'unavailable') ||
-    ($ttsState.status === 'paused' && !!getReaderTtsReadableTargetLabel($ttsState));
-  $: ttsMiniBarCanOpenTranslationMode =
-    !notebookVisible &&
-    ttsReadAloudTextMode === 'translated' &&
-    (!!translatedTtsSourceText.trim() ||
-      translatedTtsSourceKind !== 'none' ||
-      !!translatedTtsSourceContextLabel.trim());
-  $: ttsMiniBarCanResumeFollowingCurrent = !notebookVisible && !ttsFollowsCurrentLocation;
-  $: ttsMiniBarCanPinCurrentTarget =
-    !notebookVisible && ttsFollowsCurrentLocation && !!effectiveTtsTarget?.text.trim();
-  $: ttsMiniBarCanSwitchMode =
-    !notebookVisible &&
-    (ttsReadAloudTextMode === 'source'
-      ? (!!translatedTtsSourceText.trim() ||
-          translatedTtsSourceKind !== 'none' ||
-          !!translatedTtsSourceContextLabel.trim())
-      : true);
-  $: ttsMiniBarModeSwitchLabel =
-    ttsReadAloudTextMode === 'translated' ? '切换到朗读原文' : '切换到朗读译文';
+  $: {
+    const ttsMiniBarState = resolveReaderTtsMiniBarState({
+      state: $ttsState,
+      target: effectiveTtsTarget,
+      readAloudTextMode: ttsReadAloudTextMode,
+      preview: currentPreview,
+      getLocationDisplayLabel: getReaderLocationDisplayLabel,
+      translatedSourceKind: translatedTtsSourceKind,
+      translatedSourceContextLabel: translatedTtsSourceContextLabel,
+      translatedSourceText: translatedTtsSourceText,
+      notebookVisible,
+      ttsFollowsCurrentLocation
+    });
+    ttsMiniBarVisible = ttsMiniBarState.visible;
+    ttsMiniBarStatusLabel = ttsMiniBarState.statusLabel;
+    ttsMiniBarContextSummary = ttsMiniBarState.contextSummary;
+    ttsMiniBarTargetLabel = ttsMiniBarState.targetLabel;
+    ttsMiniBarLocationSummary = ttsMiniBarState.locationSummary;
+    ttsMiniBarPrimaryActionLabel = ttsMiniBarState.primaryActionLabel;
+    ttsMiniBarCanRunPrimaryAction = ttsMiniBarState.canRunPrimaryAction;
+    ttsMiniBarCanStop = ttsMiniBarState.canStop;
+    ttsMiniBarCanOpenTranslationMode = ttsMiniBarState.canOpenTranslationMode;
+    ttsMiniBarCanResumeFollowingCurrent = ttsMiniBarState.canResumeFollowingCurrent;
+    ttsMiniBarCanPinCurrentTarget = ttsMiniBarState.canPinCurrentTarget;
+    ttsMiniBarCanSwitchMode = ttsMiniBarState.canSwitchMode;
+    ttsMiniBarModeSwitchLabel = ttsMiniBarState.modeSwitchLabel;
+  }
   $: if (typeof localStorage !== 'undefined') {
     persistNotebookShell();
   }

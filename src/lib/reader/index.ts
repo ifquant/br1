@@ -167,6 +167,7 @@ export {
   resolveReaderTranslatedTtsSourceState,
   resolveReaderTtsMiniBarContextSummary,
   resolveReaderTtsMiniBarLocationSummary,
+  resolveReaderTtsMiniBarState,
   resolveReaderTtsMiniBarVisible,
   resolveReaderTtsSpeechTarget,
   resolveReaderTtsTranslatedWaitingTargetLabel,
@@ -176,6 +177,7 @@ export type {
   ReaderTranslatedTtsResult,
   ReaderTranslatedTtsSourceKind,
   ReaderTranslatedTtsSourceState,
+  ReaderTtsMiniBarState,
   ReaderTtsOwnershipState
 } from './ttsOwnership';
 export type { ReaderTtsRuntime } from './ttsRuntime';

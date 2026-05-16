@@ -7,8 +7,8 @@ import {
   createWebSpeechReaderTtsRuntime,
   type ReaderTtsRuntime,
   type ReaderTtsRuntimeMediaSessionSnapshot
-} from './ttsRuntime';
-import type { ReaderPreviewState, ReaderTtsReadAloudTextMode } from './types';
+} from './ttsRuntime.js';
+import type { ReaderPreviewState, ReaderTtsReadAloudTextMode } from './types.js';
 
 export type ReaderTtsSessionStatus = 'unavailable' | 'idle' | 'speaking' | 'paused' | 'error';
 export type ReaderTtsRetargetAction = 'replace-target' | 'restart-session' | 'stop-and-arm-target';

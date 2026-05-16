@@ -12,9 +12,9 @@ import {
   type ReaderAssistanceHistoryEntry,
   type ReaderAssistanceWorkspaceSelection,
   type ReaderTranslationProvider
-} from './assistance';
-import { normalizeReaderTtsSpeechTarget, type ReaderTtsSpeechTarget } from './tts';
-import type { ReaderTtsReadAloudTextMode } from './types';
+} from './assistance.js';
+import { normalizeReaderTtsSpeechTarget, type ReaderTtsSpeechTarget } from './tts.js';
+import type { ReaderTtsReadAloudTextMode } from './types.js';
 
 export type ReaderTranslationOwnership = {
   followsCurrentSource: boolean;

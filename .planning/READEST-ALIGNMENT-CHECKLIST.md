@@ -1510,6 +1510,14 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Tutorial: `tutorials/commit/0666-extract-reader-route-maturity-book-restore.md`.
   - Notes: `+page.svelte` still owns localStorage restore calls, `ttsController.stop()`, reactive timing, state assignment, and last-restored book-key guards. The helper only shapes plain restored data and reset targets for the route to apply, and this slice also normalizes the reused translation-restore helper's ESM import path so helper tests remain runnable.
 
+- [x] P19-1.3 Extract route TTS mini-bar derived state
+  - Outcome: the collapsed TTS mini-bar now resolves its visible/status/context/target/location/action/capability bundle through `resolveReaderTtsMiniBarState(...)`, so the route no longer open-codes the whole label and capability cluster.
+  - Touches: `package.json`, `src/lib/reader/currentBookPersistence.ts`, `src/lib/reader/tts.ts`, `src/lib/reader/ttsOwnership.ts`, `src/lib/reader/ttsOwnership.test.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader tts workspace exposes mature playback controls in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0667-extract-reader-tts-mini-bar-derived-state.md`.
+  - Notes: runtime actions, route sync, notebook ownership, effective TTS target ownership, and translated-source ownership remain in `+page.svelte`. The new helper only shapes plain mini-bar display/action state from already-owned inputs, and `test:reader-helpers` now includes `ttsOwnership.test.ts` directly instead of relying on an ad hoc command.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

@@ -9,7 +9,7 @@ import {
   type ReaderAssistanceHistoryEntry,
   type ReaderAssistanceState,
   type ReaderAssistanceWorkspaceSelection
-} from './assistance';
+} from './assistance.js';
 import {
   persistReaderCurrentBookTranslatedTtsLiveSnapshot,
   persistReaderCurrentBookTranslatedTtsOwner,
@@ -23,26 +23,28 @@ import {
   type ReaderTranslatedTtsLiveSnapshot,
   type ReaderTranslatedTtsOwner,
   type ReaderTtsOwnership
-} from './currentBookPersistence';
-import type { ReaderRouteOpenState } from './route';
+} from './currentBookPersistence.js';
+import type { ReaderRouteOpenState } from './route.js';
 import {
   READER_EMPTY_TITLE,
   READER_NOT_OPENED_LOCATION_LABEL,
   READER_OPENING_LOCATION_LABEL,
   type ReaderPreviewState,
   type ReaderTtsReadAloudTextMode
-} from './types';
+} from './types.js';
 import {
   getReaderTtsCompactPlaybackLocationSummary,
   getReaderTtsMiniBarContextSummary,
+  getReaderTtsPrimaryActionLabel,
   getReaderTtsReadableTargetLabel,
+  getReaderTtsSessionStatusLabel,
   getReaderTtsTranslatedWaitingTargetLabel,
   resolveReaderTtsSpeechTargetForMode,
   shouldShowReaderTtsMiniBar,
   type ReaderTtsSessionState,
   type ReaderTtsSpeechTarget
-} from './tts';
-import type { ReaderTranslationSource } from './translationOwnership';
+} from './tts.js';
+import type { ReaderTranslationSource } from './translationOwnership.js';
 
 export type ReaderTranslatedTtsSourceKind =
   | 'none'
@@ -72,6 +74,22 @@ export type ReaderTtsOwnershipState = {
   readAloudTextMode: ReaderTtsReadAloudTextMode;
   translatedOwner: ReaderTranslatedTtsOwner;
   translatedLiveSnapshot: ReaderTranslatedTtsLiveSnapshot | null;
+};
+
+export type ReaderTtsMiniBarState = {
+  visible: boolean;
+  statusLabel: string;
+  contextSummary: string;
+  targetLabel: string;
+  locationSummary: string;
+  primaryActionLabel: string;
+  canRunPrimaryAction: boolean;
+  canStop: boolean;
+  canOpenTranslationMode: boolean;
+  canResumeFollowingCurrent: boolean;
+  canPinCurrentTarget: boolean;
+  canSwitchMode: boolean;
+  modeSwitchLabel: string;
 };
 
 type ReaderTtsStorageKeys = Pick<
@@ -583,3 +601,83 @@ export const resolveReaderTtsMiniBarVisible = (input: {
     input.target,
     input.translatedWaitingTargetLabel
   );
+
+export const resolveReaderTtsMiniBarState = (input: {
+  state: ReaderTtsSessionState;
+  target: ReaderTtsSpeechTarget | null;
+  readAloudTextMode: ReaderTtsReadAloudTextMode;
+  preview: ReaderPreviewState;
+  getLocationDisplayLabel: (locationLabel: string) => string;
+  translatedSourceKind: ReaderTranslatedTtsSourceKind;
+  translatedSourceContextLabel: string;
+  translatedSourceText: string;
+  notebookVisible: boolean;
+  ttsFollowsCurrentLocation: boolean;
+}): ReaderTtsMiniBarState => {
+  const locationSummary = resolveReaderTtsMiniBarLocationSummary({
+    state: input.state,
+    target: input.target,
+    readAloudTextMode: input.readAloudTextMode,
+    preview: input.preview,
+    getLocationDisplayLabel: input.getLocationDisplayLabel
+  });
+  const translatedWaitingTargetLabel = resolveReaderTtsTranslatedWaitingTargetLabel({
+    state: input.state,
+    target: input.target,
+    readAloudTextMode: input.readAloudTextMode,
+    translatedSourceKind: input.translatedSourceKind,
+    translatedSourceContextLabel: input.translatedSourceContextLabel
+  });
+  const readableTargetLabel = getReaderTtsReadableTargetLabel(input.state);
+  const hasTargetText = !!input.target?.text.trim();
+  const hasTranslatedSource =
+    !!input.translatedSourceText.trim() ||
+    input.translatedSourceKind !== 'none' ||
+    !!input.translatedSourceContextLabel.trim();
+
+  return {
+    visible: resolveReaderTtsMiniBarVisible({
+      state: input.state,
+      target: input.target,
+      translatedWaitingTargetLabel
+    }),
+    statusLabel: getReaderTtsSessionStatusLabel(input.state),
+    contextSummary: resolveReaderTtsMiniBarContextSummary({
+      state: input.state,
+      readAloudTextMode: input.readAloudTextMode,
+      translatedSourceKind: input.translatedSourceKind,
+      translatedSourceContextLabel: input.translatedSourceContextLabel
+    }),
+    targetLabel:
+      readableTargetLabel ||
+      input.target?.targetLabel?.trim() ||
+      input.target?.label?.trim() ||
+      translatedWaitingTargetLabel,
+    locationSummary,
+    primaryActionLabel: getReaderTtsPrimaryActionLabel(input.state),
+    canStop: input.state.status === 'speaking' || input.state.status === 'paused',
+    canRunPrimaryAction:
+      (hasTargetText && input.state.status !== 'unavailable') ||
+      (input.state.status === 'paused' && !!readableTargetLabel),
+    // Translated mode can be opened from the collapsed mini-bar while it has
+    // either real translated text or enough provenance to explain that it is
+    // waiting for live/archive translation. Source mode should not offer that
+    // jump because the translation workspace would have no active translated
+    // context to inspect.
+    canOpenTranslationMode:
+      !input.notebookVisible &&
+      input.readAloudTextMode === 'translated' &&
+      hasTranslatedSource,
+    canResumeFollowingCurrent: !input.notebookVisible && !input.ttsFollowsCurrentLocation,
+    canPinCurrentTarget:
+      !input.notebookVisible && input.ttsFollowsCurrentLocation && hasTargetText,
+    // Switching from source to translated requires some translation provenance;
+    // switching back to source is always allowed because source text is owned by
+    // the current reader location or the pinned TTS target.
+    canSwitchMode:
+      !input.notebookVisible &&
+      (input.readAloudTextMode === 'source' ? hasTranslatedSource : true),
+    modeSwitchLabel:
+      input.readAloudTextMode === 'translated' ? '切换到朗读原文' : '切换到朗读译文'
+  };
+};
