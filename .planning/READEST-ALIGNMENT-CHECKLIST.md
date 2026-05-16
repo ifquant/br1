@@ -1449,6 +1449,14 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Tutorial: `tutorials/commit/0660-extract-reader-overview-and-toc-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2162`. The extraction keeps `activeTab`, search/highlight owners, and the sidebar shell in the parent, but moves the local book-menu affordance and TOC rendering into one presentation child so the parent no longer carries that UI-only state. The focused smoke certifies overview visibility, overflow-menu presence, and that clicking a non-active TOC entry can still activate it; it does not certify broader metadata or label semantics beyond that surface.
 
+- [ ] P18-1.7 Extract reader sidebar chrome
+  - Outcome: move the sidebar header controls and tab strip into `ReaderSidebarChrome.svelte` while `ReaderSidebar.svelte` keeps tab ownership, workspace routing, and persistence-heavy reader state.
+  - Touches: `ReaderSidebarChrome.svelte`, `ReaderSidebar.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader sidebar chrome keeps tab routing legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1663`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0661-extract-reader-sidebar-chrome.md`.
+  - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `1862`. This seam stays presentation-only. The child emits explicit toggle, pin, close, and tab-selection intents, but `ReaderSidebar.svelte` still owns the actual tab-to-workspace switch plus saved-highlight persistence and cross-book selection logic.
+
 
 ## P19 Reader File Boundary Reduction
 

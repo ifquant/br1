@@ -391,6 +391,37 @@ test('reader keeps the overview sidebar surface legible in web mode', async ({ p
   await expect(menu.getByRole('menuitem', { name: '回到书库' })).toBeVisible();
 });
 
+test('reader sidebar chrome keeps tab routing legible in web mode', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '侧栏 chrome 测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  const sidebarTabs = page.getByRole('tablist', { name: '阅读侧栏标签' });
+  await expect(sidebarTabs).toBeVisible();
+  await expect(sidebarTabs.getByRole('tab', { name: '目录', selected: true })).toBeVisible();
+  await expect(page.getByLabel('当前书概览')).toBeVisible();
+
+  await sidebarTabs.getByRole('tab', { name: '搜索' }).click();
+  await expect(sidebarTabs.getByRole('tab', { name: '搜索', selected: true })).toBeVisible();
+  await expect(page.getByLabel('正文搜索面板')).toBeVisible();
+
+  await sidebarTabs.getByRole('tab', { name: '书签' }).click();
+  await expect(sidebarTabs.getByRole('tab', { name: '书签', selected: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '书签面板' })).toBeVisible();
+
+  await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
+  await expect(sidebarTabs.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '笔记面板' })).toBeVisible();
+
+  await sidebarTabs.getByRole('tab', { name: '目录' }).click();
+  await expect(sidebarTabs.getByRole('tab', { name: '目录', selected: true })).toBeVisible();
+  await expect(page.getByLabel('当前书概览')).toBeVisible();
+});
+
 test('reader can open the ai workspace inside the notebook shell', async ({ page }) => {
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',
