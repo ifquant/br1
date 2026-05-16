@@ -590,6 +590,10 @@
     });
   };
 
+  // This bridge stays route-local on purpose: helper modules decide whether a
+  // matching translated result exists, while the route supplies the current
+  // preview/location metadata that the helper threads back onto any accepted
+  // live result or translated snapshot.
   const resolveCurrentLiveTranslatedTtsResult = () =>
     resolveReaderLiveTranslatedTtsResult({
       normalizedTranslationSourceText: normalizeAssistanceText(effectiveTranslationSource.text),
@@ -605,6 +609,10 @@
       translatedLiveSnapshot: translatedTtsLiveSnapshot
     });
 
+  // This is the route-side packaging step before the shared TTS ownership
+  // helpers resolve the final speech target. It gathers current selection,
+  // preview, translation ownership, and translated provenance so UI click
+  // handlers do not have to recreate that input bundle ad hoc.
   const resolveCurrentReaderTtsSpeechTarget = () =>
     resolveReaderTtsSpeechTarget({
       readAloudTextMode: ttsReadAloudTextMode,
@@ -1734,6 +1742,11 @@
   };
 
   const openTranslatedTtsWorkspace = () => {
+    // Entering translated TTS is a coordinated route action, not just
+    // `ttsReadAloudTextMode = translated`. This helper decides which translated
+    // owner the route should expose, upgrades the notebook/URL together, and
+    // clears stale pinned-source playback when translated mode must resume from
+    // the current reader-derived target instead.
     const translatedTtsWorkspaceRequest = resolveReaderTranslatedTtsWorkspaceRequest({
       routeOpenState,
       translatedTtsSourceKind,
@@ -2046,6 +2059,11 @@
         ? navigator.language
         : 'en';
 
+  // Translation fallback is intentionally reading-first: selection beats a real
+  // chapter label, a real chapter label beats title, placeholder/opening
+  // chapter labels are skipped, and empty text stays explicit. That keeps the
+  // translation workspace anchored to the best currently explainable source
+  // without inventing hidden content extraction outside the reader surface.
   const resolveReaderTranslationFallback = () => {
     const selectedText = normalizeAssistanceText($notesState.selection?.text || '');
     if (selectedText) {
@@ -2087,6 +2105,10 @@
   };
 
   const resolveReaderTranslationModeSource = () => {
+    // Translation mode consumes a normalized source shape even when the route is
+    // falling back from selection to chapter/title context. Keep that
+    // normalization at the route boundary so downstream ownership helpers only
+    // see one contract.
     const fallback = resolveReaderTranslationFallback();
 
     return (
@@ -2175,6 +2197,10 @@
     text: string,
     targetLanguage: string
   ) => {
+    // Translation requests deliberately reuse the same fallback source contract
+    // as translation mode itself. That keeps history entries, archive replay,
+    // and translated-TTS provenance aligned even when the request started from
+    // a popup action or an empty explicit text input.
     const fallback = resolveReaderTranslationFallback();
     const normalizedText = normalizeAssistanceText(text || fallback.text);
     const request = {
@@ -2252,6 +2278,10 @@
           };
 
     if (mode !== 'translation') return;
+    // Choosing a translation history entry upgrades translated TTS ownership to
+    // `archive` immediately. If translation mode is the visible owner, the same
+    // archived selection also has to flow into the route so reload/deep-link
+    // semantics stay aligned with the notebook selection.
     setTranslatedTtsOwner('archive');
 
     if (routeOpenState.workspaceMode === 'translation' || notebookTab === 'translation') {
