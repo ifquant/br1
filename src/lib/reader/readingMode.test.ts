@@ -10,6 +10,7 @@ import {
   createReaderFocusedReadingState,
   decreaseReaderRsvpLitePace,
   exitReaderFocusedReading,
+  getReaderFocusedReadingRsvpPlaybackIntent,
   getReaderFocusedReadingSummary,
   increaseReaderRsvpLitePace,
   parseReaderFocusedReadingPersistedState,
@@ -174,6 +175,24 @@ test('same-excerpt paragraph detours preserve the last rsvp word index and pace'
   assert.equal(resumed.mode, 'rsvp');
   assert.equal(resumed.sourceText, started.sourceText);
   assert.deepEqual(resumed.words, started.words);
+  assert.equal(resumed.activeWordIndex, started.activeWordIndex);
+  assert.equal(resumed.paceWpm, started.paceWpm);
+});
+
+test('same-excerpt paragraph detours keep paused rsvp intent transiently in helper state', () => {
+  const started = advanceReaderRsvpWord(
+    startReaderRsvpLite(createReaderFocusedReadingState(), {
+      preview: buildPreview(),
+      selection: buildSelection('Paused detours should not silently resume when rsvp returns.')
+    }),
+    2
+  );
+
+  const paragraph = changeReaderFocusedReadingModeForSameExcerpt(started, 'paragraph');
+  assert.equal(getReaderFocusedReadingRsvpPlaybackIntent(paragraph), 'paused');
+
+  const resumed = changeReaderFocusedReadingModeForSameExcerpt(paragraph, 'rsvp');
+  assert.equal(getReaderFocusedReadingRsvpPlaybackIntent(resumed), 'paused');
   assert.equal(resumed.activeWordIndex, started.activeWordIndex);
   assert.equal(resumed.paceWpm, started.paceWpm);
 });

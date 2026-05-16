@@ -205,6 +205,7 @@ export {
   advanceReaderRsvpWord,
   decreaseReaderRsvpLitePace,
   exitReaderFocusedReading,
+  getReaderFocusedReadingRsvpPlaybackIntent,
   getReaderRsvpLiteIntervalMs,
   getReaderFocusedReadingSummary,
   increaseReaderRsvpLitePace,
@@ -217,6 +218,7 @@ export {
 export type {
   ReaderFocusedReadingMode,
   ReaderFocusedReadingPersistedState,
+  ReaderFocusedReadingRsvpPlaybackIntent,
   ReaderFocusedReadingState
 } from './readingMode';
 export {

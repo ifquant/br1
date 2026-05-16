@@ -70,6 +70,7 @@
     getReaderPlaybackQueueSummary,
     changeReaderFocusedReadingModeForSameExcerpt,
     getReaderFocusedReadingSummary,
+    getReaderFocusedReadingRsvpPlaybackIntent,
     getReaderRsvpLiteIntervalMs,
     isReaderTtsPlaybackLocationDrifted,
     moveReaderPlaybackQueueNext,
@@ -1774,16 +1775,23 @@
   };
 
   const switchFocusedReadingToParagraphMode = () => {
+    const wasPlaying = focusedReadingRsvpPlaying;
     focusedReadingRsvpPlaying = false;
     focusedReadingState = changeReaderFocusedReadingModeForSameExcerpt(
       focusedReadingState,
-      'paragraph'
+      'paragraph',
+      wasPlaying ? 'playing' : 'paused'
     );
   };
 
   const switchFocusedReadingToRsvpMode = () => {
     focusedReadingState = changeReaderFocusedReadingModeForSameExcerpt(focusedReadingState, 'rsvp');
-    focusedReadingRsvpPlaying = canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
+    // Same-excerpt detours may come back from paragraph mode after the reader
+    // explicitly paused RSVP. The helper only remembers that transient intent;
+    // the route still decides whether the timer may actually restart.
+    focusedReadingRsvpPlaying =
+      getReaderFocusedReadingRsvpPlaybackIntent(focusedReadingState) === 'playing' &&
+      canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
   };
 
   const restartFocusedReadingRsvpMode = () => {

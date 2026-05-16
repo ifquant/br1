@@ -1594,6 +1594,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0676-preserve-focused-reading-rsvp-detour-resume.md`.
   - Notes: the preserved return point stays inside focused-reading helper state as same-excerpt RSVP resume data. The route still owns autoplay timers, paragraph mode still does not pretend to own RSVP playback UI, and this slice does not add next-excerpt navigation, new locator semantics, or broader PDF/CBZ text support.
 
+- [x] P20-1.7 Preserve RSVP play/pause intent across same-excerpt paragraph detours
+  - Outcome: when the reader pauses RSVP-lite on a same-excerpt word, detours into paragraph focus, and switches back, RSVP-lite restores the saved word and pace but stays paused; if the reader had left RSVP-lite playing, the route may keep autoplay running on return.
+  - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `src/lib/reader/index.ts`, `src/routes/reader/+page.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader preserves same-excerpt rsvp play-pause intent across paragraph detours in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0677-preserve-focused-reading-rsvp-play-pause-intent.md`.
+  - Notes: play/pause intent is stored only as transient same-excerpt helper state so the route can decide whether autoplay should exist after a paragraph detour. Reload restore still comes back paused, this slice does not add cross-excerpt resume semantics, and PDF/CBZ support remains unchanged.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

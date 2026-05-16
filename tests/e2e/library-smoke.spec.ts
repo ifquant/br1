@@ -2898,7 +2898,7 @@ test('reader can switch focused-reading modes on the same excerpt in web mode', 
   await expect(overlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
 });
 
-test('reader preserves same-excerpt rsvp position across paragraph detours in web mode', async ({
+test('reader preserves same-excerpt rsvp play-pause intent across paragraph detours in web mode', async ({
   page
 }) => {
   await page.goto(
@@ -2930,14 +2930,19 @@ test('reader preserves same-excerpt rsvp position across paragraph detours in we
   await expect(overlay).toContainText('RSVP-lite');
   await expect(progress).toContainText(/3 \/ \d+/);
   await expect(overlay).toContainText('280 词/分钟');
+  await expect(overlay.getByRole('button', { name: '继续自动播放' })).toBeVisible();
+  await expect(overlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
 
   await overlay.getByRole('button', { name: '从第 1 词重新开始' }).click();
   await expect(progress).toContainText(/1 \/ \d+/);
+  await expect(overlay.getByRole('button', { name: '继续自动播放' })).toBeVisible();
 
   await overlay.getByRole('button', { name: '切换到段落聚焦' }).click();
   await overlay.getByRole('button', { name: '切换到 RSVP-lite' }).click();
   await expect(progress).toContainText(/1 \/ \d+/);
   await expect(overlay).toContainText('280 词/分钟');
+  await expect(overlay.getByRole('button', { name: '继续自动播放' })).toBeVisible();
+  await expect(overlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
 });
 
 test('reader restores focused reading position for supported text surfaces', async ({ page }) => {

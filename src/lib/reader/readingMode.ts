@@ -5,11 +5,17 @@
 import type { ReaderPreviewState, ReaderSelectionState } from './types';
 
 export type ReaderFocusedReadingMode = 'off' | 'paragraph' | 'rsvp';
+// Same-excerpt paragraph detours need to remember whether the reader last left
+// RSVP playing or paused. This stays transient on purpose: the route owns the
+// real timer, and reload restore should not pretend a live autoplay runtime can
+// be reconstructed from storage.
+export type ReaderFocusedReadingRsvpPlaybackIntent = 'paused' | 'playing';
 
 type ReaderFocusedReadingRsvpResumeState = {
   words: string[];
   activeWordIndex: number;
   paceWpm: number;
+  playbackIntent: ReaderFocusedReadingRsvpPlaybackIntent;
 };
 
 export type ReaderFocusedReadingState = {
@@ -100,22 +106,20 @@ const createFocusedReadingPayload = (
   capabilityMessage: getFocusedReadingCapabilityMessage(preview.formatLabel, sourceText.length > 0),
   sameExcerptRsvpResume:
     mode === 'rsvp'
-      ? {
-          words,
-          activeWordIndex: 0,
-          paceWpm: normalizeReaderRsvpLitePace(paceWpm)
-        }
+      ? createSameExcerptRsvpResume(words, 0, paceWpm)
       : null
 });
 
 const createSameExcerptRsvpResume = (
   words: string[],
   activeWordIndex: number,
-  paceWpm: number
+  paceWpm: number,
+  playbackIntent: ReaderFocusedReadingRsvpPlaybackIntent = 'paused'
 ): ReaderFocusedReadingRsvpResumeState => ({
   words,
   activeWordIndex: clampReaderRsvpWordIndex(words, activeWordIndex),
-  paceWpm: normalizeReaderRsvpLitePace(paceWpm)
+  paceWpm: normalizeReaderRsvpLitePace(paceWpm),
+  playbackIntent
 });
 
 // Same-excerpt transitions intentionally do not accept a fresh preview or DOM
@@ -127,7 +131,8 @@ const createFocusedReadingPayloadForSameExcerpt = (
   mode: Exclude<ReaderFocusedReadingMode, 'off'>,
   words: string[] = [],
   paceWpm = READER_RSVP_LITE_DEFAULT_WPM,
-  activeWordIndex = 0
+  activeWordIndex = 0,
+  playbackIntent: ReaderFocusedReadingRsvpPlaybackIntent = 'paused'
 ): ReaderFocusedReadingState => ({
   ...createReaderFocusedReadingState({
     mode,
@@ -141,7 +146,7 @@ const createFocusedReadingPayloadForSameExcerpt = (
     paceWpm,
     sameExcerptRsvpResume:
       mode === 'rsvp'
-        ? createSameExcerptRsvpResume(words, activeWordIndex, paceWpm)
+        ? createSameExcerptRsvpResume(words, activeWordIndex, paceWpm, playbackIntent)
         : state.sameExcerptRsvpResume,
     capabilityMessage: getFocusedReadingCapabilityMessage(
       state.formatLabel,
@@ -262,7 +267,8 @@ export const startReaderRsvpLite = (
 
 export const changeReaderFocusedReadingModeForSameExcerpt = (
   state: ReaderFocusedReadingState,
-  mode: Exclude<ReaderFocusedReadingMode, 'off'>
+  mode: Exclude<ReaderFocusedReadingMode, 'off'>,
+  rsvpPlaybackIntent: ReaderFocusedReadingRsvpPlaybackIntent = 'paused'
 ) => {
   if (state.mode === 'off') {
     return state;
@@ -271,7 +277,12 @@ export const changeReaderFocusedReadingModeForSameExcerpt = (
   if (mode === 'paragraph') {
     const resume =
       state.mode === 'rsvp'
-        ? createSameExcerptRsvpResume(state.words, state.activeWordIndex, state.paceWpm)
+        ? createSameExcerptRsvpResume(
+            state.words,
+            state.activeWordIndex,
+            state.paceWpm,
+            rsvpPlaybackIntent
+          )
         : state.sameExcerptRsvpResume;
     return {
       ...createFocusedReadingPayloadForSameExcerpt(state, 'paragraph'),
@@ -281,7 +292,10 @@ export const changeReaderFocusedReadingModeForSameExcerpt = (
 
   // Paragraph detours keep the same excerpt on screen, so returning to RSVP
   // should prefer the last RSVP cursor/pace we already exposed for that exact
-  // excerpt instead of rebuilding a fake "fresh" session from word one.
+  // excerpt instead of rebuilding a fake "fresh" session from word one. The
+  // saved playback intent is only a transient hint for the route: helpers say
+  // whether the reader last wanted play or pause, but the route still decides
+  // whether a real timer is allowed to exist.
   const resume = state.sameExcerptRsvpResume;
   const words =
     resume?.words.length
@@ -297,7 +311,8 @@ export const changeReaderFocusedReadingModeForSameExcerpt = (
       (state.mode === 'rsvp'
         ? normalizeReaderRsvpLitePace(state.paceWpm)
         : READER_RSVP_LITE_DEFAULT_WPM),
-    resume?.activeWordIndex ?? 0
+    resume?.activeWordIndex ?? 0,
+    resume?.playbackIntent ?? 'paused'
   );
 };
 
@@ -312,7 +327,9 @@ export const restartReaderFocusedReadingRsvpFromWordOne = (state: ReaderFocusedR
     state,
     'rsvp',
     words,
-    normalizeReaderRsvpLitePace(state.paceWpm)
+    normalizeReaderRsvpLitePace(state.paceWpm),
+    0,
+    state.sameExcerptRsvpResume?.playbackIntent ?? 'paused'
   );
 };
 
@@ -330,7 +347,8 @@ export const advanceReaderRsvpWord = (state: ReaderFocusedReadingState, delta: n
     sameExcerptRsvpResume: createSameExcerptRsvpResume(
       state.words,
       Math.min(state.words.length - 1, Math.max(0, state.activeWordIndex + Math.trunc(delta))),
-      state.paceWpm
+      state.paceWpm,
+      state.sameExcerptRsvpResume?.playbackIntent ?? 'paused'
     )
   };
 };
@@ -346,10 +364,14 @@ const updateReaderRsvpLitePace = (state: ReaderFocusedReadingState, deltaWpm: nu
     sameExcerptRsvpResume: createSameExcerptRsvpResume(
       state.words,
       state.activeWordIndex,
-      state.paceWpm + deltaWpm
+      state.paceWpm + deltaWpm,
+      state.sameExcerptRsvpResume?.playbackIntent ?? 'paused'
     )
   };
 };
+
+export const getReaderFocusedReadingRsvpPlaybackIntent = (state: ReaderFocusedReadingState) =>
+  state.sameExcerptRsvpResume?.playbackIntent ?? 'paused';
 
 export const increaseReaderRsvpLitePace = (state: ReaderFocusedReadingState) =>
   updateReaderRsvpLitePace(state, READER_RSVP_LITE_PACE_STEP_WPM);
@@ -491,7 +513,8 @@ export const parseReaderFocusedReadingPersistedState = (
         ? createSameExcerptRsvpResume(
             restoredWords,
             typeof payload.activeWordIndex === 'number' ? payload.activeWordIndex : 0,
-            typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM
+            typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM,
+            'paused'
           )
         : null,
     capabilityMessage: getFocusedReadingCapabilityMessage(formatLabel, sourceText.length > 0)
