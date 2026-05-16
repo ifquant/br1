@@ -2,6 +2,7 @@
  It accepts already-derived state and callbacks from ReaderSidebar so persistence,
  highlight workspace state, and route coordination stay owned by the parent. -->
 <script lang="ts">
+  import './readerSidebarPanel.css';
   import type {
     ReaderBookmarksState,
     ReaderHighlightsFilter,
@@ -110,7 +111,7 @@
 </script>
 
 {#if activeTab === 'bookmarks'}
-  <section class="sidebar-panel" aria-label="书签面板">
+  <section class="reader-sidebar-panel" aria-label="书签面板">
     <div class="bookmarks-summary">
       <strong>阅读位置</strong>
       <span>{bookmarksPanelSummary}</span>
@@ -272,7 +273,7 @@
     </div>
   </section>
 {:else if activeTab === 'highlights'}
-  <section class="sidebar-panel" aria-label="高亮面板">
+  <section class="reader-sidebar-panel" aria-label="高亮面板">
     <div class="notes-summary">
       <strong>高亮</strong>
       <span>{highlightsPanelSummary}</span>
@@ -512,7 +513,7 @@
     </div>
   </section>
 {:else if activeTab === 'notes'}
-  <section class="sidebar-panel" aria-label="笔记面板">
+  <section class="reader-sidebar-panel" aria-label="笔记面板">
     <div class="notes-summary">
       <strong>标注</strong>
       <span>{notesPanelSummary}</span>
@@ -743,11 +744,6 @@
 {/if}
 
 <style>
-  .sidebar-panel {
-    display: grid;
-    gap: 10px;
-  }
-
   .notes-summary,
   .bookmarks-summary {
     display: grid;

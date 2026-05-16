@@ -1,6 +1,6 @@
 # Readest Alignment Checklist
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## Purpose
 
@@ -1424,6 +1424,14 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Done commit: not committed; user requested no commit.
   - Tutorial: `tutorials/commit/0656-extract-reader-sidebar-annotation-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `4178`. The extraction stays intentionally conservative: the child accepts a wide prop surface, preserves existing strings/ARIA copy, and leaves the saved-highlight-selection panel in the parent through the `highlights-extra` slot so cross-book import/export and refresh state do not change owners.
+
+- [x] P18-1.4 Extract reader sidebar search presentation
+  - Outcome: the reader sidebar search tab now renders through a dedicated presentation child while `ReaderSidebar.svelte` keeps the search controller wiring, history filter state, and all route-owned search mutations.
+  - Touches: `ReaderSidebarSearch.svelte`, `ReaderSidebar.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader search states read like one product surface across txt and epub"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`2448`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0658-extract-reader-sidebar-search-presentation.md`.
+  - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2980`. The extraction stays presentation-only on purpose: the parent still owns `searchHistoryFilter`, derived summary/result indexes, and all search-controller callbacks so cache/history/result navigation semantics do not split across components.
 
 
 ## P19 Reader File Boundary Reduction
