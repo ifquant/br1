@@ -4,7 +4,7 @@
 
 `0687` fixed the positive EPUB menu-focus race by keeping the last non-empty route selection around after the live Foliate selection disappeared. That solved the immediate launch gap, but the route-owned latch still behaved too much like a same-book cache: once an EPUB selection had been captured, later paragraph-focus launches in the same book could keep reusing it even after unrelated navigation or other same-book interaction.
 
-This follow-up keeps the race fix route-owned, but makes the boundary explicit and short-lived. The route now stages the latest live EPUB selection only until it clears, arms a one-shot guard for the next shared focused-reading launch, and clears that guard again after launch or after explicit same-book navigation controls.
+This follow-up keeps the race fix route-owned, but makes the boundary explicit and short-lived. The route now stages the latest live EPUB selection only until it clears, arms a one-shot guard for the next shared focused-reading launch, and clears that guard again after launch or after explicit same-book primary navigation controls.
 
 ## What changed
 
@@ -13,10 +13,11 @@ This follow-up keeps the race fix route-owned, but makes the boundary explicit a
   - stage the latest live EPUB selection while it still exists
   - arm the guard when that EPUB selection clears
   - consume and clear the guard on the next focused-reading launch
-  - clear the guard on book switches and same-book navigation control requests
+  - clear the guard on book switches and same-book primary navigation control requests such as `prev`, `next`, `start`, `href`, and `fraction`
+- updated the route-owned primary control dispatcher so footer events plus direct route-owned bookmark/search/TTS jump helpers all pass through the same guard-clearing boundary
 - updated the route-owned focused-reading input builder so every launch explicitly consumes or clears the guard instead of letting it survive as a same-book cache
 - kept beginner-friendly comments around the non-obvious ownership boundary so a new contributor can see why this state stays in the route
-- added helper coverage for arm/consume/clear semantics and a focused web smoke proving the positive menu-clear race still works while same-book navigation controls no longer leave the stale selection guard behind
+- added helper coverage for arm/consume/clear semantics, including `href` and `fraction` clear cases, plus a focused web smoke proving the positive menu-clear race still works while same-book navigation controls no longer leave the stale selection guard behind
 
 ## Verification
 

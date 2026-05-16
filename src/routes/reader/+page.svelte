@@ -405,15 +405,19 @@
 
   const issueHrefControl = (href: string) => {
     controlNonce += 1;
-    parallelSession = updateReaderParallelPaneControlRequest(
-      parallelSession,
-      'primary',
-      { type: 'href', href, nonce: controlNonce }
-    );
-    parallelSession = activateReaderParallelPane(parallelSession, 'primary');
+    issuePrimaryControlRequest({ type: 'href', href, nonce: controlNonce });
   };
 
   const issuePrimaryControlRequest = (request: ReaderControlRequest) => {
+    // Route-owned navigation helpers, footer events, search replay, bookmark
+    // jumps, and TTS jump-back all funnel through this boundary. Clearing the
+    // one-shot guard here keeps same-book href/fraction/start/prev/next moves
+    // consistent even when the request did not originate from `on:controlrequest`.
+    focusedReadingLaunchSelectionGuard =
+      resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+        currentSelectionGuard: focusedReadingLaunchSelectionGuard,
+        request
+      });
     parallelSession = updateReaderParallelPaneControlRequest(parallelSession, 'primary', request);
     parallelSession = activateReaderParallelPane(parallelSession, 'primary');
   };
@@ -2469,11 +2473,6 @@
             sidebarController.toggleTab(detail);
           }}
           on:controlrequest={({ detail }: CustomEvent<ReaderControlRequest>) => {
-            focusedReadingLaunchSelectionGuard =
-              resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
-                currentSelectionGuard: focusedReadingLaunchSelectionGuard,
-                request: detail
-              });
             issuePrimaryControlRequest(detail);
           }}
           on:readerstate={({ detail }: CustomEvent<ReaderPreviewState>) => {

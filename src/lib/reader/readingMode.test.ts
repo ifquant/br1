@@ -175,6 +175,40 @@ test('focused-reading route launch guard clears after same-book navigation moves
   );
 });
 
+test('focused-reading route launch guard clears after same-book href navigation requests', () => {
+  assert.equal(
+    resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+      currentSelectionGuard: {
+        armed: true,
+        selection: buildSelection('Armed excerpt before a same-book href jump.')
+      },
+      request: {
+        type: 'href',
+        href: 'epubcfi(/6/4!/2/8)',
+        nonce: 2
+      }
+    }),
+    null
+  );
+});
+
+test('focused-reading route launch guard clears after same-book fraction navigation requests', () => {
+  assert.equal(
+    resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+      currentSelectionGuard: {
+        armed: true,
+        selection: buildSelection('Armed excerpt before a same-book fraction jump.')
+      },
+      request: {
+        type: 'fraction',
+        fraction: 0.8,
+        nonce: 3
+      }
+    }),
+    null
+  );
+});
+
 test('rsvp-lite mode splits a selected/current excerpt into words without mutating reader progress', () => {
   const preview = buildPreview();
   const state = startReaderRsvpLite(createReaderFocusedReadingState(), {
