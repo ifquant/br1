@@ -1009,6 +1009,10 @@
       translationFollowsCurrentSource,
       liveTranslatedTtsResult: resolveCurrentLiveTranslatedTtsResult()
     });
+    // Earlier reactive blocks have already settled translated owner choice and
+    // the current speech target. This block only derives and applies the two
+    // snapshot families that depend on that settled state: the translation
+    // panel cache and the translated-TTS provenance cache.
     nextTranslationLiveSnapshot = translationTtsDerivationState.nextTranslationLiveSnapshot;
     liveTranslationPanelResult = translationTtsDerivationState.liveTranslationPanelResult;
     if (translationTtsDerivationState.resolvedTranslationLiveSnapshot !== translationLiveSnapshot) {

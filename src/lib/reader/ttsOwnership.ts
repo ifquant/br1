@@ -151,6 +151,10 @@ export const resolveReaderTranslatedTtsOwnerFallback = (input: {
   >;
   assistanceSelection: Pick<ReaderAssistanceWorkspaceSelection, 'translationHistoryEntryId'>;
 }): ReaderTranslatedTtsOwner => {
+  // Book restore needs one stable default owner before local storage is read.
+  // Prefer archive when dedicated translated-TTS route state already points at
+  // a concrete history entry, or when the current-book workspace has one
+  // selected already. Otherwise default to live translation output.
   const routeOwnsArchivedTranslation =
     input.routeOpenState.workspaceMode === 'tts' &&
     input.routeOpenState.ttsReadAloudTextMode === 'translated' &&
@@ -168,6 +172,10 @@ export const resolveReaderRouteTranslatedTtsOwner = (input: {
     'workspaceMode' | 'ttsReadAloudTextMode' | 'translationHistoryEntryId'
   >;
 }): ReaderTranslatedTtsOwner => {
+  // Route state only overrides owner choice when the URL is explicitly opening
+  // a translated reading surface. Outside those dedicated translation/TTS
+  // routes, the current owner stays local so ordinary reader activity does not
+  // silently flip archived/live playback provenance.
   if (input.routeOpenState.workspaceMode === 'translation') {
     return input.routeOpenState.translationHistoryEntryId?.trim() ? 'archive' : 'live';
   }
@@ -189,6 +197,10 @@ export const restoreReaderTtsOwnershipState = (input: {
   defaultReadAloudTextMode: ReaderTtsReadAloudTextMode;
   fallbackTranslatedOwner: ReaderTranslatedTtsOwner;
 }): ReaderTtsOwnershipState => ({
+  // TTS restore is a small bundle, not one scalar: route behavior depends on
+  // location-following ownership, source-vs-translated mode, archive-vs-live
+  // translated owner, and the last usable translated snapshot all lining up for
+  // the same book.
   ownership: restoreReaderTtsOwnership(input.storage, input.keys.ttsOwnershipStorageKey),
   readAloudTextMode: restoreReaderCurrentBookTtsReadAloudMode(
     input.storage,
@@ -214,6 +226,9 @@ export const persistReaderTtsOwnershipState = (input: {
   translatedOwner: ReaderTranslatedTtsOwner;
   translatedLiveSnapshot: ReaderTranslatedTtsLiveSnapshot | null;
 }) => {
+  // Persist the same bundle shape that restore expects. Splitting these writes
+  // across call sites would make it much harder to see whether a book is
+  // saving ownership, mode, translated owner, and translated snapshot in sync.
   persistReaderTtsOwnership(input.storage, input.keys.ttsOwnershipStorageKey, input.ownership);
   persistReaderCurrentBookTtsReadAloudMode(
     input.storage,
@@ -237,6 +252,9 @@ export const resolveReaderEffectiveTtsTarget = (input: {
   resolvedTarget: ReaderTtsSpeechTarget | null;
   pinnedTarget: ReaderTtsSpeechTarget | null;
 }): ReaderTtsSpeechTarget | null =>
+  // "Follow current" is the only mode where the route may replace the target
+  // with whatever the reader surface currently resolves. Once the reader pins a
+  // target, playback should keep that excerpt until the pin is cleared.
   input.followsCurrentLocation ? input.resolvedTarget : input.pinnedTarget || input.resolvedTarget;
 
 const findSelectedTranslationHistoryEntry = (
@@ -288,6 +306,11 @@ export const resolveReaderLiveTranslatedTtsResult = (input: {
   const normalizedSourceText = normalizeAssistanceText(input.normalizedTranslationSourceText);
   if (!normalizedSourceText) return null;
 
+  // Prefer the freshest live translation first, then a matching ready history
+  // entry, and only then the persisted snapshot cache. That order keeps the
+  // translated TTS surface honest about current runtime results while still
+  // allowing reload to reuse the last matching translation for the same source
+  // excerpt.
   if (
     input.assistanceState.status === 'ready' &&
     input.assistanceState.activeRequest?.kind === 'translation' &&
@@ -427,6 +450,10 @@ export const resolveReaderTtsSpeechTarget = (input: {
     liveTranslationResult
   });
 
+  // This helper is the final reader-domain bridge from source/translation
+  // provenance into a speakable target. Upstream helpers decide which
+  // translation result is valid; this helper only packages the winning source
+  // or translated text with the location metadata the player and mini-bar need.
   return resolveReaderTtsSpeechTargetForMode({
     mode: input.readAloudTextMode,
     source: {
@@ -566,6 +593,10 @@ export const resolveReaderTranslationTtsDerivationState = (input: {
   translationFollowsCurrentSource: boolean;
   liveTranslatedTtsResult: ReaderTranslatedTtsResult | null;
 }): ReaderTranslationTtsDerivationState => {
+  // Translation mode and translated TTS intentionally keep two parallel caches:
+  // one for the visible translation panel result, and one for translated speech
+  // provenance. They often originate from the same request, but they drift for
+  // different reasons and should not overwrite each other implicitly.
   const nextTranslationLiveSnapshot = resolveReaderNextTranslationLiveSnapshot({
     source: input.effectiveTranslationSource,
     assistanceState: input.assistanceState,
@@ -703,6 +734,11 @@ export const resolveReaderTtsMiniBarState = (input: {
     input.translatedSourceKind !== 'none' ||
     !!input.translatedSourceContextLabel.trim();
 
+  // The collapsed mini-bar is a read-only summary of the settled playback
+  // inputs coming from route state, live TTS session state, target derivation,
+  // and notebook visibility. Its booleans do not mint new ownership; they only
+  // expose whether the current playback state can be resumed, pinned, switched,
+  // or inspected safely.
   return {
     visible: resolveReaderTtsMiniBarVisible({
       state: input.state,
