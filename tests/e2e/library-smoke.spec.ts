@@ -3518,6 +3518,24 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt afte
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
   await expect(selectionToolbar).toHaveCount(0);
+  let reloadedProgress = '';
+  await expect
+    .poll(async () => {
+      reloadedProgress = ((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+      return reloadedProgress;
+    }, {
+      message: 'expected the visible EPUB progress to stay away from the original starting progress after reload before manual reopen'
+    })
+    .not.toBe(startingProgress);
+  await expect
+    .poll(async () => {
+      return (
+        (((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim().match(/\d+%/) ?? [])[0] ?? ''
+      );
+    }, {
+      message: 'expected the visible EPUB progress percentage to stay away from the original starting percentage after reload before manual reopen'
+    })
+    .not.toBe(startingProgressPercent);
   await expect
     .poll(async () => {
       return page.evaluate(() => {

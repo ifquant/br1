@@ -8,8 +8,8 @@ The focused-reading line already had separate EPUB smoke evidence for selection-
 
 - extended the existing EPUB-focused Playwright smoke in `tests/e2e/library-smoke.spec.ts`
 - kept the real Foliate selection-owned path: the smoke builds a live EPUB selection from fixture text, opens paragraph-focused reading from that selection, and captures the visible source/progress context from the first overlay open
-- after exit, the smoke clears the live EPUB selection, moves reading progress, reloads the same book, and confirms both the overlay and the live Foliate DOM selection stay gone until the reader manually reopens paragraph focus from the menu
-- made the final assertions prove the hidden same-book payload survives reload: manual reopen still restores the same selection-owned excerpt, the same human-readable source chip, and the same progress percentage captured before exit
+- after exit, the smoke clears the live EPUB selection, moves reading progress, reloads the same book, and confirms the overlay stays closed, the live Foliate DOM selection stays empty, and the visible reader progress stays away from the original excerpt until the reader manually reopens paragraph focus from the menu
+- made the final assertions prove the hidden same-book payload survives reload: manual reopen still restores the same selection-owned excerpt, the same human-readable source chip, and the same progress percentage captured before exit even though the live viewport progress had stayed away from that original excerpt first
 - updated the alignment checklist so P20 records this exact EPUB exit -> reload -> reopen seam as its own narrow certification row
 
 ## Verification
