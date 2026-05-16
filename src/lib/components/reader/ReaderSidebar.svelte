@@ -20,7 +20,6 @@
     ReaderHighlightSelectionSetSort,
     ReaderHighlightsFilter,
     ReaderHighlightsSort,
-    ReaderHighlightsWorkspaceState,
     ReaderBookmarksState,
     ReaderPreviewState,
     ReaderSearchConfig,
@@ -87,6 +86,12 @@
     refreshReaderCrossBookImportedSelection,
     resolveReaderImportedHighlightIds
   } from '$lib/reader/sidebarHighlightSelections';
+  import {
+    createDefaultReaderSidebarHighlightsWorkspaceState,
+    normalizeReaderSidebarHighlightsWorkspaceState,
+    toReaderHighlightsWorkspacePersistenceState,
+    type ReaderSidebarHighlightsWorkspaceModel
+  } from '$lib/reader/sidebarHighlightsWorkspace';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
@@ -194,90 +199,20 @@
   $: highlightsWorkspaceStorageKey = bookKey ? `br1.reader.highlights.workspace:${bookKey}` : '';
 
   const applyDefaultHighlightsWorkspaceState = () => {
-    highlightsFilter = 'all';
-    highlightsSort = 'recent';
-    savedHighlightSelectionsSort = 'recent';
-    savedHighlightSelectionsRefreshFilter = 'all';
-    selectedHighlightIds = new Set();
-    savedHighlightSelections = [];
+    applyHighlightsWorkspaceState(createDefaultReaderSidebarHighlightsWorkspaceState());
   };
 
-  const applyPersistedHighlightsWorkspaceState = (state: ReaderHighlightsWorkspaceState | null) => {
-    if (!state) {
-      applyDefaultHighlightsWorkspaceState();
-      return;
-    }
+  const applyHighlightsWorkspaceState = (state: ReaderSidebarHighlightsWorkspaceModel) => {
+    highlightsFilter = state.highlightsFilter;
+    highlightsSort = state.highlightsSort;
+    savedHighlightSelectionsSort = state.savedHighlightSelectionsSort;
+    savedHighlightSelectionsRefreshFilter = state.savedHighlightSelectionsRefreshFilter;
+    selectedHighlightIds = state.selectedHighlightIds;
+    savedHighlightSelections = state.savedHighlightSelections;
+  };
 
-    highlightsFilter = state.filter === 'chapter' || state.filter === 'selected' ? state.filter : 'all';
-    highlightsSort = state.sort === 'oldest' ? 'oldest' : 'recent';
-    savedHighlightSelectionsSort = state.savedSelectionsSort === 'oldest' ? 'oldest' : 'recent';
-    savedHighlightSelectionsRefreshFilter =
-      state.savedSelectionsRefreshFilter === 'full' ||
-      state.savedSelectionsRefreshFilter === 'partial' ||
-      state.savedSelectionsRefreshFilter === 'missed'
-        ? state.savedSelectionsRefreshFilter
-        : 'all';
-    selectedHighlightIds = new Set(
-      Array.isArray(state.selectedIds)
-        ? state.selectedIds.filter((id: unknown): id is string => typeof id === 'string')
-        : []
-    );
-    savedHighlightSelections = Array.isArray(state.savedSelections)
-      ? state.savedSelections
-          .map((set: unknown): ReaderHighlightSelectionSet | null => {
-            if (!set || typeof set !== 'object') return null;
-            const candidate = set as Partial<ReaderHighlightSelectionSet>;
-            if (typeof candidate.id !== 'string' || typeof candidate.name !== 'string') return null;
-            const importSource =
-              candidate.importSource &&
-              typeof candidate.importSource === 'object' &&
-              typeof (candidate.importSource as { bookKey?: unknown }).bookKey === 'string' &&
-              typeof (candidate.importSource as { bookTitle?: unknown }).bookTitle === 'string' &&
-              typeof (candidate.importSource as { formatLabel?: unknown }).formatLabel === 'string' &&
-              typeof (candidate.importSource as { selectionName?: unknown }).selectionName === 'string' &&
-              typeof (candidate.importSource as { matchedCount?: unknown }).matchedCount === 'number' &&
-              typeof (candidate.importSource as { totalCount?: unknown }).totalCount === 'number' &&
-              typeof (candidate.importSource as { unmatchedCount?: unknown }).unmatchedCount === 'number' &&
-              typeof (candidate.importSource as { importedAt?: unknown }).importedAt === 'number' &&
-              Array.isArray((candidate.importSource as { highlights?: unknown }).highlights) &&
-              (candidate.importSource as { highlights: unknown[] }).highlights.every(
-                (highlight) =>
-                  !!highlight &&
-                  typeof highlight === 'object' &&
-                  typeof (highlight as { id?: unknown }).id === 'string' &&
-                  typeof (highlight as { cfi?: unknown }).cfi === 'string' &&
-                  typeof (highlight as { text?: unknown }).text === 'string' &&
-                  typeof (highlight as { chapterLabel?: unknown }).chapterLabel === 'string' &&
-                  typeof (highlight as { chapterHref?: unknown }).chapterHref === 'string' &&
-                  typeof (highlight as { createdAt?: unknown }).createdAt === 'number'
-              )
-                ? {
-                    bookKey: (candidate.importSource as { bookKey: string }).bookKey,
-                    bookTitle: (candidate.importSource as { bookTitle: string }).bookTitle,
-                    formatLabel: (candidate.importSource as { formatLabel: string }).formatLabel,
-                    selectionName: (candidate.importSource as { selectionName: string }).selectionName,
-                    matchedCount: (candidate.importSource as { matchedCount: number }).matchedCount,
-                    totalCount: (candidate.importSource as { totalCount: number }).totalCount,
-                    unmatchedCount: (candidate.importSource as { unmatchedCount: number }).unmatchedCount,
-                    importedAt: (candidate.importSource as { importedAt: number }).importedAt,
-                    highlights: (candidate.importSource as { highlights: ReaderHighlightSelectionSetExportHighlight[] }).highlights
-                  }
-                : null;
-            return {
-              id: candidate.id,
-              name: candidate.name,
-              selectedIds: Array.isArray(candidate.selectedIds)
-                ? candidate.selectedIds.filter((id: unknown): id is string => typeof id === 'string')
-                : [],
-              createdAt:
-                typeof candidate.createdAt === 'number' && Number.isFinite(candidate.createdAt)
-                  ? candidate.createdAt
-                  : Date.now(),
-              ...(importSource ? { importSource } : {})
-            };
-          })
-          .filter((set): set is ReaderHighlightSelectionSet => !!set)
-      : [];
+  const applyPersistedHighlightsWorkspaceState = (state: unknown) => {
+    applyHighlightsWorkspaceState(normalizeReaderSidebarHighlightsWorkspaceState(state, Date.now()));
   };
 
   $: if (!highlightsWorkspaceStorageKey) {
@@ -293,9 +228,7 @@
         } else if (typeof localStorage !== 'undefined') {
           const raw = localStorage.getItem(highlightsWorkspaceStorageKey);
           if (token !== highlightsWorkspaceLoadToken) return;
-          applyPersistedHighlightsWorkspaceState(
-            raw ? (JSON.parse(raw) as ReaderHighlightsWorkspaceState) : null
-          );
+          applyPersistedHighlightsWorkspaceState(raw ? JSON.parse(raw) : null);
         } else {
           if (token !== highlightsWorkspaceLoadToken) return;
           applyDefaultHighlightsWorkspaceState();
@@ -311,14 +244,14 @@
   }
 
   $: if (highlightsWorkspaceStorageKey && highlightsWorkspaceHydratedKey === highlightsWorkspaceStorageKey) {
-    const state: ReaderHighlightsWorkspaceState = {
-      filter: highlightsFilter,
-      sort: highlightsSort,
-      savedSelectionsSort: savedHighlightSelectionsSort,
-      savedSelectionsRefreshFilter: savedHighlightSelectionsRefreshFilter,
-      selectedIds: Array.from(selectedHighlightIds),
-      savedSelections: savedHighlightSelections
-    };
+    const state = toReaderHighlightsWorkspacePersistenceState({
+      highlightsFilter,
+      highlightsSort,
+      savedHighlightSelectionsSort,
+      savedHighlightSelectionsRefreshFilter,
+      selectedHighlightIds,
+      savedHighlightSelections
+    });
 
     if (canPersistReaderHighlightsWorkspaceState()) {
       void saveReaderHighlightsWorkspaceState(bookKey, state).catch((error) => {

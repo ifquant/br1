@@ -1481,6 +1481,14 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Tutorial: `tutorials/commit/0664-extract-reader-sidebar-saved-highlight-helpers.md`.
   - Notes: `ReaderSidebar.svelte` still owns saved-highlight state fields, persistence/hydration, action entrypoints, notices, previews, active-tab routing, and the slot mount into `ReaderSidebarHighlightSelections.svelte`. The focused smoke exports a real TXT saved-highlight set, imports it as a cross-book payload, imports matched highlights, and refreshes the imported mapping.
 
+- [x] P18-1.11 Extract highlights workspace persistence helpers
+  - Outcome: highlights workspace defaults, persisted payload normalization/validation, saved-selection payload cleanup, and local persistence payload shaping now live in `sidebarHighlightsWorkspace.ts`.
+  - Touches: `src/lib/reader/sidebarHighlightsWorkspace.ts`, `ReaderSidebar.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader highlights workspace persistence stays legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1194`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0665-extract-reader-sidebar-highlights-workspace-persistence.md`.
+  - Notes: `ReaderSidebar.svelte` still owns the mutable workspace fields, async load/save effects, token race guard, service/localStorage branches, active-tab routing, and every other sidebar state owner. The focused smoke persists highlight sort, selected-filter state, selected ids, and a saved highlight set across reload.
+
 
 ## P19 Reader File Boundary Reduction
 

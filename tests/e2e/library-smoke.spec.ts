@@ -3267,6 +3267,63 @@ test('reader saved-highlight helper flows stay legible in web mode', async ({ pa
   await expect(importedCard).toContainText('完全匹配');
 });
 
+test('reader highlights workspace persistence stays legible in web mode', async ({ page }) => {
+  const readerUrl =
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
+  const selectText = async (needle: string) => {
+    await page.evaluate((targetText) => {
+      const pre = document.querySelector('.plain-text-paper pre');
+      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
+      const textNode = pre.firstChild;
+      const raw = textNode.textContent ?? '';
+      const start = raw.indexOf(targetText);
+      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
+      const range = document.createRange();
+      range.setStart(textNode, start);
+      range.setEnd(textNode, start + targetText.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    }, needle);
+  };
+
+  await page.goto(readerUrl);
+  const sidebarTabs = page.getByLabel('阅读侧栏标签');
+  await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
+  const highlightButton = page.locator('.secondary-note-action').first();
+
+  await selectText('plain text file exists');
+  await expect(highlightButton).toBeEnabled();
+  await highlightButton.click();
+  await selectText('steady reading length');
+  await highlightButton.click();
+
+  await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
+  const highlightsPanel = page.getByRole('region', { name: '高亮面板' });
+  const highlightCards = page.locator('.highlight-card');
+  const savedSelectionPanel = page.getByLabel('已保存高亮选择集');
+  const highlightSortControls = page.getByLabel('高亮排序控制');
+
+  await highlightSortControls.getByRole('button', { name: '最早添加', exact: true }).click();
+  await expect(highlightsPanel).toContainText('最早添加优先');
+  await highlightCards.first().locator('.highlight-selection-toggle').click();
+  await highlightsPanel.getByRole('button', { name: '已选高亮' }).click();
+  await expect(highlightsPanel).toContainText('1 已选高亮');
+  page.once('dialog', (dialog) => dialog.accept('Persisted Helper Set'));
+  await highlightsPanel.getByRole('button', { name: '保存当前选择集' }).click();
+  await expect(savedSelectionPanel).toContainText('Persisted Helper Set');
+
+  await page.reload();
+  await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
+  await expect(highlightsPanel).toContainText('最早添加优先');
+  await expect(highlightsPanel).toContainText('1 已选高亮');
+  await expect(highlightCards).toHaveCount(1);
+  await expect(highlightCards.first()).toContainText('plain text file exists');
+  await expect(savedSelectionPanel).toContainText('Persisted Helper Set');
+  await expect(highlightSortControls.getByRole('button', { name: '最早添加' })).toHaveClass(/active/);
+});
+
 test('reader supports txt notes through selection, persistence, and note reopen in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
