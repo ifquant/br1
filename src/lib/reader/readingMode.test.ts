@@ -257,6 +257,34 @@ test('focused reading restore backfills the default pace for older rsvp-lite pay
   assert.equal(restored.paceWpm, READER_RSVP_LITE_DEFAULT_WPM);
 });
 
+test('focused reading persistence keeps same-excerpt rsvp return state behind paragraph mode', () => {
+  const paragraph = changeReaderFocusedReadingModeForSameExcerpt(
+    increaseReaderRsvpLitePace(
+      advanceReaderRsvpWord(
+        startReaderRsvpLite(createReaderFocusedReadingState(), {
+          preview: buildPreview(),
+          selection: buildSelection('Reload should keep the same rsvp return cursor and pace.')
+        }),
+        4
+      )
+    ),
+    'paragraph'
+  );
+
+  const persisted = serializeReaderFocusedReadingState(paragraph);
+  assert.equal(persisted?.mode, 'paragraph');
+
+  const restored = parseReaderFocusedReadingPersistedState(persisted);
+  assert.equal(restored.mode, 'paragraph');
+  assert.equal(restored.sourceText, paragraph.sourceText);
+
+  const resumed = changeReaderFocusedReadingModeForSameExcerpt(restored, 'rsvp');
+  assert.equal(resumed.mode, 'rsvp');
+  assert.equal(resumed.activeWordIndex, 4);
+  assert.equal(resumed.paceWpm, READER_RSVP_LITE_DEFAULT_WPM + 40);
+  assert.equal(getReaderFocusedReadingRsvpPlaybackIntent(resumed), 'paused');
+});
+
 test('focused reading persistence refuses unsupported pdf and cbz surfaces', () => {
   const pdfState = startReaderParagraphFocus(createReaderFocusedReadingState(), {
     preview: createEmptyReaderPreviewState({

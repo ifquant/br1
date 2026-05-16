@@ -43,6 +43,11 @@ export type ReaderFocusedReadingPersistedState = {
   words: string[];
   activeWordIndex: number;
   paceWpm?: number;
+  sameExcerptRsvpResume?: {
+    words: string[];
+    activeWordIndex: number;
+    paceWpm?: number;
+  };
 };
 
 type ReaderFocusedReadingSourceInput = {
@@ -433,6 +438,17 @@ export const serializeReaderFocusedReadingState = (
           .map((word) => word.trim())
           .filter(Boolean)
       : [];
+  const sameExcerptRsvpResume =
+    state.mode === 'paragraph' && state.sameExcerptRsvpResume
+      ? {
+          words: state.sameExcerptRsvpResume.words.map((word) => word.trim()).filter(Boolean),
+          activeWordIndex: clampReaderRsvpWordIndex(
+            state.sameExcerptRsvpResume.words,
+            state.sameExcerptRsvpResume.activeWordIndex
+          ),
+          paceWpm: normalizeReaderRsvpLitePace(state.sameExcerptRsvpResume.paceWpm)
+        }
+      : undefined;
 
   return {
     schemaVersion: 1,
@@ -444,7 +460,14 @@ export const serializeReaderFocusedReadingState = (
     progressLocation: normalizeExcerptText(state.progressLocation),
     words,
     activeWordIndex: state.mode === 'rsvp' ? clampReaderRsvpWordIndex(words, state.activeWordIndex) : 0,
-    paceWpm: state.mode === 'rsvp' ? normalizeReaderRsvpLitePace(state.paceWpm) : undefined
+    paceWpm: state.mode === 'rsvp' ? normalizeReaderRsvpLitePace(state.paceWpm) : undefined,
+    // Paragraph restore is allowed to keep the hidden RSVP return cursor only
+    // for this exact persisted excerpt. We still do not persist "playing"
+    // intent, because reload cannot honestly recreate the route-owned timer.
+    sameExcerptRsvpResume:
+      sameExcerptRsvpResume && sameExcerptRsvpResume.words.length > 0
+        ? sameExcerptRsvpResume
+        : undefined
   };
 };
 
@@ -478,6 +501,19 @@ export const parseReaderFocusedReadingPersistedState = (
       ? persistedWords.length > 0
         ? persistedWords
         : splitReaderRsvpWords(sourceText)
+      : [];
+  const persistedSameExcerptResume =
+    mode === 'paragraph' &&
+    payload.sameExcerptRsvpResume &&
+    typeof payload.sameExcerptRsvpResume === 'object'
+      ? payload.sameExcerptRsvpResume
+      : null;
+  const restoredSameExcerptResumeWords =
+    persistedSameExcerptResume && Array.isArray(persistedSameExcerptResume.words)
+      ? persistedSameExcerptResume.words
+          .filter((word): word is string => typeof word === 'string')
+          .map((word) => word.trim())
+          .filter(Boolean)
       : [];
 
   return createReaderFocusedReadingState({
@@ -516,6 +552,17 @@ export const parseReaderFocusedReadingPersistedState = (
             typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM,
             'paused'
           )
+        : restoredSameExcerptResumeWords.length > 0
+          ? createSameExcerptRsvpResume(
+              restoredSameExcerptResumeWords,
+              typeof persistedSameExcerptResume?.activeWordIndex === 'number'
+                ? persistedSameExcerptResume.activeWordIndex
+                : 0,
+              typeof persistedSameExcerptResume?.paceWpm === 'number'
+                ? persistedSameExcerptResume.paceWpm
+                : READER_RSVP_LITE_DEFAULT_WPM,
+              'paused'
+            )
         : null,
     capabilityMessage: getFocusedReadingCapabilityMessage(formatLabel, sourceText.length > 0)
   });

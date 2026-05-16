@@ -1602,6 +1602,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0677-preserve-focused-reading-rsvp-play-pause-intent.md`.
   - Notes: play/pause intent is stored only as transient same-excerpt helper state so the route can decide whether autoplay should exist after a paragraph detour. Reload restore still comes back paused, this slice does not add cross-excerpt resume semantics, and PDF/CBZ support remains unchanged.
 
+- [x] P20-1.8 Persist same-excerpt RSVP return state across paragraph-mode reloads
+  - Outcome: when the reader reloads while focused reading is showing paragraph mode for a supported text excerpt that was reached from RSVP-lite, the same book reopens in paragraph mode with the hidden same-excerpt RSVP return cursor and pace intact; switching back to RSVP-lite returns to that saved word/pace and still comes back paused.
+  - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader preserves same-excerpt rsvp return state across paragraph-mode reloads in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0678-persist-focused-reading-rsvp-return-state-across-paragraph-reloads.md`.
+  - Notes: the persisted paragraph payload only carries the same-excerpt RSVP cursor and pace for this exact supported text excerpt. Reload restore still forces paused state, does not add autoplay reconstruction, and does not widen PDF/CBZ or cross-excerpt semantics.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
