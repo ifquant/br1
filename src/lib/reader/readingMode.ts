@@ -93,6 +93,33 @@ const createFocusedReadingPayload = (
   capabilityMessage: getFocusedReadingCapabilityMessage(preview.formatLabel, sourceText.length > 0)
 });
 
+// Same-excerpt transitions intentionally do not accept a fresh preview or DOM
+// selection. Once the overlay is open, these helpers must keep reusing the
+// exact excerpt the reader is already looking at instead of pretending we can
+// safely ask the viewport for a brand-new paragraph anchor.
+const createFocusedReadingPayloadForSameExcerpt = (
+  state: ReaderFocusedReadingState,
+  mode: Exclude<ReaderFocusedReadingMode, 'off'>,
+  words: string[] = [],
+  paceWpm = READER_RSVP_LITE_DEFAULT_WPM
+): ReaderFocusedReadingState => ({
+  ...createReaderFocusedReadingState({
+    mode,
+    formatLabel: state.formatLabel,
+    sourceText: state.sourceText,
+    sourceLabel: state.sourceLabel,
+    progressLabel: state.progressLabel,
+    progressLocation: state.progressLocation,
+    words,
+    activeWordIndex: 0,
+    paceWpm,
+    capabilityMessage: getFocusedReadingCapabilityMessage(
+      state.formatLabel,
+      normalizeExcerptText(state.sourceText).length > 0
+    )
+  })
+});
+
 const getParagraphFocusSource = ({ preview, selection }: ReaderFocusedReadingSourceInput) => {
   const selectionText = normalizeExcerptText(selection?.text);
   if (selectionText) {
@@ -202,6 +229,45 @@ export const startReaderRsvpLite = (
         ? normalizeReaderRsvpLitePace(state.paceWpm)
         : READER_RSVP_LITE_DEFAULT_WPM
   };
+};
+
+export const changeReaderFocusedReadingModeForSameExcerpt = (
+  state: ReaderFocusedReadingState,
+  mode: Exclude<ReaderFocusedReadingMode, 'off'>
+) => {
+  if (state.mode === 'off') {
+    return state;
+  }
+
+  if (mode === 'paragraph') {
+    return createFocusedReadingPayloadForSameExcerpt(state, 'paragraph');
+  }
+
+  const words =
+    state.words.length > 0 ? state.words : splitReaderRsvpWords(normalizeExcerptText(state.sourceText));
+  return createFocusedReadingPayloadForSameExcerpt(
+    state,
+    'rsvp',
+    words,
+    state.mode === 'rsvp'
+      ? normalizeReaderRsvpLitePace(state.paceWpm)
+      : READER_RSVP_LITE_DEFAULT_WPM
+  );
+};
+
+export const restartReaderFocusedReadingRsvpFromWordOne = (state: ReaderFocusedReadingState) => {
+  if (state.mode !== 'rsvp') {
+    return state;
+  }
+
+  const words =
+    state.words.length > 0 ? state.words : splitReaderRsvpWords(normalizeExcerptText(state.sourceText));
+  return createFocusedReadingPayloadForSameExcerpt(
+    state,
+    'rsvp',
+    words,
+    normalizeReaderRsvpLitePace(state.paceWpm)
+  );
 };
 
 export const advanceReaderRsvpWord = (state: ReaderFocusedReadingState, delta: number) => {

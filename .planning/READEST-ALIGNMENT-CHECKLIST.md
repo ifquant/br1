@@ -1578,6 +1578,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0674-add-reader-local-focused-reading-keyboard-entry.md`.
   - Notes: the reader stage listens only while the reader route is mounted and only when keyboard focus is still on the route body or inside the reader shell. Text inputs remain exempt so search/note editing does not accidentally trigger focused-reading entry, and the existing overlay callbacks, persistence behavior, and `Escape` exit semantics remain unchanged.
 
+- [x] P20-1.5 Let the overlay switch or replay the same focused excerpt
+  - Outcome: while the focused-reading overlay is already open on a supported text excerpt, the reader can switch the same excerpt between paragraph focus and RSVP-lite in place, and RSVP-lite can restart from word 1 without exiting the overlay or re-querying the viewport for a new selection.
+  - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `src/lib/reader/index.ts`, `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, `src/lib/components/reader/ReaderStage.svelte`, `src/routes/reader/+page.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader can switch focused-reading modes on the same excerpt in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0675-switch-and-restart-focused-reading-in-place.md`.
+  - Notes: same-excerpt transitions now go through pure helper state so the overlay never asks for a fresh DOM selection. The route still owns autoplay start/stop semantics: switching out of RSVP always stops autoplay, switching into RSVP reuses the existing entry behavior, and RSVP restart only continues autoplay when the excerpt was already playing before the restart.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

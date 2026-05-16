@@ -9,6 +9,9 @@
   export let summary = '';
   export let isRsvpPlaying = false;
   export let onExit: (() => void) | null = null;
+  export let onSwitchToParagraph: (() => void) | null = null;
+  export let onSwitchToRsvp: (() => void) | null = null;
+  export let onRestartRsvp: (() => void) | null = null;
   export let onTogglePlayback: (() => void) | null = null;
   export let onSlowerPace: (() => void) | null = null;
   export let onFasterPace: (() => void) | null = null;
@@ -107,6 +110,17 @@
         <span>{state.sourceLabel}</span>
       {/if}
     </div>
+    {#if !hasCapabilityGap}
+      <div class="overlay-mode-actions" aria-label="专注阅读模式切换">
+        {#if isParagraphMode}
+          <button type="button" on:click={() => onSwitchToRsvp?.()}>切换到 RSVP-lite</button>
+        {:else if isRsvpMode}
+          <button type="button" on:click={() => onSwitchToParagraph?.()}>切换到段落聚焦</button>
+          <button type="button" on:click={() => onRestartRsvp?.()}>从第 1 词重新开始</button>
+        {/if}
+        <span>保持当前摘录，不重新抓取正文。</span>
+      </div>
+    {/if}
     <div class="overlay-hints" aria-label="专注阅读快捷键提示">
       <span>Esc 退出专注阅读</span>
       {#if rsvpKeyboardTransportEnabled}
@@ -224,6 +238,19 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .overlay-mode-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .overlay-mode-actions span {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    color: var(--reader-shell-muted, #78644a);
   }
 
   .overlay-hints span {

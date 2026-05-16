@@ -120,6 +120,9 @@
   export let onStartParagraphFocus: (() => void) | null = null;
   export let onStartRsvpLite: (() => void) | null = null;
   export let onExitFocusedReading: (() => void) | null = null;
+  export let onSwitchFocusedReadingToParagraph: (() => void) | null = null;
+  export let onSwitchFocusedReadingToRsvp: (() => void) | null = null;
+  export let onRestartFocusedReadingRsvp: (() => void) | null = null;
   export let onToggleFocusedReadingRsvpPlayback: (() => void) | null = null;
   export let onFocusedReadingSlowerPace: (() => void) | null = null;
   export let onFocusedReadingFasterPace: (() => void) | null = null;
@@ -618,6 +621,9 @@
       summary={focusedReadingSummary}
       isRsvpPlaying={focusedReadingRsvpPlaying}
       onExit={onExitFocusedReading}
+      onSwitchToParagraph={onSwitchFocusedReadingToParagraph}
+      onSwitchToRsvp={onSwitchFocusedReadingToRsvp}
+      onRestartRsvp={onRestartFocusedReadingRsvp}
       onTogglePlayback={onToggleFocusedReadingRsvpPlayback}
       onSlowerPace={onFocusedReadingSlowerPace}
       onFasterPace={onFocusedReadingFasterPace}

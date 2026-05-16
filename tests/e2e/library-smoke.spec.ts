@@ -2858,6 +2858,46 @@ test('reader focused-reading overlay supports keyboard transport in web mode', a
   await expect(unsupportedOverlay).toContainText('PDF 正文暂时不能进入专注阅读');
 });
 
+test('reader can switch focused-reading modes on the same excerpt in web mode', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const sameExcerptHint = '保持当前摘录，不重新抓取正文。';
+  await expect(overlay).toContainText('段落聚焦');
+  await expect(overlay).toContainText('This plain text file exists to verify');
+  await expect(overlay.getByText(sameExcerptHint)).toBeVisible();
+
+  await overlay.getByRole('button', { name: '切换到 RSVP-lite' }).click();
+  await expect(overlay).toContainText('RSVP-lite');
+  await expect(overlay).toContainText('This plain text file exists to verify');
+
+  const pauseButton = overlay.getByRole('button', { name: '暂停自动播放' });
+  await expect(pauseButton).toBeVisible();
+  await pauseButton.click();
+
+  const progress = overlay.getByLabel('RSVP-lite 进度');
+  await overlay.getByRole('button', { name: '下一个词' }).click();
+  await expect(progress).toContainText(/2 \/ \d+/);
+
+  await overlay.getByRole('button', { name: '从第 1 词重新开始' }).click();
+  await expect(progress).toContainText(/1 \/ \d+/);
+  await expect(overlay.getByRole('button', { name: '继续自动播放' })).toBeVisible();
+
+  await overlay.getByRole('button', { name: '切换到段落聚焦' }).click();
+  await expect(overlay).toContainText('段落聚焦');
+  await expect(overlay).toContainText('This plain text file exists to verify');
+  await expect(overlay.getByRole('button', { name: '切换到 RSVP-lite' })).toBeVisible();
+  await expect(overlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
+});
+
 test('reader restores focused reading position for supported text surfaces', async ({ page }) => {
   const bookUrl = '/samples/sample-book.txt';
   await page.addInitScript((key) => {

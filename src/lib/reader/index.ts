@@ -200,6 +200,7 @@ export {
   READER_RSVP_LITE_MIN_WPM,
   canAdvanceReaderRsvpWord,
   canStartReaderFocusedReading,
+  changeReaderFocusedReadingModeForSameExcerpt,
   createReaderFocusedReadingState,
   advanceReaderRsvpWord,
   decreaseReaderRsvpLitePace,
@@ -208,6 +209,7 @@ export {
   getReaderFocusedReadingSummary,
   increaseReaderRsvpLitePace,
   parseReaderFocusedReadingPersistedState,
+  restartReaderFocusedReadingRsvpFromWordOne,
   serializeReaderFocusedReadingState,
   startReaderParagraphFocus,
   startReaderRsvpLite

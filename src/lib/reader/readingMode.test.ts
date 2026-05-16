@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
   advanceReaderRsvpWord,
+  changeReaderFocusedReadingModeForSameExcerpt,
   createReaderFocusedReadingState,
   decreaseReaderRsvpLitePace,
   exitReaderFocusedReading,
@@ -15,6 +16,7 @@ import {
   READER_RSVP_LITE_DEFAULT_WPM,
   READER_RSVP_LITE_MAX_WPM,
   READER_RSVP_LITE_MIN_WPM,
+  restartReaderFocusedReadingRsvpFromWordOne,
   serializeReaderFocusedReadingState,
   startReaderParagraphFocus,
   startReaderRsvpLite
@@ -109,6 +111,48 @@ test('rsvp-lite word stepping stops at the end instead of wrapping', () => {
   const ended = advanceReaderRsvpWord(started, 99);
   assert.equal(ended.activeWordIndex, 2);
   assert.equal(advanceReaderRsvpWord(ended, 1).activeWordIndex, 2);
+});
+
+test('same-excerpt mode switching reuses the overlay excerpt instead of asking for new reader input', () => {
+  const paragraph = startReaderParagraphFocus(createReaderFocusedReadingState(), {
+    preview: buildPreview(),
+    selection: buildSelection('Keep this exact excerpt while switching modes.')
+  });
+
+  const rsvp = changeReaderFocusedReadingModeForSameExcerpt(paragraph, 'rsvp');
+  assert.equal(rsvp.mode, 'rsvp');
+  assert.equal(rsvp.sourceText, paragraph.sourceText);
+  assert.equal(rsvp.sourceLabel, paragraph.sourceLabel);
+  assert.equal(rsvp.progressLocation, paragraph.progressLocation);
+  assert.deepEqual(rsvp.words, ['Keep', 'this', 'exact', 'excerpt', 'while', 'switching', 'modes.']);
+  assert.equal(rsvp.activeWordIndex, 0);
+  assert.equal(rsvp.paceWpm, READER_RSVP_LITE_DEFAULT_WPM);
+
+  const backToParagraph = changeReaderFocusedReadingModeForSameExcerpt(rsvp, 'paragraph');
+  assert.equal(backToParagraph.mode, 'paragraph');
+  assert.equal(backToParagraph.sourceText, paragraph.sourceText);
+  assert.equal(backToParagraph.sourceLabel, paragraph.sourceLabel);
+  assert.equal(backToParagraph.progressLocation, paragraph.progressLocation);
+});
+
+test('same-excerpt rsvp restart jumps back to word one without replacing the excerpt or pace', () => {
+  const started = increaseReaderRsvpLitePace(
+    advanceReaderRsvpWord(
+      startReaderRsvpLite(createReaderFocusedReadingState(), {
+        preview: buildPreview(),
+        selection: buildSelection('Restart should keep this same excerpt and speed.')
+      }),
+      4
+    )
+  );
+
+  const restarted = restartReaderFocusedReadingRsvpFromWordOne(started);
+
+  assert.equal(restarted.mode, 'rsvp');
+  assert.equal(restarted.sourceText, started.sourceText);
+  assert.deepEqual(restarted.words, started.words);
+  assert.equal(restarted.activeWordIndex, 0);
+  assert.equal(restarted.paceWpm, started.paceWpm);
 });
 
 test('unsupported formats return a visible capability message', () => {

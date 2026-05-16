@@ -68,6 +68,7 @@
     getReaderLocationDisplayLabel,
     getReaderInlineTranslationSummary,
     getReaderPlaybackQueueSummary,
+    changeReaderFocusedReadingModeForSameExcerpt,
     getReaderFocusedReadingSummary,
     getReaderRsvpLiteIntervalMs,
     isReaderTtsPlaybackLocationDrifted,
@@ -78,6 +79,7 @@
     openReaderParallelSecondaryPaneFromPrimary,
     parseReaderRouteOpenState,
     planReaderTtsRetargetAction,
+    restartReaderFocusedReadingRsvpFromWordOne,
     setReaderPlaybackRate,
     setReaderPlaybackTimeout,
     startReaderParagraphFocus,
@@ -292,6 +294,7 @@
   let focusedReadingRsvpPlaying = false;
   let focusedReadingRsvpAutoplayTimer: ReturnType<typeof setTimeout> | null = null;
   let focusedReadingRsvpAutoplayKey = '';
+  let focusedReadingRsvpRestartNonce = 0;
   let assistanceState = createEmptyReaderAssistanceState();
   let assistanceHistory: ReaderAssistanceHistoryEntry[] = [];
   let assistanceSelection: ReaderAssistanceWorkspaceSelection =
@@ -817,7 +820,7 @@
     const nextAutoplayKey =
       focusedReadingRsvpPlaying &&
       canPlayFocusedReadingRsvpAutoplay(focusedReadingState)
-        ? `${focusedReadingState.activeWordIndex}:${focusedReadingState.paceWpm}:${focusedReadingState.words.length}`
+        ? `${focusedReadingState.activeWordIndex}:${focusedReadingState.paceWpm}:${focusedReadingState.words.length}:${focusedReadingRsvpRestartNonce}`
         : '';
 
     if (nextAutoplayKey !== focusedReadingRsvpAutoplayKey) {
@@ -1770,6 +1773,30 @@
     focusedReadingRsvpPlaying = canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
   };
 
+  const switchFocusedReadingToParagraphMode = () => {
+    focusedReadingRsvpPlaying = false;
+    focusedReadingState = changeReaderFocusedReadingModeForSameExcerpt(
+      focusedReadingState,
+      'paragraph'
+    );
+  };
+
+  const switchFocusedReadingToRsvpMode = () => {
+    focusedReadingState = changeReaderFocusedReadingModeForSameExcerpt(focusedReadingState, 'rsvp');
+    focusedReadingRsvpPlaying = canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
+  };
+
+  const restartFocusedReadingRsvpMode = () => {
+    const wasPlaying = focusedReadingRsvpPlaying;
+    focusedReadingState = restartReaderFocusedReadingRsvpFromWordOne(focusedReadingState);
+    focusedReadingRsvpRestartNonce += 1;
+    // Restart keeps the reader's existing play/pause intent honest: replaying a
+    // currently playing excerpt keeps running, while replaying a paused excerpt
+    // resets to word one without silently turning autoplay back on.
+    focusedReadingRsvpPlaying =
+      wasPlaying && canPlayFocusedReadingRsvpAutoplay(focusedReadingState);
+  };
+
   const exitFocusedReadingMode = () => {
     focusedReadingRsvpPlaying = false;
     focusedReadingState = exitReaderFocusedReading(focusedReadingState);
@@ -2456,6 +2483,9 @@
           onStartParagraphFocus={startParagraphFocusMode}
           onStartRsvpLite={startRsvpLiteMode}
           onExitFocusedReading={exitFocusedReadingMode}
+          onSwitchFocusedReadingToParagraph={switchFocusedReadingToParagraphMode}
+          onSwitchFocusedReadingToRsvp={switchFocusedReadingToRsvpMode}
+          onRestartFocusedReadingRsvp={restartFocusedReadingRsvpMode}
           onToggleFocusedReadingRsvpPlayback={toggleFocusedReadingRsvpPlayback}
           onFocusedReadingSlowerPace={slowFocusedReadingRsvpPace}
           onFocusedReadingFasterPace={speedFocusedReadingRsvpPace}
