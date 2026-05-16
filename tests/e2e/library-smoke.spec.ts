@@ -3135,6 +3135,70 @@ test('reader opens focused reading modes from keyboard in web mode', async ({ pa
   await expect(rsvpOverlay.getByLabel('RSVP-lite 当前词')).toBeVisible();
 });
 
+test('reader restores focused reading per book after switching between txt and epub in web mode', async ({
+  page
+}) => {
+  const txtBookUrl = '/samples/sample-book.txt';
+  const epubBookUrl = '/samples/sample-book.epub';
+
+  await page.goto('/');
+  await page.evaluate(
+    ([txtKey, epubKey]) => {
+      window.localStorage.removeItem(`br1.reader.focused-reading:${txtKey}`);
+      window.localStorage.removeItem(`br1.reader.focused-reading:${epubKey}`);
+    },
+    [txtBookUrl, epubBookUrl]
+  );
+
+  const txtReaderHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: txtBookUrl,
+    label: 'Sample TXT Book'
+  }).toString()}`;
+  const epubReaderHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: epubBookUrl,
+    label: 'Sample EPUB Book'
+  }).toString()}`;
+
+  await page.goto(txtReaderHref);
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开 RSVP-lite' }).click();
+
+  const txtOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const txtProgress = txtOverlay.getByLabel('RSVP-lite 进度');
+  await expect(txtOverlay).toContainText('RSVP-lite');
+  await txtOverlay.getByRole('button', { name: '暂停自动播放' }).click();
+  await txtOverlay.getByRole('button', { name: '更快' }).click();
+  await expect(txtOverlay).toContainText('280 词/分钟');
+  await txtOverlay.getByRole('button', { name: '下一个词' }).click();
+  await txtOverlay.getByRole('button', { name: '下一个词' }).click();
+  await expect(txtProgress).toContainText(/3 \/ \d+/);
+  await expect(txtOverlay).toContainText('This plain text file exists to verify');
+
+  await page.goto(epubReaderHref);
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toHaveCount(0);
+
+  await page.goto(txtReaderHref);
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  const restoredOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(restoredOverlay).toBeVisible();
+  await expect(restoredOverlay).toContainText('RSVP-lite');
+  await expect(restoredOverlay).toContainText('This plain text file exists to verify');
+  await expect(restoredOverlay).toContainText('280 词/分钟');
+  await expect(restoredOverlay.getByLabel('RSVP-lite 进度')).toContainText(/3 \/ \d+/);
+  await expect(restoredOverlay.getByRole('button', { name: '继续自动播放' })).toBeVisible();
+  await expect(restoredOverlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
+});
+
 test('reader search states read like one product surface across txt and epub', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

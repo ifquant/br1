@@ -1626,6 +1626,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0680-surface-focused-reading-context-in-the-overlay.md`.
   - Notes: this remains a presentation-only slice. The overlay reuses existing focused-reading labels, keeps raw restore locators out of the primary UI when they would read like machine state, and does not change continuity, autoplay, keyboard, entry, or exit semantics.
 
+- [x] P20-1.11 Verify focused-reading per-book restore across TXT -> EPUB -> TXT
+  - Outcome: this slice smoke-certifies one concrete per-book focused-reading path: TXT book A can keep its mode, excerpt, RSVP progress, and pace through a real TXT -> EPUB -> TXT switch, while the EPUB leg settles without inheriting TXT overlay state.
+  - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores focused reading per book after switching between txt and epub in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0681-verify-focused-reading-per-book-restore-across-txt-epub-switch.md`.
+  - Notes: this slice intentionally stays at one TXT RSVP -> EPUB -> TXT per-book seam only. It does not certify paragraph mode, EPUB-owned focused-reading state, reverse-direction book switches, cross-book workspace restore, route-boundary refactors, or any PDF/CBZ restore claim.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
