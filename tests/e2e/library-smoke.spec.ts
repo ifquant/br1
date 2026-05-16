@@ -3528,15 +3528,15 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt afte
       message: 'expected the visible EPUB progress to stay away from the original starting progress after reload before manual reopen'
     })
     .not.toBe(startingProgress);
-  await expect
-    .poll(async () => {
-      return (
-        (((await readingProgress.textContent()) ?? '').replace(/\s+/g, ' ').trim().match(/\d+%/) ?? [])[0] ?? ''
-      );
-    }, {
-      message: 'expected the visible EPUB progress percentage to stay away from the original starting percentage after reload before manual reopen'
-    })
-    .not.toBe(startingProgressPercent);
+  const reloadedProgressPercent = reloadedProgress.match(/\d+%/)?.[0] ?? '';
+  expect(
+    reloadedProgressPercent,
+    'expected the shifted reload progress text to expose a real EPUB percentage before manual reopen'
+  ).toMatch(/\d+%/);
+  expect(
+    reloadedProgressPercent,
+    'expected the visible EPUB progress percentage to stay away from the original starting percentage after reload before manual reopen'
+  ).not.toBe(startingProgressPercent);
   await expect
     .poll(async () => {
       return page.evaluate(() => {
