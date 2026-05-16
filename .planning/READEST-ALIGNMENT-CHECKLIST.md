@@ -1534,6 +1534,14 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Tutorial: `tutorials/commit/0669-extract-reader-current-book-persist-gates.md`.
   - Notes: `+page.svelte` still owns `localStorage`, `getReaderStorage()`, and the actual persist calls. The helpers only prevent default/pre-restore route state from clobbering per-book persisted state during boot or book switches.
 
+- [x] P19-1.6 Close the reader route boundary-reduction line
+  - Outcome: P19 is functionally closed for now. The remaining `+page.svelte` mass is mostly rightful route ownership: Svelte lifecycle, URL/workspace routing, controller side effects, localStorage/service writes, notebook/stage composition, and cross-owner event handlers.
+  - Touches: checklist/tutorial docs only.
+  - Verify: `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0670-close-reader-route-boundary-reduction-line.md`.
+  - Notes: Future P19-style work should resume only when a concrete new pure policy cluster appears. Further splitting today would mostly move route-owned sequencing into artificial wrappers, increasing risk without reducing product complexity.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.
