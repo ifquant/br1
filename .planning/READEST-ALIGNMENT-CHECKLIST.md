@@ -1618,6 +1618,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0679-keep-focused-reading-exit-reopen-continuity.md`.
   - Notes: the hidden resume payload is still same-book only and only persists supported text excerpts. Exit does not add cross-book routing, cross-excerpt navigation, PDF/CBZ widening, or autoplay reconstruction.
 
+- [x] P20-1.10 Surface chapter/progress context inside the focused-reading overlay
+  - Outcome: the focused-reading overlay now breaks the current excerpt context into readable metadata chips so the reader can see excerpt source and progress at a glance without relying on the denser summary sentence alone.
+  - Touches: `src/lib/components/reader/ReaderFocusedReadingOverlay.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader focused-reading overlay shows chapter and progress context in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0680-surface-focused-reading-context-in-the-overlay.md`.
+  - Notes: this remains a presentation-only slice. The overlay reuses existing focused-reading labels, keeps raw restore locators out of the primary UI when they would read like machine state, and does not change continuity, autoplay, keyboard, entry, or exit semantics.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

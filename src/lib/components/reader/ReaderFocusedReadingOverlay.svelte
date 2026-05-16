@@ -26,6 +26,9 @@
   $: rsvpCanAutoplay = isRsvpMode && state.words.length > 0 && (isRsvpPlaying || state.activeWordIndex < state.words.length - 1);
   $: rsvpPaceLabel = `${state.paceWpm} 词/分钟`;
   $: rsvpKeyboardTransportEnabled = isRsvpMode && !hasCapabilityGap;
+  $: readingSourceLabel = state.sourceLabel.trim();
+  $: readingProgressLabel = state.progressLabel.trim();
+  $: readingProgressLocationLabel = getReadableProgressLocationLabel(state.progressLocation);
 
   onMount(() => {
     overlayElement?.focus();
@@ -82,6 +85,26 @@
       consumeOverlayKey(event, onSlowerPace);
     }
   };
+
+  const getReadableProgressLocationLabel = (value: string) => {
+    const normalized = value.trim();
+    if (!normalized) {
+      return '';
+    }
+
+    // Focused-reading should surface human reading context, not raw restore
+    // locators that only make sense to the persistence/runtime layers.
+    if (
+      normalized.startsWith('epubcfi(') ||
+      normalized.startsWith('txt:') ||
+      normalized.startsWith('page:') ||
+      normalized.startsWith('pdf:')
+    ) {
+      return '';
+    }
+
+    return normalized;
+  };
 </script>
 
 <div
@@ -106,10 +129,29 @@
 
     <div class="overlay-summary" aria-live="polite">
       <strong>{summary}</strong>
-      {#if state.sourceLabel}
-        <span>{state.sourceLabel}</span>
-      {/if}
     </div>
+    {#if readingSourceLabel || readingProgressLabel || readingProgressLocationLabel}
+      <section class="overlay-context" aria-label="当前阅读上下文">
+        {#if readingSourceLabel}
+          <div class="overlay-context-item">
+            <span class="overlay-context-label">摘录来源</span>
+            <strong>{readingSourceLabel}</strong>
+          </div>
+        {/if}
+        {#if readingProgressLabel}
+          <div class="overlay-context-item">
+            <span class="overlay-context-label">进度</span>
+            <strong>{readingProgressLabel}</strong>
+          </div>
+        {/if}
+        {#if readingProgressLocationLabel}
+          <div class="overlay-context-item overlay-context-item-wide">
+            <span class="overlay-context-label">定位</span>
+            <strong>{readingProgressLocationLabel}</strong>
+          </div>
+        {/if}
+      </section>
+    {/if}
     {#if !hasCapabilityGap}
       <div class="overlay-mode-actions" aria-label="专注阅读模式切换">
         {#if isParagraphMode}
@@ -214,7 +256,6 @@
   }
 
   .eyebrow,
-  .overlay-summary span,
   .rsvp-progress {
     font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
     font-size: 11px;
@@ -232,6 +273,39 @@
   .overlay-summary {
     display: grid;
     gap: 4px;
+  }
+
+  .overlay-context {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .overlay-context-item {
+    display: grid;
+    gap: 2px;
+    min-width: 120px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--reader-shell-border, rgba(80, 58, 28, 0.16)) 76%, transparent);
+    background: color-mix(in srgb, var(--reader-paper-bg, #f8f1e4) 84%, white 16%);
+  }
+
+  .overlay-context-item strong {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .overlay-context-item-wide {
+    flex: 1 1 100%;
+  }
+
+  .overlay-context-label {
+    font-family: "IBM Plex Sans", "Helvetica Neue", "Noto Sans SC", sans-serif;
+    font-size: 11px;
+    color: var(--reader-shell-muted, #78644a);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .overlay-hints {

@@ -2858,6 +2858,29 @@ test('reader focused-reading overlay supports keyboard transport in web mode', a
   await expect(unsupportedOverlay).toContainText('PDF 正文暂时不能进入专注阅读');
 });
 
+test('reader focused-reading overlay shows chapter and progress context in web mode', async ({
+  page
+}) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const context = overlay.getByLabel('当前阅读上下文');
+  await expect(overlay).toContainText('段落聚焦');
+  await expect(context).toContainText('当前阅读位置');
+  await expect(context).toContainText('0%');
+  await expect(context).toContainText('摘录来源');
+  await expect(context).toContainText('进度');
+  await expect(context).not.toContainText('txt:');
+});
+
 test('reader can switch focused-reading modes on the same excerpt in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
