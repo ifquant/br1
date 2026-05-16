@@ -9,7 +9,7 @@ The focused-reading continuity slices already covered TXT hidden-resume behavior
 - added a focused Playwright smoke in `tests/e2e/library-smoke.spec.ts`
 - the smoke creates a real EPUB selection inside the Foliate document, opens paragraph-focused reading from that selection-owned excerpt, and verifies the overlay surfaces it as `当前选区`
 - after exit, the smoke clears the live DOM selection and moves the EPUB view to a different progress point before manually reopening paragraph focus
-- made the assertions prove the hidden same-book selection-owned excerpt wins on reopen after live selection has been cleared and reader progress has moved
+- made the assertions prove the hidden same-book selection-owned excerpt wins on reopen after live selection has been cleared and reader progress has moved, with the overlay source chip reading `当前选区` on both first open and reopen
 - updated the alignment checklist so P20 records this EPUB-only selection-precedence seam as its own narrow certification row
 
 ## Verification

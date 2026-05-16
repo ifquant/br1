@@ -3309,7 +3309,7 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
   await expect(overlay).toContainText(selectedExcerpt);
   await expect(overlayContext).toContainText('摘录来源');
   await expect(overlayContext).toContainText('进度');
-  await expect(overlaySourceValue).toHaveText(/\S+/);
+  await expect(overlaySourceValue).toHaveText('当前选区');
   const initialOverlaySourceValue = ((await overlaySourceValue.textContent()) ?? '').trim();
   expect(initialOverlaySourceValue).toMatch(/\S+/);
   expect(initialOverlaySourceValue).not.toMatch(/^(epubcfi\(|txt:|page:|pdf:)/);
@@ -3368,6 +3368,7 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
   await expect(reopenedOverlay).toContainText(selectedExcerpt);
   await expect(reopenedContext).toContainText('摘录来源');
   await expect(reopenedContext).toContainText('进度');
+  await expect(reopenedSourceValue).toHaveText('当前选区');
   await expect(reopenedSourceValue).toHaveText(initialOverlaySourceValue);
   await expect(reopenedProgressValue).toHaveText(startingProgressPercent);
   await expect(reopenedOverlay).not.toContainText('epubcfi(');
@@ -3469,7 +3470,7 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt afte
   await expect(overlay).toContainText(selectedExcerpt);
   await expect(overlayContext).toContainText('摘录来源');
   await expect(overlayContext).toContainText('进度');
-  await expect(overlaySourceValue).toHaveText(/\S+/);
+  await expect(overlaySourceValue).toHaveText('当前选区');
   const initialOverlaySourceValue = ((await overlaySourceValue.textContent()) ?? '').trim();
   expect(initialOverlaySourceValue).toMatch(/\S+/);
   expect(initialOverlaySourceValue).not.toMatch(/^(epubcfi\(|txt:|page:|pdf:)/);
@@ -3566,6 +3567,7 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt afte
   await expect(reopenedOverlay).toContainText(selectedExcerpt);
   await expect(reopenedContext).toContainText('摘录来源');
   await expect(reopenedContext).toContainText('进度');
+  await expect(reopenedSourceValue).toHaveText('当前选区');
   await expect(reopenedSourceValue).toHaveText(initialOverlaySourceValue);
   await expect(reopenedProgressValue).toHaveText(startingProgressPercent);
   await expect(reopenedOverlay).not.toContainText('epubcfi(');
