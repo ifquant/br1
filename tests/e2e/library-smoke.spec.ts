@@ -3213,7 +3213,7 @@ test('reader restores hidden focused-reading resume after exit and reload in web
   await expect(reopenedOverlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
 });
 
-test('reader reuses the exited epub selection-owned focused-reading excerpt on reopen in web mode', async ({
+test('reader reuses the exited epub selection-owned focused-reading excerpt after exit, reload, and reopen in web mode', async ({
   page
 }) => {
   const bookUrl = '/samples/sample-book.epub';
@@ -3351,6 +3351,13 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
       message: 'expected EPUB reading progress to move after exit before focused-reading reopen'
     })
     .not.toBe(startingProgress);
+
+  // The reload must not depend on an open overlay or a live Foliate selection.
+  // Manual reopen should still reuse the hidden same-book excerpt payload.
+  await page.reload();
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('dialog', { name: '专注阅读浮层' })).toHaveCount(0);
+  await expect(selectionToolbar).toHaveCount(0);
 
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
