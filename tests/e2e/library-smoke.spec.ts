@@ -3351,6 +3351,15 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
       message: 'expected EPUB reading progress to move after exit before focused-reading reopen'
     })
     .not.toBe(startingProgress);
+  const movedProgressPercent = movedProgress.match(/\d+%/)?.[0] ?? '';
+  expect(
+    movedProgressPercent,
+    'expected the shifted reopen progress text to expose a real EPUB percentage before manual reopen'
+  ).toMatch(/\d+%/);
+  expect(
+    movedProgressPercent,
+    'expected the visible EPUB progress percentage to stay away from the original starting percentage before manual reopen'
+  ).not.toBe(startingProgressPercent);
 
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
