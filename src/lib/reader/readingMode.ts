@@ -32,6 +32,10 @@ export type ReaderFocusedReadingState = {
   sameExcerptRsvpResume: ReaderFocusedReadingRsvpResumeState | null;
 };
 
+// Persisted focused-reading state doubles as the hidden same-book resume
+// payload. `mode: off` does not always mean "nothing to restore"; it can also
+// mean "overlay is closed, but reopen should still come back to this exact
+// excerpt on a supported text surface".
 export type ReaderFocusedReadingPersistedState = {
   schemaVersion: 1;
   mode: ReaderFocusedReadingMode;
@@ -245,6 +249,9 @@ const splitReaderRsvpWords = (text: string) =>
     .map((word) => word.trim())
     .filter(Boolean);
 
+// Reload and same-excerpt mode switches must never trust an out-of-range RSVP
+// cursor from stale state. Clamp aggressively so later helpers can treat the
+// active index as safe without each call site re-validating it.
 const clampReaderRsvpWordIndex = (words: string[], activeWordIndex: number) => {
   if (words.length === 0) {
     return 0;
@@ -265,6 +272,9 @@ const normalizeReaderRsvpLitePace = (paceWpm: number) => {
   );
 };
 
+// This constructor is the single "empty but valid" focused-reading shape used
+// by restore, exit, and guard paths. Keeping one canonical default stops route
+// code from inventing slightly different off-state payloads.
 export const createReaderFocusedReadingState = (
   overrides: Partial<ReaderFocusedReadingState> = {}
 ): ReaderFocusedReadingState => ({
@@ -286,6 +296,9 @@ export const startReaderParagraphFocus = (
   state: ReaderFocusedReadingState,
   input: ReaderFocusedReadingSourceInput
 ) => {
+  // Hidden same-book resume wins over fresh preview sampling. Reopen should
+  // come back to the excerpt the reader explicitly used before, not whichever
+  // paragraph happens to be visible after later scrolling or navigation.
   if (hasHiddenFocusedReadingResume(state)) {
     return createFocusedReadingPayloadForSameExcerpt(state, 'paragraph');
   }
@@ -298,6 +311,9 @@ export const startReaderRsvpLite = (
   state: ReaderFocusedReadingState,
   input: ReaderFocusedReadingSourceInput
 ) => {
+  // RSVP reopen follows the same rule as paragraph reopen, but it also revives
+  // the saved word cursor and pace for that exact excerpt. Playback always
+  // restarts paused because the route, not this helper, owns real timers.
   if (hasHiddenFocusedReadingResume(state)) {
     const resume = state.sameExcerptRsvpResume;
     const words =
@@ -576,6 +592,10 @@ export const parseReaderFocusedReadingPersistedState = (
           .filter(Boolean)
       : [];
 
+  // Parse is intentionally forgiving: once the schema version and excerpt text
+  // are valid, we salvage whatever safe RSVP cursor/pace data we can and fall
+  // back to normalized defaults for the rest. That keeps same-book reopen
+  // usable after older payloads or partially-corrupt storage entries.
   return createReaderFocusedReadingState({
     mode,
     formatLabel,

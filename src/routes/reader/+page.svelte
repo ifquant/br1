@@ -757,6 +757,11 @@
       assistanceSelection,
       routeOpenState
     });
+    // Apply the restored maturity bundle after the route has already stopped
+    // any live TTS session for the old book. This stage restores per-book
+    // ownership/config payloads, clears selection/guard state that should not
+    // cross books, then restores the text-only focused-reading session shape
+    // that the overlay can render without sampling fresh DOM.
     ttsReadAloudTextMode = restoredMaturityState.ttsReadAloudTextMode;
     lastRestoredTtsReadAloudModeBookKey = restoredMaturityState.restoredBookKey;
     translatedTtsOwner = restoredMaturityState.translatedTtsOwner;
@@ -878,6 +883,9 @@
     readerBookKey;
     focusedReadingStorageKey;
     focusedReadingState;
+    // Persist only after this exact book has completed focused-reading restore.
+    // Without this gate, the route's initial default state would immediately
+    // overwrite the stored same-book resume payload on first render.
     if (
       typeof localStorage !== 'undefined' &&
       canPersistReaderCurrentBookFocusedReadingState({
@@ -2509,6 +2517,10 @@
           on:selectionchange={({ detail }) => {
             const previousSelection = currentReaderSelection;
             currentReaderSelection = detail;
+            // EPUB focus loss can emit a delayed null selection after header or
+            // menu interactions. Keep both the live selection and the one-shot
+            // launch guard in sync here so paragraph focus can reuse the last
+            // explicit EPUB excerpt exactly once, then clear it again.
             const launchSelectionGuardBoundary =
               resolveReaderFocusedReadingLaunchSelectionGuardBoundaryForSelectionChange({
                 formatLabel: currentPreview.formatLabel,

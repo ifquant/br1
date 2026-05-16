@@ -77,6 +77,9 @@ export type ReaderCurrentBookPersistenceKeys = {
   focusedReadingStorageKey: string;
 };
 
+// Restore gates protect against the "first render writes defaults back over the
+// just-restored book" race. The route only persists a family after that exact
+// book's restore path has finished for the same family of state.
 type ReaderCurrentBookRestoredPersistGateInput = {
   readerBookKey: string;
   lastRestoredBookKey: string;
@@ -157,6 +160,9 @@ const normalizeTranslatedTtsLiveSnapshot = (
   };
 };
 
+// Current-book state is deliberately split into per-book key families so book
+// switches can restore and overwrite only the state that actually belongs to
+// the newly opened title.
 export const getReaderCurrentBookPersistenceKeys = (
   readerBookKey: string
 ): ReaderCurrentBookPersistenceKeys => ({
@@ -260,6 +266,10 @@ export const persistReaderTranslationOwnership = (
   storageKey: string,
   ownership: ReaderTranslationOwnership
 ) => {
+  // Ownership persists the source-following policy, not the whole translation
+  // workspace. When the reader pins a source, we still normalize the excerpt
+  // before storage so restore only has to validate one payload shape instead of
+  // handling raw whitespace and untrimmed labels from multiple call sites.
   setJsonStorageItem(storage, storageKey, {
     followsCurrentSource: ownership.followsCurrentSource,
     pinnedSource: ownership.pinnedSource
@@ -346,6 +356,10 @@ export const restoreReaderCurrentBookTranslationLiveSnapshot = (
     const sourceText = normalizeAssistanceText(parsed?.sourceText || '');
     const translatedText = normalizeAssistanceText(parsed?.translatedText || '');
     const providerLabel = (parsed?.providerLabel || '').trim();
+    // A live translation snapshot is only useful if all three visible pieces
+    // still exist. Partial payloads are treated as corrupt and purged so the
+    // route can rebuild from a fresh live/archive source instead of displaying
+    // mismatched translated text.
     if (!sourceText || !translatedText || !providerLabel) {
       removeStorageItem(storage, storageKey);
       return null;
@@ -425,6 +439,9 @@ export const restoreReaderTtsOwnership = (
       pinnedTarget?: ReaderTtsSpeechTarget | null;
     };
     const normalizedPinnedTarget = normalizeReaderTtsSpeechTarget(parsed.pinnedTarget ?? null);
+    // "Stop following current" only makes sense if a concrete pinned target
+    // survived normalization. Otherwise we would restore a dead ownership mode
+    // that can no longer explain what TTS should read aloud.
     if (parsed.followsCurrentLocation === false && !normalizedPinnedTarget) {
       removeStorageItem(storage, storageKey);
       return DEFAULT_TTS_OWNERSHIP;
@@ -533,6 +550,9 @@ export const persistReaderCurrentBookFocusedReadingState = (
 ) => {
   const persistedState = serializeReaderFocusedReadingState(state);
   if (!persistedState) {
+    // Unsupported formats and truly empty excerpts should not leave stale
+    // focused-reading resume payloads behind. Removing the key here keeps
+    // reopen semantics honest when the reader later returns to this book.
     removeStorageItem(storage, storageKey);
     return;
   }
