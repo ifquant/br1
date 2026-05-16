@@ -52,6 +52,7 @@ type ReaderSelectionBookChangeInput = {
 };
 
 type ReaderFocusedReadingLaunchSelectionInput = {
+  launchMode: 'paragraph' | 'rsvp';
   formatLabel: string;
   currentSelection: ReaderSelectionState | null;
   lastNonEmptySelection: ReaderSelectionState | null;
@@ -169,7 +170,7 @@ export const resolveReaderAnnotationPopupSelectionForBookChange = (
 // Focused-reading launch can start from header chrome that temporarily steals
 // focus from the EPUB iframe. The route therefore latches the last explicit
 // non-empty EPUB selection and asks this helper to prefer it only when the
-// live selection has already vanished on that EPUB path.
+// live selection has already vanished on the EPUB paragraph-focus launch path.
 export const resolveReaderFocusedReadingLaunchSelection = (
   input: ReaderFocusedReadingLaunchSelectionInput
 ): ReaderSelectionState | null => {
@@ -177,6 +178,7 @@ export const resolveReaderFocusedReadingLaunchSelection = (
     return input.currentSelection;
   }
   if (
+    input.launchMode === 'paragraph' &&
     isEpubReaderSelectionLatchFormat(input.formatLabel) &&
     hasReaderSelectionText(input.lastNonEmptySelection)
   ) {

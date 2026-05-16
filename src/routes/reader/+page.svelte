@@ -1735,13 +1735,15 @@
   // Focused reading is route-owned on purpose: the overlay should reuse the
   // same preview/selection contract as translation and TTS instead of letting a
   // canvas-local component infer extra reader state from DOM.
-  const getFocusedReadingInput = () => ({
+  const getFocusedReadingInput = (launchMode: 'paragraph' | 'rsvp') => ({
     preview: currentPreview,
     // Hidden focused-reading reopen still comes from focusedReadingState inside
-    // readingMode.ts. This EPUB-only latch is only for first-open launches
+    // readingMode.ts. This EPUB-only latch is only for paragraph-focus launches
     // where menu focus cleared the live EPUB DOM selection just before the
-    // route reads it.
+    // shared route handler reads it. RSVP still uses only the live selection or
+    // the normal preview fallback.
     selection: resolveReaderFocusedReadingLaunchSelection({
+      launchMode,
       formatLabel: currentPreview.formatLabel,
       currentSelection: currentReaderSelection,
       lastNonEmptySelection: lastNonEmptyReaderSelection
@@ -1787,7 +1789,10 @@
 
   const startParagraphFocusMode = () => {
     focusedReadingRsvpPlaying = false;
-    focusedReadingState = startReaderParagraphFocus(focusedReadingState, getFocusedReadingInput());
+    focusedReadingState = startReaderParagraphFocus(
+      focusedReadingState,
+      getFocusedReadingInput('paragraph')
+    );
   };
 
   const startRsvpLiteMode = () => {
@@ -1797,7 +1802,7 @@
     // torn down on exit and must not be reconstructed implicitly.
     const isHiddenFocusedReadingResume =
       focusedReadingState.mode === 'off' && focusedReadingState.sourceText.trim().length > 0;
-    focusedReadingState = startReaderRsvpLite(focusedReadingState, getFocusedReadingInput());
+    focusedReadingState = startReaderRsvpLite(focusedReadingState, getFocusedReadingInput('rsvp'));
     focusedReadingRsvpPlaying = isHiddenFocusedReadingResume
       ? false
       : canPlayFocusedReadingRsvpAutoplay(focusedReadingState);

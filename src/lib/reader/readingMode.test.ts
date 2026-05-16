@@ -75,6 +75,7 @@ test('focused-reading launch falls back to the last non-empty route selection af
 
   assert.equal(
     resolveReaderFocusedReadingLaunchSelection({
+      launchMode: 'paragraph',
       formatLabel: 'EPUB',
       currentSelection: null,
       lastNonEmptySelection
@@ -86,9 +87,22 @@ test('focused-reading launch falls back to the last non-empty route selection af
 test('focused-reading launch does not reuse the latched route selection outside epub', () => {
   assert.equal(
     resolveReaderFocusedReadingLaunchSelection({
+      launchMode: 'paragraph',
       formatLabel: 'TXT',
       currentSelection: null,
       lastNonEmptySelection: buildSelection('Latched excerpt that should stay epub-only.')
+    }),
+    null
+  );
+});
+
+test('focused-reading launch does not reuse the latched route selection for first-open rsvp', () => {
+  assert.equal(
+    resolveReaderFocusedReadingLaunchSelection({
+      launchMode: 'rsvp',
+      formatLabel: 'EPUB',
+      currentSelection: null,
+      lastNonEmptySelection: buildSelection('Latched excerpt that paragraph focus may reuse.')
     }),
     null
   );
