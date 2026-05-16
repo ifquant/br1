@@ -1634,6 +1634,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0681-verify-focused-reading-per-book-restore-across-txt-epub-switch.md`.
   - Notes: this slice intentionally stays at one TXT RSVP -> EPUB -> TXT per-book seam only. It does not certify paragraph mode, EPUB-owned focused-reading state, reverse-direction book switches, cross-book workspace restore, route-boundary refactors, or any PDF/CBZ restore claim.
 
+- [x] P20-1.12 Add real smoke coverage for paragraph-focus reopen continuity after exit
+  - Outcome: this slice smoke-certifies a narrow same-book paragraph seam in web mode: after TXT book A exits focused reading and the reader surface progress changes, reopening paragraph focus still prefers the hidden same-book excerpt from before exit.
+  - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader reopens paragraph focus on the hidden excerpt after exit in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0682-add-paragraph-focus-exit-reopen-smoke.md`.
+  - Notes: this stays same-book and TXT-only on purpose. It certifies scroll-and-reopen precedence through the reader's own progress change, and it does not widen into RSVP, TTS, translation, cross-book restore, route-boundary refactors, or new focused-reading controls.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

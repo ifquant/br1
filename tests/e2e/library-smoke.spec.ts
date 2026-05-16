@@ -3103,6 +3103,63 @@ test('reader reopens the last focused-reading excerpt after exit in web mode', a
   await expect(reopenedOverlay.getByRole('button', { name: '暂停自动播放' })).toHaveCount(0);
 });
 
+test('reader reopens paragraph focus on the hidden excerpt after exit in web mode', async ({
+  page
+}) => {
+  const bookUrl = '/samples/sample-book.txt';
+  await page.addInitScript((key) => {
+    const resetMarker = `br1.reader.focused-reading-reset:${key}`;
+    if (!window.sessionStorage.getItem(resetMarker)) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.setItem(resetMarker, '1');
+    }
+  }, `br1.reader.focused-reading:${bookUrl}`);
+
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  const readerSurface = page.getByLabel('plain text reading surface');
+  await expect(readerSurface).toBeVisible();
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+
+  const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const hiddenExcerpt = 'This plain text file exists to verify';
+  const readingProgress = page.getByLabel('阅读进度');
+  await expect(overlay).toContainText('段落聚焦');
+  await expect(overlay).toContainText(hiddenExcerpt);
+  const startingProgress = ((await readingProgress.textContent()) ?? '').trim();
+
+  await overlay.getByRole('button', { name: '退出专注阅读' }).click();
+  await expect(overlay).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const reader = document.querySelector('.plain-text-reader');
+    if (!(reader instanceof HTMLElement)) {
+      throw new Error('expected the plain-text reader surface to exist');
+    }
+
+    reader.scrollTop = Math.max(0, (reader.scrollHeight - reader.clientHeight) * 0.52);
+    reader.dispatchEvent(new Event('scroll'));
+  });
+  await expect
+    .poll(async () => ((await readingProgress.textContent()) ?? '').trim(), {
+      message: 'expected TXT reading progress to move after scrolling before paragraph-focus reopen'
+    })
+    .not.toBe(startingProgress);
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
+
+  const reopenedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(reopenedOverlay).toBeVisible();
+  await expect(reopenedOverlay).toContainText('段落聚焦');
+  await expect(reopenedOverlay).toContainText(hiddenExcerpt);
+});
+
 test('reader opens focused reading modes from keyboard in web mode', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
