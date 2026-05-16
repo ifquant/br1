@@ -5,9 +5,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createReaderAssistanceHistoryEntry } from './assistance.js';
+import {
+  createEmptyReaderAssistanceWorkspaceSelection,
+  createReaderAssistanceHistoryEntry
+} from './assistance.js';
 import {
   resolveReaderAnnotationPopupSelectionForBookChange,
+  resolveReaderMaturityBookRestoreState,
   resolveReaderMaturityRouteTranslationConfig,
   resolveReaderPlaybackQueueForEffectiveTtsTarget,
   resolveReaderPopupStateForControlNonce
@@ -110,6 +114,119 @@ test('annotation popup visibility clears when the book source changes', () => {
     }),
     null
   );
+});
+
+test('book restore state clears book-scoped transient maturity surfaces', () => {
+  const pinnedTtsTarget = createTtsTarget('Pinned paragraph');
+  const restored = resolveReaderMaturityBookRestoreState({
+    readerBookKey: '/books/second.epub',
+    previousBookKey: '/books/first.epub',
+    currentSelection: {
+      cfi: '/6/2!/4/2',
+      text: 'old selected paragraph',
+      chapterLabel: 'Old chapter',
+      chapterHref: '#old'
+    },
+    restoredTtsState: {
+      ownership: {
+        followsCurrentLocation: false,
+        pinnedTarget: pinnedTtsTarget
+      },
+      readAloudTextMode: 'translated',
+      translatedOwner: 'archive',
+      translatedLiveSnapshot: {
+        sourceText: 'source',
+        translatedText: 'translated',
+        targetLanguage: 'zh',
+        providerLabel: 'DeepL',
+        chapterLabel: 'Chapter 1',
+        locationLabel: '1%',
+        progressLabel: '1%',
+        progressLocation: '/6/2',
+        progressFraction: 0.01,
+        chapterHref: '#chapter-1'
+      }
+    },
+    restoredTranslationOwnership: {
+      followsCurrentSource: false,
+      pinnedSource: {
+        text: 'pinned source',
+        label: 'Pinned source',
+        chapterLabel: 'Pinned chapter'
+      }
+    },
+    restoredTranslationModeConfig: {
+      targetLanguage: 'en',
+      provider: 'yandex'
+    },
+    restoredTranslationLiveSnapshot: {
+      sourceText: 'source',
+      translatedText: 'translated',
+      providerLabel: 'Yandex'
+    },
+    assistanceHistory: [],
+    assistanceSelection: createEmptyReaderAssistanceWorkspaceSelection(),
+    routeOpenState: createRouteOpenState()
+  });
+
+  assert.equal(restored.restoredBookKey, '/books/second.epub');
+  assert.equal(restored.currentReaderSelection, null);
+  assert.equal(restored.focusedReadingState.mode, 'off');
+  assert.equal(restored.inlineTranslationState.blocks.length, 0);
+  assert.equal(restored.inlineTranslationState.targetLanguage, 'en');
+  assert.equal(restored.inlineTranslationState.provider, 'yandex');
+  assert.equal(restored.latestInlineTranslationCandidates, null);
+  assert.equal(restored.ttsReadAloudTextMode, 'translated');
+  assert.equal(restored.translatedTtsOwner, 'archive');
+  assert.equal(restored.pinnedTtsTarget, pinnedTtsTarget);
+  assert.equal(restored.translationFollowsCurrentSource, false);
+  assert.equal(restored.pinnedTranslationSource?.text, 'pinned source');
+  assert.equal(restored.translationLiveSnapshot?.providerLabel, 'Yandex');
+});
+
+test('book restore state lets dedicated translation route archive precedence win', () => {
+  const routeTranslationEntry = createTranslationEntry({
+    id: 'route-archive',
+    targetLanguage: 'en',
+    provider: 'yandex'
+  });
+
+  const restored = resolveReaderMaturityBookRestoreState({
+    readerBookKey: '/books/sample.epub',
+    previousBookKey: '/books/other.epub',
+    currentSelection: null,
+    restoredTtsState: {
+      ownership: {
+        followsCurrentLocation: true,
+        pinnedTarget: null
+      },
+      readAloudTextMode: 'source',
+      translatedOwner: 'live',
+      translatedLiveSnapshot: null
+    },
+    restoredTranslationOwnership: {
+      followsCurrentSource: true,
+      pinnedSource: null
+    },
+    restoredTranslationModeConfig: {
+      targetLanguage: 'zh',
+      provider: 'deepl'
+    },
+    restoredTranslationLiveSnapshot: null,
+    assistanceHistory: [routeTranslationEntry],
+    assistanceSelection: createEmptyReaderAssistanceWorkspaceSelection({
+      translationHistoryEntryId: 'ambient-archive'
+    }),
+    routeOpenState: createRouteOpenState({
+      workspaceMode: 'translation',
+      translationHistoryEntryId: 'route-archive'
+    })
+  });
+
+  assert.equal(restored.translationTargetLanguage, 'en');
+  assert.equal(restored.translationProvider, 'yandex');
+  assert.equal(restored.inlineTranslationState.targetLanguage, 'en');
+  assert.equal(restored.inlineTranslationState.provider, 'yandex');
 });
 
 test('footnote popup state clears when control nonce changes', () => {

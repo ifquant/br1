@@ -5,17 +5,32 @@
 
 import type {
   ReaderAssistanceHistoryEntry,
+  ReaderAssistanceWorkspaceSelection,
   ReaderTranslationProvider
 } from './assistance.js';
+import type {
+  ReaderTranslatedTtsLiveSnapshot,
+  ReaderTranslatedTtsOwner,
+  ReaderTranslationLiveSnapshot,
+  ReaderTranslationModeConfig,
+  ReaderTranslationOwnership,
+  ReaderTtsOwnership
+} from './currentBookPersistence.js';
+import { createEmptyReaderInlineTranslationState } from './inlineTranslation.js';
 import { createReaderPlaybackQueue } from './playbackQueue.js';
+import {
+  createReaderFocusedReadingState,
+  type ReaderFocusedReadingState
+} from './readingMode.js';
 import type { ReaderRouteOpenState } from './route.js';
-import type { ReaderPlaybackQueueState, ReaderSelectionState } from './types.js';
+import { resolveReaderTranslationModeConfigRestore } from './translationOwnership.js';
+import type {
+  ReaderInlineTranslationState,
+  ReaderPlaybackQueueState,
+  ReaderSelectionState,
+  ReaderTtsReadAloudTextMode
+} from './types.js';
 import type { ReaderTtsSpeechTarget } from './tts.js';
-
-type ReaderTranslationModeConfig = {
-  targetLanguage: string;
-  provider: ReaderTranslationProvider;
-};
 
 type ReaderPlaybackQueueRetargetInput = {
   effectiveTtsTarget: ReaderTtsSpeechTarget | null;
@@ -34,6 +49,49 @@ type ReaderSelectionBookChangeInput = {
   currentSelection: ReaderSelectionState | null;
   previousBookKey: string;
   nextBookKey: string;
+};
+
+type ReaderMaturityBookRestoreTtsState = {
+  ownership: ReaderTtsOwnership;
+  readAloudTextMode: ReaderTtsReadAloudTextMode;
+  translatedOwner: ReaderTranslatedTtsOwner;
+  translatedLiveSnapshot: ReaderTranslatedTtsLiveSnapshot | null;
+};
+
+type ReaderMaturityBookRestoreInput = {
+  readerBookKey: string;
+  previousBookKey: string;
+  currentSelection: ReaderSelectionState | null;
+  restoredTtsState: ReaderMaturityBookRestoreTtsState;
+  restoredTranslationOwnership: ReaderTranslationOwnership;
+  restoredTranslationModeConfig: ReaderTranslationModeConfig;
+  restoredTranslationLiveSnapshot: ReaderTranslationLiveSnapshot | null;
+  assistanceHistory: ReaderAssistanceHistoryEntry[];
+  assistanceSelection: ReaderAssistanceWorkspaceSelection;
+  routeOpenState: Pick<
+    ReaderRouteOpenState,
+    'workspaceMode' | 'translationTargetLanguage' | 'translationProvider' | 'translationHistoryEntryId'
+  >;
+};
+
+export type ReaderMaturityBookRestoreState = {
+  restoredBookKey: string;
+  ttsReadAloudTextMode: ReaderTtsReadAloudTextMode;
+  translatedTtsOwner: ReaderTranslatedTtsOwner;
+  translatedTtsLiveSnapshot: ReaderTranslatedTtsLiveSnapshot | null;
+  ttsFollowsCurrentLocation: boolean;
+  pinnedTtsTarget: ReaderTtsSpeechTarget | null;
+  translationFollowsCurrentSource: boolean;
+  pinnedTranslationSource: ReaderTranslationOwnership['pinnedSource'];
+  translationTargetLanguage: string;
+  translationProvider: ReaderTranslationProvider;
+  translationLiveSnapshot: ReaderTranslationLiveSnapshot | null;
+  inlineTranslationState: ReaderInlineTranslationState;
+  inlineTranslationStatusMessage: string;
+  inlineTranslationCapabilityMessage: string;
+  latestInlineTranslationCandidates: null;
+  currentReaderSelection: ReaderSelectionState | null;
+  focusedReadingState: ReaderFocusedReadingState;
 };
 
 const getReaderPlaybackTargetKey = (target: ReaderTtsSpeechTarget | null): string =>
@@ -89,6 +147,53 @@ export const resolveReaderAnnotationPopupSelectionForBookChange = (
   input: ReaderSelectionBookChangeInput
 ): ReaderSelectionState | null =>
   input.previousBookKey !== input.nextBookKey ? null : input.currentSelection;
+
+export const resolveReaderMaturityBookRestoreState = (
+  input: ReaderMaturityBookRestoreInput
+): ReaderMaturityBookRestoreState => {
+  const restoredTranslationConfig = resolveReaderTranslationModeConfigRestore({
+    restoredConfig: input.restoredTranslationModeConfig,
+    assistanceHistory: input.assistanceHistory,
+    assistanceSelection: input.assistanceSelection,
+    routeOpenState: input.routeOpenState
+  });
+  const inlineTargetLanguage =
+    restoredTranslationConfig.targetLanguage.trim().toLowerCase() === 'en' ? 'en' : 'zh';
+
+  return {
+    restoredBookKey: input.readerBookKey,
+    ttsReadAloudTextMode: input.restoredTtsState.readAloudTextMode,
+    translatedTtsOwner: input.restoredTtsState.translatedOwner,
+    translatedTtsLiveSnapshot: input.restoredTtsState.translatedLiveSnapshot,
+    ttsFollowsCurrentLocation: input.restoredTtsState.ownership.followsCurrentLocation,
+    pinnedTtsTarget: input.restoredTtsState.ownership.pinnedTarget,
+    translationFollowsCurrentSource:
+      input.restoredTranslationOwnership.followsCurrentSource,
+    pinnedTranslationSource: input.restoredTranslationOwnership.pinnedSource,
+    translationTargetLanguage: restoredTranslationConfig.targetLanguage,
+    translationProvider: restoredTranslationConfig.provider,
+    translationLiveSnapshot: input.restoredTranslationLiveSnapshot,
+    // Inline translation works against visible text candidates from the new
+    // book. Resetting blocks and candidate cache here prevents stale translated
+    // paragraphs from being shown under the next book's language/provider chips.
+    inlineTranslationState: createEmptyReaderInlineTranslationState({
+      provider: restoredTranslationConfig.provider,
+      targetLanguage: inlineTargetLanguage
+    }),
+    inlineTranslationStatusMessage: '等待可翻译正文。',
+    inlineTranslationCapabilityMessage: '正文内译文会等待阅读视窗提供安全正文候选。',
+    latestInlineTranslationCandidates: null,
+    currentReaderSelection: resolveReaderAnnotationPopupSelectionForBookChange({
+      currentSelection: input.currentSelection,
+      previousBookKey: input.previousBookKey,
+      nextBookKey: input.readerBookKey
+    }),
+    // Focused reading is temporary UI over the current renderer text. A book
+    // switch must close it even when the next book restores to the same CFI-like
+    // progress label.
+    focusedReadingState: createReaderFocusedReadingState()
+  };
+};
 
 // A new reader control request can swap chapters, search results, or whole
 // documents. Popup UI anchored to the previous document must therefore close

@@ -1502,6 +1502,14 @@ Goal: keep `+page.svelte` as the reader coordinator while pushing maturity-surfa
   - Tutorial: `tutorials/commit/0657-extract-reader-maturity-route-coordination.md`.
   - Notes: Svelte navigation, localStorage restore/persist, and event handlers intentionally remain inside `+page.svelte`. The footnote reset rule is covered in the new pure helper tests so it stays documented alongside the route-owned maturity decisions, but the live popup owner still remains `ReaderStage.svelte`.
 
+- [x] P19-1.2 Extract route book-switch maturity restore bundle
+  - Outcome: the current-book maturity restore/reset bundle now resolves through `resolveReaderMaturityBookRestoreState(...)`, so TTS ownership fields, translation ownership/config restore, inline translation reset state, annotation selection clearing, and focused-reading reset semantics are auditable in pure helper code.
+  - Touches: `src/lib/reader/maturityMode.ts`, `src/lib/reader/maturityMode.test.ts`, `src/lib/reader/route.ts`, `src/lib/reader/translationOwnership.ts`, `src/routes/reader/+page.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader restores dedicated translation and tts modes from route state in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0666-extract-reader-route-maturity-book-restore.md`.
+  - Notes: `+page.svelte` still owns localStorage restore calls, `ttsController.stop()`, reactive timing, state assignment, and last-restored book-key guards. The helper only shapes plain restored data and reset targets for the route to apply, and this slice also normalizes the reused translation-restore helper's ESM import path so helper tests remain runnable.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

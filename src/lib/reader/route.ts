@@ -232,6 +232,7 @@ export const toReaderOpenControlRequest = (
 
 export {
   resolveReaderAnnotationPopupSelectionForBookChange,
+  resolveReaderMaturityBookRestoreState,
   resolveReaderMaturityRouteTranslationConfig,
   resolveReaderPlaybackQueueForEffectiveTtsTarget
 } from './maturityMode';

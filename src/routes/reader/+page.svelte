@@ -96,7 +96,7 @@
     type ReaderTtsSpeechTarget
   } from '$lib/reader';
   import {
-    resolveReaderAnnotationPopupSelectionForBookChange,
+    resolveReaderMaturityBookRestoreState,
     resolveReaderMaturityRouteTranslationConfig,
     resolveReaderPlaybackQueueForEffectiveTtsTarget
   } from '$lib/reader/route';
@@ -121,8 +121,7 @@
     resolveReaderEffectiveTranslationSource,
     resolveReaderLiveTranslationPanelResult,
     resolveReaderNextTranslationLiveSnapshot,
-    resolveReaderTranslationLiveSnapshotState,
-    resolveReaderTranslationModeConfigRestore
+    resolveReaderTranslationLiveSnapshotState
   } from '$lib/reader';
   // TTS ownership owns source-vs-translated playback and translated snapshots.
   import {
@@ -679,56 +678,54 @@
       ttsController.stop();
     }
     const restoredTtsState = restoreCurrentBookTtsOwnershipState();
-    ttsReadAloudTextMode = restoredTtsState.readAloudTextMode;
-    lastRestoredTtsReadAloudModeBookKey = readerBookKey;
-    translatedTtsOwner = restoredTtsState.translatedOwner;
-    lastRestoredTranslatedTtsOwnerBookKey = readerBookKey;
-    translatedTtsLiveSnapshot = restoredTtsState.translatedLiveSnapshot;
-    lastRestoredTranslatedTtsLiveSnapshotBookKey = readerBookKey;
-    ttsFollowsCurrentLocation = restoredTtsState.ownership.followsCurrentLocation;
-    pinnedTtsTarget = restoredTtsState.ownership.pinnedTarget;
-    lastRestoredTtsOwnershipBookKey = readerBookKey;
     const restoredTranslationOwnership = restoreReaderTranslationOwnership(
       getReaderStorage(),
       translationOwnershipStorageKey
     );
-    translationFollowsCurrentSource = restoredTranslationOwnership.followsCurrentSource;
-    pinnedTranslationSource = restoredTranslationOwnership.pinnedSource;
     const restoredTranslationModeConfig = restoreReaderCurrentBookTranslationModeConfig(
       getReaderStorage(),
       translationModeConfigStorageKey
     );
-    const restoredTranslationConfig = resolveReaderTranslationModeConfigRestore({
-      restoredConfig: restoredTranslationModeConfig,
+    const restoredTranslationLiveSnapshot = restoreReaderCurrentBookTranslationLiveSnapshot(
+      getReaderStorage(),
+      translationLiveSnapshotStorageKey
+    );
+    const restoredMaturityState = resolveReaderMaturityBookRestoreState({
+      readerBookKey,
+      previousBookKey: lastAssistanceBookKey,
+      currentSelection: currentReaderSelection,
+      restoredTtsState,
+      restoredTranslationOwnership,
+      restoredTranslationModeConfig,
+      restoredTranslationLiveSnapshot,
       assistanceHistory,
       assistanceSelection,
       routeOpenState
     });
-    translationTargetLanguage = restoredTranslationConfig.targetLanguage;
-    translationProvider = restoredTranslationConfig.provider;
-    lastRestoredTranslationModeConfigBookKey = readerBookKey;
-    translationLiveSnapshot = restoreReaderCurrentBookTranslationLiveSnapshot(
-      getReaderStorage(),
-      translationLiveSnapshotStorageKey
-    );
-    lastRestoredTranslationLiveSnapshotBookKey = readerBookKey;
-    inlineTranslationState = createEmptyReaderInlineTranslationState({
-      provider: translationProvider,
-      targetLanguage: translationTargetLanguage.trim().toLowerCase() === 'en' ? 'en' : 'zh'
-    });
-    inlineTranslationStatusMessage = '等待可翻译正文。';
-    inlineTranslationCapabilityMessage = '正文内译文会等待阅读视窗提供安全正文候选。';
-    latestInlineTranslationCandidates = null;
-    // Annotation popup visibility is derived from the active selection, so a
-    // new book source must clear the old selection before the next renderer
-    // event arrives.
-    currentReaderSelection = resolveReaderAnnotationPopupSelectionForBookChange({
-      currentSelection: currentReaderSelection,
-      previousBookKey: lastAssistanceBookKey,
-      nextBookKey: readerBookKey
-    });
-    focusedReadingState = createReaderFocusedReadingState();
-    lastAssistanceBookKey = readerBookKey;
+    ttsReadAloudTextMode = restoredMaturityState.ttsReadAloudTextMode;
+    lastRestoredTtsReadAloudModeBookKey = restoredMaturityState.restoredBookKey;
+    translatedTtsOwner = restoredMaturityState.translatedTtsOwner;
+    lastRestoredTranslatedTtsOwnerBookKey = restoredMaturityState.restoredBookKey;
+    translatedTtsLiveSnapshot = restoredMaturityState.translatedTtsLiveSnapshot;
+    lastRestoredTranslatedTtsLiveSnapshotBookKey = restoredMaturityState.restoredBookKey;
+    ttsFollowsCurrentLocation = restoredMaturityState.ttsFollowsCurrentLocation;
+    pinnedTtsTarget = restoredMaturityState.pinnedTtsTarget;
+    lastRestoredTtsOwnershipBookKey = restoredMaturityState.restoredBookKey;
+    translationFollowsCurrentSource = restoredMaturityState.translationFollowsCurrentSource;
+    pinnedTranslationSource = restoredMaturityState.pinnedTranslationSource;
+    translationTargetLanguage = restoredMaturityState.translationTargetLanguage;
+    translationProvider = restoredMaturityState.translationProvider;
+    lastRestoredTranslationModeConfigBookKey = restoredMaturityState.restoredBookKey;
+    translationLiveSnapshot = restoredMaturityState.translationLiveSnapshot;
+    lastRestoredTranslationLiveSnapshotBookKey = restoredMaturityState.restoredBookKey;
+    inlineTranslationState = restoredMaturityState.inlineTranslationState;
+    inlineTranslationStatusMessage = restoredMaturityState.inlineTranslationStatusMessage;
+    inlineTranslationCapabilityMessage =
+      restoredMaturityState.inlineTranslationCapabilityMessage;
+    latestInlineTranslationCandidates = restoredMaturityState.latestInlineTranslationCandidates;
+    currentReaderSelection = restoredMaturityState.currentReaderSelection;
+    focusedReadingState = restoredMaturityState.focusedReadingState;
+    lastAssistanceBookKey = restoredMaturityState.restoredBookKey;
   }
   $: {
     const routeWorkspaceApplication = resolveReaderRouteWorkspaceApplication({

@@ -8,13 +8,13 @@ import {
   type ReaderAssistanceHistoryEntry,
   type ReaderAssistanceState,
   type ReaderAssistanceWorkspaceSelection
-} from './assistance';
+} from './assistance.js';
 import type {
   ReaderTranslationLiveSnapshot,
   ReaderTranslationModeConfig,
   ReaderTranslationOwnership
-} from './currentBookPersistence';
-import type { ReaderRouteOpenState } from './route';
+} from './currentBookPersistence.js';
+import type { ReaderRouteOpenState } from './route.js';
 
 export type ReaderTranslationSource = {
   text: string;
