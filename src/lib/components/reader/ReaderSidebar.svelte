@@ -7,6 +7,7 @@
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
   import ReaderSidebarAnnotations from './ReaderSidebarAnnotations.svelte';
+  import ReaderSidebarHighlightSelections from './ReaderSidebarHighlightSelections.svelte';
   import ReaderSidebarSearch from './ReaderSidebarSearch.svelte';
   import type {
     ReaderAssistanceHistoryEntry,
@@ -49,6 +50,11 @@
     loadReaderHighlightsWorkspaceState,
     saveReaderHighlightsWorkspaceState
   } from '$lib/services';
+  import type {
+    ReaderHighlightSelectionsImportPreview,
+    ReaderHighlightSelectionsRefreshFilter,
+    ReaderHighlightSelectionsRefreshSummary
+  } from '$lib/reader/sidebarHighlightSelections';
 
   export let toc: ReaderTocItem[] = [];
   export let activeHref = '';
@@ -134,34 +140,14 @@
   let highlightsFilter: ReaderHighlightsFilter = 'all';
   let highlightsSort: ReaderHighlightsSort = 'recent';
   let savedHighlightSelectionsSort: ReaderHighlightSelectionSetSort = 'recent';
-  let savedHighlightSelectionsRefreshFilter: 'all' | 'full' | 'partial' | 'missed' = 'all';
+  let savedHighlightSelectionsRefreshFilter: ReaderHighlightSelectionsRefreshFilter = 'all';
   let selectedHighlightIds = new Set<string>();
   let savedHighlightSelections: ReaderHighlightSelectionSet[] = [];
   let exportedHighlightSelection: ReaderHighlightSelectionSetExport | null = null;
   let exportHighlightSelectionNotice = '';
   let savedHighlightSelectionImportNotice = '';
-  let savedHighlightSelectionRefreshSummary:
-    | {
-        refreshedCount: number;
-        fullMatches: string[];
-        partialMatches: Array<{ name: string; matchedCount: number; totalCount: number }>;
-        missedMatches: Array<{ name: string; totalCount: number }>;
-      }
-    | null = null;
-  let savedHighlightSelectionImportPreview:
-    | {
-        selectionName: string;
-        selectionCreatedAt: number;
-        sourceBookKey: string;
-        sourceBookTitle: string;
-        sourceFormatLabel: string;
-      matchedCount: number;
-      totalCount: number;
-      importedIds: string[];
-      unmatchedTexts: string[];
-      sourceHighlights: ReaderHighlightSelectionSetExportHighlight[];
-    }
-    | null = null;
+  let savedHighlightSelectionRefreshSummary: ReaderHighlightSelectionsRefreshSummary | null = null;
+  let savedHighlightSelectionImportPreview: ReaderHighlightSelectionsImportPreview | null = null;
   let bookmarksFilter: 'all' | 'chapter' = 'all';
   let bookmarksSort: 'recent' | 'chapter' = 'recent';
   let collapsedBookmarkGroups = new Set<string>();
@@ -1764,314 +1750,41 @@
           onDeleteNoteGroup={deleteNoteGroup}
         >
           <svelte:fragment slot="highlights-extra">
-            <!-- Cross-book selection sets stay in the parent because they own
-             import/export state, refresh summaries, and persisted workspace data. -->
-            <section class="saved-highlight-selections" aria-label="已保存高亮选择集">
-              <div class="saved-highlight-selections-head">
-                <div class="saved-highlight-selections-summary">
-                  <strong>跨书高亮选择集</strong>
-                  <span>{savedHighlightSelections.length} 组</span>
-                  <span>按书保留跨书映射结果</span>
-                </div>
-                <div class="saved-highlight-selections-toolbar">
-                  <button type="button" class="notes-filter-chip" on:click={() => importSavedHighlightSelection()}>
-                    导入
-                  </button>
-                  <button
-                    type="button"
-                    class="notes-filter-chip"
-                    disabled={!importedSavedHighlightSelections.length}
-                    on:click={() => refreshAllCrossBookImportedSelections()}
-                  >
-                    刷新全部跨书映射
-                  </button>
-                  <div class="saved-highlight-selections-sort" aria-label="选择集排序控制">
-                    <button
-                      type="button"
-                      class:active={savedHighlightSelectionsSort === 'recent'}
-                      class="notes-filter-chip"
-                      on:click={() => {
-                        savedHighlightSelectionsSort = 'recent';
-                      }}
-                    >
-                      最近保存
-                    </button>
-                    <button
-                      type="button"
-                      class:active={savedHighlightSelectionsSort === 'oldest'}
-                      class="notes-filter-chip"
-                      on:click={() => {
-                        savedHighlightSelectionsSort = 'oldest';
-                      }}
-                    >
-                      最早保存
-                    </button>
-                  </div>
-                </div>
-              </div>
-              {#if savedHighlightSelectionImportNotice}
-                <p class="saved-highlight-selection-import-notice">{savedHighlightSelectionImportNotice}</p>
-              {/if}
-              {#if savedHighlightSelectionRefreshSummary}
-                <section class="saved-highlight-selection-refresh-summary" aria-label="高亮选择集刷新摘要">
-                  <strong>刷新结果</strong>
-                  <span>共处理 {savedHighlightSelectionRefreshSummary.refreshedCount} 组跨书选择集</span>
-                  <span>刷新结果筛选会按书保留</span>
-                  {#if savedHighlightSelectionRefreshSummary.fullMatches.length}
-                    <span>完全匹配：{savedHighlightSelectionRefreshSummary.fullMatches.join('、')}</span>
-                  {/if}
-                  {#if savedHighlightSelectionRefreshSummary.partialMatches.length}
-                    <span>
-                      部分匹配：
-                      {savedHighlightSelectionRefreshSummary.partialMatches
-                        .map((item) => `${item.name}（${item.matchedCount}/${item.totalCount}）`)
-                        .join('、')}
-                    </span>
-                  {/if}
-                  {#if savedHighlightSelectionRefreshSummary.missedMatches.length}
-                    <span>
-                      未匹配：
-                      {savedHighlightSelectionRefreshSummary.missedMatches
-                        .map((item) => `${item.name}（0/${item.totalCount}）`)
-                        .join('、')}
-                    </span>
-                  {/if}
-                  <div class="saved-highlight-selection-refresh-filters" aria-label="高亮选择集刷新结果筛选">
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'all'}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'all';
-                      }}
-                    >
-                      全部选择集
-                    </button>
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'full'}
-                      disabled={!savedHighlightSelectionsRefreshCounts.full}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'full';
-                      }}
-                    >
-                      完全匹配 {savedHighlightSelectionsRefreshCounts.full}
-                    </button>
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'partial'}
-                      disabled={!savedHighlightSelectionsRefreshCounts.partial}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'partial';
-                      }}
-                    >
-                      部分匹配 {savedHighlightSelectionsRefreshCounts.partial}
-                    </button>
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'missed'}
-                      disabled={!savedHighlightSelectionsRefreshCounts.missed}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'missed';
-                      }}
-                    >
-                      未匹配 {savedHighlightSelectionsRefreshCounts.missed}
-                    </button>
-                  </div>
-                </section>
-              {:else if importedSavedHighlightSelections.length}
-                <section class="saved-highlight-selection-refresh-summary" aria-label="高亮选择集刷新摘要">
-                  <strong>跨书映射视图</strong>
-                  <span>按当前映射结果筛选已保存的跨书选择集。</span>
-                  <div class="saved-highlight-selection-refresh-filters" aria-label="高亮选择集刷新结果筛选">
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'all'}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'all';
-                      }}
-                    >
-                      全部选择集
-                    </button>
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'full'}
-                      disabled={!savedHighlightSelectionsRefreshCounts.full}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'full';
-                      }}
-                    >
-                      完全匹配 {savedHighlightSelectionsRefreshCounts.full}
-                    </button>
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'partial'}
-                      disabled={!savedHighlightSelectionsRefreshCounts.partial}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'partial';
-                      }}
-                    >
-                      部分匹配 {savedHighlightSelectionsRefreshCounts.partial}
-                    </button>
-                    <button
-                      type="button"
-                      class="notes-filter-chip"
-                      class:active={savedHighlightSelectionsRefreshFilter === 'missed'}
-                      disabled={!savedHighlightSelectionsRefreshCounts.missed}
-                      on:click={() => {
-                        savedHighlightSelectionsRefreshFilter = 'missed';
-                      }}
-                    >
-                      未匹配 {savedHighlightSelectionsRefreshCounts.missed}
-                    </button>
-                  </div>
-                </section>
-              {/if}
-              {#if savedHighlightSelectionImportPreview}
-                <section class="saved-highlight-selection-import-preview" aria-label="高亮选择集导入预检">
-                  <div class="saved-highlight-selection-import-preview-head">
-                    <div class="saved-highlight-selection-import-preview-copy">
-                      <strong>跨书兼容预检</strong>
-                      <span>
-                        来源：{savedHighlightSelectionImportPreview.sourceBookTitle} · {savedHighlightSelectionImportPreview.sourceFormatLabel}
-                      </span>
-                      <span>来源选择集：{savedHighlightSelectionImportPreview.selectionName}</span>
-                      <span>
-                        当前书可映射 {savedHighlightSelectionImportPreview.matchedCount} / {savedHighlightSelectionImportPreview.totalCount} 条高亮
-                      </span>
-                    </div>
-                    {#if savedHighlightSelectionImportPreview.importedIds.length}
-                      <div class="saved-highlight-selection-import-preview-actions">
-                        <button type="button" class="notes-filter-chip" on:click={() => importMatchedHighlightsFromPreview()}>
-                          导入已匹配高亮
-                        </button>
-                      </div>
-                    {/if}
-                  </div>
-                  {#if savedHighlightSelectionImportPreview.unmatchedTexts.length}
-                    <ul class="saved-highlight-selection-import-preview-list">
-                      {#each savedHighlightSelectionImportPreview.unmatchedTexts as unmatchedText}
-                        <li>{unmatchedText}</li>
-                      {/each}
-                    </ul>
-                  {/if}
-                </section>
-              {/if}
-              <div class="saved-highlight-selections-list">
-                {#if filteredSavedHighlightSelections.length}
-                  {#each filteredSavedHighlightSelections as selectionSet}
-                    <article class="saved-highlight-selection-card">
-                      <div class="saved-highlight-selection-copy">
-                        <strong>{selectionSet.name}</strong>
-                        <span>{selectionSet.selectedIds.length} 条高亮</span>
-                        {#if selectionSet.importSource}
-                          <span class="saved-highlight-selection-origin">
-                            跨书导入 · {selectionSet.importSource.bookTitle} / {selectionSet.importSource.selectionName} · {selectionSet.importSource.matchedCount}/{selectionSet.importSource.totalCount}
-                          </span>
-                          <span class="saved-highlight-selection-detail">
-                            {getSavedHighlightSelectionRefreshDetail(selectionSet)}
-                          </span>
-                          {@const unmatchedTexts = getSavedHighlightSelectionUnmatchedTexts(selectionSet)}
-                          {#if unmatchedTexts.length}
-                            <div class="saved-highlight-selection-unmatched" aria-label={`${selectionSet.name} 未映射高亮`}>
-                              <span>未映射片段</span>
-                              <ul>
-                                {#each unmatchedTexts as unmatchedText}
-                                  <li>{unmatchedText}</li>
-                                {/each}
-                              </ul>
-                            </div>
-                          {/if}
-                          {@const refreshOutcome = getSavedHighlightSelectionRefreshOutcome(selectionSet)}
-                          {@const displayOutcome =
-                            refreshOutcome === 'full' ? 'full' : refreshOutcome === 'missed' ? 'missed' : 'partial'}
-                          <span
-                            class="saved-highlight-selection-status"
-                            class:saved-highlight-selection-status-full={displayOutcome === 'full'}
-                            class:saved-highlight-selection-status-missed={displayOutcome === 'missed'}
-                          >
-                            {getSavedHighlightSelectionRefreshLabel(displayOutcome)}
-                          </span>
-                        {/if}
-                        <time>{formatTimestamp(selectionSet.createdAt)}</time>
-                      </div>
-                      <div class="saved-highlight-selection-actions">
-                        <button type="button" class="notes-filter-chip" on:click={() => applySavedHighlightSelection(selectionSet)}>
-                          套用
-                        </button>
-                        <button type="button" class="notes-filter-chip" on:click={() => exportSavedHighlightSelection(selectionSet)}>
-                          导出
-                        </button>
-                        {#if selectionSet.importSource}
-                          <button
-                            type="button"
-                            class="notes-filter-chip"
-                            on:click={() => refreshCrossBookImportedSelection(selectionSet)}
-                          >
-                            刷新映射
-                          </button>
-                        {/if}
-                        <button type="button" class="notes-filter-chip" on:click={() => renameSavedHighlightSelection(selectionSet.id)}>
-                          重命名
-                        </button>
-                        <button
-                          type="button"
-                          class="notes-filter-chip danger-action"
-                          on:click={() => deleteSavedHighlightSelection(selectionSet.id)}
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </article>
-                  {/each}
-                {:else if orderedSavedHighlightSelections.length}
-                  <p class="saved-highlight-selection-empty">
-                    当前筛选下没有
-                    {savedHighlightSelectionsRefreshFilter === 'full'
-                      ? '完全匹配'
-                      : savedHighlightSelectionsRefreshFilter === 'partial'
-                        ? '部分匹配'
-                        : '未匹配'}
-                    的跨书选择集。
-                  </p>
-                {:else}
-                  <p class="saved-highlight-selection-empty">还没有保存的高亮选择集，可以先导入一组或从当前选中高亮创建。</p>
-                {/if}
-              </div>
-
-              {#if exportedHighlightSelection}
-                <section class="saved-highlight-selection-export" aria-label="高亮选择集导出预览">
-                  <div class="saved-highlight-selection-export-head">
-                    <div class="saved-highlight-selection-export-copy">
-                      <strong>导出预览</strong>
-                      <span>{exportedHighlightSelection.selectionSet.name}</span>
-                    </div>
-                    <div class="saved-highlight-selection-export-actions">
-                      <button type="button" class="notes-filter-chip" on:click={() => copyExportedHighlightSelection()}>
-                        复制导出内容
-                      </button>
-                      <button type="button" class="notes-filter-chip" on:click={() => closeExportedHighlightSelection()}>
-                        关闭
-                      </button>
-                    </div>
-                  </div>
-                  {#if exportHighlightSelectionNotice}
-                    <p class="saved-highlight-selection-export-notice">{exportHighlightSelectionNotice}</p>
-                  {/if}
-                  <textarea
-                    class="saved-highlight-selection-export-payload"
-                    readonly
-                    value={JSON.stringify(exportedHighlightSelection, null, 2)}
-                  ></textarea>
-                </section>
-              {/if}
-            </section>
+            <ReaderSidebarHighlightSelections
+              {savedHighlightSelections}
+              {importedSavedHighlightSelections}
+              {savedHighlightSelectionsSort}
+              {savedHighlightSelectionsRefreshFilter}
+              {savedHighlightSelectionsRefreshCounts}
+              {filteredSavedHighlightSelections}
+              {orderedSavedHighlightSelections}
+              {savedHighlightSelectionImportNotice}
+              {savedHighlightSelectionRefreshSummary}
+              {savedHighlightSelectionImportPreview}
+              {exportedHighlightSelection}
+              {exportHighlightSelectionNotice}
+              {formatTimestamp}
+              {getSavedHighlightSelectionRefreshDetail}
+              {getSavedHighlightSelectionUnmatchedTexts}
+              {getSavedHighlightSelectionRefreshOutcome}
+              {getSavedHighlightSelectionRefreshLabel}
+              onImportSavedHighlightSelection={importSavedHighlightSelection}
+              onRefreshAllCrossBookImportedSelections={refreshAllCrossBookImportedSelections}
+              onSetSavedHighlightSelectionsSort={(value) => {
+                savedHighlightSelectionsSort = value;
+              }}
+              onSetSavedHighlightSelectionsRefreshFilter={(value) => {
+                savedHighlightSelectionsRefreshFilter = value;
+              }}
+              onImportMatchedHighlightsFromPreview={importMatchedHighlightsFromPreview}
+              onApplySavedHighlightSelection={applySavedHighlightSelection}
+              onExportSavedHighlightSelection={exportSavedHighlightSelection}
+              onRefreshCrossBookImportedSelection={refreshCrossBookImportedSelection}
+              onRenameSavedHighlightSelection={renameSavedHighlightSelection}
+              onDeleteSavedHighlightSelection={deleteSavedHighlightSelection}
+              onCopyExportedHighlightSelection={copyExportedHighlightSelection}
+              onCloseExportedHighlightSelection={closeExportedHighlightSelection}
+            />
           </svelte:fragment>
         </ReaderSidebarAnnotations>
       {/if}

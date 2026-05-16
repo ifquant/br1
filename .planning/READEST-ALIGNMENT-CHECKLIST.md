@@ -1433,6 +1433,14 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Tutorial: `tutorials/commit/0658-extract-reader-sidebar-search-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2980`. The extraction stays presentation-only on purpose: the parent still owns `searchHistoryFilter`, derived summary/result indexes, and all search-controller callbacks so cache/history/result navigation semantics do not split across components.
 
+- [x] P18-1.5 Extract saved highlight-selection presentation
+  - Outcome: the cross-book saved highlight-selection workspace now renders through a dedicated child while `ReaderSidebar.svelte` keeps import/export validation, cross-book matching heuristics, workspace persistence, and all mutation ownership.
+  - Touches: `ReaderSidebarHighlightSelections.svelte`, `ReaderSidebar.svelte`, `ReaderSidebarAnnotations.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader supports txt notes through selection, persistence, and note reopen in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`2177`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0659-extract-reader-saved-highlight-selection-presentation.md`.
+  - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2449`. The extraction intentionally keeps all cross-book import/export parsing, refresh summaries, and persisted workspace state in the parent. It also removes the old `ReaderSidebarAnnotations.svelte` global-style patching for slot content so the saved-selection markup and CSS share one owner again.
+
 
 ## P19 Reader File Boundary Reduction
 
