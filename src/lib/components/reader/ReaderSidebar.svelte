@@ -5,7 +5,7 @@
   import './readerSidebarPanel.css';
   import { tick } from 'svelte';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
-  import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
+  import ReaderSidebarAssist from './ReaderSidebarAssist.svelte';
   import ReaderSidebarAnnotations from './ReaderSidebarAnnotations.svelte';
   import ReaderSidebarChrome from './ReaderSidebarChrome.svelte';
   import ReaderSidebarHighlightSelections from './ReaderSidebarHighlightSelections.svelte';
@@ -1444,25 +1444,24 @@
           onOpenSearchResult={callbacks.onSearchResult}
         />
       {:else if activeTab === 'assist'}
-        <section class="reader-sidebar-panel" aria-label="查找面板">
-          <ReaderAssistWorkspace
-            title="AI 阅读助手"
-            summary="保留原有 assist 入口，但内部改成和 notebook 共用的助手工作台。"
-            {preview}
-            {notesState}
-            {assistance}
-            history={assistanceHistory}
-            {selectedLookupHistoryEntryId}
-            {selectedTranslationHistoryEntryId}
-            {translationProviderStatuses}
-            callbacks={{
-              onRequestLookup: callbacks.onRequestLookup,
-              onRequestTranslation: callbacks.onRequestTranslation
-            }}
-            onSelectHistoryEntry={onSelectAssistanceHistoryEntry}
-            onClearHistory={onClearAssistanceHistory}
-          />
-        </section>
+        <!-- The assist tab still belongs to the sidebar router. This child only
+         presents the shared workspace host so the parent keeps route and
+         history ownership aligned with the notebook surface. -->
+        <ReaderSidebarAssist
+          {preview}
+          {notesState}
+          {assistance}
+          {assistanceHistory}
+          {selectedLookupHistoryEntryId}
+          {selectedTranslationHistoryEntryId}
+          {translationProviderStatuses}
+          callbacks={{
+            onRequestLookup: callbacks.onRequestLookup,
+            onRequestTranslation: callbacks.onRequestTranslation
+          }}
+          {onSelectAssistanceHistoryEntry}
+          {onClearAssistanceHistory}
+        />
       {:else}
         <ReaderSidebarAnnotations
           {activeTab}

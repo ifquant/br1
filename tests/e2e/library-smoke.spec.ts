@@ -462,6 +462,77 @@ test('reader can open the ai workspace inside the notebook shell', async ({ page
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
 
+test('reader sidebar assist workspace stays legible in web mode', async ({ page }) => {
+  const sourceUrl = '/samples/sample-book.epub';
+  const historyStorageKey = `br1.reader.assistance.history:${sourceUrl}`;
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: sourceUrl,
+    label: '侧栏查找工作台测试'
+  }).toString()}`;
+
+  await page.addInitScript(
+    ({ historyKey }) => {
+      window.localStorage.setItem(
+        historyKey,
+        JSON.stringify([
+          {
+            id: 'assist-history-1',
+            request: {
+              kind: 'lookup',
+              provider: 'wikipedia',
+              term: 'bridge reader',
+              chapterLabel: '第一章',
+              bookKey: '/samples/sample-book.epub'
+            },
+            status: 'ready',
+            result: {
+              id: 'assist-result-1',
+              provider: 'wikipedia',
+              title: 'Bridge reader',
+              body: 'A notebook-style reading bridge.',
+              createdAt: 10
+            },
+            error: '',
+            createdAt: 10,
+            updatedAt: 10
+          }
+        ])
+      );
+    },
+    { historyKey: historyStorageKey }
+  );
+
+  await page.goto(readerHref);
+
+  await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
+
+  const sidebarTabs = page.getByRole('tablist', { name: '阅读侧栏标签' });
+  await expect(sidebarTabs).toBeVisible();
+  await sidebarTabs.getByRole('tab', { name: '查找' }).click();
+  await expect(sidebarTabs.getByRole('tab', { name: '查找', selected: true })).toBeVisible();
+
+  // This smoke guards the extraction boundary: the sidebar host should keep
+  // presenting the same assist workspace contract without becoming a new owner
+  // of route state or notebook history semantics.
+  const assistPanel = page.getByLabel('查找面板');
+  await expect(assistPanel).toBeVisible();
+  await expect(assistPanel.getByText('AI 阅读助手')).toBeVisible();
+  await expect(assistPanel.getByLabel('AI 工作台范围摘要')).toContainText(
+    '当前书范围：查找 1 条 · 翻译 0 条'
+  );
+  await expect(assistPanel.getByLabel('本书 AI 记录摘要')).toBeVisible();
+  await expect(assistPanel.getByLabel('本书 AI 记录入口')).toBeVisible();
+  const historyLane = await openLookupHistoryLane(assistPanel, 'bridge reader');
+  await expect(historyLane.getByText('第一章 · 维基百科', { exact: true })).toBeVisible();
+  const activeRecord = await selectLastLookupHistoryRecord(historyLane);
+  await expect(activeRecord).toContainText('bridge reader');
+  const resultPanel = assistPanel.locator('.assist-result');
+  await expect(resultPanel.locator('.assist-result-header > strong')).toHaveText('查找结果');
+  await expect(resultPanel.locator('.assist-result-header > span')).toContainText('历史记录');
+  await expect(resultPanel.locator('> h4')).toHaveText('Bridge reader');
+});
+
 test('reader restores ai workspace history for the current book in web mode', async ({ page }) => {
   const sourceUrl = '/samples/sample-book.epub';
   const storageKey = `br1.reader.assistance.history:${sourceUrl}`;
