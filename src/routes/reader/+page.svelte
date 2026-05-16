@@ -1470,6 +1470,11 @@
   const persistLibraryReadingState = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return Promise.resolve();
 
+    // Library reading-state persistence keeps one latest-reading snapshot per
+    // managed book. Text/EPUB can feed that snapshot back into resume
+    // navigation, but PDF still lacks the same stable locator contract here,
+    // so this path stores the visible location label as metadata instead of
+    // pretending the generic `progressLocation` is a trustworthy PDF resume key.
     const normalizedProgressLocation =
       preview.formatLabel === 'PDF'
         ? preview.locationLabel &&
@@ -1479,6 +1484,9 @@
           : ''
         : preview.progressLocation;
 
+    // Multiple preview updates can race while the user scrolls. Sequence
+    // fencing keeps only the newest in-flight persist promise as the one that
+    // later flush paths need to await.
     const sequence = ++persistSequence;
     const persistPromise = updateLibraryReadingState({
       filePath: sourcePath,
@@ -1505,6 +1513,9 @@
   const queueLibraryReadingStatePersist = (preview: ReaderPreviewState) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
 
+    // Reader preview updates can be noisy during relocation and scrolling.
+    // Debounce normal persistence so the library record converges on the latest
+    // state instead of writing every intermediate reading position.
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       persistTimer = null;
@@ -1515,6 +1526,11 @@
   const flushLibraryReadingStatePersist = async (preview: ReaderPreviewState = currentPreview) => {
     if (!autoOpenLibraryFile || !sourcePath) return;
 
+    // Flush is the "try to leave with the freshest snapshot" path for
+    // go-to-library, pagehide, and teardown flows: cancel any pending debounce,
+    // wait for the latest in-flight write to settle, then persist the newest
+    // preview once more. Only explicit callers that await this promise get a
+    // real completion fence before moving on.
     if (persistTimer) {
       clearTimeout(persistTimer);
       persistTimer = null;
@@ -1526,7 +1542,10 @@
 
   onMount(() => {
     const handlePageHide = () => {
-      flushLibraryReadingStatePersist();
+      // `pagehide` is the last broadly reliable browser hook before this reader
+      // view disappears. We still kick a best-effort flush here, even though
+      // the browser may not wait for the async persist to finish.
+      void flushLibraryReadingStatePersist();
     };
 
     window.addEventListener('pagehide', handlePageHide);
