@@ -353,6 +353,44 @@ test('reader can open a notebook workspace without collapsing navigation', async
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
 
+test('reader keeps the overview sidebar surface legible in web mode', async ({ page }) => {
+  const readerHref = `/reader?${new URLSearchParams({
+    source: 'asset',
+    url: '/samples/sample-book.epub',
+    label: '侧栏概览测试'
+  }).toString()}`;
+
+  await page.goto(readerHref);
+
+  const overview = page.getByLabel('当前书概览');
+  await expect(overview).toBeVisible();
+  await expect(overview).toContainText('EPUB');
+  await expect(overview).toContainText('Sample Book for Prototype');
+  await expect(overview).toContainText('书签');
+  await expect(overview).toContainText('高亮');
+
+  const toc = page.getByLabel('目录预览');
+  await expect(toc).toBeVisible();
+  const tocButtons = toc.getByRole('button');
+  const tocButtonCount = await tocButtons.count();
+  let targetTocIndex = Math.max(0, tocButtonCount - 1);
+  for (let index = 0; index < tocButtonCount; index += 1) {
+    const className = (await tocButtons.nth(index).getAttribute('class')) ?? '';
+    if (!className.includes('active')) {
+      targetTocIndex = index;
+      break;
+    }
+  }
+  await tocButtons.nth(targetTocIndex).click();
+  await expect(tocButtons.nth(targetTocIndex)).toHaveClass(/active/);
+
+  const moreActions = overview.getByRole('button', { name: '更多书籍操作' });
+  await moreActions.click();
+  const menu = page.getByRole('menu', { name: '书籍更多操作' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: '回到书库' })).toBeVisible();
+});
+
 test('reader can open the ai workspace inside the notebook shell', async ({ page }) => {
   const readerHref = `/reader?${new URLSearchParams({
     source: 'asset',

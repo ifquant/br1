@@ -1441,6 +1441,14 @@ Goal: make selection and footnote interactions feel like a mature reading surfac
   - Tutorial: `tutorials/commit/0659-extract-reader-saved-highlight-selection-presentation.md`.
   - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2449`. The extraction intentionally keeps all cross-book import/export parsing, refresh summaries, and persisted workspace state in the parent. It also removes the old `ReaderSidebarAnnotations.svelte` global-style patching for slot content so the saved-selection markup and CSS share one owner again.
 
+- [x] P18-1.6 Extract reader overview and TOC presentation
+  - Outcome: the book-summary card, overflow menu, and TOC preview now render through a dedicated child while `ReaderSidebar.svelte` keeps sidebar shell ownership, tab routing, and all non-navigation workspace state.
+  - Touches: `ReaderSidebarOverview.svelte`, `ReaderSidebar.svelte`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader keeps the overview sidebar surface legible in web mode"` (PASS); `wc -l /Users/dev/workspace2/hc_apps/br1/src/lib/components/reader/ReaderSidebar.svelte` (`1866`); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0660-extract-reader-overview-and-toc-presentation.md`.
+  - Notes: baseline `ReaderSidebar.svelte` line count for this slice was `2162`. The extraction keeps `activeTab`, search/highlight owners, and the sidebar shell in the parent, but moves the local book-menu affordance and TOC rendering into one presentation child so the parent no longer carries that UI-only state. The focused smoke certifies overview visibility, overflow-menu presence, and that clicking a non-active TOC entry can still activate it; it does not certify broader metadata or label semantics beyond that surface.
+
 
 ## P19 Reader File Boundary Reduction
 
