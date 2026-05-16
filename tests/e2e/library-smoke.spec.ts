@@ -2891,6 +2891,38 @@ test('reader restores focused reading position for supported text surfaces', asy
   await expect(restoredOverlay).toContainText('This plain text file exists to verify');
 });
 
+test('reader opens focused reading modes from keyboard in web mode', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'
+  );
+
+  await expect(page.locator('.stage-error')).toHaveCount(0);
+  await expect(page.getByLabel('plain text reading surface')).toBeVisible();
+  await expect(page.getByText('专注 Shift+P / Shift+R')).toBeVisible();
+
+  await page.keyboard.press('Shift+P');
+  const paragraphOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(paragraphOverlay).toBeVisible();
+  await expect(paragraphOverlay).toContainText('段落聚焦');
+  await paragraphOverlay.press('Escape');
+  await expect(paragraphOverlay).toHaveCount(0);
+
+  await page.getByRole('tab', { name: '搜索' }).click();
+  const readerSearchbox = page.getByRole('searchbox', { name: '搜索正文内容' });
+  await expect(readerSearchbox).toBeVisible();
+  await readerSearchbox.focus();
+  await page.keyboard.press('Shift+P');
+  await expect(paragraphOverlay).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.getByLabel('plain text reading surface').click();
+
+  await page.keyboard.press('Shift+R');
+  const rsvpOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  await expect(rsvpOverlay).toBeVisible();
+  await expect(rsvpOverlay).toContainText('RSVP-lite');
+  await expect(rsvpOverlay.getByLabel('RSVP-lite 当前词')).toBeVisible();
+});
+
 test('reader search states read like one product surface across txt and epub', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book'

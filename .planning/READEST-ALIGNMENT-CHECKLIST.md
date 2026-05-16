@@ -1570,6 +1570,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0673-add-focused-reading-overlay-keyboard-transport.md`.
   - Notes: the overlay only translates focused key presses into the existing route callbacks. Paragraph mode keeps the honest `Escape` exit hint only; RSVP-lite shows compact visible key hints instead of hidden transport behavior, and PDF/CBZ capability boundaries stay unchanged.
 
+- [x] P20-1.4 Add reader-local keyboard entry for focused reading
+  - Outcome: the web reader can now open paragraph focus and RSVP-lite directly from the reader surface with discoverable `Shift+P` / `Shift+R` hints, without adding a second focused-reading controller path or widening PDF/CBZ claims.
+  - Touches: `src/lib/components/reader/ReaderHeaderBar.svelte`, `src/lib/components/reader/ReaderStage.svelte`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader opens focused reading modes from keyboard in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0674-add-reader-local-focused-reading-keyboard-entry.md`.
+  - Notes: the reader stage listens only while the reader route is mounted and only when keyboard focus is still on the route body or inside the reader shell. Text inputs remain exempt so search/note editing does not accidentally trigger focused-reading entry, and the existing overlay callbacks, persistence behavior, and `Escape` exit semantics remain unchanged.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

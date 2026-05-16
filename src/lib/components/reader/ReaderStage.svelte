@@ -2,7 +2,7 @@
  to the user. It may render state from the route or helper modules, but it should
  not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import type {
     ReaderControlRequest,
     ReaderFocusedReadingMode,
@@ -148,6 +148,10 @@
   let popupRefreshNonce = 0;
   let footnoteRequest: ReaderFootnoteRequest | null = null;
   let handledControlRequestNonce = 0;
+  let hasMounted = false;
+  let hasAppliedInitialKeyboardFocus = false;
+  let lastFocusedReadingMode: ReaderFocusedReadingMode = 'off';
+  let supportsFocusedReadingKeyboardEntry = false;
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -265,6 +269,49 @@
     scheduleChromeHide();
   };
 
+  const focusStageShell = () => {
+    stageShell?.focus({ preventScroll: true });
+  };
+
+  const isEditableKeyboardTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    return !!target.closest(
+      'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]'
+    );
+  };
+
+  const isReaderKeyboardContext = (event: KeyboardEvent) => {
+    if (!stageShell) return false;
+    if (isEditableKeyboardTarget(event.target)) return false;
+    const activeElement = document.activeElement;
+    if (isEditableKeyboardTarget(activeElement)) return false;
+    if (activeElement === document.body) return true;
+    return activeElement instanceof Node && stageShell.contains(activeElement);
+  };
+
+  // Focused-reading entry stays local to the reader shell. The reader listens
+  // at window scope so keyboard-first sessions can use the shortcut before a
+  // specific control is focused, but it only reacts while this reader route is
+  // mounted and the active element still belongs to the reader surface.
+  const handleReaderKeyboardEntry = (event: KeyboardEvent) => {
+    if (!supportsFocusedReadingKeyboardEntry) return;
+    if (focusedReadingMode !== 'off' || event.defaultPrevented) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || !event.shiftKey) return;
+    if (!isReaderKeyboardContext(event)) return;
+    const normalizedKey = event.key.toLowerCase();
+
+    if (normalizedKey === 'p') {
+      event.preventDefault();
+      onStartParagraphFocus?.();
+      return;
+    }
+
+    if (normalizedKey === 'r') {
+      event.preventDefault();
+      onStartRsvpLite?.();
+    }
+  };
+
   const handleStagePointerMove = (event: MouseEvent) => {
     if (!isWindowMode) return;
     const target = event.currentTarget as HTMLElement;
@@ -296,6 +343,21 @@
   }
 
   $: focusedReadingMode = focusedReadingState?.mode ?? 'off';
+  $: supportsFocusedReadingKeyboardEntry =
+    typeof onStartParagraphFocus === 'function' && typeof onStartRsvpLite === 'function';
+  $: if (
+    hasMounted &&
+    !hasAppliedInitialKeyboardFocus &&
+    readerPreview.title &&
+    document.activeElement === document.body
+  ) {
+    hasAppliedInitialKeyboardFocus = true;
+    void tick().then(() => focusStageShell());
+  }
+  $: if (hasMounted && lastFocusedReadingMode !== 'off' && focusedReadingMode === 'off') {
+    void tick().then(() => focusStageShell());
+  }
+  $: lastFocusedReadingMode = focusedReadingMode;
   $: if (controlRequest && controlRequest.nonce !== handledControlRequestNonce) {
     handledControlRequestNonce = controlRequest.nonce;
     closeFootnotePopup();
@@ -402,13 +464,16 @@
   });
 
   onMount(() => {
+    hasMounted = true;
     window.addEventListener('resize', schedulePopupRefresh);
-  });
-
-  onDestroy(() => {
-    window.removeEventListener('resize', schedulePopupRefresh);
+    return () => {
+      hasMounted = false;
+      window.removeEventListener('resize', schedulePopupRefresh);
+    };
   });
 </script>
+
+<svelte:window on:keydown={handleReaderKeyboardEntry} />
 
 <section
   bind:this={stageShell}
@@ -420,6 +485,7 @@
   style={getStageThemeVars()}
   role={landmarkRole}
   aria-label={landmarkLabel}
+  tabindex="-1"
   on:mousemove={handleStagePointerMove}
   on:mouseleave={handleStageLeave}
   on:focusin={showChrome}

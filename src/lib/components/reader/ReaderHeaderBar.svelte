@@ -42,6 +42,11 @@
   export let onExitFocusedReading: (() => void) | null = null;
 
   let menuOpen = false;
+  let supportsFocusedReadingKeyboardEntry = false;
+  const paragraphFocusShortcutLabel = 'Shift+P';
+  const rsvpLiteShortcutLabel = 'Shift+R';
+  $: supportsFocusedReadingKeyboardEntry =
+    typeof onStartParagraphFocus === 'function' && typeof onStartRsvpLite === 'function';
   $: ttsStatusLabel = getReaderTtsSessionStatusLabel(ttsSession);
   $: ttsStatusDetail = getReaderTtsStatusDetail(ttsSession);
   $: ttsPrimaryActionLabel = getReaderTtsPrimaryActionLabel(ttsSession);
@@ -192,6 +197,16 @@
           </button>
         </div>
       </div>
+      {#if supportsFocusedReadingKeyboardEntry}
+        <div class="focused-reading-shortcuts control-group" aria-label="专注阅读快捷键">
+          <span class="control-group-label">专注</span>
+          <span class="shortcut-hint">
+            <kbd>{paragraphFocusShortcutLabel}</kbd>
+            <span>/</span>
+            <kbd>{rsvpLiteShortcutLabel}</kbd>
+          </span>
+        </div>
+      {/if}
       <div class="tts-group control-group" aria-label="朗读控制">
         <span class="control-group-label">朗读</span>
         <button
@@ -547,7 +562,12 @@
                         class:active-option={focusedReadingMode === 'paragraph'}
                         on:click={() => runMenuAction(onStartParagraphFocus)}
                       >
-                        {focusedReadingMode === 'paragraph' ? '重新打开段落聚焦' : '打开段落聚焦'}
+                        <span class="menu-item-text">
+                          {focusedReadingMode === 'paragraph' ? '重新打开段落聚焦' : '打开段落聚焦'}
+                        </span>
+                        {#if supportsFocusedReadingKeyboardEntry}
+                          <span class="menu-item-shortcut">{paragraphFocusShortcutLabel}</span>
+                        {/if}
                       </button>
                       <button
                         type="button"
@@ -555,7 +575,12 @@
                         class:active-option={focusedReadingMode === 'rsvp'}
                         on:click={() => runMenuAction(onStartRsvpLite)}
                       >
-                        {focusedReadingMode === 'rsvp' ? '重新打开 RSVP-lite' : '打开 RSVP-lite'}
+                        <span class="menu-item-text">
+                          {focusedReadingMode === 'rsvp' ? '重新打开 RSVP-lite' : '打开 RSVP-lite'}
+                        </span>
+                        {#if supportsFocusedReadingKeyboardEntry}
+                          <span class="menu-item-shortcut">{rsvpLiteShortcutLabel}</span>
+                        {/if}
                       </button>
                       {#if focusedReadingMode !== 'off'}
                         <button type="button" role="menuitem" on:click={() => runMenuAction(onExitFocusedReading)}>
@@ -786,9 +811,29 @@
   }
 
   .sidebar-shortcuts,
+  .focused-reading-shortcuts,
   .tts-group {
     padding-left: 8px;
     border-left: 1px solid color-mix(in srgb, var(--reader-shell-border, var(--border-light)) 76%, transparent 24%);
+  }
+
+  .shortcut-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--reader-shell-muted, var(--text-muted));
+    font: 600 11px/1 var(--font-chrome);
+    white-space: nowrap;
+  }
+
+  .shortcut-hint kbd {
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid color-mix(in srgb, var(--reader-shell-border, var(--border-light)) 84%, transparent 16%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 94%, white 6%);
+    color: color-mix(in srgb, var(--reader-shell-text, var(--text-primary)) 88%, white 12%);
+    font: inherit;
   }
 
   .menu-anchor {
@@ -860,7 +905,8 @@
   }
 
   .header-menu button {
-    justify-content: flex-start;
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
     min-width: 0;
     height: auto;
@@ -917,6 +963,19 @@
     background: color-mix(in srgb, var(--reader-shell-raised, var(--surface-panel)) 92%, white 8%);
     color: var(--reader-shell-accent, var(--text-primary));
     box-shadow: inset 0 0 0 1px var(--reader-shell-border, var(--border-light));
+  }
+
+  .menu-item-text,
+  .menu-item-shortcut {
+    min-width: 0;
+    font-family: var(--font-chrome);
+  }
+
+  .menu-item-shortcut {
+    color: var(--reader-shell-muted, var(--text-muted));
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   @media (prefers-reduced-motion: reduce) {
