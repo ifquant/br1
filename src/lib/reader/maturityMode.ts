@@ -52,8 +52,15 @@ type ReaderSelectionBookChangeInput = {
 };
 
 type ReaderFocusedReadingLaunchSelectionInput = {
+  formatLabel: string;
   currentSelection: ReaderSelectionState | null;
   lastNonEmptySelection: ReaderSelectionState | null;
+};
+
+type ReaderFocusedReadingSelectionLatchBookChangeInput = {
+  currentLatchedSelection: ReaderSelectionState | null;
+  previousBookKey: string;
+  nextBookKey: string;
 };
 
 type ReaderMaturityBookRestoreTtsState = {
@@ -121,6 +128,9 @@ const findReaderRouteTranslationHistoryEntry = (
 const hasReaderSelectionText = (selection: ReaderSelectionState | null) =>
   Boolean(selection?.text.trim());
 
+const isEpubReaderSelectionLatchFormat = (formatLabel: string) =>
+  formatLabel.trim().toUpperCase() === 'EPUB';
+
 export const resolveReaderMaturityRouteTranslationConfig = (input: {
   currentConfig: ReaderTranslationModeConfig;
   assistanceHistory: ReaderAssistanceHistoryEntry[];
@@ -158,19 +168,27 @@ export const resolveReaderAnnotationPopupSelectionForBookChange = (
 
 // Focused-reading launch can start from header chrome that temporarily steals
 // focus from the EPUB iframe. The route therefore latches the last explicit
-// non-empty reader selection and asks this helper to prefer it only when the
-// live selection has already vanished.
+// non-empty EPUB selection and asks this helper to prefer it only when the
+// live selection has already vanished on that EPUB path.
 export const resolveReaderFocusedReadingLaunchSelection = (
   input: ReaderFocusedReadingLaunchSelectionInput
 ): ReaderSelectionState | null => {
   if (hasReaderSelectionText(input.currentSelection)) {
     return input.currentSelection;
   }
-  if (hasReaderSelectionText(input.lastNonEmptySelection)) {
+  if (
+    isEpubReaderSelectionLatchFormat(input.formatLabel) &&
+    hasReaderSelectionText(input.lastNonEmptySelection)
+  ) {
     return input.lastNonEmptySelection;
   }
   return null;
 };
+
+export const resolveReaderFocusedReadingSelectionLatchForBookChange = (
+  input: ReaderFocusedReadingSelectionLatchBookChangeInput
+): ReaderSelectionState | null =>
+  input.previousBookKey !== input.nextBookKey ? null : input.currentLatchedSelection;
 
 export const resolveReaderMaturityBookRestoreState = (
   input: ReaderMaturityBookRestoreInput

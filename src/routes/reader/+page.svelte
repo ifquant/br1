@@ -104,7 +104,10 @@
     resolveReaderMaturityRouteTranslationConfig,
     resolveReaderPlaybackQueueForEffectiveTtsTarget
   } from '$lib/reader/route';
-  import { resolveReaderFocusedReadingLaunchSelection } from '$lib/reader/maturityMode';
+  import {
+    resolveReaderFocusedReadingLaunchSelection,
+    resolveReaderFocusedReadingSelectionLatchForBookChange
+  } from '$lib/reader/maturityMode';
   // Current-book persistence owns storage keys plus typed localStorage payloads.
   import {
     canPersistReaderCurrentBookFocusedReadingState,
@@ -291,9 +294,9 @@
   let focusedReadingStorageKey = '';
   let currentPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let currentReaderSelection: ReaderSelectionState | null = null;
-  // EPUB selection can disappear when route-owned chrome takes focus. Keep the
-  // last non-empty selection here so focused-reading launch can still honor the
-  // excerpt the reader explicitly chose a moment earlier.
+  // EPUB/Foliate selection can disappear when route-owned chrome takes focus.
+  // Keep the last non-empty EPUB selection here so focused-reading launch can
+  // still honor the excerpt the reader explicitly chose a moment earlier.
   let lastNonEmptyReaderSelection: ReaderSelectionState | null = null;
   let focusedReadingState: ReaderFocusedReadingState = createReaderFocusedReadingState();
   let focusedReadingSummary = getReaderFocusedReadingSummary(focusedReadingState);
@@ -752,7 +755,11 @@
       restoredMaturityState.inlineTranslationCapabilityMessage;
     latestInlineTranslationCandidates = restoredMaturityState.latestInlineTranslationCandidates;
     currentReaderSelection = restoredMaturityState.currentReaderSelection;
-    lastNonEmptyReaderSelection = null;
+    lastNonEmptyReaderSelection = resolveReaderFocusedReadingSelectionLatchForBookChange({
+      currentLatchedSelection: lastNonEmptyReaderSelection,
+      previousBookKey: lastAssistanceBookKey,
+      nextBookKey: restoredMaturityState.restoredBookKey
+    });
     // Focused-reading resume is per-book and text-only. The route still owns
     // the storage IO and timing; the helper only restores the plain state shape
     // that the overlay can render without asking the reader surface for DOM.
@@ -1731,9 +1738,11 @@
   const getFocusedReadingInput = () => ({
     preview: currentPreview,
     // Hidden focused-reading reopen still comes from focusedReadingState inside
-    // readingMode.ts. This latch is only for first-open launches where menu
-    // focus cleared the live EPUB DOM selection just before the route reads it.
+    // readingMode.ts. This EPUB-only latch is only for first-open launches
+    // where menu focus cleared the live EPUB DOM selection just before the
+    // route reads it.
     selection: resolveReaderFocusedReadingLaunchSelection({
+      formatLabel: currentPreview.formatLabel,
       currentSelection: currentReaderSelection,
       lastNonEmptySelection: lastNonEmptyReaderSelection
     })
@@ -2461,7 +2470,7 @@
           }}
           on:selectionchange={({ detail }) => {
             currentReaderSelection = detail;
-            if (detail?.text.trim()) {
+            if (currentPreview.formatLabel === 'EPUB' && detail?.text.trim()) {
               lastNonEmptyReaderSelection = detail;
             }
             notesController.setSelection(currentFormatSupportsTextAnnotations ? detail : null);

@@ -7,11 +7,12 @@
 ## What changed
 
 - added a pure `resolveReaderFocusedReadingLaunchSelection(...)` helper in `src/lib/reader/maturityMode.ts`
-- added a focused helper test in `src/lib/reader/readingMode.test.ts` that pins the route-owned fallback contract when the live EPUB selection has already cleared
+- narrowed that helper so the latched fallback only runs for the EPUB/Foliate path; other formats still rely on the live selection or ordinary preview fallback
+- added focused helper tests in `src/lib/reader/readingMode.test.ts` that pin both the EPUB-only fallback contract and the book-switch clear boundary
 - added a route-owned `lastNonEmptyReaderSelection` latch in `src/routes/reader/+page.svelte`
-- updated the route to refresh that latch only from non-empty reader selections, so selection-clear events do not erase the last explicit EPUB excerpt
-- reset the latch on book switches so selection state cannot leak across books or hidden-resume reopen boundaries
-- changed focused-reading launch input to prefer the live selection first and then the latched route selection only for first-open launch
+- updated the route to refresh that latch only from non-empty EPUB reader selections, so selection-clear events do not erase the last explicit EPUB excerpt and non-EPUB paths never start populating the latch
+- reset the latch through a pure helper on book switches, with a matching unit assertion for that clear branch
+- changed focused-reading launch input to prefer the live selection first and then the latched EPUB route selection only for first-open EPUB launch
 - added a Playwright smoke that reproduces the header-menu race by clearing the live Foliate selection after opening the menu and before launching paragraph focus
 
 ## Verification

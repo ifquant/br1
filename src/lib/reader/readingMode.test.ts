@@ -4,7 +4,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveReaderFocusedReadingLaunchSelection } from './maturityMode.js';
+import {
+  resolveReaderFocusedReadingLaunchSelection,
+  resolveReaderFocusedReadingSelectionLatchForBookChange
+} from './maturityMode.js';
 import {
   advanceReaderRsvpWord,
   changeReaderFocusedReadingModeForSameExcerpt,
@@ -72,10 +75,33 @@ test('focused-reading launch falls back to the last non-empty route selection af
 
   assert.equal(
     resolveReaderFocusedReadingLaunchSelection({
+      formatLabel: 'EPUB',
       currentSelection: null,
       lastNonEmptySelection
     }),
     lastNonEmptySelection
+  );
+});
+
+test('focused-reading launch does not reuse the latched route selection outside epub', () => {
+  assert.equal(
+    resolveReaderFocusedReadingLaunchSelection({
+      formatLabel: 'TXT',
+      currentSelection: null,
+      lastNonEmptySelection: buildSelection('Latched excerpt that should stay epub-only.')
+    }),
+    null
+  );
+});
+
+test('focused-reading route latch clears when the reader switches to another book', () => {
+  assert.equal(
+    resolveReaderFocusedReadingSelectionLatchForBookChange({
+      currentLatchedSelection: buildSelection('Latched excerpt from the previous book.'),
+      previousBookKey: '/books/first.epub',
+      nextBookKey: '/books/second.epub'
+    }),
+    null
   );
 });
 
