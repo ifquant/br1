@@ -1586,6 +1586,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0675-switch-and-restart-focused-reading-in-place.md`.
   - Notes: same-excerpt transitions now go through pure helper state so the overlay never asks for a fresh DOM selection. The route still owns autoplay start/stop semantics: switching out of RSVP always stops autoplay, switching into RSVP reuses the existing entry behavior, and RSVP restart only continues autoplay when the excerpt was already playing before the restart.
 
+- [x] P20-1.6 Preserve RSVP return position across same-excerpt paragraph detours
+  - Outcome: when the reader detours from RSVP-lite into paragraph focus on the same supported excerpt and then switches back, the focused-reading helper restores the last RSVP word index and pace instead of resetting to word 1; explicit replay from word 1 still overwrites that in-memory return point honestly.
+  - Touches: `src/lib/reader/readingMode.ts`, `src/lib/reader/readingMode.test.ts`, `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 test:reader-helpers` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader preserves same-excerpt rsvp position across paragraph detours in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet; user requested no commit.
+  - Tutorial: `tutorials/commit/0676-preserve-focused-reading-rsvp-detour-resume.md`.
+  - Notes: the preserved return point stays inside focused-reading helper state as same-excerpt RSVP resume data. The route still owns autoplay timers, paragraph mode still does not pretend to own RSVP playback UI, and this slice does not add next-excerpt navigation, new locator semantics, or broader PDF/CBZ text support.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

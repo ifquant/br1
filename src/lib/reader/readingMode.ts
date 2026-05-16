@@ -6,6 +6,12 @@ import type { ReaderPreviewState, ReaderSelectionState } from './types';
 
 export type ReaderFocusedReadingMode = 'off' | 'paragraph' | 'rsvp';
 
+type ReaderFocusedReadingRsvpResumeState = {
+  words: string[];
+  activeWordIndex: number;
+  paceWpm: number;
+};
+
 export type ReaderFocusedReadingState = {
   mode: ReaderFocusedReadingMode;
   formatLabel: string;
@@ -17,6 +23,7 @@ export type ReaderFocusedReadingState = {
   activeWordIndex: number;
   paceWpm: number;
   capabilityMessage: string;
+  sameExcerptRsvpResume: ReaderFocusedReadingRsvpResumeState | null;
 };
 
 export type ReaderFocusedReadingPersistedState = {
@@ -90,7 +97,25 @@ const createFocusedReadingPayload = (
   words,
   activeWordIndex: 0,
   paceWpm,
-  capabilityMessage: getFocusedReadingCapabilityMessage(preview.formatLabel, sourceText.length > 0)
+  capabilityMessage: getFocusedReadingCapabilityMessage(preview.formatLabel, sourceText.length > 0),
+  sameExcerptRsvpResume:
+    mode === 'rsvp'
+      ? {
+          words,
+          activeWordIndex: 0,
+          paceWpm: normalizeReaderRsvpLitePace(paceWpm)
+        }
+      : null
+});
+
+const createSameExcerptRsvpResume = (
+  words: string[],
+  activeWordIndex: number,
+  paceWpm: number
+): ReaderFocusedReadingRsvpResumeState => ({
+  words,
+  activeWordIndex: clampReaderRsvpWordIndex(words, activeWordIndex),
+  paceWpm: normalizeReaderRsvpLitePace(paceWpm)
 });
 
 // Same-excerpt transitions intentionally do not accept a fresh preview or DOM
@@ -101,7 +126,8 @@ const createFocusedReadingPayloadForSameExcerpt = (
   state: ReaderFocusedReadingState,
   mode: Exclude<ReaderFocusedReadingMode, 'off'>,
   words: string[] = [],
-  paceWpm = READER_RSVP_LITE_DEFAULT_WPM
+  paceWpm = READER_RSVP_LITE_DEFAULT_WPM,
+  activeWordIndex = 0
 ): ReaderFocusedReadingState => ({
   ...createReaderFocusedReadingState({
     mode,
@@ -111,8 +137,12 @@ const createFocusedReadingPayloadForSameExcerpt = (
     progressLabel: state.progressLabel,
     progressLocation: state.progressLocation,
     words,
-    activeWordIndex: 0,
+    activeWordIndex,
     paceWpm,
+    sameExcerptRsvpResume:
+      mode === 'rsvp'
+        ? createSameExcerptRsvpResume(words, activeWordIndex, paceWpm)
+        : state.sameExcerptRsvpResume,
     capabilityMessage: getFocusedReadingCapabilityMessage(
       state.formatLabel,
       normalizeExcerptText(state.sourceText).length > 0
@@ -205,6 +235,7 @@ export const createReaderFocusedReadingState = (
   activeWordIndex: 0,
   paceWpm: READER_RSVP_LITE_DEFAULT_WPM,
   capabilityMessage: '',
+  sameExcerptRsvpResume: null,
   ...overrides
 });
 
@@ -222,13 +253,11 @@ export const startReaderRsvpLite = (
 ) => {
   const source = getRsvpSource(input);
   const words = splitReaderRsvpWords(source.text);
-  return {
-    ...createFocusedReadingPayload('rsvp', input.preview, source.text, source.label, words),
-    paceWpm:
-      state.mode === 'rsvp'
-        ? normalizeReaderRsvpLitePace(state.paceWpm)
-        : READER_RSVP_LITE_DEFAULT_WPM
-  };
+  const paceWpm =
+    state.mode === 'rsvp'
+      ? normalizeReaderRsvpLitePace(state.paceWpm)
+      : READER_RSVP_LITE_DEFAULT_WPM;
+  return createFocusedReadingPayload('rsvp', input.preview, source.text, source.label, words, paceWpm);
 };
 
 export const changeReaderFocusedReadingModeForSameExcerpt = (
@@ -240,18 +269,35 @@ export const changeReaderFocusedReadingModeForSameExcerpt = (
   }
 
   if (mode === 'paragraph') {
-    return createFocusedReadingPayloadForSameExcerpt(state, 'paragraph');
+    const resume =
+      state.mode === 'rsvp'
+        ? createSameExcerptRsvpResume(state.words, state.activeWordIndex, state.paceWpm)
+        : state.sameExcerptRsvpResume;
+    return {
+      ...createFocusedReadingPayloadForSameExcerpt(state, 'paragraph'),
+      sameExcerptRsvpResume: resume
+    };
   }
 
+  // Paragraph detours keep the same excerpt on screen, so returning to RSVP
+  // should prefer the last RSVP cursor/pace we already exposed for that exact
+  // excerpt instead of rebuilding a fake "fresh" session from word one.
+  const resume = state.sameExcerptRsvpResume;
   const words =
-    state.words.length > 0 ? state.words : splitReaderRsvpWords(normalizeExcerptText(state.sourceText));
+    resume?.words.length
+      ? resume.words
+      : state.words.length > 0
+        ? state.words
+        : splitReaderRsvpWords(normalizeExcerptText(state.sourceText));
   return createFocusedReadingPayloadForSameExcerpt(
     state,
     'rsvp',
     words,
-    state.mode === 'rsvp'
-      ? normalizeReaderRsvpLitePace(state.paceWpm)
-      : READER_RSVP_LITE_DEFAULT_WPM
+    resume?.paceWpm ??
+      (state.mode === 'rsvp'
+        ? normalizeReaderRsvpLitePace(state.paceWpm)
+        : READER_RSVP_LITE_DEFAULT_WPM),
+    resume?.activeWordIndex ?? 0
   );
 };
 
@@ -280,6 +326,11 @@ export const advanceReaderRsvpWord = (state: ReaderFocusedReadingState, delta: n
     activeWordIndex: Math.min(
       state.words.length - 1,
       Math.max(0, state.activeWordIndex + Math.trunc(delta))
+    ),
+    sameExcerptRsvpResume: createSameExcerptRsvpResume(
+      state.words,
+      Math.min(state.words.length - 1, Math.max(0, state.activeWordIndex + Math.trunc(delta))),
+      state.paceWpm
     )
   };
 };
@@ -291,7 +342,12 @@ const updateReaderRsvpLitePace = (state: ReaderFocusedReadingState, deltaWpm: nu
 
   return {
     ...state,
-    paceWpm: normalizeReaderRsvpLitePace(state.paceWpm + deltaWpm)
+    paceWpm: normalizeReaderRsvpLitePace(state.paceWpm + deltaWpm),
+    sameExcerptRsvpResume: createSameExcerptRsvpResume(
+      state.words,
+      state.activeWordIndex,
+      state.paceWpm + deltaWpm
+    )
   };
 };
 
@@ -430,6 +486,14 @@ export const parseReaderFocusedReadingPersistedState = (
             typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM
           )
         : READER_RSVP_LITE_DEFAULT_WPM,
+    sameExcerptRsvpResume:
+      mode === 'rsvp'
+        ? createSameExcerptRsvpResume(
+            restoredWords,
+            typeof payload.activeWordIndex === 'number' ? payload.activeWordIndex : 0,
+            typeof payload.paceWpm === 'number' ? payload.paceWpm : READER_RSVP_LITE_DEFAULT_WPM
+          )
+        : null,
     capabilityMessage: getFocusedReadingCapabilityMessage(formatLabel, sourceText.length > 0)
   });
 };

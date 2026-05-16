@@ -155,6 +155,29 @@ test('same-excerpt rsvp restart jumps back to word one without replacing the exc
   assert.equal(restarted.paceWpm, started.paceWpm);
 });
 
+test('same-excerpt paragraph detours preserve the last rsvp word index and pace', () => {
+  const started = increaseReaderRsvpLitePace(
+    advanceReaderRsvpWord(
+      startReaderRsvpLite(createReaderFocusedReadingState(), {
+        preview: buildPreview(),
+        selection: buildSelection('Detours should return to the same rsvp word and pace.')
+      }),
+      4
+    )
+  );
+
+  const paragraph = changeReaderFocusedReadingModeForSameExcerpt(started, 'paragraph');
+  assert.equal(paragraph.mode, 'paragraph');
+  assert.equal(paragraph.sourceText, started.sourceText);
+
+  const resumed = changeReaderFocusedReadingModeForSameExcerpt(paragraph, 'rsvp');
+  assert.equal(resumed.mode, 'rsvp');
+  assert.equal(resumed.sourceText, started.sourceText);
+  assert.deepEqual(resumed.words, started.words);
+  assert.equal(resumed.activeWordIndex, started.activeWordIndex);
+  assert.equal(resumed.paceWpm, started.paceWpm);
+});
+
 test('unsupported formats return a visible capability message', () => {
   const state = startReaderParagraphFocus(createReaderFocusedReadingState(), {
     preview: createEmptyReaderPreviewState({
