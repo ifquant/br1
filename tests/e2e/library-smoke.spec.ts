@@ -3298,8 +3298,12 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
 
   const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
   const overlayContext = overlay.getByLabel('当前阅读上下文');
-  const overlaySourceValue = overlayContext.locator('.overlay-context-item').nth(0).locator('strong');
-  const overlayProgressValue = overlayContext.locator('.overlay-context-item').nth(1).locator('strong');
+  const overlaySourceValue = overlayContext
+    .locator('.overlay-context-item', { hasText: '摘录来源' })
+    .locator('strong');
+  const overlayProgressValue = overlayContext
+    .locator('.overlay-context-item', { hasText: '进度' })
+    .locator('strong');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('段落聚焦');
   await expect(overlay).toContainText(selectedExcerpt);
@@ -3353,8 +3357,12 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
 
   const reopenedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
   const reopenedContext = reopenedOverlay.getByLabel('当前阅读上下文');
-  const reopenedSourceValue = reopenedContext.locator('.overlay-context-item').nth(0).locator('strong');
-  const reopenedProgressValue = reopenedContext.locator('.overlay-context-item').nth(1).locator('strong');
+  const reopenedSourceValue = reopenedContext
+    .locator('.overlay-context-item', { hasText: '摘录来源' })
+    .locator('strong');
+  const reopenedProgressValue = reopenedContext
+    .locator('.overlay-context-item', { hasText: '进度' })
+    .locator('strong');
   await expect(reopenedOverlay).toBeVisible();
   await expect(reopenedOverlay).toContainText('段落聚焦');
   await expect(reopenedOverlay).toContainText(selectedExcerpt);
