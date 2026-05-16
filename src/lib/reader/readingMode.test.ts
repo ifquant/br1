@@ -175,6 +175,38 @@ test('focused-reading route launch guard clears after same-book navigation moves
   );
 });
 
+test('focused-reading route launch guard clears after same-book prev navigation requests', () => {
+  assert.equal(
+    resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+      currentSelectionGuard: {
+        armed: true,
+        selection: buildSelection('Armed excerpt before a same-book prev jump.')
+      },
+      request: {
+        type: 'prev',
+        nonce: 4
+      }
+    }),
+    null
+  );
+});
+
+test('focused-reading route launch guard clears after same-book start navigation requests', () => {
+  assert.equal(
+    resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
+      currentSelectionGuard: {
+        armed: true,
+        selection: buildSelection('Armed excerpt before a same-book start jump.')
+      },
+      request: {
+        type: 'start',
+        nonce: 5
+      }
+    }),
+    null
+  );
+});
+
 test('focused-reading route launch guard clears after same-book href navigation requests', () => {
   assert.equal(
     resolveReaderFocusedReadingLaunchSelectionGuardForControlRequest({
@@ -185,7 +217,7 @@ test('focused-reading route launch guard clears after same-book href navigation 
       request: {
         type: 'href',
         href: 'epubcfi(/6/4!/2/8)',
-        nonce: 2
+        nonce: 6
       }
     }),
     null
@@ -202,7 +234,7 @@ test('focused-reading route launch guard clears after same-book fraction navigat
       request: {
         type: 'fraction',
         fraction: 0.8,
-        nonce: 3
+        nonce: 7
       }
     }),
     null

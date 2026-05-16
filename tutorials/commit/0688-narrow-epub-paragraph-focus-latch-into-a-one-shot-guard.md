@@ -14,10 +14,10 @@ This follow-up keeps the race fix route-owned, but makes the boundary explicit a
   - arm the guard when that EPUB selection clears
   - consume and clear the guard on the next focused-reading launch
   - clear the guard on book switches and same-book primary navigation control requests such as `prev`, `next`, `start`, `href`, and `fraction`
-- updated the route-owned primary control dispatcher so footer events plus direct route-owned bookmark/search/TTS jump helpers all pass through the same guard-clearing boundary
+- updated the route-owned primary control dispatcher so direct `href` / primary-navigation helpers pass through the same guard-clearing boundary instead of relying only on `on:controlrequest`
 - updated the route-owned focused-reading input builder so every launch explicitly consumes or clears the guard instead of letting it survive as a same-book cache
 - kept beginner-friendly comments around the non-obvious ownership boundary so a new contributor can see why this state stays in the route
-- added helper coverage for arm/consume/clear semantics, including `href` and `fraction` clear cases, plus a focused web smoke proving the positive menu-clear race still works while same-book navigation controls no longer leave the stale selection guard behind
+- added helper coverage for arm/consume/clear semantics across `prev`, `next`, `start`, `href`, and `fraction`, plus a focused web smoke proving the positive menu-clear race still works while same-book navigation controls no longer leave the stale selection guard behind
 
 ## Verification
 
