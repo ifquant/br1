@@ -1658,6 +1658,14 @@ Goal: make focused reading feel like a real reading mode on supported text surfa
   - Tutorial: `tutorials/commit/0684-verify-epub-selection-owned-focused-reading-reopen.md`.
   - Notes: this keeps the slice EPUB-only and smoke-only because the existing hidden same-book resume seam already behaved correctly. It certifies selection-clear plus progress-change reopen precedence, not a stronger visible-paragraph replacement contract. It does not add reload coverage, route-boundary refactors, dual-ownership semantics, Tauri reopen behavior, or broader TTS/translation/notebook assertions.
 
+- [x] P20-1.15 Verify EPUB focused-reading context stays human-readable on reopen
+  - Outcome: this slice smoke-certifies the adjacent visible-context contract for the same real EPUB selection-owned seam: when paragraph-focused reading opens from that Foliate-owned excerpt and later reopens from the hidden same-book resume payload, the overlay still surfaces readable source/progress context while the primary UI does not expose raw restore locators such as `epubcfi(...)`.
+  - Touches: `tests/e2e/library-smoke.spec.ts`, checklist/tutorial docs.
+  - Verify: `pnpm -C /Users/dev/workspace2/hc_apps/br1 check` (PASS); `pnpm -C /Users/dev/workspace2/hc_apps/br1 exec playwright test tests/e2e/library-smoke.spec.ts --workers=1 --grep "reader reuses the exited epub selection-owned focused-reading excerpt on reopen in web mode"` (PASS); `git -C /Users/dev/workspace2/hc_apps/br1 diff --check` (PASS).
+  - Done commit: not committed yet.
+  - Tutorial: `tutorials/commit/0685-verify-epub-focused-reading-context-contract.md`.
+  - Notes: this remains smoke-only and visible-UI-only on purpose. It proves the overlay shows `摘录来源`/`进度` with selection-owned EPUB text on first open and reopen, and that `epubcfi(...)` does not leak into the overlay copy. It does not certify a new restore format, footer parity beyond the visible percentage, reload behavior, route refactors, or any TTS/translation/sidebar expansion.
+
 ## Service Security Gate
 
 These checks apply to every P2 service slice.

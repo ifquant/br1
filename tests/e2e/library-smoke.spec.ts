@@ -3248,6 +3248,7 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
     })
     .toBe(true);
   const selectionToolbar = page.getByRole('toolbar', { name: '选中文本操作' });
+  const highlightButton = selectionToolbar.getByRole('button', { name: '高亮' });
   const applyEpubSelection = async () =>
     page.evaluate((targetText) => {
       const view = document.querySelector('foliate-view') as any;
@@ -3276,22 +3277,30 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
   await expect
     .poll(async () => {
       selectedExcerpt = await applyEpubSelection();
-      return await selectionToolbar.isVisible().catch(() => false);
+      return await highlightButton.isVisible().catch(() => false);
     }, {
       message: 'expected the EPUB selection-owned popup to appear before opening focused reading'
     })
     .toBe(true);
-  await expect(selectionToolbar.getByRole('button', { name: '高亮' })).toBeVisible();
+  await expect(highlightButton).toBeVisible();
   const startingProgress = ((await readingProgress.textContent()) ?? '').trim();
+  const startingProgressPercent = startingProgress.match(/\d+%/)?.[0] ?? '';
 
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
 
   const overlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const overlayContext = overlay.getByLabel('当前阅读上下文');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('段落聚焦');
-  await expect(overlay).toContainText('当前选区');
   await expect(overlay).toContainText(selectedExcerpt);
+  await expect(overlayContext).toContainText('摘录来源');
+  await expect(overlayContext).toContainText('当前选区');
+  await expect(overlayContext).toContainText('进度');
+  if (startingProgressPercent) {
+    await expect(overlayContext).toContainText(startingProgressPercent);
+  }
+  await expect(overlay).not.toContainText('epubcfi(');
 
   await overlay.getByRole('button', { name: '退出专注阅读' }).click();
   await expect(overlay).toHaveCount(0);
@@ -3329,10 +3338,17 @@ test('reader reuses the exited epub selection-owned focused-reading excerpt on r
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
 
   const reopenedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
+  const reopenedContext = reopenedOverlay.getByLabel('当前阅读上下文');
   await expect(reopenedOverlay).toBeVisible();
   await expect(reopenedOverlay).toContainText('段落聚焦');
-  await expect(reopenedOverlay).toContainText('当前选区');
   await expect(reopenedOverlay).toContainText(selectedExcerpt);
+  await expect(reopenedContext).toContainText('摘录来源');
+  await expect(reopenedContext).toContainText('当前选区');
+  await expect(reopenedContext).toContainText('进度');
+  if (startingProgressPercent) {
+    await expect(reopenedContext).toContainText(startingProgressPercent);
+  }
+  await expect(reopenedOverlay).not.toContainText('epubcfi(');
 });
 
 test('reader opens focused reading modes from keyboard in web mode', async ({ page }) => {
