@@ -381,11 +381,11 @@
   // persistence and OS boundaries that the presentational library surface should not own.
   const desktopLibraryPageCoordinator = buildDesktopLibraryPageCoordinatorFromPageStateAndEnv({
     state: {
-      libraryNotice,
+      getLibraryNoticeState: () => libraryNotice,
       setLibraryNotice: (notice) => {
         libraryNotice = notice;
       },
-      persistedLibraryRecords,
+      getPersistedLibraryRecords: () => persistedLibraryRecords,
       setPersistedLibraryRecords: (records) => {
         persistedLibraryRecords = records;
       },
@@ -401,23 +401,23 @@
       setImportedBooks: (books) => {
         importedBooks = books;
       },
-      bulkRepairBusy,
+      getBulkRepairBusy: () => bulkRepairBusy,
       setBulkRepairBusy: (busy) => {
         bulkRepairBusy = busy;
       },
       setBulkRepairSummary: (summary) => {
         bulkRepairSummary = summary;
       },
-      bulkRepairEligibleQueueBooks,
-      migrationBusy,
+      getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
+      getMigrationBusy: () => migrationBusy,
       setMigrationBusy: (busy) => {
         migrationBusy = busy;
       },
-      syncSnapshotBusy,
+      getSyncSnapshotBusy: () => syncSnapshotBusy,
       setSyncSnapshotBusy: (busy) => {
         syncSnapshotBusy = busy;
       },
-      remoteSyncBusy,
+      getRemoteSyncBusy: () => remoteSyncBusy,
       setRemoteSyncBusy: (busy) => {
         remoteSyncBusy = busy;
       },

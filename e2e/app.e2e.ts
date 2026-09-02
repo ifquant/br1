@@ -424,7 +424,7 @@ describe('br1 desktop app', () => {
 
   const clickLibraryBrowseMenuOption = async (label: string) => {
     await browser.execute((targetLabel) => {
-      const menu = document.querySelector('[role="menu"][aria-label="书库浏览选项"]');
+      const menu = document.querySelector('.sort-menu[role="menu"]');
       if (!(menu instanceof HTMLElement)) {
         throw new Error('expected library browse menu to exist');
       }
@@ -1796,8 +1796,10 @@ describe('br1 desktop app', () => {
         }
         return value;
       };
-      const formatLabel = footerMeta[1] ?? null;
-      const locationLabel = normalizeLocationLabel(footerMeta[0] ?? null);
+      const formatLabel = footerMeta[0] ?? null;
+      const locationLabel = normalizeLocationLabel(
+        footer?.querySelector('.reading-summary span')?.textContent?.trim() ?? null
+      );
       const progressLabel =
         footer?.querySelector('.progress-strip span')?.textContent?.trim() ?? null;
       const derivedProgressFraction =
@@ -1832,7 +1834,7 @@ describe('br1 desktop app', () => {
         progressLabel,
         locationLabel,
         formatLabel,
-        layoutLabel: normalizeLayoutLabel(footerMeta[2] ?? null),
+        layoutLabel: normalizeLayoutLabel(footerMeta[1] ?? null),
         stageError: document.querySelector('.stage-error')?.textContent?.trim() ?? null
       };
     });
@@ -3206,23 +3208,14 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the library removal notice to expose an undo button'
     });
 
-    const restoredViaUi = await browser.waitUntil(async () => {
+    await browser.waitUntil(async () => {
       const records = await loadLibraryRecordsOnDisk();
       return records.some((record) => record.id === importedBook!.id);
     }, {
-      timeout: 2000,
+      timeout: 10000,
       interval: 250,
       timeoutMsg: 'expected undo notice action to restore the removed book'
-    }).then(() => true, () => false);
-
-    if (!restoredViaUi) {
-      const restored = await invokeDesktopCommand<unknown[]>('restore_removed_library_book', {
-        recordId: importedBook!.id
-      });
-      if (!restored.ok) {
-        throw new Error(restored.error);
-      }
-    }
+    });
 
     let restoredFilePath = importedBook!.filePath;
     await browser.waitUntil(async () => {
@@ -4940,22 +4933,17 @@ describe('br1 desktop app', () => {
       if (!details.title || details.locationLabel === 'Opening book') return false;
       if (details.formatLabel !== 'PDF') return false;
 
-      const restoredByLocation = !!expectedLocation && details.cfi && details.cfi !== expectedLocation;
+      const restoredByLocation =
+        !!expectedLocation &&
+        normalizeReaderLocationLabel(details.locationLabel) === normalizeReaderLocationLabel(expectedLocation);
       const restoredByFraction =
-        !expectedLocation &&
         typeof expectedFraction === 'number' &&
         expectedFraction > 0 &&
         typeof details.progressFraction === 'number' &&
-        Math.abs(details.progressFraction - expectedFraction) > 0.0005;
+        Math.abs(details.progressFraction - expectedFraction) <= 0.06;
 
       return (
-        (
-          restoredByLocation ||
-          restoredByFraction ||
-          (details.progressFraction ?? 0) > 0 ||
-          details.locationLabel !== 'Not opened' ||
-          details.formatLabel === 'PDF'
-        ) &&
+        (restoredByLocation || restoredByFraction) &&
         rendered.left >= geometry.stage.left - 4 &&
         rendered.right <= geometry.stage.right + 4 &&
         rendered.top >= geometry.stage.top - 4 &&
@@ -5148,12 +5136,11 @@ describe('br1 desktop app', () => {
       normalizeFsPathAlias(record.sourcePath ?? '').startsWith(normalizeFsPathAlias(staticSamplesRoot))
     );
     const importedPaths = sampleRecords.map((record) => normalizeFsPathAlias(record.filePath ?? record.file_path ?? ''));
-    const importedFormats = sampleRecords.map((record) => String(record.format ?? '').trim().toUpperCase());
-    const expectedSortedPaths = [...sampleRecords]
-      .sort((left, right) => String(left.format ?? '').localeCompare(String(right.format ?? ''), 'en'))
-      .map((record) => normalizeFsPathAlias(record.filePath ?? record.file_path ?? ''));
-    const expectedGroupFormats = [...new Set(importedFormats)].sort((left, right) =>
-      left.localeCompare(right, 'en')
+    const formatByPath = new Map(
+      sampleRecords.map((record) => [
+        normalizeFsPathAlias(record.filePath ?? record.file_path ?? ''),
+        String(record.format ?? '').trim().toUpperCase()
+      ])
     );
     expect(sampleRecords.length).toBeGreaterThan(0);
     const filterBook = sampleRecords[0]!;
@@ -5181,46 +5168,48 @@ describe('br1 desktop app', () => {
       timeoutMsg: 'expected the imported sample books to render as openable library entries after refresh'
     });
 
-    const sortByFormatButton = await $('[aria-label="更多操作"]');
+    const sortByFormatButton = await $('[aria-haspopup="menu"]');
     await sortByFormatButton.waitForDisplayed({ timeout: 10000 });
     await sortByFormatButton.click();
     await clickLibraryBrowseMenuOption('格式');
 
-    await browser.waitUntil(async () => {
-      const pathsInOrder = (await browser.execute(() =>
-        Array.from(document.querySelectorAll('a[href]'))
+    const readImportedMainShelfPaths = async () => {
+      const hrefs = (await browser.execute(() =>
+        Array.from(document.querySelectorAll('.shelf-body[aria-label="你的书库"] a[href]'))
           .map((node) => node.getAttribute('href') ?? '')
           .filter(Boolean)
       )) as string[];
-
-      const normalizedPathsInOrder = pathsInOrder
-        .map((href) => {
-          const target = new URL(href, 'http://localhost');
-          return normalizeFsPathAlias(target.searchParams.get('path') ?? '');
-        })
+      return hrefs
+        .map((href) => normalizeFsPathAlias(new URL(href, 'http://localhost').searchParams.get('path') ?? ''))
         .filter((path) => importedPaths.includes(path));
+    };
 
-      return JSON.stringify(normalizedPathsInOrder) === JSON.stringify(expectedSortedPaths);
+    await browser.waitUntil(async () => {
+      const paths = await readImportedMainShelfPaths();
+      const formats = paths.map((path) => formatByPath.get(path) ?? '');
+      return (
+        paths.length > 1 &&
+        JSON.stringify(formats) ===
+          JSON.stringify([...formats].sort((left, right) => left.localeCompare(right, 'en')))
+      );
     }, {
       timeout: 10000,
-      timeoutMsg: 'expected sorting by format to order the imported sample titles consistently'
+      timeoutMsg: 'expected sorting by format to order the main library shelf consistently'
     }).catch(async (error) => {
-      const actualHrefs = (await browser.execute(() =>
-        Array.from(document.querySelectorAll('a[href]'))
-          .map((node) => node.getAttribute('href') ?? '')
-          .filter(Boolean)
-      )) as string[];
-      const actualPathsInOrder = actualHrefs
-        .map((href) => {
-          const target = new URL(href, 'http://localhost');
-          return normalizeFsPathAlias(target.searchParams.get('path') ?? '');
-        })
-        .filter((path) => importedPaths.includes(path));
+      const actualFormats = (await readImportedMainShelfPaths()).map((path) => formatByPath.get(path) ?? '');
 
       throw new Error(
-        `${error instanceof Error ? error.message : String(error)}\nExpected order: ${JSON.stringify(expectedSortedPaths)}\nActual order: ${JSON.stringify(actualPathsInOrder)}`
+        `${error instanceof Error ? error.message : String(error)}\nActual main-shelf formats: ${JSON.stringify(actualFormats)}`
       );
     });
+
+    const expectedGroupFormats = [
+      ...new Set(
+        (await readImportedMainShelfPaths())
+          .map((path) => formatByPath.get(path) ?? '')
+          .filter(Boolean)
+      )
+    ].sort((left, right) => left.localeCompare(right, 'en'));
 
     await sortByFormatButton.click();
     await clickLibraryBrowseMenuOption('按格式');

@@ -183,23 +183,23 @@ export const buildDesktopLibraryPageCoordinatorStateBindings = (
 ) => bindings;
 
 export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
-  libraryNotice,
+  getLibraryNoticeState,
   setLibraryNotice,
-  persistedLibraryRecords,
+  getPersistedLibraryRecords,
   setPersistedLibraryRecords,
   setReadestCompatibleCount,
   setReadestImportableCount,
   setReadestMissingFileCount,
   setImportedBooks,
-  bulkRepairBusy,
+  getBulkRepairBusy,
   setBulkRepairBusy,
   setBulkRepairSummary,
-  bulkRepairEligibleQueueBooks,
-  migrationBusy,
+  getBulkRepairEligibleQueueBooks,
+  getMigrationBusy,
   setMigrationBusy,
-  syncSnapshotBusy,
+  getSyncSnapshotBusy,
   setSyncSnapshotBusy,
-  remoteSyncBusy,
+  getRemoteSyncBusy,
   setRemoteSyncBusy,
   setDesktopLibraryMode,
   setReadestLibraryCount,
@@ -207,23 +207,23 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   getImportInput,
   setImportInputValue
 }: {
-  libraryNotice: LibraryNoticeState | null;
+  getLibraryNoticeState: () => LibraryNoticeState | null;
   setLibraryNotice: SetLibraryNoticeState;
-  persistedLibraryRecords: PersistedLibraryBook[];
+  getPersistedLibraryRecords: () => PersistedLibraryBook[];
   setPersistedLibraryRecords: (records: PersistedLibraryBook[]) => void;
   setReadestCompatibleCount: (count: number) => void;
   setReadestImportableCount: (count: number) => void;
   setReadestMissingFileCount: (count: number) => void;
   setImportedBooks: (books: LibraryShelfBook[]) => void;
-  bulkRepairBusy: boolean;
+  getBulkRepairBusy: () => boolean;
   setBulkRepairBusy: (busy: boolean) => void;
   setBulkRepairSummary: (summary: string) => void;
-  bulkRepairEligibleQueueBooks: LibraryShelfBook[];
-  migrationBusy: boolean;
+  getBulkRepairEligibleQueueBooks: () => LibraryShelfBook[];
+  getMigrationBusy: () => boolean;
   setMigrationBusy: (busy: boolean) => void;
-  syncSnapshotBusy: boolean;
+  getSyncSnapshotBusy: () => boolean;
   setSyncSnapshotBusy: (busy: boolean) => void;
-  remoteSyncBusy: boolean;
+  getRemoteSyncBusy: () => boolean;
   setRemoteSyncBusy: (busy: boolean) => void;
   setDesktopLibraryMode: (value: boolean) => void;
   setReadestLibraryCount: (count: number) => void;
@@ -231,23 +231,23 @@ export const buildDesktopLibraryPageCoordinatorStateBindingsFromPageState = ({
   getImportInput: () => HTMLInputElement | null;
   setImportInputValue: (value: string) => void;
 }): DesktopLibraryPageCoordinatorStateBindings => ({
-  getLibraryNoticeState: () => libraryNotice,
+  getLibraryNoticeState,
   setLibraryNoticeState: setLibraryNotice,
   setPersistedLibraryRecords,
   setReadestCompatibleCount,
   setReadestImportableCount,
   setReadestMissingFileCount,
   setImportedBooks,
-  getPersistedLibraryRecords: () => persistedLibraryRecords,
-  getBulkRepairBusy: () => bulkRepairBusy,
+  getPersistedLibraryRecords,
+  getBulkRepairBusy,
   setBulkRepairBusy,
   setBulkRepairSummary,
-  getBulkRepairEligibleQueueBooks: () => bulkRepairEligibleQueueBooks,
-  getMigrationBusy: () => migrationBusy,
+  getBulkRepairEligibleQueueBooks,
+  getMigrationBusy,
   setMigrationBusy,
-  getSyncSnapshotBusy: () => syncSnapshotBusy,
+  getSyncSnapshotBusy,
   setSyncSnapshotBusy,
-  getRemoteSyncBusy: () => remoteSyncBusy,
+  getRemoteSyncBusy,
   setRemoteSyncBusy,
   setDesktopLibraryMode,
   setReadestLibraryCount,

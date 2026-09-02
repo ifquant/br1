@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | Status | Commits |
 | --- | ---: |
 | `covered` | 8 |
-| `partial` | 472 |
-| `gap` | 74 |
-| `not-applicable` | 124 |
+| `partial` | 470 |
+| `gap` | 75 |
+| `not-applicable` | 125 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 0 | 259 | 19 | 50 |
-| library | 4 | 70 | 17 | 18 |
+| reader core | 0 | 263 | 20 | 50 |
+| library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 38 | 9 | 16 |
@@ -230,7 +230,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 192 | `ff605e000` | library | feat(library): in-place import from registered external folders (#4315) | `gap` | S2-L01 | P0-4.1/P0-4.2 and library smoke tests; bounded directory import is absent. |
 | 193 | `1f5481c0e` | tts/audio | fix(fxl): align TTS highlight overlay with scaled iframe coords (#4324) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
 | 194 | `315d144d8` | library | fix(library): suppress loading-dots flicker on reader→library return (#4325) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
-| 195 | `cf44e8518` | library | fix(reader): fit duokan-page-fullscreen cover image without cropping (#4328) | `partial` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests; exact behavior needs a regression. |
+| 195 | `cf44e8518` | reader core | fix(reader): fit duokan-page-fullscreen cover image without cropping (#4328) | `partial` | S2-R04C | br1 recognizes the Duokan fullscreen marker, but its exact contain/letterbox behavior is unproved. |
 | 196 | `a1cb228d0` | library | fix(library): wrap select-mode action bar on small screens (#4329) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
 | 197 | `4e01e13ee` | library | fix(library): make bookitem-main shrink to match cover in fit mode (#4331) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
 | 198 | `93abca896` | ai/assist/dictionary | feat(dict): faster MDict/StarDict import + lazy lookup; raw .dict; UX (#4334) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
@@ -352,7 +352,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 314 | `23d1ef6f1` | reading modes/controls | fix(rsvp): restore in-flow control bar layout reverted by #4589 (#4671) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 315 | `b9a3ee725` | catalog/import | fix(opds): make saved catalog card hover distinct from dialog background (#4673) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 316 | `0ab8f6042` | library | fix(reader): keep cover background-image visible under a texture (#4675) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
-| 317 | `a9526377a` | library | fix(reader): stretch Duokan fullscreen cover to fill the page (#4679) | `partial` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests; exact behavior needs a regression. |
+| 317 | `a9526377a` | reader core | fix(reader): stretch Duokan fullscreen cover to fill the page (#4679) | `partial` | S2-R04C | This superseded Duokan cover decision belongs with authored-layout compatibility, not library behavior. |
 | 318 | `7185dca1a` | reader core | feat(reader): add save/share button to image gallery toolbar (#4680) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
 | 319 | `353d38142` | security | fix(deps): bump undici and dompurify overrides for security advisories (#4684) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 320 | `2153f7cc0` | reader core | fix(reader): reset scroll to top on paginated fit-width page turn (#4683) (#4695) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -564,8 +564,8 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 526 | `59284086c` | reader core | feat(reader): show the image description in the image viewer (#5472) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
 | 527 | `47f0a52b3` | library | feat(library): give the "Then by" sort its own order, closes #5119 (#5474) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 528 | `ffdcfca0a` | catalog/import | fix(opds): apply the metadata advertised by the feed entry (#5477) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
-| 529 | `da86aba6b` | library | fix(reader): stop the header hover strip from covering the page text (#5478) | `partial` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests; exact behavior needs a regression. |
-| 530 | `6469cbb5b` | library | fix(reader): fix duokan fullscreen cover rendering and swipe (#5263) (#5473) | `partial` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests; exact behavior needs a regression. |
+| 529 | `da86aba6b` | reader core | fix(reader): stop the header hover strip from covering the page text (#5478) | `partial` | S2-R05 | br1 has hover chrome, but this exact first-line occlusion boundary lacks focused proof. |
+| 530 | `6469cbb5b` | reader core | fix(reader): fix duokan fullscreen cover rendering and swipe (#5263) (#5473) | `partial` | S2-R04C | The final Duokan cover and post-restore swipe behavior remains an authored-layout fixture task. |
 | 531 | `35450e965` | tts/audio | feat(tts): play a book's own recorded narration (EPUB 3 Media Overlays) (#5480) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 532 | `69985e5e5` | reader core | feat(reader): horizontal scrolling mode for fixed layout books (#5485) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 533 | `aa08ce95f` | library | fix(library): select books in the recently read shelf and pull it with the grid (#5486) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
@@ -606,7 +606,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 568 | `ada70fc2f` | reader core | feat(reader): summarize annotation counts in the sidebar toolbar (#5576) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
 | 569 | `70465cb6c` | tts/audio | docs: update screenshots, closes #5368 (#5577) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
 | 570 | `cf413b2b9` | tts/audio | chore: update agent memories (#5579) | `not-applicable` | — | Readest agent-memory bookkeeping. |
-| 571 | `14de49724` | library | fix: fix occasional stuck when dismissing bookshelf menu (#5580) | `partial` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests; exact behavior needs a regression. |
+| 571 | `14de49724` | library | fix: fix occasional stuck when dismissing bookshelf menu (#5580) | `not-applicable` | — | br1 uses a DOM menu and has no cached native Tauri popup/menu resource that can deadlock on close. |
 | 572 | `df2989e43` | catalog/import | fix(opds): make the title bar draggable in the online library view (#5592) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 573 | `6d5a89cee` | catalog/import | fix(opds): filter incompatible download formats and offer one-click EPUB (#5593) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 574 | `4bcfcddf2` | library | fix(library): checkpoint, serialize, and pool folder imports (#5615) | `gap` | S2-L01 | P0-4.1/P0-4.2 and library smoke tests; bounded directory import is absent. |
@@ -667,7 +667,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 629 | `a4358d22e` | ai/assist/dictionary | fix(translate): follow Bing regional host and show why a translation failed, closes #5823 (#5826) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 630 | `a2f123ff9` | reader core | feat(reader): join PDF line wraps into paragraphs when copying, closes #5814 (#5828) | `partial` | S2-R03 | PDF opens; exact rendering/theme/text behavior is incomplete. |
 | 631 | `69872d372` | ai/assist/dictionary | fix(annotator): hide the range editor handles while a lookup popup is open, closes #5815 (#5829) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
-| 632 | `279698832` | library | feat(reader): show the book cover full screen from the sidebar and book details, closes #5813 (#5827) | `partial` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests; exact behavior needs a regression. |
+| 632 | `279698832` | reader core | feat(reader): show the book cover full screen from the sidebar and book details, closes #5813 (#5827) | `gap` | S2-R09 | br1 shows cover thumbnails but has no full-screen reader media viewer. |
 | 633 | `4df8b37b7` | reader core | feat(reader): select text across PDF pages as one selection, closes #5809 (#5831) | `partial` | S2-R03 | PDF opens; exact rendering/theme/text behavior is incomplete. |
 | 634 | `9b33b52a4` | reader core | feat(stats): tier stat_pages history into R2 segments behind a 7-day hot window (#5835) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 635 | `9045b43d1` | reader core | chore: update agent memories (#5840) | `not-applicable` | — | Readest agent-memory bookkeeping. |
@@ -717,7 +717,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 ## Recommended Execution Order
 
-1. Baseline closure: `S1-R03` (`S1-R01` and `S1-R02` verified complete on 2026-09-02).
+1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
 2. Trust and format floor: `S2-S01` through `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01`.
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
@@ -746,14 +746,13 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Remaining boundary: user-customizable bindings and persistence from `d27d324e1` remain `partial` under `S2-R08`; static br1 bindings are complete for this baseline.
 - Commits: `3d4d1482a`, `ec26ef4f2`, `b9a2b10fa`, `d27d324e1`, `76e81d604`
 
-### S1-R03 - Certify baseline library behavior
+### Completed Baseline: S1-R03 - Certify baseline library behavior
 
 - Phase: Step 1
-- Upstream decisions: 6 commits (0 gap, 6 partial)
-- Outcome: Keep sorting, grouping, open-with, remove/restore, progress, and empty states under focused regression coverage.
-- Touches: library smoke tests; implementation only where a regression fails
-- Verify: `pnpm check`; `targeted library smoke`; `git diff --check`
-- Commits: `cf44e8518`, `a9526377a`, `da86aba6b`, `6469cbb5b`, `14de49724`, `279698832`
+- Result: `covered` by sorting, grouping/filter projections, trusted open-with, remove/restore, progress restore, reader return, and search/filter empty-state regressions.
+- Repair: desktop coordination now reads live Svelte state instead of initialization snapshots; desktop smoke helpers follow the current footer and menu DOM contracts.
+- Evidence: `pnpm check` (PASS); targeted browser library smoke (PASS, 1/1); targeted desktop library regressions (PASS, 4/4).
+- Audit correction: the six Readest commits previously grouped here do not describe baseline library behavior. Four remain `partial` under `S2-R04C`/`S2-R05`, full-screen cover viewing is a `gap` under `S2-R09`, and the native cached-menu deadlock is `not-applicable`.
 
 ### S2-R01A - Stabilize scroll and position transitions
 
@@ -821,20 +820,20 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 27 commits (0 gap, 27 partial)
+- Upstream decisions: 30 commits (0 gap, 30 partial)
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
 - Touches: foliate compatibility fixtures and focused guards
 - Verify: `pnpm check`; `authored-layout smoke`; `git diff --check`
-- Commits: `87f0240b0`, `caa0d719c`, `23d5f3363`, `b223ccaee`, `ebbbf104b`, `1d8ed3fc9`, `9a05935ca`, `54aa20d4f`, `676e14234`, `d6e981e56`, `6626db967`, `370a51662`, `69599e2bc`, `17e60f1e4`, `c5304cd46`, `db1d63cdc`, `6807664e9`, `44953f568`, `dbe0dae0a`, `42c7a2cb0`, `a6e6691c8`, `631cd6454`, `a193cbc35`, `5aae8d6c5`, `aab58241d`, `7c0419961`, `86493e801`
+- Commits: `87f0240b0`, `caa0d719c`, `23d5f3363`, `b223ccaee`, `ebbbf104b`, `1d8ed3fc9`, `9a05935ca`, `54aa20d4f`, `676e14234`, `d6e981e56`, `6626db967`, `370a51662`, `69599e2bc`, `17e60f1e4`, `c5304cd46`, `db1d63cdc`, `6807664e9`, `44953f568`, `dbe0dae0a`, `42c7a2cb0`, `a6e6691c8`, `631cd6454`, `a193cbc35`, `5aae8d6c5`, `aab58241d`, `7c0419961`, `86493e801`, `cf44e8518`, `a9526377a`, `6469cbb5b`
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 
 - Phase: Step 2
-- Upstream decisions: 14 commits (0 gap, 14 partial)
+- Upstream decisions: 15 commits (0 gap, 15 partial)
 - Outcome: Keep popups, click-to-paginate, keyboard activation, progress, focus, and window title behavior consistent.
 - Touches: reader stage/chrome/popup components, accessibility smoke
 - Verify: `pnpm check`; `keyboard/accessibility smoke`; `git diff --check`
-- Commits: `31e44d2e4`, `06aec0b59`, `8a19c686c`, `f1ae05076`, `4abbc0254`, `114396b84`, `8e009cd61`, `e05b7d5bb`, `d1749feee`, `614427e82`, `561356628`, `800af00f3`, `0f913bfa6`, `5ae894735`
+- Commits: `31e44d2e4`, `06aec0b59`, `8a19c686c`, `f1ae05076`, `4abbc0254`, `114396b84`, `8e009cd61`, `e05b7d5bb`, `d1749feee`, `614427e82`, `561356628`, `800af00f3`, `0f913bfa6`, `5ae894735`, `da86aba6b`
 
 ### S2-R06 - Close search context and layout gaps
 
@@ -866,11 +865,11 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R09 - Harden image and table viewing
 
 - Phase: Step 2
-- Upstream decisions: 8 commits (0 gap, 8 partial)
+- Upstream decisions: 9 commits (1 gap, 8 partial)
 - Outcome: Keep zoom, pan, gallery, descriptions, and full-page media stable without stealing page-turn gestures.
 - Touches: reader media viewer and foliate media hooks, focused tests
 - Verify: `pnpm check`; `image/table fixture smoke`; `desktop visual check`
-- Commits: `4d1205fdf`, `e145eb835`, `7185dca1a`, `8810aa6db`, `d963b911c`, `d2668d167`, `3a0b9cac8`, `59284086c`
+- Commits: `4d1205fdf`, `e145eb835`, `7185dca1a`, `8810aa6db`, `d963b911c`, `d2668d167`, `3a0b9cac8`, `59284086c`, `279698832`
 
 ### S2-D01 - Version persisted reader configuration
 
