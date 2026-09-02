@@ -75,6 +75,10 @@ export interface FoliateViewElement extends HTMLElement {
   >;
   clearSearch(): void;
   renderer?: {
+    pageColors?: {
+      background: string;
+      foreground: string;
+    };
     setAttribute(name: string, value: string | number): void;
     removeAttribute(name: string): void;
     setStyles?(css: string): void;

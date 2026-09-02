@@ -4240,6 +4240,81 @@ test('reader persists epub layout settings through reload in web mode', async ({
   await expect(page.locator('.focus-aid-ruler')).toBeVisible();
 });
 
+test('reader applies optional PDF theme colors only when canvas filters are supported', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  const supportsThemeColors = await page.evaluate(() => {
+    const context = document.createElement('canvas').getContext('2d');
+    return !!context && 'filter' in context;
+  });
+  test.skip(!supportsThemeColors, 'PDF theme colors require CanvasRenderingContext2D.filter');
+
+  const readPageColors = () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: { pageColors?: { background: string; foreground: string } };
+      } | null;
+      return view?.renderer?.pageColors ?? null;
+    });
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  const themeToggle = page.getByRole('menuitemcheckbox', { name: '主题色' });
+  await expect(themeToggle).toHaveAttribute('aria-checked', 'false');
+  await themeToggle.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect.poll(readPageColors).toEqual({ background: '#f7efe2', foreground: '#2b221a' });
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  const warmTheme = page
+    .locator('[role="group"][aria-label="阅读氛围"]')
+    .getByRole('menuitemradio', { name: '暖纸', exact: true });
+  await warmTheme.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect.poll(readPageColors).toEqual({ background: '#f0e4d0', foreground: '#34281e' });
+
+  await page.reload();
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: '主题色' })).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
+  await expect.poll(readPageColors).toEqual({ background: '#f0e4d0', foreground: '#34281e' });
+});
+
+test('reader hides PDF theme colors in unsupported Safari environments', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15'
+    });
+  });
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: '主题色' })).toHaveCount(0);
+});
+
+test('reader hides PDF theme colors when Canvas 2D filters are unavailable', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!Reflect.deleteProperty(CanvasRenderingContext2D.prototype, 'filter')) {
+      throw new Error('expected the Canvas 2D filter property to be configurable');
+    }
+  });
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: '主题色' })).toHaveCount(0);
+});
+
 test('reader manages structured search history through reload in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.epub&label=Sample%20EPUB%20Book';

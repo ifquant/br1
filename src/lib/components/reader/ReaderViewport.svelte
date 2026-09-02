@@ -53,7 +53,8 @@
     loadLibraryBookFile,
     loadLibraryFileFingerprint,
     loadReaderSearchCache,
-    saveReaderSearchCache
+    saveReaderSearchCache,
+    supportsCanvasContext2DFilter
   } from '$lib/services';
 
   export let title = '阅读表面';
@@ -921,6 +922,19 @@
     renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
     renderer.setAttribute('max-block-size', isWindowMode ? '1440px' : '1180px');
     renderer.setAttribute('max-column-count', `${maxColumnCount}`);
+    const theme =
+      currentFormatLabel === 'PDF' && settings.applyThemeToPdf && supportsCanvasContext2DFilter()
+        ? getReaderThemePalette(settings.themePreset)
+        : null;
+    const nextPageColors = theme
+      ? { background: theme.background, foreground: theme.text }
+      : undefined;
+    if (
+      renderer.pageColors?.background !== nextPageColors?.background ||
+      renderer.pageColors?.foreground !== nextPageColors?.foreground
+    ) {
+      renderer.pageColors = nextPageColors;
+    }
   };
 
   const syncEngineModeVisibility = () => {

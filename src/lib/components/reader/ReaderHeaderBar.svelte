@@ -2,7 +2,8 @@
  to the user. It may render state from the route or helper modules, but it should
  not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
-  import { startCurrentWindowDrag } from '$lib/services';
+  import { onMount } from 'svelte';
+  import { startCurrentWindowDrag, supportsCanvasContext2DFilter } from '$lib/services';
   import type {
     ReaderFocusedReadingMode,
     ReaderPreviewState,
@@ -45,6 +46,7 @@
   export let onOpenShortcutsHelp: (() => void) | null = null;
 
   let menuOpen = false;
+  let pdfThemeColorsSupported = false;
   let supportsFocusedReadingKeyboardEntry = false;
   const getKeyboardShortcutLabel = (action: 'show-help' | 'paragraph-focus' | 'rsvp-lite') => {
     const binding = READER_SHORTCUTS.find((shortcut) => shortcut.action === action)?.bindings.find(
@@ -113,6 +115,10 @@
       closeMenu();
     }
   };
+
+  onMount(() => {
+    pdfThemeColorsSupported = supportsCanvasContext2DFilter();
+  });
 </script>
 
 <svelte:window on:mousedown={handleWindowPointerDown} on:keydown={handleWindowKeydown} />
@@ -331,6 +337,24 @@
                     </button>
                   </div>
                 </div>
+                {#if preview.formatLabel === 'PDF' && pdfThemeColorsSupported}
+                  <div class="menu-subsection" role="presentation">
+                    <span class="menu-subsection-label">PDF</span>
+                    <div class="menu-option-group" role="group" aria-label="PDF 显示">
+                      <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={settings.applyThemeToPdf}
+                        class:active-option={settings.applyThemeToPdf}
+                        on:click={() =>
+                          runMenuAction(() =>
+                            onUpdateSettings?.({ applyThemeToPdf: !settings.applyThemeToPdf }))}
+                      >
+                        主题色
+                      </button>
+                    </div>
+                  </div>
+                {/if}
                 <div class="menu-subsection" role="presentation">
                   <span class="menu-subsection-label">字体</span>
                   <div class="menu-option-group" role="group" aria-label="阅读字体">

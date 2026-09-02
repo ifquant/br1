@@ -154,3 +154,4 @@ export type {
 } from './koreaderSync';
 export { runRemoteSync } from './remoteSync';
 export type { Br1RemoteSyncRequest, Br1RemoteSyncResult } from '$lib/sync';
+export { supportsCanvasContext2DFilter } from './platform';

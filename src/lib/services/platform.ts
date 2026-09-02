@@ -11,6 +11,19 @@ export const isTauriDesktop = (): boolean => {
   );
 };
 
+export const supportsCanvasContext2DFilter = (): boolean => {
+  if (typeof document === 'undefined' || typeof navigator === 'undefined') return false;
+  const context = document.createElement('canvas').getContext('2d');
+  if (!context || !('filter' in context)) return false;
+
+  const userAgent = navigator.userAgent;
+  const isSafari =
+    /Safari/.test(userAgent) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Edg\//.test(userAgent);
+  if (isSafari) return false;
+
+  return !isTauriDesktop() || !/Macintosh|Mac OS X|Linux|iPhone|iPad/.test(userAgent);
+};
+
 export const invokeTauri = async <T>(
   command: string,
   args?: Record<string, unknown>

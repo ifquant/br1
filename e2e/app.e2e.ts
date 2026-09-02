@@ -4963,6 +4963,24 @@ describe('br1 desktop app', () => {
       );
     });
 
+    const pdfThemeMenuState = await browser.execute(() => {
+      const moreActions = document.querySelector(
+        '.reader-head-frame [aria-label="More actions"], .reader-head-frame [aria-label="更多操作"]'
+      );
+      if (!(moreActions instanceof HTMLButtonElement)) {
+        throw new Error('expected reader header more-actions button to exist');
+      }
+      moreActions.click();
+      const hasThemeToggle = !!document.querySelector(
+        '.reader-head-frame button[role="menuitemcheckbox"]'
+      );
+      moreActions.click();
+      return { hasThemeToggle, userAgent: navigator.userAgent };
+    });
+    if (/Macintosh|Mac OS X|Linux|iPhone|iPad/.test(pdfThemeMenuState.userAgent)) {
+      expect(pdfThemeMenuState.hasThemeToggle).toBe(false);
+    }
+
     await selectReaderMenuSetting('reader flow mode', '滚动');
     await selectReaderMenuSetting('reader font family', '无衬线');
     await selectReaderMenuSetting('reader font scale', '大');

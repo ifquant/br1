@@ -137,6 +137,7 @@ export type ReaderSettings = {
   lineHeight: ReaderLineHeight;
   pageMargins: ReaderPageMargins;
   themePreset: ReaderThemePreset;
+  applyThemeToPdf: boolean;
   viewWidthMode: ReaderViewWidthMode;
   chromeMode: ReaderChromeMode;
   readingRulerMode: ReaderReadingRulerMode;

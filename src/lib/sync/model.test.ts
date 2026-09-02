@@ -166,6 +166,7 @@ test('reader settings sync records normalize invalid payload values and use fall
       lineHeight: 'standard',
       pageMargins: 'wide',
       themePreset: 'paper',
+      applyThemeToPdf: true,
       viewWidthMode: 'focus',
       chromeMode: 'always',
       readingRulerMode: 'on',
@@ -180,9 +181,20 @@ test('reader settings sync records normalize invalid payload values and use fall
 
   assert.equal(record.updatedAt, 1700000010000);
   assert.equal(record.scope?.storageKey, 'br1.reader.settings');
-  assert.equal(restoreReaderSettingsFromSync(record).flowMode, 'paginated');
-  assert.equal(restoreReaderSettingsFromSync(record).focusAidMode, 'paragraph');
-  assert.equal(restoreReaderSettingsFromSync(record).ttsReadAloudText, 'translated');
+  const restored = restoreReaderSettingsFromSync(record);
+  assert.equal(restored.flowMode, 'paginated');
+  assert.equal(restored.applyThemeToPdf, true);
+  assert.equal(restored.focusAidMode, 'paragraph');
+  assert.equal(restored.ttsReadAloudText, 'translated');
+
+  const legacyRecord = {
+    ...record,
+    payload: {
+      ...record.payload,
+      settings: { ...record.payload.settings, applyThemeToPdf: undefined as never }
+    }
+  };
+  assert.equal(restoreReaderSettingsFromSync(legacyRecord).applyThemeToPdf, false);
 });
 
 test('bulk library substrate helper emits metadata and reading-state records for each book', () => {

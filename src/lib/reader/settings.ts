@@ -70,6 +70,7 @@ export const createDefaultReaderSettings = (): ReaderSettings => ({
   lineHeight: 'standard',
   pageMargins: 'standard',
   themePreset: 'paper',
+  applyThemeToPdf: false,
   viewWidthMode: 'standard',
   chromeMode: 'auto',
   readingRulerMode: 'off',
@@ -169,6 +170,10 @@ export const normalizeReaderSettings = (value: unknown): ReaderSettings => {
     lineHeight: isLineHeight(candidate.lineHeight) ? candidate.lineHeight : defaults.lineHeight,
     pageMargins: isPageMargins(candidate.pageMargins) ? candidate.pageMargins : defaults.pageMargins,
     themePreset: isThemePreset(candidate.themePreset) ? candidate.themePreset : defaults.themePreset,
+    applyThemeToPdf:
+      typeof candidate.applyThemeToPdf === 'boolean'
+        ? candidate.applyThemeToPdf
+        : defaults.applyThemeToPdf,
     viewWidthMode: isViewWidthMode(candidate.viewWidthMode) ? candidate.viewWidthMode : defaults.viewWidthMode,
     chromeMode: isChromeMode(candidate.chromeMode) ? candidate.chromeMode : defaults.chromeMode,
     readingRulerMode: isReadingRulerMode(candidate.readingRulerMode)
