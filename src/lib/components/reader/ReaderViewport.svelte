@@ -1676,6 +1676,9 @@
                   : 'rgba(190, 150, 78, 0.28)'
             });
           });
+          view.addEventListener('create-overlay', () => {
+            void syncNotesToView();
+          });
           view.addEventListener('show-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{ value?: string }>).detail;
             if (!detail?.value?.startsWith(NOTE_PREFIX)) return;

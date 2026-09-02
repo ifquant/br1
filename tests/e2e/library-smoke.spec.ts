@@ -4283,6 +4283,110 @@ test('reader applies optional PDF theme colors only when canvas filters are supp
   await expect.poll(readPageColors).toEqual({ background: '#f0e4d0', foreground: '#34281e' });
 });
 
+test('reader restores PDF highlights after a two-page text layer rerender', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.getByLabel('阅读侧栏标签').getByRole('tab', { name: '笔记' }).click();
+
+  await page.evaluate(async () => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        goToSpread?: (index: number, side: string, reason: string) => Promise<void>;
+      };
+    } | null;
+    if (!view?.renderer?.goToSpread) throw new Error('expected the fixed-layout PDF renderer');
+    await view.renderer.goToSpread(1, 'left', 'page');
+  });
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const view = document.querySelector('foliate-view') as {
+          renderer?: { getContents?: () => unknown[] };
+        } | null;
+        return view?.renderer?.getContents?.().length ?? 0;
+      })
+    )
+    .toBe(2);
+
+  const selectedIndex = await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        getContents?: () => Array<{ doc?: Document; index?: number }>;
+      };
+    } | null;
+    const entry = view?.renderer
+      ?.getContents?.()
+      .find(({ doc }) => doc?.querySelector('.textLayer span'));
+    if (!entry?.doc || entry.index == null) throw new Error('expected a rendered PDF text layer');
+    const span = Array.from(entry.doc.querySelectorAll('.textLayer span')).find(
+      (candidate) =>
+        candidate.firstChild?.nodeType === Node.TEXT_NODE &&
+        (candidate.firstChild.textContent?.length ?? 0) > 4
+    );
+    const textNode = span?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error('expected selectable PDF text');
+    }
+    const textLength = textNode.textContent?.length ?? 0;
+    const range = entry.doc.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, Math.min(12, textLength));
+    const selection = entry.doc.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    entry.doc.dispatchEvent(new Event('selectionchange'));
+    return entry.index;
+  });
+
+  const notesPanel = page.getByRole('region', { name: '笔记面板' });
+  const highlightButton = notesPanel.getByRole('button', { name: '先高亮当前选中内容' });
+  await expect(highlightButton).toBeEnabled();
+  await highlightButton.click();
+
+  const readHighlightState = () =>
+    page.evaluate((index) => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          getContents?: () => Array<{
+            index?: number;
+            overlayer?: { element: SVGElement };
+          }>;
+        };
+      } | null;
+      const entry = view?.renderer?.getContents?.().find((item) => item.index === index);
+      const element = entry?.overlayer?.element;
+      return {
+        marker: element?.dataset.br1StaleProbe ?? '',
+        drawings: element
+          ? element.querySelectorAll(':scope > g > rect, :scope > g > path').length
+          : 0
+      };
+    }, selectedIndex);
+
+  await expect.poll(readHighlightState).toMatchObject({ drawings: 1 });
+  await page.evaluate((index) => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        getContents?: () => Array<{
+          index?: number;
+          overlayer?: { element: SVGElement };
+        }>;
+        setAttribute: (name: string, value: string) => void;
+      };
+    } | null;
+    const renderer = view?.renderer;
+    const entry = renderer?.getContents?.().find((item) => item.index === index);
+    if (!renderer || !entry?.overlayer) throw new Error('expected the highlighted PDF overlayer');
+    entry.overlayer.element.dataset.br1StaleProbe = 'stale';
+    renderer.setAttribute('scale-factor', '110');
+  }, selectedIndex);
+
+  await expect.poll(readHighlightState).toEqual({ marker: '', drawings: 1 });
+});
+
 test('reader hides PDF theme colors in unsupported Safari environments', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'userAgent', {

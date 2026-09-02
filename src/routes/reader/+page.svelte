@@ -1249,13 +1249,11 @@
   $: if (!currentFormatSupportsTextAnnotations) {
     notesController.setSelection(null);
   }
-  // The popup can still mirror a PDF/CBZ selection for copy, but route-owned
-  // note/highlight state should stay off until the format has a trustworthy
-  // annotation locator instead of a presentation-only text selection.
-  $: currentFormatSupportsTextAnnotations =
-    supportsTextAnnotationsForFormat(currentPreview.formatLabel) &&
-    currentPreview.formatLabel !== 'PDF' &&
-    currentPreview.formatLabel !== 'CBZ';
+  // The format capability table is the source of truth. PDF selections now
+  // have stable locators and can use the same note flow as reflowable books.
+  $: currentFormatSupportsTextAnnotations = supportsTextAnnotationsForFormat(
+    currentPreview.formatLabel
+  );
   $: annotationPopupSupportsActions = currentFormatSupportsTextAnnotations;
   $: {
     const normalizedSelectionText = normalizeAssistanceText(currentReaderSelection?.text || '');
@@ -1274,8 +1272,8 @@
       : '';
   }
   $: annotationPopupSupportMessage =
-    currentPreview.formatLabel === 'PDF' || currentPreview.formatLabel === 'CBZ'
-      ? `${currentPreview.formatLabel} 选区暂时只保留复制，避免把还不稳定的正文选区伪装成可写标注。`
+    currentPreview.formatLabel === 'CBZ'
+      ? 'CBZ 选区暂时只保留复制。'
       : '当前格式暂时只保留复制。';
   const refreshCurrentManagedBookState = async () => {
     if (!sourcePath || !autoOpenLibraryFile) {

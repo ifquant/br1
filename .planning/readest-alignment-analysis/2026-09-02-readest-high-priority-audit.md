@@ -17,14 +17,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 16 |
-| `partial` | 460 |
+| `covered` | 17 |
+| `partial` | 459 |
 | `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 3 | 261 | 20 | 50 |
+| reader core | 4 | 260 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -124,7 +124,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 86 | `c58153e94` | reader core | compat(css): remove no-op css that might break column layout, closes #3895 (#3903) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 87 | `09b19bd3c` | reading modes/controls | perf(rsvp): fixed performance issue when the context window is large, closes #3877 (#3904) | `partial` | S2-F02 | readingMode.ts and focused-reading e2e; chapter/window resume is incomplete. |
 | 88 | `9c273d79f` | tts/audio | fix(tts): fixed race condition on pause/resume, closes #3825 (#3905) | `partial` | S2-T01 | tts.ts, ttsRuntime.ts, and TTS tests; upstream race needs a local regression. |
-| 89 | `3bbc2071c` | reader core | fix(pdf): fixed annotations not displayed properly in two-page spread for PDFs, closes #3862 (#3906) | `partial` | S2-R03B | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 89 | `3bbc2071c` | reader core | fix(pdf): fixed annotations not displayed properly in two-page spread for PDFs, closes #3862 (#3906) | `covered` | S2-R03B1 | PDF annotations use stable CFIs, visible PDF overlayers are rebuilt after text-layer rerenders, and a two-page browser regression proves the highlight is restored. |
 | 90 | `a2244e28b` | reader core | fix(pdf): don't apply theme colors where canvas filter is unsupported, closes #3912 (#3915) | `covered` | S2-R03A | The menu and renderer share a Canvas filter capability gate that excludes Safari and unsupported native WebViews. |
 | 91 | `3f531d904` | reader core | fix(theme): fixed texture background in scrolled mode, closes #3913 (#3918) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
 | 92 | `957b7d5f3` | reader core | fix(layout): properly display full screen page, closes #3914 (#3930) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
@@ -145,7 +145,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 107 | `4b0720a3e` | reading modes/controls | perf(rsvp): windowed context, extraction caching and lazy CFI for sections with thousands of words, closes #3953 (#3984) | `partial` | S2-F02 | readingMode.ts and focused-reading e2e; chapter/window resume is incomplete. |
 | 108 | `920627ae5` | reading modes/controls | feat(rsvp): use jieba tokenizer to segment words for Chinese books (#3985) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
 | 109 | `34f19fd14` | reader core | fix(annotation): preserve line breaks in selected text across <br> elements, closes #3981 (#3986) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
-| 110 | `dab92c8a4` | reader core | fix(pdf): prevent continuous scroll kickback (#3990) | `partial` | S2-R03B | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 110 | `dab92c8a4` | reader core | fix(pdf): prevent continuous scroll kickback (#3990) | `partial` | S2-R03B2 | PDF opens; continuous-scroll anchoring after rerender is not yet proved. |
 | 111 | `234ecc311` | ai/assist/dictionary | fix(epub): fall back to case-insensitive zip lookups (#3991) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 112 | `d609de58f` | reader core | fix(reader): preserve position when toggling scrolled mode, closes #3987 (#3996) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 113 | `1d8ed3fc9` | reader core | fix(footnote): ignore background image in footnotes (#3998) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
@@ -360,13 +360,13 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 322 | `799fc0e0a` | library | feat(library): add opt-in "purge reading data" toggle to delete confirm (#4698) (#4705) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact library interaction needs a regression. |
 | 323 | `c781aedda` | reader core | feat(reader): add sticky progress bar with chapter ticks (#4707) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 324 | `15f183878` | tts/audio | chore(agent): update agent memories (#4709) | `not-applicable` | — | Readest agent-memory bookkeeping. |
-| 325 | `a9c0f3d46` | reader core | fix(reader): remove 1px white seam in PDF spread at fractional DPI (#4587) (#4713) | `partial` | S2-R03B | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 325 | `a9c0f3d46` | reader core | fix(reader): remove 1px white seam in PDF spread at fractional DPI (#4587) (#4713) | `partial` | S2-R03B3 | PDF spreads open; the fractional-DPI seam still lacks implementation and proof. |
 | 326 | `b87c735c1` | tts/audio | fix(tts): keep native System TTS reading past unspeakable chunks offline (#4613, #4408) (#4716) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 327 | `a6d28ffcd` | ai/assist/dictionary | fix(reader): add Alt+P proofread shortcut and let Shift+P exit paragraph mode (#4717) (#4723) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 328 | `f4bb11126` | ai/assist/dictionary | feat(translator): add Urdu as a Translate Text target language (#4721) (#4726) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 329 | `942095bcd` | reader core | fix(reader): make Shift+P toggle, exit, and resume paragraph mode reliably (#4717) (#4725) | `partial` | S2-F05 | Basic keyboard launch and hidden resume pass; complete toggle/exit interaction remains unproved. |
 | 330 | `acf2b165f` | library | fix(library): keep in-place book paths absolute so uploads stay in fs scope (#4720) (#4730) | `partial` | S2-L05 | P0-4.1/P0-4.2 and library smoke tests; exact persistence/recovery case is unproved. |
-| 331 | `1b44b95d3` | reader core | fix(reader): smooth single-notch wheel scroll over PDF pages in scrolled mode (#4727) (#4732) | `partial` | S2-R03B | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 331 | `1b44b95d3` | reader core | fix(reader): smooth single-notch wheel scroll over PDF pages in scrolled mode (#4727) (#4732) | `partial` | S2-R03B4 | PDF opens; single-notch wheel behavior in scrolled mode is unproved. |
 | 332 | `140b71ee3` | ai/assist/dictionary | feat(dictionary): add adjustable dictionary popup font size (#4443) (#4734) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 333 | `bc9b8b23e` | reader core | fix(reader): stop per-chapter listener leak that degrades paragraph mode (#4735) | `partial` | S2-F05 | Paragraph focus exists; repeated chapter attachment lacks a listener-lifecycle regression. |
 | 334 | `787641b5b` | tts/audio | chore(agent): update agent memories (#4737) | `not-applicable` | — | Readest agent-memory bookkeeping. |
@@ -399,7 +399,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 361 | `580c5e5de` | reader core | fix(reader): eliminate PDF scrolled-mode rendering lag on mobile (#4795) (#4813) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
 | 362 | `24370ca51` | reader core | feat(reader): render Markdown (.md) files at runtime (#774) (#4816) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 363 | `348c85f64` | reader core | fix(reader): cap auto page-turn corner zone size (#4812) (#4820) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
-| 364 | `f8916e128` | reader core | fix(reader): smooth pinch-zoom and pan for scrolled-mode PDF (#4817) | `partial` | S2-R03B | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 364 | `f8916e128` | reader core | fix(reader): smooth pinch-zoom and pan for scrolled-mode PDF (#4817) | `partial` | S2-R03B5 | PDF opens; scrolled-mode pinch and pan behavior is unproved. |
 | 365 | `324bb8a36` | reader core | feat(reader): add e-ink screen refresh page-turner action (#4687) (#4822) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 366 | `4d08b01b4` | library | feat(library): add recently read shelf to the library (#3797) (#4829) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 367 | `69599e2bc` | reader core | fix(reader): render code operators literally instead of as ligatures (#4832) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
@@ -435,7 +435,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 397 | `a02b236e9` | reader core | fix: more production crashes (View Transition noise, book-dir race, stats transaction) (#4962) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
 | 398 | `db1d63cdc` | reader core | test(reader): harden fixed-layout wheel double-scroll test against CI flake (#4978) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 399 | `600d69fa5` | reader core | fix(reader): gate route View Transitions on API support (READEST-9) (#4989) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
-| 400 | `3ce5a5c8e` | reader core | fix(reader): center the lone PDF page in portrait auto-spread (#4984) (#4992) | `partial` | S2-R03B | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 400 | `3ce5a5c8e` | reader core | fix(reader): center the lone PDF page in portrait auto-spread (#4984) (#4992) | `partial` | S2-R03B6 | PDF opens; lone-page portrait centering is unproved. |
 | 401 | `17de9357d` | tts/audio | feat(reader): redesign the TTS control as a mini player with an expandable player sheet (#4996) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 402 | `f8ad47a41` | reading modes/controls | feat(reader): Auto Scroll reading mode for scrolled flow (#4998) (#4999) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 403 | `a8d341120` | reader core | fix(reader): gate captured slide/curl turn on scrollLocked like push (#5000) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -636,7 +636,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 598 | `be6845371` | reading modes/controls | feat(reader): resume Auto Scroll when reopening a book, closes #5631 (#5710) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 599 | `522e504b6` | reading modes/controls | fix(reader): support page turner key combinations (#5709) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 600 | `a6e6691c8` | reader core | feat(reader): right-to-left page order for fixed-layout books (#5712) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
-| 601 | `6f67be703` | reader core | fix(reader): restore scrolled PDF highlights (#5719) | `partial` | S2-R03B | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 601 | `6f67be703` | reader core | fix(reader): restore scrolled PDF highlights (#5719) | `partial` | S2-R03B7 | Paginated PDF highlights are covered; scrolled-mode overlayer refresh remains unproved. |
 | 602 | `7e998d384` | reader core | fix(reader): highlight search results visible across chapter boundary (#5725) | `partial` | S2-A01A | P0-2/P0-3 and reader smoke tests; this anchor/grouping edge is unproved. |
 | 603 | `8226c5545` | reader core | fix(reader): drop the 500-result cap from in-book search, closes #5724 (#5728) | `partial` | S2-R06 | P0-2/P0-3 and reader smoke tests; exact search behavior is incomplete. |
 | 604 | `07306093e` | ai/assist/dictionary | fix(annotator): drop the selection when the instant dictionary opens, closes #5585 (#5730) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
@@ -718,7 +718,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03B` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04` and `S2-R03A` reviewed and closed on 2026-09-02).
+2. Trust and format floor: `S2-R03B2` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` reviewed and closed on 2026-09-02).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -798,14 +798,67 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); sync model tests (PASS, 5/5); focused PDF-theme browser tests (PASS, 3/3); PDF reopen browser smoke (PASS, 1/1); macOS Tauri PDF restore and unsupported-menu smoke (PASS, 1/1).
 - Commits: `5a072e7d1`, `799db4076`, `a2244e28b`
 
-### S2-R03B - Stabilize PDF spread, scroll, zoom, and highlights
+### Completed Task: S2-R03B1 - Restore two-page PDF annotations after rerender
 
 - Phase: Step 2
-- Upstream decisions: 7 commits (0 gap, 7 partial)
-- Outcome: Keep two-page annotations, continuous-scroll position, wheel/pinch input, spread seams, portrait centering, and scrolled highlights stable.
-- Touches: fixed-layout engine, PDF interaction adapter, focused PDF fixtures
-- Verify: `pnpm check`; `PDF spread/scroll smoke`; `packaged desktop smoke`
-- Commits: `3bbc2071c`, `dab92c8a4`, `a9c0f3d46`, `1b44b95d3`, `f8916e128`, `3ce5a5c8e`, `6f67be703`
+- Upstream decisions: 1 commit (1 covered)
+- Result: PDF uses the shared annotation flow, and visible fixed-layout overlayers are rebuilt after PDF text-layer rerenders so two-page highlights re-anchor to live DOM ranges.
+- Evidence: `node --check fixed-layout.js` (PASS); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); PDF annotation/theme browser regressions (PASS, 4/4); `pnpm build` (PASS).
+- Commit: `3bbc2071c`
+
+### S2-R03B2 - Preserve continuous-scroll PDF position after rerender
+
+- Phase: Step 2
+- Upstream decisions: 1 commit (0 gap, 1 partial)
+- Outcome: Prevent continuous-scroll kickback when PDF pages rerender.
+- Touches: fixed-layout scroll anchor and focused PDF fixture
+- Verify: `pnpm check`; `PDF continuous-scroll position smoke`; `git diff --check`
+- Commit: `dab92c8a4`
+
+### S2-R03B3 - Remove fractional-DPI PDF spread seams
+
+- Phase: Step 2
+- Upstream decisions: 1 commit (0 gap, 1 partial)
+- Outcome: Keep adjacent PDF pages visually joined at fractional device-pixel ratios.
+- Touches: fixed-layout spread geometry and focused PDF fixture
+- Verify: `pnpm check`; `PDF fractional-DPI spread smoke`; `git diff --check`
+- Commit: `a9c0f3d46`
+
+### S2-R03B4 - Stabilize scrolled PDF wheel input
+
+- Phase: Step 2
+- Upstream decisions: 1 commit (0 gap, 1 partial)
+- Outcome: Make one wheel notch produce one coherent scrolled-PDF movement.
+- Touches: fixed-layout wheel handling and focused PDF fixture
+- Verify: `pnpm check`; `PDF wheel smoke`; `git diff --check`
+- Commit: `1b44b95d3`
+
+### S2-R03B5 - Stabilize scrolled PDF pinch and pan
+
+- Phase: Step 2
+- Upstream decisions: 1 commit (0 gap, 1 partial)
+- Outcome: Keep pinch zoom and pan smooth without fighting native scroll gestures.
+- Touches: fixed-layout gesture handling and focused PDF fixture
+- Verify: `pnpm check`; `PDF pinch/pan smoke`; `git diff --check`
+- Commit: `f8916e128`
+
+### S2-R03B6 - Center lone portrait PDF pages
+
+- Phase: Step 2
+- Upstream decisions: 1 commit (0 gap, 1 partial)
+- Outcome: Center a single visible page when portrait auto-spread cannot form a pair.
+- Touches: fixed-layout spread alignment and focused PDF fixture
+- Verify: `pnpm check`; `PDF portrait spread smoke`; `git diff --check`
+- Commit: `3ce5a5c8e`
+
+### S2-R03B7 - Restore scrolled PDF highlights
+
+- Phase: Step 2
+- Upstream decisions: 1 commit (0 gap, 1 partial)
+- Outcome: Re-anchor highlights after PDF text-layer rerenders in continuous scroll mode.
+- Touches: fixed-layout scroll-page overlayer refresh and focused PDF fixture
+- Verify: `pnpm check`; `PDF scrolled highlight smoke`; `git diff --check`
+- Commit: `6f67be703`
 
 ### S2-R03C - Verify packaged PDF runtime and text sharpness
 
