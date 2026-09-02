@@ -17,9 +17,9 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 4 |
-| `partial` | 471 |
-| `gap` | 79 |
+| `covered` | 8 |
+| `partial` | 472 |
+| `gap` | 74 |
 | `not-applicable` | 124 |
 
 | Area | Covered | Partial | Gap | Not applicable |
@@ -27,7 +27,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | reader core | 0 | 259 | 19 | 50 |
 | library | 4 | 70 | 17 | 18 |
 | tts/audio | 0 | 41 | 7 | 19 |
-| reading modes/controls | 0 | 30 | 5 | 1 |
+| reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 38 | 9 | 16 |
 | security | 0 | 9 | 2 | 17 |
 | ai/assist/dictionary | 0 | 24 | 20 | 3 |
@@ -43,7 +43,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 5 | `f31030583` | library | fix(library): mixed sorting for group and ungroupped books, closes #3596 (#3627) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 6 | `52df478f2` | reader core | fix: show proper background images in continuous scrolled mode, closes #3638 (#3645) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
 | 7 | `5f897f648` | tts/audio | feat(tts): add shortcuts to navigate and play/pause in TTS mode, closes #3620 (#3651) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
-| 8 | `3d4d1482a` | reading modes/controls | feat: add keyboard shortcuts help dialog (#3653) | `gap` | S1-R02 | No complete conflict-checked binding map/help surface. |
+| 8 | `3d4d1482a` | reading modes/controls | feat: add keyboard shortcuts help dialog (#3653) | `covered` | S1-R02 | A modal help surface renders directly from the conflict-checked reader binding map. |
 | 9 | `966f5e2ac` | catalog/import | fix(opds): fixed image download from ODPS server on the web, closes #3649 (#3658) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
 | 10 | `c4e331564` | reader core | feat(scroll): add single section scroll option, closes #3663 (#3668) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 11 | `b3333c384` | reader core | chore(fdroid): get rid of wasm binaries in fdroid build (#3677) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
@@ -52,7 +52,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 14 | `8ed929065` | reader core | layout: don't truncate remaining progress info without status info, closes #3678 (#3685) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 15 | `797fe9c60` | reader core | fix(layout): fixed infinite expand calls and freeze in the paginator, closes #3683 (#3690) | `partial` | S2-R01B | P0-2/P0-3 and reader smoke tests; exact paginator boundary is unproved. |
 | 16 | `b87286813` | reader core | fix(layout): fixed infinite expand calls and freeze in the paginator, closes #3683 (#3692) | `partial` | S2-R01B | P0-2/P0-3 and reader smoke tests; exact paginator boundary is unproved. |
-| 17 | `ec26ef4f2` | reading modes/controls | fix(shortcuts): change bookmark shortcut from Ctrl+D to Ctrl+B (#3691) | `gap` | S1-R02 | No complete conflict-checked binding map/help surface. |
+| 17 | `ec26ef4f2` | reading modes/controls | fix(shortcuts): change bookmark shortcut from Ctrl+D to Ctrl+B (#3691) | `covered` | S1-R02 | Ctrl/Cmd+B toggles the current bookmark through the centralized reader dispatcher. |
 | 18 | `e9c5ebb69` | reader core | fix(fonts): fix Adobe font deobfuscation and CSS var fallbacks, closes #3662 (#3696) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 19 | `e68dedd10` | reader core | fix(layout): fix primary view detection on fractional DPR devices, closes #3681 (#3701) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 20 | `f67930feb` | catalog/import | fix(opds): fix Copyparty books showing as "Untitled" in mixed feeds, closes #3667 (#3705) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed fixture is missing. |
@@ -74,7 +74,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 36 | `d53f3b42e` | reading modes/controls | feat(rsvp): split words option, faster countdown, and skip pages RSVP cant open (#3755) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 37 | `a2d17e6a7` | reader core | fix: clear highlight overlay when deleting annotation from sidebar, closes #3756 (#3758) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 38 | `8b10e7fb1` | reader core | fix(layout): use mobile footer bar in portrait mode without regressing phone panel animation, closes #3742 (#3759) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
-| 39 | `b9a2b10fa` | reading modes/controls | fix(a11y): fixed keyboard activation of dropdown menu (#3762) | `gap` | S1-R02 | No complete conflict-checked binding map/help surface. |
+| 39 | `b9a2b10fa` | reading modes/controls | fix(a11y): fixed keyboard activation of dropdown menu (#3762) | `covered` | S1-R02 | Native menu buttons open the shortcuts dialog through keyboard activation in browser regression coverage. |
 | 40 | `b679817fc` | tts/audio | fix(tts): prevent double playback on rapid TTS icon clicks (#3764) | `partial` | S2-T01 | tts.ts, ttsRuntime.ts, and TTS tests; upstream race needs a local regression. |
 | 41 | `298d4872a` | ai/assist/dictionary | fix(translate): disable yandex provider while upstream relay is down (#3765) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 42 | `ae2c42193` | reader core | fix(ui): restore highlight options layout and clean up color name editing (#3776) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
@@ -692,12 +692,12 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 654 | `b1a62c059` | tts/audio | fix: folder import of Markdown, widget opens, comic zoom, selection handle and TTS word highlight (#5903) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 655 | `fabbcc640` | tts/audio | feat(tts): lyric-style sentence view in the Read Aloud player (#5755) (#5908) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
 | 656 | `c04ba5a80` | tts/audio | fix(tts): queue a lyric reload requested during an in-flight fetch (#5909) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
-| 657 | `d27d324e1` | reading modes/controls | feat(shortcuts): add customizable keyboard and mouse bindings (#5907) | `gap` | S1-R02 | No complete conflict-checked binding map/help surface. |
+| 657 | `d27d324e1` | reading modes/controls | feat(shortcuts): add customizable keyboard and mouse bindings (#5907) | `partial` | S2-R08 | A centralized keyboard/mouse map and conflict check exist; user customization and persistence remain absent. |
 | 658 | `e782af530` | ai/assist/dictionary | fix(translate): Chinese targets, provider rate limits, and translator popup layout (#5913) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 659 | `7e8abebcd` | reader core | fix(mobi): keep AZW3 text and TOC intact when section loads overlap (#5920) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 660 | `0fcbd16f7` | reader core | fix(ui): search cloud storage files on demand instead of while typing (#5923) (#5925) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 661 | `86493e801` | reader core | fix(reader): stop the a11y skip link from padding RTL sections with blank pages (#5924) (#5926) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
-| 662 | `76e81d604` | reading modes/controls | fix(ui): align the keyboard shortcuts header with its group titles (#5927) | `gap` | S1-R02 | No complete conflict-checked binding map/help surface. |
+| 662 | `76e81d604` | reading modes/controls | fix(ui): align the keyboard shortcuts header with its group titles (#5927) | `covered` | S1-R02 | The shortcuts header and group titles share one aligned dialog column. |
 | 663 | `7a7ab7642` | reader core | feat(reader): Notebook as a linked writing workspace (#5928) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; exact note lifecycle is unproved. |
 | 664 | `5755f25d7` | reader core | feat(settings): show which scope the Settings dialog writes (#5933) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; exact theme setting/scope is incomplete. |
 | 665 | `ad9e5c1b8` | library | feat(ui): separate theme mode and color for the library and the reader (#5948) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact library interaction needs a regression. |
@@ -717,7 +717,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 ## Recommended Execution Order
 
-1. Baseline closure: `S1-R02`, `S1-R03` (`S1-R01` verified complete on 2026-09-02).
+1. Baseline closure: `S1-R03` (`S1-R01` and `S1-R02` verified complete on 2026-09-02).
 2. Trust and format floor: `S2-S01` through `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01`.
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
@@ -738,13 +738,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 67/67); `CI=1 pnpm test:e2e --retries=0` (PASS, 76/76).
 - Audit correction: the 11 Readest commits previously grouped here concern reading-ruler or paragraph-mode behavior, not ownership. They remain `partial` under `S2-F04` and `S2-F05`.
 
-### S1-R02 - Centralize reader input bindings
+### Completed Baseline: S1-R02 - Centralize reader input bindings
 
 - Phase: Step 1
-- Upstream decisions: 5 commits (5 gap, 0 partial)
-- Outcome: Define one conflict-checked keyboard/mouse map, a shortcuts dialog, and input-field suppression.
-- Touches: reader route input handler, shortcut dialog, one focused test
-- Verify: `pnpm check`; `targeted keyboard e2e`; `git diff --check`
+- Result: `covered` by one conflict-checked keyboard/mouse map, a modal shortcuts dialog, native keyboard menu activation, Ctrl/Cmd+B bookmarks, and editable-field suppression.
+- Evidence: `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); targeted keyboard e2e (PASS, 1/1); full browser e2e (PASS, 76/76); desktop and 390x844 dialog visual checks (PASS, no horizontal overflow).
+- Remaining boundary: user-customizable bindings and persistence from `d27d324e1` remain `partial` under `S2-R08`; static br1 bindings are complete for this baseline.
 - Commits: `3d4d1482a`, `ec26ef4f2`, `b9a2b10fa`, `d27d324e1`, `76e81d604`
 
 ### S1-R03 - Certify baseline library behavior

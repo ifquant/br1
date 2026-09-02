@@ -3919,6 +3919,28 @@ test('reader opens focused reading modes from keyboard in web mode', async ({ pa
   await expect(page.getByLabel('plain text reading surface')).toBeVisible();
   await expect(page.getByText('专注 Shift+P / Shift+R')).toBeVisible();
 
+  const shortcutsDialog = page.getByRole('dialog', { name: '快捷键' });
+  await page.keyboard.press('Shift+/');
+  await expect(shortcutsDialog).toBeVisible();
+  await expect(shortcutsDialog).toContainText(/(?:Ctrl|Cmd)\+B/);
+  await expect(shortcutsDialog).toContainText('鼠标后退键');
+  await page.keyboard.press('Escape');
+  await expect(shortcutsDialog).toHaveCount(0);
+
+  const moreActions = page.getByRole('button', { name: '更多操作' });
+  await moreActions.focus();
+  await page.keyboard.press('Enter');
+  const shortcutsMenuItem = page.getByRole('menuitem', { name: /快捷键/ });
+  await shortcutsMenuItem.focus();
+  await page.keyboard.press('Enter');
+  await expect(shortcutsDialog).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  const bookmarkButton = page.getByRole('button', { name: '添加当前位置书签' });
+  await expect(bookmarkButton).toBeVisible();
+  await page.keyboard.press('Control+B');
+  await expect(page.getByRole('button', { name: '移除当前位置书签' })).toBeVisible();
+
   await page.keyboard.press('Shift+P');
   const paragraphOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });
   await expect(paragraphOverlay).toBeVisible();
@@ -3931,7 +3953,11 @@ test('reader opens focused reading modes from keyboard in web mode', async ({ pa
   await expect(readerSearchbox).toBeVisible();
   await readerSearchbox.focus();
   await page.keyboard.press('Shift+P');
+  await page.keyboard.press('Shift+/');
+  await page.keyboard.press('Control+B');
   await expect(paragraphOverlay).toHaveCount(0);
+  await expect(shortcutsDialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '移除当前位置书签' })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByLabel('plain text reading surface').click();
 

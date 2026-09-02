@@ -372,6 +372,20 @@ export type {
   ReaderSidebarSearchState,
   SidebarTab
 } from './types';
+export {
+  READER_SHORTCUTS,
+  assertReaderShortcutBindingsAreUnique,
+  getReaderShortcutBindingLabel,
+  resolveReaderKeyboardShortcut,
+  resolveReaderMouseShortcut
+} from './shortcuts';
+export type {
+  ReaderKeyboardShortcutBinding,
+  ReaderMouseShortcutBinding,
+  ReaderShortcutAction,
+  ReaderShortcutBinding,
+  ReaderShortcutDefinition
+} from './shortcuts';
 
 export const READER_ENGINE_HOST_ATTR = 'reader-engine-host';
 export const READER_ENGINE_STATUS_ATTR = 'pending-adapter';

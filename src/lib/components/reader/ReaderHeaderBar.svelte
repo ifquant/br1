@@ -11,6 +11,8 @@
     ReaderTtsSessionState
   } from '$lib/reader';
   import {
+    READER_SHORTCUTS,
+    getReaderShortcutBindingLabel,
     getReaderTtsPrimaryActionLabel,
     getReaderTtsSessionStatusLabel,
     getReaderTtsStatusDetail
@@ -40,11 +42,19 @@
   export let onStartParagraphFocus: (() => void) | null = null;
   export let onStartRsvpLite: (() => void) | null = null;
   export let onExitFocusedReading: (() => void) | null = null;
+  export let onOpenShortcutsHelp: (() => void) | null = null;
 
   let menuOpen = false;
   let supportsFocusedReadingKeyboardEntry = false;
-  const paragraphFocusShortcutLabel = 'Shift+P';
-  const rsvpLiteShortcutLabel = 'Shift+R';
+  const getKeyboardShortcutLabel = (action: 'show-help' | 'paragraph-focus' | 'rsvp-lite') => {
+    const binding = READER_SHORTCUTS.find((shortcut) => shortcut.action === action)?.bindings.find(
+      (candidate) => candidate.kind === 'keyboard'
+    );
+    return binding ? getReaderShortcutBindingLabel(binding, false) : '';
+  };
+  const paragraphFocusShortcutLabel = getKeyboardShortcutLabel('paragraph-focus');
+  const rsvpLiteShortcutLabel = getKeyboardShortcutLabel('rsvp-lite');
+  const shortcutsHelpShortcutLabel = getKeyboardShortcutLabel('show-help');
   $: supportsFocusedReadingKeyboardEntry =
     typeof onStartParagraphFocus === 'function' && typeof onStartRsvpLite === 'function';
   $: ttsStatusLabel = getReaderTtsSessionStatusLabel(ttsSession);
@@ -604,6 +614,14 @@
                   on:click={() => runMenuAction(onOpenPicker)}
                 >
                   导入书籍
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  on:click={() => runMenuAction(onOpenShortcutsHelp)}
+                >
+                  <span class="menu-item-text">快捷键</span>
+                  <span class="menu-item-shortcut">{shortcutsHelpShortcutLabel}</span>
                 </button>
                 {#if isWindowMode}
                   <button type="button" role="menuitem" on:click={() => runMenuAction(onTogglePin)}>

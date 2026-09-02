@@ -17,11 +17,15 @@
     ReaderTocItem
   } from '$lib/reader';
   import {
+    READER_SHORTCUTS,
     createEmptyReaderPreviewState,
     createDefaultReaderSettings,
+    getReaderShortcutBindingLabel,
     getReaderShellPalette,
     hydrateReaderSettings,
     READER_FILE_INPUT_ACCEPT,
+    resolveReaderKeyboardShortcut,
+    resolveReaderMouseShortcut,
     saveReaderSettings
   } from '$lib/reader';
   import type { ReaderTtsSessionState } from '$lib/reader';
@@ -155,6 +159,15 @@
   let hasAppliedInitialKeyboardFocus = false;
   let lastFocusedReadingMode: ReaderFocusedReadingMode = 'off';
   let supportsFocusedReadingKeyboardEntry = false;
+  let shortcutsHelpOpen = false;
+  let shortcutsDialog: HTMLElement | null = null;
+  let usesCommandKey = false;
+  let readerModalOpen = false;
+  const shortcutSections: Array<(typeof READER_SHORTCUTS)[number]['section']> = [
+    '通用',
+    '导航',
+    '专注阅读'
+  ];
 
   const triggerImportPicker = async () => {
     if (!importInput) return;
@@ -212,6 +225,13 @@
 
   const togglePinned = () => {
     dispatch('togglepin');
+  };
+
+  const issuePageControl = (type: 'prev' | 'next') => {
+    dispatch('controlrequest', {
+      type,
+      nonce: ++controlNonce
+    });
   };
 
   const openSidebarTab = (tab: SidebarTab) => {
@@ -276,6 +296,16 @@
     stageShell?.focus({ preventScroll: true });
   };
 
+  const openShortcutsHelp = () => {
+    shortcutsHelpOpen = true;
+    void tick().then(() => shortcutsDialog?.focus({ preventScroll: true }));
+  };
+
+  const closeShortcutsHelp = () => {
+    shortcutsHelpOpen = false;
+    void tick().then(focusStageShell);
+  };
+
   const isEditableKeyboardTarget = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return false;
     return !!target.closest(
@@ -292,27 +322,43 @@
     return activeElement instanceof Node && stageShell.contains(activeElement);
   };
 
-  // Focused-reading entry stays local to the reader shell. The reader listens
-  // at window scope so keyboard-first sessions can use the shortcut before a
-  // specific control is focused, but it only reacts while this reader route is
-  // mounted and the active element still belongs to the reader surface.
-  const handleReaderKeyboardEntry = (event: KeyboardEvent) => {
-    if (!supportsFocusedReadingKeyboardEntry) return;
-    if (focusedReadingMode !== 'off' || event.defaultPrevented) return;
-    if (event.metaKey || event.ctrlKey || event.altKey || !event.shiftKey) return;
-    if (!isReaderKeyboardContext(event)) return;
-    const normalizedKey = event.key.toLowerCase();
-
-    if (normalizedKey === 'p') {
-      event.preventDefault();
+  const runReaderShortcut = (action: ReturnType<typeof resolveReaderKeyboardShortcut>) => {
+    if (!action) return;
+    if (action === 'show-help') openShortcutsHelp();
+    if (action === 'toggle-bookmark') toggleBookmark();
+    if (action === 'paragraph-focus' && supportsFocusedReadingKeyboardEntry) {
       onStartParagraphFocus?.();
+    }
+    if (action === 'rsvp-lite' && supportsFocusedReadingKeyboardEntry) onStartRsvpLite?.();
+    if (action === 'previous-page') issuePageControl('prev');
+    if (action === 'next-page') issuePageControl('next');
+  };
+
+  // One window listener owns reader shortcuts. Editable controls and modal
+  // surfaces are hard boundaries so typing cannot trigger reader actions.
+  const handleReaderKeyboardEntry = (event: KeyboardEvent) => {
+    if (shortcutsHelpOpen) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeShortcutsHelp();
+      }
       return;
     }
+    if (focusedReadingMode !== 'off' || event.defaultPrevented) return;
+    if (!isReaderKeyboardContext(event)) return;
+    const action = resolveReaderKeyboardShortcut(event);
+    if (!action) return;
+    event.preventDefault();
+    runReaderShortcut(action);
+  };
 
-    if (normalizedKey === 'r') {
-      event.preventDefault();
-      onStartRsvpLite?.();
-    }
+  const handleReaderMouseBinding = (event: MouseEvent) => {
+    if (shortcutsHelpOpen || focusedReadingMode !== 'off') return;
+    if (isEditableKeyboardTarget(event.target)) return;
+    const action = resolveReaderMouseShortcut(event.button);
+    if (!action) return;
+    event.preventDefault();
+    runReaderShortcut(action);
   };
 
   const handleStagePointerMove = (event: MouseEvent) => {
@@ -346,6 +392,7 @@
   }
 
   $: focusedReadingMode = focusedReadingState?.mode ?? 'off';
+  $: readerModalOpen = focusedReadingMode !== 'off' || shortcutsHelpOpen;
   $: supportsFocusedReadingKeyboardEntry =
     typeof onStartParagraphFocus === 'function' && typeof onStartRsvpLite === 'function';
   $: if (
@@ -463,6 +510,7 @@
 
   onMount(() => {
     if (typeof localStorage === 'undefined') return;
+    usesCommandKey = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
     settings = hydrateReaderSettings(localStorage);
   });
 
@@ -489,6 +537,7 @@
   role={landmarkRole}
   aria-label={landmarkLabel}
   tabindex="-1"
+  on:mousedown={handleReaderMouseBinding}
   on:mousemove={handleStagePointerMove}
   on:mouseleave={handleStageLeave}
   on:focusin={showChrome}
@@ -501,7 +550,7 @@
     on:change={handleImportChange}
   />
 
-  <div aria-hidden={focusedReadingMode !== 'off'} inert={focusedReadingMode !== 'off'}>
+  <div aria-hidden={readerModalOpen} inert={readerModalOpen}>
     <ReaderHeaderBar
       preview={readerPreview}
       {isWindowMode}
@@ -527,16 +576,17 @@
       {onStartParagraphFocus}
       {onStartRsvpLite}
       {onExitFocusedReading}
+      onOpenShortcutsHelp={openShortcutsHelp}
     />
   </div>
 
   <article
-    aria-hidden={focusedReadingMode !== 'off'}
+    aria-hidden={readerModalOpen}
     class:window-mode={isWindowMode}
     class:focus-width={settings.viewWidthMode === 'focus'}
     class:wide-width={settings.viewWidthMode === 'wide'}
     class="canvas"
-    inert={focusedReadingMode !== 'off'}
+    inert={readerModalOpen}
   >
     <ReaderViewport
       title="阅读表面"
@@ -590,7 +640,7 @@
     <!-- The stage owns popup presentation, but the route still owns the real
      selection actions so highlights/notes/TTS keep using one coordination path. -->
     <ReaderAnnotationPopup
-      visible={!!annotationSelection?.text.trim() && focusedReadingMode === 'off'}
+      visible={!!annotationSelection?.text.trim() && !readerModalOpen}
       placement={annotationPopupPlacement}
       position={annotationPopupPosition}
       selectionSummary={annotationSelectionSummary}
@@ -605,7 +655,7 @@
       onCopy={onCopySelection}
     />
     <ReaderFootnotePopup
-      visible={!!footnoteRequest && focusedReadingMode === 'off'}
+      visible={!!footnoteRequest && !readerModalOpen}
       label={footnoteRequest?.label ?? '脚注'}
       excerptHtml={footnoteRequest?.excerptHtml ?? ''}
       excerptText={footnoteRequest?.excerptText ?? ''}
@@ -632,7 +682,52 @@
     />
   {/if}
 
-  <div aria-hidden={focusedReadingMode !== 'off'} inert={focusedReadingMode !== 'off'}>
+  {#if shortcutsHelpOpen}
+    <div
+      class="shortcuts-backdrop"
+      role="presentation"
+      on:mousedown={(event) => {
+        if (event.target === event.currentTarget) closeShortcutsHelp();
+      }}
+    >
+      <div
+        bind:this={shortcutsDialog}
+        class="shortcuts-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reader-shortcuts-title"
+        tabindex="-1"
+      >
+        <header>
+          <h2 id="reader-shortcuts-title">快捷键</h2>
+          <button type="button" aria-label="关闭快捷键帮助" title="关闭" on:click={closeShortcutsHelp}>
+            ×
+          </button>
+        </header>
+        <div class="shortcuts-groups">
+          {#each shortcutSections as section, sectionIndex}
+            <section aria-labelledby={`reader-shortcuts-section-${sectionIndex}`}>
+              <h3 id={`reader-shortcuts-section-${sectionIndex}`}>{section}</h3>
+              <dl>
+                {#each READER_SHORTCUTS.filter((shortcut) => shortcut.section === section) as shortcut}
+                  <div>
+                    <dt>{shortcut.description}</dt>
+                    <dd>
+                      {#each shortcut.bindings as binding}
+                        <kbd>{getReaderShortcutBindingLabel(binding, usesCommandKey)}</kbd>
+                      {/each}
+                    </dd>
+                  </div>
+                {/each}
+              </dl>
+            </section>
+          {/each}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <div aria-hidden={readerModalOpen} inert={readerModalOpen}>
     {#if ttsMiniBarVisible}
       <ReaderTtsMiniBar
         statusLabel={ttsMiniBarStatusLabel}
@@ -725,6 +820,108 @@
 
   .import-input {
     display: none;
+  }
+
+  .shortcuts-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: 24px;
+    background: rgba(20, 22, 24, 0.46);
+  }
+
+  .shortcuts-dialog {
+    width: min(560px, 100%);
+    max-height: min(720px, calc(100vh - 48px));
+    overflow: auto;
+    box-sizing: border-box;
+    padding: 20px;
+    border: 1px solid var(--reader-shell-border, var(--border-light));
+    border-radius: 8px;
+    background: var(--reader-shell-raised, var(--surface-page));
+    box-shadow: 0 18px 54px var(--reader-shell-shadow, rgba(0, 0, 0, 0.2));
+    color: var(--reader-shell-text, var(--text-primary));
+  }
+
+  .shortcuts-dialog > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--reader-shell-border, var(--border-light));
+  }
+
+  .shortcuts-dialog h2,
+  .shortcuts-dialog h3,
+  .shortcuts-dialog dl,
+  .shortcuts-dialog dd {
+    margin: 0;
+  }
+
+  .shortcuts-dialog h2 {
+    font-size: 1.1rem;
+  }
+
+  .shortcuts-dialog h3 {
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+    color: var(--reader-shell-muted, var(--text-muted));
+  }
+
+  .shortcuts-dialog button {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .shortcuts-dialog button:hover,
+  .shortcuts-dialog button:focus-visible {
+    background: color-mix(in srgb, var(--reader-shell-accent) 12%, transparent);
+    outline: none;
+  }
+
+  .shortcuts-groups {
+    display: grid;
+    gap: 20px;
+    padding-top: 18px;
+  }
+
+  .shortcuts-dialog dl > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    min-height: 38px;
+    border-bottom: 1px solid color-mix(in srgb, var(--reader-shell-border) 58%, transparent);
+  }
+
+  .shortcuts-dialog dd {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .shortcuts-dialog kbd {
+    min-width: 26px;
+    box-sizing: border-box;
+    padding: 3px 7px;
+    border: 1px solid var(--reader-shell-border, var(--border-light));
+    border-radius: 4px;
+    background: var(--reader-shell-panel, var(--surface-panel));
+    color: inherit;
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: center;
   }
 
   .canvas {
