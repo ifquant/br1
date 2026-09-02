@@ -1,7 +1,14 @@
-# Tauri + SvelteKit + TypeScript
+# Bridge Reader
 
-This template should help get you started developing with Tauri, SvelteKit and TypeScript in Vite.
+Bridge Reader is a local reading app inspired by Readest. It focuses on keeping the reader, library, reading progress, notes, translation, and text-to-speech workflows close together in one desktop-oriented experience.
 
-## Recommended IDE Setup
+![Bridge Reader library screen](docs/images/br1-app-screenshot.png)
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+## Run locally
+
+```sh
+pnpm install
+pnpm dev --host 127.0.0.1
+```
+
+Then open `http://127.0.0.1:1420/`.
