@@ -17,9 +17,9 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 12 |
+| `covered` | 13 |
 | `partial` | 463 |
-| `gap` | 74 |
+| `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
@@ -29,7 +29,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 38 | 9 | 16 |
-| security | 4 | 1 | 1 | 21 |
+| security | 5 | 1 | 0 | 21 |
 | ai/assist/dictionary | 0 | 24 | 20 | 3 |
 
 ## Commit Decisions
@@ -81,7 +81,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 43 | `16adf1125` | library | fix(library): align grid hover highlight corner radius (#3774) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
 | 44 | `017a9338b` | ai/assist/dictionary | fix(dictionary): add Chinese dictionary lookup with pinyin support (#3784) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 45 | `db35a4e20` | reader core | fix(style): clamp oversized hardcoded pixel widths and fix browser test flakiness (#3785) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
-| 46 | `82deb85c6` | security | docs: add threat model and incident response plan to SECURITY.md (#3788) | `gap` | S2-S04 | No consolidated br1 threat model exists. |
+| 46 | `82deb85c6` | security | docs: add threat model and incident response plan to SECURITY.md (#3788) | `covered` | S2-S04 | Root SECURITY.md records br1 assets, trust boundaries, implemented controls, known gaps, reporting, severity, and incident response without importing Readest-only account claims. |
 | 47 | `184de9210` | security | fix(security): prevent SSRF in kosync proxy (CWE-918) (#3793) | `not-applicable` | — | br1 has no Readest KOSync proxy endpoint. |
 | 48 | `932c82aa4` | security | chore(security): update CodeQL workflow to remove languages (#3794) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 49 | `799db4076` | reader core | fix(pdf): add an option to apply theme colors to PDF, closes #3778 (#3799) | `partial` | S2-R03 | PDF opens; exact rendering/theme/text behavior is incomplete. |
@@ -718,7 +718,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S03` reviewed and closed on 2026-09-02).
+2. Trust and format floor: `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04` reviewed and closed on 2026-09-02).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -1205,13 +1205,13 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Deferred boundary: if br1 later adopts native window geometry persistence, invalid/sentinel coordinates and zero-size state must be rejected before restore.
 - Commits: `bc9fe67ab`
 
-### S2-S04 - Document the br1 trust model
+### Completed Task: S2-S04 - Document the br1 trust model
 
 - Phase: Step 2
-- Upstream decisions: 1 commits (1 gap, 0 partial)
-- Outcome: Record trusted files, untrusted content, renderer/Tauri boundaries, network policy, and incident handling.
-- Touches: SECURITY.md
-- Verify: `manual threat-model review`; `git diff --check`
+- Result: `covered` by a root security policy grounded in br1's current local-first Tauri architecture rather than Readest's account and cloud assumptions.
+- Boundaries: documents protected assets, trusted components, untrusted books/snapshots/provider data, native filesystem grants, renderer-to-Rust commands, persistence, third-party data flows, and supply-chain limits.
+- Honest gaps: records the null CSP, Foliate iframe and authored-resource egress limits, plaintext local state, non-enforced HTTPS for operator sync URLs, missing parser/resource hardening, and incomplete release-security policy.
+- Evidence: source audit of Tauri capabilities and command registration, path validation, book sanitization, persistence locations, restore rollback, provider credentials/endpoints, and lockfiles (PASS); `cargo test --manifest-path src-tauri/Cargo.toml --lib` (PASS, 47/47); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `pnpm check` (PASS, 0 errors and 0 warnings); GitHub private-report URL check (PASS, HTTP 200); `git diff --check` (PASS); fresh security-boundary review (4 accuracy findings corrected; fix re-review PASS, no remaining substantive findings).
 - Commits: `82deb85c6`
 
 ### S2-U01A - Consolidate theme and background settings
