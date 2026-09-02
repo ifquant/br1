@@ -4910,6 +4910,64 @@ test('reader highlights fenced code blocks in the txt fallback surface', async (
   );
 });
 
+test('reader keeps malicious-looking txt markup literal', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as Window & { __BR1_BOOK_XSS__?: number }).__BR1_BOOK_XSS__ = 0;
+  });
+  await page.goto(
+    `/reader?source=asset&url=${encodeURIComponent('/samples/malicious-book.txt')}&label=${encodeURIComponent('Malicious TXT Fixture')}`
+  );
+
+  const surface = page.getByLabel('plain text reading surface');
+  await expect(surface).toBeVisible({ timeout: 15000 });
+  await expect(surface).toContainText('<iframe srcdoc=');
+  await expect(surface).toContainText('Safe body text remains readable');
+  await expect(surface.locator('script, iframe, object, embed, img')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as Window & { __BR1_BOOK_XSS__?: number }).__BR1_BOOK_XSS__ ?? 0)
+    )
+    .toBe(0);
+});
+
+test('reader sanitizes foliate markup resources before iframe loading', async ({ page }) => {
+  await page.goto('/library');
+
+  const sanitized = await page.evaluate(async () => {
+    const modulePath = '/src/lib/reader/foliate.ts';
+    const reader = await import(/* @vite-ignore */ modulePath);
+    const transformTarget = new EventTarget();
+    reader.installReaderBookTransformGuards({ transformTarget });
+    const detail = {
+      data: `<!doctype html><html><body data-reader-marker="kept"><p>Safe body</p><script>window.parent.__BR1_BOOK_XSS__ = 1</script><iframe srcdoc="<script>window.parent.__BR1_BOOK_XSS__ = 1</script>"></iframe><object data="javascript:alert(1)"></object><embed src="javascript:alert(1)"><img src="missing" onerror="window.parent.__BR1_BOOK_XSS__ = 1"></body></html>`,
+      type: 'application/xhtml+xml',
+      name: 'malicious.xhtml'
+    };
+
+    transformTarget.dispatchEvent(new CustomEvent('data', { detail }));
+    const svgDetail = {
+      data: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" onload="window.parent.__BR1_BOOK_XSS__ = 1"><circle cx="5" cy="5" r="4"/><script>window.parent.__BR1_BOOK_XSS__ = 1</script><a href="javascript:alert(1)"><text>unsafe link</text></a></svg>`,
+      type: 'image/svg+xml',
+      name: 'malicious.svg'
+    };
+    transformTarget.dispatchEvent(new CustomEvent('data', { detail: svgDetail }));
+
+    return {
+      html: String(await detail.data),
+      svg: String(await svgDetail.data)
+    };
+  });
+
+  expect(sanitized.html).toContain('Safe body');
+  expect(sanitized.html).toContain('data-reader-marker="kept"');
+  expect(sanitized.html).not.toMatch(
+    /<script|<iframe|<object|<embed|srcdoc=|onerror=|javascript:/i
+  );
+  expect(sanitized.svg).toMatch(/^<svg\b/);
+  expect(sanitized.svg).toContain('<circle');
+  expect(sanitized.svg).not.toMatch(/<html|<script|onload=|javascript:/i);
+});
+
 const sampleReaderCases = [
   {
     assetPath: '/samples/sample-book.epub',

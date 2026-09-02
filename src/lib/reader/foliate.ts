@@ -2,6 +2,7 @@
 // UI surfaces depend on. Keep low-level normalization and invariants here so UI
 // code can stay focused on reading semantics rather than format/runtime quirks.
 
+import DOMPurify from 'dompurify';
 import { getReaderThemePalette } from './settings';
 import type { ReaderSettings } from './types';
 
@@ -153,6 +154,47 @@ export const flattenToc = (items: unknown, level = 0): Array<{ label: string; hr
 
 let foliateViewModulePromise: Promise<unknown> | null = null;
 const guardedTransformTargets = new WeakSet<EventTarget>();
+const SANITIZED_BOOK_RESOURCE_TYPES = new Set([
+  'application/xhtml+xml',
+  'image/svg+xml',
+  'text/html'
+]);
+
+const sanitizeReaderBookMarkup = (content: string, type: string) => {
+  const normalized = content.replaceAll('&nbsp;', '&#160;');
+  const sharedConfig = {
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: ['srcdoc'],
+    ALLOWED_URI_REGEXP:
+      /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    ADD_ATTR: (attributeName: string) =>
+      ['xmlns', 'http-equiv', 'content', 'charset', 'cfi-inert', 'cfi-skip'].includes(attributeName) ||
+      attributeName.startsWith('xml:') ||
+      attributeName.startsWith('xmlns:') ||
+      attributeName.startsWith('epub:')
+  };
+
+  // SVG resources must keep their SVG root because Foliate still serves the
+  // sanitized result as image/svg+xml rather than as an HTML document.
+  const sanitized =
+    type === 'image/svg+xml'
+      ? DOMPurify.sanitize(normalized, {
+          ...sharedConfig,
+          USE_PROFILES: { svg: true, svgFilters: true }
+        })
+      : new XMLSerializer().serializeToString(
+          DOMPurify.sanitize(normalized, {
+            ...sharedConfig,
+            WHOLE_DOCUMENT: true,
+            ADD_TAGS: ['link', 'meta'],
+            RETURN_DOM: true
+          })
+        );
+
+  return String(sanitized)
+    .replaceAll('&#160;', '&nbsp;')
+    .replaceAll('\u00A0', '&nbsp;');
+};
 
 export const ensureFoliateViewDefinition = async () => {
   if (customElements.get(FOLIATE_VIEW_TAG)) return;
@@ -170,16 +212,23 @@ export const installReaderBookTransformGuards = (book: ReaderBookDocument | unde
 
   guardedTransformTargets.add(target);
   target.addEventListener('data', ((event: Event) => {
-    // Boundary: Foliate resource transforms can reject long after the reader UI
-    // has moved on. Convert those failures into empty content here so one bad
-    // asset does not take down the whole reading session.
-    const detail = (event as CustomEvent<{ data?: unknown; name?: string }>).detail;
+    // This is the last shared boundary before Foliate turns book-controlled markup
+    // into iframe content. Sanitize executable markup here once for every format.
+    const detail = (event as CustomEvent<{ data?: unknown; type?: unknown; name?: string }>).detail;
     if (!detail) return;
 
-    detail.data = Promise.resolve(detail.data).catch((error) => {
-      console.error(new Error(`Failed to load ${detail.name ?? 'reader resource'}`, { cause: error }));
-      return '';
-    });
+    detail.data = Promise.resolve(detail.data)
+      .then((data) =>
+        typeof data === 'string' &&
+        typeof detail.type === 'string' &&
+        SANITIZED_BOOK_RESOURCE_TYPES.has(detail.type)
+          ? sanitizeReaderBookMarkup(data, detail.type)
+          : data
+      )
+      .catch((error) => {
+        console.error(new Error(`Failed to load ${detail.name ?? 'reader resource'}`, { cause: error }));
+        return '';
+      });
   }) as EventListener);
 };
 

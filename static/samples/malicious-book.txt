@@ -1,0 +1,9 @@
+Literal markup must stay text: <img src="missing" onerror="window.__BR1_BOOK_XSS__ += 1">
+
+```html
+<iframe srcdoc="<script>window.__BR1_BOOK_XSS__ += 1</script>"></iframe>
+<object data="javascript:window.__BR1_BOOK_XSS__ += 1"></object>
+<embed src="javascript:window.__BR1_BOOK_XSS__ += 1">
+```
+
+Safe body text remains readable after the malicious-looking block.

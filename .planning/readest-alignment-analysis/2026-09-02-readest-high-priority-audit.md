@@ -17,19 +17,19 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 8 |
-| `partial` | 470 |
+| `covered` | 12 |
+| `partial` | 465 |
 | `gap` | 75 |
-| `not-applicable` | 125 |
+| `not-applicable` | 126 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 0 | 263 | 20 | 50 |
+| reader core | 0 | 264 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 38 | 9 | 16 |
-| security | 0 | 9 | 2 | 17 |
+| security | 4 | 3 | 2 | 18 |
 | ai/assist/dictionary | 0 | 24 | 20 | 3 |
 
 ## Commit Decisions
@@ -86,10 +86,10 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 48 | `932c82aa4` | security | chore(security): update CodeQL workflow to remove languages (#3794) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 49 | `799db4076` | reader core | fix(pdf): add an option to apply theme colors to PDF, closes #3778 (#3799) | `partial` | S2-R03 | PDF opens; exact rendering/theme/text behavior is incomplete. |
 | 50 | `bfbe92f35` | reader core | refactor(sidebar): replace react-window and OverlayScrollbars with react-virtuoso and CSS scrollbars (#3798) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
-| 51 | `13ff96db8` | security | security: potential fix for code scanning alert no. 19: DOM text reinterpreted as HTML (#3802) | `partial` | S2-S01 | Tauri-owned library/catalog boundaries and negative-path tests; this malicious-content case is unproved. |
-| 52 | `6072b0dcb` | security | security: fix for code scanning alert no. 12: Use of externally-controlled format string (#3803) | `partial` | S2-S01 | Tauri-owned library/catalog boundaries and negative-path tests; this malicious-content case is unproved. |
-| 53 | `dc788283a` | security | security: fix for code scanning alert no. 11: Incomplete multi-character sanitization (#3804) | `partial` | S2-S01 | Tauri-owned library/catalog boundaries and negative-path tests; this malicious-content case is unproved. |
-| 54 | `e43e533ac` | security | security: fix complete multi-character sanitization for HTML comments in txt.ts (#3806) | `partial` | S2-S01 | Tauri-owned library/catalog boundaries and negative-path tests; this malicious-content case is unproved. |
+| 51 | `13ff96db8` | security | security: potential fix for code scanning alert no. 19: DOM text reinterpreted as HTML (#3802) | `covered` | S2-S01 | TXT source is escaped before HTML assembly, and highlighting emits text nodes instead of reinterpreting book text as markup. |
+| 52 | `6072b0dcb` | security | security: fix for code scanning alert no. 12: Use of externally-controlled format string (#3803) | `not-applicable` | — | This changes Readest cloud-download logging; br1 has no corresponding cloud storage download logger. |
+| 53 | `dc788283a` | security | security: fix for code scanning alert no. 11: Incomplete multi-character sanitization (#3804) | `covered` | S2-S01 | br1 never parses TXT comments as markup; repeated comment syntax remains escaped literal text in the reader surface. |
+| 54 | `e43e533ac` | security | security: fix complete multi-character sanitization for HTML comments in txt.ts (#3806) | `covered` | S2-S01 | The literal TXT path covers the relevant comment edge; br1 has no Google Books description-provider surface. |
 | 55 | `d7fd06ca8` | security | chore: add explicit permissions to GitHub Actions workflows (#3807) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 56 | `4abbc17f6` | reader core | fix(annotator): fixed instant annotation in scrolled mode, closes #3769 (#3808) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 57 | `1e259e87b` | reader core | refactor(reader): introduce priority-based touch interceptor for gesture handling (#3809) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
@@ -380,7 +380,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 342 | `7d1a60b9e` | library | feat(library): separate background texture for library and reader (#4754) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact library interaction needs a regression. |
 | 343 | `ac6249cbc` | catalog/import | feat(opds): show groups as horizontal carousels when 2+ groups (#4750) (#4755) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 344 | `7da5f8321` | reader core | fix(reader): make annotation toolbar customization apply to all books (#4760) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
-| 345 | `005aa2d61` | security | fix(security): iframe srcdoc atrribute can lead to arbitrary code execution (#4762) | `partial` | S2-S01 | Tauri-owned library/catalog boundaries and negative-path tests; this malicious-content case is unproved. |
+| 345 | `005aa2d61` | security | fix(security): iframe srcdoc atrribute can lead to arbitrary code execution (#4762) | `covered` | S2-S01 | The shared Foliate transform guard removes executable elements, `srcdoc`, event handlers, and unsafe URIs before iframe loading. |
 | 346 | `f7124cbee` | reader core | fix(css): multiply mix blend for images in dark override color mode (#4763) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
 | 347 | `163487b5e` | reader core | feat(reader): add regex and nearby-words search modes (#4560) (#4764) | `partial` | S2-R06 | P0-2/P0-3 and reader smoke tests; exact search behavior is incomplete. |
 | 348 | `d963b911c` | reader core | fix(reader): zoom linked images on single tap (#4757) (#4766) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
@@ -618,7 +618,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 580 | `10bf99158` | reader core | fix(reader): commit settled image zoom into the layout size, closes #5633 (#5639) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 581 | `4f1850563` | catalog/import | fix(novel): retry transient fetch failures and backfill work metadata (#5650) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 582 | `05d289a4e` | library | fix(markdown): title imported books after the file, not the first heading (#5653) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
-| 583 | `2f9262e02` | security | fix(sanitizer): render Persian/Arabic half-space by converting misused RLM to ZWNJ (#5651) | `partial` | S2-S01 | Tauri-owned library/catalog boundaries and negative-path tests; this malicious-content case is unproved. |
+| 583 | `2f9262e02` | reader core | fix(sanitizer): render Persian/Arabic half-space by converting misused RLM to ZWNJ (#5651) | `partial` | S2-R04C | This is authored-text shaping compatibility, not a malicious-content boundary; no RLM-to-ZWNJ fixture exists. |
 | 584 | `dbe0dae0a` | reader core | feat(reader): flash the target of in-page footnote jumps, closes #5647 (#5655) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 585 | `42c7a2cb0` | reader core | fix(reader): disable text autosizing in fixed-layout books, closes #5641 (#5659) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 586 | `34922b172` | catalog/import | fix(opds): stop auto-downloaded books from vanishing on restart (#5665) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
@@ -718,7 +718,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-S01` through `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01`.
+2. Trust and format floor: `S2-S02` through `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` verified complete on 2026-09-02).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -820,11 +820,11 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 30 commits (0 gap, 30 partial)
+- Upstream decisions: 31 commits (0 gap, 31 partial)
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
 - Touches: foliate compatibility fixtures and focused guards
 - Verify: `pnpm check`; `authored-layout smoke`; `git diff --check`
-- Commits: `87f0240b0`, `caa0d719c`, `23d5f3363`, `b223ccaee`, `ebbbf104b`, `1d8ed3fc9`, `9a05935ca`, `54aa20d4f`, `676e14234`, `d6e981e56`, `6626db967`, `370a51662`, `69599e2bc`, `17e60f1e4`, `c5304cd46`, `db1d63cdc`, `6807664e9`, `44953f568`, `dbe0dae0a`, `42c7a2cb0`, `a6e6691c8`, `631cd6454`, `a193cbc35`, `5aae8d6c5`, `aab58241d`, `7c0419961`, `86493e801`, `cf44e8518`, `a9526377a`, `6469cbb5b`
+- Commits: `87f0240b0`, `caa0d719c`, `23d5f3363`, `b223ccaee`, `ebbbf104b`, `1d8ed3fc9`, `9a05935ca`, `54aa20d4f`, `676e14234`, `d6e981e56`, `6626db967`, `370a51662`, `69599e2bc`, `17e60f1e4`, `c5304cd46`, `db1d63cdc`, `6807664e9`, `44953f568`, `dbe0dae0a`, `42c7a2cb0`, `a6e6691c8`, `631cd6454`, `a193cbc35`, `5aae8d6c5`, `aab58241d`, `7c0419961`, `86493e801`, `cf44e8518`, `a9526377a`, `6469cbb5b`, `2f9262e02`
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 
@@ -1177,13 +1177,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test markdown`; `pnpm check`; `Markdown smoke`
 - Commits: `24370ca51`, `3ac1a1a45`, `9c6081402`, `d40bf5ba7`, `46e75586f`, `05d289a4e`, `841b3639b`, `1fa25f7ae`
 
-### S2-S01 - Audit HTML and TXT sanitization
+### Completed Task: S2-S01 - Audit HTML and TXT sanitization
 
 - Phase: Step 2
-- Upstream decisions: 6 commits (0 gap, 6 partial)
-- Outcome: Keep book-controlled text out of unsafe HTML sinks and cover comment/srcdoc edges.
-- Touches: text/foliate boundary, malicious fixtures
-- Verify: `pnpm check`; `sanitizer tests`; `malicious-book smoke`
+- Result: `covered` by a literal, escaped TXT renderer and one shared DOMPurify guard before Foliate turns EPUB-family HTML/SVG resources into iframe content.
+- Evidence: `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); full browser e2e with one worker, including malicious TXT/Foliate fixtures and format/footnote compatibility (PASS, 78/78).
+- Audit correction: the cloud-download logging fix `6072b0dcb` is `not-applicable`; Persian/Arabic RLM-to-ZWNJ shaping `2f9262e02` remains `partial` under `S2-R04C`.
 - Commits: `13ff96db8`, `6072b0dcb`, `dc788283a`, `e43e533ac`, `005aa2d61`, `2f9262e02`
 
 ### S2-S02 - Audit Tauri command scopes
