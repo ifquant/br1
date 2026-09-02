@@ -74,7 +74,9 @@ Exit criteria for Step 2:
 
 ## First Slice Recommendation
 
-Start with a narrow audit document update, not implementation: mark each high-priority pull-delta commit as `covered`, `gap`, `partial`, or `not-applicable` against br1 source. That produces an actionable queue without mixing 1,189 upstream commits into one code change.
+Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 54 executable br1-native tasks.
+
+Implementation starts with the three Step 1 baseline tasks in that audit. Each task should land as its own implementation and verification commit.
 
 ## High-Priority Commit Queue
 
