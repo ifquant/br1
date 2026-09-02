@@ -6,7 +6,15 @@ It treats AI as a medium between author and reader: a way to dissect a book, pus
 
 Bridge Reader is built for knowledge transfer, abstraction, divergence, and practice. It is for readers who believe a book is not a static container of information, but a living conversation that can be reopened, challenged, translated, and applied.
 
+## Screenshots
+
+### Library
+
 ![Bridge Reader library screen](docs/images/br1-app-screenshot.png)
+
+### Reading With Workspace
+
+![Bridge Reader reading workspace](docs/images/br1-ai-reading-screenshot.png)
 
 ## What It Helps You Do
 
