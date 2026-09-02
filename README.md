@@ -1,6 +1,6 @@
 # Bridge Reader
 
-Bridge Reader is a local reading app inspired by Readest. It focuses on keeping the reader, library, reading progress, notes, translation, and text-to-speech workflows close together in one desktop-oriented experience.
+Bridge Reader is an AI-powered reading app for building a closer relationship with books. It uses AI as a medium between author and reader, helping readers ask better questions, follow difficult ideas, hear the text in another voice, and find resonance with a book faster without leaving the reading flow.
 
 ![Bridge Reader library screen](docs/images/br1-app-screenshot.png)
 
