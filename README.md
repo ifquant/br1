@@ -41,6 +41,30 @@ pnpm dev --host 127.0.0.1
 
 Then open `http://127.0.0.1:1420/`.
 
+## Build
+
+Build the web frontend:
+
+```sh
+pnpm build
+```
+
+Build the Tauri desktop app and installers:
+
+```sh
+pnpm tauri build
+```
+
+The Tauri build runs the SvelteKit build first and writes platform bundles under `src-tauri/target/release/bundle/`.
+
+## Release
+
+1. Update `version` in `package.json` and `src-tauri/tauri.conf.json`.
+2. Run `pnpm check`.
+3. Run `pnpm build`.
+4. Run `pnpm tauri build`.
+5. Upload the generated files from `src-tauri/target/release/bundle/` to the GitHub release.
+
 ## Acknowledgements
 
 Bridge Reader is technically inspired by the open-source ebook reader [Readest](https://github.com/readest/readest) and the broader Foliate reading ecosystem, while exploring a more AI-native direction for deep reading and cross-domain knowledge transfer.
