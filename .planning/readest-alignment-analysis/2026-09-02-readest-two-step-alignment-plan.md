@@ -74,7 +74,7 @@ Exit criteria for Step 2:
 
 ## First Slice Recommendation
 
-Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 54 executable br1-native tasks.
+Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 55 executable br1-native tasks. `S1-R01` is a verified br1 baseline; its previously assigned Readest commits were corrected into the separate `S2-F04` reading-ruler and `S2-F05` paragraph-focus tasks.
 
 Implementation starts with the three Step 1 baseline tasks in that audit. Each task should land as its own implementation and verification commit.
 

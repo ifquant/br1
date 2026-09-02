@@ -61,11 +61,11 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 23 | `0e516f6e5` | security | chore(test): add unit tests and enforce dash-case naming for test files (#3715) | `not-applicable` | — | No portable user-visible behavior remains. |
 | 24 | `29df8522f` | ai/assist/dictionary | chore(bump): bump Tauri to the latest version (#3716) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
 | 25 | `74401fc1b` | library | fix(library): always sort series books by index ascending, closes #3709 (#3717) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
-| 26 | `9ecb9b24d` | reading modes/controls | feat: make reading ruler selection and step navigation coherent (#3722) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 26 | `9ecb9b24d` | reading modes/controls | feat: make reading ruler selection and step navigation coherent (#3722) | `partial` | S2-F04 | Focused reading exists; the line-aware ruler and its step/anchor semantics are not implemented. |
 | 27 | `c9647276b` | reading modes/controls | feat(rsvp): progress bar per chapter, speed selector dropdown, and UX improvements (#3723) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 28 | `62df631dd` | tts/audio | feat(theme): add atmosphere easter egg with video overlay and ambient audio (#3727) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 29 | `05afaab5f` | reader core | fix(layout): fixed static image size and layout shift on window resize, closes #3634 (#3729) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
-| 30 | `888f4afde` | reader core | fix: preserve paragraph mode reading layouts and other UI/UX fixes (#3730) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 30 | `888f4afde` | reader core | fix: preserve paragraph mode reading layouts and other UI/UX fixes (#3730) | `partial` | S2-F05 | Paragraph focus exists; authored layout preservation remains unproved. |
 | 31 | `6a44f609b` | reader core | fix(paginator): fixed paginator section preloading, closes #3600 and closes #3601 (#3734) | `partial` | S2-R01B | P0-2/P0-3 and reader smoke tests; exact paginator boundary is unproved. |
 | 32 | `45bd35598` | catalog/import | feat(opds): support custom catalog headers with web proxy consent (#3740) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
 | 33 | `caa0d719c` | reader core | compat(vertical): check writing mode also for child element of body, closes #3583 (#3743) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
@@ -246,7 +246,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 208 | `7bdd3ecde` | reader core | perf(sidebar): virtualize BooknoteView and memoize derivations (#4352) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 209 | `89723b421` | reading modes/controls | test(rsvp): stop RSVPController tests leaking real timers into teardown (#4355) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 210 | `36e11de33` | reader core | feat(reader): swipe-to-adjust brightness gesture on mobile (#3021) (#4356) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
-| 211 | `789d03122` | reading modes/controls | feat(reader): line-aware reading ruler (#4358) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 211 | `789d03122` | reading modes/controls | feat(reader): line-aware reading ruler (#4358) | `partial` | S2-F04 | Focused reading exists; a line-aware ruler is not implemented. |
 | 212 | `bed31e818` | library | feat(library): add Manage Cache to advanced settings (#4359) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact library interaction needs a regression. |
 | 213 | `f1ae05076` | reader core | fix(ui): refine reader side panels and their empty states (#4361) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact responsive/interaction state is unverified. |
 | 214 | `6605ae824` | ai/assist/dictionary | feat(dictionary): import companion MDD files that share the MDX prefix (#4363) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
@@ -256,7 +256,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 218 | `de3e4b6d3` | library | fix(reader): show Duokan fullscreen cover in scrolled mode (#4379) (#4381) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 219 | `9b4db4449` | reader core | fix(pdf): ship jbig2.wasm so scanned PDFs render in packaged builds (#4382) | `partial` | S2-R03 | PDF opens; exact rendering/theme/text behavior is incomplete. |
 | 220 | `e8675fb7e` | reader core | fix(reader): inline custom @font-face rules in iframe stylesheet (#4383) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
-| 221 | `97191a57c` | reading modes/controls | fix(reader): stop reading ruler creeping down on scroll (#4386) (#4388) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 221 | `97191a57c` | reading modes/controls | fix(reader): stop reading ruler creeping down on scroll (#4386) (#4388) | `partial` | S2-F04 | Focused reading exists; ruler scroll anchoring remains unimplemented. |
 | 222 | `45ef5f751` | reader core | fix(metainfo): declare desktop and mobile device support (#4395) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
 | 223 | `bc9fe67ab` | security | fix(desktop): sanitize invalid .window-state.json before restore (#4401) | `gap` | S2-S03 | No invalid persisted-window-state proof found. |
 | 224 | `458ad7510` | reader core | fix(reader): scroll wide EPUB tables horizontally (#4391) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
@@ -288,7 +288,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 250 | `6dc42222e` | reader core | fix(reader): keep double-click-and-drag from turning the page (#4524) (#4536) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 251 | `cf41e7d50` | reading modes/controls | feat(rsvp): apply reader font face/family settings to the RSVP word (#4519) (#4537) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 252 | `64350ca63` | reader core | fix(reader): keep scrolled-mode scrollbar visible after opening a book (#4470) (#4538) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
-| 253 | `755bee1ee` | reader core | fix(reader): prevent accidental paragraph-mode exit and center its bar (#4474) (#4539) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; mode lifecycle semantics remain open. |
+| 253 | `755bee1ee` | reader core | fix(reader): prevent accidental paragraph-mode exit and center its bar (#4474) (#4539) | `partial` | S2-F05 | Paragraph focus exists; exit arbitration and bar placement need focused proof. |
 | 254 | `d6e981e56` | reader core | fix(reader): hide footnote aside border again when custom fonts are loaded (#4438) (#4540) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 255 | `390c71107` | ai/assist/dictionary | feat(rsvp): configurable start delay, word stepping, context dictionary lookup, and keyboard shortcut (#4541) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 256 | `ceddee379` | library | feat(library): search a book on Goodreads from the library and reader (#4543) (#4548) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
@@ -364,11 +364,11 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 326 | `b87c735c1` | tts/audio | fix(tts): keep native System TTS reading past unspeakable chunks offline (#4613, #4408) (#4716) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 327 | `a6d28ffcd` | ai/assist/dictionary | fix(reader): add Alt+P proofread shortcut and let Shift+P exit paragraph mode (#4717) (#4723) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 328 | `f4bb11126` | ai/assist/dictionary | feat(translator): add Urdu as a Translate Text target language (#4721) (#4726) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
-| 329 | `942095bcd` | reader core | fix(reader): make Shift+P toggle, exit, and resume paragraph mode reliably (#4717) (#4725) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 329 | `942095bcd` | reader core | fix(reader): make Shift+P toggle, exit, and resume paragraph mode reliably (#4717) (#4725) | `partial` | S2-F05 | Basic keyboard launch and hidden resume pass; complete toggle/exit interaction remains unproved. |
 | 330 | `acf2b165f` | library | fix(library): keep in-place book paths absolute so uploads stay in fs scope (#4720) (#4730) | `partial` | S2-L05 | P0-4.1/P0-4.2 and library smoke tests; exact persistence/recovery case is unproved. |
 | 331 | `1b44b95d3` | reader core | fix(reader): smooth single-notch wheel scroll over PDF pages in scrolled mode (#4727) (#4732) | `partial` | S2-R03 | PDF opens; exact rendering/theme/text behavior is incomplete. |
 | 332 | `140b71ee3` | ai/assist/dictionary | feat(dictionary): add adjustable dictionary popup font size (#4443) (#4734) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
-| 333 | `bc9b8b23e` | reader core | fix(reader): stop per-chapter listener leak that degrades paragraph mode (#4735) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 333 | `bc9b8b23e` | reader core | fix(reader): stop per-chapter listener leak that degrades paragraph mode (#4735) | `partial` | S2-F05 | Paragraph focus exists; repeated chapter attachment lacks a listener-lifecycle regression. |
 | 334 | `787641b5b` | tts/audio | chore(agent): update agent memories (#4737) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 335 | `e982af172` | reader core | feat(reader): adjust text selection with Shift/Ctrl/Opt+Arrow keys (#4728) (#4738) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 336 | `428168ac9` | reader core | fix(reader): show the centred section's chapter title in scrolled mode (#4739) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -410,7 +410,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 372 | `a23427ccc` | library | fix(widget): avoid recycling aliased source bitmap for 2:3 covers (#4850) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 373 | `3ac1a1a45` | reader core | fix(reader): remember last read position for markdown files (#4871) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 374 | `17e60f1e4` | reader core | fix(reader): fix fixed-layout spread spine seam and zoomed-out blank page (#4857) (#4873) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
-| 375 | `49391124c` | reading modes/controls | fix(reader): correct reading ruler direction for vertical-rl books (#4865) (#4879) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 375 | `49391124c` | reading modes/controls | fix(reader): correct reading ruler direction for vertical-rl books (#4865) (#4879) | `partial` | S2-F04 | Focused reading exists; vertical-writing ruler direction is not implemented. |
 | 376 | `5bc8eda50` | ai/assist/dictionary | feat(proofread): editable Find pattern and per-rule enable/disable toggle (#4859) (#4888) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 377 | `4d645befd` | library | feat(library): add "Progress Read" sort option (#4427) (#4893) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 378 | `fd8fbb178` | reader core | fix(reader): apply page margin changes live on all platforms (#4898) (#4900) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
@@ -529,7 +529,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 491 | `f246fade9` | reader core | feat(clip): capture login-walled articles with an in-app sign-in (#5377) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 492 | `b18a2cee4` | catalog/import | feat(library): import web novels from a URL (#5294) (#5381) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
 | 493 | `21e1ed5df` | reader core | chore: update agent memories (#5384) | `not-applicable` | — | Readest agent-memory bookkeeping. |
-| 494 | `f598c9ed6` | reader core | feat(reader): add font size setting and honor custom fonts in paragraph mode, closes #5246 (#5403) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 494 | `f598c9ed6` | reader core | feat(reader): add font size setting and honor custom fonts in paragraph mode, closes #5246 (#5403) | `partial` | S2-F05 | Paragraph focus exists; paragraph typography settings and authored fonts remain incomplete. |
 | 495 | `6a3caabeb` | reader core | feat(reader): auto-hide the mouse cursor while reading (#5178) (#5404) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
 | 496 | `0995ce782` | reader core | fix(layout): keep dropdown menus within viewport (#5392) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 497 | `15b3d289e` | library | fix(library): do not dedupe distinct PDFs with identical metadata, closes #5411 (#5412) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
@@ -571,7 +571,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 533 | `aa08ce95f` | library | fix(library): select books in the recently read shelf and pull it with the grid (#5486) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 534 | `b92153f19` | library | fix(library): make search history chips translucent like the search input (#5488) | `partial` | S2-L08 | P0-4.1/P0-4.2 and library smoke tests; search/detail behavior is incomplete. |
 | 535 | `1173d98b6` | reader core | chore: update agent memories (#5489) | `not-applicable` | — | Readest agent-memory bookkeeping. |
-| 536 | `c1a3b2b92` | reading modes/controls | fix(reader): correct reading ruler transitions and line bounds (#5490) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 536 | `c1a3b2b92` | reading modes/controls | fix(reader): correct reading ruler transitions and line bounds (#5490) | `partial` | S2-F04 | Focused reading exists; ruler transition and line-bound behavior is not implemented. |
 | 537 | `fde3df92c` | reader core | feat(reader): support adding bookmarks with a pull-down gesture (#1359) (#5493) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 538 | `dd6ad542d` | catalog/import | fix(opds): invalidate cached covers when the entry's updated value changes (#5495) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 539 | `f8d7e2638` | reader core | fix(build): strip dangling sourceMappingURL comments from Tauri builds (#5498) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
@@ -581,7 +581,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 543 | `311f7209d` | catalog/import | feat(send): clip locally opened html and xhtml pages with the browser extension (#5512) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 544 | `e9ee43e88` | security | chore(deps): bump transitive dependencies for security advisories (#5518) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 545 | `08f373152` | library | fix(library): stop watched-folder scans from blocking the main thread (#5494) (#5517) | `gap` | S2-L01 | P0-4.1/P0-4.2 and library smoke tests; bounded directory import is absent. |
-| 546 | `d0867d729` | reading modes/controls | fix(reader): keep the reading ruler anchored to its text across repagination (#5491) (#5519) | `partial` | S1-R01 | readingMode.ts and focused-reading e2e; follow/step semantics remain open. |
+| 546 | `d0867d729` | reading modes/controls | fix(reader): keep the reading ruler anchored to its text across repagination (#5491) (#5519) | `partial` | S2-F04 | Focused reading exists; ruler anchoring across repagination is not implemented. |
 | 547 | `420f65fc9` | ai/assist/dictionary | test(reader): deflake DictionarySheet expand/collapse toggle test (#5521) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 548 | `d7ad9fe56` | library | feat(library): show the page count in book details (#5516) (#5523) | `partial` | S2-L08 | P0-4.1/P0-4.2 and library smoke tests; search/detail behavior is incomplete. |
 | 549 | `e5cff97ca` | reader core | feat(reader): jump to an entered page number from the progress label (#5524) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; direct page navigation is missing. |
@@ -717,11 +717,11 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 ## Recommended Execution Order
 
-1. Baseline closure: `S1-R01`, `S1-R02`, `S1-R03`.
+1. Baseline closure: `S1-R02`, `S1-R03` (`S1-R01` verified complete on 2026-09-02).
 2. Trust and format floor: `S2-S01` through `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01`.
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
-5. Focus and speech: `S2-F01` through `S2-F03`, then `S2-T01` through `S2-T04B`.
+5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
 6. Library and catalogs: `S2-L01` through `S2-L08`, then `S2-O01` through `S2-O04`.
 7. Optional format and appearance: `S2-M01`, `S2-U01A`, `S2-U01B`.
 
@@ -731,16 +731,14 @@ Each task is a separate implementation/verification commit. Do not batch tasks m
 
 Only `gap` and `partial` commits create work. `covered` rows remain regression evidence; `not-applicable` rows stay closed unless br1 product scope changes.
 
-### 1. S1-R01 - Close mode follow, lock, and resume semantics
+### Completed Baseline: S1-R01 - Close mode follow, lock, and resume semantics
 
 - Phase: Step 1
-- Upstream decisions: 11 commits (0 gap, 11 partial)
-- Outcome: Make focus, RSVP, translation, and TTS follow the active source by default while retaining an explicit pinned target.
-- Touches: readingMode.ts, translationOwnership.ts, ttsOwnership.ts, reader route tests
-- Verify: `pnpm check`; `targeted ownership tests`; `focused-reading smoke`
-- Commits: `9ecb9b24d`, `888f4afde`, `789d03122`, `97191a57c`, `755bee1ee`, `942095bcd`, `bc9b8b23e`, `49391124c`, `f598c9ed6`, `c1a3b2b92`, `d0867d729`
+- Result: `covered` by br1-native book-scoped translation/TTS follow-pin-restore state, focused-reading same-excerpt mode switching, and hidden same-book resume.
+- Evidence: `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 67/67); `CI=1 pnpm test:e2e --retries=0` (PASS, 76/76).
+- Audit correction: the 11 Readest commits previously grouped here concern reading-ruler or paragraph-mode behavior, not ownership. They remain `partial` under `S2-F04` and `S2-F05`.
 
-### 2. S1-R02 - Centralize reader input bindings
+### S1-R02 - Centralize reader input bindings
 
 - Phase: Step 1
 - Upstream decisions: 5 commits (5 gap, 0 partial)
@@ -749,7 +747,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `targeted keyboard e2e`; `git diff --check`
 - Commits: `3d4d1482a`, `ec26ef4f2`, `b9a2b10fa`, `d27d324e1`, `76e81d604`
 
-### 3. S1-R03 - Certify baseline library behavior
+### S1-R03 - Certify baseline library behavior
 
 - Phase: Step 1
 - Upstream decisions: 6 commits (0 gap, 6 partial)
@@ -758,7 +756,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `targeted library smoke`; `git diff --check`
 - Commits: `cf44e8518`, `a9526377a`, `da86aba6b`, `6469cbb5b`, `14de49724`, `279698832`
 
-### 4. S2-R01A - Stabilize scroll and position transitions
+### S2-R01A - Stabilize scroll and position transitions
 
 - Phase: Step 2
 - Upstream decisions: 29 commits (0 gap, 29 partial)
@@ -767,7 +765,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `scroll-position smoke`; `desktop resize smoke`
 - Commits: `290550601`, `c4e331564`, `ef97a8ed0`, `1527dd9b3`, `e18bfd681`, `d609de58f`, `7716f189c`, `f5e729a17`, `2acd08202`, `ad1c2d6bb`, `aa318904b`, `de3e4b6d3`, `3a81e0991`, `64350ca63`, `6caa376f8`, `2153f7cc0`, `428168ac9`, `745f28f34`, `6f3b401c2`, `f8ad47a41`, `a8d341120`, `9c4f9550b`, `8ba9cf277`, `69985e5e5`, `67f850e5c`, `124655e3a`, `c0b953db7`, `be6845371`, `231cbf529`
 
-### 5. S2-R01B - Stabilize paginator boundaries
+### S2-R01B - Stabilize paginator boundaries
 
 - Phase: Step 2
 - Upstream decisions: 7 commits (0 gap, 7 partial)
@@ -776,7 +774,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `pagination smoke`; `git diff --check`
 - Commits: `797fe9c60`, `b87286813`, `6a44f609b`, `ed7cfc31f`, `a848c142c`, `31176e5d4`, `a9fb86ddc`
 
-### 6. S2-R01C - Normalize reader metrics and responsive layout
+### S2-R01C - Normalize reader metrics and responsive layout
 
 - Phase: Step 2
 - Upstream decisions: 18 commits (0 gap, 18 partial)
@@ -785,7 +783,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `responsive reader smoke`; `visual desktop check`
 - Commits: `8ed929065`, `e68dedd10`, `05afaab5f`, `70b94d898`, `db35a4e20`, `de11511c3`, `957b7d5f3`, `63b0b8702`, `e7f370453`, `ff4c03919`, `c781aedda`, `c81547cd5`, `fd3224353`, `0995ce782`, `1da69c917`, `326df8402`, `10bf99158`, `21e589fc7`
 
-### 7. S2-R02 - Harden TOC and navigation state
+### S2-R02 - Harden TOC and navigation state
 
 - Phase: Step 2
 - Upstream decisions: 13 commits (0 gap, 13 partial)
@@ -794,7 +792,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `TOC/navigation smoke`; `git diff --check`
 - Commits: `73d30c103`, `b0cc5461a`, `3e292af99`, `e1dad98e5`, `17f2a17ad`, `3c14d5a4b`, `6405ba31c`, `11666be5e`, `2ade76995`, `dd53e5245`, `79b75e17d`, `e5cff97ca`, `6ccdf8fb7`
 
-### 8. S2-R03 - Close PDF reader gaps
+### S2-R03 - Close PDF reader gaps
 
 - Phase: Step 2
 - Upstream decisions: 20 commits (0 gap, 20 partial)
@@ -803,7 +801,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `PDF smoke`; `packaged desktop smoke`
 - Commits: `5a072e7d1`, `799db4076`, `3bbc2071c`, `a2244e28b`, `dab92c8a4`, `9b4db4449`, `a9c0f3d46`, `1b44b95d3`, `f8916e128`, `2a837cb50`, `3ce5a5c8e`, `54ad2e916`, `7786400b3`, `3ca5d5879`, `6f67be703`, `3e9aacba1`, `a2f123ff9`, `4df8b37b7`, `e8f7a4875`, `9e1f72ae7`
 
-### 9. S2-R04A - Harden EPUB-family archive loading
+### S2-R04A - Harden EPUB-family archive loading
 
 - Phase: Step 2
 - Upstream decisions: 18 commits (0 gap, 18 partial)
@@ -812,7 +810,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `archive fixture smoke`; `git diff --check`
 - Commits: `234ecc311`, `9b0072173`, `c30a59a9e`, `d326e1c73`, `458ad7510`, `11d796361`, `9dc41e7ad`, `403be32d5`, `0b4993407`, `ec45a080f`, `a97e44bbd`, `0e4272e4c`, `8ad906bc4`, `6d5a89cee`, `89821136f`, `07371ccce`, `7e8abebcd`, `053aba67f`
 
-### 10. S2-R04B - Harden TXT chapter parsing
+### S2-R04B - Harden TXT chapter parsing
 
 - Phase: Step 2
 - Upstream decisions: 5 commits (0 gap, 5 partial)
@@ -821,7 +819,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `TXT fixture smoke`; `git diff --check`
 - Commits: `3b03b2c8d`, `eadb35539`, `1d4b7eed8`, `4b0bbc77b`, `1faa931a0`
 
-### 11. S2-R04C - Harden authored-layout compatibility
+### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
 - Upstream decisions: 27 commits (0 gap, 27 partial)
@@ -830,7 +828,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `authored-layout smoke`; `git diff --check`
 - Commits: `87f0240b0`, `caa0d719c`, `23d5f3363`, `b223ccaee`, `ebbbf104b`, `1d8ed3fc9`, `9a05935ca`, `54aa20d4f`, `676e14234`, `d6e981e56`, `6626db967`, `370a51662`, `69599e2bc`, `17e60f1e4`, `c5304cd46`, `db1d63cdc`, `6807664e9`, `44953f568`, `dbe0dae0a`, `42c7a2cb0`, `a6e6691c8`, `631cd6454`, `a193cbc35`, `5aae8d6c5`, `aab58241d`, `7c0419961`, `86493e801`
 
-### 12. S2-R05 - Polish interaction and accessibility boundaries
+### S2-R05 - Polish interaction and accessibility boundaries
 
 - Phase: Step 2
 - Upstream decisions: 14 commits (0 gap, 14 partial)
@@ -839,7 +837,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `keyboard/accessibility smoke`; `git diff --check`
 - Commits: `31e44d2e4`, `06aec0b59`, `8a19c686c`, `f1ae05076`, `4abbc0254`, `114396b84`, `8e009cd61`, `e05b7d5bb`, `d1749feee`, `614427e82`, `561356628`, `800af00f3`, `0f913bfa6`, `5ae894735`
 
-### 13. S2-R06 - Close search context and layout gaps
+### S2-R06 - Close search context and layout gaps
 
 - Phase: Step 2
 - Upstream decisions: 5 commits (0 gap, 5 partial)
@@ -848,7 +846,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `search smoke`; `git diff --check`
 - Commits: `5e5564ef3`, `163487b5e`, `6b44a6227`, `b1ec4f5e9`, `8226c5545`
 
-### 14. S2-R07 - Triage generic reader runtime failures
+### S2-R07 - Triage generic reader runtime failures
 
 - Phase: Step 2
 - Upstream decisions: 4 commits (0 gap, 4 partial)
@@ -857,7 +855,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `targeted regression`; `packaged desktop smoke`
 - Commits: `193613659`, `ff94dc76c`, `6fcda66b6`, `a32646545`
 
-### 15. S2-R08 - Normalize page-turn and selection input
+### S2-R08 - Normalize page-turn and selection input
 
 - Phase: Step 2
 - Upstream decisions: 24 commits (0 gap, 24 partial)
@@ -866,7 +864,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `pointer/keyboard smoke`; `git diff --check`
 - Commits: `1e259e87b`, `07e324878`, `787bbf210`, `648c35b33`, `6dc42222e`, `7cba22ab3`, `bcd9ed724`, `e982af172`, `348c85f64`, `324bb8a36`, `70bad93eb`, `75f1fafe9`, `2e90d3719`, `bc5e6640b`, `4512f3985`, `2aa044d27`, `ecd9fce65`, `0935e02a2`, `682b4ffc2`, `fde3df92c`, `1cbab73f9`, `522e504b6`, `a91b503e5`, `2b9962a2c`
 
-### 16. S2-R09 - Harden image and table viewing
+### S2-R09 - Harden image and table viewing
 
 - Phase: Step 2
 - Upstream decisions: 8 commits (0 gap, 8 partial)
@@ -875,7 +873,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `image/table fixture smoke`; `desktop visual check`
 - Commits: `4d1205fdf`, `e145eb835`, `7185dca1a`, `8810aa6db`, `d963b911c`, `d2668d167`, `3a0b9cac8`, `59284086c`
 
-### 17. S2-D01 - Version persisted reader configuration
+### S2-D01 - Version persisted reader configuration
 
 - Phase: Step 2
 - Upstream decisions: 2 commits (0 gap, 2 partial)
@@ -884,7 +882,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `settings migration test`; `reopen smoke`
 - Commits: `40b7c2c15`, `0fba5b705`
 
-### 18. S2-F01 - Make RSVP tokenization Unicode-aware
+### S2-F01 - Make RSVP tokenization Unicode-aware
 
 - Phase: Step 2
 - Upstream decisions: 3 commits (0 gap, 3 partial)
@@ -893,7 +891,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm test -- readingMode`; `pnpm check`; `RSVP smoke`
 - Commits: `aa60123d3`, `920627ae5`, `579e95075`
 
-### 19. S2-F02 - Add chapter-aware RSVP extraction and resume
+### S2-F02 - Add chapter-aware RSVP extraction and resume
 
 - Phase: Step 2
 - Upstream decisions: 3 commits (0 gap, 3 partial)
@@ -902,7 +900,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm test -- readingMode`; `RSVP e2e`; `git diff --check`
 - Commits: `09b19bd3c`, `6d5e59c79`, `4b0720a3e`
 
-### 20. S2-F03 - Finish RSVP controls and context actions
+### S2-F03 - Finish RSVP controls and context actions
 
 - Phase: Step 2
 - Upstream decisions: 9 commits (0 gap, 9 partial)
@@ -911,7 +909,25 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `RSVP keyboard smoke`; `git diff --check`
 - Commits: `c9647276b`, `d53f3b42e`, `ba6e5899e`, `89723b421`, `cf41e7d50`, `be17654fc`, `23d1ef6f1`, `66ade3809`, `e659976cc`
 
-### 21. S2-T01 - Make TTS transitions race-safe
+### S2-F04 - Add a line-aware reading ruler
+
+- Phase: Step 2
+- Upstream decisions: 6 commits (0 gap, 6 partial)
+- Outcome: Add line-aware selection and stepping that stays anchored while scrolling or repaginating and follows vertical writing direction.
+- Touches: focused-reading overlay, foliate layout bridge, reading-mode tests
+- Verify: `pnpm check`; `reading-ruler e2e`; `vertical-writing fixture smoke`
+- Commits: `9ecb9b24d`, `789d03122`, `97191a57c`, `49391124c`, `c1a3b2b92`, `d0867d729`
+
+### S2-F05 - Harden paragraph focus lifecycle and presentation
+
+- Phase: Step 2
+- Upstream decisions: 5 commits (0 gap, 5 partial)
+- Outcome: Preserve authored paragraph layout and fonts while making toggle, exit, resume, and listener cleanup deterministic.
+- Touches: focused-reading overlay, readingMode.ts, reader lifecycle tests
+- Verify: `pnpm check`; `paragraph-mode e2e`; `repeated chapter-switch smoke`
+- Commits: `888f4afde`, `755bee1ee`, `942095bcd`, `bc9b8b23e`, `f598c9ed6`
+
+### S2-T01 - Make TTS transitions race-safe
 
 - Phase: Step 2
 - Upstream decisions: 5 commits (0 gap, 5 partial)
@@ -920,7 +936,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm test -- tts`; `pnpm check`; `rapid-action smoke`
 - Commits: `21795e5cd`, `b679817fc`, `9c273d79f`, `4cd5d56b4`, `a7b8deb9f`
 
-### 22. S2-T02 - Add spoken-range highlighting
+### S2-T02 - Add spoken-range highlighting
 
 - Phase: Step 2
 - Upstream decisions: 7 commits (7 gap, 0 partial)
@@ -929,7 +945,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm test -- tts`; `pnpm check`; `browser speech smoke`
 - Commits: `b71b24660`, `1f5481c0e`, `ef603852b`, `a56cc6c61`, `4874eb9ae`, `b50ff9374`, `fabbcc640`
 
-### 23. S2-T03 - Align TTS extraction and section movement
+### S2-T03 - Align TTS extraction and section movement
 
 - Phase: Step 2
 - Upstream decisions: 4 commits (0 gap, 4 partial)
@@ -938,7 +954,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `EPUB/PDF TTS smoke`; `git diff --check`
 - Commits: `a5690e9a8`, `fed8ab7b6`, `f4483643f`, `fa2e9cdc5`
 
-### 24. S2-T04A - Stabilize TTS voice and timing
+### S2-T04A - Stabilize TTS voice and timing
 
 - Phase: Step 2
 - Upstream decisions: 6 commits (0 gap, 6 partial)
@@ -947,7 +963,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm test -- tts`; `pnpm check`; `manual voice smoke`
 - Commits: `c72afe269`, `42f9b8fe3`, `4fcc8d10f`, `db38e2a7b`, `33600cf30`, `9213c6af1`
 
-### 25. S2-T04B - Finish TTS player controls
+### S2-T04B - Finish TTS player controls
 
 - Phase: Step 2
 - Upstream decisions: 23 commits (0 gap, 23 partial)
@@ -956,7 +972,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm test -- tts`; `pnpm check`; `player smoke`
 - Commits: `5f897f648`, `cc618b873`, `e327d0c99`, `b87c735c1`, `843ab3448`, `17de9357d`, `213f8ac76`, `c8a3f85a8`, `b6c994413`, `e7af44379`, `d440df50e`, `01dabc69d`, `f3930b814`, `d1ab15c0f`, `201868e26`, `4f44b79ec`, `c1b0a4ecd`, `22308485f`, `786230a93`, `9c103d426`, `7fa3daa19`, `c04ba5a80`, `341119e5e`
 
-### 26. S2-A01A - Harden annotation anchors and grouping
+### S2-A01A - Harden annotation anchors and grouping
 
 - Phase: Step 2
 - Upstream decisions: 5 commits (0 gap, 5 partial)
@@ -965,7 +981,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `annotation-anchor smoke`; `git diff --check`
 - Commits: `94843902a`, `7f57af8f9`, `c5d596d89`, `0254e13a4`, `7e998d384`
 
-### 27. S2-A01B - Harden selection and annotation popups
+### S2-A01B - Harden selection and annotation popups
 
 - Phase: Step 2
 - Upstream decisions: 14 commits (0 gap, 14 partial)
@@ -974,7 +990,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `selection-popup smoke`; `git diff --check`
 - Commits: `41b5e9256`, `8e7b2192d`, `ad23fbba9`, `67c22c770`, `7da5f8321`, `44a6900da`, `56e4faa5d`, `eb95677dc`, `76b2d83b1`, `d8abda158`, `b1bafcaf4`, `ada70fc2f`, `69872d372`, `59cb6a776`
 
-### 28. S2-A01C - Harden note and highlight lifecycle
+### S2-A01C - Harden note and highlight lifecycle
 
 - Phase: Step 2
 - Upstream decisions: 27 commits (0 gap, 27 partial)
@@ -983,7 +999,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `note/highlight smoke`; `git diff --check`
 - Commits: `a2d17e6a7`, `ae2c42193`, `4abbc17f6`, `ec3261453`, `528a13e36`, `34f19fd14`, `fb37406b3`, `1a3d393e7`, `28a7785e5`, `ae81cd015`, `7bdd3ecde`, `578b7ba14`, `d165e8df2`, `12ac7ae6c`, `1ce79d9ab`, `0f0b4279a`, `ff96c6d3f`, `acd4a67dc`, `0589cb4f4`, `01a54238a`, `be5f07ef8`, `f77b56c85`, `dbcae8b22`, `e83fec7f2`, `7a7ab7642`, `12af2050d`, `6df90139d`
 
-### 29. S2-A02 - Add annotation exchange and deep links
+### S2-A02 - Add annotation exchange and deep links
 
 - Phase: Step 2
 - Upstream decisions: 11 commits (11 gap, 0 partial)
@@ -992,7 +1008,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `round-trip test`; `malformed-input test`
 - Commits: `486659a1c`, `c27245e98`, `411d3ad68`, `3620c6103`, `3c134380b`, `2f5e58365`, `dced42912`, `8c91ad411`, `9ec7b3df9`, `55691602b`, `a5da9291f`
 
-### 30. S2-A03 - Improve built-in dictionary lookup
+### S2-A03 - Improve built-in dictionary lookup
 
 - Phase: Step 2
 - Upstream decisions: 13 commits (0 gap, 13 partial)
@@ -1001,7 +1017,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `assistance tests`; `mocked lookup smoke`
 - Commits: `017a9338b`, `a272ba892`, `8dfc0e945`, `390c71107`, `aab721b21`, `140b71ee3`, `4527aa277`, `45466bc6b`, `dbd7d2ac3`, `086498326`, `420f65fc9`, `256685bc3`, `07306093e`
 
-### 31. S2-A04 - Add one local dictionary format
+### S2-A04 - Add one local dictionary format
 
 - Phase: Step 2
 - Upstream decisions: 8 commits (8 gap, 0 partial)
@@ -1010,7 +1026,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test dictionary`; `pnpm check`; `local lookup smoke`
 - Commits: `5a0a70a30`, `7bb113370`, `30dee7b90`, `93abca896`, `6605ae824`, `5a2be9abe`, `98c68d6b4`, `771b152e5`
 
-### 32. S2-A05 - Preserve structure and errors in translation
+### S2-A05 - Preserve structure and errors in translation
 
 - Phase: Step 2
 - Upstream decisions: 12 commits (0 gap, 12 partial)
@@ -1019,7 +1035,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `translation tests`; `mocked provider smoke`
 - Commits: `298d4872a`, `f4bb11126`, `eaf307e71`, `8c212e5b8`, `b99bea307`, `0fb889710`, `2b719600c`, `28687314b`, `552777e09`, `9fb8266bf`, `a4358d22e`, `e782af530`
 
-### 33. S2-A06 - Ship one real AI reading conversation
+### S2-A06 - Ship one real AI reading conversation
 
 - Phase: Step 2
 - Upstream decisions: 4 commits (4 gap, 0 partial)
@@ -1028,7 +1044,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `Rust boundary tests`; `mocked conversation smoke`
 - Commits: `6bc4a96b9`, `5c71ccb90`, `a86b09dba`, `e0ce6c8c2`
 
-### 34. S2-A07 - Add one AI transformation action
+### S2-A07 - Add one AI transformation action
 
 - Phase: Step 2
 - Upstream decisions: 13 commits (13 gap, 0 partial)
@@ -1037,7 +1053,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `prompt contract test`; `mocked notebook smoke`
 - Commits: `d66fedcab`, `490824504`, `8bcb9f9b2`, `a6d28ffcd`, `b1346bf16`, `5bc8eda50`, `6fd1fc42e`, `27d7a45d9`, `4c523f75e`, `5ecb835c3`, `1ee7ca22d`, `0306e3470`, `8d44c6b66`
 
-### 35. S2-L01 - Add bounded folder import
+### S2-L01 - Add bounded folder import
 
 - Phase: Step 2
 - Upstream decisions: 10 commits (10 gap, 0 partial)
@@ -1046,7 +1062,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test library import`; `pnpm check`; `folder-import smoke`
 - Commits: `5dc252845`, `d943a1c14`, `5ac8564e4`, `ff605e000`, `c8e2c9533`, `3c154a609`, `8a259d332`, `08f373152`, `4bcfcddf2`, `130813a07`
 
-### 36. S2-L02 - Keep large libraries responsive
+### S2-L02 - Keep large libraries responsive
 
 - Phase: Step 2
 - Upstream decisions: 2 commits (0 gap, 2 partial)
@@ -1055,7 +1071,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `large-library timing check`; `git diff --check`
 - Commits: `030a7c082`, `f86bbbcc2`
 
-### 37. S2-L03 - Expand series and file metadata
+### S2-L03 - Expand series and file metadata
 
 - Phase: Step 2
 - Upstream decisions: 9 commits (0 gap, 9 partial)
@@ -1064,7 +1080,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test library metadata`; `pnpm check`; `metadata smoke`
 - Commits: `74401fc1b`, `88d8aa285`, `5a8f0873f`, `675ee78bc`, `757ed8066`, `af587b1a4`, `be5862f08`, `4ba78490a`, `15b3d289e`
 
-### 38. S2-L04 - Add versioned local backup
+### S2-L04 - Add versioned local backup
 
 - Phase: Step 2
 - Upstream decisions: 2 commits (2 gap, 0 partial)
@@ -1073,7 +1089,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test backup`; `pnpm check`; `malformed archive rejection`
 - Commits: `52f963481`, `ded443512`
 
-### 39. S2-L05 - Harden library persistence and migration
+### S2-L05 - Harden library persistence and migration
 
 - Phase: Step 2
 - Upstream decisions: 9 commits (0 gap, 9 partial)
@@ -1082,7 +1098,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `cargo test library`; `recovery smoke`
 - Commits: `336a719e0`, `f9ddddb6a`, `1c392de0f`, `fa120081a`, `ab935f851`, `acf2b165f`, `920286484`, `4171f45bd`, `aa619f8f8`
 
-### 40. S2-L06 - Finish library sort and shelf projections
+### S2-L06 - Finish library sort and shelf projections
 
 - Phase: Step 2
 - Upstream decisions: 7 commits (0 gap, 7 partial)
@@ -1091,7 +1107,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `library projection tests`; `browser smoke`
 - Commits: `2a49e93cf`, `ce0ab5cc6`, `4d08b01b4`, `4d645befd`, `47f0a52b3`, `aa08ce95f`, `82658d8ed`
 
-### 41. S2-L07 - Polish library selection and menu behavior
+### S2-L07 - Polish library selection and menu behavior
 
 - Phase: Step 2
 - Upstream decisions: 21 commits (0 gap, 21 partial)
@@ -1100,7 +1116,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `library interaction smoke`; `visual desktop check`
 - Commits: `16adf1125`, `7bf4822b2`, `2d30868d2`, `315d144d8`, `a1cb228d0`, `4e01e13ee`, `bed31e818`, `963bab0f0`, `d5c02e625`, `799fc0e0a`, `7d1a60b9e`, `cc7a3938a`, `5f0105259`, `09548d998`, `a8aa982c8`, `47cd7b401`, `d843df6b6`, `ac757777d`, `bc4b253b6`, `ad9e5c1b8`, `d49fd8ba5`
 
-### 42. S2-L08 - Expand library search and book details
+### S2-L08 - Expand library search and book details
 
 - Phase: Step 2
 - Upstream decisions: 4 commits (0 gap, 4 partial)
@@ -1109,7 +1125,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `library search smoke`; `git diff --check`
 - Commits: `a6a3e1499`, `b92153f19`, `d7ad9fe56`, `4549a026d`
 
-### 43. S2-O01 - Add allowlisted live OPDS fetching
+### S2-O01 - Add allowlisted live OPDS fetching
 
 - Phase: Step 2
 - Upstream decisions: 6 commits (0 gap, 6 partial)
@@ -1118,7 +1134,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test catalogs`; `pnpm check`; `SSRF rejection tests`
 - Commits: `966f5e2ac`, `45bd35598`, `48d8a25d3`, `b18a2cee4`, `f45036556`, `8f9028579`
 
-### 44. S2-O02A - Harden OPDS feed parsing
+### S2-O02A - Harden OPDS feed parsing
 
 - Phase: Step 2
 - Upstream decisions: 25 commits (0 gap, 25 partial)
@@ -1127,7 +1143,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test catalogs`; `pnpm check`; `feed fixture matrix`
 - Commits: `f67930feb`, `6fbf9ef68`, `708e06a46`, `d2ff47029`, `4c539e6be`, `fe853554a`, `1eaf16ffc`, `8425d0b91`, `1e26c5d76`, `a30a310a1`, `b9a3ee725`, `e2f65278e`, `ac6249cbc`, `fb943987e`, `fcdc6567e`, `2c6729962`, `e1ed88bea`, `20a073391`, `11ae9e135`, `ffdcfca0a`, `dd6ad542d`, `63341d45f`, `df2989e43`, `4f1850563`, `076556bd3`
 
-### 45. S2-O02B - Harden catalog download filenames
+### S2-O02B - Harden catalog download filenames
 
 - Phase: Step 2
 - Upstream decisions: 3 commits (0 gap, 3 partial)
@@ -1136,7 +1152,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test catalogs`; `pnpm check`; `filename fixture matrix`
 - Commits: `41d014914`, `bd866cb04`, `f726ebf82`
 
-### 46. S2-O03 - Finish catalog editing and headers
+### S2-O03 - Finish catalog editing and headers
 
 - Phase: Step 2
 - Upstream decisions: 2 commits (2 gap, 0 partial)
@@ -1145,7 +1161,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test catalogs`; `pnpm check`; `catalog edit smoke`
 - Commits: `c6daf72da`, `ea30bbae7`
 
-### 47. S2-O04 - Add advanced OPDS navigation
+### S2-O04 - Add advanced OPDS navigation
 
 - Phase: Step 2
 - Upstream decisions: 7 commits (7 gap, 0 partial)
@@ -1154,7 +1170,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test catalogs`; `pnpm check`; `facet smoke`
 - Commits: `38d7ba80f`, `ca8f0fe9f`, `c5a1a3afe`, `d12e1ad08`, `e7f0b53bd`, `34922b172`, `f7f8a830d`
 
-### 48. S2-M01 - Add Markdown as a managed format
+### S2-M01 - Add Markdown as a managed format
 
 - Phase: Step 2
 - Upstream decisions: 8 commits (8 gap, 0 partial)
@@ -1163,7 +1179,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test markdown`; `pnpm check`; `Markdown smoke`
 - Commits: `24370ca51`, `3ac1a1a45`, `9c6081402`, `d40bf5ba7`, `46e75586f`, `05d289a4e`, `841b3639b`, `1fa25f7ae`
 
-### 49. S2-S01 - Audit HTML and TXT sanitization
+### S2-S01 - Audit HTML and TXT sanitization
 
 - Phase: Step 2
 - Upstream decisions: 6 commits (0 gap, 6 partial)
@@ -1172,7 +1188,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `sanitizer tests`; `malicious-book smoke`
 - Commits: `13ff96db8`, `6072b0dcb`, `dc788283a`, `e43e533ac`, `005aa2d61`, `2f9262e02`
 
-### 50. S2-S02 - Audit Tauri command scopes
+### S2-S02 - Audit Tauri command scopes
 
 - Phase: Step 2
 - Upstream decisions: 2 commits (0 gap, 2 partial)
@@ -1181,7 +1197,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test`; `cargo check`; `negative scope tests`
 - Commits: `4025c4d7b`, `446c2c72d`
 
-### 51. S2-S03 - Sanitize persisted window state
+### S2-S03 - Sanitize persisted window state
 
 - Phase: Step 2
 - Upstream decisions: 1 commits (1 gap, 0 partial)
@@ -1190,7 +1206,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `cargo test window state`; `cargo check`; `relaunch smoke`
 - Commits: `bc9fe67ab`
 
-### 52. S2-S04 - Document the br1 trust model
+### S2-S04 - Document the br1 trust model
 
 - Phase: Step 2
 - Upstream decisions: 1 commits (1 gap, 0 partial)
@@ -1199,7 +1215,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `manual threat-model review`; `git diff --check`
 - Commits: `82deb85c6`
 
-### 53. S2-U01A - Consolidate theme and background settings
+### S2-U01A - Consolidate theme and background settings
 
 - Phase: Step 2
 - Upstream decisions: 23 commits (0 gap, 23 partial)
@@ -1208,7 +1224,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verify: `pnpm check`; `theme persistence smoke`; `visual desktop check`
 - Commits: `52df478f2`, `8e6451863`, `96678d85e`, `3f531d904`, `176e5df77`, `cead0f42e`, `176b950c9`, `fe7fe2548`, `9d8062ae2`, `ee01fcd12`, `852d0ae3e`, `0ab8f6042`, `f7124cbee`, `a0227f98e`, `2b524439b`, `6391bfe78`, `9fb50880e`, `7f01d2b4f`, `bd63d72e0`, `7b12f1906`, `5e2836b08`, `01e2b6ba9`, `5755f25d7`
 
-### 54. S2-U01B - Consolidate typography and spacing settings
+### S2-U01B - Consolidate typography and spacing settings
 
 - Phase: Step 2
 - Upstream decisions: 19 commits (0 gap, 19 partial)

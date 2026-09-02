@@ -11,16 +11,21 @@ const readerLayoutLabel = (layout: 'PAGINATED' | 'SCROLL' | 'FIXED') =>
     FIXED: '固定版式'
   })[layout];
 
-const openLookupHistoryLane = async (notebook: Locator, expectedHistoryText?: string) => {
-  const overview = notebook.getByLabel('本书 AI 记录摘要');
+const openHistoryLane = async (
+  notebook: Locator,
+  mode: 'lookup' | 'translation',
+  expectedHistoryText?: string
+) => {
+  const overview = notebook.getByLabel('AI 记录摘要');
   await expect(overview).toBeVisible();
-  const lookupEntry = overview
-    .getByLabel('本书 AI 记录入口')
-    .getByRole('button', { name: /^查找记录/ });
-  await expect(lookupEntry).toBeVisible();
+  const historyEntry = overview
+    .getByLabel('AI 记录入口')
+    .getByRole('button', { name: mode === 'lookup' ? /^查找记录/ : /^翻译记录/ });
+  await expect(historyEntry).toBeVisible();
 
-  const historyLane = notebook.getByLabel('最近求助');
+  const historyLane = notebook.getByLabel(mode === 'lookup' ? '查找记录浏览' : '翻译记录浏览');
   const historyHeading = historyLane.locator('.assist-history-head > strong');
+  const expectedHeading = mode === 'lookup' ? '查找记录' : '翻译记录';
   await expect
     .poll(
       async () => {
@@ -32,9 +37,9 @@ const openLookupHistoryLane = async (notebook: Locator, expectedHistoryText?: st
               .isVisible({ timeout: 100 })
               .catch(() => false)
           : true;
-        if (headingText === '本书查找记录' && expectedRecordVisible) return 'open';
-        if (await lookupEntry.isVisible({ timeout: 100 }).catch(() => false)) {
-          await lookupEntry.click({ timeout: 1000 }).catch(() => undefined);
+        if (headingText === expectedHeading && expectedRecordVisible) return 'open';
+        if (await historyEntry.isVisible({ timeout: 100 }).catch(() => false)) {
+          await historyEntry.click({ timeout: 1000 }).catch(() => undefined);
         }
         return 'pending';
       },
@@ -43,6 +48,12 @@ const openLookupHistoryLane = async (notebook: Locator, expectedHistoryText?: st
     .toBe('open');
   return historyLane;
 };
+
+const openLookupHistoryLane = (notebook: Locator, expectedHistoryText?: string) =>
+  openHistoryLane(notebook, 'lookup', expectedHistoryText);
+
+const openTranslationHistoryLane = (notebook: Locator, expectedHistoryText?: string) =>
+  openHistoryLane(notebook, 'translation', expectedHistoryText);
 
 const selectLastLookupHistoryRecord = async (historyLane: Locator) => {
   const historyRecordButton = historyLane.getByRole('button', { name: '查看记录' }).last();
@@ -338,17 +349,17 @@ test('reader can open a notebook workspace without collapsing navigation', async
 
   await notebookModeToggle.click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台', exact: true });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace', exact: true });
   await expect(notebook).toBeVisible();
-  await expect(page.getByRole('button', { name: '关闭笔记工作台' })).toBeVisible();
-  await expect(page.getByRole('tablist', { name: '笔记工作台标签' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '固定笔记工作台' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '关闭 Reader Workspace' })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: 'Reader Workspace 标签' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '固定 Reader Workspace' })).toBeVisible();
   await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
 
-  await page.getByRole('button', { name: '固定笔记工作台' }).click();
-  await expect(page.getByRole('button', { name: '取消固定笔记工作台' })).toBeVisible();
+  await page.getByRole('button', { name: '固定 Reader Workspace' }).click();
+  await expect(page.getByRole('button', { name: '取消固定 Reader Workspace' })).toBeVisible();
 
-  await page.getByRole('button', { name: '关闭笔记工作台' }).click();
+  await page.getByRole('button', { name: '关闭 Reader Workspace' }).click();
   await expect(notebookModeToggle).toBeVisible();
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
@@ -437,27 +448,27 @@ test('reader can open the ai workspace inside the notebook shell', async ({ page
 
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台', exact: true });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace', exact: true });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: 'AI 助手', selected: true })).toBeVisible();
   await expect(page.getByText('AI 阅读助手')).toBeVisible();
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('当前书查找 0 条');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('当前书翻译 0 条');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('助手待命');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('当前范围查找 0 条');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('当前范围翻译 0 条');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('助手待命');
   await expect(
     page.getByText('把查词、百科和翻译结果放到 notebook 里的独立工作台，而不是只做一个 sidebar 结果区。')
   ).toBeVisible();
-  await expect(page.getByLabel('AI 工作台范围摘要')).toContainText('当前书范围：查找 0 条 · 翻译 0 条');
+  await expect(page.getByLabel('AI 工作台范围摘要')).toContainText('当前工作台范围：查找 0 条 · 翻译 0 条');
   await expect(page.getByLabel('AI 工作台范围摘要')).toContainText(
-    '这里保留当前书的查找和翻译记录，并在摘要和分区之间切换浏览。'
+    '这里显示当前传入的查找和翻译记录，并在摘要和分区之间切换浏览。'
   );
-  await expect(page.getByLabel('本书 AI 记录摘要')).toBeVisible();
-  await expect(page.getByLabel('本书 AI 记录摘要')).toContainText('查找 0 条 · 翻译 0 条');
-  await expect(page.getByLabel('本书 AI 记录入口')).toBeVisible();
+  await expect(page.getByLabel('AI 记录摘要')).toBeVisible();
+  await expect(page.getByLabel('AI 记录摘要')).toContainText('查找 0 条 · 翻译 0 条');
+  await expect(page.getByLabel('AI 记录入口')).toBeVisible();
   await expect(page.getByLabel('AI 工作台浏览提示')).toContainText(
-    '当前停留在本书 AI 记录摘要。选择 `查找记录` 或 `翻译记录` 后，才会展开对应 notebook lane 的导航、当前记录和历史记录列表。'
+    '当前停留在 AI 记录摘要。选择 `查找记录` 或 `翻译记录` 后，才会展开对应记录分区的导航、当前记录和历史记录列表。'
   );
-  await expect(page.getByLabel('最近求助')).toHaveCount(0);
+  await expect(page.getByLabel('查找记录浏览')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '并行阅读' })).toBeVisible();
   await expect(page.getByRole('tablist', { name: '阅读侧栏标签' })).toBeVisible();
 });
@@ -519,10 +530,10 @@ test('reader sidebar assist workspace stays legible in web mode', async ({ page 
   await expect(assistPanel).toBeVisible();
   await expect(assistPanel.getByText('AI 阅读助手')).toBeVisible();
   await expect(assistPanel.getByLabel('AI 工作台范围摘要')).toContainText(
-    '当前书范围：查找 1 条 · 翻译 0 条'
+    '当前工作台范围：查找 1 条 · 翻译 0 条'
   );
-  await expect(assistPanel.getByLabel('本书 AI 记录摘要')).toBeVisible();
-  await expect(assistPanel.getByLabel('本书 AI 记录入口')).toBeVisible();
+  await expect(assistPanel.getByLabel('AI 记录摘要')).toBeVisible();
+  await expect(assistPanel.getByLabel('AI 记录入口')).toBeVisible();
   const historyLane = await openLookupHistoryLane(assistPanel, 'bridge reader');
   await expect(historyLane.getByText('第一章 · 维基百科', { exact: true })).toBeVisible();
   const activeRecord = await selectLastLookupHistoryRecord(historyLane);
@@ -579,7 +590,7 @@ test('reader restores ai workspace history for the current book in web mode', as
   await expect(page.getByRole('button', { name: 'AI 工作台' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   await expect(historyLane.getByText('bridge reader', { exact: true })).toBeVisible();
@@ -646,9 +657,9 @@ test('reader restores the selected ai history record for the current book in web
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
-  const historyLane = notebook.getByLabel('最近求助');
+  const historyLane = notebook.getByLabel('查找记录浏览');
   await expect(historyLane.locator('.assist-history-status-badge')).toHaveText('当前正在查看');
   await expect(notebook.getByLabel('当前正在查看的 AI 记录')).toContainText('bridge reader');
   const resultPanel = notebook.locator('.assist-result');
@@ -715,9 +726,9 @@ test('reader restores the selected translation ai history record for the current
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
-  const historyLane = notebook.getByLabel('最近翻译');
+  const historyLane = notebook.getByLabel('翻译记录浏览');
   await expect(historyLane.locator('.assist-history-status-badge')).toHaveText('当前正在查看');
   await expect(notebook.getByLabel('当前正在查看的 AI 记录')).toContainText(
     'Bridge reading keeps the text in focus.'
@@ -804,14 +815,12 @@ test('reader groups current-book ai history into lookup and translation sections
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
-  const overview = notebook.getByLabel('本书 AI 记录摘要');
-  await expect(overview.getByRole('button', { name: /查找记录/ })).toContainText('当前书 1 条');
-  await expect(overview.getByRole('button', { name: /翻译记录/ })).toContainText('当前书 1 条');
-  await overview.getByRole('button', { name: /翻译记录/ }).click();
-  const historyLane = notebook.getByLabel('最近翻译');
-  await expect(historyLane.getByText('Bridge reading keeps the text in focus.')).toBeVisible();
+  const overview = notebook.getByLabel('AI 记录摘要');
+  await expect(overview.getByRole('button', { name: /查找记录/ })).toContainText('当前范围 1 条');
+  await expect(overview.getByRole('button', { name: /翻译记录/ })).toContainText('当前范围 1 条');
+  await openTranslationHistoryLane(notebook, 'Bridge reading keeps the text in focus.');
 });
 
 test('reader keeps the active ai archive summary visible when the history list is collapsed', async ({
@@ -862,14 +871,16 @@ test('reader keeps the active ai archive summary visible when the history list i
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   const activeRecord = await selectLastLookupHistoryRecord(historyLane);
   await expect(activeRecord).toContainText('bridge reader');
   await historyLane.getByRole('button', { name: '收起记录列表' }).click();
   await expect(activeRecord).toContainText('bridge reader');
-  await expect(historyLane.getByText('查找记录列表已收起；当前书的最近求助仍然保留在这个 section 里。')).toBeVisible();
+  await expect(
+    historyLane.getByText('查找记录列表已收起；重新展开后，可以继续浏览当前范围内的查找记录。')
+  ).toBeVisible();
   await expect(historyLane.getByRole('button', { name: '展开记录列表' })).toBeVisible();
 });
 
@@ -940,18 +951,18 @@ test('reader shows notebook-style action hierarchy inside ai archive lanes', asy
   await expect(page.getByRole('button', { name: 'AI 工作台' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   await expect(historyLane.getByLabel('记录分区维护操作')).toBeVisible();
   await selectLastLookupHistoryRecord(historyLane);
-  const activeSection = historyLane.getByLabel('当前记录 section');
+  const activeSection = historyLane.getByLabel('当前记录');
   await expect(activeSection.locator('.assist-history-section-head > strong')).toHaveText('当前记录');
   await expect(activeSection.getByLabel('当前正在查看的 AI 记录')).toBeVisible();
-  const archiveSection = historyLane.getByLabel('历史记录列表 section');
+  const archiveSection = historyLane.getByLabel('历史记录列表');
   await expect(archiveSection.locator('.assist-history-section-head > strong')).toHaveText('历史记录列表');
   await expect(archiveSection.locator('.assist-history-section-head > span')).toHaveText(
-    '当前书 2 条查找历史'
+    '当前范围 2 条查找历史'
   );
   await expect(historyLane.locator('.assist-history-status-badge')).toHaveText('当前正在查看');
   await expect(historyLane.getByRole('button', { name: '再次发起' }).first()).toBeVisible();
@@ -1026,7 +1037,7 @@ test('reader can switch a focused ai lane between current-record and full-histor
   await expect(page.getByRole('button', { name: 'AI 工作台' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   await selectLastLookupHistoryRecord(historyLane);
@@ -1035,9 +1046,9 @@ test('reader can switch a focused ai lane between current-record and full-histor
     'aria-pressed',
     'true'
   );
-  const archiveSection = historyLane.getByLabel('历史记录列表 section');
+  const archiveSection = historyLane.getByLabel('历史记录列表');
   await expect(archiveSection).toContainText(
-    '当前处于只看当前记录模式；切回完整历史后，可以继续浏览这本书的查找记录。'
+    '当前处于只看当前记录模式；切回完整历史后，可以继续浏览当前范围的查找记录。'
   );
   await expect(archiveSection.getByRole('button', { name: '查看记录' })).toHaveCount(0);
 
@@ -1098,24 +1109,24 @@ test('reader shows breadcrumb and grouped browse controls inside focused ai lane
   await expect(page.getByRole('button', { name: 'AI 工作台' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
-  const navSection = historyLane.getByLabel('AI 浏览导航 section');
+  const navSection = historyLane.getByLabel('AI 浏览导航');
   await expect(navSection).toContainText('浏览导航');
-  await expect(navSection).toContainText('当前位置 本书查找记录');
-  await expect(historyLane.getByLabel('当前 AI 导航路径')).toHaveText('本书 AI 记录摘要 / 本书查找记录');
+  await expect(navSection).toContainText('当前位置 查找记录');
+  await expect(historyLane.getByLabel('当前 AI 导航路径')).toHaveText('AI 记录摘要 / 查找记录');
   const navSummary = historyLane.getByLabel('当前 AI 浏览摘要');
-  await expect(navSummary).toContainText('当前位置：本书查找记录');
+  await expect(navSummary).toContainText('当前位置：查找记录');
   await expect(navSummary).toContainText('当前范围：完整历史');
   await expect(navSummary).not.toContainText('当前条目：');
   await historyLane.getByRole('button', { name: '查看记录' }).click();
   await historyLane.getByRole('button', { name: '只看当前记录' }).click();
   await expect(historyLane.getByLabel('当前 AI 导航路径')).toHaveText(
-    '本书 AI 记录摘要 / 本书查找记录 / 当前记录'
+    'AI 记录摘要 / 查找记录 / 当前记录'
   );
-  await expect(navSection).toContainText('当前位置 本书查找记录 · 当前范围 当前记录');
-  await expect(navSummary).toContainText('当前位置：本书查找记录');
+  await expect(navSection).toContainText('当前位置 查找记录 · 当前范围 当前记录');
+  await expect(navSummary).toContainText('当前位置：查找记录');
   await expect(navSummary).toContainText('当前范围：当前记录');
   await expect(navSummary).toContainText('当前条目：bridge reader');
   await expect(historyLane.getByLabel('浏览位置')).toBeVisible();
@@ -1190,23 +1201,25 @@ test('reader can move from the ai archive overview into one lane and back again'
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
-  const overview = notebook.getByLabel('本书 AI 记录摘要');
+  const overview = notebook.getByLabel('AI 记录摘要');
   await expect(overview).toBeVisible();
-  await expect(overview).toContainText('本书 AI 记录摘要');
+  await expect(overview).toContainText('AI 记录摘要');
   await expect(overview).toContainText('查找 1 条 · 翻译 1 条');
-  await expect(overview.getByLabel('本书 AI 记录入口')).toBeVisible();
-  await overview.getByRole('button', { name: /翻译记录/ }).click();
+  await expect(overview.getByLabel('AI 记录入口')).toBeVisible();
+  const historyLane = await openTranslationHistoryLane(
+    notebook,
+    'Bridge reading keeps the text in focus.'
+  );
   await expect(overview).toBeHidden();
-  const historyLane = notebook.getByLabel('最近翻译');
-  await expect(historyLane.locator('.assist-history-head > strong')).toHaveText('本书翻译记录');
-  await expect(historyLane.getByText('当前书 1 条翻译记录')).toBeVisible();
-  await expect(historyLane.getByRole('button', { name: '返回本书 AI 记录摘要' })).toBeVisible();
-  await historyLane.getByRole('button', { name: '返回本书 AI 记录摘要' }).click();
+  await expect(historyLane.locator('.assist-history-head > strong')).toHaveText('翻译记录');
+  await expect(historyLane.getByText('当前范围 1 条翻译记录')).toBeVisible();
+  await expect(historyLane.getByRole('button', { name: '返回 AI 记录摘要' })).toBeVisible();
+  await historyLane.getByRole('button', { name: '返回 AI 记录摘要' }).click();
   await expect(overview).toBeVisible();
   await expect(notebook.getByLabel('AI 工作台浏览提示')).toBeVisible();
-  await expect(notebook.getByLabel('最近翻译')).toHaveCount(0);
+  await expect(notebook.getByLabel('翻译记录浏览')).toHaveCount(0);
 });
 
 test('reader can clear current-book ai history in web mode', async ({ page }) => {
@@ -1255,12 +1268,12 @@ test('reader can clear current-book ai history in web mode', async ({ page }) =>
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'AI 工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   const historyLane = await openLookupHistoryLane(notebook, 'bridge reader');
   await expect(historyLane.getByText('bridge reader', { exact: true })).toBeVisible();
-  await historyLane.getByRole('button', { name: '清除本书求助记录' }).click();
-  await expect(historyLane.getByText('还没有这本书的查找记录。发起一次查词或百科后，这里会保留最近请求。')).toBeVisible();
+  await historyLane.getByRole('button', { name: '清除当前范围查找记录' }).click();
+  await expect(historyLane.getByText('当前范围还没有查找记录。发起一次查词或百科后，这里会显示对应记录。')).toBeVisible();
   await expect
     .poll(() => page.evaluate((key) => window.localStorage.getItem(key), historyStorageKey), {
       timeout: 15000
@@ -1282,27 +1295,27 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
 
   await page.getByRole('button', { name: '打开翻译模式' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
   await expect(notebook.locator('.assist-summary strong', { hasText: '翻译模式' })).toBeVisible();
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('当前书翻译 0 条');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('翻译模式待命');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('原文 / 译文并排阅读');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('当前范围翻译 0 条');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('翻译模式可用');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('跟随');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('原文 / 译文并排阅读');
   await expect(
     page.getByText('把原文和译文并排收进 reader 工作台，让翻译成为一种阅读模式，而不是助手里的临时请求。')
   ).toBeVisible();
-  await expect(page.getByLabel('翻译模式范围摘要')).toContainText('当前书范围：翻译 0 条');
+  await expect(page.getByLabel('翻译模式范围摘要')).toContainText('当前工作台范围：翻译 0 条');
   await expect(page.getByLabel('翻译模式范围摘要')).toContainText(
-    '这里只保留当前书的翻译记录，以及原文 / 译文并排的阅读结果。'
+    '这里显示当前传入的翻译记录，以及原文 / 译文并排的阅读结果。'
   );
-  const translationHistoryLane = notebook.getByLabel('最近翻译');
+  const translationHistoryLane = notebook.getByLabel('翻译记录浏览');
   await expect(translationHistoryLane.getByLabel('当前 AI 导航路径')).toHaveText(
-    '翻译模式 / 本书翻译记录'
+    '翻译模式 / 翻译记录'
   );
   await expect(
-    translationHistoryLane.getByRole('button', { name: '返回本书 AI 记录摘要' })
+    translationHistoryLane.getByRole('button', { name: '返回 AI 记录摘要' })
   ).toHaveCount(0);
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
   await expect(page.getByRole('button', { name: '锁定当前翻译目标' })).toBeVisible();
@@ -1320,11 +1333,11 @@ test('reader can open translation mode as a dedicated notebook tab', async ({ pa
   await page.getByRole('button', { name: '锁定当前翻译目标' }).click();
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
   await expect(sourceCard.locator('.assist-card-header span')).toContainText('已锁定');
-  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '回到当前来源' })).toBeVisible();
   await expect(translationInput).not.toHaveAttribute('readonly', '');
   await translationInput.fill('Translate this paragraph while keeping the current reading mode.');
-  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
-  await page.getByRole('button', { name: '回到当前阅读位置' }).click();
+  await expect(page.getByRole('button', { name: '回到当前来源' })).toBeVisible();
+  await page.getByRole('button', { name: '回到当前来源' }).click();
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
   await expect(translationInput).toHaveAttribute('readonly', '');
 });
@@ -1356,18 +1369,29 @@ test('reader can jump from translation mode into translated tts in web mode', as
   await expect(page.getByRole('button', { name: '打开翻译模式' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: '打开翻译模式' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
   await expect(page).toHaveURL(/\/reader\?.*workspace=translation(?:&|$)/);
   await expect(page.getByLabel('翻译模式朗读去向')).toContainText('可直接切到朗读译文');
   await expect(
     page.getByLabel('翻译模式朗读去向').getByRole('button', { name: '在朗读模式中查看' })
   ).toBeVisible();
-  await page
+  const openTranslatedTtsButton = page
     .getByLabel('翻译模式朗读去向')
-    .getByRole('button', { name: '在朗读模式中查看' })
-    .click({ force: true });
-  await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
+    .getByRole('button', { name: '在朗读模式中查看' });
+  const translatedTtsTab = page.getByRole('tab', { name: '朗读模式', selected: true });
+  await expect
+    .poll(
+      async () => {
+        if (await translatedTtsTab.isVisible({ timeout: 100 }).catch(() => false)) return 'open';
+        if (await openTranslatedTtsButton.isVisible({ timeout: 100 }).catch(() => false)) {
+          await openTranslatedTtsButton.click({ timeout: 1000 }).catch(() => undefined);
+        }
+        return 'pending';
+      },
+      { timeout: 15000 }
+    )
+    .toBe('open');
   await expect(page).toHaveURL(/\/reader\?.*workspace=tts(?:&|$)/);
   await expect(page).toHaveURL(/\/reader\?.*tts=translated(?:&|$)/);
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
@@ -1390,7 +1414,7 @@ test('reader restores dedicated translation and tts modes from route state in we
 
   await page.goto(readerHref);
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
@@ -1445,7 +1469,7 @@ test('reader restores dedicated tts read-aloud mode from route state in web mode
 
   await page.goto(readerHref);
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(page.getByLabel('阅读页脚控制')).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
     timeout: 15000
@@ -1489,7 +1513,7 @@ test('reader restores dedicated translation target language from route state in 
 
   await page.goto(readerHref);
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
     timeout: 15000
   });
@@ -1538,7 +1562,7 @@ test('reader restores dedicated translation provider from route state in web mod
 
   await page.goto(readerHref);
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible({
     timeout: 15000
   });
@@ -1593,7 +1617,7 @@ test('reader restores dedicated translation ownership for the same book across r
   await page.getByRole('button', { name: '锁定当前翻译目标' }).click();
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   const translationPanels = page.getByLabel('翻译阅读面板');
   const sourceCard = translationPanels.locator('.assist-translation-card').first();
   const translationInput = notebook.getByRole('textbox', { name: '翻译文本' });
@@ -1610,12 +1634,12 @@ test('reader restores dedicated translation ownership for the same book across r
     timeout: 15000
   });
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('已锁定');
-  await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '回到当前来源' })).toBeVisible();
   await expect(sourceCard.locator('.assist-card-header span')).toContainText('已锁定');
   await expect(translationInput).toHaveValue(lockedSourceText);
   await expect(translationInput).not.toHaveAttribute('readonly', '');
 
-  await page.getByRole('button', { name: '回到当前阅读位置' }).click();
+  await page.getByRole('button', { name: '回到当前来源' }).click();
   await expect(page.getByLabel('翻译模式阅读来源状态')).toContainText('正在跟随');
   await expect(translationInput).toHaveAttribute('readonly', '');
   await expect(translationInput).toHaveValue('第 1 / 3 节');
@@ -1950,7 +1974,7 @@ test('reader restores dedicated tts ownership for the same book across reload', 
     timeout: 15000
   });
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
   const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
 
@@ -2132,8 +2156,8 @@ test('reader restores dedicated translation archive selection from route state i
   await expect(page).toHaveURL(/\/reader\?.*workspace=translation(?:&|$)/);
   await expect(page).toHaveURL(/\/reader\?.*ta=assist-translation-route-2(?:&|$)/);
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
-  const translationHistoryLane = notebook.getByLabel('最近翻译');
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
+  const translationHistoryLane = notebook.getByLabel('翻译记录浏览');
   await expect(translationHistoryLane.locator('.assist-history-status-badge')).toHaveText(
     '当前正在查看'
   );
@@ -2189,7 +2213,7 @@ test('reader can switch translated playback back to source from translation mode
   await expect(page.getByRole('button', { name: '打开翻译模式' })).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: '打开翻译模式' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   const translationPlaybackStrip = page.getByLabel('翻译模式朗读去向');
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
   await expect(translationPlaybackStrip).toContainText('可直接切到朗读译文');
@@ -2241,20 +2265,20 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
 
   await page.getByLabel('打开朗读模式').click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
   await expect(notebook.getByText('把朗读从 header 的瞬时按钮收成显式阅读模式，让目标、跟随状态和会话控制都可见。')).toBeVisible();
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读状态：');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随：');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读原文');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读目标：');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('朗读状态：');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('跟随：');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('朗读原文');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('朗读目标：');
   await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
   await expect(page.getByLabel('朗读模式状态')).toContainText('原文朗读');
   await expect(page.getByRole('button', { name: '朗读原文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: '朗读译文' }).click();
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读译文');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('朗读译文');
   await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(notebook.getByRole('region', { name: '朗读模式' })).toContainText('正在跟随当前章节');
@@ -2269,14 +2293,14 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
   await expect(notebook.locator('.tts-panel strong', { hasText: '会话状态' })).toBeVisible();
   if (await lockTtsTargetButton.isEnabled()) {
     await lockTtsTargetButton.click();
-    await expect(page.getByLabel('笔记工作台摘要')).toContainText('已固定：');
+    await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('已固定：');
     await expect(page.getByLabel('朗读模式状态')).toContainText('已锁定朗读目标');
     await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toBeVisible();
     await page.getByRole('button', { name: '回到当前阅读位置' }).click();
-    await expect(page.getByLabel('笔记工作台摘要')).toContainText('跟随：');
+    await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('跟随：');
     await expect(page.getByLabel('朗读模式状态')).toContainText('跟随当前阅读位置');
   } else {
-    await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读目标：等待译文结果');
+    await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('朗读目标：等待译文结果');
     await expect(lockTtsTargetButton).toBeDisabled();
     await page.getByLabel('收起笔记工作台').click();
     await expect(page.getByRole('complementary', { name: '笔记工作台已收起', exact: true })).toBeVisible();
@@ -2295,7 +2319,7 @@ test('reader can open tts mode as a dedicated notebook tab', async ({ page }) =>
     await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible();
   }
   await page.getByRole('button', { name: '朗读原文' }).click();
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读原文');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('朗读原文');
   await expect(page.getByLabel('朗读模式状态')).toContainText('原文朗读');
   await notebook.getByRole('tab', { name: '笔记' }).click();
   await expect(notebook.getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
@@ -2322,7 +2346,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   await page.getByRole('button', { name: '打开朗读模式' }).click();
   await page.getByRole('button', { name: '朗读原文' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
   const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
   const lockTtsTargetButton = page.getByRole('button', { name: '锁定当前朗读目标' });
@@ -2335,7 +2359,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
   );
   await expect(currentTargetPanel).toContainText('当前阅读位置');
   await expect(ttsRegion.getByRole('article', { name: '朗读位置' })).toContainText('第 1 /');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('正文摘录');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('正文摘录');
   await expect(miniBar).toContainText('正文摘录');
 
   await page.locator('.plain-text-surface').evaluate((element) => {
@@ -2372,7 +2396,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
     const miniBarBackToTtsLocationButton = miniBar.getByRole('button', { name: '回到朗读位置' });
     await expect(backToTtsLocationButton).toBeVisible();
     await expect(miniBarBackToTtsLocationButton).toBeVisible();
-    await expect(page.getByLabel('笔记工作台摘要')).toContainText('可回到朗读位置');
+    await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('可回到朗读位置');
     await expect(ttsRegion.getByRole('article', { name: '朗读位置' })).toContainText('已固定到较早的朗读位置');
     await expect(ttsRegion.locator('.tts-panel').last()).toContainText('当前阅读已经离开朗读位置');
     await page.getByLabel('收起笔记工作台').click();
@@ -2388,7 +2412,7 @@ test('reader uses visible plain-text excerpts as the source tts target in web mo
     await expect(page.getByRole('button', { name: '回到当前阅读位置' })).toHaveCount(0);
     await expect(backToTtsLocationButton).toHaveCount(0);
     await expect(miniBarBackToTtsLocationButton).toHaveCount(0);
-    await expect(page.getByLabel('笔记工作台摘要')).not.toContainText('可回到朗读位置');
+    await expect(page.getByLabel('Reader Workspace 摘要')).not.toContainText('可回到朗读位置');
     await expect(ttsRegion.locator('.tts-panel').last()).not.toContainText('当前阅读已经离开朗读位置');
   }
 });
@@ -2422,7 +2446,7 @@ test('reader uses current chapter body excerpts as the EPUB source tts target in
   await page.getByRole('button', { name: '打开朗读模式' }).click();
   await page.getByRole('button', { name: '朗读原文' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   const ttsRegion = notebook.getByRole('region', { name: '朗读模式' });
   const currentTargetPanel = ttsRegion.locator('.tts-panel').first();
   const miniBar = page.getByRole('region', { name: '阅读中的朗读控制条' });
@@ -2434,7 +2458,7 @@ test('reader uses current chapter body excerpts as the EPUB source tts target in
     'This prototype demonstrates a simple EPUB reading assistant.'
   );
   await expect(currentTargetPanel).toContainText('当前章节正文');
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('正文摘录');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('正文摘录');
   await expect(miniBar).toContainText('正文摘录');
   await expect(miniBar).toContainText('当前章节正文');
 });
@@ -2506,14 +2530,14 @@ test('reader lets translated tts mode consume the selected translation archive i
 
   await page.goto(readerHref);
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   if (!(await notebook.isVisible().catch(() => false))) {
     await expect(page.getByRole('button', { name: '打开朗读模式' })).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: '打开朗读模式' }).click();
   }
   await expect(notebook).toBeVisible();
   await page.getByRole('button', { name: '朗读译文' }).click();
-  await expect(page.getByLabel('笔记工作台摘要')).toContainText('朗读译文');
+  await expect(page.getByLabel('Reader Workspace 摘要')).toContainText('朗读译文');
   await expect(page.getByLabel('朗读模式状态')).toContainText('译文朗读');
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('历史译文 · DeepL');
   await expect(notebook.getByText('当前还没有可朗读的译文结果。')).toHaveCount(0);
@@ -2531,7 +2555,7 @@ test('reader lets translated tts mode consume the selected translation archive i
   await expect(miniBar).toContainText('译文朗读');
   await miniBar.getByRole('button', { name: '在翻译模式中查看' }).click();
   await expect(page.getByRole('tab', { name: '翻译模式', selected: true })).toBeVisible();
-  await expect(notebook.getByLabel('最近翻译').locator('.assist-history-status-badge')).toHaveText(
+  await expect(notebook.getByLabel('翻译记录浏览').locator('.assist-history-status-badge')).toHaveText(
     '当前正在查看'
   );
   await expect(page.getByLabel('翻译模式朗读去向')).toContainText('当前朗读会复用这条历史译文来源');
@@ -2657,7 +2681,7 @@ test('reader preserves live translated tts ownership over archive selection acro
   await expect(page.getByRole('tab', { name: '朗读模式', selected: true })).toBeVisible({
     timeout: 15000
   });
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('button', { name: '朗读译文' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('region', { name: '阅读中的朗读控制条' })).toContainText('译文朗读');
@@ -2724,7 +2748,7 @@ test('reader can open sync workspace inside the notebook shell', async ({ page }
 
   await page.getByRole('button', { name: '打开同步工作台' }).click();
 
-  const notebook = page.getByRole('complementary', { name: '笔记工作台' });
+  const notebook = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(notebook).toBeVisible();
   await expect(page.getByRole('tab', { name: '同步工作台', selected: true })).toBeVisible();
   await expect(
@@ -2802,6 +2826,9 @@ test('reader focused-reading overlay supports keyboard transport in web mode', a
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('RSVP-lite');
   await expect(overlay.getByLabel('RSVP-lite 当前词')).toBeVisible();
+  const resumeButton = overlay.getByRole('button', { name: '继续自动播放' });
+  await expect(resumeButton).toBeVisible();
+  await resumeButton.click();
   await expect(overlay.getByRole('button', { name: '暂停自动播放' })).toBeVisible();
   await expect(overlay.getByText('Space 暂停 / 继续')).toBeVisible();
   await expect(overlay.getByText('← → 上一个 / 下一个')).toBeVisible();
@@ -2902,6 +2929,9 @@ test('reader can switch focused-reading modes on the same excerpt in web mode', 
   await expect(overlay).toContainText('RSVP-lite');
   await expect(overlay).toContainText('This plain text file exists to verify');
 
+  const resumeButton = overlay.getByRole('button', { name: '继续自动播放' });
+  await expect(resumeButton).toBeVisible();
+  await resumeButton.click();
   const pauseButton = overlay.getByRole('button', { name: '暂停自动播放' });
   await expect(pauseButton).toBeVisible();
   await pauseButton.click();
