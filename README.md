@@ -10,16 +10,21 @@ Bridge Reader is built for knowledge transfer, abstraction, divergence, and prac
 
 ### Library
 
-![Bridge Reader library screen](docs/images/br1-app-screenshot.png)
+<p align="center">
+  <img src="docs/images/br1-app-screenshot.png" alt="Bridge Reader library screen" width="100%">
+</p>
 
-### Reading With Workspace
+### Parallel Reading
 
-![Bridge Reader reading workspace](docs/images/br1-ai-reading-screenshot.png)
+<p align="center">
+  <img src="docs/images/br1-parallel-reading-screenshot.png" alt="Bridge Reader parallel reading view" width="100%">
+</p>
 
 ## What It Helps You Do
 
 - Read EPUB, PDF, and TXT books in one focused local library.
 - Keep reading progress, notes, and highlights close to the text.
+- Compare two passages or reading contexts side by side with parallel reading.
 - Use AI-oriented reading workflows to question, decompose, debate, and transfer ideas.
 - Move from understanding a book to applying its structure in another field.
 
@@ -31,6 +36,7 @@ Bridge Reader is built for knowledge transfer, abstraction, divergence, and prac
 | Formats | Read EPUB, PDF, and TXT files. |
 | Reading progress | Continue from saved reading positions. |
 | Notes and highlights | Capture important passages and reading context. |
+| Parallel reading | Place two reading panes side by side for comparison and cross-context study. |
 
 ## Run locally
 
