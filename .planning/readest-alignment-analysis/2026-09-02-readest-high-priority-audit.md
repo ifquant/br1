@@ -18,9 +18,9 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | Status | Commits |
 | --- | ---: |
 | `covered` | 12 |
-| `partial` | 465 |
+| `partial` | 463 |
 | `gap` | 75 |
-| `not-applicable` | 126 |
+| `not-applicable` | 128 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
@@ -29,7 +29,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 38 | 9 | 16 |
-| security | 4 | 3 | 2 | 18 |
+| security | 4 | 1 | 2 | 20 |
 | ai/assist/dictionary | 0 | 24 | 20 | 3 |
 
 ## Commit Decisions
@@ -332,14 +332,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 294 | `8bcb9f9b2` | ai/assist/dictionary | feat(wordlens): trim hints to first sense + suppress known derivations (#4635) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 295 | `1ea607829` | library | fix(share): load cover under COEP, keep share links out of the clipper, fix in-app import (#4636) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 296 | `495783d04` | security | fix(security): harden OPDS proxy SSRF, storage key validation, Stripe check (#4638) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
-| 297 | `4025c4d7b` | security | fix(security): scope Tauri download_file/upload_file to fs_scope (#4639) | `partial` | S2-S02 | Tauri-owned library/catalog boundaries and negative-path tests; equivalent scope audit remains. |
+| 297 | `4025c4d7b` | security | fix(security): scope Tauri download_file/upload_file to fs_scope (#4639) | `not-applicable` | — | br1 exposes no generic renderer-directed download/upload command or arbitrary filesystem destination. |
 | 298 | `403be32d5` | library | fix(epub): import books whose OPF has an unescaped ampersand (#4640) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 299 | `bcd9ed724` | reader core | fix(reader): paginate inline-block-wrapped chapters instead of clipping them (#4641) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 300 | `6626db967` | reader core | fix(reader): keep last paragraph's line spacing by making the section skip link a <span> (#4642) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
 | 301 | `ff96c6d3f` | reader core | feat(annotations): unify highlights and annotations into one record (#3870, #4511) (#4647) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 302 | `be17654fc` | reading modes/controls | fix(rsvp): render RTL words whole so Arabic shapes correctly (#4630) (#4648) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 303 | `af587b1a4` | library | fix(metadata): parse FB2 series from title-info sequence (#4646) (#4649) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
-| 304 | `446c2c72d` | security | fix(security): unblock app-dir downloads broken by transfer_file fs-scope guard (#4651) | `partial` | S2-S02 | Tauri-owned library/catalog boundaries and negative-path tests; equivalent scope audit remains. |
+| 304 | `446c2c72d` | security | fix(security): unblock app-dir downloads broken by transfer_file fs-scope guard (#4651) | `not-applicable` | — | br1 has no transfer-file fs-scope fallback; app storage is resolved from `AppHandle.path()` and external files come from native dialogs or trusted records. |
 | 305 | `be5862f08` | library | fix(library): group secondary series sort by series name then index (#4652) (#4653) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
 | 306 | `e00a1e4f0` | reader core | fix(settings): tidy Word Lens data pack and level rows on mobile (#4655) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
 | 307 | `e327d0c99` | tts/audio | feat(tts): reuse the speaking session across paragraph & RSVP modes (#4657) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
@@ -718,7 +718,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-S02` through `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` verified complete on 2026-09-02).
+2. Trust and format floor: `S2-S03`, `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` and `S2-S02` verified complete on 2026-09-02).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -1185,13 +1185,14 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Audit correction: the cloud-download logging fix `6072b0dcb` is `not-applicable`; Persian/Arabic RLM-to-ZWNJ shaping `2f9262e02` remains `partial` under `S2-R04C`.
 - Commits: `13ff96db8`, `6072b0dcb`, `dc788283a`, `e43e533ac`, `005aa2d61`, `2f9262e02`
 
-### S2-S02 - Audit Tauri command scopes
+### Completed Task: S2-S02 - Audit Tauri command scopes
 
 - Phase: Step 2
-- Upstream decisions: 2 commits (0 gap, 2 partial)
-- Outcome: Constrain file and catalog commands to managed paths and validated URLs.
-- Touches: Tauri commands/capabilities, Rust boundary tests
-- Verify: `cargo test`; `cargo check`; `negative scope tests`
+- Result: both upstream decisions are `not-applicable` because br1 has no generic renderer-directed `download_file`/`upload_file` surface.
+- Filesystem audit: persistence keys are hashed into `AppHandle.path()` roots; library reads require canonical managed/trusted paths; imports require a native-dialog or persisted-record grant; snapshot paths come only from native file dialogs.
+- Catalog audit: executable acquisitions are fixed bundled fixtures, filenames are sanitized and prefixed with a hashed acquisition key under app data, and configured live URLs are not proxied or downloaded.
+- Capability audit: the production capability grants native open-dialog access but no generic filesystem plugin permission.
+- Evidence: `cargo test --manifest-path src-tauri/Cargo.toml --lib` (PASS, 47/47); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); targeted desktop untrusted-path and associated-open boundary regressions (PASS, 2/2); fresh command/capability review (PASS, no findings).
 - Commits: `4025c4d7b`, `446c2c72d`
 
 ### S2-S03 - Sanitize persisted window state
