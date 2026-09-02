@@ -19,8 +19,8 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | --- | ---: |
 | `covered` | 12 |
 | `partial` | 463 |
-| `gap` | 75 |
-| `not-applicable` | 128 |
+| `gap` | 74 |
+| `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
@@ -29,7 +29,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 38 | 9 | 16 |
-| security | 4 | 1 | 2 | 20 |
+| security | 4 | 1 | 1 | 21 |
 | ai/assist/dictionary | 0 | 24 | 20 | 3 |
 
 ## Commit Decisions
@@ -258,7 +258,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 220 | `e8675fb7e` | reader core | fix(reader): inline custom @font-face rules in iframe stylesheet (#4383) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 221 | `97191a57c` | reading modes/controls | fix(reader): stop reading ruler creeping down on scroll (#4386) (#4388) | `partial` | S2-F04 | Focused reading exists; ruler scroll anchoring remains unimplemented. |
 | 222 | `45ef5f751` | reader core | fix(metainfo): declare desktop and mobile device support (#4395) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
-| 223 | `bc9fe67ab` | security | fix(desktop): sanitize invalid .window-state.json before restore (#4401) | `gap` | S2-S03 | No invalid persisted-window-state proof found. |
+| 223 | `bc9fe67ab` | security | fix(desktop): sanitize invalid .window-state.json before restore (#4401) | `not-applicable` | — | br1 neither installs a window-state plugin nor persists/restores native window geometry; its main and reader windows start from static configuration or explicit fresh geometry. |
 | 224 | `458ad7510` | reader core | fix(reader): scroll wide EPUB tables horizontally (#4391) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 225 | `176b950c9` | reader core | fix(reader): replace light callout backgrounds in dark mode (#4392) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
 | 226 | `3a81e0991` | reader core | fix(reader): scroll oversized blocks in-place instead of turning the page (#4400) (#4415) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -718,7 +718,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-S03`, `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` and `S2-S02` verified complete on 2026-09-02).
+2. Trust and format floor: `S2-S04`, `S2-R03`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S03` reviewed and closed on 2026-09-02).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -1195,13 +1195,14 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `cargo test --manifest-path src-tauri/Cargo.toml --lib` (PASS, 47/47); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); targeted desktop untrusted-path and associated-open boundary regressions (PASS, 2/2); fresh command/capability review (PASS, no findings).
 - Commits: `4025c4d7b`, `446c2c72d`
 
-### S2-S03 - Sanitize persisted window state
+### Completed Task: S2-S03 - Audit persisted window state
 
 - Phase: Step 2
-- Upstream decisions: 1 commits (1 gap, 0 partial)
-- Outcome: Reject invalid geometry before restore and fall back to a visible default.
-- Touches: Tauri window bootstrap, one Rust test
-- Verify: `cargo test window state`; `cargo check`; `relaunch smoke`
+- Result: `not-applicable` because br1 has no persisted native window geometry to sanitize before startup.
+- Dependency evidence: neither the Rust nor frontend manifests/locks include `tauri-plugin-window-state`, and the Tauri bootstrap registers no equivalent plugin.
+- Runtime evidence: the main window uses the static `800x600` Tauri configuration; reader windows are constructed with explicit fresh `1480x920` dimensions and centering rather than restored coordinates.
+- Evidence: `cargo test --manifest-path src-tauri/Cargo.toml --lib` (PASS, 47/47); `cargo check --manifest-path src-tauri/Cargo.toml` (PASS); `pnpm check` (PASS, 0 errors and 0 warnings); `bash scripts/automation/test-tauri-webdriver.sh pnpm exec wdio run wdio.conf.ts --mochaOpts.grep "shows the library route by default|can execute JavaScript inside the desktop webview"` (PASS, 2/2 normal-startup checks, not geometry-state evidence); fresh applicability review (PASS after wording corrections).
+- Deferred boundary: if br1 later adopts native window geometry persistence, invalid/sentinel coordinates and zero-size state must be rejected before restore.
 - Commits: `bc9fe67ab`
 
 ### S2-S04 - Document the br1 trust model
