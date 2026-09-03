@@ -4542,6 +4542,70 @@ test('reader fills a two-page PDF spread at fractional device pixel ratio', asyn
   }
 });
 
+test('reader avoids programmatic double-scroll for scrolled PDF iframe wheel input', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected the scroll mode button');
+      element.click();
+    });
+
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      const renderer = view?.renderer;
+      if (!renderer) return false;
+      const iframe = renderer.shadowRoot?.querySelector<HTMLIFrameElement>(
+        '.scroll-page[data-index="0"] iframe'
+      );
+      return !!iframe?.contentDocument && iframe.style.display === 'block' && renderer.scrollHeight > renderer.clientHeight;
+    })
+  ).toBe(true);
+
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    const renderer = view?.renderer;
+    if (!renderer) throw new Error('expected the fixed-layout PDF renderer');
+    renderer.scrollTop = 200;
+    renderer.dispatchEvent(new Event('scroll'));
+  });
+
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      return (
+        view?.renderer?.shadowRoot?.querySelector<HTMLIFrameElement>('.scroll-page[data-index="0"] iframe')
+          ?.style.pointerEvents === 'auto'
+      );
+    })
+  ).toBe(true);
+
+  const wheel = await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    const renderer = view?.renderer;
+    const iframe = renderer?.shadowRoot?.querySelector<HTMLIFrameElement>(
+      '.scroll-page[data-index="0"] iframe'
+    );
+    const doc = iframe?.contentDocument;
+    if (!(renderer && iframe && doc)) throw new Error('expected a loaded scrolled PDF iframe');
+
+    const before = renderer.scrollTop;
+    doc.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 }));
+    return { before, after: renderer.scrollTop, pointerEvents: iframe.style.pointerEvents };
+  });
+
+  expect(wheel.before).toBe(200);
+  expect(wheel.pointerEvents).toBe('');
+  expect(wheel.after).toBe(wheel.before);
+});
+
 test('reader hides PDF theme colors in unsupported Safari environments', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'userAgent', {

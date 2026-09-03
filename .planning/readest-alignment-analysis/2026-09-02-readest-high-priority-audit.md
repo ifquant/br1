@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 19 |
-| `partial` | 457 |
+| `covered` | 20 |
+| `partial` | 456 |
 | `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 6 | 258 | 20 | 50 |
+| reader core | 7 | 257 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -367,7 +367,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 328 | `f4bb11126` | ai/assist/dictionary | feat(translator): add Urdu as a Translate Text target language (#4721) (#4726) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 329 | `942095bcd` | reader core | fix(reader): make Shift+P toggle, exit, and resume paragraph mode reliably (#4717) (#4725) | `partial` | S2-F05 | Basic keyboard launch and hidden resume pass; complete toggle/exit interaction remains unproved. |
 | 330 | `acf2b165f` | library | fix(library): keep in-place book paths absolute so uploads stay in fs scope (#4720) (#4730) | `partial` | S2-L05 | P0-4.1/P0-4.2 and library smoke tests; exact persistence/recovery case is unproved. |
-| 331 | `1b44b95d3` | reader core | fix(reader): smooth single-notch wheel scroll over PDF pages in scrolled mode (#4727) (#4732) | `partial` | S2-R03B4 | PDF opens; single-notch wheel behavior in scrolled mode is unproved. |
+| 331 | `1b44b95d3` | reader core | fix(reader): smooth single-notch wheel scroll over PDF pages in scrolled mode (#4727) (#4732) | `covered` | S2-R03B4 | The nested foliate-js change `24d9a0c0e..e366bdb79` is matched by removing the redundant iframe-to-host `scrollBy`, with a repeated real-PDF browser regression. |
 | 332 | `140b71ee3` | ai/assist/dictionary | feat(dictionary): add adjustable dictionary popup font size (#4443) (#4734) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 333 | `bc9b8b23e` | reader core | fix(reader): stop per-chapter listener leak that degrades paragraph mode (#4735) | `partial` | S2-F05 | Paragraph focus exists; repeated chapter attachment lacks a listener-lifecycle regression. |
 | 334 | `787641b5b` | tts/audio | chore(agent): update agent memories (#4737) | `not-applicable` | — | Readest agent-memory bookkeeping. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03B4` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B3` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R03B5` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B4` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -823,13 +823,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `node --check pdf.js` (PASS); DPR 1.5 real-PDF spread regression (PASS, 3/3 repeated runs); B1-B3 PDF regressions (PASS, 3/3); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `a9c0f3d46`
 
-### S2-R03B4 - Stabilize scrolled PDF wheel input
+### Completed Task: S2-R03B4 - Stabilize scrolled PDF wheel input
 
 - Phase: Step 2
-- Upstream decisions: 1 commit (0 gap, 1 partial)
-- Outcome: Make one wheel notch produce one coherent scrolled-PDF movement.
-- Touches: fixed-layout wheel handling and focused PDF fixture
-- Verify: `pnpm check`; `PDF wheel smoke`; `git diff --check`
+- Upstream decisions: 1 commit (1 covered)
+- Result: A wheel tick over an interactive scrolled-PDF iframe now relies on native scroll chaining instead of adding a second programmatic host scroll; the handler only disables iframe interaction for subsequent ticks.
+- Evidence: `node --check fixed-layout.js` (PASS); real-PDF wheel regression (PASS, 3/3 repeated runs); B1-B4 PDF regressions (PASS, 4/4); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `1b44b95d3`
 
 ### S2-R03B5 - Stabilize scrolled PDF pinch and pan
