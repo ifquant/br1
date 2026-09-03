@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const browserChannel = process.env.BR1_PLAYWRIGHT_CHANNEL?.trim();
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -20,7 +22,10 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(browserChannel ? { channel: browserChannel } : {})
+      }
     }
   ]
 });

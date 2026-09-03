@@ -74,9 +74,9 @@ Exit criteria for Step 2:
 
 ## First Slice Recommendation
 
-Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 50 remaining executable br1-native tasks. `S1-R01` through `S1-R03` are verified br1 baselines, while `S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, and `S2-R03C` are reviewed and closed decisions; remaining reading-ruler, paragraph-focus, user-customizable binding, authored-layout, and media-viewer work stays in the corresponding Step 2 tasks.
+Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 49 remaining executable br1-native tasks. `S1-R01` through `S1-R03` are verified br1 baselines, while `S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, `S2-R03C`, and `S2-R03D` are reviewed and closed decisions; remaining reading-ruler, paragraph-focus, user-customizable binding, authored-layout, and media-viewer work stays in the corresponding Step 2 tasks.
 
-Step 1, `S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, and `S2-R03C` are complete. Continue the Step 2 trust and format floor with `S2-R03D`; each remaining task should land as its own implementation and verification commit.
+Step 1, `S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, `S2-R03C`, and `S2-R03D` are complete. Continue the Step 2 trust and format floor with `S2-R03E`; each remaining task should land as its own implementation and verification commit.
 
 ## High-Priority Commit Queue
 

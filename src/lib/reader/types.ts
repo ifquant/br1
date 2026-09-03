@@ -238,12 +238,19 @@ export type ReaderSearchHistoryEntry = {
   createdAt: number;
 };
 
-export type ReaderSelectionState = {
+export type ReaderSelectionSegment = {
+  index: number;
   cfi: string;
   text: string;
   chapterLabel: string;
   chapterHref: string;
   koreaderXPointer?: string;
+};
+
+export type ReaderSelectionState = Omit<ReaderSelectionSegment, 'index'> & {
+  index?: number;
+  /** One logical selection can contain one native Range per fixed-layout page. */
+  segments?: ReaderSelectionSegment[];
 };
 
 export type ReaderAnnotationKind = 'note' | 'highlight';

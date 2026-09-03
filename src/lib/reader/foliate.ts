@@ -28,6 +28,11 @@ export interface FoliateViewElement extends HTMLElement {
       label?: string;
       href?: string;
     };
+    pageItem?: {
+      label?: string;
+      href?: string;
+      index?: number;
+    };
     cfi?: string;
   };
   open(book: string | Blob | File | ReaderBookDocument): Promise<void>;
@@ -83,6 +88,7 @@ export interface FoliateViewElement extends HTMLElement {
     removeAttribute(name: string): void;
     setStyles?(css: string): void;
     getContents?(): Array<{ doc: Document; index?: number; overlayer?: unknown }>;
+    readonly scrolled?: boolean;
     pinchZoom?(ratio: number): void;
     pinchEnd?(commit?: boolean): void;
   };
@@ -95,6 +101,7 @@ export interface ReaderBookDocument {
     language?: string | string[];
   };
   toc?: unknown[];
+  pageList?: Array<{ label?: string; href?: string; index?: number }> | null;
   sections?: Array<{ createDocument?: () => Promise<Document> }>;
   rendition?: {
     layout?: 'pre-paginated' | 'reflowable';

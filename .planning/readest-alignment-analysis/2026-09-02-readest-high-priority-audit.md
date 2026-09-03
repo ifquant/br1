@@ -663,13 +663,13 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 624 | `841b3639b` | reader core | fix(reader): render markdown in the note bubble popup, closes #5785 (#5805) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 625 | `e83fec7f2` | reader core | feat(reader): add inline note editing (#5780) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; exact note lifecycle is unproved. |
 | 626 | `01e2b6ba9` | reader core | feat(reader): expose book title and series as data attributes for custom UI CSS, closes #5776 (#5806) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
-| 627 | `3e9aacba1` | reader core | feat(reader): show PDF page labels as reference pages, closes #5822 (#5824) | `partial` | S2-R03D | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 627 | `3e9aacba1` | reader core | feat(reader): show PDF page labels as reference pages, closes #5822 (#5824) | `covered` | S2-R03D | foliate exposes meaningful document labels through an indexed page list; br1 shows the label with the physical page total. |
 | 628 | `e659976cc` | reading modes/controls | feat(rsvp): add exact WPM entry and 10 WPM nudge to the speed dropdown, closes #5820 (#5825) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 629 | `a4358d22e` | ai/assist/dictionary | fix(translate): follow Bing regional host and show why a translation failed, closes #5823 (#5826) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
-| 630 | `a2f123ff9` | reader core | feat(reader): join PDF line wraps into paragraphs when copying, closes #5814 (#5828) | `partial` | S2-R03D | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 630 | `a2f123ff9` | reader core | feat(reader): join PDF line wraps into paragraphs when copying, closes #5814 (#5828) | `covered` | S2-R03D | PDF copy reconstructs ordinary wraps, paragraph gaps, CJK joins, hyphen continuation, and partial DOM ranges. |
 | 631 | `69872d372` | ai/assist/dictionary | fix(annotator): hide the range editor handles while a lookup popup is open, closes #5815 (#5829) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
 | 632 | `279698832` | reader core | feat(reader): show the book cover full screen from the sidebar and book details, closes #5813 (#5827) | `gap` | S2-R09 | br1 shows cover thumbnails but has no full-screen reader media viewer. |
-| 633 | `4df8b37b7` | reader core | feat(reader): select text across PDF pages as one selection, closes #5809 (#5831) | `partial` | S2-R03D | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 633 | `4df8b37b7` | reader core | feat(reader): select text across PDF pages as one selection, closes #5809 (#5831) | `covered` | S2-R03D | Desktop scrolled PDF supports one logical selection across contiguous loaded pages and persists one exact CFI per page. |
 | 634 | `9b33b52a4` | reader core | feat(stats): tier stat_pages history into R2 segments behind a 7-day hot window (#5835) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 635 | `9045b43d1` | reader core | chore: update agent memories (#5840) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 636 | `6834ee42e` | reader core | fix(stats): survive PostgREST's row cap when building archive segments (#5844) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
@@ -708,7 +708,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 669 | `053aba67f` | library | fix(library): update the existing book when an updated EPUB is re-imported (#5959) (#5961) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 670 | `82658d8ed` | library | feat(grouping): Adding existing status as Grouping (#5935) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 671 | `341119e5e` | tts/audio | fix(reader): track the paused TTS chapter (#5968) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
-| 672 | `9e1f72ae7` | reader core | fix(reader): correct PDF reference totals and slider endpoint (#5951) (#5969) | `partial` | S2-R03D | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 672 | `9e1f72ae7` | reader core | fix(reader): correct PDF reference totals and slider endpoint (#5951) (#5969) | `covered` | S2-R03D | The footer keeps physical totals beside reference labels and forwards exact native 0/100 progress endpoints. |
 | 673 | `5ae894735` | reader core | fix(reader): stabilize nested book menu sizing (#5978) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact chrome interaction/layout is unproved. |
 | 674 | `1fa25f7ae` | reader core | fix(markdown): support tab-indented footnotes (#5975) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 675 | `d49fd8ba5` | library | chore: update agent memories and tidy library styles (#5985) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact library interaction needs a regression. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03D` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, and `S2-R03C` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, `S2-R03C`, and `S2-R03D` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -864,13 +864,13 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence boundary: The 1.25 font-scale path is deterministic browser simulation, not a physical WebView with an altered system accessibility setting; device-level selection alignment remains a manual acceptance check.
 - Commits: `9b4db4449`, `2a837cb50`, `3ca5d5879`
 
-### S2-R03D - Align PDF labels, copy, and cross-page selection
+### Completed Task: S2-R03D - Align PDF labels, copy, and cross-page selection
 
 - Phase: Step 2
-- Upstream decisions: 4 commits (0 gap, 4 partial)
-- Outcome: Use document page labels consistently, preserve slider totals, join copied line wraps, and support one selection across pages.
-- Touches: PDF navigation adapter, text-selection bridge, focused PDF fixtures
-- Verify: `pnpm check`; `PDF labels/copy/selection smoke`; `git diff --check`
+- Upstream decisions: 4 commits (4 covered)
+- Result: Meaningful PDF reference labels now use an indexed foliate page list while the footer preserves the physical total and exact slider endpoints. Copy reconstructs PDF line wraps from text-layer geometry, and desktop scrolled PDFs support one logical selection across contiguous loaded pages with one persisted CFI per page. Repeating a composite highlight removes all parts only when every part already exists; otherwise it adds only missing pages.
+- Evidence: foliate page-label tests (PASS, 2/2); reader helper tests (PASS, 76/76); focused PDF labels, slider, DOM-range copy, scrolled cross-page selection, and paginated negative browser regressions (PASS, 5/5, with the Chromium 148 native case skipped on bundled Chromium 145); deterministic scrolled cross-page regression (PASS, 5/5); real cross-iframe `page.mouse` drag on Chrome 152 (PASS, 5/5); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); both repositories' `git diff --check` (PASS); fresh Terra high fix re-review (PASS, no findings).
+- Evidence boundary: Cross-page selection is intentionally desktop-only and limited to contiguous loaded fixed-layout pages in scrolled mode. Real Chrome 152 mouse input and the deterministic origin-iframe path are covered; physical packaged Tauri WebView drag acceptance and mobile selection handles are not claimed.
 - Commits: `3e9aacba1`, `a2f123ff9`, `4df8b37b7`, `9e1f72ae7`
 
 ### S2-R03E - Close PDF metadata and chrome edges

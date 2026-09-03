@@ -344,6 +344,7 @@ export type {
   ReaderNote,
   ReaderSearchConfig,
   ReaderSearchHistoryEntry,
+  ReaderSelectionSegment,
   ReaderSelectionState,
   ReaderPreviewState,
   ReaderAtmosphereMode,

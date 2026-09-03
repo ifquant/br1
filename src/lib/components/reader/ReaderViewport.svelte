@@ -38,10 +38,26 @@
     type ReaderPlainTextBlock
   } from '$lib/reader';
   import { Overlayer } from 'foliate-js/overlayer.js';
+  import {
+    applyCrossDocSegments,
+    buildCrossDocSegments,
+    findContentAtPoint,
+    getCaretPosition,
+    getCaretPositionInText,
+    isTextAtPoint,
+    rangeFromPositions,
+    setNativeDragFrozen,
+    toDocPoint,
+    type CrossDocSegment,
+    type ReaderPoint,
+    type SectionAnchor
+  } from '$lib/reader/crossDocSelection';
+  import { getPdfSelectionText } from '$lib/reader/pdfText';
   import type {
     ReaderNote,
     ReaderPreviewState,
     ReaderSearchConfig,
+    ReaderSelectionSegment,
     ReaderSelectionState,
     ReaderSearchResult,
     ReaderSearchState,
@@ -127,7 +143,7 @@
   let openFailureMessage = '';
   let searchCacheBookKey = '';
   let foliateViewElement: FoliateViewElement | null = null;
-  let handledControlNonce = 0;
+  let handledControlRequest: ReaderControlRequest | null = null;
   let lastSearchToken = 0;
   let searchCache = new Map<string, ReaderSearchResult[]>();
   let boundSelectionDocs = new WeakSet<Document>();
@@ -147,6 +163,14 @@
   let readerViewportVars = '';
   let readerStateDispatchNonce = 0;
   let selectionDispatchNonce = 0;
+  let pdfDragAnchor: SectionAnchor | null = null;
+  let pdfCrossDocSelection: {
+    anchor: SectionAnchor;
+    segments: CrossDocSegment[];
+    frozen: boolean;
+  } | null = null;
+  let selectionMutationGuard = false;
+  let selectionMutationGuardTimer: ReturnType<typeof setTimeout> | null = null;
   const PDF_MIN_SCALE_FACTOR = 50;
   const PDF_MAX_SCALE_FACTOR = 500;
   let pdfScaleFactor = 100;
@@ -210,15 +234,20 @@
             current?: number;
             total?: number;
           };
+          pageItem?: {
+            label?: string;
+          };
         }
       | null
-      | undefined
+      | undefined,
+    physicalPageTotal?: number
   ) => {
     const current = lastLocation?.location?.current;
     const total = lastLocation?.location?.total;
     if (typeof current !== 'number' || typeof total !== 'number') return READER_OPENING_LOCATION_LABEL;
     if (formatLabel === 'PDF') {
-      return `第 ${Math.max(1, current)} / ${Math.max(1, total)} 页`;
+      const pageLabel = lastLocation?.pageItem?.label?.trim();
+      return `第 ${pageLabel || Math.max(1, current)} / ${Math.max(1, physicalPageTotal ?? total)} 页`;
     }
     return `${current} / ${total}`;
   };
@@ -693,20 +722,24 @@
     emitSelectionPopupState(createSelectionPopupAnchor(detail.text, 'selection', range?.getBoundingClientRect()));
   };
 
-  const getSelectionState = (doc: Document, index: number): ReaderSelectionState | null => {
+  const getSelectionStateFromRange = (
+    doc: Document,
+    index: number,
+    range: Range,
+    allowLocationFallback = true
+  ): ReaderSelectionState | null => {
     if (!foliateViewElement) return null;
-    const selection = doc.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
-    const text = selection.toString().trim();
+    const text = (currentFormatLabel === 'PDF' ? getPdfSelectionText(range) : range.toString()).trim();
     if (!text) return null;
-    const range = selection.getRangeAt(0).cloneRange();
     const chapterLabel = foliateViewElement.lastLocation?.tocItem?.label || '当前章节';
     const chapterHref = foliateViewElement.lastLocation?.tocItem?.href || '';
     let cfi = '';
 
     try {
       cfi = foliateViewElement.getCFI(index, range);
+      if (!cfi && !allowLocationFallback) return null;
     } catch (error) {
+      if (!allowLocationFallback) return null;
       console.warn('Failed to compute an exact annotation CFI, falling back to the current reader location', error);
       cfi =
         (typeof (foliateViewElement.lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
@@ -716,7 +749,140 @@
         `fraction:${(foliateViewElement.lastLocation?.fraction ?? 0).toFixed(6)}`;
     }
 
-    return { cfi, text, chapterLabel, chapterHref };
+    return { index, cfi, text, chapterLabel, chapterHref };
+  };
+
+  const getSelectionState = (doc: Document, index: number): ReaderSelectionState | null => {
+    const selection = doc.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+    return getSelectionStateFromRange(doc, index, selection.getRangeAt(0).cloneRange());
+  };
+
+  const getRendererContents = () => foliateViewElement?.renderer?.getContents?.() ?? [];
+
+  const guardSelectionMutations = () => {
+    selectionMutationGuard = true;
+    if (selectionMutationGuardTimer) clearTimeout(selectionMutationGuardTimer);
+    selectionMutationGuardTimer = setTimeout(() => {
+      selectionMutationGuard = false;
+      selectionMutationGuardTimer = null;
+    }, 150);
+  };
+
+  const clearPdfCrossDocSelection = (keepSelections = false) => {
+    const state = pdfCrossDocSelection;
+    if (!state) return;
+    pdfCrossDocSelection = null;
+    if (state.frozen) setNativeDragFrozen(state.anchor.doc, false);
+    if (!keepSelections) {
+      guardSelectionMutations();
+      for (const { doc } of state.segments) {
+        if (doc !== state.anchor.doc) doc.getSelection()?.removeAllRanges();
+      }
+    }
+  };
+
+  const resetPdfSelectionGesture = () => {
+    pdfDragAnchor = null;
+    clearPdfCrossDocSelection();
+  };
+
+  const clearPdfSelection = () => {
+    guardSelectionMutations();
+    for (const { doc } of getRendererContents()) doc?.getSelection()?.removeAllRanges();
+    selectionDispatchNonce += 1;
+    emitSelectionState(null);
+    emitSelectionPopupState(null);
+  };
+
+  const isPdfCrossPageSelectionEnabled = () =>
+    currentFormatLabel === 'PDF' &&
+    settings.flowMode === 'scrolled' &&
+    foliateViewElement?.renderer?.scrolled === true;
+
+  const extendPdfCrossDocSelection = (anchor: SectionAnchor, point: ReaderPoint) => {
+    const contents = getRendererContents();
+    const target = findContentAtPoint(contents, point);
+    if (!target) return !!pdfCrossDocSelection;
+    if (target.doc === anchor.doc) {
+      clearPdfCrossDocSelection();
+      return false;
+    }
+    const localPoint = toDocPoint(target.doc, point);
+    const caret = localPoint && getCaretPositionInText(target.doc, localPoint.x, localPoint.y);
+    if (!caret) return !!pdfCrossDocSelection;
+    const segments = buildCrossDocSegments(anchor, { ...target, pos: caret }, contents);
+    if (!segments.length) return !!pdfCrossDocSelection;
+    guardSelectionMutations();
+    applyCrossDocSegments(segments, contents, anchor);
+    pdfCrossDocSelection = {
+      anchor,
+      segments,
+      frozen: pdfCrossDocSelection?.frozen ?? false
+    };
+    return true;
+  };
+
+  const toWindowPoint = (doc: Document, event: PointerEvent): ReaderPoint => {
+    const frameRect = doc.defaultView?.frameElement?.getBoundingClientRect();
+    return {
+      x: event.clientX + (frameRect?.left ?? 0),
+      y: event.clientY + (frameRect?.top ?? 0)
+    };
+  };
+
+  const emitTrackedSelection = (doc: Document, index: number) => {
+    const nextSelection = getSelectionState(doc, index);
+    if (nextSelection && isPdfCrossPageSelectionEnabled()) {
+      guardSelectionMutations();
+      for (const content of getRendererContents()) {
+        if (content.doc && content.doc !== doc) content.doc.getSelection()?.removeAllRanges();
+      }
+    }
+    const dispatchNonce = ++selectionDispatchNonce;
+    emitSelectionState(nextSelection);
+    emitSelectionPopupState(
+      nextSelection ? createSelectionPopupAnchor(nextSelection.text, 'bottom') : null
+    );
+    if (!nextSelection) return;
+
+    const book = foliateViewElement?.book;
+    void resolveKoReaderSelectionLocation(book, nextSelection.cfi, doc, index).then((koreaderXPointer) => {
+      if (!koreaderXPointer || dispatchNonce !== selectionDispatchNonce) return;
+      emitSelectionState({ ...nextSelection, koreaderXPointer });
+    });
+  };
+
+  const commitPdfCrossDocSelection = () => {
+    const state = pdfCrossDocSelection;
+    if (!state) return false;
+    const parts: ReaderSelectionSegment[] = [];
+    for (const segment of state.segments) {
+      const range = rangeFromPositions(segment.doc, segment.start, segment.end);
+      const part = range && getSelectionStateFromRange(segment.doc, segment.index, range, false);
+      if (!part) {
+        clearPdfCrossDocSelection();
+        return false;
+      }
+      parts.push({ ...part, index: segment.index });
+    }
+    const first = parts[0];
+    if (!first) {
+      clearPdfCrossDocSelection();
+      return false;
+    }
+    guardSelectionMutations();
+    applyCrossDocSegments(state.segments, getRendererContents(), state.anchor);
+    clearPdfCrossDocSelection(true);
+    const selection = {
+      ...first,
+      text: parts.map((part) => part.text).join(' '),
+      segments: parts
+    } satisfies ReaderSelectionState;
+    selectionDispatchNonce += 1;
+    emitSelectionState(selection);
+    emitSelectionPopupState(createSelectionPopupAnchor(selection.text, 'bottom'));
+    return true;
   };
 
   const resolveKoReaderSelectionLocation = async (
@@ -742,27 +908,51 @@
     if (boundSelectionDocs.has(doc)) return;
     boundSelectionDocs.add(doc);
     doc.addEventListener('selectionchange', () => {
-      const nextSelection = getSelectionState(doc, index);
-      const dispatchNonce = ++selectionDispatchNonce;
-      emitSelectionState(nextSelection);
-      emitSelectionPopupState(
-        nextSelection ? createSelectionPopupAnchor(nextSelection.text, 'bottom') : null
-      );
-      if (!nextSelection) {
+      if (selectionMutationGuard || pdfDragAnchor) return;
+      emitTrackedSelection(doc, index);
+    });
+    doc.addEventListener('pointerdown', (event: PointerEvent) => {
+      clearPdfCrossDocSelection();
+      pdfDragAnchor = null;
+      if (
+        !isPdfCrossPageSelectionEnabled() ||
+        event.pointerType !== 'mouse' ||
+        event.button !== 0 ||
+        !isTextAtPoint(doc, event.clientX, event.clientY)
+      ) {
         return;
       }
-
-      const book = foliateViewElement?.book;
-      void resolveKoReaderSelectionLocation(book, nextSelection.cfi, doc, index).then((koreaderXPointer) => {
-        if (!koreaderXPointer || dispatchNonce !== selectionDispatchNonce) {
-          return;
-        }
-
-        emitSelectionState({
-          ...nextSelection,
-          koreaderXPointer
-        });
-      });
+      const position = getCaretPosition(doc, event.clientX, event.clientY);
+      if (!position) return;
+      guardSelectionMutations();
+      for (const content of getRendererContents()) {
+        if (content.doc && content.doc !== doc) content.doc.getSelection()?.removeAllRanges();
+      }
+      pdfDragAnchor = { doc, index, pos: position };
+    });
+    doc.addEventListener('pointermove', (event: PointerEvent) => {
+      const anchor = pdfDragAnchor;
+      if (!anchor || event.pointerType !== 'mouse' || !(event.buttons & 1)) return;
+      if (!extendPdfCrossDocSelection(anchor, toWindowPoint(doc, event))) return;
+      const state = pdfCrossDocSelection;
+      if (state && !state.frozen) {
+        setNativeDragFrozen(anchor.doc, true);
+        state.frozen = true;
+      }
+    });
+    doc.addEventListener('pointerup', (event: PointerEvent) => {
+      const anchor = pdfDragAnchor;
+      pdfDragAnchor = null;
+      if (!anchor || event.pointerType !== 'mouse') return;
+      if (pdfCrossDocSelection) {
+        extendPdfCrossDocSelection(anchor, toWindowPoint(doc, event));
+        if (commitPdfCrossDocSelection()) return;
+      }
+      emitTrackedSelection(doc, index);
+    });
+    doc.addEventListener('pointercancel', () => {
+      pdfDragAnchor = null;
+      clearPdfCrossDocSelection();
     });
   };
 
@@ -812,7 +1002,15 @@
           ? ((lastLocation as { cfi?: string }).cfi ?? '')
           : '',
       koreaderProgressLocation: '',
-      locationLabel: formatReaderLocationLabel(currentFormatLabel, lastLocation),
+      locationLabel: formatReaderLocationLabel(
+        currentFormatLabel,
+        lastLocation,
+        currentFormatLabel === 'PDF'
+          ? book.pageList?.every((item, index) => item.index === index)
+            ? book.pageList.length
+            : book.sections?.length
+          : undefined
+      ),
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
       ttsSourceText: excerpt.text,
@@ -1313,6 +1511,7 @@
     openFailureMessage = '';
     currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
     cancelPdfPinch();
+    resetPdfSelectionGesture();
     pdfScaleFactor = 100;
     searchCache = new Map();
     searchCacheBookKey = cacheBookKey;
@@ -1597,7 +1796,7 @@
   };
 
   const applyControlRequest = async () => {
-    if (!controlRequest || handledControlNonce === controlRequest.nonce) return;
+    if (!controlRequest || handledControlRequest === controlRequest) return;
     if (!foliateViewElement) return;
 
     if (
@@ -1609,7 +1808,17 @@
       return;
     }
 
-    handledControlNonce = controlRequest.nonce;
+    handledControlRequest = controlRequest;
+    if (
+      controlRequest.type === 'prev' ||
+      controlRequest.type === 'next' ||
+      controlRequest.type === 'start' ||
+      controlRequest.type === 'href' ||
+      controlRequest.type === 'fraction'
+    ) {
+      resetPdfSelectionGesture();
+      if (currentFormatLabel === 'PDF') clearPdfSelection();
+    }
 
     try {
       if (
@@ -1698,6 +1907,7 @@
     isWindowMode;
     foliateViewElement;
     if (foliateViewElement && openStatus === 'open' && openEngineMode === 'foliate') {
+      if (!isPdfCrossPageSelectionEnabled()) resetPdfSelectionGesture();
       configureFoliatePreview();
       currentLayoutLabel = inferReaderLayoutLabel(
         foliateViewElement.book,
@@ -1807,7 +2017,9 @@
           });
           view.addEventListener('relocate', () => {
             bindOpenRendererDocs();
-            emitSelectionState(null);
+            if (!(currentFormatLabel === 'PDF' && settings.flowMode === 'scrolled')) {
+              emitSelectionState(null);
+            }
             emitFootnoteRequest(null);
           });
           stageElement.append(view);
@@ -1839,6 +2051,10 @@
 
     return () => {
       cancelled = true;
+      resetPdfSelectionGesture();
+      if (selectionMutationGuardTimer) clearTimeout(selectionMutationGuardTimer);
+      selectionMutationGuardTimer = null;
+      selectionMutationGuard = false;
       stageResizeObserver?.disconnect();
       stageResizeObserver = null;
       document.removeEventListener('selectionchange', handleDocumentSelectionChange);

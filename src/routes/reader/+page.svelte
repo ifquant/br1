@@ -1627,7 +1627,7 @@
   };
 
   const copyCurrentSelection = async () => {
-    const selectionText = normalizeAssistanceText(currentReaderSelection?.text || '');
+    const selectionText = currentReaderSelection?.text.trim() || '';
     if (!selectionText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
 
     try {

@@ -158,26 +158,56 @@ export const createReaderNotesController = ({
 
     const draft =
       kind === 'note' ? (promptNoteDraft('为当前选中的文本添加笔记：', '') ?? '') : '';
-    const selectedText = selection.text.trim();
-    if (!selectedText) return false;
+    const segments = selection.segments?.length ? selection.segments : [selection];
+    const selectableSegments = segments.filter((segment) => segment.text.trim());
+    if (!selectableSegments.length) return false;
+    let segmentsToAdd = selectableSegments;
+    if (kind === 'highlight') {
+      const selectedCfis = new Set(selectableSegments.map((segment) => segment.cfi));
+      const existingCfis = new Set(
+        current.notes
+          .filter((note) => note.kind === 'highlight' && selectedCfis.has(note.cfi))
+          .map((note) => note.cfi)
+      );
+      if (selectedCfis.size === existingCfis.size) {
+        const nextNotes = current.notes.filter(
+          (note) => note.kind !== 'highlight' || !selectedCfis.has(note.cfi)
+        );
+        state.update((value) => ({
+          ...value,
+          activeCfi: selectedCfis.has(value.activeCfi) ? '' : value.activeCfi,
+          notes: nextNotes
+        }));
+        persist(nextNotes);
+        return true;
+      }
+      segmentsToAdd = selectableSegments.filter((segment) => !existingCfis.has(segment.cfi));
+    }
     const createdAt = Date.now();
-
-    const note: ReaderNote = {
-      id: `${selection.cfi}:${createdAt}`,
-      kind,
-      cfi: selection.cfi,
-      text: selectedText,
-      note: draft.trim(),
-      chapterLabel: selection.chapterLabel,
-      chapterHref: selection.chapterHref,
-      createdAt,
-      koreader: buildSelectionKoReaderMetadata(selection, kind, createdAt)
-    };
-
-    const nextNotes = [note, ...current.notes];
+    // Fixed-layout pages own separate DOM ranges and CFIs. Persist each part so
+    // Foliate can redraw every page while the UI still treats the drag as one action.
+    const addedNotes = segmentsToAdd.flatMap((segment, index) => {
+      const selectedText = segment.text.trim();
+      if (!selectedText) return [];
+      const segmentKind = kind === 'note' && index > 0 ? 'highlight' : kind;
+      return [{
+        id: `${segment.cfi}:${createdAt}`,
+        kind: segmentKind,
+        cfi: segment.cfi,
+        text: kind === 'note' && index === 0 ? selection.text.trim() : selectedText,
+        note: kind === 'note' && index === 0 ? draft.trim() : '',
+        chapterLabel: segment.chapterLabel,
+        chapterHref: segment.chapterHref,
+        createdAt,
+        koreader: buildSelectionKoReaderMetadata(segment, segmentKind, createdAt)
+      } satisfies ReaderNote];
+    });
+    const firstNote = addedNotes[0];
+    if (!firstNote) return false;
+    const nextNotes = [...addedNotes, ...current.notes];
     state.update((value) => ({
       ...value,
-      activeCfi: note.cfi,
+      activeCfi: firstNote.cfi,
       notes: nextNotes
     }));
     persist(nextNotes);

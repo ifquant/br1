@@ -25,8 +25,10 @@
     class:bottom-center-placement={placement === 'bottom-center'}
     class="annotation-popup"
     role="toolbar"
+    tabindex="-1"
     aria-label="选中文本操作"
     style={getPopupStyle()}
+    on:mousedown|preventDefault
   >
     <div class="selection-copy">
       <strong>已选文本</strong>

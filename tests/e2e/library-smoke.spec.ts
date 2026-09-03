@@ -4240,6 +4240,505 @@ test('reader persists epub layout settings through reload in web mode', async ({
   await expect(page.locator('.focus-aid-ruler')).toBeVisible();
 });
 
+test('reader uses PDF reference labels without replacing the physical page total', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fpdf-page-labels.pdf&label=PDF%20Reference%20Labels'
+  );
+
+  const footer = page.getByLabel('阅读页脚控制');
+  const status = footer.getByLabel('当前阅读状态');
+  await expect(footer).toBeVisible({ timeout: 15000 });
+  await expect(status).toContainText('第 i / 6 页');
+  await expect(status).not.toContainText('第 0');
+
+  await footer.getByRole('button', { name: '下一页' }).click();
+  await expect(status).toContainText('第 ii / 6 页');
+  await expect(status).not.toContainText('第 2 / 6 页');
+});
+
+test('reader forwards exact native PDF progress-range endpoints', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+  );
+  const footer = page.getByLabel('阅读页脚控制');
+  const progressRange = footer.locator('input[type="range"]');
+  await expect(footer).toBeVisible({ timeout: 15000 });
+  await expect(progressRange).toHaveAttribute('min', '0');
+  await expect(progressRange).toHaveAttribute('max', '100');
+
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as
+      | ({ goToFraction?: (fraction: number) => Promise<void> } & EventTarget)
+      | null;
+    if (!view?.goToFraction) throw new Error('expected the reader view fraction navigator');
+    const calls: number[] = [];
+    const navigate = view.goToFraction.bind(view);
+    Object.defineProperty(view, 'goToFraction', {
+      configurable: true,
+      value: async (fraction: number) => {
+        calls.push(fraction);
+        await navigate(fraction);
+      }
+    });
+    (globalThis as typeof globalThis & { __br1PdfRangeCalls?: number[] }).__br1PdfRangeCalls = calls;
+  });
+
+  const setProgress = async (value: '0' | '100') => {
+    await progressRange.evaluate((element, nextValue) => {
+      if (!(element instanceof HTMLInputElement)) throw new Error('expected progress range input');
+      element.value = nextValue;
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    }, value);
+  };
+
+  await setProgress('0');
+  await expect.poll(() =>
+    page.evaluate(() =>
+      (globalThis as typeof globalThis & { __br1PdfRangeCalls?: number[] }).__br1PdfRangeCalls ?? []
+    )
+  ).toEqual([0]);
+
+  await setProgress('100');
+  await expect.poll(() =>
+    page.evaluate(() =>
+      (globalThis as typeof globalThis & { __br1PdfRangeCalls?: number[] }).__br1PdfRangeCalls ?? []
+    )
+  ).toEqual([0, 1]);
+});
+
+test('reader joins a desktop cross-page PDF drag only in scrolled fixed layout', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected scroll-mode button');
+      element.click();
+    });
+
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    if (!view?.renderer) throw new Error('expected fixed-layout PDF renderer');
+    view.renderer.setAttribute('scale-factor', '30');
+  });
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: HTMLElement & {
+          scrolled?: boolean;
+          getContents?: () => Array<{ doc?: Document; index?: number }>;
+        };
+      } | null;
+      const renderer = view?.renderer;
+      if (renderer?.scrolled !== true) return false;
+      const pages = (renderer.getContents?.() ?? [])
+        .filter(({ doc, index }) => doc?.querySelector('.textLayer span') && index != null)
+        .sort((left, right) => (left.index ?? 0) - (right.index ?? 0));
+      return pages.some((entry, index) => pages[index + 1]?.index === (entry.index ?? -1) + 1);
+    })
+  ).toBe(true);
+
+  const dragged = await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        getContents?: () => Array<{ doc?: Document; index?: number }>;
+      };
+    } | null;
+    const pages = (view?.renderer?.getContents?.() ?? [])
+      .filter(({ doc, index }) => doc && index != null && doc.querySelector('.textLayer span'))
+      .sort((left, right) => (left.index ?? 0) - (right.index ?? 0));
+    const pairStart = pages.findIndex(
+      (entry, index) => pages[index + 1]?.index === (entry.index ?? -1) + 1
+    );
+    const first = pages[pairStart];
+    const second = pages[pairStart + 1];
+    if (!first?.doc || first.index == null || !second?.doc) {
+      throw new Error('expected two adjacent loaded PDF page documents');
+    }
+
+    const selectText = (doc: Document) => {
+      const text = Array.from(doc.querySelectorAll('.textLayer span'))
+        .map((span) => span.firstChild)
+        .find((node): node is Text => node?.nodeType === Node.TEXT_NODE && (node.textContent?.trim().length ?? 0) > 4);
+      if (!text) throw new Error('expected selectable PDF text span');
+      const rect = doc.createRange();
+      rect.selectNodeContents(text);
+      const box = rect.getBoundingClientRect();
+      if (!box.width || !box.height) throw new Error('expected visible PDF text bounds');
+      return { text, point: { x: box.left + Math.min(4, box.width / 2), y: box.top + box.height / 2 } };
+    };
+    const origin = selectText(first.doc);
+    const target = selectText(second.doc);
+    const originFrame = first.doc.defaultView?.frameElement?.getBoundingClientRect();
+    const targetFrame = second.doc.defaultView?.frameElement?.getBoundingClientRect();
+    if (!originFrame || !targetFrame) throw new Error('expected both PDF iframe bounds');
+    const targetFromOrigin = {
+      x: target.point.x + targetFrame.left - originFrame.left,
+      y: target.point.y + targetFrame.top - originFrame.top
+    };
+    const setCaret = (doc: Document, text: Text, offset: number) => {
+      Object.defineProperty(doc, 'caretPositionFromPoint', {
+        configurable: true,
+        value: () => ({ offsetNode: text, offset })
+      });
+    };
+    const dispatch = (
+      doc: Document,
+      type: 'pointerdown' | 'pointermove' | 'pointerup',
+      point: { x: number; y: number }
+    ) => {
+      doc.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          pointerType: 'mouse',
+          clientX: point.x,
+          clientY: point.y
+        })
+      );
+    };
+
+    setCaret(first.doc, origin.text, 0);
+    dispatch(first.doc, 'pointerdown', origin.point);
+    setCaret(second.doc, target.text, Math.min(5, target.text.length));
+    dispatch(first.doc, 'pointermove', targetFromOrigin);
+    dispatch(first.doc, 'pointerup', targetFromOrigin);
+
+    return {
+      firstIndex: first.index,
+      firstPrefix: origin.text.data.slice(0, 5),
+      secondPrefix: target.text.data.slice(0, Math.min(5, target.text.length))
+    };
+  });
+
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toBeVisible();
+  await page.evaluate(() => {
+    const copied: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (text: string) => copied.push(text) }
+    });
+    (globalThis as typeof globalThis & { __br1CrossPageCopies?: string[] }).__br1CrossPageCopies = copied;
+  });
+  await page.getByRole('toolbar', { name: '选中文本操作' }).getByRole('button', { name: '复制' }).click();
+  await expect.poll(() =>
+    page.evaluate(() =>
+      (globalThis as typeof globalThis & { __br1CrossPageCopies?: string[] }).__br1CrossPageCopies ?? []
+    )
+  ).toHaveLength(1);
+  const copied = await page.evaluate(
+    () =>
+      (globalThis as typeof globalThis & { __br1CrossPageCopies?: string[] }).__br1CrossPageCopies?.[0] ?? ''
+  );
+  expect(copied).toContain(dragged.firstPrefix);
+  expect(copied).toContain(dragged.secondPrefix);
+
+  await page.getByLabel('阅读页脚控制').getByRole('button', { name: '下一页' }).click();
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toHaveCount(0);
+  await page.getByLabel('阅读侧栏标签').getByRole('tab', { name: '笔记' }).click();
+  await expect(
+    page.getByRole('region', { name: '笔记面板' }).getByRole('button', { name: '先高亮当前选中内容' })
+  ).toHaveCount(0);
+
+  await page.waitForTimeout(175);
+  const singlePageText = await page.evaluate((index) => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: { getContents?: () => Array<{ doc?: Document; index?: number }> };
+    } | null;
+    const doc = view?.renderer?.getContents?.().find((entry) => entry.index === index)?.doc;
+    const text = Array.from(doc?.querySelectorAll('.textLayer span') ?? [])
+      .map((span) => span.firstChild)
+      .find((node): node is Text => node?.nodeType === Node.TEXT_NODE && (node.textContent?.trim().length ?? 0) > 8);
+    if (!doc || !text) throw new Error('expected selectable text on the origin PDF page');
+    const start = text.data.search(/\S/);
+    const selectedText = text.data.slice(start, start + 8);
+    const range = doc.createRange();
+    range.setStart(text, start);
+    range.setEnd(text, start + selectedText.length);
+    const selection = doc.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    doc.dispatchEvent(new Event('selectionchange'));
+    return selectedText.trim();
+  }, dragged.firstIndex);
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toContainText(singlePageText);
+  await page.getByRole('toolbar', { name: '选中文本操作' }).getByRole('button', { name: '复制' }).click();
+  await expect.poll(() =>
+    page.evaluate(() =>
+      (globalThis as typeof globalThis & { __br1CrossPageCopies?: string[] }).__br1CrossPageCopies ?? []
+    )
+  ).toHaveLength(2);
+  const replacementCopy = await page.evaluate(
+    () =>
+      (globalThis as typeof globalThis & { __br1CrossPageCopies?: string[] }).__br1CrossPageCopies?.[1] ?? ''
+  );
+  expect(replacementCopy).toBe(singlePageText);
+});
+
+test('reader receives a native mouse drag across adjacent scrolled PDF iframes', async ({ page }) => {
+  const browserMajor = Number.parseInt(page.context().browser()?.version().split('.')[0] ?? '', 10);
+  test.skip(
+    Number.isFinite(browserMajor) && browserMajor < 148,
+    'Native cross-iframe pointer delivery requires Chromium 148 or newer'
+  );
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected scroll-mode button');
+      element.click();
+    });
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    if (!view?.renderer) throw new Error('expected fixed-layout PDF renderer');
+    view.renderer.setAttribute('scale-factor', '30');
+  });
+
+  const readDrag = () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as (HTMLElement & {
+        renderer?: HTMLElement & {
+          scrolled?: boolean;
+          getContents?: () => Array<{ doc?: Document; index?: number }>;
+        };
+      }) | null;
+      const renderer = view?.renderer;
+      if (renderer?.scrolled !== true) return null;
+      const pages = (renderer.getContents?.() ?? [])
+        .filter(({ doc, index }) => doc?.querySelector('.textLayer span') && index != null)
+        .sort((left, right) => (left.index ?? 0) - (right.index ?? 0));
+      const pairStart = pages.findIndex(
+        (entry, index) => pages[index + 1]?.index === (entry.index ?? -1) + 1
+      );
+      const first = pages[pairStart];
+      const second = pages[pairStart + 1];
+      if (!first?.doc || first.index == null || !second?.doc || second.index == null) return null;
+      const firstFrame = first.doc.defaultView?.frameElement as HTMLIFrameElement | null;
+      const secondFrame = second.doc.defaultView?.frameElement as HTMLIFrameElement | null;
+      if (firstFrame?.style.pointerEvents !== 'auto' || secondFrame?.style.pointerEvents !== 'auto') {
+        return null;
+      }
+      const pointFor = (doc: Document, edge: 'start' | 'end') => {
+        const frame = doc.defaultView?.frameElement as HTMLIFrameElement | null;
+        if (!frame || !view) return null;
+        const frameRect = frame.getBoundingClientRect();
+        if (!frameRect.width || !frameRect.height) return null;
+        const scaleX = frame.clientWidth ? frameRect.width / frame.clientWidth : 1;
+        const scaleY = frame.clientHeight ? frameRect.height / frame.clientHeight : 1;
+        for (const span of doc.querySelectorAll('.textLayer span')) {
+          const text = span.firstChild;
+          if (text?.nodeType !== Node.TEXT_NODE || (text.textContent?.trim().length ?? 0) <= 4) continue;
+          const textNode = text as Text;
+          const range = doc.createRange();
+          range.selectNodeContents(textNode);
+          const textRect = range.getBoundingClientRect();
+          if (!textRect.width || !textRect.height) continue;
+          const localX = edge === 'start' ? textRect.left + 1 : textRect.right - 1;
+          const localY = textRect.top + textRect.height / 2;
+          const iframeHit = doc.elementFromPoint(localX, localY);
+          if (!iframeHit?.contains(textNode)) continue;
+          const x = frameRect.left + localX * scaleX;
+          const y = frameRect.top + localY * scaleY;
+          const topHit = document.elementFromPoint(x, y);
+          if (!topHit || (topHit !== frame && topHit !== view && !view.contains(topHit))) continue;
+          return { x, y, prefix: textNode.data.trim().slice(0, 4) };
+        }
+        return null;
+      };
+      const start = pointFor(first.doc, 'start');
+      const end = pointFor(second.doc, 'end');
+      if (!start || !end) return null;
+      if (
+        start.x <= 0 ||
+        start.x >= innerWidth ||
+        start.y <= 0 ||
+        start.y >= innerHeight ||
+        end.x <= 0 ||
+        end.x >= innerWidth ||
+        end.y <= 0 ||
+        end.y >= innerHeight
+      ) {
+        return null;
+      }
+      return { start, end };
+    });
+
+  await expect.poll(async () => (await readDrag()) !== null).toBe(true);
+  const drag = await readDrag();
+  if (!drag) throw new Error('expected adjacent visible PDF text targets');
+  await page.evaluate(() => {
+    const copied: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (text: string) => copied.push(text) }
+    });
+    (globalThis as typeof globalThis & { __br1NativeCrossPageCopies?: string[] }).__br1NativeCrossPageCopies = copied;
+  });
+  await page.mouse.move(drag.start.x, drag.start.y);
+  await page.mouse.down();
+  await page.mouse.move(drag.end.x, drag.end.y, { steps: 12 });
+  await page.mouse.up();
+
+  const toolbar = page.getByRole('toolbar', { name: '选中文本操作' });
+  await expect(toolbar).toBeVisible();
+  await toolbar.getByRole('button', { name: '复制' }).click();
+  await expect.poll(() =>
+    page.evaluate(() =>
+      (globalThis as typeof globalThis & { __br1NativeCrossPageCopies?: string[] })
+        .__br1NativeCrossPageCopies ?? []
+    )
+  ).toHaveLength(1);
+  const copied = await page.evaluate(
+    () =>
+      (globalThis as typeof globalThis & { __br1NativeCrossPageCopies?: string[] })
+        .__br1NativeCrossPageCopies?.[0] ?? ''
+  );
+  expect(copied).toContain(drag.start.prefix);
+  expect(copied).toContain(drag.end.prefix);
+});
+
+test('PDF text extraction reconstructs selected DOM ranges', async ({ page }) => {
+  await page.goto('/library');
+  const extracted = await page.evaluate(async () => {
+    const pdfText = (await import(
+      /* @vite-ignore */ '/src/lib/reader/' + 'pdfText.ts'
+    )) as {
+      getPdfTextFromRange: (range: Range, textLayer: Element) => string;
+      getPdfSelectionText: (range: Range) => string;
+    };
+    const extract = (
+      rows: Array<{ text: string; top: number }>,
+      start = { row: 0, offset: 0 },
+      end = { row: rows.length - 1, offset: rows.at(-1)?.text.length ?? 0 },
+      throughSelection = false
+    ) => {
+      const layer = document.createElement('div');
+      layer.className = 'textLayer';
+      const nodes = rows.map(({ text, top }, index) => {
+        const span = document.createElement('span');
+        span.textContent = text;
+        span.getBoundingClientRect = () => new DOMRect(24, top, 220, 14);
+        layer.append(span);
+        if (index < rows.length - 1) layer.append(document.createElement('br'));
+        return span.firstChild as Text;
+      });
+      document.body.append(layer);
+      const range = document.createRange();
+      range.setStart(nodes[start.row]!, start.offset);
+      range.setEnd(nodes[end.row]!, end.offset);
+      const text = throughSelection
+        ? pdfText.getPdfSelectionText(range)
+        : pdfText.getPdfTextFromRange(range, layer);
+      layer.remove();
+      return text;
+    };
+
+    return {
+      ordinary: extract([
+        { text: 'A reader builds', top: 20 },
+        { text: 'reusable models.', top: 36 }
+      ]),
+      paragraph: extract([
+        { text: 'First paragraph', top: 20 },
+        { text: 'wraps here.', top: 36 },
+        { text: 'Second paragraph.', top: 78 }
+      ]),
+      cjk: extract([
+        { text: '知识的迁移', top: 20 },
+        { text: '来自阅读。', top: 36 }
+      ]),
+      dehyphenated: extract([
+        { text: 'trans-', top: 20 },
+        { text: 'formation works.', top: 36 }
+      ]),
+      partial: extract(
+        [
+          { text: 'skip Alpha', top: 20 },
+          { text: 'Beta tail', top: 36 }
+        ],
+        { row: 0, offset: 5 },
+        { row: 1, offset: 4 },
+        true
+      )
+    };
+  });
+
+  expect(extracted).toEqual({
+    ordinary: 'A reader builds reusable models.',
+    paragraph: 'First paragraph wraps here.\nSecond paragraph.',
+    cjk: '知识的迁移来自阅读。',
+    dehyphenated: 'transformation works.',
+    partial: 'Alpha Beta'
+  });
+});
+
+test('reader does not form a composite selection for a paginated PDF drag', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.evaluate(async () => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        goToSpread?: (index: number, side: string, reason: string) => Promise<void>;
+        getContents?: () => Array<{ doc?: Document; index?: number }>;
+      };
+    } | null;
+    const renderer = view?.renderer;
+    if (!renderer?.goToSpread) throw new Error('expected fixed-layout PDF renderer');
+    await renderer.goToSpread(1, 'left', 'page');
+    const pages = (renderer.getContents?.() ?? [])
+      .filter(({ doc, index }) => doc && index != null && doc.querySelector('.textLayer span'))
+      .sort((left, right) => (left.index ?? 0) - (right.index ?? 0));
+    const first = pages[0];
+    const second = pages[1];
+    if (!first?.doc || !second?.doc) throw new Error('expected two visible PDF pages');
+    const getTextPoint = (doc: Document) => {
+      const text = Array.from(doc.querySelectorAll('.textLayer span'))
+        .map((span) => span.firstChild)
+        .find((node): node is Text => node?.nodeType === Node.TEXT_NODE && (node.textContent?.trim().length ?? 0) > 4);
+      if (!text) throw new Error('expected selectable PDF text');
+      const range = doc.createRange();
+      range.selectNodeContents(text);
+      const rect = range.getBoundingClientRect();
+      Object.defineProperty(doc, 'caretPositionFromPoint', {
+        configurable: true,
+        value: () => ({ offsetNode: text, offset: Math.min(4, text.length) })
+      });
+      return { x: rect.left + Math.min(4, rect.width / 2), y: rect.top + rect.height / 2 };
+    };
+    const origin = getTextPoint(first.doc);
+    const target = getTextPoint(second.doc);
+    const dispatch = (doc: Document, type: 'pointerdown' | 'pointermove' | 'pointerup', point: typeof origin) =>
+      doc.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          pointerType: 'mouse',
+          clientX: point.x,
+          clientY: point.y
+        })
+      );
+    dispatch(first.doc, 'pointerdown', origin);
+    dispatch(second.doc, 'pointermove', target);
+    dispatch(second.doc, 'pointerup', target);
+  });
+
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toHaveCount(0);
+});
+
 test('reader applies optional PDF theme colors only when canvas filters are supported', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
