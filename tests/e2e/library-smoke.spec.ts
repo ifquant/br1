@@ -4760,6 +4760,144 @@ test('reader fills a two-page PDF spread at fractional device pixel ratio', asyn
   }
 });
 
+test('reader keeps desktop PDF bitmaps at full device pixel ratio beyond the mobile canvas budget', async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: 'http://127.0.0.1:4173',
+    deviceScaleFactor: 2,
+    viewport: { width: 1280, height: 900 }
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto(
+      '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+    );
+    await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+    await page.evaluate(async () => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          setAttribute: (name: string, value: string) => void;
+          goToSpread?: (index: number, side: string, reason: string) => Promise<void>;
+        };
+      } | null;
+      const renderer = view?.renderer;
+      if (!renderer?.goToSpread) throw new Error('expected the fixed-layout PDF renderer');
+      renderer.setAttribute('zoom', '2.1');
+      await renderer.goToSpread(0, 'left', 'page');
+    });
+
+    const readCanvases = () =>
+      page.evaluate(() => {
+        const view = document.querySelector('foliate-view') as {
+          renderer?: { getContents?: () => Array<{ doc?: Document }> };
+        } | null;
+        return (view?.renderer?.getContents?.() ?? []).flatMap(({ doc }) => {
+          const canvas = doc?.querySelector<HTMLCanvasElement>('#canvas canvas');
+          if (!canvas) return [];
+          const rect = canvas.getBoundingClientRect();
+          return [{
+            bitmapArea: canvas.width * canvas.height,
+            bitmapWidth: canvas.width,
+            bitmapHeight: canvas.height,
+            cssWidth: rect.width,
+            cssHeight: rect.height,
+            dpr: doc?.defaultView?.devicePixelRatio ?? 0
+          }];
+        });
+      });
+    await expect.poll(async () => (await readCanvases()).some(({ bitmapArea }) => bitmapArea > 2048 * 1536)).toBe(true);
+    const canvases = await readCanvases();
+
+    for (const { bitmapWidth, bitmapHeight, cssWidth, cssHeight, dpr } of canvases) {
+      expect(dpr).toBe(2);
+      expect(Math.abs(bitmapWidth / cssWidth - dpr)).toBeLessThan(0.02);
+      expect(Math.abs(bitmapHeight / cssHeight - dpr)).toBeLessThan(0.02);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test('reader compensates PDF text layers for OS font scaling without changing the 1.0 default', async ({ browser }) => {
+  const readerUrl =
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline';
+  const readTextLayerMetrics = async (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: { getContents?: () => Array<{ doc?: Document }> };
+      } | null;
+      return (view?.renderer?.getContents?.() ?? []).flatMap(({ doc }) => {
+        const layer = doc?.querySelector<HTMLElement>('.textLayer');
+        const span = Array.from(doc?.querySelectorAll<HTMLSpanElement>('.textLayer span') ?? []).find(
+          element => element.textContent?.trim()
+        );
+        const canvas = doc?.querySelector<HTMLCanvasElement>('#canvas canvas');
+        if (!(doc && layer && span && canvas)) return [];
+        const range = doc.createRange();
+        range.selectNodeContents(span);
+        const selection = range.getBoundingClientRect();
+        const painted = canvas.getBoundingClientRect();
+        return [{
+          textScale: layer.style.getPropertyValue('--text-scale-factor'),
+          selectionWithinCanvas:
+            selection.left >= painted.left &&
+            selection.right <= painted.right &&
+            selection.top >= painted.top &&
+            selection.bottom <= painted.bottom
+        }];
+      });
+    });
+
+  const defaultContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4173' });
+  try {
+    const page = await defaultContext.newPage();
+    await page.goto(readerUrl);
+    await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+    await expect.poll(async () => (await readTextLayerMetrics(page)).length).toBeGreaterThan(0);
+    for (const metric of await readTextLayerMetrics(page)) {
+      expect(metric.textScale).toBe('');
+      expect(metric.selectionWithinCanvas).toBe(true);
+    }
+  } finally {
+    await defaultContext.close();
+  }
+
+  const scaledContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4173' });
+  try {
+    await scaledContext.addInitScript(() => {
+      const nativeOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')?.get;
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get() {
+          if (
+            this instanceof HTMLDivElement &&
+            this.textContent === 'x' &&
+            this.style.fontSize === '100px' &&
+            this.style.lineHeight === '1'
+          ) {
+            return 125;
+          }
+          return nativeOffsetHeight?.call(this) ?? 0;
+        }
+      });
+    });
+    const page = await scaledContext.newPage();
+    await page.goto(readerUrl);
+    await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+    await expect.poll(async () =>
+      (await readTextLayerMetrics(page)).some(
+        ({ textScale }) =>
+          textScale === 'calc(var(--total-scale-factor) * var(--min-font-size) / 1.25)'
+      )
+    ).toBe(true);
+    for (const metric of await readTextLayerMetrics(page)) {
+      expect(metric.selectionWithinCanvas).toBe(true);
+    }
+  } finally {
+    await scaledContext.close();
+  }
+});
+
 test('reader centers either lone PDF page in a portrait auto-spread', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'

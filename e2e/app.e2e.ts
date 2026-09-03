@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 describe('br1 desktop app', () => {
   const startupAssociatedBookPath = process.env.BR1_TEST_ASSOCIATED_FILE_PATH ?? '';
+  const packagedJbig2Path = process.env.BR1_TEST_PACKAGED_JBIG2_PATH ?? '';
   const appDataRoot = join(homedir(), 'Library/Application Support', 'com.tauri-app.br1');
   const readerSearchRoot = join(appDataRoot, 'reader-search');
   const staticSamplesRoot = join(process.cwd(), 'static', 'samples');
@@ -13,6 +14,26 @@ describe('br1 desktop app', () => {
     value.replace(/^\/private\/var\//, '/var/').replace(/\/+/g, '/');
   const sameFsPathAlias = (left: string, right: string) =>
     normalizeFsPathAlias(left) === normalizeFsPathAlias(right);
+
+  const findAssociatedReaderWindow = async (filePath: string) => {
+    const handles = await browser.getWindowHandles();
+    const urls: Array<{ handle: string; url: string }> = [];
+    for (const handle of handles) {
+      await browser.switchToWindow(handle);
+      urls.push({ handle, url: await browser.getUrl() });
+    }
+
+    const matched = urls.find(({ url }) => {
+      const parsed = new URL(url, 'http://localhost');
+      return (
+        parsed.searchParams.get('mode') === 'window' &&
+        parsed.searchParams.get('source') === 'library-file' &&
+        sameFsPathAlias(parsed.searchParams.get('path') ?? '', filePath)
+      );
+    });
+
+    return { handles, urls, matchedHandle: matched?.handle ?? null };
+  };
 
   const readerSearchCacheComponentKey = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -3316,36 +3337,12 @@ describe('br1 desktop app', () => {
       return;
     }
 
-    const expectedReaderWindow = async () => {
-      const handles = await browser.getWindowHandles();
-      const urls: Array<{ handle: string; url: string }> = [];
-      for (const handle of handles) {
-        await browser.switchToWindow(handle);
-        urls.push({ handle, url: await browser.getUrl() });
-      }
-
-      const matched = urls.find(({ url }) => {
-        const parsed = new URL(url, 'http://localhost');
-        return (
-          parsed.searchParams.get('mode') === 'window' &&
-          parsed.searchParams.get('source') === 'library-file' &&
-          parsed.searchParams.get('path') === startupAssociatedBookPath
-        );
-      });
-
-      return {
-        handles,
-        urls,
-        matchedHandle: matched?.handle ?? null
-      };
-    };
-
-    let startupState = await expectedReaderWindow();
+    let startupState = await findAssociatedReaderWindow(startupAssociatedBookPath);
     let queueState = await inspectAssociatedBookOpenQueue();
     let diagnosticsState = await inspectAssociatedBookOpenDiagnostics();
 
     await browser.waitUntil(async () => {
-      startupState = await expectedReaderWindow();
+      startupState = await findAssociatedReaderWindow(startupAssociatedBookPath);
       queueState = await inspectAssociatedBookOpenQueue();
       diagnosticsState = await inspectAssociatedBookOpenDiagnostics();
       return !!startupState.matchedHandle;
@@ -3382,6 +3379,65 @@ describe('br1 desktop app', () => {
       const fallbackHandle = remainingHandles.find((handle) => handle !== startupState.matchedHandle) ?? remainingHandles[0];
       await browser.switchToWindow(fallbackHandle!);
     }
+  });
+
+  it('renders a packaged startup JBIG2 PDF with visible pixels', async function () {
+    if (!packagedJbig2Path) {
+      this.skip();
+      return;
+    }
+
+    let startupState = await findAssociatedReaderWindow(packagedJbig2Path);
+    await browser.waitUntil(async () => {
+      startupState = await findAssociatedReaderWindow(packagedJbig2Path);
+      return !!startupState.matchedHandle;
+    }, {
+      timeout: 15000,
+      timeoutMsg: `expected packaged JBIG2 PDF reader window; windows=${JSON.stringify(startupState.urls)}`
+    });
+
+    await browser.switchToWindow(startupState.matchedHandle!);
+    await $('.reader-shell').waitForDisplayed({ timeout: 10000 });
+
+    let runtimeState: { format: string; ink: number; error: string } = {
+      format: '',
+      ink: 0,
+      error: ''
+    };
+    await browser.waitUntil(async () => {
+      const details = await readReaderDetails();
+      const ink = await browser.execute(() => {
+        const view = document.querySelector('foliate-view') as {
+          renderer?: { getContents?: () => Array<{ doc?: Document }> };
+        } | null;
+        let ink = 0;
+        for (const { doc } of view?.renderer?.getContents?.() ?? []) {
+          const canvas = doc?.querySelector<HTMLCanvasElement>('#canvas canvas');
+          const context = canvas?.getContext('2d', { willReadFrequently: true });
+          if (!(canvas && context && canvas.width && canvas.height)) continue;
+          const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+          const stride = Math.max(4, Math.floor(data.length / 4096 / 4) * 4);
+          for (let index = 0; index < data.length; index += stride) {
+            if (data[index + 3] > 0 && Math.min(data[index], data[index + 1], data[index + 2]) < 245) {
+              ink += 1;
+            }
+          }
+        }
+        return ink;
+      });
+      runtimeState = {
+        format: details.formatLabel ?? '',
+        ink,
+        error: details.stageError ?? ''
+      };
+      if (runtimeState.error) throw new Error(runtimeState.error);
+      return runtimeState.format === 'PDF' && runtimeState.ink > 0;
+    }, {
+      timeout: 30000,
+      timeoutMsg: `expected packaged JBIG2 canvas pixels; state=${JSON.stringify(runtimeState)}`
+    });
+
+    expect(runtimeState.ink).toBeGreaterThan(0);
   });
 
   it('certifies associated-open queue normalization and trusted-open boundaries', async () => {

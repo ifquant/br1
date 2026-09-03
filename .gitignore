@@ -6,6 +6,7 @@ dist
 /.svelte-kit
 /.svelte-kit.bak
 /package
+/static/vendor/pdfjs/LICENSE_*
 /.trae
 /.vscode
 __pycache__/

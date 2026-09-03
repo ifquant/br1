@@ -255,7 +255,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 216 | `11666be5e` | reader core | fix(reader): collapse TOC to the current chapter's path by default (#4366) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
 | 217 | `ef603852b` | tts/audio | feat(tts): hotkey to highlight the currently-spoken sentence (#4085) (#4368) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
 | 218 | `de3e4b6d3` | library | fix(reader): show Duokan fullscreen cover in scrolled mode (#4379) (#4381) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
-| 219 | `9b4db4449` | reader core | fix(pdf): ship jbig2.wasm so scanned PDFs render in packaged builds (#4382) | `partial` | S2-R03C | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 219 | `9b4db4449` | reader core | fix(pdf): ship jbig2.wasm so scanned PDFs render in packaged builds (#4382) | `covered` | S2-R03C | Production builds refresh the complete PDF.js WASM directory; an actual debug macOS app bundle opens a JBIG2 fixture and renders non-white canvas pixels. |
 | 220 | `e8675fb7e` | reader core | fix(reader): inline custom @font-face rules in iframe stylesheet (#4383) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 221 | `97191a57c` | reading modes/controls | fix(reader): stop reading ruler creeping down on scroll (#4386) (#4388) | `partial` | S2-F04 | Focused reading exists; ruler scroll anchoring remains unimplemented. |
 | 222 | `45ef5f751` | reader core | fix(metainfo): declare desktop and mobile device support (#4395) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
@@ -432,7 +432,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 393 | `6f3b401c2` | reader core | feat(reader): middle mouse button autoscroll in scrolled mode (#4955) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 394 | `4527aa277` | tts/audio | feat(reader): add TTS speak button to dictionary popup (#4876) (#4957) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 395 | `f7f85330a` | library | chore(agent): update agent memories (#4958) | `not-applicable` | — | Readest agent-memory bookkeeping. |
-| 396 | `2a837cb50` | reader core | fix(reader): fix PDF text selection misplaced by OS font scaling (#49) (#4960) | `partial` | S2-R03C | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 396 | `2a837cb50` | reader core | fix(reader): fix PDF text selection misplaced by OS font scaling (#49) (#4960) | `covered` | foliate-js measures WebView font enlargement and divides it out of the text-layer glyph scale after each render; deterministic browser coverage verifies the 1.25 and 1.0 paths. |
 | 397 | `a02b236e9` | reader core | fix: more production crashes (View Transition noise, book-dir race, stats transaction) (#4962) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
 | 398 | `db1d63cdc` | reader core | test(reader): harden fixed-layout wheel double-scroll test against CI flake (#4978) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 399 | `600d69fa5` | reader core | fix(reader): gate route View Transitions on API support (READEST-9) (#4989) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
@@ -519,7 +519,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 480 | `27d7a45d9` | ai/assist/dictionary | fix(reader): keep book fonts when proofread rules change (#5277) (#5345) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 481 | `0e4272e4c` | library | fix(epub): fall back to cover-named zip entries (#5273) (#5339) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 482 | `7786400b3` | reader core | fix(reader): keep the PDF footer readable in scrolled mode (#5342) (#5347) | `partial` | S2-R03E | PDF opens; exact rendering/theme/text behavior is incomplete. |
-| 483 | `3ca5d5879` | reader core | fix(pdf): keep desktop PDF text sharp (#5251) (#5348) | `partial` | S2-R03C | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 483 | `3ca5d5879` | reader core | fix(pdf): keep desktop PDF text sharp (#5251) (#5348) | `covered` | The local branch never imported the mobile canvas cap: desktop rendering still uses full devicePixelRatio, with a browser regression above the upstream mobile pixel budget. |
 | 484 | `368284d17` | security | chore: update agent memories (#5358) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 485 | `8c212e5b8` | ai/assist/dictionary | fix(translate): restore Yandex Translate provider (#5256) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 486 | `46e75586f` | reader core | feat(markdown): support full heading depth in the TOC (#5357) (#5363) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B7` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R03D` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, and `S2-R03C` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -855,13 +855,13 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `node --check fixed-layout.js` (PASS); real-PDF scrolled highlight regression (PASS, 10/10 repeated runs); B1-B7 PDF regressions (PASS, 7/7); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `6f67be703`
 
-### S2-R03C - Verify packaged PDF runtime and text sharpness
+### Completed Task: S2-R03C - Verify packaged PDF runtime and text sharpness
 
 - Phase: Step 2
-- Upstream decisions: 3 commits (0 gap, 3 partial)
-- Outcome: Prove scanned-document WASM assets, OS font scaling, and desktop device-pixel-ratio rendering in packaged builds.
-- Touches: PDF.js vendor assembly, PDF host preflight, scanned/text fixtures
-- Verify: `pnpm check`; `packaged scanned-PDF smoke`; `desktop sharpness/selection check`
+- Upstream decisions: 3 commits (3 covered)
+- Result: Production builds refresh every PDF.js WASM runtime, the host preflights the worker foliate actually loads, OS font enlargement is divided out of the transparent text layer, and desktop canvases retain full device-pixel-ratio resolution.
+- Evidence: debug macOS `.app` JBIG2 runtime smoke (PASS, 1/1); built-frontend vendor/runtime checks (PASS, 3/3); focused font-scale and desktop-DPR browser regressions (PASS, 2/2); foliate font-scale tests (PASS, 2/2); `pnpm check` (PASS, 0 errors and 0 warnings); reader helpers (PASS, 71/71); E2E TypeScript and both repositories' `git diff --check` (PASS); fresh Terra high review (PASS, no findings).
+- Evidence boundary: The 1.25 font-scale path is deterministic browser simulation, not a physical WebView with an altered system accessibility setting; device-level selection alignment remains a manual acceptance check.
 - Commits: `9b4db4449`, `2a837cb50`, `3ca5d5879`
 
 ### S2-R03D - Align PDF labels, copy, and cross-page selection

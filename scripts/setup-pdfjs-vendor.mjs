@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
 import postcssNested from 'postcss-nested';
 
-const appRoot = '/Users/dev/workspace2/hc_apps/br1';
-const foliateRoot = '/Users/dev/workspace2/hc_apps/foliate-js';
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const foliateRoot = path.resolve(appRoot, '../foliate-js');
 const pdfjsDistRoot = path.join(appRoot, 'node_modules/pdfjs-dist');
 const targetRoot = path.join(appRoot, 'static/vendor/pdfjs');
 
@@ -17,8 +18,6 @@ const buildFiles = [
   'pdf.worker.mjs.map',
   'pdf.d.mts',
 ];
-const wasmFiles = ['jbig2.wasm', 'openjpeg.wasm', 'qcms_bg.wasm'];
-const runtimeFiles = ['openjpeg_nowasm_fallback.js'];
 const cssFiles = ['annotation_layer_builder.css', 'text_layer_builder.css'];
 const assetDirs = ['cmaps', 'standard_fonts'];
 
@@ -26,7 +25,6 @@ const tasks = {
   prepare: preparePublicVendor,
   'copy-js': copyPdfjsJs,
   'copy-wasm': copyPdfjsWasm,
-  'copy-runtime': copyPdfjsRuntime,
   'copy-fonts': copyPdfjsFonts,
   'copy-annotation-css': () => copyFlattenedCss('annotation_layer_builder.css'),
   'copy-text-css': () => copyFlattenedCss('text_layer_builder.css'),
@@ -54,7 +52,6 @@ async function setupPdfjs() {
 async function copyAllPdfjsAssets() {
   copyPdfjsJs();
   copyPdfjsWasm();
-  copyPdfjsRuntime();
   copyPdfjsFonts();
   await copyPdfjsCss();
 }
@@ -73,16 +70,7 @@ function copyPdfjsJs() {
 
 function copyPdfjsWasm() {
   const wasmRoot = path.join(pdfjsDistRoot, 'wasm');
-  for (const fileName of wasmFiles) {
-    copyFile(path.join(wasmRoot, fileName), path.join(targetRoot, fileName));
-  }
-}
-
-function copyPdfjsRuntime() {
-  const wasmRoot = path.join(pdfjsDistRoot, 'wasm');
-  for (const fileName of runtimeFiles) {
-    copyFile(path.join(wasmRoot, fileName), path.join(targetRoot, fileName));
-  }
+  copyDirectory(wasmRoot, targetRoot);
 }
 
 function copyPdfjsFonts() {

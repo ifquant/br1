@@ -5,9 +5,11 @@ const hostPdfjsEntry = "/vendor/pdfjs/pdf.min.mjs";
 
 const requiredPdfjsAssets = [
   "/vendor/pdfjs/pdf.min.mjs",
-  "/vendor/pdfjs/pdf.worker.min.mjs",
+  "/vendor/pdfjs/pdf.worker.mjs",
   "/vendor/pdfjs/jbig2.wasm",
   "/vendor/pdfjs/openjpeg.wasm",
+  "/vendor/pdfjs/qcms_bg.wasm",
+  "/vendor/pdfjs/openjpeg_nowasm_fallback.js",
 ];
 
 /** @param {string} contentType */
