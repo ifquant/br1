@@ -4465,6 +4465,83 @@ test('reader preserves the intra-page PDF position when scrolled pages load and 
   expect(Math.abs(afterResize.fraction - beforeResize.fraction)).toBeLessThan(0.03);
 });
 
+test('reader fills a two-page PDF spread at fractional device pixel ratio', async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: 'http://127.0.0.1:4173',
+    deviceScaleFactor: 1.5,
+    viewport: { width: 1280, height: 900 }
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto(
+      '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+    );
+    await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+    await page.evaluate(async () => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          setAttribute: (name: string, value: string) => void;
+          goToSpread?: (index: number, side: string, reason: string) => Promise<void>;
+        };
+      } | null;
+      const renderer = view?.renderer;
+      if (!renderer?.goToSpread) throw new Error('expected the fixed-layout PDF renderer');
+      renderer.setAttribute('zoom', '1.001');
+      await renderer.goToSpread(1, 'left', 'page');
+    });
+
+    const readSpreadCanvases = () =>
+      page.evaluate(() => {
+        const view = document.querySelector('foliate-view') as {
+          renderer?: {
+            getContents?: () => Array<{ doc?: Document }>;
+          };
+        } | null;
+        return (view?.renderer?.getContents?.() ?? []).flatMap(({ doc }) => {
+          if (!doc) return [];
+          const canvas = doc.querySelector<HTMLCanvasElement>('#canvas canvas');
+          const frame = doc.defaultView?.frameElement;
+          const totalScale = Number.parseFloat(
+            doc.documentElement.style.getPropertyValue('--total-scale-factor')
+          );
+          const sourceWidth = Number.parseFloat(
+            doc.querySelector('meta[name="viewport"]')?.getAttribute('content')?.match(/width=([^,]+)/)?.[1] ?? ''
+          );
+          if (!(canvas && frame instanceof HTMLIFrameElement && totalScale && sourceWidth)) return [];
+
+          const dpr = doc.defaultView?.devicePixelRatio ?? 0;
+          return [{
+            bitmapWidth: canvas.width,
+            cssWidth: Number.parseFloat(canvas.style.width),
+            idealDeviceWidth: sourceWidth * totalScale,
+            logicalPageWidth: frame.getBoundingClientRect().width,
+            renderedCanvasWidth: canvas.getBoundingClientRect().width,
+            dpr
+          }];
+        });
+      });
+
+    await expect.poll(async () => (await readSpreadCanvases()).length).toBe(2);
+    const canvases = await readSpreadCanvases();
+    expect(canvases).toHaveLength(2);
+    expect(
+      canvases.some(
+        ({ bitmapWidth, idealDeviceWidth }) =>
+          Number.isInteger(bitmapWidth) && !Number.isInteger(idealDeviceWidth) && bitmapWidth < idealDeviceWidth
+      )
+    ).toBe(true);
+    for (const { cssWidth, idealDeviceWidth, logicalPageWidth, renderedCanvasWidth, dpr } of canvases) {
+      expect(dpr).toBe(1.5);
+      expect(Math.abs(cssWidth - idealDeviceWidth)).toBeLessThan(0.01);
+      expect(Math.abs(cssWidth / dpr - logicalPageWidth)).toBeLessThan(0.02);
+      expect(Math.abs(renderedCanvasWidth - logicalPageWidth)).toBeLessThan(0.02);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
 test('reader hides PDF theme colors in unsupported Safari environments', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'userAgent', {

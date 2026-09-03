@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 18 |
-| `partial` | 458 |
+| `covered` | 19 |
+| `partial` | 457 |
 | `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 5 | 259 | 20 | 50 |
+| reader core | 6 | 258 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -361,7 +361,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 322 | `799fc0e0a` | library | feat(library): add opt-in "purge reading data" toggle to delete confirm (#4698) (#4705) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact library interaction needs a regression. |
 | 323 | `c781aedda` | reader core | feat(reader): add sticky progress bar with chapter ticks (#4707) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 324 | `15f183878` | tts/audio | chore(agent): update agent memories (#4709) | `not-applicable` | — | Readest agent-memory bookkeeping. |
-| 325 | `a9c0f3d46` | reader core | fix(reader): remove 1px white seam in PDF spread at fractional DPI (#4587) (#4713) | `partial` | S2-R03B3 | PDF spreads open; the fractional-DPI seam still lacks implementation and proof. |
+| 325 | `a9c0f3d46` | reader core | fix(reader): remove 1px white seam in PDF spread at fractional DPI (#4587) (#4713) | `covered` | S2-R03B3 | The nested foliate-js change `981298cf4..24d9a0c0e` is matched by explicit untruncated canvas CSS dimensions, with a repeated DPR 1.5 real-PDF spread regression. |
 | 326 | `b87c735c1` | tts/audio | fix(tts): keep native System TTS reading past unspeakable chunks offline (#4613, #4408) (#4716) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 327 | `a6d28ffcd` | ai/assist/dictionary | fix(reader): add Alt+P proofread shortcut and let Shift+P exit paragraph mode (#4717) (#4723) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 328 | `f4bb11126` | ai/assist/dictionary | feat(translator): add Urdu as a Translate Text target language (#4721) (#4726) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03B3` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1`, and `S2-R03B2` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R03B4` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B3` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -815,13 +815,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `node --check fixed-layout.js` (PASS); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); B1/B2 PDF regressions (PASS, 2/2); continuous-scroll load/resize regression (PASS, 3/3 repeated runs); `pnpm build` (PASS).
 - Commit: `dab92c8a4`
 
-### S2-R03B3 - Remove fractional-DPI PDF spread seams
+### Completed Task: S2-R03B3 - Remove fractional-DPI PDF spread seams
 
 - Phase: Step 2
-- Upstream decisions: 1 commit (0 gap, 1 partial)
-- Outcome: Keep adjacent PDF pages visually joined at fractional device-pixel ratios.
-- Touches: fixed-layout spread geometry and focused PDF fixture
-- Verify: `pnpm check`; `PDF fractional-DPI spread smoke`; `git diff --check`
+- Upstream decisions: 1 commit (1 covered)
+- Result: PDF canvases keep the fractional device-pixel viewport as their CSS size while retaining integer bitmap dimensions, so the existing inverse-DPR transform fills each logical page box without exposing a spread seam.
+- Evidence: `node --check pdf.js` (PASS); DPR 1.5 real-PDF spread regression (PASS, 3/3 repeated runs); B1-B3 PDF regressions (PASS, 3/3); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `a9c0f3d46`
 
 ### S2-R03B4 - Stabilize scrolled PDF wheel input
