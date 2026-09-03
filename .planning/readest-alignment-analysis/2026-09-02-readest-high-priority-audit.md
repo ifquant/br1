@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 22 |
-| `partial` | 454 |
+| `covered` | 23 |
+| `partial` | 453 |
 | `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 9 | 255 | 20 | 50 |
+| reader core | 10 | 254 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -637,7 +637,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 598 | `be6845371` | reading modes/controls | feat(reader): resume Auto Scroll when reopening a book, closes #5631 (#5710) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 599 | `522e504b6` | reading modes/controls | fix(reader): support page turner key combinations (#5709) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 600 | `a6e6691c8` | reader core | feat(reader): right-to-left page order for fixed-layout books (#5712) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
-| 601 | `6f67be703` | reader core | fix(reader): restore scrolled PDF highlights (#5719) | `partial` | S2-R03B7 | Paginated PDF highlights are covered; scrolled-mode overlayer refresh remains unproved. |
+| 601 | `6f67be703` | reader core | fix(reader): restore scrolled PDF highlights (#5719) | `covered` | S2-R03B7 | The nested foliate-js change `9fde61a10` is matched by refreshing the scrolled page overlayer after async PDF text-layer rendering, with a repeated real-highlight replacement regression. |
 | 602 | `7e998d384` | reader core | fix(reader): highlight search results visible across chapter boundary (#5725) | `partial` | S2-A01A | P0-2/P0-3 and reader smoke tests; this anchor/grouping edge is unproved. |
 | 603 | `8226c5545` | reader core | fix(reader): drop the 500-result cap from in-book search, closes #5724 (#5728) | `partial` | S2-R06 | P0-2/P0-3 and reader smoke tests; exact search behavior is incomplete. |
 | 604 | `07306093e` | ai/assist/dictionary | fix(annotator): drop the selection when the instant dictionary opens, closes #5585 (#5730) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B6` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B7` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -847,13 +847,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `node --check fixed-layout.js` (PASS); real-PDF portrait spread regression (PASS, 3/3 repeated runs); B1-B6 PDF regressions (PASS, 6/6); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `3ce5a5c8e`
 
-### S2-R03B7 - Restore scrolled PDF highlights
+### Completed Task: S2-R03B7 - Restore scrolled PDF highlights
 
 - Phase: Step 2
-- Upstream decisions: 1 commit (0 gap, 1 partial)
-- Outcome: Re-anchor highlights after PDF text-layer rerenders in continuous scroll mode.
-- Touches: fixed-layout scroll-page overlayer refresh and focused PDF fixture
-- Verify: `pnpm check`; `PDF scrolled highlight smoke`; `git diff --check`
+- Upstream decisions: 1 commit (1 covered)
+- Result: Continuous-scroll PDF pages now replace stale annotation overlayers after asynchronous text-layer rerenders, reconnecting saved highlights to fresh DOM ranges.
+- Evidence: `node --check fixed-layout.js` (PASS); real-PDF scrolled highlight regression (PASS, 10/10 repeated runs); B1-B7 PDF regressions (PASS, 7/7); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `6f67be703`
 
 ### S2-R03C - Verify packaged PDF runtime and text sharpness

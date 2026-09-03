@@ -4387,6 +4387,224 @@ test('reader restores PDF highlights after a two-page text layer rerender', asyn
   await expect.poll(readHighlightState).toEqual({ marker: '', drawings: 1 });
 });
 
+test('reader restores PDF highlights after a scrolled text layer rerender', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.getByLabel('阅读侧栏标签').getByRole('tab', { name: '笔记' }).click();
+  await page.evaluate(() => {
+    const probeKey = '__br1InitialScrolledOverlayers';
+    const view = document.querySelector('foliate-view') as (EventTarget & {
+      renderer?: EventTarget & {
+        getContents?: () => Array<{
+          index?: number;
+          overlayer?: { element: SVGElement };
+        }>;
+      };
+    }) | null;
+    const renderer = view?.renderer;
+    if (!renderer) throw new Error('expected the fixed-layout PDF renderer');
+    const probe = {
+      first: new Map<number, SVGElement>(),
+      readyIndex: undefined as number | undefined,
+      lastActivity: performance.now()
+    };
+    (globalThis as typeof globalThis & { [probeKey]?: typeof probe })[probeKey] = probe;
+    const markActivity = () => (probe.lastActivity = performance.now());
+    renderer.addEventListener('scroll', markActivity);
+    view.addEventListener('relocate', markActivity);
+    renderer.addEventListener('create-overlayer', (event) => {
+      markActivity();
+      const { index } = (event as CustomEvent<{ index: number }>).detail;
+      const element = renderer.getContents?.().find((item) => item.index === index)?.overlayer?.element;
+      if (element && !probe.first.has(index)) probe.first.set(index, element);
+    });
+  });
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected the scroll mode button');
+      element.click();
+    });
+  await expect(page.getByLabel('阅读页脚控制')).toContainText('滚动');
+
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const probeKey = '__br1InitialScrolledOverlayers';
+      const probe = (
+        globalThis as typeof globalThis & {
+          [probeKey]?: { first: Map<number, SVGElement>; readyIndex?: number; lastActivity: number };
+        }
+      )[probeKey];
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          getAttribute: (name: string) => string | null;
+          getContents?: () => Array<{
+            doc?: Document;
+            index?: number;
+            overlayer?: { element: SVGElement };
+          }>;
+        };
+      } | null;
+      if (view?.renderer?.getAttribute('flow') !== 'scrolled' || !probe) return false;
+      const contents = view.renderer.getContents?.() ?? [];
+      const ready = contents.find(({ doc, index, overlayer }) => {
+        const first = index == null ? undefined : probe.first.get(index);
+        const current = overlayer?.element;
+        return Boolean(
+          first &&
+            current &&
+            first !== current &&
+            !first.isConnected &&
+            current.isConnected &&
+            doc?.querySelector('.textLayer .endOfContent') &&
+            Array.from(doc.querySelectorAll('.textLayer span')).some(
+              (span) =>
+                span.firstChild?.nodeType === Node.TEXT_NODE &&
+                (span.firstChild.textContent?.length ?? 0) > 4
+          )
+        );
+      });
+      const allLoadedPagesReady = contents.length > 0 && contents.every(({ doc, overlayer }) =>
+        Boolean(overlayer?.element.isConnected && doc?.querySelector('.textLayer .endOfContent'))
+      );
+      probe.readyIndex = allLoadedPagesReady && performance.now() - probe.lastActivity >= 300
+        ? ready?.index
+        : undefined;
+      return probe.readyIndex != null;
+    })
+  ).toBe(true);
+
+  const selectedIndex = await page.evaluate(() => {
+    const probeKey = '__br1InitialScrolledOverlayers';
+    const selectedIndex = (
+      globalThis as typeof globalThis & {
+        [probeKey]?: { readyIndex?: number };
+      }
+    )[probeKey]?.readyIndex;
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        getContents?: () => Array<{
+          doc?: Document;
+          index?: number;
+          overlayer?: { element: SVGElement };
+        }>;
+      };
+    } | null;
+    const entry = view?.renderer
+      ?.getContents?.()
+      .find(({ index }) => index === selectedIndex);
+    if (!entry?.doc || entry.index == null || !entry.overlayer) {
+      throw new Error('expected a loaded scrolled PDF text layer and overlayer');
+    }
+    const span = Array.from(entry.doc.querySelectorAll('.textLayer span')).find(
+      (candidate) =>
+        candidate.firstChild?.nodeType === Node.TEXT_NODE &&
+        (candidate.firstChild.textContent?.length ?? 0) > 4
+    );
+    const textNode = span?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error('expected selectable PDF text');
+    }
+    const range = entry.doc.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, Math.min(12, textNode.textContent?.length ?? 0));
+    const selection = entry.doc.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    entry.doc.dispatchEvent(new Event('selectionchange'));
+    return entry.index;
+  });
+
+  const notesPanel = page.getByRole('region', { name: '笔记面板' });
+  const highlightButton = notesPanel.getByRole('button', { name: '先高亮当前选中内容' });
+  await expect(highlightButton).toBeEnabled();
+  await highlightButton.evaluate((element) => {
+    if (!(element instanceof HTMLButtonElement)) throw new Error('expected the highlight button');
+    element.click();
+  });
+
+  const readHighlightState = () =>
+    page.evaluate((index) => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          getContents?: () => Array<{
+            index?: number;
+            overlayer?: { element: SVGElement };
+          }>;
+        };
+      } | null;
+      const element = view?.renderer?.getContents?.().find((item) => item.index === index)?.overlayer
+        ?.element;
+      return element
+        ? {
+            connected: element.isConnected,
+            drawings: element.querySelectorAll(':scope > g > rect, :scope > g > path').length
+          }
+        : null;
+    }, selectedIndex);
+
+  await expect.poll(readHighlightState).toEqual({ connected: true, drawings: 1 });
+  await page.evaluate((index) => {
+    const staleKey = '__br1StaleScrolledOverlayer';
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        getContents?: () => Array<{
+          index?: number;
+          overlayer?: { element: SVGElement };
+        }>;
+        setAttribute: (name: string, value: string) => void;
+      };
+    } | null;
+    const renderer = view?.renderer;
+    const element = renderer?.getContents?.().find((item) => item.index === index)?.overlayer?.element;
+    if (!renderer || !element || !element.isConnected) {
+      throw new Error('expected the connected highlighted scrolled PDF overlayer');
+    }
+    element.dataset.br1StaleProbe = 'stale';
+    (globalThis as typeof globalThis & { [staleKey]?: SVGElement })[staleKey] = element;
+    renderer.setAttribute('scale-factor', '110');
+  }, selectedIndex);
+
+  await expect
+    .poll(() =>
+      page.evaluate((index) => {
+        const staleKey = '__br1StaleScrolledOverlayer';
+        const stale = (globalThis as typeof globalThis & { [staleKey]?: SVGElement })[staleKey];
+        const view = document.querySelector('foliate-view') as {
+          renderer?: {
+            getContents?: () => Array<{
+              index?: number;
+              overlayer?: { element: SVGElement };
+            }>;
+          };
+        } | null;
+        const current = view?.renderer
+          ?.getContents?.()
+          .find((item) => item.index === index)?.overlayer?.element;
+        return {
+          staleConnected: stale?.isConnected ?? false,
+          currentConnected: current?.isConnected ?? false,
+          replaced: Boolean(stale && current && stale !== current),
+          marker: current?.dataset.br1StaleProbe ?? '',
+          drawings: current
+            ? current.querySelectorAll(':scope > g > rect, :scope > g > path').length
+            : 0
+        };
+      }, selectedIndex)
+    )
+    .toEqual({
+      staleConnected: false,
+      currentConnected: true,
+      replaced: true,
+      marker: '',
+      drawings: 1
+    });
+});
+
 test('reader preserves the intra-page PDF position when scrolled pages load and resize', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
