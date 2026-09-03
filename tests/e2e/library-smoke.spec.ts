@@ -4542,6 +4542,137 @@ test('reader fills a two-page PDF spread at fractional device pixel ratio', asyn
   }
 });
 
+test('reader centers either lone PDF page in a portrait auto-spread', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  await page.evaluate(async () => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: {
+        spread?: string;
+        style: CSSStyleDeclaration;
+        setAttribute: (name: string, value: string) => void;
+        goToSpread?: (index: number, side: 'left' | 'right', reason: string) => Promise<void>;
+      };
+    } | null;
+    const renderer = view?.renderer;
+    if (!renderer?.goToSpread) throw new Error('expected the fixed-layout PDF renderer');
+
+    Object.assign(renderer.style, { width: '480px', height: '640px', flex: 'none' });
+    renderer.setAttribute('spread', 'auto');
+    renderer.setAttribute('zoom', '0.5');
+    await renderer.goToSpread(1, 'left', 'page');
+  });
+
+  const readSpreadMetrics = () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: {
+          spread?: string;
+          getContents?: () => Array<{ doc?: Document; index?: number }>;
+        };
+      } | null;
+      const renderer = view?.renderer;
+      if (!renderer?.getContents) return null;
+      const host = renderer as HTMLElement;
+      const hostRect = host.getBoundingClientRect();
+      const pages = renderer.getContents().flatMap(({ doc, index }) => {
+        const iframe = doc?.defaultView?.frameElement;
+        const element = iframe instanceof HTMLIFrameElement ? iframe.parentElement : null;
+        if (!(element instanceof HTMLElement) || index == null) return [];
+        const rect = element.getBoundingClientRect();
+        return [{
+          index,
+          display: element.style.display,
+          marginInlineStart: element.style.marginInlineStart,
+          marginInlineEnd: element.style.marginInlineEnd,
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          centerX: rect.left + rect.width / 2
+        }];
+      });
+      return {
+        spread: renderer.spread,
+        host: {
+          width: hostRect.width,
+          height: hostRect.height,
+          centerX: hostRect.left + hostRect.width / 2
+        },
+        pages
+      };
+    });
+
+  await expect.poll(async () => {
+    const metrics = await readSpreadMetrics();
+    const visible = metrics?.pages.filter((page) => page.display !== 'none' && page.width > 0) ?? [];
+    return {
+      spread: metrics?.spread,
+      pageCount: metrics?.pages.length ?? 0,
+      portrait: !!metrics && metrics.host.height > metrics.host.width * 1.2,
+      visibleCount: visible.length,
+      narrowerThanHost: !!metrics && visible[0]?.width < metrics.host.width
+    };
+  }).toEqual({
+    spread: 'auto',
+    pageCount: 2,
+    portrait: true,
+    visibleCount: 1,
+    narrowerThanHost: true
+  });
+
+  const portraitLeft = await readSpreadMetrics();
+  if (!portraitLeft) throw new Error('expected portrait auto-spread metrics');
+  const leftPage = portraitLeft.pages.find((page) => page.display !== 'none' && page.width > 0);
+  if (!leftPage) throw new Error('expected the left PDF page to be visible in portrait');
+  expect(Math.abs(leftPage.centerX - portraitLeft.host.centerX)).toBeLessThan(1);
+
+  await page.evaluate(async () => {
+    const view = document.querySelector('foliate-view') as {
+      renderer?: { goToSpread?: (index: number, side: 'right', reason: string) => Promise<void> };
+    } | null;
+    if (!view?.renderer?.goToSpread) throw new Error('expected the fixed-layout PDF renderer');
+    await view.renderer.goToSpread(1, 'right', 'page');
+  });
+
+  await expect.poll(async () => {
+    const metrics = await readSpreadMetrics();
+    const visible = metrics?.pages.filter((page) => page.display !== 'none' && page.width > 0) ?? [];
+    return (
+      visible.length === 1 &&
+      visible[0].index !== leftPage.index &&
+      Math.abs(visible[0].centerX - portraitLeft.host.centerX) < 1
+    );
+  }).toBe(true);
+
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    if (!view?.renderer) throw new Error('expected the fixed-layout PDF renderer');
+    Object.assign(view.renderer.style, { width: '760px', height: '480px' });
+  });
+
+  await expect.poll(async () => {
+    const metrics = await readSpreadMetrics();
+    if (!metrics) return null;
+    const visible = metrics.pages.filter((page) => page.display !== 'none' && page.width > 0);
+    if (visible.length !== 2) return null;
+    const [left, right] = [...visible].sort((a, b) => a.left - b.left);
+    return {
+      landscape: metrics.host.width > metrics.host.height,
+      spineAligned: Math.abs(left.right - right.left) < 1,
+      leftMargins: [left.marginInlineStart, left.marginInlineEnd],
+      rightMargins: [right.marginInlineStart, right.marginInlineEnd]
+    };
+  }).toEqual({
+    landscape: true,
+    spineAligned: true,
+    leftMargins: ['auto', ''],
+    rightMargins: ['', 'auto']
+  });
+});
+
 test('reader avoids programmatic double-scroll for scrolled PDF iframe wheel input', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'

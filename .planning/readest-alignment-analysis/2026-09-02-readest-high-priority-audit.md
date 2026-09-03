@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 21 |
-| `partial` | 455 |
+| `covered` | 22 |
+| `partial` | 454 |
 | `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 8 | 256 | 20 | 50 |
+| reader core | 9 | 255 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -436,7 +436,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 397 | `a02b236e9` | reader core | fix: more production crashes (View Transition noise, book-dir race, stats transaction) (#4962) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
 | 398 | `db1d63cdc` | reader core | test(reader): harden fixed-layout wheel double-scroll test against CI flake (#4978) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 399 | `600d69fa5` | reader core | fix(reader): gate route View Transitions on API support (READEST-9) (#4989) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
-| 400 | `3ce5a5c8e` | reader core | fix(reader): center the lone PDF page in portrait auto-spread (#4984) (#4992) | `partial` | S2-R03B6 | PDF opens; lone-page portrait centering is unproved. |
+| 400 | `3ce5a5c8e` | reader core | fix(reader): center the lone PDF page in portrait auto-spread (#4984) (#4992) | `covered` | S2-R03B6 | The nested foliate-js change `f6dced2aa` is matched by symmetric portrait margins, explicit landscape margin reset, and a repeated real-PDF left/right/rotation regression. |
 | 401 | `17de9357d` | tts/audio | feat(reader): redesign the TTS control as a mini player with an expandable player sheet (#4996) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 402 | `f8ad47a41` | reading modes/controls | feat(reader): Auto Scroll reading mode for scrolled flow (#4998) (#4999) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 403 | `a8d341120` | reader core | fix(reader): gate captured slide/curl turn on scrollLocked like push (#5000) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03B6` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B5` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B6` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -839,13 +839,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `node --check fixed-layout.js` (PASS); real-PDF pinch regression (PASS, 3/3 repeated runs); B1-B5 PDF regressions (PASS, 5/5); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `f8916e128`
 
-### S2-R03B6 - Center lone portrait PDF pages
+### Completed Task: S2-R03B6 - Center lone portrait PDF pages
 
 - Phase: Step 2
-- Upstream decisions: 1 commit (0 gap, 1 partial)
-- Outcome: Center a single visible page when portrait auto-spread cannot form a pair.
-- Touches: fixed-layout spread alignment and focused PDF fixture
-- Verify: `pnpm check`; `PDF portrait spread smoke`; `git diff --check`
+- Upstream decisions: 1 commit (1 covered)
+- Result: Portrait auto-spread now centers either lone visible PDF page with symmetric inline margins, while landscape explicitly restores the two one-sided margins that keep both pages against the spine.
+- Evidence: `node --check fixed-layout.js` (PASS); real-PDF portrait spread regression (PASS, 3/3 repeated runs); B1-B6 PDF regressions (PASS, 6/6); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `3ce5a5c8e`
 
 ### S2-R03B7 - Restore scrolled PDF highlights
