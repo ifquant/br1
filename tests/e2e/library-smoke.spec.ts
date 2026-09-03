@@ -4387,6 +4387,84 @@ test('reader restores PDF highlights after a two-page text layer rerender', asyn
   await expect.poll(readHighlightState).toEqual({ marker: '', drawings: 1 });
 });
 
+test('reader preserves the intra-page PDF position when scrolled pages load and resize', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected the scroll mode button');
+      element.click();
+    });
+  await expect(page.getByLabel('阅读页脚控制')).toContainText('滚动');
+
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      return view?.renderer?.getAttribute('flow') ?? '';
+    })
+  ).toBe('scrolled');
+
+  const readScrollState = () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      const renderer = view?.renderer;
+      const target = renderer?.shadowRoot?.querySelector<HTMLElement>('.scroll-page[data-index="2"]');
+      const iframe = target?.querySelector<HTMLIFrameElement>('iframe');
+      if (!renderer || !target) return null;
+      return {
+        loaded: iframe?.style.display === 'block',
+        height: target.offsetHeight,
+        fraction: (renderer.scrollTop - target.offsetTop) / target.offsetHeight
+      };
+    });
+
+  await expect.poll(async () => (await readScrollState())?.height ?? 0).toBeGreaterThan(0);
+  const placeholder = await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    const renderer = view?.renderer;
+    const target = renderer?.shadowRoot?.querySelector<HTMLElement>('.scroll-page[data-index="2"]');
+    if (!renderer || !target) throw new Error('expected the third scrolled PDF page');
+    const iframe = target.querySelector<HTMLIFrameElement>('iframe');
+    if (iframe?.style.display === 'block') throw new Error('expected an unloaded PDF placeholder');
+    target.style.height = `${target.offsetHeight / 2}px`;
+    renderer.scrollTop = target.offsetTop + target.offsetHeight * 0.4;
+    renderer.dispatchEvent(new Event('scroll'));
+    return {
+      loaded: iframe?.style.display === 'block',
+      height: target.offsetHeight,
+      fraction: (renderer.scrollTop - target.offsetTop) / target.offsetHeight
+    };
+  });
+  expect(placeholder.loaded).toBe(false);
+  expect(placeholder.fraction).toBeGreaterThan(0.35);
+
+  await expect.poll(async () => (await readScrollState())?.loaded ?? false).toBe(true);
+  const afterLoad = await readScrollState();
+  if (!afterLoad) throw new Error('expected scrolled PDF metrics after load');
+  expect(afterLoad.height).toBeGreaterThan(placeholder.height * 1.5);
+  expect(Math.abs(afterLoad.fraction - placeholder.fraction)).toBeLessThan(0.03);
+
+  const beforeResize = afterLoad;
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    if (!view?.renderer) throw new Error('expected the fixed-layout PDF renderer');
+    view.renderer.setAttribute('scale-factor', '125');
+  });
+  await expect
+    .poll(async () => (await readScrollState())?.height ?? 0)
+    .toBeGreaterThan(beforeResize.height * 1.2);
+
+  const afterResize = await readScrollState();
+  if (!afterResize) throw new Error('expected scrolled PDF metrics after resize');
+  expect(Math.abs(afterResize.fraction - beforeResize.fraction)).toBeLessThan(0.03);
+});
+
 test('reader hides PDF theme colors in unsupported Safari environments', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'userAgent', {

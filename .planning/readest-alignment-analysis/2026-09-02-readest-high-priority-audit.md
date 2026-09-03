@@ -1,6 +1,6 @@
 # Readest High-Priority Commit Audit
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 This document finalizes the 678 high-priority decisions from `e0cf7e8d9f0c61e2cd859dd9cc0d026351eef3b6..6df90139dc7b72246572ab33b12d485b281ca6e6` against current br1 source. It complements the two-step plan; it does not replace the 1,189-commit history ledger.
 
@@ -10,6 +10,7 @@ This document finalizes the 678 high-priority decisions from `e0cf7e8d9f0c61e2cd
 - `partial`: the capability exists, but this commit adds an unproved edge or missing part.
 - `gap`: the behavior fits br1 but no equivalent implementation was found.
 - `not-applicable`: Readest-only platform, cloud/account, build, dependency, distribution, or implementation detail.
+- A `packages/foliate-js` gitlink change is not a generic dependency bump: resolve its old and new SHAs, inspect the nested foliate-js commits, and classify their reader behavior before deciding br1 coverage.
 
 Every upstream commit and its touched-path list was resolved locally. Decisions are deliberately conservative: when the exact Readest bug is not already proved by a br1 regression, the row stays `partial` and its task begins with local reproduction. The task column points to the smallest br1-native follow-up; Readest implementation shape is not a porting requirement.
 
@@ -17,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 17 |
-| `partial` | 459 |
+| `covered` | 18 |
+| `partial` | 458 |
 | `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 4 | 260 | 20 | 50 |
+| reader core | 5 | 259 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -145,7 +146,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 107 | `4b0720a3e` | reading modes/controls | perf(rsvp): windowed context, extraction caching and lazy CFI for sections with thousands of words, closes #3953 (#3984) | `partial` | S2-F02 | readingMode.ts and focused-reading e2e; chapter/window resume is incomplete. |
 | 108 | `920627ae5` | reading modes/controls | feat(rsvp): use jieba tokenizer to segment words for Chinese books (#3985) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
 | 109 | `34f19fd14` | reader core | fix(annotation): preserve line breaks in selected text across <br> elements, closes #3981 (#3986) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
-| 110 | `dab92c8a4` | reader core | fix(pdf): prevent continuous scroll kickback (#3990) | `partial` | S2-R03B2 | PDF opens; continuous-scroll anchoring after rerender is not yet proved. |
+| 110 | `dab92c8a4` | reader core | fix(pdf): prevent continuous scroll kickback (#3990) | `covered` | S2-R03B2 | The nested foliate-js change `2204a28..9f12ba9` is matched by page-index plus intra-page-fraction anchoring around scroll-page resize, with a repeated real-PDF browser regression. |
 | 111 | `234ecc311` | ai/assist/dictionary | fix(epub): fall back to case-insensitive zip lookups (#3991) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
 | 112 | `d609de58f` | reader core | fix(reader): preserve position when toggling scrolled mode, closes #3987 (#3996) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 113 | `1d8ed3fc9` | reader core | fix(footnote): ignore background image in footnotes (#3998) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
@@ -718,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03B2` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` reviewed and closed on 2026-09-02).
+2. Trust and format floor: `S2-R03B3` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1`, and `S2-R03B2` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -806,13 +807,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `node --check fixed-layout.js` (PASS); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); PDF annotation/theme browser regressions (PASS, 4/4); `pnpm build` (PASS).
 - Commit: `3bbc2071c`
 
-### S2-R03B2 - Preserve continuous-scroll PDF position after rerender
+### Completed Task: S2-R03B2 - Preserve continuous-scroll PDF position after rerender
 
 - Phase: Step 2
-- Upstream decisions: 1 commit (0 gap, 1 partial)
-- Outcome: Prevent continuous-scroll kickback when PDF pages rerender.
-- Touches: fixed-layout scroll anchor and focused PDF fixture
-- Verify: `pnpm check`; `PDF continuous-scroll position smoke`; `git diff --check`
+- Upstream decisions: 1 commit (1 covered)
+- Result: The fixed-layout engine preserves the current page and its intra-page fraction while actual PDF dimensions land or the scrolled layout resizes, instead of snapping the page to its top edge.
+- Evidence: `node --check fixed-layout.js` (PASS); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); B1/B2 PDF regressions (PASS, 2/2); continuous-scroll load/resize regression (PASS, 3/3 repeated runs); `pnpm build` (PASS).
 - Commit: `dab92c8a4`
 
 ### S2-R03B3 - Remove fractional-DPI PDF spread seams

@@ -1,6 +1,6 @@
 # Readest Two-Step Alignment Plan
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 ## Scope
 
@@ -61,7 +61,7 @@ Exit criteria for Step 1:
 Goal: absorb the user-visible and correctness-relevant commits from the pull delta after Step 1 is stable.
 
 1. Process the high-priority delta areas first: reader core, reading modes/controls, TTS/audio, AI-assist/dictionary, security, library, and catalog/import.
-2. Treat each Readest commit as a behavior prompt, not a patch source. For each relevant commit, decide one of: already covered, port simplified behavior, create br1-specific follow-up, or skip with reason.
+2. Treat each Readest commit as a behavior prompt, not a patch source. For each relevant commit, decide one of: already covered, port simplified behavior, create br1-specific follow-up, or skip with reason. When the outer commit changes `packages/foliate-js`, resolve the old/new gitlink SHAs and audit the nested foliate-js commits before making that decision.
 3. Batch low-risk fixes by surface only when they share the same br1 files; keep state-machine, persistence, parser, and trust-boundary changes one slice at a time.
 4. Defer platform-only, paid account, store, and large external-sync surfaces until br1 chooses those product commitments.
 
@@ -74,9 +74,9 @@ Exit criteria for Step 2:
 
 ## First Slice Recommendation
 
-Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 57 remaining executable br1-native tasks. `S1-R01` through `S1-R03` are verified br1 baselines, while `S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` are reviewed and closed decisions; remaining reading-ruler, paragraph-focus, user-customizable binding, authored-layout, and media-viewer work stays in the corresponding Step 2 tasks.
+Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 56 remaining executable br1-native tasks. `S1-R01` through `S1-R03` are verified br1 baselines, while `S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1`, and `S2-R03B2` are reviewed and closed decisions; remaining reading-ruler, paragraph-focus, user-customizable binding, authored-layout, and media-viewer work stays in the corresponding Step 2 tasks.
 
-Step 1, `S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` are complete. Continue the Step 2 trust and format floor with `S2-R03B2`; each remaining task should land as its own implementation and verification commit.
+Step 1, `S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1`, and `S2-R03B2` are complete. Continue the Step 2 trust and format floor with `S2-R03B3`; each remaining task should land as its own implementation and verification commit.
 
 ## High-Priority Commit Queue
 
