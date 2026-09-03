@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 20 |
-| `partial` | 456 |
+| `covered` | 21 |
+| `partial` | 455 |
 | `gap` | 73 |
 | `not-applicable` | 129 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 7 | 257 | 20 | 50 |
+| reader core | 8 | 256 | 20 | 50 |
 | library | 4 | 64 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -400,7 +400,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 361 | `580c5e5de` | reader core | fix(reader): eliminate PDF scrolled-mode rendering lag on mobile (#4795) (#4813) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
 | 362 | `24370ca51` | reader core | feat(reader): render Markdown (.md) files at runtime (#774) (#4816) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 363 | `348c85f64` | reader core | fix(reader): cap auto page-turn corner zone size (#4812) (#4820) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
-| 364 | `f8916e128` | reader core | fix(reader): smooth pinch-zoom and pan for scrolled-mode PDF (#4817) | `partial` | S2-R03B5 | PDF opens; scrolled-mode pinch and pan behavior is unproved. |
+| 364 | `f8916e128` | reader core | fix(reader): smooth pinch-zoom and pan for scrolled-mode PDF (#4817) | `covered` | S2-R03B5 | The nested foliate-js changes `6f1a19018..0fa407c4c` are matched by live centered pinch, anchored commit, horizontal overflow, idle iframe interaction, and a br1 touch bridge, with a repeated real-PDF regression. |
 | 365 | `324bb8a36` | reader core | feat(reader): add e-ink screen refresh page-turner action (#4687) (#4822) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 366 | `4d08b01b4` | library | feat(library): add recently read shelf to the library (#3797) (#4829) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 367 | `69599e2bc` | reader core | fix(reader): render code operators literally instead of as ligatures (#4832) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03B5` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B4` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R03B6` through `S2-R03B7`, `S2-R03C` through `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, and `S2-R03B1` through `S2-R03B5` reviewed and closed on 2026-09-03).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -831,13 +831,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: `node --check fixed-layout.js` (PASS); real-PDF wheel regression (PASS, 3/3 repeated runs); B1-B4 PDF regressions (PASS, 4/4); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `1b44b95d3`
 
-### S2-R03B5 - Stabilize scrolled PDF pinch and pan
+### Completed Task: S2-R03B5 - Stabilize scrolled PDF pinch and pan
 
 - Phase: Step 2
-- Upstream decisions: 1 commit (0 gap, 1 partial)
-- Outcome: Keep pinch zoom and pan smooth without fighting native scroll gestures.
-- Touches: fixed-layout gesture handling and focused PDF fixture
-- Verify: `pnpm check`; `PDF pinch/pan smoke`; `git diff --check`
+- Upstream decisions: 1 commit (1 covered)
+- Result: Scrolled PDFs now preview a two-finger pinch live around the viewport center, commit the new local scale without moving the center page, remain horizontally pannable when enlarged, and keep page iframes interactive while idle.
+- Evidence: `node --check fixed-layout.js` (PASS); real-PDF pinch regression (PASS, 3/3 repeated runs); B1-B5 PDF regressions (PASS, 5/5); `pnpm check` (PASS); `pnpm test:reader-helpers` (PASS, 71/71); `pnpm build` (PASS); `git diff --check` (PASS).
 - Commit: `f8916e128`
 
 ### S2-R03B6 - Center lone portrait PDF pages

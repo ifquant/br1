@@ -132,6 +132,7 @@
   let searchCache = new Map<string, ReaderSearchResult[]>();
   let boundSelectionDocs = new WeakSet<Document>();
   let boundFootnoteDocs = new WeakSet<Document>();
+  let boundPdfPinchDocs = new WeakSet<Document>();
   let syncedNoteValues = new Set<string>();
   let stageResizeObserver: ResizeObserver | null = null;
   let currentFormatLabel = READER_UNKNOWN_FORMAT_LABEL;
@@ -146,6 +147,16 @@
   let readerViewportVars = '';
   let readerStateDispatchNonce = 0;
   let selectionDispatchNonce = 0;
+  const PDF_MIN_SCALE_FACTOR = 50;
+  const PDF_MAX_SCALE_FACTOR = 500;
+  let pdfScaleFactor = 100;
+  let pdfPinchState: {
+    doc: Document;
+    initialDistance: number;
+    initialScaleFactor: number;
+    ratio: number;
+    renderer: NonNullable<FoliateViewElement['renderer']>;
+  } | null = null;
 
   type ResolvedReaderOpenSource = {
     source: string | File;
@@ -906,9 +917,24 @@
     });
   };
 
+  const cancelPdfPinch = () => {
+    const state = pdfPinchState;
+    if (!state) return;
+    pdfPinchState = null;
+    state.renderer.pinchEnd?.(false);
+  };
+
   const configureFoliatePreview = () => {
     const renderer = foliateViewElement?.renderer;
     if (!renderer) return;
+    if (
+      pdfPinchState &&
+      (currentFormatLabel !== 'PDF' ||
+        settings.flowMode !== 'scrolled' ||
+        pdfPinchState.renderer !== renderer)
+    ) {
+      cancelPdfPinch();
+    }
     const maxInlineSize = getResponsiveMaxInlineSize();
     const maxColumnCount = getResponsiveMaxColumnCount();
 
@@ -922,6 +948,9 @@
     renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
     renderer.setAttribute('max-block-size', isWindowMode ? '1440px' : '1180px');
     renderer.setAttribute('max-column-count', `${maxColumnCount}`);
+    if (currentFormatLabel === 'PDF') {
+      renderer.setAttribute('scale-factor', `${pdfScaleFactor}`);
+    }
     const theme =
       currentFormatLabel === 'PDF' && settings.applyThemeToPdf && supportsCanvasContext2DFilter()
         ? getReaderThemePalette(settings.themePreset)
@@ -964,6 +993,87 @@
     plainTextScroller.scrollTop = Math.max(0, Math.min(1, fraction)) * maxScroll;
   };
 
+  const getPdfPinchDistance = (touches: TouchList) => {
+    const first = touches[0];
+    const second = touches[1];
+    if (!first || !second) return 0;
+    return Math.hypot(second.screenX - first.screenX, second.screenY - first.screenY);
+  };
+
+  // PDF pinch state belongs to this viewport, not global reader settings. The
+  // renderer owns the live preview and anchor; this bridge only commits scale.
+  const bindPdfPinchTracking = (doc: Document) => {
+    if (boundPdfPinchDocs.has(doc)) return;
+    boundPdfPinchDocs.add(doc);
+
+    doc.addEventListener('touchstart', (event: TouchEvent) => {
+      if (currentFormatLabel !== 'PDF' || settings.flowMode !== 'scrolled') return;
+      if (event.touches.length < 2 || pdfPinchState) return;
+      const renderer = foliateViewElement?.renderer;
+      const initialDistance = getPdfPinchDistance(event.touches);
+      if (!renderer?.pinchZoom || !renderer.pinchEnd || initialDistance <= 0) return;
+      pdfPinchState = {
+        doc,
+        initialDistance,
+        initialScaleFactor: pdfScaleFactor,
+        ratio: 1,
+        renderer
+      };
+    }, { passive: true });
+
+    doc.addEventListener('touchmove', (event: TouchEvent) => {
+      const state = pdfPinchState;
+      if (state?.doc !== doc || event.touches.length < 2) return;
+      if (
+        currentFormatLabel !== 'PDF' ||
+        settings.flowMode !== 'scrolled' ||
+        foliateViewElement?.renderer !== state.renderer
+      ) {
+        cancelPdfPinch();
+        return;
+      }
+      const distance = getPdfPinchDistance(event.touches);
+      if (distance <= 0) return;
+      state.ratio = Math.max(
+        PDF_MIN_SCALE_FACTOR / state.initialScaleFactor,
+        Math.min(PDF_MAX_SCALE_FACTOR / state.initialScaleFactor, distance / state.initialDistance)
+      );
+      state.renderer.pinchZoom?.(state.ratio);
+      event.preventDefault();
+    }, { passive: false });
+
+    doc.addEventListener('touchend', (event: TouchEvent) => {
+      const state = pdfPinchState;
+      if (state?.doc !== doc || event.touches.length >= 2) return;
+      if (
+        currentFormatLabel !== 'PDF' ||
+        settings.flowMode !== 'scrolled' ||
+        foliateViewElement?.renderer !== state.renderer
+      ) {
+        cancelPdfPinch();
+        return;
+      }
+      const { initialScaleFactor, ratio, renderer } = state;
+      pdfPinchState = null;
+      const nextScaleFactor = Math.max(
+        PDF_MIN_SCALE_FACTOR,
+        Math.min(PDF_MAX_SCALE_FACTOR, Math.round(initialScaleFactor * ratio))
+      );
+      renderer.pinchEnd?.(nextScaleFactor !== initialScaleFactor);
+      pdfScaleFactor = nextScaleFactor;
+      if (nextScaleFactor !== initialScaleFactor) {
+        renderer.setAttribute('scale-factor', `${pdfScaleFactor}`);
+      }
+      event.preventDefault();
+    }, { passive: false });
+
+    doc.addEventListener('touchcancel', (event: TouchEvent) => {
+      if (pdfPinchState?.doc !== doc) return;
+      cancelPdfPinch();
+      event.preventDefault();
+    }, { passive: false });
+  };
+
   const bindOpenRendererDocs = () => {
     const docs = foliateViewElement?.renderer?.getContents?.() ?? [];
     for (const { doc, index } of docs) {
@@ -974,6 +1084,7 @@
       applyReaderCodeHighlightingToDocument(doc);
       bindSelectionTracking(doc, index);
       bindFootnoteTracking(doc);
+      bindPdfPinchTracking(doc);
     }
   };
 
@@ -1201,6 +1312,8 @@
     openFailureSource = '';
     openFailureMessage = '';
     currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
+    cancelPdfPinch();
+    pdfScaleFactor = 100;
     searchCache = new Map();
     searchCacheBookKey = cacheBookKey;
     dispatch('searchcachekeychange', cacheBookKey);
@@ -1689,6 +1802,7 @@
             if (detail?.doc) {
               bindSelectionTracking(detail.doc, detail.index);
               bindFootnoteTracking(detail.doc);
+              bindPdfPinchTracking(detail.doc);
             }
           });
           view.addEventListener('relocate', () => {

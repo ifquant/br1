@@ -83,6 +83,8 @@ export interface FoliateViewElement extends HTMLElement {
     removeAttribute(name: string): void;
     setStyles?(css: string): void;
     getContents?(): Array<{ doc: Document; index?: number; overlayer?: unknown }>;
+    pinchZoom?(ratio: number): void;
+    pinchEnd?(commit?: boolean): void;
   };
 }
 

@@ -4606,6 +4606,261 @@ test('reader avoids programmatic double-scroll for scrolled PDF iframe wheel inp
   expect(wheel.after).toBe(wheel.before);
 });
 
+test('reader commits a scrolled PDF pinch preview around the viewport center', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected the scroll mode button');
+      element.click();
+    });
+
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      const renderer = view?.renderer;
+      const iframe = renderer?.shadowRoot?.querySelector<HTMLIFrameElement>(
+        '.scroll-page[data-index="0"] iframe'
+      );
+      return renderer?.getAttribute('flow') === 'scrolled' && iframe?.style.display === 'block';
+    })
+  ).toBe(true);
+
+  await page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+    const renderer = view?.renderer;
+    if (!renderer) throw new Error('expected the fixed-layout PDF renderer');
+    renderer.scrollTop = Math.min(
+      Math.max(240, renderer.clientHeight / 4),
+      Math.max(0, renderer.scrollHeight - renderer.clientHeight - 1)
+    );
+    renderer.dispatchEvent(new Event('scroll'));
+  });
+
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      const iframe = view?.renderer?.shadowRoot?.querySelector<HTMLIFrameElement>(
+        '.scroll-page[data-index="0"] iframe'
+      );
+      return iframe?.style.pointerEvents === 'auto';
+    })
+  ).toBe(true);
+
+  const readPinchMetrics = () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      const renderer = view?.renderer;
+      const container = renderer?.shadowRoot?.querySelector<HTMLElement>('.scroll-container');
+      if (!(renderer && container)) return null;
+
+      const hostRect = renderer.getBoundingClientRect();
+      const centerX = hostRect.left + renderer.clientWidth / 2;
+      const centerY = hostRect.top + renderer.clientHeight / 2;
+      const centerPage = [...container.querySelectorAll<HTMLElement>('.scroll-page')].find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return rect.left <= centerX && rect.right > centerX && rect.top <= centerY && rect.bottom > centerY;
+      });
+      const iframe = centerPage?.querySelector<HTMLIFrameElement>('iframe');
+      if (!(centerPage && iframe)) return null;
+      const rect = centerPage.getBoundingClientRect();
+
+      return {
+        transform: container.style.transform,
+        transformOrigin: container.style.transformOrigin,
+        scaleFactor: renderer.getAttribute('scale-factor'),
+        pageIndex: centerPage.dataset.index,
+        pageTop: rect.top,
+        pageLeft: rect.left,
+        pageWidth: rect.width,
+        scrollWidth: renderer.scrollWidth,
+        clientWidth: renderer.clientWidth,
+        pointerEvents: iframe.style.pointerEvents,
+        expectedOriginX: renderer.scrollLeft + renderer.clientWidth / 2,
+        expectedOriginY: renderer.scrollTop + renderer.clientHeight / 2
+      };
+    });
+
+  const dispatchPinch = (phase: 'move' | 'end' | 'cancel', ratio = 1) =>
+    page.evaluate(({ phase, ratio }) => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      const iframe = view?.renderer?.shadowRoot?.querySelector<HTMLIFrameElement>(
+        '.scroll-page[data-index="0"] iframe'
+      );
+      const doc = iframe?.contentDocument;
+      if (!doc?.body) throw new Error('expected a loaded scrolled PDF iframe');
+
+      const targets = [...doc.body.querySelectorAll<HTMLElement>('*')];
+      const firstTarget = targets[0] ?? doc.body;
+      const secondTarget = targets[1] ?? doc.documentElement;
+      if (firstTarget === secondTarget) throw new Error('expected distinct PDF iframe elements');
+      const dispatch = (
+        type: string,
+        target: Element,
+        touches: Array<{ screenX: number; screenY: number }>,
+        targetTouches: Array<{ screenX: number; screenY: number }>
+      ) => {
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'touches', { configurable: true, value: touches });
+        Object.defineProperty(event, 'targetTouches', { configurable: true, value: targetTouches });
+        target.dispatchEvent(event);
+      };
+      if (phase !== 'move') {
+        dispatch(`touch${phase}`, firstTarget, [], []);
+        return { distinctTargets: true };
+      }
+
+      const startTouches = [
+        { screenX: 100, screenY: 100 },
+        { screenX: 200, screenY: 100 }
+      ];
+      const movedTouches = [
+        { screenX: 100, screenY: 100 },
+        { screenX: 100 + 100 * ratio, screenY: 100 }
+      ];
+      // Each target sees only its own touch; the document listener must use
+      // the all-active list while the events bubble from distinct elements.
+      dispatch('touchstart', firstTarget, startTouches, [startTouches[0]]);
+      dispatch('touchstart', secondTarget, startTouches, [startTouches[1]]);
+      dispatch('touchmove', firstTarget, movedTouches, [movedTouches[0]]);
+      return { distinctTargets: true };
+    }, { phase, ratio });
+
+  const beginPinch = await dispatchPinch('move', 1.25);
+  expect(beginPinch.distinctTargets).toBe(true);
+
+  await expect.poll(async () => (await readPinchMetrics())?.transform).toBe('scale(1.25)');
+  const livePreview = await readPinchMetrics();
+  if (!livePreview) throw new Error('expected scrolled PDF pinch preview metrics');
+  const [originX, originY] = livePreview.transformOrigin.split(' ').map(Number.parseFloat);
+  expect(Math.abs(originX - livePreview.expectedOriginX)).toBeLessThan(0.01);
+  expect(Math.abs(originY - livePreview.expectedOriginY)).toBeLessThan(0.01);
+  expect(livePreview.pointerEvents).toBe('auto');
+
+  await dispatchPinch('end');
+
+  await expect.poll(async () => {
+    const metrics = await readPinchMetrics();
+    if (!metrics) return null;
+    return {
+      transform: metrics.transform,
+      scaleFactor: metrics.scaleFactor,
+      pageIndex: metrics.pageIndex,
+      pageTop: metrics.pageTop,
+      pageLeft: metrics.pageLeft,
+      pageWidth: metrics.pageWidth,
+      horizontalOverflow: metrics.scrollWidth > metrics.clientWidth,
+      pointerEvents: metrics.pointerEvents
+    };
+  }).toMatchObject({
+    transform: '',
+    scaleFactor: '125',
+    pageIndex: livePreview.pageIndex,
+    horizontalOverflow: true,
+    pointerEvents: 'auto'
+  });
+
+  const committed = await readPinchMetrics();
+  if (!committed) throw new Error('expected committed scrolled PDF pinch metrics');
+  expect(committed.pageWidth).toBeGreaterThan(livePreview.pageWidth * 0.99);
+  expect(Math.abs(committed.pageTop - livePreview.pageTop)).toBeLessThan(2);
+  expect(Math.abs(committed.pageLeft - livePreview.pageLeft)).toBeLessThan(2);
+
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected the scroll mode button');
+      element.click();
+    });
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as { renderer?: HTMLElement } | null;
+      const renderer = view?.renderer;
+      const iframe = renderer?.shadowRoot?.querySelector<HTMLIFrameElement>(
+        '.scroll-page[data-index="0"] iframe'
+      );
+      return renderer?.getAttribute('flow') === 'scrolled' && iframe?.style.pointerEvents === 'auto';
+    })
+  ).toBe(true);
+
+  await dispatchPinch('move', 5);
+
+  await expect.poll(async () => (await readPinchMetrics())?.transform).toBe('scale(5)');
+  const fiveXPreview = await readPinchMetrics();
+  if (!fiveXPreview) throw new Error('expected 500% scrolled PDF pinch preview metrics');
+
+  await dispatchPinch('end');
+
+  await expect.poll(async () => {
+    const metrics = await readPinchMetrics();
+    if (!metrics) return null;
+    return { transform: metrics.transform, scaleFactor: metrics.scaleFactor, pageWidth: metrics.pageWidth };
+  }).toMatchObject({ transform: '', scaleFactor: '500' });
+  const committedFiveX = await readPinchMetrics();
+  if (!committedFiveX) throw new Error('expected committed 500% scrolled PDF pinch metrics');
+  expect(committedFiveX.pageWidth).toBeGreaterThan(fiveXPreview.pageWidth * 0.99);
+  expect(Math.abs(committedFiveX.pageTop - fiveXPreview.pageTop)).toBeLessThan(2);
+  expect(Math.abs(committedFiveX.pageLeft - fiveXPreview.pageLeft)).toBeLessThan(2);
+
+  await dispatchPinch('move', 2);
+
+  await expect.poll(async () => (await readPinchMetrics())?.transform).toBe('scale(1)');
+  const cappedPreview = await readPinchMetrics();
+  if (!cappedPreview) throw new Error('expected capped scrolled PDF pinch preview metrics');
+
+  await dispatchPinch('end');
+
+  await expect.poll(async () => {
+    const metrics = await readPinchMetrics();
+    if (!metrics) return null;
+    return { transform: metrics.transform, scaleFactor: metrics.scaleFactor, pageWidth: metrics.pageWidth };
+  }).toMatchObject({ transform: '', scaleFactor: '500' });
+  const cappedCommit = await readPinchMetrics();
+  if (!cappedCommit) throw new Error('expected capped scrolled PDF pinch commit metrics');
+  expect(Math.abs(cappedCommit.pageWidth - cappedPreview.pageWidth)).toBeLessThan(2);
+  expect(Math.abs(cappedCommit.pageTop - cappedPreview.pageTop)).toBeLessThan(2);
+  expect(Math.abs(cappedCommit.pageLeft - cappedPreview.pageLeft)).toBeLessThan(2);
+
+  const beforeCancel = await readPinchMetrics();
+  if (!beforeCancel) throw new Error('expected scrolled PDF metrics before pinch cancellation');
+  await dispatchPinch('move', 0.5);
+  await expect.poll(async () => (await readPinchMetrics())?.transform).toBe('scale(0.5)');
+
+  await dispatchPinch('cancel');
+
+  await expect.poll(async () => {
+    const metrics = await readPinchMetrics();
+    if (!metrics) return null;
+    return {
+      transform: metrics.transform,
+      scaleFactor: metrics.scaleFactor,
+      pageIndex: metrics.pageIndex,
+      pageTop: metrics.pageTop,
+      pageLeft: metrics.pageLeft
+    };
+  }).toMatchObject({
+    transform: '',
+    scaleFactor: '500',
+    pageIndex: beforeCancel.pageIndex
+  });
+  const cancelled = await readPinchMetrics();
+  if (!cancelled) throw new Error('expected cancelled scrolled PDF pinch metrics');
+  expect(Math.abs(cancelled.pageTop - beforeCancel.pageTop)).toBeLessThan(2);
+  expect(Math.abs(cancelled.pageLeft - beforeCancel.pageLeft)).toBeLessThan(2);
+});
+
 test('reader hides PDF theme colors in unsupported Safari environments', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'userAgent', {
