@@ -1,7 +1,7 @@
 {
   "name": "br1",
   "version": "0.1.0",
-  "description": "",
+  "description": "An AI-native reading runtime for a traceable human-AI collective intelligence network.",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
