@@ -18,15 +18,15 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 35 |
-| `partial` | 433 |
+| `covered` | 38 |
+| `partial` | 430 |
 | `gap` | 79 |
 | `not-applicable` | 131 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 20 | 240 | 23 | 51 |
-| library | 5 | 61 | 18 | 20 |
+| reader core | 21 | 239 | 23 | 51 |
+| library | 7 | 59 | 18 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 36 | 11 | 16 |
@@ -334,7 +334,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 295 | `1ea607829` | library | fix(share): load cover under COEP, keep share links out of the clipper, fix in-app import (#4636) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 296 | `495783d04` | security | fix(security): harden OPDS proxy SSRF, storage key validation, Stripe check (#4638) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 297 | `4025c4d7b` | security | fix(security): scope Tauri download_file/upload_file to fs_scope (#4639) | `not-applicable` | — | br1 exposes no generic renderer-directed download/upload command or arbitrary filesystem destination. |
-| 298 | `403be32d5` | library | fix(epub): import books whose OPF has an unescaped ampersand (#4640) | `partial` | S2-R04A2 | foliate normalizes common named XML entities but does not yet escape stray bare ampersands without damaging valid entities. |
+| 298 | `403be32d5` | library | fix(epub): import books whose OPF has an unescaped ampersand (#4640) | `covered` | S2-R04A2 | foliate escapes stray bare ampersands while preserving valid named and numeric XML entities; a real EPUB fixture proves metadata and chapter loading. |
 | 299 | `bcd9ed724` | reader core | fix(reader): paginate inline-block-wrapped chapters instead of clipping them (#4641) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 300 | `6626db967` | reader core | fix(reader): keep last paragraph's line spacing by making the section skip link a <span> (#4642) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
 | 301 | `ff96c6d3f` | reader core | feat(annotations): unify highlights and annotations into one record (#3870, #4511) (#4647) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
@@ -455,7 +455,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 416 | `45466bc6b` | ai/assist/dictionary | fix(dictionary): let a web search entry lead the popup when it is first in the configured order (#5086) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 417 | `9c6081402` | reader core | feat(markdown): render footnotes in .md books (#5074) (#5095) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 418 | `c81547cd5` | library | feat(sorting): add toggle to filter by time remaining (#5079) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
-| 419 | `a97e44bbd` | reader core | fix(epub): load chapters whose zip entry name needs percent-encoding (#5100) | `partial` | S2-R04A2 | EPUB URL resolution still needs a fixture proving reserved characters map to the literal ZIP entry without corrupting path separators or fragments. |
+| 419 | `a97e44bbd` | reader core | fix(epub): load chapters whose zip entry name needs percent-encoding (#5100) | `covered` | S2-R04A2 | EPUB URL resolution decodes ordinary encoded entry characters while preserving `%2F` and `%23`; decoy entries prove separators and fragments are not corrupted. |
 | 420 | `d2668d167` | reader core | fix(reader): remove long-press to zoom images and tables (#5108) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
 | 421 | `d185bd92b` | library | fix(library): keep demo books out of the cloud book channel (#5049) (#5110) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 422 | `9fb50880e` | reader core | fix(settings): keep the screen awake only while reading (#5104) (#5113) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; exact theme setting/scope is incomplete. |
@@ -517,7 +517,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 478 | `d1ab15c0f` | tts/audio | fix(reader): align paragraph mode chrome with the TTS player (#5275) (#5338) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 479 | `d40bf5ba7` | library | feat(markdown): parse YAML frontmatter into book metadata (#5279) (#5344) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 480 | `27d7a45d9` | ai/assist/dictionary | fix(reader): keep book fonts when proofread rules change (#5277) (#5345) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
-| 481 | `0e4272e4c` | library | fix(epub): fall back to cover-named zip entries (#5273) (#5339) | `partial` | S2-R04A2 | Declared covers work, but foliate does not discover conventional cover/couv image entries when the manifest omits the cover declaration. |
+| 481 | `0e4272e4c` | library | fix(epub): fall back to cover-named zip entries (#5273) (#5339) | `covered` | S2-R04A2 | When the manifest omits a cover, foliate selects the first conventional cover/couv ZIP entry in archive order and returns the correct SVG media type. |
 | 482 | `7786400b3` | reader core | fix(reader): keep the PDF footer readable in scrolled mode (#5342) (#5347) | `not-applicable` | — | br1 has no Readest mix-blend footer path; its opaque unblended footer is covered by a scrolled-PDF regression. |
 | 483 | `3ca5d5879` | reader core | fix(pdf): keep desktop PDF text sharp (#5251) (#5348) | `covered` | The local branch never imported the mobile canvas cap: desktop rendering still uses full devicePixelRatio, with a browser regression above the upstream mobile pixel budget. |
 | 484 | `368284d17` | security | chore: update agent memories (#5358) | `not-applicable` | — | Readest agent-memory bookkeeping. |
@@ -885,7 +885,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04A - Harden EPUB-family archive loading
 
 - Phase: Step 2
-- Upstream decisions: 8 commits (2 covered, 4 partial, 2 gap)
+- Upstream decisions: 8 commits (5 covered, 1 partial, 2 gap)
 - Outcome: Cover malformed EPUB entries, overlapping MOBI/AZW3 loads, and CBZ ordering without adding a second parser.
 - Touches: EPUB/MOBI/CBZ fixtures and parser guards
 - Verify: `pnpm check`; `archive fixture smoke`; `git diff --check`
@@ -895,15 +895,18 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 
 - Result: foliate accepts ZIP archives with a recoverable fourth local-header byte, keeps exact-case entries authoritative, falls back only to unique case-insensitive matches, and rejects ambiguous folded collisions.
 - Evidence: focused real-ZIP tests (PASS, 6/6, including entry read after local-header repair); real minimal-EPUB Chromium regression through `makeBook` and `createDocument` (PASS, 1/1); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); both repositories' `git diff --check` (PASS).
-- Evidence boundary: The browser fixture combines a malformed first local header with a uniquely case-mismatched chapter, but it is not a packaged Tauri/WebView acceptance run. OPF repair, MOBI/AZW3 concurrency, and CBZ sorting remain in A2/A3.
+- Evidence boundary: The browser fixture combines a malformed first local header with a uniquely case-mismatched chapter, but it is not a packaged Tauri/WebView acceptance run. OPF repair is covered by A2; MOBI/AZW3 concurrency and CBZ sorting remain in A3.
 - Commits: `b53bdd271` (foliate-js), `9ace5482d` (br1 integration proof)
 
-#### Next Task: S2-R04A2 - Repair EPUB package references
+#### Completed Task: S2-R04A2 - Repair EPUB package references
 
 - Scope: `403be32d5`, `a97e44bbd`, `0e4272e4c`
-- Outcome: Preserve valid XML entities while escaping bare ampersands, decode reserved entry names safely, and discover conventional undeclared cover files.
+- Result: foliate preserves valid XML entities while escaping bare ampersands, decodes ordinary percent-encoded entry characters without turning `%2F` or `%23` into structural separators, filters manifest items without `href` at the shared resource boundary, and discovers conventional undeclared cover files in archive order with SVG MIME support.
+- Evidence: focused missing-href Loader regression (PASS, 1/1); full real-EPUB Chromium compatibility file (PASS, 5/5); foliate ZIP loader tests (PASS, 6/6); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); both repositories' `git diff --check` (PASS); fresh Terra high fix re-review and Sol high architecture review (PASS, no findings).
+- Evidence boundary: The browser fixtures exercise actual ZIPs through `makeBook`, `section.load()`, resource replacement, `createDocument()`, and `getCover()`, but not a packaged Tauri/WebView manual import. The independent foliate `npm run build` remains blocked by the existing dependency installation state; br1's production build directly bundles the changed sibling source and passes.
+- Commits: `540f1544d` (foliate-js), `42f0caf40` (br1 integration proof)
 
-#### Later Task: S2-R04A3 - Stabilize MOBI/AZW3 and CBZ archive reads
+#### Next Task: S2-R04A3 - Stabilize MOBI/AZW3 and CBZ archive reads
 
 - Scope: `d326e1c73`, `89821136f`, `7e8abebcd`
 - Outcome: Preserve MOBI content after self-closing non-void tags, serialize overlapping KF8 range loads, and order CBZ paths naturally segment by segment.
