@@ -5,6 +5,16 @@
 import DOMPurify from 'dompurify';
 import { getReaderThemePalette } from './settings';
 import type { ReaderSettings } from './types';
+import { pickAuthor, pickText } from './pdfMetadata';
+import type { ReaderBookMetadata } from './pdfMetadata';
+
+export {
+  extractPdfFileMetadata,
+  normalizePdfFileMetadata,
+  pickAuthor,
+  pickText
+} from './pdfMetadata';
+export type { PdfFileMetadata } from './pdfMetadata';
 
 export const FOLIATE_VIEW_TAG = 'foliate-view';
 
@@ -95,11 +105,7 @@ export interface FoliateViewElement extends HTMLElement {
 }
 
 export interface ReaderBookDocument {
-  metadata?: {
-    title?: string | Record<string, string>;
-    creator?: string | { name?: string } | Array<string | { name?: string }>;
-    language?: string | string[];
-  };
+  metadata?: ReaderBookMetadata;
   toc?: unknown[];
   pageList?: Array<{ label?: string; href?: string; index?: number }> | null;
   sections?: Array<{ createDocument?: () => Promise<Document> }>;
@@ -108,48 +114,8 @@ export interface ReaderBookDocument {
   };
   dir?: string;
   transformTarget?: EventTarget;
+  destroy?: () => void | Promise<void>;
 }
-
-const isRecord = (value: unknown): value is Record<string, string> =>
-  typeof value === 'object' && value !== null;
-
-export const pickText = (value: unknown): string => {
-  if (typeof value === 'string') return value;
-  if (isRecord(value)) {
-    return value.zh ?? value['zh-CN'] ?? value.en ?? Object.values(value)[0] ?? '';
-  }
-  return '';
-};
-
-export const pickAuthor = (value: unknown): string => {
-  if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return pickAuthor(value[0]);
-  if (typeof value === 'object' && value !== null) {
-    if ('name' in value) {
-      return pickText((value as { name?: unknown }).name);
-    }
-
-    const authorRecord = value as {
-      firstName?: unknown;
-      lastName?: unknown;
-      familyName?: unknown;
-      givenName?: unknown;
-      'first-name'?: unknown;
-      'last-name'?: unknown;
-    };
-    const firstName =
-      pickText(authorRecord.firstName) ||
-      pickText(authorRecord.givenName) ||
-      pickText(authorRecord['first-name']);
-    const lastName =
-      pickText(authorRecord.lastName) ||
-      pickText(authorRecord.familyName) ||
-      pickText(authorRecord['last-name']);
-    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
-    if (fullName) return fullName;
-  }
-  return '';
-};
 
 export const flattenToc = (items: unknown, level = 0): Array<{ label: string; href: string; level: number }> => {
   if (!Array.isArray(items)) return [];

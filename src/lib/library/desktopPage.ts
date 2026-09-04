@@ -110,7 +110,10 @@ export type DesktopLibraryPageCoordinatorOptions = {
   getStorage: () => Storage | undefined;
   detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
   importBooksFromReadest: () => Promise<LibraryImportActionResult>;
-  importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>;
+  importLibraryBooks: (
+    filePaths: string[],
+    options?: { repairRecordId?: string }
+  ) => Promise<PersistedLibraryBook[]>;
   previewLibraryRepairCandidate: (args: {
     filePath: string;
     recordId: string;
@@ -313,7 +316,10 @@ export const buildDesktopLibraryPageCoordinatorEnvironmentFromPageEnv = ({
   getStorage: () => Storage | undefined;
   detectReadestLibrary: () => Promise<ReadestLibrarySummary>;
   importBooksFromReadest: () => Promise<LibraryImportActionResult>;
-  importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>;
+  importLibraryBooks: (
+    filePaths: string[],
+    options?: { repairRecordId?: string }
+  ) => Promise<PersistedLibraryBook[]>;
   previewLibraryRepairCandidate: DesktopLibraryPageCoordinatorEnvironment['previewLibraryRepairCandidate'];
   selectSingleSystemBookPath: () => Promise<string | null>;
   removeLibraryBook: (filePath: string) => Promise<PersistedLibraryBook[]>;

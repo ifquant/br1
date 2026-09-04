@@ -1,6 +1,6 @@
 # Readest High-Priority Commit Audit
 
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 
 This document finalizes the 678 high-priority decisions from `e0cf7e8d9f0c61e2cd859dd9cc0d026351eef3b6..6df90139dc7b72246572ab33b12d485b281ca6e6` against current br1 source. It complements the two-step plan; it does not replace the 1,189-commit history ledger.
 
@@ -18,15 +18,15 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 23 |
-| `partial` | 453 |
+| `covered` | 32 |
+| `partial` | 443 |
 | `gap` | 73 |
-| `not-applicable` | 129 |
+| `not-applicable` | 130 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 10 | 254 | 20 | 50 |
-| library | 4 | 64 | 17 | 19 |
+| reader core | 18 | 245 | 20 | 51 |
+| library | 5 | 63 | 17 | 19 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 38 | 9 | 16 |
@@ -485,7 +485,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 446 | `2c6729962` | catalog/import | fix(opds): keep re-added catalogs from vanishing after app restart (#5191) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 447 | `c39c85c32` | tts/audio | test: remove redundant cases and silence passing logs (#5192) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
 | 448 | `bd63d72e0` | reader core | feat: use shorter quote in theme preview (#5197) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
-| 449 | `54ad2e916` | reader core | fix(reader): keep the side panel resize handle from sticking over PDF pages (#5198) | `partial` | S2-R03E | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 449 | `54ad2e916` | reader core | fix(reader): keep the side panel resize handle from sticking over PDF pages (#5198) | `covered` | S2-R03E | A topmost drag shield keeps resize events above PDF iframes and is removed on mouseup, blur, or route teardown. |
 | 450 | `09548d998` | library | fix(library): keep the select-mode action bar from hiding the last book (#5200) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
 | 451 | `fd3224353` | reader core | feat: improve accuracy of time remaining calculation (#5194) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 452 | `1edc4bb32` | library | fix(library): show only currently-reading books on recent shelf and widget (#5201) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
@@ -518,7 +518,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 479 | `d40bf5ba7` | library | feat(markdown): parse YAML frontmatter into book metadata (#5279) (#5344) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 480 | `27d7a45d9` | ai/assist/dictionary | fix(reader): keep book fonts when proofread rules change (#5277) (#5345) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 481 | `0e4272e4c` | library | fix(epub): fall back to cover-named zip entries (#5273) (#5339) | `partial` | S2-R04A | The format opens; this archive/layout edge lacks fixture proof. |
-| 482 | `7786400b3` | reader core | fix(reader): keep the PDF footer readable in scrolled mode (#5342) (#5347) | `partial` | S2-R03E | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 482 | `7786400b3` | reader core | fix(reader): keep the PDF footer readable in scrolled mode (#5342) (#5347) | `not-applicable` | — | br1 has no Readest mix-blend footer path; its opaque unblended footer is covered by a scrolled-PDF regression. |
 | 483 | `3ca5d5879` | reader core | fix(pdf): keep desktop PDF text sharp (#5251) (#5348) | `covered` | The local branch never imported the mobile canvas cap: desktop rendering still uses full devicePixelRatio, with a browser regression above the upstream mobile pixel budget. |
 | 484 | `368284d17` | security | chore: update agent memories (#5358) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 485 | `8c212e5b8` | ai/assist/dictionary | fix(translate): restore Yandex Translate provider (#5256) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
@@ -687,7 +687,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 648 | `aab58241d` | reader core | feat(reader): jump from a footnote popup to the location in the book (#5889) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 649 | `8f9028579` | catalog/import | feat(library): select chapters when importing web novels (#5892) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
 | 650 | `800af00f3` | reader core | fix(ui): size toasts to their message and fade dialogs out whole (#5894) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact responsive/interaction state is unverified. |
-| 651 | `e8f7a4875` | library | fix(library): refresh PDF metadata on re-import (#5895) | `partial` | S2-R03E | PDF opens; exact rendering/theme/text behavior is incomplete. |
+| 651 | `e8f7a4875` | library | fix(library): refresh PDF metadata on re-import (#5895) | `covered` | S2-R03E | Re-import refreshes file-derived PDF metadata without replacing curated fields, verifies the parsed byte hash before write, and reuses exact-content identity and managed paths. |
 | 652 | `7c0419961` | reader core | fix(reader): do not truncate footnote popups (#5887) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 653 | `a91b503e5` | reader core | fix(reader): make cross-page selection actually work (#5888) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 654 | `b1a62c059` | tts/audio | fix: folder import of Markdown, widget opens, comic zoom, selection handle and TTS word highlight (#5903) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
@@ -719,7 +719,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 ## Recommended Execution Order
 
 1. Baseline closure: `S1-R01` through `S1-R03` verified complete on 2026-09-02.
-2. Trust and format floor: `S2-R03E`, `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04`, `S2-R03A`, `S2-R03B1` through `S2-R03B7`, `S2-R03C`, and `S2-R03D` reviewed and closed on 2026-09-03).
+2. Trust and format floor: `S2-R04A` through `S2-R04C`, `S2-D01` (`S2-S01` through `S2-S04` and `S2-R03A` through `S2-R03E` reviewed and closed by 2026-09-04).
 3. Reader mechanics: `S2-R01A` through `S2-R02`, `S2-R05` through `S2-R09`.
 4. AI-native core: `S2-A06`, `S2-A07`, `S2-A03`, `S2-A05`, then annotation and local-dictionary tasks.
 5. Focus and speech: `S2-F01` through `S2-F05`, then `S2-T01` through `S2-T04B`.
@@ -873,13 +873,13 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence boundary: Cross-page selection is intentionally desktop-only and limited to contiguous loaded fixed-layout pages in scrolled mode. Real Chrome 152 mouse input and the deterministic origin-iframe path are covered; physical packaged Tauri WebView drag acceptance and mobile selection handles are not claimed.
 - Commits: `3e9aacba1`, `a2f123ff9`, `4df8b37b7`, `9e1f72ae7`
 
-### S2-R03E - Close PDF metadata and chrome edges
+### Completed Task: S2-R03E - Close PDF metadata and chrome edges
 
 - Phase: Step 2
-- Upstream decisions: 3 commits (0 gap, 3 partial)
-- Outcome: Keep resize handles and footer chrome clear of PDF content and refresh PDF metadata on re-import.
-- Touches: reader chrome, library metadata refresh, focused desktop fixtures
-- Verify: `pnpm check`; `PDF chrome smoke`; `PDF re-import metadata smoke`
+- Upstream decisions: 3 commits (2 covered, 1 not-applicable)
+- Result: A full-window shield keeps sidebar resize events above PDF iframes and is cleaned up on mouseup, blur, or route teardown. PDF metadata is parsed through the existing foliate/PDF.js path, merged without replacing curated fields, bound to the exact source bytes by SHA-256, and saved through the existing Rust import. Exact-content imports reuse only canonical br1-managed PDF records and preserve their ID, managed path, progress, organization fields, and path-keyed reader state. Readest's footer blend fix is not applicable because br1 uses an opaque, unblended footer.
+- Evidence: `pnpm test:reader-helpers` (PASS, 88/88); `cargo test --manifest-path src-tauri/Cargo.toml --lib` (PASS, 57/57); focused sidebar shield, PDF author, and scrolled footer Playwright regressions (PASS, 5/5); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); task-touched Rust files `rustfmt --check` (PASS); `git diff --check` (PASS); fresh Terra high fix re-review (PASS, no findings).
+- Evidence boundary: The drag shield and import contracts are covered in unit and browser tests, not by a packaged Tauri import/reopen fixture with existing notes, bookmarks, highlights, and search cache. An adversarial filesystem mutation between canonicalization/hash and write is not simulated. Full-repository `cargo fmt --check` remains blocked by pre-existing formatting differences in untouched Rust files.
 - Commits: `54ad2e916`, `7786400b3`, `e8f7a4875`
 
 ### S2-R04A - Harden EPUB-family archive loading

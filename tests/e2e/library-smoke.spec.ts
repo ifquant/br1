@@ -4307,6 +4307,143 @@ test('reader forwards exact native PDF progress-range endpoints', async ({ page 
   ).toEqual([0, 1]);
 });
 
+test('reader releases the PDF sidebar resize shield after mouseup over a PDF iframe', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  const resizeHandle = page.getByRole('button', { name: '调整侧栏宽度' });
+  const sidebar = page.locator('.reader-sidebar');
+  await expect(resizeHandle).toBeVisible();
+  const handleBox = await resizeHandle.boundingBox();
+  const readVisiblePdfFrameBox = () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as {
+        renderer?: { getContents?: () => Array<{ doc?: Document }> };
+      } | null;
+      const frame = (view?.renderer?.getContents?.() ?? [])
+        .map(({ doc }) => doc?.defaultView?.frameElement)
+        .find((element): element is HTMLIFrameElement => {
+          if (!(element instanceof HTMLIFrameElement)) return false;
+          const box = element.getBoundingClientRect();
+          return box.width > 0 && box.height > 0;
+        });
+      if (!frame) return null;
+      const box = frame.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    });
+  await expect.poll(readVisiblePdfFrameBox, { timeout: 15000 }).not.toBeNull();
+  const iframeBox = await readVisiblePdfFrameBox();
+  if (!handleBox || !iframeBox) throw new Error('expected visible sidebar resize handle and PDF iframe');
+
+  const initialWidth = await sidebar.evaluate((element) => element.getBoundingClientRect().width);
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  const shield = page.locator('.reader-sidebar-drag-shield');
+  await expect(shield).toBeVisible();
+  await page.mouse.move(iframeBox.x + 24, iframeBox.y + 24);
+  await expect.poll(() => sidebar.evaluate((element) => element.getBoundingClientRect().width)).not.toBe(initialWidth);
+  await page.mouse.up();
+  await expect(shield).toHaveCount(0);
+
+  const releasedWidth = await sidebar.evaluate((element) => element.getBoundingClientRect().width);
+  await page.mouse.move(iframeBox.x + 96, iframeBox.y + 96);
+  await expect.poll(() => sidebar.evaluate((element) => element.getBoundingClientRect().width)).toBe(releasedWidth);
+});
+
+test('reader releases the PDF sidebar resize shield when the window loses focus', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  const resizeHandle = page.getByRole('button', { name: '调整侧栏宽度' });
+  const sidebar = page.locator('.reader-sidebar');
+  const handleBox = await resizeHandle.boundingBox();
+  if (!handleBox) throw new Error('expected visible sidebar resize handle');
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  const shield = page.locator('.reader-sidebar-drag-shield');
+  await expect(shield).toBeVisible();
+
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(shield).toHaveCount(0);
+
+  const releasedWidth = await sidebar.evaluate((element) => element.getBoundingClientRect().width);
+  await page.mouse.move(handleBox.x + 96, handleBox.y + 96);
+  await expect.poll(() => sidebar.evaluate((element) => element.getBoundingClientRect().width)).toBe(releasedWidth);
+});
+
+test('reader removes the PDF sidebar resize shield before navigating back to the library', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  const resizeHandle = page.getByRole('button', { name: '调整侧栏宽度' });
+  const handleBox = await resizeHandle.boundingBox();
+  if (!handleBox) throw new Error('expected visible sidebar resize handle');
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  const shield = page.locator('.reader-sidebar-drag-shield');
+  await expect(shield).toBeVisible();
+
+  // The active shield blocks pointer targeting, but this still dispatches the real reader control
+  // and exercises Svelte route teardown rather than replacing the page with a browser navigation.
+  await page.getByLabel('回到书库').evaluate((button) => {
+    if (!(button instanceof HTMLButtonElement)) throw new Error('expected library navigation button');
+    button.click();
+  });
+
+  await expect(page).toHaveURL(/\/library$/);
+  await expect(shield).toHaveCount(0);
+  const search = page.getByRole('searchbox', { name: '搜索书籍' });
+  await search.fill('Justice');
+  await expect(search).toHaveValue('Justice');
+});
+
+test('reader displays sample-outline PDF author metadata in the current-book preview', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+
+  const currentBook = page.getByLabel('当前书概览');
+  await expect(currentBook.getByText('anonymous', { exact: true })).toBeVisible();
+  await expect(currentBook.getByText('未知作者', { exact: true })).toHaveCount(0);
+});
+
+test('reader keeps the scrolled PDF footer unblended over an opaque background', async ({ page }) => {
+  await page.goto(
+    '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'
+  );
+  await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page
+    .locator('[role="group"][aria-label="阅读模式"]')
+    .getByRole('menuitemradio', { name: '滚动', exact: true })
+    .evaluate((element) => {
+      if (!(element instanceof HTMLButtonElement)) throw new Error('expected scroll-mode button');
+      element.click();
+    });
+
+  const footerStyle = await page.getByLabel('阅读页脚控制').locator('.footer-frame').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      mixBlendMode: style.mixBlendMode,
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage
+    };
+  });
+  expect(footerStyle.mixBlendMode).toBe('normal');
+  expect(footerStyle.backgroundColor).not.toBe('transparent');
+  expect(footerStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+  expect(footerStyle.backgroundImage !== 'none' || footerStyle.backgroundColor.length > 0).toBe(true);
+});
+
 test('reader joins a desktop cross-page PDF drag only in scrolled fixed layout', async ({ page }) => {
   await page.goto(
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20PDF%20Outline&mode=window'

@@ -32,6 +32,17 @@ pub(crate) const ASSOCIATED_BOOK_OPEN_EVENT: &str = "br1:associated-book-open-re
 const SUPPORTED_BOOK_DIALOG_EXTENSIONS: &[&str] =
     &["epub", "pdf", "fb2", "mobi", "azw3", "cbz", "txt"];
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LibraryMetadataOverride {
+    title: Option<String>,
+    author: Option<String>,
+    description: Option<String>,
+    language: Option<String>,
+    publisher: Option<String>,
+    source_sha256: String,
+}
+
 // Refactor risk: associated-book open requests cross windows, persisted
 // diagnostics, and trusted-path state. Keep that handshake centralized here.
 
@@ -208,6 +219,7 @@ fn register_trusted_associated_book_paths<R: tauri::Runtime>(
 fn resolve_trusted_library_book_path(
     app: &tauri::AppHandle,
     file_path: &str,
+    repair_record_id: Option<&str>,
 ) -> Result<PathBuf, String> {
     let canonical = canonicalize_existing_file_path(file_path)?;
     if !is_supported_associated_book_path(&canonical) {
@@ -215,10 +227,19 @@ fn resolve_trusted_library_book_path(
     }
 
     let library_root = canonical_library_root(app)?;
+    let path_key = canonical_path_key(&canonical);
     if canonical.starts_with(&library_root)
         || trusted_associated_book_paths_contains(app, &canonical)?
+        || trusted_library_import_path_key_contains(app, &path_key)?
     {
         return Ok(canonical);
+    }
+
+    if let Some(record_id) = repair_record_id {
+        let records = load_library_records(&library_json_path(app)?)?;
+        if repair_record_source_path_matches(&records, record_id, &path_key) {
+            return Ok(canonical);
+        }
     }
 
     Err("Book file path is not an approved library source".to_string())
@@ -351,6 +372,16 @@ fn persisted_record_source_path_key_contains(
         .iter()
         .filter_map(|record| record.source_path.as_deref())
         .any(|source_path| source_path == path_key)
+}
+
+fn repair_record_source_path_matches(
+    records: &[LibraryBookRecord],
+    record_id: &str,
+    path_key: &str,
+) -> bool {
+    records
+        .iter()
+        .any(|record| record.id == record_id && record.source_path.as_deref() == Some(path_key))
 }
 
 fn resolve_trusted_import_source_path(
@@ -514,7 +545,11 @@ pub(crate) fn queue_associated_book_open_requests_runtime<R: tauri::Runtime>(
     );
     let requests = normalize_associated_book_requests(file_paths, cwd.as_deref());
     if requests.is_empty() {
-        append_associated_book_open_diagnostic(app, "queue_runtime.empty", "no normalized requests");
+        append_associated_book_open_diagnostic(
+            app,
+            "queue_runtime.empty",
+            "no normalized requests",
+        );
         return Ok(0);
     }
 
@@ -1089,6 +1124,41 @@ fn find_repairable_library_record_index(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
+fn find_import_library_record_index(
+    records: &[LibraryBookRecord],
+    repair_record_id: Option<&str>,
+    incoming_source_path: &str,
+    incoming_source: &Path,
+    incoming_title: &str,
+    incoming_author: &str,
+    incoming_format: &str,
+) -> Result<Option<usize>, String> {
+    if let Some(record_id) = repair_record_id {
+        let index = records
+            .iter()
+            .position(|record| record.id == record_id)
+            .ok_or_else(|| "Library repair record not found".to_string())?;
+        if !records[index]
+            .format
+            .trim()
+            .eq_ignore_ascii_case(incoming_format)
+        {
+            return Err("Library repair candidate format does not match the record".to_string());
+        }
+        return Ok(Some(index));
+    }
+
+    Ok(find_repairable_library_record_index(
+        records,
+        incoming_source_path,
+        incoming_source,
+        incoming_title,
+        incoming_author,
+        incoming_format,
+    ))
+}
+
 fn derive_import_metadata_for_source(source: &Path, extension: &str) -> (String, String) {
     let default_title = source
         .file_stem()
@@ -1156,6 +1226,56 @@ fn sha256_file(path: &Path) -> Option<String> {
     Some(format!("{:x}", hasher.finalize()))
 }
 
+fn sha256_bytes(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn validate_pdf_metadata_override(
+    metadata: &LibraryMetadataOverride,
+    imported_bytes: &[u8],
+) -> Result<(), String> {
+    if metadata
+        .source_sha256
+        .eq_ignore_ascii_case(&sha256_bytes(imported_bytes))
+    {
+        Ok(())
+    } else {
+        Err("PDF metadata override does not match imported bytes".to_string())
+    }
+}
+
+fn find_matching_pdf_content_record_index(
+    records: &[LibraryBookRecord],
+    incoming_sha256: &str,
+    books_dir: &Path,
+) -> Option<usize> {
+    let canonical_books_dir = fs::canonicalize(books_dir).ok()?;
+    records.iter().position(|record| {
+        let managed_path = fs::canonicalize(&record.file_path).ok();
+        !record.id.starts_with("readest-")
+            && record.format.trim().eq_ignore_ascii_case("pdf")
+            && managed_path
+                .as_ref()
+                .is_some_and(|path| path.starts_with(&canonical_books_dir) && path.is_file())
+            && managed_path.as_deref().and_then(sha256_file).as_deref() == Some(incoming_sha256)
+    })
+}
+
+fn choose_import_stored_path(
+    existing_record: Option<&LibraryBookRecord>,
+    matched_by_content: bool,
+    books_dir: &Path,
+    id: &str,
+    safe_filename: &str,
+) -> PathBuf {
+    if matched_by_content {
+        if let Some(record) = existing_record {
+            return PathBuf::from(&record.file_path);
+        }
+    }
+    books_dir.join(format!("{id}-{safe_filename}"))
+}
+
 fn choose_repaired_title(
     existing_record: &LibraryBookRecord,
     incoming_title: &str,
@@ -1203,6 +1323,52 @@ fn choose_repaired_optional(
         let trimmed = value.trim();
         (!trimmed.is_empty()).then(|| trimmed.to_string())
     })
+}
+
+fn normalize_metadata_override_value(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+}
+
+fn apply_pdf_metadata_override(record: &mut LibraryBookRecord, metadata: &LibraryMetadataOverride) {
+    if !record.format.trim().eq_ignore_ascii_case("pdf") {
+        return;
+    }
+
+    if let Some(title) = normalize_metadata_override_value(metadata.title.clone()) {
+        record.title = title;
+    }
+    if let Some(author) = normalize_metadata_override_value(metadata.author.clone()) {
+        record.author = author;
+    }
+    // Optional file-derived fields are replaced as a group. None means the
+    // refreshed PDF no longer declares that field, so stale values are cleared.
+    record.description = normalize_metadata_override_value(metadata.description.clone());
+    record.language = normalize_metadata_override_value(metadata.language.clone());
+    record.publisher = normalize_metadata_override_value(metadata.publisher.clone());
+}
+
+fn update_library_author_from_reader_state(record: &mut LibraryBookRecord, incoming_author: &str) {
+    // PDF metadata is refreshed during import. Reader-state updates only own
+    // progress, so they must not replace a user-curated PDF author on open.
+    if record.format.trim().eq_ignore_ascii_case("pdf") {
+        return;
+    }
+    if !author_looks_like_placeholder(incoming_author) {
+        record.author = incoming_author.trim().to_string();
+    }
+}
+
+fn update_library_title_from_reader_state(
+    record: &LibraryBookRecord,
+    incoming_title: &str,
+) -> String {
+    if record.format.trim().eq_ignore_ascii_case("pdf") {
+        return record.title.clone();
+    }
+    derive_library_title(record, incoming_title)
 }
 
 fn normalize_library_tags(tags: Option<Vec<String>>) -> Vec<String> {
@@ -1351,8 +1517,8 @@ pub(crate) fn probe_untrusted_library_paths_for_webdriver(
     let library_json = library_json_path(&app)?;
     let records = load_library_records(&library_json)?;
     let import_error = resolve_trusted_import_source_path(&app, &records, &book_path).err();
-    let book_binary_error = resolve_trusted_library_book_path(&app, &book_path).err();
-    let fingerprint_error = resolve_trusted_library_book_path(&app, &book_path).err();
+    let book_binary_error = resolve_trusted_library_book_path(&app, &book_path, None).err();
+    let fingerprint_error = resolve_trusted_library_book_path(&app, &book_path, None).err();
     let cover_error = resolve_library_owned_cover_path(&app, &cover_path).err();
     let repair_preview_error = (|| {
         find_persisted_library_record(&records, &record_id)
@@ -1518,7 +1684,12 @@ pub(crate) async fn select_single_library_book_path(
 pub(crate) fn import_library_books(
     app: tauri::AppHandle,
     file_paths: Vec<String>,
+    metadata_overrides: Option<Vec<Option<LibraryMetadataOverride>>>,
+    repair_record_id: Option<String>,
 ) -> Result<Vec<LibraryBookRecord>, String> {
+    if repair_record_id.is_some() && file_paths.len() != 1 {
+        return Err("A library repair must target exactly one source file".to_string());
+    }
     let library_root = ensure_library_root(&app)?;
     let books_dir = library_root.join("books");
     fs::create_dir_all(&books_dir).map_err(|error| error.to_string())?;
@@ -1527,7 +1698,8 @@ pub(crate) fn import_library_books(
     decorate_library_record_file_states(&mut records);
     let mut imported = Vec::new();
 
-    for file_path in file_paths {
+    let metadata_overrides = metadata_overrides.unwrap_or_default();
+    for (file_index, file_path) in file_paths.into_iter().enumerate() {
         let source = resolve_trusted_import_source_path(&app, &records, &file_path)?;
         let file_path = source.to_string_lossy().to_string();
         let filename = source
@@ -1616,9 +1788,32 @@ pub(crate) fn import_library_books(
         } else {
             extension.to_uppercase()
         };
-        let repair_index = find_repairable_library_record_index(
-            &records, &file_path, &source, &title, &author, &format,
-        );
+        let metadata_override = metadata_overrides.get(file_index).and_then(Option::as_ref);
+        if extension == "pdf" {
+            if let Some(metadata) = metadata_override {
+                validate_pdf_metadata_override(metadata, &bytes)?;
+            }
+        }
+        let source_sha256 = (extension == "pdf").then(|| sha256_bytes(&bytes));
+        let repair_index = find_import_library_record_index(
+            &records,
+            repair_record_id.as_deref(),
+            &file_path,
+            &source,
+            &title,
+            &author,
+            &format,
+        )?;
+        let content_match_index = repair_index
+            .is_none()
+            .then(|| {
+                source_sha256.as_deref().and_then(|hash| {
+                    find_matching_pdf_content_record_index(&records, hash, &books_dir)
+                })
+            })
+            .flatten();
+        let matched_by_content = content_match_index.is_some();
+        let repair_index = repair_index.or(content_match_index);
         let existing_record = repair_index.map(|index| records[index].clone());
         let imported_at = existing_record
             .as_ref()
@@ -1629,10 +1824,15 @@ pub(crate) fn import_library_books(
             .map(|record| record.id.clone())
             .unwrap_or_else(|| imported_at.to_string());
         let safe_filename = sanitize_filename(&filename);
-        let stored_filename = format!("{id}-{safe_filename}");
-        let stored_path = books_dir.join(stored_filename);
+        let stored_path = choose_import_stored_path(
+            existing_record.as_ref(),
+            matched_by_content,
+            &books_dir,
+            &id,
+            &safe_filename,
+        );
 
-        fs::write(&stored_path, bytes).map_err(|error| error.to_string())?;
+        fs::write(&stored_path, &bytes).map_err(|error| error.to_string())?;
         let cbz_cover_path = if extension == "cbz" {
             derive_cbz_cover_asset(&source).and_then(|(entry_name, cover_bytes)| {
                 let cover_name = format!("{id}-{}", sanitize_filename(&entry_name));
@@ -1647,7 +1847,7 @@ pub(crate) fn import_library_books(
                 .filter(|cover_path| Path::new(cover_path).is_file())
         };
 
-        let record = LibraryBookRecord {
+        let mut record = LibraryBookRecord {
             id,
             title: existing_record
                 .as_ref()
@@ -1706,6 +1906,19 @@ pub(crate) fn import_library_books(
             library_file_exists: None,
             source_file_exists: None,
         };
+        if matched_by_content {
+            // The frontend cannot compare a renamed source with this record's old
+            // metadata. Reuse identity and reading state without replacing curated fields.
+            if let Some(existing_record) = existing_record.as_ref() {
+                record.title = existing_record.title.clone();
+                record.author = existing_record.author.clone();
+                record.description = existing_record.description.clone();
+                record.language = existing_record.language.clone();
+                record.publisher = existing_record.publisher.clone();
+            }
+        } else if let Some(metadata) = metadata_override {
+            apply_pdf_metadata_override(&mut record, metadata);
+        }
 
         if let Some(existing_record) = existing_record.as_ref() {
             cleanup_repaired_record_assets(
@@ -2076,11 +2289,9 @@ pub(crate) fn update_library_reading_state(
         return Ok(());
     };
 
-    let next_title = derive_library_title(record, &title);
+    let next_title = update_library_title_from_reader_state(record, &title);
     record.title = next_title.clone();
-    if !author_looks_like_placeholder(&author) {
-        record.author = author.trim().to_string();
-    }
+    update_library_author_from_reader_state(record, &author);
 
     record.status = derive_library_status(progress_fraction, &chapter_label, &next_title);
     record.progress = if progress_fraction > 0.0 {
@@ -2122,8 +2333,9 @@ pub(crate) fn load_library_cover_data_urls(
 pub(crate) fn load_library_book_binary(
     app: tauri::AppHandle,
     file_path: String,
+    repair_record_id: Option<String>,
 ) -> Result<LibraryBookBinary, String> {
-    let path = resolve_trusted_library_book_path(&app, &file_path)?;
+    let path = resolve_trusted_library_book_path(&app, &file_path, repair_record_id.as_deref())?;
     let bytes = fs::read(&path).map_err(|error| error.to_string())?;
     let name = path
         .file_name()
@@ -2143,7 +2355,7 @@ pub(crate) fn load_library_file_fingerprint(
     app: tauri::AppHandle,
     file_path: String,
 ) -> Result<String, String> {
-    let path = resolve_trusted_library_book_path(&app, &file_path)?;
+    let path = resolve_trusted_library_book_path(&app, &file_path, None)?;
     let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
     let modified = metadata
         .modified()
@@ -2196,6 +2408,291 @@ mod tests {
             library_file_exists: None,
             source_file_exists: None,
         }
+    }
+
+    #[test]
+    fn pdf_metadata_override_refreshes_only_pdf_metadata_and_keeps_reader_state() {
+        let metadata = LibraryMetadataOverride {
+            title: Some("A Theory of Justice (Revised)".to_string()),
+            author: Some("John Rawls".to_string()),
+            description: Some("Revised description".to_string()),
+            language: Some("en-US".to_string()),
+            publisher: Some("Belknap Press".to_string()),
+            source_sha256: sha256_bytes(b"PDF fixture"),
+        };
+        let mut pdf = sample_record("pdf-1", "/library/pdf-1.pdf", Some("/imports/justice.pdf"));
+        pdf.format = "PDF".to_string();
+        pdf.collection = Some("Political philosophy".to_string());
+        pdf.tags = vec!["classic".to_string()];
+        pdf.progress = "Chapter 3".to_string();
+        pdf.status = "Reading".to_string();
+        pdf.progress_fraction = Some(0.37);
+        pdf.progress_location = Some("pdf:3".to_string());
+        pdf.title = "A Theory of Justice".to_string();
+        pdf.author = "Unknown author".to_string();
+
+        apply_pdf_metadata_override(&mut pdf, &metadata);
+
+        assert_eq!(pdf.title, "A Theory of Justice (Revised)");
+        assert_eq!(pdf.author, "John Rawls");
+        assert_eq!(pdf.description.as_deref(), Some("Revised description"));
+        assert_eq!(pdf.language.as_deref(), Some("en-US"));
+        assert_eq!(pdf.publisher.as_deref(), Some("Belknap Press"));
+        assert_eq!(pdf.id, "pdf-1");
+        assert_eq!(pdf.imported_at, 1);
+        assert_eq!(pdf.progress, "Chapter 3");
+        assert_eq!(pdf.status, "Reading");
+        assert_eq!(pdf.progress_fraction, Some(0.37));
+        assert_eq!(pdf.progress_location.as_deref(), Some("pdf:3"));
+        assert_eq!(pdf.collection.as_deref(), Some("Political philosophy"));
+        assert_eq!(pdf.tags, ["classic"]);
+        assert_eq!(pdf.source_path.as_deref(), Some("/imports/justice.pdf"));
+
+        let mut epub = pdf.clone();
+        epub.format = "EPUB".to_string();
+        epub.title = "EPUB title".to_string();
+        epub.author = "EPUB author".to_string();
+        epub.description = Some("EPUB description".to_string());
+        epub.language = Some("fr".to_string());
+        epub.publisher = Some("EPUB publisher".to_string());
+
+        apply_pdf_metadata_override(&mut epub, &metadata);
+
+        assert_eq!(epub.title, "EPUB title");
+        assert_eq!(epub.author, "EPUB author");
+        assert_eq!(epub.description.as_deref(), Some("EPUB description"));
+        assert_eq!(epub.language.as_deref(), Some("fr"));
+        assert_eq!(epub.publisher.as_deref(), Some("EPUB publisher"));
+    }
+
+    #[test]
+    fn reader_state_author_does_not_overwrite_pdf_library_metadata() {
+        let mut pdf = sample_record("pdf-1", "/library/pdf-1.pdf", Some("/imports/justice.pdf"));
+        pdf.format = "PDF".to_string();
+        pdf.author = "Library curated author".to_string();
+
+        update_library_author_from_reader_state(&mut pdf, "PDF preview author");
+
+        assert_eq!(pdf.author, "Library curated author");
+
+        let mut epub = sample_record("epub-1", "/library/notes.epub", Some("/imports/notes.epub"));
+        epub.author = "Old EPUB author".to_string();
+
+        update_library_author_from_reader_state(&mut epub, "EPUB preview author");
+
+        assert_eq!(epub.author, "EPUB preview author");
+    }
+
+    #[test]
+    fn reader_state_title_does_not_overwrite_pdf_library_metadata() {
+        let mut pdf = sample_record("pdf-1", "/library/pdf-1.pdf", Some("/imports/justice.pdf"));
+        pdf.format = "PDF".to_string();
+        pdf.title = "Justice notes from my seminar".to_string();
+
+        let pdf_title = update_library_title_from_reader_state(&pdf, "A Theory of Justice");
+
+        assert_eq!(pdf_title, "Justice notes from my seminar");
+
+        let mut epub = sample_record("epub-1", "/library/notes.epub", Some("/imports/notes.epub"));
+        epub.title = "Old EPUB title".to_string();
+
+        let epub_title = update_library_title_from_reader_state(&epub, "EPUB preview title");
+
+        assert_eq!(epub_title, "EPUB preview title");
+    }
+
+    #[test]
+    fn repair_record_id_selects_the_requested_missing_record_before_heuristics() {
+        let mut record_a = sample_record("record-a", "/library/books/a.pdf", None);
+        record_a.format = "PDF".to_string();
+        let mut record_b = sample_record("record-b", "/library/books/b.pdf", None);
+        record_b.format = "PDF".to_string();
+        let records = vec![record_a, record_b];
+        let source = Path::new("/imports/relinked.pdf");
+
+        // The old repair heuristic sees both missing PDFs and returns the first one.
+        assert_eq!(
+            find_repairable_library_record_index(
+                &records,
+                "/imports/relinked.pdf",
+                source,
+                "Test Book",
+                "Test Author",
+                "PDF",
+            ),
+            Some(0)
+        );
+
+        assert_eq!(
+            find_import_library_record_index(
+                &records,
+                Some("record-b"),
+                "/imports/relinked.pdf",
+                source,
+                "Test Book",
+                "Test Author",
+                "PDF",
+            )
+            .expect("matching repair record format should be accepted"),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn repair_record_id_rejects_a_different_format_and_ordinary_import_keeps_heuristic() {
+        let mut record_a = sample_record("record-a", "/library/books/a.pdf", None);
+        record_a.format = "PDF".to_string();
+        let mut record_b = sample_record("record-b", "/library/books/b.epub", None);
+        record_b.format = "EPUB".to_string();
+        let records = vec![record_a, record_b];
+        let source = Path::new("/imports/relinked.pdf");
+
+        let error = find_import_library_record_index(
+            &records,
+            Some("record-b"),
+            "/imports/relinked.pdf",
+            source,
+            "Test Book",
+            "Test Author",
+            "PDF",
+        )
+        .expect_err("a repair record cannot be replaced by a different format");
+        assert!(error.contains("format"));
+
+        assert_eq!(
+            find_import_library_record_index(
+                &records,
+                None,
+                "/imports/relinked.pdf",
+                source,
+                "Test Book",
+                "Test Author",
+                "PDF",
+            )
+            .expect("ordinary import should retain repair heuristics"),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn matching_pdf_bytes_at_a_new_path_keep_the_healthy_record_identity() {
+        let dir = unique_test_dir("pdf-content-match");
+        let books_dir = dir.join("books");
+        fs::create_dir_all(&books_dir).expect("create fixture directory");
+        let managed = books_dir.join("managed.pdf");
+        let original_source = dir.join("original.pdf");
+        let renamed_source = dir.join("renamed.pdf");
+        fs::write(&managed, b"same PDF bytes").expect("write managed PDF");
+        fs::write(&original_source, b"same PDF bytes").expect("write original PDF");
+        fs::write(&renamed_source, b"same PDF bytes").expect("write renamed PDF");
+
+        let mut record = sample_record(
+            "pdf-1",
+            managed.to_str().expect("managed fixture path"),
+            Some(original_source.to_str().expect("source fixture path")),
+        );
+        record.format = "PDF".to_string();
+
+        let records = [record];
+        let match_index = find_matching_pdf_content_record_index(
+            &records,
+            &sha256_file(&renamed_source).expect("hash renamed PDF"),
+            &books_dir,
+        );
+        let _ = fs::remove_dir_all(&dir);
+
+        assert_eq!(
+            match_index,
+            Some(0),
+            "a healthy PDF with identical bytes must be refreshed instead of duplicated"
+        );
+    }
+
+    #[test]
+    fn matching_pdf_bytes_ignores_external_and_symlinked_records() {
+        let dir = unique_test_dir("pdf-content-match-boundary");
+        let books_dir = dir.join("books");
+        let external_dir = dir.join("external");
+        fs::create_dir_all(&books_dir).expect("create books directory");
+        fs::create_dir_all(&external_dir).expect("create external directory");
+        let external = external_dir.join("external.pdf");
+        let escaped = books_dir.join("escaped.pdf");
+        let incoming = dir.join("incoming.pdf");
+        fs::write(&external, b"same PDF bytes").expect("write external PDF");
+        fs::write(&incoming, b"same PDF bytes").expect("write incoming PDF");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&external, &escaped).expect("create symlink");
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&external, &escaped).expect("create symlink");
+
+        let mut external_record = sample_record(
+            "external",
+            external.to_str().expect("external fixture path"),
+            None,
+        );
+        external_record.format = "PDF".to_string();
+        let mut escaped_record = sample_record(
+            "escaped",
+            escaped.to_str().expect("escaped fixture path"),
+            None,
+        );
+        escaped_record.format = "PDF".to_string();
+
+        let records = [external_record, escaped_record];
+        let match_index = find_matching_pdf_content_record_index(
+            &records,
+            &sha256_file(&incoming).expect("hash incoming PDF"),
+            &books_dir,
+        );
+        let _ = fs::remove_dir_all(&dir);
+
+        assert_eq!(
+            match_index, None,
+            "only canonical paths inside books_dir may be reused as managed PDF copies"
+        );
+    }
+
+    #[test]
+    fn matching_pdf_bytes_at_a_new_path_keep_the_existing_managed_path() {
+        let existing = sample_record(
+            "pdf-1",
+            "/library/books/pdf-1-original.pdf",
+            Some("/imports/original.pdf"),
+        );
+
+        let stored_path = choose_import_stored_path(
+            Some(&existing),
+            true,
+            Path::new("/library/books"),
+            "pdf-1",
+            "renamed.pdf",
+        );
+
+        assert_eq!(
+            stored_path,
+            PathBuf::from("/library/books/pdf-1-original.pdf"),
+            "a content match must retain the managed path used by reader-scoped state"
+        );
+    }
+
+    #[test]
+    fn pdf_import_checks_the_metadata_override_hash_against_imported_bytes() {
+        let mut metadata = LibraryMetadataOverride {
+            title: None,
+            author: None,
+            description: None,
+            language: None,
+            publisher: None,
+            source_sha256: sha256_bytes(b"parsed bytes"),
+        };
+
+        assert!(validate_pdf_metadata_override(&metadata, b"parsed bytes").is_ok());
+        let error = validate_pdf_metadata_override(&metadata, b"replaced bytes")
+            .expect_err("metadata captured from different bytes must be rejected");
+        assert!(error.contains("does not match imported bytes"));
+
+        metadata.source_sha256.make_ascii_uppercase();
+        assert!(validate_pdf_metadata_override(&metadata, b"parsed bytes").is_ok());
     }
 
     #[test]
@@ -2290,6 +2787,31 @@ mod tests {
         assert!(!persisted_record_source_path_key_contains(
             &records,
             "/untrusted/source.epub"
+        ));
+    }
+
+    #[test]
+    fn repair_metadata_read_requires_matching_record_id_and_canonical_source_path() {
+        let records = vec![sample_record(
+            "record-a",
+            "/library/books/record-a/book.pdf",
+            Some("/canonical/imports/book.pdf"),
+        )];
+
+        assert!(repair_record_source_path_matches(
+            &records,
+            "record-a",
+            "/canonical/imports/book.pdf"
+        ));
+        assert!(!repair_record_source_path_matches(
+            &records,
+            "record-b",
+            "/canonical/imports/book.pdf"
+        ));
+        assert!(!repair_record_source_path_matches(
+            &records,
+            "record-a",
+            "/canonical/imports/other.pdf"
         ));
     }
 }

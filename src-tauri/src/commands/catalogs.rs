@@ -1644,7 +1644,12 @@ pub(crate) fn import_catalog_entry_to_library(
 
     let source_path = materialize_catalog_acquisition_source(&app, &intent)?;
     register_trusted_library_import_path(&app, &source_path)?;
-    import_library_books(app, vec![source_path.to_string_lossy().to_string()])
+    import_library_books(
+        app,
+        vec![source_path.to_string_lossy().to_string()],
+        None,
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -1905,7 +1910,10 @@ mod tests {
                 acquisition_href: href.to_string(),
                 media_type: None,
                 file_name_hint: Some(
-                    href.split('/').next_back().unwrap_or("fixture-book").to_string(),
+                    href.split('/')
+                        .next_back()
+                        .unwrap_or("fixture-book")
+                        .to_string(),
                 ),
                 status: CatalogImportIntentStatus::Ready,
                 blocked_reason: None,

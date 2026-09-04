@@ -3,6 +3,11 @@
 // filesystem mutations or desktop dialogs delegated to Tauri commands.
 
 import { invokeTauri, isTauriDesktop } from './platform';
+import { preparePdfMetadataOverrides } from './pdfImportMetadata';
+import type { LibraryMetadataOverride } from './pdfImportMetadata';
+
+export { mergePdfMetadataOverride, preparePdfMetadataOverrides } from './pdfImportMetadata';
+export type { LibraryMetadataOverride } from './pdfImportMetadata';
 
 export type PersistedLibraryBook = {
   id: string;
@@ -235,9 +240,27 @@ export const selectSingleSystemBookPath = async (): Promise<string | null> => {
   return invokeTauri<string | null>('select_single_library_book_path');
 };
 
-export const importLibraryBooks = async (filePaths: string[]): Promise<PersistedLibraryBook[]> => {
+export const importLibraryBooks = async (
+  filePaths: string[],
+  { repairRecordId }: { repairRecordId?: string } = {}
+): Promise<PersistedLibraryBook[]> => {
+  const records = await loadPersistedLibraryBooks();
+  const metadataOverrides = await preparePdfMetadataOverrides(
+    filePaths,
+    records,
+    {
+      readBookFile: loadLibraryBookFile,
+      extractPdfMetadata: async (file) => {
+        const { extractPdfFileMetadata } = await import('../reader/pdfMetadata');
+        return extractPdfFileMetadata(file);
+      }
+    },
+    repairRecordId
+  );
   return invokeTauri<PersistedLibraryBook[]>('import_library_books', {
-    filePaths
+    filePaths,
+    metadataOverrides,
+    repairRecordId
   });
 };
 
@@ -319,13 +342,17 @@ export const updateLibraryReadingState = async (
   await invokeTauri('update_library_reading_state', update);
 };
 
-export const loadLibraryBookFile = async (filePath: string): Promise<File> => {
+export const loadLibraryBookFile = async (
+  filePath: string,
+  repairRecordId?: string
+): Promise<File> => {
   if (!isTauriDesktop()) {
     throw new Error('library-file reader sources require the Tauri desktop runtime');
   }
 
   const binary = await invokeTauri<LibraryBookBinary>('load_library_book_binary', {
-    filePath
+    filePath,
+    repairRecordId
   });
 
   const bytes = Uint8Array.from(atob(binary.bytesBase64), (character) => character.charCodeAt(0));

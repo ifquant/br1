@@ -14,10 +14,14 @@ type ClearLibraryNotice = () => void;
 
 const buildImportedResult = async (
   filePath: string,
-  importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>
+  importLibraryBooks: (
+    filePaths: string[],
+    options?: { repairRecordId?: string }
+  ) => Promise<PersistedLibraryBook[]>,
+  repairRecordId?: string
 ) => ({
   kind: 'imported' as const,
-  records: await importLibraryBooks([filePath]),
+  records: await importLibraryBooks([filePath], { repairRecordId }),
   firstRecord: null,
   firstReaderTarget: null,
   firstReaderHref: ''
@@ -183,7 +187,10 @@ export const repairDesktopLibraryBook = async ({
   persistedRecord: PersistedLibraryBook | null | undefined;
   clearLibraryNotice: ClearLibraryNotice;
   setLibraryNotice: SetLibraryNotice;
-  importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>;
+  importLibraryBooks: (
+    filePaths: string[],
+    options?: { repairRecordId?: string }
+  ) => Promise<PersistedLibraryBook[]>;
   selectSingleSystemBookPath: () => Promise<string | null>;
   previewLibraryRepairCandidate: (args: {
     filePath: string;
@@ -221,7 +228,11 @@ export const repairDesktopLibraryBook = async ({
     let result: { kind: 'imported'; records: PersistedLibraryBook[] } | null = null;
 
     if (libraryCopyMissing && sourcePathAvailable && persistedRecord.sourcePath) {
-      result = await buildImportedResult(persistedRecord.sourcePath, importLibraryBooks);
+      result = await buildImportedResult(
+        persistedRecord.sourcePath,
+        importLibraryBooks,
+        persistedRecord.id
+      );
     } else {
       const selectedPath = await selectSingleSystemBookPath();
       if (!selectedPath) return;
@@ -262,7 +273,7 @@ export const repairDesktopLibraryBook = async ({
         setLibraryNotice('info', '已取消重关联；请确认替换文件内容与当前记录一致后再继续。');
         return;
       }
-      result = await buildImportedResult(selectedPath, importLibraryBooks);
+      result = await buildImportedResult(selectedPath, importLibraryBooks, persistedRecord.id);
     }
 
     if (!result || result.records.length === 0) {
@@ -307,7 +318,10 @@ export const bulkRepairDesktopLibraryBooks = async ({
   setBulkRepairSummary: (summary: string) => void;
   clearLibraryNotice: ClearLibraryNotice;
   setLibraryNotice: SetLibraryNotice;
-  importLibraryBooks: (filePaths: string[]) => Promise<PersistedLibraryBook[]>;
+  importLibraryBooks: (
+    filePaths: string[],
+    options?: { repairRecordId?: string }
+  ) => Promise<PersistedLibraryBook[]>;
   loadPersistedLibraryBooks: () => Promise<PersistedLibraryBook[]>;
   applyPersistedLibraryRecords: (records: PersistedLibraryBook[]) => Promise<void>;
   getManualRepairCount: (records: PersistedLibraryBook[]) => number;
@@ -333,7 +347,9 @@ export const bulkRepairDesktopLibraryBooks = async ({
   try {
     for (const record of eligibleRecords) {
       try {
-        const repairedRecords = await importLibraryBooks([record.sourcePath!]);
+        const repairedRecords = await importLibraryBooks([record.sourcePath!], {
+          repairRecordId: record.id
+        });
         if (repairedRecords.length > 0) {
           repairedCount += 1;
         } else {

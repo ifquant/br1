@@ -992,7 +992,7 @@
     const previewState: ReaderPreviewState = {
       ...getFallbackReaderState(),
       title,
-      author: pickAuthor(book?.metadata?.creator) || '未知作者',
+      author: pickAuthor(book?.metadata?.author) || pickAuthor(book?.metadata?.creator) || '未知作者',
       chapterLabel,
       chapterHref: lastLocation?.tocItem?.href || '',
       progressLabel: `${progressPercent}%`,

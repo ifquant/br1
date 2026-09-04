@@ -1593,6 +1593,7 @@
     flushLibraryReadingStatePersist();
     ttsController.stop();
     searchController.destroy();
+    sidebarController.destroy();
   });
 
   const handleGoToLibrary = async () => {

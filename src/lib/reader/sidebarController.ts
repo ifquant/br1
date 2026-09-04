@@ -31,6 +31,7 @@ export const createReaderSidebarController = ({
   isWindowMode
 }: ReaderSidebarControllerOptions) => {
   const state = writable<ReaderSidebarState>(defaultState());
+  let finishActiveResize: (() => void) | null = null;
 
   const persist = (current: ReaderSidebarState) => {
     const storage = getStorage();
@@ -127,8 +128,20 @@ export const createReaderSidebarController = ({
 
     if (!isPinned) return;
 
+    finishActiveResize?.();
     event.preventDefault();
     const startX = event.clientX;
+    const shield = document.createElement('div');
+    shield.className = 'reader-sidebar-drag-shield';
+    shield.setAttribute('aria-hidden', 'true');
+    Object.assign(shield.style, {
+      position: 'fixed',
+      inset: '0',
+      zIndex: '2147483647',
+      cursor: 'col-resize',
+      pointerEvents: 'auto'
+    });
+    document.body.appendChild(shield);
 
     const handleMove = (moveEvent: MouseEvent) => {
       const delta = moveEvent.clientX - startX;
@@ -138,6 +151,9 @@ export const createReaderSidebarController = ({
     const handleUp = () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('blur', handleUp);
+      shield.remove();
+      if (finishActiveResize === handleUp) finishActiveResize = null;
       // Boundary: persist only after the drag settles so restore sees one stable
       // width instead of a trail of transient mousemove values.
       state.update((current) => {
@@ -146,8 +162,10 @@ export const createReaderSidebarController = ({
       });
     };
 
+    finishActiveResize = handleUp;
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
+    window.addEventListener('blur', handleUp);
   };
 
   return {
@@ -160,6 +178,7 @@ export const createReaderSidebarController = ({
     toggleTab,
     show,
     setWidth,
-    beginResize
+    beginResize,
+    destroy: () => finishActiveResize?.()
   };
 };
