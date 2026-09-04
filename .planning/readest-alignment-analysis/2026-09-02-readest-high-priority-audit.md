@@ -18,15 +18,15 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 38 |
-| `partial` | 430 |
-| `gap` | 79 |
+| `covered` | 41 |
+| `partial` | 429 |
+| `gap` | 77 |
 | `not-applicable` | 131 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 21 | 239 | 23 | 51 |
-| library | 7 | 59 | 18 | 20 |
+| reader core | 23 | 238 | 22 | 51 |
+| library | 8 | 59 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 36 | 11 | 16 |
@@ -178,7 +178,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 139 | `295a58898` | reader core | feat(share): route annotation exports through the system share sheet (#4107) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 140 | `f6f446e8a` | reader core | feat(applock): blinking PIN cursor + misc UI polish (#4110) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 141 | `772bb73b4` | reader core | ui/ux: codify design system and migrate settings to shared primitives (#4116) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
-| 142 | `d326e1c73` | reader core | fix: hide popup triangle when inside popup + EPUB image-only paragraph rendering (#4121) | `partial` | S2-R04A3 | br1 already covers image-only EPUB paragraphs, but foliate MOBI6 can still lose following content after self-closing non-void tags. |
+| 142 | `d326e1c73` | reader core | fix: hide popup triangle when inside popup + EPUB image-only paragraph rendering (#4121) | `covered` | S2-R04A3 | Existing br1 coverage preserves image-only EPUB paragraphs, and foliate now rewrites the observed MOBI6 self-closing non-void tags before HTML parsing. |
 | 143 | `598eb7723` | library | feat(library): redesign empty-library onboarding (#4122) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 144 | `9a05935ca` | reader core | feat(reader): improve Japanese selection UX by disabling furigana selection (#4137) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 145 | `fed8ab7b6` | tts/audio | fix(tts): restore cross-section auto-page-turn during TTS playback (#4148) | `partial` | S2-T03 | tts.ts, ttsRuntime.ts, and TTS tests; extraction/section parity is incomplete. |
@@ -654,7 +654,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 615 | `9213c6af1` | tts/audio | fix(tts): make sentence and paragraph pauses consistent (#5753) | `partial` | S2-T04A | tts.ts, ttsRuntime.ts, and TTS tests; voice/timing parity is incomplete. |
 | 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 617 | `f7f8a830d` | catalog/import | feat(opds): confirm auto-download toggles and allow catalog reordering (#5746) (#5760) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
-| 618 | `89821136f` | library | fix(cbz): order split chapter folders base-first (#5762) | `gap` | S2-R04A3 | CBZ entries are sorted as whole strings, so split chapter folders can appear before their base folder. |
+| 618 | `89821136f` | library | fix(cbz): order split chapter folders base-first (#5762) | `covered` | S2-R04A3 | CBZ page paths are compared segment by segment with numeric collation; browser coverage proves base, `(2)`, `(3)`, `(10)` and numeric page order. |
 | 619 | `771b152e5` | ai/assist/dictionary | feat(dictionaries): add bundled plugin and Yomitan support (#5764) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
 | 620 | `9fb8266bf` | tts/audio | fix(reader): translate iframe text without duplicating TTS (#5772) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 621 | `b50ff9374` | tts/audio | fix(tts): allow chapters sharing sentences with earlier packs to download (#5768) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
@@ -695,7 +695,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 656 | `c04ba5a80` | tts/audio | fix(tts): queue a lyric reload requested during an in-flight fetch (#5909) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 657 | `d27d324e1` | reading modes/controls | feat(shortcuts): add customizable keyboard and mouse bindings (#5907) | `partial` | S2-R08 | A centralized keyboard/mouse map and conflict check exist; user customization and persistence remain absent. |
 | 658 | `e782af530` | ai/assist/dictionary | fix(translate): Chinese targets, provider rate limits, and translator popup layout (#5913) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
-| 659 | `7e8abebcd` | reader core | fix(mobi): keep AZW3 text and TOC intact when section loads overlap (#5920) | `gap` | S2-R04A3 | KF8 loadRaw mutates shared head/tail buffers without serialization, so overlapping range reads can corrupt text and TOC resolution. |
+| 659 | `7e8abebcd` | reader core | fix(mobi): keep AZW3 text and TOC intact when section loads overlap (#5920) | `covered` | S2-R04A3 | KF8 serializes shared raw accumulation; the exact #5918 fixture returns identical text for serial and seeded out-of-order overlapping section loads. |
 | 660 | `0fcbd16f7` | reader core | fix(ui): search cloud storage files on demand instead of while typing (#5923) (#5925) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
 | 661 | `86493e801` | reader core | fix(reader): stop the a11y skip link from padding RTL sections with blank pages (#5924) (#5926) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
 | 662 | `76e81d604` | reading modes/controls | fix(ui): align the keyboard shortcuts header with its group titles (#5927) | `covered` | S1-R02 | The shortcuts header and group titles share one aligned dialog column. |
@@ -885,7 +885,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04A - Harden EPUB-family archive loading
 
 - Phase: Step 2
-- Upstream decisions: 8 commits (5 covered, 1 partial, 2 gap)
+- Upstream decisions: 8 commits (8 covered)
 - Outcome: Cover malformed EPUB entries, overlapping MOBI/AZW3 loads, and CBZ ordering without adding a second parser.
 - Touches: EPUB/MOBI/CBZ fixtures and parser guards
 - Verify: `pnpm check`; `archive fixture smoke`; `git diff --check`
@@ -895,7 +895,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 
 - Result: foliate accepts ZIP archives with a recoverable fourth local-header byte, keeps exact-case entries authoritative, falls back only to unique case-insensitive matches, and rejects ambiguous folded collisions.
 - Evidence: focused real-ZIP tests (PASS, 6/6, including entry read after local-header repair); real minimal-EPUB Chromium regression through `makeBook` and `createDocument` (PASS, 1/1); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); both repositories' `git diff --check` (PASS).
-- Evidence boundary: The browser fixture combines a malformed first local header with a uniquely case-mismatched chapter, but it is not a packaged Tauri/WebView acceptance run. OPF repair is covered by A2; MOBI/AZW3 concurrency and CBZ sorting remain in A3.
+- Evidence boundary: The browser fixture combines a malformed first local header with a uniquely case-mismatched chapter, but it is not a packaged Tauri/WebView acceptance run. OPF repair is covered by A2; MOBI/AZW3 concurrency and CBZ sorting are covered by A3.
 - Commits: `b53bdd271` (foliate-js), `9ace5482d` (br1 integration proof)
 
 #### Completed Task: S2-R04A2 - Repair EPUB package references
@@ -906,14 +906,15 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence boundary: The browser fixtures exercise actual ZIPs through `makeBook`, `section.load()`, resource replacement, `createDocument()`, and `getCover()`, but not a packaged Tauri/WebView manual import. The independent foliate `npm run build` remains blocked by the existing dependency installation state; br1's production build directly bundles the changed sibling source and passes.
 - Commits: `540f1544d` (foliate-js), `42f0caf40` (br1 integration proof)
 
-#### Next Task: S2-R04A3 - Stabilize MOBI/AZW3 and CBZ archive reads
+#### Completed Task: S2-R04A3 - Stabilize MOBI/AZW3 and CBZ archive reads
 
 - Scope: `d326e1c73`, `89821136f`, `7e8abebcd`
-- Outcome: Preserve MOBI content after self-closing non-void tags, serialize overlapping KF8 range loads, and order CBZ paths naturally segment by segment.
-- Touches: sibling foliate MOBI sanitizer/KF8 loader/CBZ ordering and focused synthetic fixtures
-- Verify: focused MOBI and CBZ tests; `pnpm check`; `pnpm build`; both repositories' `git diff --check`
+- Result: foliate rewrites the observed MOBI6 self-closing non-void tags before parsing, compares CBZ paths segment by segment with numeric collation, and serializes KF8 shared raw-byte accumulation so adjacent section preloads cannot reorder records.
+- Evidence: focused Chromium compatibility tests (PASS, 3/3); exact 84,908-byte Readest #5918 AZW3 fixture SHA-256 verification; serial and seeded out-of-order overlapping KF8 section text match; foliate ZIP loader tests (PASS, 6/6); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); both repositories' syntax/diff checks (PASS); task-level and architecture ownership reviews (PASS, no findings).
+- Evidence boundary: KF8 runs through the real parser with a jittered File, not packaged Tauri I/O. MOBI6 uses a production pure-helper regression plus static `createDocument()` call-chain proof rather than a binary fixture. CBZ covers representative ASCII split folders and numeric pages, not every locale collation. Readest's separate `RemoteFile.fetchRange` inclusive-end fix is not applicable because br1 materializes complete native `File` objects and has no remote range cache.
+- Commits: `758f218f2` (foliate-js), `780964127` (br1 integration proof)
 
-### S2-R04B - Harden TXT chapter parsing
+### Next Task: S2-R04B - Harden TXT chapter parsing
 
 - Phase: Step 2
 - Upstream decisions: 5 commits (0 gap, 5 partial)
