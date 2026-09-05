@@ -46,12 +46,14 @@ export interface FoliateViewElement extends HTMLElement {
     cfi?: string;
   };
   open(book: string | Blob | File | ReaderBookDocument): Promise<void>;
+  close(): void;
   init(options: { lastLocation?: string; showTextStart?: boolean }): Promise<void>;
   prev(): Promise<void>;
   next(): Promise<void>;
   goToFraction(fraction: number): Promise<void>;
   goTo(target: string): Promise<{ index: number; anchor?: (doc: Document) => unknown } | undefined>;
   getCFI(index: number, range?: Range): string;
+  resolveCFI(cfi: string): { index: number; anchor: (doc: Document) => unknown } | null;
   addAnnotation(annotation: Record<string, unknown>, remove?: boolean): Promise<unknown>;
   search(opts: {
     query: string;

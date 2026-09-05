@@ -2,7 +2,8 @@
  to the user. It may render state from the route or helper modules, but it should
  not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
+  import type { ReaderFootnoteRequest } from '$lib/reader/footnoteExcerpt';
   import type {
     ReaderControlRequest,
     ReaderFocusedReadingMode,
@@ -49,14 +50,6 @@
     formatLabel: string;
   };
 
-  type ReaderFootnoteRequest = {
-    label: string;
-    href: string;
-    excerptHtml: string;
-    excerptText: string;
-    fallbackNavigationTarget: string;
-  };
-
   const dispatch = createEventDispatcher<{
     controlrequest: ReaderControlRequest;
     gotolibrary: void;
@@ -65,6 +58,7 @@
     readerstate: ReaderPreviewState;
     inlinetranslationcandidates: ReaderInlineTranslationCandidatesEvent;
     footnoterequest: ReaderFootnoteRequest | null;
+    footnoteselectionchange: ReaderSelectionState | null;
     searchchange: ReaderSearchState;
     searchcachekeychange: string;
     tocchange: ReaderTocItem[];
@@ -154,6 +148,8 @@
   let annotationPopupPosition: { top: number; left: number } | null = null;
   let popupRefreshNonce = 0;
   let footnoteRequest: ReaderFootnoteRequest | null = null;
+  let footnoteSelectionRevision = 0;
+  let footnotePreviewRoot: Element | null = null;
   let handledControlRequestNonce = 0;
   let hasMounted = false;
   let hasAppliedInitialKeyboardFocus = false;
@@ -238,8 +234,39 @@
     dispatch('switchsidebartab', tab);
   };
 
-  const closeFootnotePopup = () => {
-    footnoteRequest = null;
+  const setFootnoteRequest = (request: ReaderFootnoteRequest | null) => {
+    if (request === footnoteRequest) return;
+    const previous = footnoteRequest;
+    footnoteRequest = request;
+    footnoteSelectionRevision += 1;
+    footnotePreviewRoot = null;
+    dispatch('footnoteselectionchange', null);
+    previous?.dismiss?.();
+  };
+
+  const closeFootnotePopup = () => setFootnoteRequest(null);
+  onDestroy(closeFootnotePopup);
+
+  const handleFootnoteSelection = async (root: Element, range: Range | null) => {
+    const request = footnoteRequest;
+    const revision = ++footnoteSelectionRevision;
+    footnotePreviewRoot = root;
+    // This channel cannot activate the route's generic annotation controls.
+    dispatch('footnoteselectionchange', null);
+    if (!request?.resolveSelection || !request.isCurrent?.() || !range || !root.isConnected || readerModalOpen) return;
+    const snapshot = range.cloneRange();
+    const result = await request.resolveSelection(root, snapshot);
+    if (revision !== footnoteSelectionRevision || request !== footnoteRequest || !request.isCurrent?.() ||
+      root !== footnotePreviewRoot || !root.isConnected || readerModalOpen) return;
+    // Selectionchange may be queued behind a promise completion. Check the
+    // browser's current boundaries too before accepting that asynchronous result.
+    const selection = root.ownerDocument.getSelection();
+    const current = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
+    if (!current || current.collapsed || current.startContainer !== snapshot.startContainer ||
+      current.startOffset !== snapshot.startOffset || current.endContainer !== snapshot.endContainer ||
+      current.endOffset !== snapshot.endOffset || !root.contains(current.startContainer) ||
+      !root.contains(current.endContainer)) return;
+    dispatch('footnoteselectionchange', result);
   };
 
   const jumpToFootnoteLocation = () => {
@@ -412,6 +439,7 @@
     handledControlRequestNonce = controlRequest.nonce;
     closeFootnotePopup();
   }
+  $: if (readerModalOpen) closeFootnotePopup();
 
   $: {
     annotationSelection;
@@ -594,9 +622,7 @@
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
       {notes}
-      onFootnoteRequest={(detail) => {
-        footnoteRequest = detail ?? null;
-      }}
+      onFootnoteRequest={setFootnoteRequest}
       {settings}
       on:readerstate={({ detail }) => {
         closeFootnotePopup();
@@ -610,7 +636,7 @@
         dispatch('notefocus', detail);
       }}
       on:footnoterequest={({ detail }) => {
-        footnoteRequest = detail ?? null;
+        setFootnoteRequest(detail ?? null);
       }}
       on:selectionchange={({ detail }) => {
         schedulePopupRefresh();
@@ -654,15 +680,18 @@
       onTts={onReadAloudSelection}
       onCopy={onCopySelection}
     />
-    <ReaderFootnotePopup
-      visible={!!footnoteRequest && !readerModalOpen}
-      label={footnoteRequest?.label ?? '脚注'}
-      excerptHtml={footnoteRequest?.excerptHtml ?? ''}
-      excerptText={footnoteRequest?.excerptText ?? ''}
-      fallbackHref={footnoteRequest?.fallbackNavigationTarget ?? ''}
-      onClose={closeFootnotePopup}
-      onJump={jumpToFootnoteLocation}
-    />
+    {#key footnoteRequest}
+      <ReaderFootnotePopup
+        visible={!!footnoteRequest && !readerModalOpen}
+        label={footnoteRequest?.label ?? '脚注'}
+        excerptHtml={footnoteRequest?.excerptHtml ?? ''}
+        excerptText={footnoteRequest?.excerptText ?? ''}
+        fallbackHref={footnoteRequest?.fallbackNavigationTarget ?? ''}
+        onClose={closeFootnotePopup}
+        onJump={jumpToFootnoteLocation}
+        onSelection={handleFootnoteSelection}
+      />
+    {/key}
   </article>
 
   {#if focusedReadingState && focusedReadingState.mode !== 'off'}

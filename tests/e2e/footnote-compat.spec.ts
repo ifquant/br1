@@ -3,6 +3,10 @@ import path from 'node:path';
 
 const foliateRoot = path.resolve(process.cwd(), '../foliate-js');
 const zipWriterUrl = `/@fs/${foliateRoot}/node_modules/@zip.js/zip.js/index.js`;
+const br1Root = process.cwd();
+const readerStageUrl = `/@fs/${br1Root}/src/lib/components/reader/ReaderStage.svelte`;
+const readerTtsUrl = `/@fs/${br1Root}/src/lib/reader/tts.ts`;
+const svelteLegacyClientUrl = '/node_modules/.vite/deps/svelte_legacy.js';
 
 type EpubChapter = {
   id: string;
@@ -1336,4 +1340,617 @@ test('does not paint a C7 cue after layout invalidates a held jump', async ({ pa
   ).toBe(true);
   await expect(page.locator('[data-reader-jump-cue]')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
+});
+
+type C8BSelection = { index: number; cfi: string; text: string };
+
+type C8BStageHarness = {
+  eventDetails: () => Array<C8BSelection | null>;
+  clearEvents: () => void;
+  setControlRequest: (request: { type: string; nonce: number; url?: string; label?: string }) => void;
+  destroy: () => void;
+};
+
+const mountC8BStage = async (
+  page: import('@playwright/test').Page,
+  assetUrl: string,
+  label: string
+) => {
+  await page.goto('/library');
+  await page.evaluate(async ({ assetUrl, label, readerStageUrl, readerTtsUrl, svelteLegacyClientUrl }) => {
+    const [{ default: ReaderStage }, { createClassComponent }, { createEmptyReaderTtsSessionState }] = await Promise.all([
+      import(/* @vite-ignore */ readerStageUrl),
+      import(/* @vite-ignore */ svelteLegacyClientUrl),
+      import(/* @vite-ignore */ readerTtsUrl)
+    ]);
+    type C8BWindow = Window & { __BR1_C8B_STAGE__?: C8BStageHarness };
+    const target = document.createElement('div');
+    target.dataset.c8bStage = 'true';
+    document.body.append(target);
+    const events: Array<C8BSelection | null> = [];
+    const stage = createClassComponent({
+      component: ReaderStage,
+      target,
+      props: {
+        controlRequest: { type: 'asset', nonce: 1, url: assetUrl, label },
+        ttsSession: createEmptyReaderTtsSessionState()
+      }
+    });
+    stage.$on('footnoteselectionchange', (event: CustomEvent<C8BSelection | null>) => {
+      events.push(event.detail);
+    });
+    (window as C8BWindow).__BR1_C8B_STAGE__ = {
+      eventDetails: () => events.map((detail) => detail && { index: detail.index, cfi: detail.cfi, text: detail.text }),
+      clearEvents: () => { events.length = 0; },
+      setControlRequest: (request) => stage.$set({ controlRequest: request }),
+      destroy: () => stage.$destroy()
+    };
+  }, { assetUrl, label, readerStageUrl, readerTtsUrl, svelteLegacyClientUrl });
+  await expect(page.frameLocator('[data-c8b-stage] iframe').first().locator('body')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('[data-c8b-stage]').getByText('书籍已打开')).toBeVisible();
+  return page.frameLocator('[data-c8b-stage] iframe').first();
+};
+
+const waitForC8BCurrentRenderer = async (page: import('@playwright/test').Page, expectedText: string) => {
+  await expect.poll(() => page.evaluate((expectedText) => {
+    type Renderer = HTMLElement & { getContents?: () => Array<{ doc?: Document }> };
+    type View = HTMLElement & { renderer?: Renderer };
+    const view = document.querySelector('[data-c8b-stage] foliate-view') as View | null;
+    const renderer = view?.renderer;
+    if (!view || !renderer || !['foliate-paginator', 'foliate-fxl'].includes(renderer.localName)) return false;
+    const roots = [view, view.shadowRoot, renderer.shadowRoot].filter(Boolean) as Array<Element | ShadowRoot>;
+    const rendererNodes = new Set(roots.flatMap((root) =>
+      [...root.querySelectorAll<HTMLElement>('foliate-paginator, foliate-fxl')]
+    ));
+    const renderedText = (renderer.getContents?.() ?? []).map(({ doc }) => doc?.body.textContent ?? '').join('\n');
+    return rendererNodes.size === 1 && rendererNodes.has(renderer) && renderer.isConnected && renderedText.includes(expectedText);
+  }, expectedText)).toBe(true);
+  await expect(page.locator('[data-c8b-stage]').getByText('书籍已打开')).toBeVisible();
+};
+
+const c8bConnectedFoliateRendererCount = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const view = document.querySelector('[data-c8b-stage] foliate-view') as HTMLElement | null;
+    if (!view) return 0;
+    const roots = [view, view.shadowRoot].filter(Boolean) as Array<Element | ShadowRoot>;
+    return new Set(roots.flatMap((root) => [...root.querySelectorAll('foliate-paginator, foliate-fxl')]))
+      .size;
+  });
+
+const setC8BControlRequest = (
+  page: import('@playwright/test').Page,
+  request: { type: string; nonce: number; url?: string; label?: string }
+) =>
+  page.evaluate((nextRequest) =>
+    (window as Window & { __BR1_C8B_STAGE__?: C8BStageHarness }).__BR1_C8B_STAGE__?.setControlRequest(nextRequest),
+  request);
+
+const selectText = async (element: import('@playwright/test').Locator) => {
+  await element.evaluate((element) => {
+    const selection = element.ownerDocument.getSelection();
+    if (!selection) throw new Error('expected the popup document selection API');
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    element.ownerDocument.dispatchEvent(new Event('selectionchange'));
+  });
+};
+
+const selectPopupText = (page: import('@playwright/test').Page, selector: string, index = 0) =>
+  selectText(page.locator(`[data-c8b-stage] .footnote-body ${selector}`).nth(index));
+
+const c8bEvents = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    (window as Window & { __BR1_C8B_STAGE__?: C8BStageHarness }).__BR1_C8B_STAGE__?.eventDetails() ?? []
+  );
+
+const c8bAcceptedEvents = (page: import('@playwright/test').Page) =>
+  c8bEvents(page).then((events) => events.filter((event): event is C8BSelection => event !== null));
+
+const clearC8BEvents = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    (window as Window & { __BR1_C8B_STAGE__?: C8BStageHarness }).__BR1_C8B_STAGE__?.clearEvents()
+  );
+
+const releaseC8BValidation = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    (window as Window & {
+      __BR1_C8B_NATIVE__?: { release: () => void };
+    }).__BR1_C8B_NATIVE__?.release()
+  );
+
+const stopHoldingNewC8BReads = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    (window as Window & {
+      __BR1_C8B_NATIVE__?: { stopHoldingNewReads: () => void };
+    }).__BR1_C8B_NATIVE__?.stopHoldingNewReads()
+  );
+
+const restoreC8BBook = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    (window as Window & {
+      __BR1_C8B_NATIVE__?: { restoreBook: () => void };
+    }).__BR1_C8B_NATIVE__?.restoreBook()
+  );
+
+const prepareC8BNativeValidation = async (
+  page: import('@playwright/test').Page,
+  invalidResolution: 'section' | 'boundary' | 'book-microtask' | null = null
+) => {
+  await page.evaluate(async (invalidResolution) => {
+    type C8BLocation = { index: number; anchor: (doc: Document) => unknown };
+    type C8BSection = { createDocument?: () => Promise<Document> };
+    type C8BView = HTMLElement & {
+      book?: { sections?: C8BSection[]; resolveHref?: (href: string) => Promise<C8BLocation | null> | C8BLocation | null };
+      renderer?: { getContents?: () => Array<{ index?: number; doc?: Document }> };
+      getCFI?: (index: number, range?: Range) => string;
+      resolveCFI?: (cfi: string) => C8BLocation | null;
+    };
+    type C8BWindow = Window & {
+      __BR1_C8B_NATIVE__?: {
+        release: () => void;
+        stopHoldingNewReads: () => void;
+        restoreBook: () => void;
+        validationEntered: () => boolean;
+        validationCompleted: () => boolean;
+        bookMicrotaskChanged: () => boolean;
+        bookMicrotaskRestored: () => boolean;
+        getCFICalls: () => Array<{ index: number; text: string; startNodeId: string }>;
+        resolveCalls: () => Array<{ cfi: string; index: number | null }>;
+      };
+    };
+    const view = document.querySelector('[data-c8b-stage] foliate-view') as C8BView | null;
+    if (!view?.book?.sections || !view.getCFI || !view.resolveCFI) throw new Error('expected the live Foliate CFI API');
+    const destinationIndex = view.book.sections.length - 1;
+    const destination = view.book.sections[destinationIndex];
+    const current = view.renderer?.getContents?.().find(({ index }) => index === 0)?.doc;
+    const wrongTarget = current?.querySelector('#wrong-section');
+    if (!destination?.createDocument || !current || !wrongTarget) throw new Error('expected real source and destination sections');
+    const getCFI = view.getCFI.bind(view);
+    const resolveCFI = view.resolveCFI.bind(view);
+    const wrongSectionRange = current.createRange();
+    wrongSectionRange.selectNodeContents(wrongTarget);
+    // This is a genuine Foliate locator for a different section, never a fabricated CFI.
+    const wrongSectionCFI = getCFI(0, wrongSectionRange);
+    const pristineForBoundary = await destination.createDocument();
+    const wrongBoundaryTarget = pristineForBoundary.querySelector('#wrong-boundary');
+    const wrongBoundaryRange = pristineForBoundary.createRange();
+    if (wrongBoundaryTarget) wrongBoundaryRange.selectNodeContents(wrongBoundaryTarget);
+    const wrongBoundaryCFI = wrongBoundaryTarget ? getCFI(destinationIndex, wrongBoundaryRange) : '';
+    const createDocument = destination.createDocument.bind(destination);
+    let validationEntered = false;
+    let validationCompleted = false;
+    let release: (() => void) | null = null;
+    let pending = 0;
+    let holdNewReads = true;
+    let bookMicrotaskChanged = false;
+    let bookMicrotaskRestored = false;
+    let bookMicrotaskScheduled = false;
+    let restoreBook: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const getCFICalls: Array<{ index: number; text: string; startNodeId: string }> = [];
+    const resolveCalls: Array<{ cfi: string; index: number | null }> = [];
+    destination.createDocument = async () => {
+      // Keep every validation read from the old browser Selection together,
+      // but allow a later popup extraction to establish its replacement root.
+      if (!holdNewReads) return createDocument();
+      validationEntered = true;
+      pending += 1;
+      try {
+        await gate;
+        return await createDocument();
+      } finally {
+        pending -= 1;
+        if (pending === 0) validationCompleted = true;
+      }
+    };
+    view.getCFI = (index, range) => {
+      const startElement = range?.startContainer.nodeType === Node.TEXT_NODE
+        ? range.startContainer.parentElement
+        : range?.startContainer as Element | undefined;
+      getCFICalls.push({ index, text: range?.toString() ?? '', startNodeId: startElement?.id ?? '' });
+      return getCFI(index, range);
+    };
+    view.resolveCFI = (cfi) => {
+      const nativeCFI = invalidResolution === 'section'
+        ? wrongSectionCFI
+        : invalidResolution === 'boundary' && wrongBoundaryCFI
+          ? wrongBoundaryCFI
+          : cfi;
+      const resolved = resolveCFI(nativeCFI);
+      resolveCalls.push({ cfi, index: resolved?.index ?? null });
+      if (invalidResolution === 'book-microtask' && !bookMicrotaskScheduled) {
+        bookMicrotaskScheduled = true;
+        const originalBook = view.book;
+        // The real resolver has finished its synchronous currentness checks.
+        // Keep Stage's await continuation on a genuine stale book until this
+        // test has observed its rejection; restoration is explicit below.
+        queueMicrotask(() => {
+          bookMicrotaskChanged = true;
+          view.book = undefined;
+          restoreBook = () => {
+            view.book = originalBook;
+            bookMicrotaskRestored = true;
+          };
+        });
+      }
+      return resolved;
+    };
+    (window as C8BWindow).__BR1_C8B_NATIVE__ = {
+      release: () => release?.(),
+      stopHoldingNewReads: () => { holdNewReads = false; },
+      restoreBook: () => restoreBook?.(),
+      validationEntered: () => validationEntered,
+      validationCompleted: () => validationCompleted,
+      bookMicrotaskChanged: () => bookMicrotaskChanged,
+      bookMicrotaskRestored: () => bookMicrotaskRestored,
+      getCFICalls: () => [...getCFICalls],
+      resolveCalls: () => [...resolveCalls]
+    };
+  }, invalidResolution);
+};
+
+const c8bValidationEntered = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    (window as Window & { __BR1_C8B_NATIVE__?: { validationEntered: () => boolean } })
+      .__BR1_C8B_NATIVE__?.validationEntered() ?? false
+  );
+
+const waitForC8BValidationCompletion = async (page: import('@playwright/test').Page) => {
+  await releaseC8BValidation(page);
+  await expect.poll(() =>
+    page.evaluate(() =>
+      (window as Window & { __BR1_C8B_NATIVE__?: { validationCompleted: () => boolean } })
+        .__BR1_C8B_NATIVE__?.validationCompleted() ?? false
+    )
+  ).toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  ));
+};
+
+test('C8B forwards a real popup Selection through the scoped Stage event after a pristine duplicate-node CFI round trip', async ({ page }) => {
+  const assetUrl = '/samples/c8b-duplicate-round-trip.epub';
+  await page.goto('/library');
+  const archive = await buildEpub(page, [
+    {
+      id: 'chapter-one',
+      href: 'chapter-one.xhtml',
+      body: '<p id="wrong-section">duplicate selection text</p><a id="cross-ref" href="chapter-two.xhtml#raw-note" epub:type="noteref">[1]</a>'
+    },
+    {
+      id: 'chapter-two',
+      href: 'chapter-two.xhtml',
+      body: '<aside id="raw-note"><p><span id="first-duplicate">duplicate selection text</span><span id="second-duplicate">duplicate selection text</span></p></aside>'
+    }
+  ]);
+  await page.route(`**${assetUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(archive) }));
+  const frame = await mountC8BStage(page, assetUrl, 'C8B duplicate round trip');
+  await frame.locator('#cross-ref').click();
+  await expect(page.locator('[data-c8b-stage] [role="dialog"]')).toBeVisible();
+  await prepareC8BNativeValidation(page);
+  await clearC8BEvents(page);
+
+  await selectPopupText(page, 'span', 1);
+  await expect.poll(() => c8bValidationEntered(page)).toBe(true);
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ index: 1, text: 'duplicate selection text', cfi: expect.stringMatching(/^epubcfi\(/) })
+  ]));
+  const proof = await page.evaluate(() => {
+    const native = (window as Window & {
+      __BR1_C8B_NATIVE__?: {
+        getCFICalls: () => Array<{ index: number; text: string; startNodeId: string }>;
+        resolveCalls: () => Array<{ cfi: string; index: number | null }>;
+      };
+    }).__BR1_C8B_NATIVE__;
+    return { getCFI: native?.getCFICalls() ?? [], resolve: native?.resolveCalls() ?? [] };
+  });
+  expect(proof.getCFI).toEqual(expect.arrayContaining([
+    { index: 1, text: 'duplicate selection text', startNodeId: 'second-duplicate' }
+  ]));
+  expect(proof.resolve).toEqual(expect.arrayContaining([expect.objectContaining({ index: 1 })]));
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toHaveCount(0);
+});
+
+test('C8B sends an actual reader-route popup Selection through Foliate CFI serialization and pristine resolution', async ({ page }) => {
+  const frame = await openEpub(
+    page,
+    'c8b-live-route',
+    '<p id="wrong-section">route collision</p><a id="cross-ref" href="chapter-two.xhtml#raw-note" epub:type="noteref">[1]</a>',
+    [{
+      id: 'chapter-two',
+      href: 'chapter-two.xhtml',
+      body: '<aside id="raw-note"><p><span id="first-source">route duplicate</span><span id="second-source">route duplicate</span></p></aside>'
+    }]
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  await frame.locator('#cross-ref').click();
+  await expect(dialog).toBeVisible();
+  await page.evaluate(() => {
+    type Location = { index: number; anchor: (doc: Document) => unknown };
+    type View = HTMLElement & {
+      getCFI?: (index: number, range?: Range) => string;
+      resolveCFI?: (cfi: string) => Location | null;
+    };
+    const view = document.querySelector('foliate-view') as View | null;
+    if (!view?.getCFI || !view.resolveCFI) throw new Error('expected the live Foliate CFI methods');
+    const getCFI = view.getCFI.bind(view);
+    const resolveCFI = view.resolveCFI.bind(view);
+    const calls: Array<{ index: number; text: string; startNodeId: string; resolvedIndex: number | null }> = [];
+    view.getCFI = (index, range) => {
+      const start = range?.startContainer.nodeType === Node.TEXT_NODE
+        ? range.startContainer.parentElement
+        : range?.startContainer as Element | undefined;
+      const cfi = getCFI(index, range);
+      calls.push({ index, text: range?.toString() ?? '', startNodeId: start?.id ?? '', resolvedIndex: null });
+      return cfi;
+    };
+    view.resolveCFI = (cfi) => {
+      const resolved = resolveCFI(cfi);
+      calls[calls.length - 1]!.resolvedIndex = resolved?.index ?? null;
+      return resolved;
+    };
+    (window as Window & { __BR1_C8B_ROUTE__?: () => typeof calls }).__BR1_C8B_ROUTE__ = () => [...calls];
+  });
+  await selectText(dialog.locator('.footnote-body span').nth(1));
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C8B_ROUTE__?: () => Array<unknown> }).__BR1_C8B_ROUTE__?.() ?? [])
+  ).toEqual(expect.arrayContaining([{
+    index: 1,
+    text: 'route duplicate',
+    startNodeId: 'second-source',
+    resolvedIndex: 1
+  }]));
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toHaveCount(0);
+});
+
+test('C8B rejects a native locator resolved to the wrong section', async ({ page }) => {
+  const assetUrl = '/samples/c8b-wrong-section.epub';
+  await page.goto('/library');
+  const archive = await buildEpub(page, [
+    {
+      id: 'chapter-one',
+      href: 'chapter-one.xhtml',
+      body: '<p id="wrong-section">duplicate selection text</p><a id="cross-ref" href="chapter-two.xhtml#raw-note" epub:type="noteref">[1]</a>'
+    },
+    {
+      id: 'chapter-two',
+      href: 'chapter-two.xhtml',
+      body: '<aside id="raw-note"><p id="selected">duplicate selection text</p></aside>'
+    }
+  ]);
+  await page.route(`**${assetUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(archive) }));
+  const frame = await mountC8BStage(page, assetUrl, 'C8B wrong section');
+  await frame.locator('#cross-ref').click();
+  await expect(page.locator('[data-c8b-stage] [role="dialog"]')).toBeVisible();
+  await prepareC8BNativeValidation(page, 'section');
+  await clearC8BEvents(page);
+
+  await selectPopupText(page, 'p');
+  await expect.poll(() => c8bValidationEntered(page)).toBe(true);
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+});
+
+test('C8B rejects a genuine resolver result when the book changes before Stage publishes it', async ({ page }) => {
+  const assetUrl = '/samples/c8b-post-resolver-book-change.epub';
+  await page.goto('/library');
+  const archive = await buildEpub(page, [
+    {
+      id: 'chapter-one',
+      href: 'chapter-one.xhtml',
+      body: '<p id="wrong-section">post resolver source</p><a id="cross-ref" href="chapter-two.xhtml#raw-note" epub:type="noteref">[1]</a>'
+    },
+    {
+      id: 'chapter-two',
+      href: 'chapter-two.xhtml',
+      body: '<aside id="raw-note"><p>post resolver source</p></aside>'
+    }
+  ]);
+  await page.route(`**${assetUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(archive) }));
+  const frame = await mountC8BStage(page, assetUrl, 'C8B post resolver book change');
+  await frame.locator('#cross-ref').click();
+  await expect(page.locator('[data-c8b-stage] [role="dialog"]')).toBeVisible();
+  await prepareC8BNativeValidation(page, 'book-microtask');
+  await clearC8BEvents(page);
+
+  await selectPopupText(page, 'p');
+  await expect.poll(() => c8bValidationEntered(page)).toBe(true);
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+  const transientBookState = await page.evaluate(() => {
+    const native = (window as Window & {
+      __BR1_C8B_NATIVE__?: { bookMicrotaskChanged: () => boolean; bookMicrotaskRestored: () => boolean };
+    }).__BR1_C8B_NATIVE__;
+    return { changed: native?.bookMicrotaskChanged() ?? false, restored: native?.bookMicrotaskRestored() ?? false };
+  });
+  expect(transientBookState).toEqual({ changed: true, restored: false });
+  await restoreC8BBook(page);
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8B_NATIVE__?: { bookMicrotaskRestored: () => boolean } })
+      .__BR1_C8B_NATIVE__?.bookMicrotaskRestored() ?? false
+  )).toBe(true);
+});
+
+test('C8B rejects a genuine same-section locator with different source boundaries', async ({ page }) => {
+  const assetUrl = '/samples/c8b-wrong-boundary.epub';
+  await page.goto('/library');
+  const archive = await buildEpub(page, [
+    {
+      id: 'chapter-one',
+      href: 'chapter-one.xhtml',
+      body: '<p id="wrong-section">wrong section</p><a id="cross-ref" href="chapter-three.xhtml#raw-note" epub:type="noteref">[1]</a>'
+    },
+    { id: 'middle', href: 'middle.xhtml', body: '<p>middle chapter</p>' },
+    {
+      id: 'chapter-three',
+      href: 'chapter-three.xhtml',
+      body: '<aside id="raw-note"><p>same boundary text</p><p id="wrong-boundary">same boundary text</p></aside>'
+    }
+  ]);
+  await page.route(`**${assetUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(archive) }));
+  const frame = await mountC8BStage(page, assetUrl, 'C8B wrong boundary');
+  await frame.locator('#cross-ref').click();
+  await expect(page.locator('[data-c8b-stage] [role="dialog"]')).toBeVisible();
+  await prepareC8BNativeValidation(page, 'boundary');
+  await clearC8BEvents(page);
+  await selectPopupText(page, 'p');
+  await expect.poll(() => c8bValidationEntered(page)).toBe(true);
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+});
+
+test('C8B ignores held pristine reads after close, same-text replacement, navigation, and book replacement', async ({ page }) => {
+  // This case deliberately completes six independent reader lifecycle changes.
+  test.setTimeout(60_000);
+  const firstUrl = '/samples/c8b-stale-first.epub';
+  const secondUrl = '/samples/c8b-stale-second.epub';
+  await page.goto('/library');
+  const firstArchive = await buildEpub(page, [
+    {
+      id: 'chapter-one',
+      href: 'chapter-one.xhtml',
+      body: '<p id="wrong-section">wrong section</p><a id="note-a" href="chapter-two.xhtml#note-a" epub:type="noteref">[1]</a><a id="note-b" href="chapter-two.xhtml#note-b" epub:type="noteref">[2]</a>'
+    },
+    { id: 'middle', href: 'middle.xhtml', body: '<p>middle chapter</p>' },
+    {
+      id: 'chapter-two',
+      href: 'chapter-two.xhtml',
+      body: '<aside id="note-a"><p id="same-a">same payload text</p></aside><aside id="note-b"><p id="same-b">same payload text</p></aside>'
+    }
+  ]);
+  const secondArchive = await buildEpub(page, [
+    { id: 'replacement', href: 'replacement.xhtml', body: '<p>replacement book</p>' }
+  ]);
+  await page.route(`**${firstUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(firstArchive) }));
+  await page.route(`**${secondUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(secondArchive) }));
+  const frame = await mountC8BStage(page, firstUrl, 'C8B stale first');
+  const dialog = page.locator('[data-c8b-stage] [role="dialog"]');
+
+  const beginHeldSelection = async (reference: string, popupIndex = 0) => {
+    await frame.locator(reference).click();
+    await expect(dialog).toBeVisible();
+    const popupText = page.locator('[data-c8b-stage] .footnote-body p').nth(popupIndex);
+    await expect(popupText).toBeVisible();
+    // Foliate may finish loading a prefetched section after the dialog shell
+    // appears. Require the native popup body to remain present before holding.
+    await page.evaluate(() => new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    ));
+    await expect(popupText).toBeVisible();
+    await prepareC8BNativeValidation(page);
+    await clearC8BEvents(page);
+    await selectText(popupText);
+    await expect.poll(() => c8bValidationEntered(page)).toBe(true);
+    await page.evaluate(() => new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    ));
+    await stopHoldingNewC8BReads(page);
+  };
+
+  // Changing the browser Selection before the held read returns must invalidate
+  // the earlier snapshot without relying on the popup close path.
+  await beginHeldSelection('#note-a');
+  await page.locator('[data-c8b-stage] .footnote-body p').evaluate((element) => {
+    element.ownerDocument.getSelection()?.removeAllRanges();
+    element.ownerDocument.dispatchEvent(new Event('selectionchange'));
+  });
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+  await dialog.getByRole('button', { name: '关闭脚注' }).click();
+
+  await beginHeldSelection('#note-a');
+  await dialog.getByRole('button', { name: '关闭脚注' }).click();
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+
+  await beginHeldSelection('#note-a');
+  await frame.locator('#note-b').click();
+  await expect(dialog).toContainText('[2]');
+  await expect(dialog).toContainText('same payload text');
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+
+  await dialog.getByRole('button', { name: '关闭脚注' }).click();
+  await beginHeldSelection('#note-a');
+  await setC8BControlRequest(page, { type: 'next', nonce: 2 });
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+
+  await setC8BControlRequest(page, { type: 'asset', nonce: 3, url: firstUrl, label: 'C8B stale first' });
+  await waitForC8BCurrentRenderer(page, 'wrong section');
+  await expect(frame.locator('#note-a')).toBeVisible();
+  await beginHeldSelection('#note-a');
+  const oldSourceFrame = await page.locator('[data-c8b-stage] foliate-view iframe').first().elementHandle();
+  if (!oldSourceFrame) throw new Error('expected the old current source iframe');
+  await setC8BControlRequest(page, { type: 'asset', nonce: 4, url: secondUrl, label: 'C8B stale second' });
+  await waitForC8BCurrentRenderer(page, 'replacement book');
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+  expect(await oldSourceFrame.evaluate((frame) => frame.isConnected)).toBe(false);
+
+  await setC8BControlRequest(page, { type: 'asset', nonce: 5, url: firstUrl, label: 'C8B stale first' });
+  await waitForC8BCurrentRenderer(page, 'wrong section');
+  await expect(frame.locator('#note-a')).toBeVisible();
+  await beginHeldSelection('#note-a');
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C8B_STAGE__?: C8BStageHarness }).__BR1_C8B_STAGE__?.destroy()
+  );
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+  await expect(page.locator('[data-c8b-stage] foliate-view')).toHaveCount(0);
+});
+
+test('C8B retires the native EPUB renderer before a TXT switch and rejects its held selection', async ({ page }) => {
+  const epubUrl = '/samples/c8b-unload-held.epub';
+  const textUrl = '/samples/c8b-unload-held.txt';
+  await page.goto('/library');
+  const archive = await buildEpub(page, [
+    {
+      id: 'chapter-one',
+      href: 'chapter-one.xhtml',
+      body: '<p id="wrong-section">unload source</p><a id="cross-ref" href="chapter-two.xhtml#raw-note" epub:type="noteref">[1]</a>'
+    },
+    { id: 'chapter-two', href: 'chapter-two.xhtml', body: '<aside id="raw-note"><p>unload source</p></aside>' }
+  ]);
+  await page.route(`**${epubUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(archive) }));
+  await page.route(`**${textUrl}`, (route) => route.fulfill({ contentType: 'text/plain', body: 'C8B TXT replacement' }));
+  const frame = await mountC8BStage(page, epubUrl, 'C8B unload held');
+  await waitForC8BCurrentRenderer(page, 'unload source');
+  const oldSourceFrame = await page.locator('[data-c8b-stage] foliate-view iframe').first().elementHandle();
+  if (!oldSourceFrame) throw new Error('expected the current EPUB source iframe');
+  await frame.locator('#cross-ref').click();
+  await expect(page.locator('[data-c8b-stage] [role="dialog"]')).toBeVisible();
+  await prepareC8BNativeValidation(page);
+  await clearC8BEvents(page);
+  await selectPopupText(page, 'p');
+  await expect.poll(() => c8bValidationEntered(page)).toBe(true);
+
+  await setC8BControlRequest(page, { type: 'asset', nonce: 2, url: textUrl, label: 'C8B TXT replacement' });
+  await waitForC8BValidationCompletion(page);
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+  await expect.poll(() => c8bConnectedFoliateRendererCount(page)).toBe(0);
+  expect(await oldSourceFrame.evaluate((frame) => frame.isConnected)).toBe(false);
+});
+
+test('C8B keeps synthetic alt/data popup selections unanchored', async ({ page }) => {
+  const assetUrl = '/samples/c8b-synthetic.epub';
+  await page.goto('/library');
+  const archive = await buildEpub(page, [
+    {
+      id: 'chapter',
+      href: 'chapter.xhtml',
+      body: '<p><span id="synthetic" class="zhangyue-footnote" data-wr-footernote="synthetic popup text">*</span></p>'
+    }
+  ]);
+  await page.route(`**${assetUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(archive) }));
+  const frame = await mountC8BStage(page, assetUrl, 'C8B synthetic');
+  await frame.locator('#synthetic').click();
+  await expect(page.locator('[data-c8b-stage] [role="dialog"]')).toContainText('synthetic popup text');
+  await clearC8BEvents(page);
+
+  await selectPopupText(page, 'p');
+  await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
 });

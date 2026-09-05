@@ -9,9 +9,21 @@
   export let fallbackHref = '';
   export let onClose: (() => void) | null = null;
   export let onJump: (() => void) | null = null;
+  export let onSelection: ((root: Element, range: Range | null) => void) | null = null;
+  let previewRoot: HTMLDivElement | null = null;
+
+  const handleSelectionChange = () => {
+    if (!visible || !previewRoot) return;
+    const selection = previewRoot.ownerDocument.getSelection();
+    const range = selection?.rangeCount === 1 && !selection.isCollapsed ? selection.getRangeAt(0) : null;
+    onSelection?.(previewRoot, range && previewRoot.contains(range.startContainer) &&
+      previewRoot.contains(range.endContainer) ? range.cloneRange() : null);
+  };
 
   $: hasPreview = !!excerptHtml.trim() || !!excerptText.trim();
 </script>
+
+<svelte:document on:selectionchange={handleSelectionChange} />
 
 {#if visible}
   <div class="footnote-popup" role="dialog" aria-modal="false" aria-label="脚注预览">
@@ -21,7 +33,7 @@
     </div>
 
     {#if hasPreview}
-      <div class="footnote-body">
+      <div class="footnote-body" bind:this={previewRoot}>
         {#if excerptHtml}
           {@html excerptHtml}
         {:else}

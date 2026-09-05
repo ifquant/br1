@@ -1,5 +1,19 @@
 // Own the native excerpt and its source correspondence together. Sanitization
 // can remove text, so a later selection must never locate its source by search.
+import type { ReaderSelectionState } from './types';
+
+/** Ephemeral popup payload. Neither DOM correspondence nor callbacks are saved. */
+export type ReaderFootnoteRequest = {
+  label: string;
+  href: string;
+  excerptHtml: string;
+  excerptText: string;
+  fallbackNavigationTarget: string;
+  resolveSelection?: (root: Element, range: Range) => Promise<ReaderSelectionState | null>;
+  isCurrent?: () => boolean;
+  dismiss?: () => void;
+};
+
 export type FootnoteExcerpt = {
   excerptHtml: string;
   excerptText: string;

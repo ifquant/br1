@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7 and C8A.
+local implementation and verification are recorded separately for C1-C7 and C8A-C8B.
 
 ## Frozen and provisional slices
 
@@ -26,7 +26,7 @@ local implementation and verification are recorded separately for C1-C7 and C8A.
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Native text-scope equivalent with cleaned-empty navigation fallback. Popup images and late-image sizing are excluded, not claimed as full rich-media parity. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Shared native navigation completion with a four-second visual-only target cue; popup-internal links remain absent. |
 | **S2-R04C7** | Jump from popup to the book target unless known hidden | `aab58241d` | Native preview action with original-target ancestor styles and upstream unknown-default-allow policy; not pre-rendered visibility proof. |
-| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Partial: C8A native extraction/provenance foundation; next C8B validated selection, then C8C actions and C8D reverse annotation mapping. |
+| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Partial: C8A native provenance and C8B validated selection; next C8C actions/persistence, then C8D reverse annotation mapping. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Provisional renderer-lifetime slice; requires the exact foliate refcount behavior. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Provisional directional-flow slice. Ignore unrelated locale and submodule churn in the Readest commits. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Provisional standalone paginator/input slice; large behavior surface. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C8B**. Each slice starts by checking current local callers
+Continue with **S2-R04C8C**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8B-C8D and C9-C21 remain pending; their table entries are executable specifications,
+run. C8C-C8D and C9-C21 remain pending; their table entries are executable specifications,
 not completion claims.
 
 ### C2 implementation boundary
@@ -532,6 +532,49 @@ C8B must satisfy these gates before exposing anchored actions:
   round-trip and wrong-section rejection cases. No fake CFI or developer-only
   UI hook may stand in for these proofs.
 
-Popup selection/UI integration and these gates belong to C8B, not the active
+Popup selection/UI integration and these gates belong to C8B, not the historical
 C8A integration. Annotation controls/writes, redraw, and full lifecycle closure
 remain deferred until their own implementation and verification are complete.
+
+### C8B native selection and pristine-location validation
+
+The actual Popup listens to native document selection changes and passes a
+contained Range to Stage. Stage emits only `footnoteselectionchange`, never the
+generic route selection channel that exposes annotation actions. Keyed popup
+roots, exact payload identity, a selection revision and live browser boundary
+checks prevent queued or asynchronous results from surviving dismissal or a
+replacement. The Viewport also checks the captured book/view and active payload.
+
+The original C8A mapping must succeed first. The resolver loads the intended
+section with native `createDocument()`, re-extracts the captured href's target,
+and maps the same preview selection into that pristine document. Native
+`getCFI`/`resolveCFI` must return the expected section and identical start/end
+nodes, offsets and raw text. No current-location/TOC fallback, transformed-DOM
+CFI, duplicate-text search, secondary renderer or persistent map is introduced.
+The original displayed excerpt remains unchanged; transformed text that cannot
+map exactly to the pristine excerpt is rejected, not guessed.
+
+The reopen regression exposed a preexisting host lifecycle defect: native
+Foliate `open()` appends a renderer without closing its predecessor. Old iframe
+links could therefore remain interactive while the same view identified a new
+book. Astra approved the minimum root correction within the same production
+allowlist: call native `close()` after invalidating requests/gestures, before
+asynchronous source loading and the TXT/Foliate split, and during teardown.
+This removes the old renderer instead of hiding it in tests. It does not cancel
+a pending native `open()` or add `book.destroy()` ownership.
+
+Verification: final C8B focused 8/8 PASS, full footnote/authored-text 30/30 PASS,
+mapping 5/5 PASS, selected legacy footnote/sanitizer/TXT/fenced-code 4/4 PASS,
+and real PDF metadata smoke 1/1 PASS (40 unique runtime cases). `pnpm check`
+reports zero errors/warnings; production build (`pnpm exec vite build`),
+`git diff --check` and the 678-row ledger recount PASS. Fresh Terra high task
+review and Astra high final whole-change static review PASS. Browser proof uses
+native DOM Selection/Range, real Foliate CFI methods and a mounted production
+Stage's scoped events, plus a real `/reader` route trace. This is not full
+mouse/touch gesture or packaged-platform acceptance.
+
+Parent `631cd6454` remains partial: 54 covered, 412 partial, 77 gap and 135
+not-applicable, with 59 remaining primary task IDs. Next: C8C action applicability
+and persistence, then C8D annotation reverse mapping/redraw. C8B does not expose
+new action buttons, write annotations, anchor synthetic/CDATA text or claim
+packaged Tauri/mobile/Safari acceptance.

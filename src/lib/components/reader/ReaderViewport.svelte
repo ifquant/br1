@@ -37,7 +37,7 @@
     type FoliateViewElement
   } from '$lib/reader';
   import { Overlayer } from 'foliate-js/overlayer.js';
-  import { createFootnoteExcerpt } from '$lib/reader/footnoteExcerpt';
+  import { createFootnoteExcerpt, type FootnoteExcerpt, type ReaderFootnoteRequest } from '$lib/reader/footnoteExcerpt';
   import {
     applyCrossDocSegments,
     buildCrossDocSegments,
@@ -115,14 +115,6 @@
     left: number;
   };
 
-  type ReaderFootnoteRequest = {
-    label: string;
-    href: string;
-    excerptHtml: string;
-    excerptText: string;
-    fallbackNavigationTarget: string;
-  };
-
   type ReaderAnchorLike = Element & {
     ownerDocument: Document;
     textContent: string | null;
@@ -150,6 +142,7 @@
   let boundSelectionDocs = new WeakSet<Document>();
   let boundFootnoteDocs = new WeakSet<Document>();
   let footnoteRequestId = 0;
+  let activeFootnoteRequest: ReaderFootnoteRequest | null = null;
   let navigationCueId = 0;
   let navigationCue: SVGElement | null = null;
   let navigationCueTimer: ReturnType<typeof setTimeout> | null = null;
@@ -688,6 +681,7 @@
     // Any newer popup, navigation clear, or book replacement invalidates pending
     // cross-section extraction before it can emit a popup or fallback navigation.
     footnoteRequestId += 1;
+    activeFootnoteRequest = detail;
     onFootnoteRequest?.(detail);
     dispatch('footnoterequest', detail);
   };
@@ -1572,7 +1566,8 @@
     const view = foliateViewElement;
     const book = view?.book;
     const isCurrent = () => requestId === footnoteRequestId && foliateViewElement === view && view?.book === book;
-    let excerpt = { excerptHtml: '', excerptText: '' };
+    let excerpt: FootnoteExcerpt = createFootnoteExcerpt(null);
+    let sourceLocation: { index: number; anchor: (doc: Document) => unknown } | null = null;
     let jumpTarget = fallbackHref;
     try {
       let target: Element | null = null;
@@ -1580,6 +1575,7 @@
         const location = await book.resolveHref(href);
         if (!isCurrent()) return;
         if (location && location.index >= 0) {
+          sourceLocation = location;
           const doc = view?.renderer?.getContents?.().find(({ index }) => index === location.index)?.doc
             ?? await book.sections?.[location.index]?.createDocument?.();
           if (!isCurrent()) return;
@@ -1599,13 +1595,53 @@
       await navigateAndFlash(fallbackHref).catch((error) => console.warn('Failed to follow book link', error));
       return;
     }
-    emitFootnoteRequest({
+    const request: ReaderFootnoteRequest = {
       label: normalizeFootnoteLabel(link.textContent || '') || '脚注',
       href,
       fallbackNavigationTarget: jumpTarget,
       excerptHtml: excerpt.excerptHtml,
-      excerptText: excerpt.excerptText
-    });
+      excerptText: excerpt.excerptText,
+      dismiss: () => {
+        if (activeFootnoteRequest === request) emitFootnoteRequest(null);
+      }
+    };
+    const location = sourceLocation;
+    const section = location && book?.sections?.[location.index];
+    if (location && section?.createDocument && view) {
+      const isSelectionCurrent = () => activeFootnoteRequest === request &&
+        foliateViewElement === view && view.book === book && book?.sections?.[location.index] === section;
+      request.isCurrent = isSelectionCurrent;
+      request.resolveSelection = async (root, selection) => {
+        if (!isSelectionCurrent() || !excerpt.resolveRange(root, selection)) return null;
+        try {
+          // Rendered book content can be transformed. Re-extract the exact href
+          // in its pristine section instead of creating a CFI from that view.
+          const pristine = await section.createDocument!();
+          if (!isSelectionCurrent() || !excerpt.resolveRange(root, selection)) return null;
+          const target = location.anchor(pristine) as Node | null;
+          if (target?.nodeType !== 1) return null;
+          const source = createFootnoteExcerpt(target as Element, checked).resolveRange(root, selection);
+          if (!source || !source.toString().trim()) return null;
+          const cfi = view.getCFI(location.index, source);
+          if (!cfi) return null;
+          const resolved = view.resolveCFI(cfi);
+          if (!resolved || resolved.index !== location.index) return null;
+          const roundTrip = resolved.anchor(pristine) as Range | null;
+          // Equal text alone cannot distinguish repeated passages. Require the
+          // precise original boundary nodes and UTF-16 offsets after resolution.
+          if (!roundTrip || roundTrip.startContainer !== source.startContainer ||
+            roundTrip.startOffset !== source.startOffset || roundTrip.endContainer !== source.endContainer ||
+            roundTrip.endOffset !== source.endOffset || roundTrip.toString() !== selection.toString() ||
+            !isSelectionCurrent()) return null;
+          return { index: location.index, cfi, text: source.toString().trim(),
+            chapterHref: href, chapterLabel: pristine.title || request.label };
+        } catch (error) {
+          console.warn('Failed to validate footnote selection in its original chapter', error);
+          return null;
+        }
+      };
+    }
+    emitFootnoteRequest(request);
   };
 
   // Inline vendor markers have no navigable href. All ordinary anchors use the
@@ -1689,6 +1725,9 @@
     currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
     cancelPdfPinch();
     resetPdfSelectionGesture();
+    // Foliate open() appends a renderer; it does not retire the previous one.
+    // Remove old interactive documents before loading either Foliate or TXT.
+    foliateViewElement.close();
     pdfScaleFactor = 100;
     searchCache = new Map();
     searchCacheBookKey = cacheBookKey;
@@ -2245,7 +2284,9 @@
       cueRenderer?.removeEventListener('relocate', handleCueRelocate);
       cueRenderer = null;
       footnoteRequestId += 1;
+      activeFootnoteRequest = null;
       resetPdfSelectionGesture();
+      foliateViewElement?.close();
       if (selectionMutationGuardTimer) clearTimeout(selectionMutationGuardTimer);
       selectionMutationGuardTimer = null;
       selectionMutationGuard = false;
