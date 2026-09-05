@@ -14,11 +14,10 @@
   Context: C8B retires already-open renderers before new source loading and on teardown, fixing retained interactive old documents. It does not introduce a new asynchronous open owner.
   Depends on: a separate source-open lifecycle audit and held-open completion tests; do not equate the C8B selection epoch with complete open cancellation.
 
-- Complete C8D reverse footnote annotation mapping and record interactions.
-  Why: a nonempty CFI does not prove the intended source range, and identical preview text does not identify the current popup request.
-  Context: the independent Sol source audit of `631cd6454` found no actual resolve-and-text round trip and identified an upstream popup-view late-completion race. Nested `57c9358ad` serves second-view extraction mapping and exports, not a required native br1 renderer path.
-  Depends on: resolving the generated CFI in the correct pristine section with text and boundary checks; preserving the existing Viewport epoch and extending book/view/payload identity checks through close, replacement, navigation, teardown, and asynchronous UI completion. Never use current-location/TOC fallback or anchor synthetic alt/data text. Full gates are recorded in `.planning/readest-alignment-analysis/2026-09-05-authored-layout-commit-audit.md` under C8A/C8B.
-  Current boundary: C8B validates pristine CFIs; C8C retains scoped identity through tools and guarded persistence, with source/synthetic applicability and stale assistance rejection verified. C8D must now map persisted records back into the exact excerpt, draw each record ID, support record edit/delete, and clean up stale geometry/actions. Do not reuse the native asynchronous body addAnnotation removal path across book replacement; use captured loaded Overlayer membership and synchronous host reconciliation.
+- Audit C9 shared EPUB resource lifetime against the exact nested Foliate refcount change.
+  Why: C8's selection and annotation proof does not establish shared loader ownership or final blob release.
+  Context: C8A-D are complete within the native popup contract, without adding a second renderer or modifying Foliate. The next upstream parent is `a193cbc35`.
+  Depends on: inspecting each current reader/parallel/popup source caller and the nested old/new commits, then proving repeated popup close cannot break live reader resources and final owners release them correctly. Full pending-open cancellation remains a separate audit above.
 
 - Decide source-footnote visibility together with destination access before hiding EPUB asides.
   Why: br1 previews only recognized footnote links; ordinary links, rejected numeric markers, and fallback navigation can still need the original aside.

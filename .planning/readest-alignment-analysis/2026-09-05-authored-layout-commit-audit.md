@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7 and C8A-C8C.
+local implementation and verification are recorded separately for C1-C7 and C8A-C8D.
 
 ## Frozen and provisional slices
 
@@ -26,7 +26,7 @@ local implementation and verification are recorded separately for C1-C7 and C8A-
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Native text-scope equivalent with cleaned-empty navigation fallback. Popup images and late-image sizing are excluded, not claimed as full rich-media parity. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Shared native navigation completion with a four-second visual-only target cue; popup-internal links remain absent. |
 | **S2-R04C7** | Jump from popup to the book target unless known hidden | `aab58241d` | Native preview action with original-target ancestor styles and upstream unknown-default-allow policy; not pre-rendered visibility proof. |
-| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Partial: C8A provenance, C8B validated selection and C8C scoped actions/persistence complete; next C8D reverse annotation mapping/redraw. |
+| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Complete within the frozen native contract: C8A provenance, C8B validated selection, C8C scoped actions/persistence and C8D reverse mapping/record interactions. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Provisional renderer-lifetime slice; requires the exact foliate refcount behavior. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Provisional directional-flow slice. Ignore unrelated locale and submodule churn in the Readest commits. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Provisional standalone paginator/input slice; large behavior surface. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C8D**. Each slice starts by checking current local callers
+Continue with **S2-R04C9**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,8 +219,8 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8D and C9-C21 remain pending; their table entries are executable specifications,
-not completion claims.
+run. C8 is complete within its documented native contract below. C9-C21 remain
+pending; their table entries are executable specifications, not completion claims.
 
 ### C2 implementation boundary
 
@@ -541,7 +541,7 @@ remain deferred until their own implementation and verification are complete.
 The final Sol commit audit confirms that a Stage-owned ephemeral selection lease
 passed to a route action callback is equivalent to a dedicated route selection
 event. Do not add a second selection store or replace the body's selection.
-The following obligations remain open until their executable evidence is recorded.
+The following frozen obligations are satisfied by the C8C and C8D evidence below.
 
 | Slice | Required behavior | Evidence in Readest `631cd6454` |
 | --- | --- | --- |
@@ -648,6 +648,59 @@ interface test double now models library/bookmark and Tauri event contracts and
 fails unknown commands; browser page errors fail these tests instead of silently
 leaving the reader in an incomplete startup state.
 
-C8D reverse mapping, ID-keyed redraw and record interactions remain open. No
+At C8C closure, C8D reverse mapping, ID-keyed redraw and record interactions
+remained open. No
 Foliate source/dependency changes or second reader. Native service mocks are
 browser proof, not packaged Tauri acceptance; Safari/native mobile are unverified.
+
+### C8D annotation reverse mapping and record interaction
+
+Implementation and product regressions are complete. Parent `631cd6454` is
+covered within the frozen native contract; final whole-C8 review is recorded below.
+
+| Completion obligation | Native implementation and executable check |
+| --- | --- |
+| Pristine reverse mapping, early section rejection, explicit clipping | `ReaderViewport.resolveAnnotations` filters native CFI section indices before one pristine read; `footnoteExcerpt.resolvePreviewRange` intersects retained UTF-16 source segments and round-trips canonical endpoints. Mapping regressions cover duplicate text, clipping, hidden gaps, mutation, CDATA and foreign documents. |
+| Equivalent XML and rendered HTML | Compare detached HTML-serialized clones without namespace declarations or framework comments; keep displayed markup unchanged. An XHTML-pristine/HTML-preview regression checks namespace and empty-element serialization while rejecting a changed element structure. |
+| Record identity and persistent actions | Popup and body Overlayers use record IDs, not CFI keys. Popup inspection reads the current primary record by ID; the existing controller edits/deletes it after guarded remapping. Product regression exercises two notes plus a highlight at one CFI, sibling deletion, toggle and reload. |
+| Geometry, mouse and keyboard | The popup SVG is outside the mapped text root. Native Overlayer retains viewport hit rectangles while drawing coordinates account for scroll and borders. Product regression uses a real mouse click and keyboard chooser, then checks desktop/mobile-sized scroll and resize geometry. |
+| Lifetime and body ownership | Reverse batches and record operations retain request/root/book/view identity. Cleanup retires listeners, observer and scheduled redraw. Body reconciliation uses the admitted source owner, hydrated snapshot and captured renderer/document/layer membership with synchronous mutations. Held-read regression covers close, replacement, navigation, book replacement, modal and teardown. |
+
+The ordinary body annotation event still opens the notebook through the existing
+CFI navigation flow; only popup record inspection avoids navigation. Range
+validation uses the rendered document's own constructor because iframe objects
+do not belong to the parent JavaScript realm.
+
+Persisted note admission requires Foliate's complete `isCFI` envelope before
+native resolution. This rejects truncated/bare values without replacing its
+parser or requiring one canonical string representation for equivalent CFIs.
+The pristine range and DOM provenance checks remain the semantic authority.
+
+Final-review corrections distinguish native `anchor` relayout from navigation
+and remove the Stage's unconditional dismissal on display-state refresh.
+Inspector and popup are siblings in one fixed wrapper projected into the owning
+Stage's visible viewport intersection on both axes. Side-by-side and stacked
+parallel previews remain independent. Excerpt space shrinks and native scrolling
+keeps controls reachable when chrome needs extra room; short excerpts retain
+their natural height rather than acquiring the long-note minimum.
+Opaque theme backing prevents underlying book text from bleeding through.
+Neither resize nor record inspection replaces the mapped root or its Overlayer.
+
+Final execution: Chrome C8D 4/4 and full footnote/authored/mapping 47/47 PASS;
+selected notes/selection/PDF regressions 10/10 PASS, no skips (57 unique browser
+cases). Reader helpers 99/99 PASS, type check zero errors/warnings, production
+build (`pnpm exec vite build`) and diff check PASS. Five screenshots cover
+1280x720, 390x740, 900x500, parallel 1600x1000 and stacked 900x900 layouts.
+Mouse proof uses an integer interior point within every clipping ancestor,
+not a subpixel edge or direct action invocation. Independent menu-open and
+direct keyboard-modal tests each reject held reverse completions.
+
+Fresh Terra high task-level review and final acceptance PASS. Final Astra high
+whole-C8 source, evidence and scope review PASS, with all five screenshots
+independently inspected and no remaining blockers in the frozen native contract.
+At C8 closure the ledger contains 678 commits: 55 covered, 411 partial, 77 gap,
+135 not-applicable, and 58 remaining primary task IDs. Next: S2-R04C9.
+
+No Foliate dependency change, second popup renderer or independent notes store.
+C9 and full pending source-open cancellation remain separate obligations.
+Packaged Tauri, Safari and native mobile gestures remain unverified.

@@ -44,6 +44,7 @@
   export let onStartRsvpLite: (() => void) | null = null;
   export let onExitFocusedReading: (() => void) | null = null;
   export let onOpenShortcutsHelp: (() => void) | null = null;
+  export let onOpenMenu: (() => void) | null = null;
 
   let menuOpen = false;
   let pdfThemeColorsSupported = false;
@@ -73,6 +74,7 @@
     (ttsSession.status === 'error' && !ttsSession.speechLabel);
 
   const toggleMenu = () => {
+    if (!menuOpen) onOpenMenu?.();
     menuOpen = !menuOpen;
   };
 

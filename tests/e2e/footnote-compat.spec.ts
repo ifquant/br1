@@ -6,6 +6,7 @@ const zipWriterUrl = `/@fs/${foliateRoot}/node_modules/@zip.js/zip.js/index.js`;
 const br1Root = process.cwd();
 const readerStageUrl = `/@fs/${br1Root}/src/lib/components/reader/ReaderStage.svelte`;
 const readerTtsUrl = `/@fs/${br1Root}/src/lib/reader/tts.ts`;
+const footnoteExcerptUrl = '/src/lib/reader/footnoteExcerpt.ts';
 const svelteLegacyClientUrl = '/node_modules/.vite/deps/svelte_legacy.js';
 const svelteNavigationUrl = `/@fs/${br1Root}/node_modules/@sveltejs/kit/src/runtime/app/navigation.js`;
 
@@ -58,6 +59,7 @@ const openEpub = async (
     `/reader?${new URLSearchParams({ source: 'asset', url: assetUrl, label: `S2-R04C3 ${name}` }).toString()}`
   );
   await expect(page.frameLocator('iframe').first().locator('body')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('main', { name: 'reader stage' })).toContainText('书籍已打开', { timeout: 15000 });
   return page.frameLocator('iframe').first();
 };
 
@@ -582,23 +584,16 @@ test('keeps same- and cross-chapter explicit footnote previews independent from 
       }));
       const box = await dialog.boundingBox();
       if (!box) throw new Error('expected the native footnote popup geometry');
-      const stage = await dialog.evaluate((element) => {
-        const stage = element.closest('.reader-stage');
-        if (!stage) throw new Error('expected the native footnote popup stage');
-        const { x, y, width, height } = stage.getBoundingClientRect();
-        return { x, y, width, height };
-      });
       expect(preview.attributes).toEqual([]);
       expect(preview.backgroundImage).toBe('none');
-      // The reader page itself can scroll; C4 bounds the excerpt to its stage,
-      // not the whole reader chrome to a short browser viewport.
-      expect(box.width).toBeLessThanOrEqual(stage.width);
+      // C8 keeps the whole popup in the viewport even when the reader stage
+      // scrolls offscreen. Authored styles must not enlarge this host boundary.
+      expect(box.width).toBeLessThanOrEqual(Math.min(420, viewport.width - 24));
       expect(box.height).toBeLessThanOrEqual(300);
-      expect(box.height).toBeLessThanOrEqual(stage.height);
-      expect(box.x).toBeGreaterThanOrEqual(stage.x - 1);
-      expect(box.y).toBeGreaterThanOrEqual(stage.y - 1);
-      expect(box.x + box.width).toBeLessThanOrEqual(stage.x + stage.width + 1);
-      expect(box.y + box.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
       await closeFootnote(page);
       return { preview, box };
     };
@@ -639,10 +634,11 @@ test('keeps long plaintext and rich footnotes readable in the native scrollable 
   );
   const dialog = page.getByRole('dialog', { name: '脚注预览' });
   const body = dialog.locator('.footnote-body');
+  const scroller = dialog.locator('.footnote-scroll');
 
   await frame.locator('#long-vendor-note').click();
   await expect(body).toHaveText(vendorAlt);
-  const vendorMetrics = await body.evaluate((element) => {
+  const vendorMetrics = await scroller.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
       clientHeight: element.clientHeight,
@@ -657,11 +653,11 @@ test('keeps long plaintext and rich footnotes readable in the native scrollable 
   expect(vendorMetrics.scrollHeight).toBeGreaterThan(vendorMetrics.clientHeight);
   expect(vendorMetrics.scrollTop).toBe(0);
   expect(vendorMetrics.overflowY).toMatch(/auto|scroll/);
-  await body.hover();
+  await scroller.hover();
   await page.mouse.wheel(0, 1000);
-  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await expect.poll(() =>
-    body.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)
+    scroller.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)
   ).toBeLessThanOrEqual(1);
   await expect(body.getByText('Vendor plaintext last words remain readable.', { exact: false })).toBeInViewport();
 
@@ -670,7 +666,7 @@ test('keeps long plaintext and rich footnotes readable in the native scrollable 
   await frame.locator('#rich-note-ref').click();
   await expect(body.locator('em')).toHaveText('emphasis');
   await expect(body).toContainText('Rich note last words remain readable.');
-  const metrics = await body.evaluate((element) => {
+  const metrics = await scroller.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
       clientHeight: element.clientHeight,
@@ -686,11 +682,11 @@ test('keeps long plaintext and rich footnotes readable in the native scrollable 
   expect(metrics.scrollTop).toBe(0);
   expect(metrics.overflowY).toMatch(/auto|scroll/);
 
-  await body.hover();
+  await scroller.hover();
   await page.mouse.wheel(0, 1000);
-  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await expect.poll(() =>
-    body.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)
+    scroller.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)
   ).toBeLessThanOrEqual(1);
   await expect(body.getByText('Rich note last words remain readable.')).toBeInViewport();
   await closeFootnote(page);
@@ -2564,4 +2560,723 @@ test('C8C shows the actual native note-save failure in the popup action feedback
   await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '高亮' }).click();
   await expect(page.getByRole('dialog', { name: '脚注预览' }).getByRole('alert'))
     .toHaveText('C8C native note save failed');
+});
+
+type C8DNote = { id: string; kind: string; cfi: string; text: string; note: string };
+
+const c8dNotes = (page: import('@playwright/test').Page) =>
+  c8cNative(page, () => {
+    const state = (window as Window & {
+      __BR1_C8C_NATIVE__?: { notes: () => Array<{ notes: C8DNote[] }> };
+    }).__BR1_C8C_NATIVE__;
+    return state?.notes().flatMap(({ notes }) => notes) ?? [];
+  });
+
+const c8dDestinationFrame = async (page: import('@playwright/test').Page) => {
+  const containsSourceRef = async (frame: import('@playwright/test').Frame) =>
+    frame.evaluate(() => !!document.querySelector('#source-ref')).catch(() => false);
+  await expect.poll(async () => (await Promise.all(
+    page.frames().filter((frame) => frame !== page.mainFrame()).map(containsSourceRef)
+  )).some(Boolean), { timeout: 15000 }).toBe(true);
+  for (const frame of page.frames()) {
+    if (frame !== page.mainFrame() && await containsSourceRef(frame)) return frame;
+  }
+  throw new Error('expected the renderer frame containing the loaded destination source');
+};
+
+const openC8DDestination = async (page: import('@playwright/test').Page, href: string) => {
+  await page.evaluate(async (href) => {
+    const view = document.querySelector('foliate-view') as { goTo?: (target: string) => Promise<unknown> } | null;
+    if (!view?.goTo) throw new Error('expected the live Foliate navigation API');
+    await view.goTo(href);
+  }, href);
+  const frame = await c8dDestinationFrame(page);
+  await expect(frame.locator('#source-ref')).toBeVisible({ timeout: 15000 });
+  return frame;
+};
+
+const c8dBodyLayer = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    type View = HTMLElement & {
+      renderer?: { getContents?: () => Array<{ doc?: Document; overlayer?: { element: SVGElement } }> };
+    };
+    const view = document.querySelector('foliate-view') as View | null;
+    const entry = view?.renderer?.getContents?.().find(({ doc }) => doc?.querySelector('#source-ref'));
+    if (!entry?.doc || !entry.overlayer) throw new Error('expected the loaded native body overlayer');
+    const walker = entry.doc.createTreeWalker(entry.doc.body, NodeFilter.SHOW_COMMENT);
+    const comments: Array<string | null> = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) comments.push(node.nodeValue);
+    return {
+      drawings: entry.overlayer.element.querySelectorAll(':scope > g').length,
+      textRoot: entry.doc.body.textContent,
+      comments
+    };
+  });
+
+const holdC8DReverseRead = (page: import('@playwright/test').Page, sectionIndex: number) =>
+  page.evaluate((sectionIndex) => {
+    type Section = { createDocument?: () => Promise<Document> };
+    type View = HTMLElement & { book?: { sections?: Section[] } };
+    const view = document.querySelector('foliate-view') as View | null;
+    const section = view?.book?.sections?.[sectionIndex];
+    const createDocument = section?.createDocument?.bind(section);
+    if (!section || !createDocument) throw new Error('expected the real pristine section reader');
+    let entered = false;
+    let completed = false;
+    let pending = 0;
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    section.createDocument = async () => {
+      entered = true;
+      pending += 1;
+      try {
+        await gate;
+        return await createDocument();
+      } finally {
+        pending -= 1;
+        if (!pending) completed = true;
+      }
+    };
+    (window as Window & {
+      __BR1_C8D_HELD__?: { entered: () => boolean; completed: () => boolean; release: () => void };
+    }).__BR1_C8D_HELD__ = {
+      entered: () => entered,
+      completed: () => completed,
+      release: () => release?.()
+    };
+  }, sectionIndex);
+
+const releaseC8DReverseRead = async (page: import('@playwright/test').Page) => {
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C8D_HELD__?: { release: () => void } }).__BR1_C8D_HELD__?.release()
+  );
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8D_HELD__?: { completed: () => boolean } }).__BR1_C8D_HELD__?.completed() ?? false
+  )).toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  ));
+};
+
+test('C8D maps a pristine XML XHTML range onto the equivalent HTML popup excerpt', async ({ page }) => {
+  await page.goto('/library');
+  const result = await page.evaluate(async (moduleUrl) => {
+    const { createFootnoteExcerpt } = await import(/* @vite-ignore */ moduleUrl);
+    const xml = new DOMParser().parseFromString(
+      '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><aside id="note" epub:type="footnote"><p id="mapped">XML before<br/>middle<!-- source comment --><em>after</em></p></aside></body></html>',
+      'application/xhtml+xml'
+    );
+    if (xml.querySelector('parsererror')) throw new Error('expected valid XHTML XML source');
+    const loaded = document.implementation.createHTMLDocument('loaded popup source');
+    loaded.body.innerHTML = '<aside id="note"><p id="mapped">XML before<br>middle<!-- source comment --><em>after</em></p></aside>';
+    const pristineTarget = xml.querySelector('#note');
+    const loadedTarget = loaded.querySelector('#note');
+    const pristineParagraph = xml.querySelector('#mapped');
+    if (!pristineTarget || !loadedTarget || !pristineParagraph) throw new Error('expected equivalent XML and HTML note targets');
+    const firstText = pristineParagraph.firstChild;
+    const lastText = pristineParagraph.querySelector('em')?.firstChild;
+    if (!(firstText instanceof Text) || !(lastText instanceof Text)) throw new Error('expected XML text endpoints');
+
+    const pristine = createFootnoteExcerpt(pristineTarget);
+    const displayed = createFootnoteExcerpt(loadedTarget);
+    const root = loaded.createElement('div');
+    root.innerHTML = displayed.excerptHtml;
+    const sourceRange = xml.createRange();
+    sourceRange.setStart(firstText, 0);
+    sourceRange.setEnd(lastText, lastText.length);
+    const mapped = pristine.resolvePreviewRange(root, sourceRange);
+    const forward = mapped && pristine.resolveRange(root, mapped.range);
+
+    const tamperedRoot = loaded.createElement('div');
+    tamperedRoot.innerHTML = displayed.excerptHtml;
+    tamperedRoot.querySelector('em')?.replaceWith(...Array.from(tamperedRoot.querySelector('em')!.childNodes));
+    const tampered = pristine.resolvePreviewRange(tamperedRoot, sourceRange);
+    return {
+      pristineSerialization: new XMLSerializer().serializeToString(pristineParagraph),
+      displayedHtml: displayed.excerptHtml,
+      sameText: pristine.excerptText === displayed.excerptText,
+      mappedText: mapped?.range.toString() ?? null,
+      roundTripsToXmlTextEndpoints: forward?.startContainer === sourceRange.startContainer &&
+        forward.startOffset === sourceRange.startOffset && forward.endContainer === sourceRange.endContainer &&
+        forward.endOffset === sourceRange.endOffset,
+      tamperedRejected: tampered === null
+    };
+  }, footnoteExcerptUrl);
+
+  expect(result.pristineSerialization).toMatch(/^<p xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/);
+  expect(result.displayedHtml).toContain('<br>');
+  expect(result.displayedHtml).not.toContain('xmlns=');
+  expect(result.sameText).toBe(true);
+  expect(result.mappedText).toBe('XML beforemiddleafter');
+  expect(result.roundTripsToXmlTextEndpoints).toBe(true);
+  expect(result.tamperedRejected).toBe(true);
+});
+
+test('C8D draws ID-keyed popup and body annotations, then preserves sibling records through inspect, edit, delete, toggle, and reopen', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await installC8CDesktop(page);
+  const longText = Array.from({ length: 120 }, (_, index) => `mapped footnote word ${index + 1}`).join(' ');
+  await openEpub(
+    page,
+    'c8d-id-keyed-records',
+    '<p>Chapter one only establishes the separate source section.</p>',
+    [{
+      id: 'notes',
+      href: 'chapter-two.xhtml',
+      body: `<p id="source-ref"><a id="note-ref" href="#note" epub:type="noteref">[1]</a></p><!-- C8D source comment --><aside id="note"><p>${longText}</p></aside>`
+    }]
+  );
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  const sourceFrame = await openC8DDestination(page, 'chapter-two.xhtml#source-ref');
+  const bodyBeforeAnnotations = await c8dBodyLayer(page);
+
+  await sourceFrame.locator('#note-ref').click();
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const annotationButton = dialog.getByRole('button', { name: '查看脚注批注' });
+  await expect(annotationButton).toBeDisabled();
+  await selectC8CPopupText(page);
+  await c8cNative(page, () =>
+    (window as Window & { __BR1_C8C_NATIVE__?: { setPrompts: (values: Array<string | null>) => void } })
+      .__BR1_C8C_NATIVE__?.setPrompts(['first mapped note', 'second mapped note', 'edited mapped note'])
+  );
+  const actions = dialog.getByRole('toolbar', { name: '脚注选区操作' });
+  await actions.getByRole('button', { name: '笔记' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('笔记已保存');
+  await actions.getByRole('button', { name: '笔记' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('笔记已保存');
+  await actions.getByRole('button', { name: '高亮' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('高亮已更新');
+
+  await expect.poll(() => c8dNotes(page)).toHaveLength(3);
+  const saved = await c8dNotes(page);
+  expect(saved).toHaveLength(3);
+  expect(new Set(saved.map(({ id }) => id)).size).toBe(3);
+  expect(new Set(saved.map(({ cfi }) => cfi)).size).toBe(1);
+  const firstNote = saved.find(({ note }) => note === 'first mapped note');
+  const secondNote = saved.find(({ note }) => note === 'second mapped note');
+  const highlight = saved.find(({ kind }) => kind === 'highlight');
+  if (!firstNote || !secondNote || !highlight) throw new Error('expected two notes and one highlight at the same native CFI');
+
+  const layer = dialog.locator('.footnote-scroll > [data-footnote-annotations]');
+  await expect(layer).toHaveCount(1);
+  await expect(dialog.locator('.footnote-body [data-footnote-annotations]')).toHaveCount(0);
+  await expect.poll(() => layer.locator('[data-note-id]').count()).toBe(3);
+  for (const { id } of saved) await expect(layer.locator(`[data-note-id="${id}"]`)).toHaveCount(1);
+  await expect(annotationButton).toBeEnabled();
+  await expect.poll(() => c8dBodyLayer(page)).toMatchObject({ drawings: 3 });
+  expect(await c8dBodyLayer(page)).toMatchObject({
+    textRoot: bodyBeforeAnnotations.textRoot,
+    comments: bodyBeforeAnnotations.comments
+  });
+
+  // The SVG intentionally has pointer-events disabled, so a real mouse click
+  // reaches the scrolling host and must still use Overlayer's native hit-test.
+  await dialog.locator('.footnote-body').evaluate((root) => {
+    root.ownerDocument.getSelection()?.removeAllRanges();
+    root.ownerDocument.dispatchEvent(new Event('selectionchange'));
+  });
+  const clickVisibleAnnotation = async () => {
+    const hit = { point: null as { x: number; y: number } | null };
+    await expect.poll(async () => {
+      hit.point = await layer.locator(`[data-note-id="${secondNote.id}"]`).evaluate((drawing) => {
+        const scroll = drawing.closest('.footnote-scroll');
+        if (!(scroll instanceof HTMLElement)) return null;
+        const clip = scroll.getBoundingClientRect();
+        const parents = [scroll.closest('.footnote-popup'), scroll.closest('.footnote-dialog')]
+          .filter((element): element is Element => !!element).map((element) => element.getBoundingClientRect());
+        const left = Math.max(0, clip.left + scroll.clientLeft, ...parents.map((box) => box.left));
+        const top = Math.max(0, clip.top + scroll.clientTop, ...parents.map((box) => box.top));
+        const right = Math.min(innerWidth, clip.left + scroll.clientLeft + scroll.clientWidth, ...parents.map((box) => box.right));
+        const bottom = Math.min(innerHeight, clip.top + scroll.clientTop + scroll.clientHeight, ...parents.map((box) => box.bottom));
+        for (const shape of Array.from(drawing.children)) {
+          const box = shape.getBoundingClientRect();
+          // MouseEvent coordinates are integer CSS pixels. A subpixel sliver
+          // at the clipping edge is not a stable real mouse target.
+          const visibleLeft = Math.ceil(Math.max(left, box.left)) + 1;
+          const visibleTop = Math.ceil(Math.max(top, box.top)) + 1;
+          const visibleRight = Math.floor(Math.min(right, box.right)) - 1;
+          const visibleBottom = Math.floor(Math.min(bottom, box.bottom)) - 1;
+          if (visibleRight >= visibleLeft && visibleBottom >= visibleTop) {
+            return { x: Math.floor((visibleLeft + visibleRight) / 2), y: Math.floor((visibleTop + visibleBottom) / 2) };
+          }
+        }
+        return null;
+      });
+      return hit.point !== null;
+    }).toBe(true);
+    if (!hit.point) throw new Error('expected a visible native annotation rectangle inside the popup scroller');
+    await page.mouse.click(hit.point.x, hit.point.y);
+  };
+  await clickVisibleAnnotation();
+  const inspector = dialog.getByRole('region', { name: '脚注批注' });
+  await expect(inspector).toBeVisible();
+  const chooser = inspector.getByLabel('脚注批注记录');
+  await expect(chooser.getByRole('button')).toHaveCount(3);
+  const chooseRecord = async (id: string, note: string) => {
+    expect((await c8dNotes(page)).find((record) => record.id === id)).toMatchObject({ id, note });
+    const choices = chooser.getByRole('button');
+    for (let index = 0; index < await choices.count(); index += 1) {
+      const choice = choices.nth(index);
+      await choice.click();
+      if (await inspector.locator('p').textContent() === note) {
+        await expect(choice).toHaveAttribute('aria-pressed', 'true');
+        return choice;
+      }
+    }
+    throw new Error(`expected chooser record ${id} with its primary note text`);
+  };
+  const firstChoice = await chooseRecord(firstNote.id, firstNote.note);
+  const secondChoice = await chooseRecord(secondNote.id, secondNote.note);
+  await firstChoice.focus();
+  await page.keyboard.press('Enter');
+  await expect(inspector.locator('p')).toHaveText(firstNote.note);
+  await secondChoice.focus();
+  await page.keyboard.press('Enter');
+  await expect(inspector).toContainText('second mapped note');
+
+  await page.evaluate(() => {
+    type View = HTMLElement & { book?: { sections?: Array<{ createDocument?: () => Promise<Document> }> }; goTo?: (target: string) => Promise<unknown> };
+    const view = document.querySelector('foliate-view') as View | null;
+    const section = view?.book?.sections?.[1];
+    const createDocument = section?.createDocument?.bind(section);
+    const goTo = view?.goTo?.bind(view);
+    if (!section || !createDocument || !goTo) throw new Error('expected native record-action dependencies');
+    let reads = 0;
+    let completed = 0;
+    let pending = 0;
+    const targets: string[] = [];
+    section.createDocument = async () => {
+      reads += 1;
+      pending += 1;
+      try {
+        return await createDocument();
+      } finally {
+        pending -= 1;
+        completed += 1;
+      }
+    };
+    view.goTo = async (target) => { targets.push(target); return goTo(target); };
+    (window as Window & {
+      __BR1_C8D_RECORD_ACTIONS__?: () => { reads: number; completed: number; pending: number; targets: string[] };
+    }).__BR1_C8D_RECORD_ACTIONS__ = () => ({ reads, completed, pending, targets: [...targets] });
+  });
+  const editButton = inspector.getByRole('button', { name: '编辑笔记' });
+  await editButton.click();
+  await expect(dialog.getByRole('status')).toHaveText('笔记已更新');
+  await expect(inspector).toContainText('edited mapped note');
+  await expect(dialog).toBeVisible();
+  const readRecordActionProof = () => page.evaluate(() =>
+    (window as Window & {
+      __BR1_C8D_RECORD_ACTIONS__?: () => { reads: number; completed: number; pending: number; targets: string[] };
+    })
+      .__BR1_C8D_RECORD_ACTIONS__?.()
+  );
+  const actionProof = { snapshot: undefined as Awaited<ReturnType<typeof readRecordActionProof>> };
+  await expect.poll(async () => (actionProof.snapshot = await readRecordActionProof())).toMatchObject({ pending: 0 });
+  const recordActionProof = actionProof.snapshot;
+  expect(recordActionProof?.targets).toEqual([]);
+  expect(recordActionProof?.reads).toBeGreaterThan(0);
+  expect(recordActionProof?.completed).toBeGreaterThan(0);
+  expect(recordActionProof?.pending).toBe(0);
+  await expect.poll(() => c8dBodyLayer(page)).toMatchObject({ drawings: 3 });
+  await expect(editButton).toBeFocused();
+
+  const completedBeforeSelectionRefresh = recordActionProof?.completed ?? 0;
+  await sourceFrame.locator('#source-ref').evaluate((source) => {
+    const text = source.firstChild;
+    if (!text) throw new Error('expected selectable body source text');
+    const range = source.ownerDocument.createRange();
+    range.selectNodeContents(source);
+    const selection = source.ownerDocument.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    source.ownerDocument.dispatchEvent(new Event('selectionchange'));
+  });
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & {
+      __BR1_C8D_RECORD_ACTIONS__?: () => { completed: number; pending: number };
+    }).__BR1_C8D_RECORD_ACTIONS__?.()
+  )).toMatchObject({ pending: 0, completed: expect.any(Number) });
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & {
+      __BR1_C8D_RECORD_ACTIONS__?: () => { completed: number };
+    }).__BR1_C8D_RECORD_ACTIONS__?.().completed ?? 0
+  )).toBeGreaterThan(completedBeforeSelectionRefresh);
+  await expect.poll(() => c8dBodyLayer(page)).toMatchObject({ drawings: 3 });
+  await expect(editButton).toBeFocused();
+
+  await chooseRecord(firstNote.id, firstNote.note);
+  page.once('dialog', async (confirmation) => {
+    expect(confirmation.type()).toBe('confirm');
+    expect(confirmation.message()).toBe('删除这条笔记？');
+    await confirmation.accept();
+  });
+  await inspector.getByRole('button', { name: '删除批注' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('批注已删除');
+  await expect.poll(() => c8dNotes(page)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: secondNote.id, note: 'edited mapped note' }),
+    expect.objectContaining({ id: highlight.id, kind: 'highlight' })
+  ]));
+  await expect.poll(() => c8dNotes(page)).toHaveLength(2);
+  expect((await c8dNotes(page)).map(({ id }) => id)).not.toContain(firstNote.id);
+  await expect(layer.locator(`[data-note-id="${firstNote.id}"]`)).toHaveCount(0);
+  await expect.poll(() => c8dBodyLayer(page)).toMatchObject({ drawings: 2 });
+
+  await selectC8CPopupText(page);
+  await actions.getByRole('button', { name: '高亮' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('高亮已更新');
+  await expect.poll(async () => (await c8dNotes(page)).map(({ id }) => id)).toEqual([secondNote.id]);
+  await expect(layer.locator(`[data-note-id="${highlight.id}"]`)).toHaveCount(0);
+  await expect.poll(() => c8dBodyLayer(page)).toMatchObject({ drawings: 1 });
+  const remainingNote = (await c8dNotes(page)).find(({ id }) => id === secondNote.id);
+  if (!remainingNote) throw new Error('expected the edited sibling to remain after highlight removal');
+
+  await dialog.locator('.footnote-body').evaluate((root) => {
+    root.ownerDocument.getSelection()?.removeAllRanges();
+    root.ownerDocument.dispatchEvent(new Event('selectionchange'));
+  });
+  await page.evaluate(() => new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  ));
+  await annotationButton.click();
+  await expect(inspector).toBeVisible();
+  await expect(inspector.locator('p')).toHaveText(remainingNote.note);
+
+  const geometry = async (screenshotName: string) => {
+    // Resize must retain the request, not merely produce equal-looking HTML.
+    await inspector.getByRole('button', { name: '关闭批注' }).click();
+    await expect(inspector).toHaveCount(0);
+    // Short panes also scroll the popup chrome. Bring its excerpt back into
+    // view before choosing a real hit point through every clipping ancestor.
+    await dialog.locator('.footnote-popup').evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    await page.evaluate(() => new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    ));
+    await page.screenshot({ path: testInfo.outputPath(`${screenshotName}.png`) });
+    await clickVisibleAnnotation();
+    await expect(inspector.locator('p')).toHaveText(remainingNote.note);
+    await page.evaluate(() => {
+      const scroll = document.querySelector('.footnote-scroll');
+      if (!(scroll instanceof HTMLElement)) return;
+      scroll.scrollTop = scroll.scrollHeight - scroll.clientHeight;
+      scroll.dispatchEvent(new Event('scroll'));
+      window.dispatchEvent(new Event('resize'));
+    });
+    await page.evaluate(() => new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    ));
+    const measured = await page.evaluate(() => {
+      const dialog = document.querySelector('[role="dialog"][aria-label="脚注预览"]');
+      const inspector = dialog?.querySelector('[aria-label="脚注批注"]');
+      const scroll = dialog?.querySelector('.footnote-scroll');
+      const drawing = dialog?.querySelector('[data-footnote-annotations] [data-note-id]');
+      const text = dialog?.querySelector('.footnote-body p');
+      if (!(dialog instanceof HTMLElement) || !(inspector instanceof HTMLElement) || !(scroll instanceof HTMLElement) ||
+        !(drawing instanceof SVGGElement) || !(text instanceof HTMLElement)) return null;
+      const clip = scroll.getBoundingClientRect();
+      const range = text.ownerDocument.createRange();
+      range.selectNodeContents(text);
+      const lineRects = Array.from(range.getClientRects()).filter(({ width, height }) => width > 0 && height > 0);
+      const drawingRects = Array.from(drawing.children).map((shape) => shape.getBoundingClientRect());
+      const intersects = (a: DOMRect, b: DOMRect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      const within = (rect: DOMRect) => rect.left >= 0 && rect.top >= 0 &&
+        rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
+      return {
+        scrollTop: scroll.scrollTop,
+        lineCount: lineRects.length,
+        drawingCount: drawingRects.length,
+        lineGeometryMatches: drawingRects.length === lineRects.length && drawingRects.every((drawing, index) => {
+          const line = lineRects[index];
+          return Math.abs(drawing.top - line.top) <= 3 && Math.abs(drawing.height - line.height) <= 3 &&
+            Math.abs(drawing.left - line.left) <= 3 && Math.abs(drawing.width - line.width) <= 3;
+        }),
+        visibleDrawing: drawingRects.some((rect) => intersects(rect, clip) && lineRects.some((line) => intersects(rect, line))),
+        clippedDrawing: drawingRects.some((rect) => rect.top < clip.top || rect.bottom > clip.bottom),
+        popupInViewport: within(dialog.getBoundingClientRect()),
+        inspectorInViewport: within(inspector.getBoundingClientRect())
+      };
+    });
+    const screenshotPath = testInfo.outputPath(`${screenshotName}.png`);
+    await page.screenshot({ path: screenshotPath });
+    await testInfo.attach(screenshotName, { path: screenshotPath, contentType: 'image/png' });
+    expect(measured).not.toBeNull();
+    expect(measured?.scrollTop).toBeGreaterThan(0);
+    expect(measured?.lineCount).toBeGreaterThan(1);
+    expect(measured?.drawingCount).toBe(measured?.lineCount);
+    expect(measured?.lineGeometryMatches).toBe(true);
+    expect(measured?.visibleDrawing).toBe(true);
+    expect(measured?.clippedDrawing).toBe(true);
+    expect(measured?.popupInViewport).toBe(true);
+    expect(measured?.inspectorInViewport).toBe(true);
+  };
+  await geometry('c8d-footnote-desktop');
+  await page.setViewportSize({ width: 390, height: 740 });
+  await geometry('c8d-footnote-mobile-viewport');
+  await page.setViewportSize({ width: 900, height: 500 });
+  await geometry('c8d-footnote-short-viewport');
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  // Outside the popup, Foliate's native ID event remains the ordinary body
+  // note-focus flow. Reopen the popup afterwards to keep these interactions
+  // distinct from popup record actions.
+  await closeFootnote(page);
+  await page.evaluate((id) => {
+    document.querySelector('foliate-view')?.dispatchEvent(
+      new CustomEvent('show-annotation', { detail: { value: `br1-note:${id}` } })
+    );
+  }, secondNote.id);
+  await expect(page.getByLabel('阅读侧栏标签').getByRole('tab', { name: '笔记', selected: true })).toBeVisible();
+  await sourceFrame.locator('#note-ref').click();
+  await expect(dialog.locator(`[data-note-id="${secondNote.id}"]`)).toHaveCount(1);
+
+  await page.reload();
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  const reopenedFrame = await openC8DDestination(page, 'chapter-two.xhtml#source-ref');
+  await reopenedFrame.locator('#note-ref').click();
+  await expect(page.getByRole('dialog', { name: '脚注预览' }).locator(`[data-note-id="${secondNote.id}"]`)).toHaveCount(1);
+});
+
+test('C8D keeps simultaneous previews inside their own parallel panes across the responsive breakpoint', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await openEpub(page, 'c8d-parallel-placement',
+    '<p><a id="paired-ref" href="#paired-note" epub:type="noteref">[1]</a></p><aside id="paired-note"><p>Independent pane footnote.</p></aside>');
+  await page.getByRole('button', { name: '开启并行阅读' }).click();
+  const primary = page.getByRole('region', { name: '主阅读窗格', exact: true });
+  const secondary = page.getByRole('region', { name: '并行阅读窗格', exact: true });
+  const primaryPopup = primary.getByRole('dialog', { name: '脚注预览' });
+  const secondaryPopup = secondary.getByRole('dialog', { name: '脚注预览' });
+  await expect(secondary).toContainText('书籍已打开');
+  await primary.frameLocator('iframe').first().locator('#paired-ref').click();
+  await secondary.frameLocator('iframe').first().locator('#paired-ref').click();
+
+  const pairedBounds = () => page.evaluate(() => {
+    const panes = Array.from(document.querySelectorAll('.reader-stage'));
+    const mapped = panes.map((pane) => {
+      const popup = pane.querySelector('.footnote-dialog');
+      if (!(popup instanceof HTMLElement)) return null;
+      const rect = popup.getBoundingClientRect();
+      const owner = pane.getBoundingClientRect();
+      return {
+        visible: getComputedStyle(popup).visibility === 'visible',
+        left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+        contained: rect.left >= Math.max(0, owner.left) && rect.right <= Math.min(innerWidth, owner.right) &&
+          rect.top >= Math.max(0, owner.top) && rect.bottom <= Math.min(innerHeight, owner.bottom)
+      };
+    });
+    const [first, second] = mapped;
+    return {
+      bothContained: mapped.length === 2 && mapped.every((value) => value?.visible && value.contained),
+      horizontal: !!first && !!second && first.right <= second.left,
+      vertical: !!first && !!second && first.bottom <= second.top
+    };
+  });
+  const capture = async (name: string) => {
+    const path = testInfo.outputPath(`${name}.png`);
+    await page.screenshot({ path });
+    await testInfo.attach(name, { path, contentType: 'image/png' });
+  };
+  await expect.poll(pairedBounds).toMatchObject({ bothContained: true, horizontal: true });
+  await capture('c8d-parallel-side-by-side');
+  await primaryPopup.getByRole('button', { name: '关闭脚注' }).click();
+  await expect(primaryPopup).toHaveCount(0);
+  await expect(secondaryPopup).toBeVisible();
+  await primary.frameLocator('iframe').first().locator('#paired-ref').click();
+  await expect.poll(pairedBounds).toMatchObject({ bothContained: true, horizontal: true });
+
+  await page.setViewportSize({ width: 900, height: 900 });
+  // Put the seam between stacked panes in the viewport so both visible
+  // intersections can be checked; no source or popup DOM is replaced.
+  await secondary.evaluate((pane) => window.scrollBy(0, pane.getBoundingClientRect().top - innerHeight / 2));
+  await expect.poll(pairedBounds).toMatchObject({ bothContained: true, vertical: true });
+  await capture('c8d-parallel-stacked');
+  await secondaryPopup.getByRole('button', { name: '关闭脚注' }).click();
+  await expect(secondaryPopup).toHaveCount(0);
+  await expect(primaryPopup).toBeVisible();
+});
+
+test('C8D rejects unrelated pristine CFI records and drops held reverse batches after every popup lifetime boundary', async ({ page }) => {
+  test.setTimeout(90_000);
+  await installC8CDesktop(page);
+  const firstUrl = '/samples/c8d-reverse-first.epub';
+  const secondUrl = '/samples/c8d-reverse-second.epub';
+  await page.goto('/library');
+  const [firstArchive, secondArchive] = await Promise.all([
+    buildEpub(page, [
+      {
+        id: 'chapter-one',
+        href: 'chapter-one.xhtml',
+        body: '<p id="wrong-section">same payload text</p><p><a id="note-a-ref" href="chapter-two.xhtml#note-a" epub:type="noteref">[1]</a></p>'
+      },
+      {
+        id: 'chapter-two',
+        href: 'chapter-two.xhtml',
+        body: '<p id="source-ref"><a id="note-a-ref" href="#note-a" epub:type="noteref">[1]</a><a id="note-b-ref" href="#note-b" epub:type="noteref">[2]</a></p><aside id="note-a"><p>same payload text</p></aside><aside id="note-b"><p>same payload text</p></aside><p id="outside">outside fragment</p>'
+      }
+    ]),
+    buildEpub(page, [{ id: 'replacement', href: 'replacement.xhtml', body: '<p>replacement book</p>' }])
+  ]);
+  await page.route(`**${firstUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(firstArchive) }));
+  await page.route(`**${secondUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(secondArchive) }));
+  const readerHref = (url: string, label: string) =>
+    `/reader?${new URLSearchParams({ source: 'asset', url, label }).toString()}`;
+  await page.goto(readerHref(firstUrl, 'C8D reverse first'));
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  const wrongSectionCfi = await page.evaluate(() => {
+    type View = HTMLElement & {
+      getCFI?: (index: number, range: Range) => string;
+      renderer?: { getContents?: () => Array<{ index?: number; doc?: Document }> };
+    };
+    const view = document.querySelector('foliate-view') as View | null;
+    const source = view?.renderer?.getContents?.().find(({ index }) => index === 0)?.doc;
+    const target = source?.querySelector('#wrong-section');
+    if (!view?.getCFI || !source || !target) throw new Error('expected the loaded real wrong-section source');
+    const range = source.createRange();
+    range.selectNodeContents(target);
+    return view.getCFI(0, range);
+  });
+  let sourceFrame = await openC8DDestination(page, 'chapter-two.xhtml#source-ref');
+  await sourceFrame.locator('#note-a-ref').click();
+  await selectC8CPopupText(page);
+  const initialDialog = page.getByRole('dialog', { name: '脚注预览' });
+  await initialDialog.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '高亮' }).click();
+  await expect(initialDialog.getByRole('status')).toHaveText('高亮已更新');
+  const [valid] = await c8dNotes(page);
+  if (!valid) throw new Error('expected a real CFI-backed C8D record');
+  const additionalCfis = await page.evaluate(() => {
+    type View = HTMLElement & {
+      getCFI?: (index: number, range: Range) => string;
+      renderer?: { getContents?: () => Array<{ index?: number; doc?: Document }> };
+    };
+    const view = document.querySelector('foliate-view') as View | null;
+    const current = view?.renderer?.getContents?.().find(({ index }) => index === 1)?.doc;
+    if (!view?.getCFI || !current) throw new Error('expected native CFI methods and the loaded destination');
+    const cfiFor = (selector: string) => {
+      const target = current.querySelector(selector);
+      if (!target) throw new Error(`expected ${selector} in the real source document`);
+      const range = current.createRange();
+      range.selectNodeContents(target);
+      return view.getCFI!(1, range);
+    };
+    const noteStart = current.querySelector('#note-a p')?.firstChild;
+    const outsideEnd = current.querySelector('#outside')?.firstChild;
+    if (!noteStart || !outsideEnd) throw new Error('expected real source boundaries for a crossing CFI');
+    const crossingRange = current.createRange();
+    crossingRange.setStart(noteStart, 0);
+    crossingRange.setEnd(outsideEnd, outsideEnd.textContent?.length ?? 0);
+    return {
+      outside: cfiFor('#outside'),
+      identicalOtherPayload: cfiFor('#note-b p'),
+      crossingFragment: view.getCFI(1, crossingRange)
+    };
+  });
+  await page.getByRole('dialog', { name: '脚注预览' }).getByRole('button', { name: '关闭脚注' }).click();
+  await page.evaluate(({ valid, additionalCfis, wrongSectionCfi }) => {
+    const entries = JSON.parse(sessionStorage.getItem('br1.c8c.notes') ?? '[]') as Array<[string, C8DNote[]]>;
+    const entry = entries.find(([, notes]) => notes.some(({ id }) => id === valid.id));
+    if (!entry) throw new Error('expected the persisted native C8D note record');
+    entry[1].push(
+      { ...valid, id: 'c8d-malformed', cfi: valid.cfi.slice(0, -2) },
+      { ...valid, id: 'c8d-wrong-section', cfi: wrongSectionCfi },
+      { ...valid, id: 'c8d-outside-fragment', cfi: additionalCfis.outside },
+      { ...valid, id: 'c8d-identical-other-payload', cfi: additionalCfis.identicalOtherPayload },
+      { ...valid, id: 'c8d-crossing-fragment', cfi: additionalCfis.crossingFragment }
+    );
+    sessionStorage.setItem('br1.c8c.notes', JSON.stringify(entries));
+  }, { valid, additionalCfis, wrongSectionCfi });
+
+  await page.reload();
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  sourceFrame = await openC8DDestination(page, 'chapter-two.xhtml#source-ref');
+  await page.evaluate(() => {
+    type Section = { createDocument?: () => Promise<Document> };
+    type View = HTMLElement & { book?: { sections?: Section[] } };
+    const view = document.querySelector('foliate-view') as View | null;
+    const section = view?.book?.sections?.[0];
+    const createDocument = section?.createDocument?.bind(section);
+    if (!section || !createDocument) throw new Error('expected the unrelated pristine section');
+    let loads = 0;
+    section.createDocument = async () => { loads += 1; return createDocument(); };
+    (window as Window & { __BR1_C8D_WRONG_SECTION_LOADS__?: () => number }).__BR1_C8D_WRONG_SECTION_LOADS__ = () => loads;
+  });
+  await sourceFrame.locator('#note-a-ref').click();
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  // Body sync is CFI/section-scoped: the valid, outside, identical-payload,
+  // and crossing records all belong to this destination. The malformed CFI and
+  // the other-section record must not reach the native overlayer.
+  await expect.poll(() => c8dBodyLayer(page)).toMatchObject({ drawings: 4 });
+  await expect(dialog.locator('[data-footnote-annotations] [data-note-id]')).toHaveCount(2);
+  await expect(dialog.locator(`[data-note-id="${valid.id}"]`)).toHaveCount(1);
+  await expect(dialog.locator('[data-note-id="c8d-crossing-fragment"]')).toHaveCount(1);
+  for (const id of ['c8d-malformed', 'c8d-wrong-section', 'c8d-outside-fragment', 'c8d-identical-other-payload']) {
+    await expect(dialog.locator(`[data-note-id="${id}"]`)).toHaveCount(0);
+  }
+  expect(await page.evaluate(() =>
+    (window as Window & { __BR1_C8D_WRONG_SECTION_LOADS__?: () => number }).__BR1_C8D_WRONG_SECTION_LOADS__?.() ?? -1
+  )).toBe(0);
+  await dialog.getByRole('button', { name: '查看脚注批注' }).click();
+  await dialog.getByLabel('脚注批注记录').getByRole('button', { name: '高亮 2' }).click();
+  await expect(dialog.getByRole('region', { name: '脚注批注' })).toContainText('部分原文');
+  await closeFootnote(page);
+
+  const beginHeldBatch = async (reference: '#note-a-ref' | '#note-b-ref' = '#note-a-ref') => {
+    await holdC8DReverseRead(page, 1);
+    await (await c8dDestinationFrame(page)).locator(reference).click();
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => page.evaluate(() =>
+      (window as Window & { __BR1_C8D_HELD__?: { entered: () => boolean } }).__BR1_C8D_HELD__?.entered() ?? false
+    )).toBe(true);
+  };
+  const expectSettledWithoutOldDrawing = async () => {
+    await releaseC8DReverseRead(page);
+    await expect(page.locator(`[data-note-id="${valid.id}"]`)).toHaveCount(0);
+  };
+
+  await beginHeldBatch();
+  await closeFootnote(page);
+  await expectSettledWithoutOldDrawing();
+
+  await beginHeldBatch();
+  await (await c8dDestinationFrame(page)).locator('#note-b-ref').click();
+  await expect(dialog).toContainText('[2]');
+  await expectSettledWithoutOldDrawing();
+  await closeFootnote(page);
+
+  await beginHeldBatch();
+  await page.getByRole('button', { name: '回到开头' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expectSettledWithoutOldDrawing();
+
+  await openC8DDestination(page, 'chapter-two.xhtml#source-ref');
+  await beginHeldBatch();
+  await navigateC8C(page, readerHref(secondUrl, 'C8D reverse second'));
+  await expect(page.frameLocator('iframe').first().locator('body')).toContainText('replacement book', { timeout: 15000 });
+  await expectSettledWithoutOldDrawing();
+
+  await navigateC8C(page, readerHref(firstUrl, 'C8D reverse first'));
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  await openC8DDestination(page, 'chapter-two.xhtml#source-ref');
+  await beginHeldBatch();
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await page.getByRole('menuitem', { name: '快捷键' }).click();
+  await expect(page.getByRole('dialog', { name: '快捷键' })).toBeVisible();
+  await expectSettledWithoutOldDrawing();
+  await page.getByRole('button', { name: '关闭快捷键帮助' }).click();
+
+  // Opening the reader menu already dismisses a popup. Exercise modal entry
+  // independently while the original reverse-read request is still active.
+  await beginHeldBatch();
+  await dialog.getByRole('button', { name: '关闭脚注' }).focus();
+  await page.keyboard.press('Shift+Slash');
+  await expect(page.getByRole('dialog', { name: '快捷键' })).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+  await expectSettledWithoutOldDrawing();
+  await page.getByRole('button', { name: '关闭快捷键帮助' }).click();
+
+  await beginHeldBatch();
+  await navigateC8C(page, '/library');
+  await expect(page.locator('foliate-view')).toHaveCount(0);
+  await expectSettledWithoutOldDrawing();
 });

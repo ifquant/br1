@@ -3,6 +3,7 @@
 // code can stay focused on reading semantics rather than format/runtime quirks.
 
 import DOMPurify from 'dompurify';
+import type { Overlayer } from 'foliate-js/overlayer.js';
 import { getReaderThemePalette } from './settings';
 import type { ReaderSettings } from './types';
 import { pickAuthor, pickText } from './pdfMetadata';
@@ -99,7 +100,7 @@ export interface FoliateViewElement extends HTMLElement {
     setAttribute(name: string, value: string | number): void;
     removeAttribute(name: string): void;
     setStyles?(css: string): void;
-    getContents?(): Array<{ doc: Document; index?: number; overlayer?: { element: SVGElement } }>;
+    getContents?(): Array<{ doc: Document; index?: number; overlayer?: Overlayer }>;
     readonly scrolled?: boolean;
     pinchZoom?(ratio: number): void;
     pinchEnd?(commit?: boolean): void;

@@ -3,7 +3,7 @@
  not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
-  import type { ReaderFootnoteAction, ReaderFootnoteRequest, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
+  import type { ReaderFootnoteAction, ReaderFootnoteAnnotation, ReaderFootnoteRecordAction, ReaderFootnoteRequest, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
   import type {
     ReaderControlRequest,
     ReaderFocusedReadingMode,
@@ -105,6 +105,8 @@
   export let annotationSupportsActions = true;
   export let annotationSupportMessage = '';
   export let notes: ReaderNote[] = [];
+  export let notesOwnerKey = '';
+  export let notesSnapshotKey = '';
   export let onTtsStart: (() => void) | null = null;
   export let onTtsPause: (() => void) | null = null;
   export let onTtsResume: (() => void) | null = null;
@@ -136,6 +138,7 @@
   export let onReadAloudSelection: (() => void) | null = null;
   export let onCopySelection: (() => void) | null = null;
   export let onFootnoteAction: ((action: ReaderFootnoteAction, selection: ReaderFootnoteSelection) => Promise<string | void>) | null = null;
+  export let onFootnoteRecordAction: ((action: ReaderFootnoteRecordAction, id: string, isCurrent: () => boolean) => Promise<string | void>) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
@@ -308,25 +311,56 @@
     dispatch('footnoteselectionchange', result);
   };
 
-  const runFootnoteAction = async (action: ReaderFootnoteAction) => {
-    const selection = footnoteSelection;
-    if (!onFootnoteAction || !selection?.isCurrent() || footnoteActionPending) return;
-    if ((action === 'highlight' || action === 'note') && !selection.source) return;
+  const runFootnoteOperation = async (operation: () => Promise<string | void>, isCurrent: () => boolean) => {
+    if (!isCurrent() || footnoteActionPending) return;
     const revision = ++footnoteActionRevision;
     footnoteActionPending = true;
     footnoteActionMessage = '';
     footnoteActionFailed = false;
     try {
-      const message = await onFootnoteAction(action, selection);
-      if (revision === footnoteActionRevision && selection.isCurrent()) footnoteActionMessage = message || '';
+      const message = await operation();
+      if (revision === footnoteActionRevision && isCurrent()) footnoteActionMessage = message || '';
     } catch (error) {
-      if (revision === footnoteActionRevision && selection.isCurrent()) {
+      if (revision === footnoteActionRevision && isCurrent()) {
         footnoteActionFailed = true;
         footnoteActionMessage = error instanceof Error ? error.message : '操作失败，请重试';
       }
     } finally {
       if (revision === footnoteActionRevision) footnoteActionPending = false;
     }
+  };
+
+  const runFootnoteAction = async (action: ReaderFootnoteAction) => {
+    const selection = footnoteSelection;
+    if (!onFootnoteAction || !selection) return;
+    if ((action === 'highlight' || action === 'note') && !selection.source) return;
+    await runFootnoteOperation(() => onFootnoteAction!(action, selection), selection.isCurrent);
+  };
+
+  const resolveFootnoteAnnotations = async (root: Element, records: ReaderNote[]): Promise<ReaderFootnoteAnnotation[]> => {
+    const request = footnoteRequest;
+    if (!request?.resolveAnnotations || !request.isCurrent?.() || readerModalOpen || !root.isConnected) return [];
+    footnotePreviewRoot = root;
+    const mapped = await request.resolveAnnotations(root, records);
+    return request === footnoteRequest && request.isCurrent?.() && root === footnotePreviewRoot &&
+      root.isConnected && !readerModalOpen ? mapped : [];
+  };
+
+  const runFootnoteRecordAction = async (action: ReaderFootnoteRecordAction, id: string, root: Element) => {
+    const request = footnoteRequest;
+    const record = notes.find((note) => note.id === id);
+    if (!onFootnoteRecordAction || !record) return;
+    const text = root.textContent;
+    // Record actions outlive the text selection, but never the displayed source
+    // payload. Re-map the record before handing it to the only persistence owner.
+    const isCurrent = () => request === footnoteRequest && !!request?.isCurrent?.() &&
+      root === footnotePreviewRoot && root.isConnected && root.textContent === text && !readerModalOpen;
+    await runFootnoteOperation(async () => {
+      const mapped = await resolveFootnoteAnnotations(root, [record]);
+      if (!isCurrent() || !mapped.some(({ note }) => note.id === id) ||
+        !notes.some((note) => note.id === id && note.cfi === record.cfi)) return;
+      return onFootnoteRecordAction!(action, id, isCurrent);
+    }, isCurrent);
   };
 
   const jumpToFootnoteLocation = () => {
@@ -665,6 +699,7 @@
       {onStartRsvpLite}
       {onExitFocusedReading}
       onOpenShortcutsHelp={openShortcutsHelp}
+      onOpenMenu={closeFootnotePopup}
     />
   </div>
 
@@ -682,10 +717,13 @@
       hint="正文优先，控制层尽量退到边缘。"
       {isWindowMode}
       {notes}
+      {notesOwnerKey}
+      {notesSnapshotKey}
       onFootnoteRequest={setFootnoteRequest}
       {settings}
       on:readerstate={({ detail }) => {
-        closeFootnotePopup();
+        // Progress/layout refresh is not navigation. Viewport owns dismissal
+        // at control admission and reason-aware renderer movement boundaries.
         readerPreview = detail;
         dispatch('readerstate', detail);
       }}
@@ -755,6 +793,9 @@
         actionPending={footnoteActionPending}
         actionMessage={footnoteActionMessage}
         actionFailed={footnoteActionFailed}
+        {notes}
+        resolveAnnotations={resolveFootnoteAnnotations}
+        onRecordAction={onFootnoteRecordAction ? runFootnoteRecordAction : null}
       />
     {/key}
   </article>

@@ -7,7 +7,7 @@
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import ReaderNotebook from '$lib/components/reader/ReaderNotebook.svelte';
-  import type { ReaderFootnoteAction, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
+  import type { ReaderFootnoteAction, ReaderFootnoteRecordAction, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
   import type {
     ReaderAssistanceHistoryEntry,
     ReaderAssistanceWorkspaceSelection,
@@ -286,6 +286,8 @@
   );
   let parallelEnabled = false;
   let notesStorageKey = '';
+  let notesSnapshotKey = '';
+  let notesHydrationRevision = 0;
   let bookmarksStorageKey = '';
   let assistanceHistoryStorageKey = '';
   let assistanceSelectionStorageKey = '';
@@ -505,6 +507,17 @@
     confirmDelete: (message) => window.confirm(message)
   });
   const notesState = notesController.state;
+  const refreshReaderNotes = () => {
+    const key = notesStorageKey;
+    const revision = ++notesHydrationRevision;
+    notesSnapshotKey = '';
+    notesController.refresh();
+    // The renderer must not apply an old book's notes while the new book's
+    // persisted snapshot is still loading. The controller reports load failures.
+    void notesController.ready().then(() => {
+      if (revision === notesHydrationRevision && key === notesStorageKey) notesSnapshotKey = key;
+    }, () => undefined);
+  };
   const bookmarksController = createReaderBookmarksController({
     getStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
     getStorageKey: () => bookmarksStorageKey,
@@ -1242,7 +1255,7 @@
   $: sidebarController.persist($sidebarState);
   $: {
     notesStorageKey;
-    notesController.refresh();
+    refreshReaderNotes();
   }
   $: {
     bookmarksStorageKey;
@@ -1588,6 +1601,7 @@
   });
 
   onDestroy(() => {
+    notesHydrationRevision += 1;
     if (playbackTimeoutTicker) {
       clearInterval(playbackTimeoutTicker);
       playbackTimeoutTicker = null;
@@ -1693,6 +1707,19 @@
     } else {
       await requestAssistanceLookup(action, lease.text, context);
     }
+  };
+
+  const handleFootnoteRecordAction = async (action: ReaderFootnoteRecordAction, id: string, guard: () => boolean) => {
+    const bookKey = readerBookKey;
+    const storageKey = notesStorageKey;
+    const isCurrent = () => guard() && bookKey === readerBookKey && storageKey === notesStorageKey;
+    await notesController.ready();
+    if (!isCurrent() || !$notesState.notes.some((note) => note.id === id)) return;
+    const changed = action === 'edit' ? notesController.edit(id, isCurrent)
+      : action === 'delete' ? notesController.remove(id, isCurrent) : false;
+    if (!changed) return;
+    await notesController.flush();
+    return action === 'edit' ? '笔记已更新' : '批注已删除';
   };
 
   const lookupCurrentSelection = () => {
@@ -2821,6 +2848,9 @@
           onAddHighlightFromSelection={addHighlightFromSelection}
           onAddNoteFromSelection={addNoteFromSelection}
           onFootnoteAction={handleFootnoteAction}
+          onFootnoteRecordAction={handleFootnoteRecordAction}
+          notesOwnerKey={notesStorageKey}
+          {notesSnapshotKey}
           onLookupSelection={lookupCurrentSelection}
           onTranslateSelection={translateCurrentSelection}
           onReadAloudSelection={readCurrentSelectionAloud}

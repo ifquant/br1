@@ -280,3 +280,176 @@ test('rejects changed or invalid provenance inputs while preserving iframe and X
     synthetic: true
   });
 });
+
+test('reverse maps source annotations through raw UTF-16 provenance and clips only the visible excerpt', async ({ page }) => {
+  await page.goto('/library');
+
+  const result = await page.evaluate(async (moduleUrl) => {
+    const { createFootnoteExcerpt } = await import(/* @vite-ignore */ moduleUrl);
+    const doc = document.implementation.createHTMLDocument('reverse');
+    doc.body.innerHTML = '<p id="before">before</p><div id="note"> \n<p id="source">A😀<em>tail</em></p> \n</div><p id="after">after</p>';
+    const target = doc.querySelector('#note')!;
+    const source = doc.querySelector('#source')!;
+    const sourceText = source.firstChild!;
+    const tail = source.querySelector('em')!.firstChild!;
+    const excerpt = createFootnoteExcerpt(target);
+    const preview = doc.createElement('div');
+    preview.innerHTML = excerpt.excerptHtml;
+    preview.prepend(doc.createComment('svelte-start'));
+    preview.append(doc.createComment('svelte-end'));
+    const map = (range: Range) => {
+      const mapped = excerpt.resolvePreviewRange(preview, range);
+      const forward = mapped && excerpt.resolveRange(preview, mapped.range);
+      return mapped && {
+        text: mapped.range.toString(),
+        clipped: mapped.clipped,
+        forward: forward && [
+          forward.startContainer === sourceText || forward.startContainer === tail,
+          forward.toString()
+        ]
+      };
+    };
+    const full = doc.createRange();
+    full.setStart(source, 0);
+    full.setEnd(source, source.childNodes.length);
+    const crossNode = doc.createRange();
+    crossNode.setStart(sourceText, 1);
+    crossNode.setEnd(tail, 2);
+    const trimmed = doc.createRange();
+    trimmed.selectNodeContents(target);
+    const left = doc.createRange();
+    left.setStart(doc.querySelector('#before')!.firstChild!, 2);
+    left.setEnd(sourceText, sourceText.textContent!.length);
+    const right = doc.createRange();
+    right.setStart(tail, 0);
+    right.setEnd(doc.querySelector('#after')!.firstChild!, 2);
+    const both = doc.createRange();
+    both.setStart(doc.querySelector('#before')!.firstChild!, 2);
+    both.setEnd(doc.querySelector('#after')!.firstChild!, 2);
+    return {
+      full: map(full),
+      crossNode: map(crossNode),
+      trimmed: map(trimmed),
+      left: map(left),
+      right: map(right),
+      both: map(both)
+    };
+  }, footnoteExcerptUrl);
+
+  expect(result).toEqual({
+    full: { text: 'A😀tail', clipped: false, forward: [true, 'A😀tail'] },
+    crossNode: { text: '😀ta', clipped: false, forward: [true, '😀ta'] },
+    trimmed: { text: 'A😀tail', clipped: true, forward: [true, 'A😀tail'] },
+    left: { text: 'A😀', clipped: true, forward: [true, 'A😀'] },
+    right: { text: 'tail', clipped: true, forward: [true, 'tail'] },
+    both: { text: 'A😀tail', clipped: true, forward: [true, 'A😀tail'] }
+  });
+});
+
+test('reverse mapper rejects equal-text ambiguity, gaps, mutations, CDATA, and foreign source ranges', async ({ page }) => {
+  await page.goto('/library');
+
+  const result = await page.evaluate(async (moduleUrl) => {
+    const { createFootnoteExcerpt } = await import(/* @vite-ignore */ moduleUrl);
+    const previewFor = (doc: Document, excerpt: ReturnType<typeof createFootnoteExcerpt>) => {
+      const preview = doc.createElement('div');
+      preview.innerHTML = excerpt.excerptHtml;
+      return preview;
+    };
+    const doc = document.implementation.createHTMLDocument('identity');
+    doc.body.innerHTML = '<p id="first">repeat</p><p id="second">repeat</p><p id="outside">outside</p>';
+    const second = doc.querySelector('#second')!;
+    const excerpt = createFootnoteExcerpt(second);
+    const preview = previewFor(doc, excerpt);
+    const firstRange = doc.createRange();
+    firstRange.selectNodeContents(doc.querySelector('#first')!);
+    const secondRange = doc.createRange();
+    secondRange.selectNodeContents(second);
+    const exactRange = doc.createRange();
+    exactRange.selectNode(second);
+    const touchingRange = doc.createRange();
+    touchingRange.setStart(doc.body, 0);
+    touchingRange.setEnd(doc.body, 1);
+    const outsideRange = doc.createRange();
+    outsideRange.selectNodeContents(doc.querySelector('#outside')!);
+    const mappedSecond = excerpt.resolvePreviewRange(preview, secondRange);
+    const foreign = document.implementation.createHTMLDocument('foreign');
+    foreign.body.innerHTML = '<p>repeat</p>';
+    const foreignRange = foreign.createRange();
+    foreignRange.selectNodeContents(foreign.body.firstChild!);
+
+    const gapDoc = document.implementation.createHTMLDocument('gap');
+    gapDoc.body.innerHTML = '<p id="note">keep<script>removed</script><style>also-removed</style>after</p>';
+    const gapTarget = gapDoc.querySelector('#note')!;
+    const gapExcerpt = createFootnoteExcerpt(gapTarget);
+    const gapRange = gapDoc.createRange();
+    gapRange.selectNodeContents(gapTarget);
+    const leadingGapDoc = document.implementation.createHTMLDocument('leading-gap');
+    leadingGapDoc.body.innerHTML = '<p id="note"><script>removed</script>keep</p>';
+    const leadingGapTarget = leadingGapDoc.querySelector('#note')!;
+    const leadingGapExcerpt = createFootnoteExcerpt(leadingGapTarget);
+    const leadingGapRange = leadingGapDoc.createRange();
+    leadingGapRange.selectNodeContents(leadingGapTarget);
+    const trailingGapDoc = document.implementation.createHTMLDocument('trailing-gap');
+    trailingGapDoc.body.innerHTML = '<p id="note">keep<style>removed</style></p>';
+    const trailingGapTarget = trailingGapDoc.querySelector('#note')!;
+    const trailingGapExcerpt = createFootnoteExcerpt(trailingGapTarget);
+    const trailingGapRange = trailingGapDoc.createRange();
+    trailingGapRange.selectNodeContents(trailingGapTarget);
+
+    const sourceMutation = document.implementation.createHTMLDocument('source-mutation');
+    sourceMutation.body.innerHTML = '<p id="note">source</p>';
+    const sourceTarget = sourceMutation.querySelector('#note')!;
+    const sourceExcerpt = createFootnoteExcerpt(sourceTarget);
+    const sourcePreview = previewFor(sourceMutation, sourceExcerpt);
+    const sourceRange = sourceMutation.createRange();
+    sourceRange.selectNodeContents(sourceTarget);
+    sourceTarget.textContent = 'changed';
+
+    const previewMutation = document.implementation.createHTMLDocument('preview-mutation');
+    previewMutation.body.innerHTML = '<p id="note">source</p>';
+    const previewTarget = previewMutation.querySelector('#note')!;
+    const previewExcerpt = createFootnoteExcerpt(previewTarget);
+    const changedPreview = previewFor(previewMutation, previewExcerpt);
+    changedPreview.innerHTML = '<p><span>source</span></p>';
+    const previewRange = previewMutation.createRange();
+    previewRange.selectNodeContents(previewTarget);
+
+    const cdata = new DOMParser().parseFromString('<root><p id="note"><![CDATA[same]]>same</p></root>', 'application/xml');
+    const cdataTarget = cdata.querySelector('#note')!;
+    const cdataExcerpt = createFootnoteExcerpt(cdataTarget);
+    const cdataPreview = previewFor(cdata, cdataExcerpt);
+    const cdataRange = cdata.createRange();
+    cdataRange.selectNodeContents(cdataTarget);
+    return {
+      exactDuplicateIdentity: !!mappedSecond && mappedSecond.range.toString() === 'repeat' &&
+        excerpt.resolveRange(preview, mappedSecond.range)?.startContainer === second.firstChild,
+      exactRange: excerpt.resolvePreviewRange(preview, exactRange)?.range.toString() === 'repeat',
+      otherDuplicateIsDisjoint: excerpt.resolvePreviewRange(preview, firstRange) === null,
+      touchingIsDisjoint: excerpt.resolvePreviewRange(preview, touchingRange) === null,
+      disjoint: excerpt.resolvePreviewRange(preview, outsideRange) === null,
+      removedGap: gapExcerpt.resolvePreviewRange(previewFor(gapDoc, gapExcerpt), gapRange) === null,
+      leadingRemovedGap: leadingGapExcerpt.resolvePreviewRange(previewFor(leadingGapDoc, leadingGapExcerpt), leadingGapRange) === null,
+      trailingRemovedGap: trailingGapExcerpt.resolvePreviewRange(previewFor(trailingGapDoc, trailingGapExcerpt), trailingGapRange) === null,
+      changedSource: sourceExcerpt.resolvePreviewRange(sourcePreview, sourceRange) === null,
+      changedPreview: previewExcerpt.resolvePreviewRange(changedPreview, previewRange) === null,
+      cdata: cdataExcerpt.resolvePreviewRange(cdataPreview, cdataRange) === null,
+      wrongOwner: excerpt.resolvePreviewRange(preview, foreignRange) === null
+    };
+  }, footnoteExcerptUrl);
+
+  expect(result).toEqual({
+    exactDuplicateIdentity: true,
+    exactRange: true,
+    otherDuplicateIsDisjoint: true,
+    touchingIsDisjoint: true,
+    disjoint: true,
+    removedGap: true,
+    leadingRemovedGap: true,
+    trailingRemovedGap: true,
+    changedSource: true,
+    changedPreview: true,
+    cdata: true,
+    wrongOwner: true
+  });
+});

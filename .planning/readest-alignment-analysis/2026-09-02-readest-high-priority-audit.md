@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 54 |
-| `partial` | 412 |
+| `covered` | 55 |
+| `partial` | 411 |
 | `gap` | 77 |
 | `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 35 | 222 | 22 | 55 |
+| reader core | 36 | 221 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -649,7 +649,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 610 | `4549a026d` | library | feat(library): add hide-covers privacy option for the bookshelf (#5733) | `partial` | S2-L08 | P0-4.1/P0-4.2 and library smoke tests; search/detail behavior is incomplete. |
 | 611 | `7fa3daa19` | tts/audio | feat(tts): queue chapter downloads with per-book persistence (#5690) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 612 | `b463f014b` | library | feat(library): show download progress overlay on book covers (#5736) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
-| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `partial` | S2-R04C8D | C8A provenance, C8B pristine CFI validation and C8C scoped actions/persistence are verified. Reverse annotation mapping/redraw remains pending; nested second-view CFI rewriting is not needed by the native architecture. |
+| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `covered` | S2-R04C8 | C8A-D verify source provenance, pristine CFI round trips, scoped tools/persistence, reverse annotation mapping, ID-keyed redraw/edit/delete and stale lifetime rejection. Native mouse/keyboard, resize and simultaneous parallel popups pass; nested second-view CFI rewriting is not needed by the native architecture. |
 | 614 | `9dedaf804` | tts/audio | feat(reader): pair local audiobooks with ebooks (#5754) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 615 | `9213c6af1` | tts/audio | fix(tts): make sentence and paragraph pauses consistent (#5753) | `partial` | S2-T04A | tts.ts, ttsRuntime.ts, and TTS tests; voice/timing parity is incomplete. |
 | 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `partial` | S2-R04C9 | Core reading exists; this authored-layout/script edge is unverified. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (10 covered, 19 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
+- Upstream decisions: 34 commits (11 covered, 18 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -1010,9 +1010,17 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: reader helpers 99/99; C8C 6/6; full footnote/authored/mapping 41/41 including C8C; extended notes/selection/PDF 10/10 in Chrome 152 with no skips (51 unique browser cases). Type check 0 errors/warnings; production build and diff check PASS. Fresh Terra high production/controller and test reviews PASS. TXT regression helpers now account for actual source chapters and scroll-based TXT positions.
 - Boundary: C8D reverse annotation mapping/redraw/record interaction remains open; no second renderer, dependency changes or packaged Tauri/Safari/native-mobile acceptance. Parent remains partial; 59 remaining primary task IDs.
 
-#### Next Task: S2-R04C8D - Redraw and interact with source footnote annotations
+#### Completed Slice: S2-R04C8D - Redraw and interact with source footnote annotations
 
-- Extend existing DOM provenance in reverse, map only verified source intersections, and draw records by ID using native Overlayer. Reuse existing notes edit/delete ownership and invalidate drawings/actions on every popup lifecycle boundary. C9-C21 retain their existing owners and acceptance map.
+- Reverse mapping resolves only matching pristine sections and verifies retained source intersections, including explicit clipping. XML/HTML serialization differences are normalized only in detached comparison clones; malformed CFIs, source gaps, mutations, unrelated text and stale requests are rejected.
+- Native Overlayers draw each record ID independently in the popup and loaded book. Popup inspection/edit/delete reuse the current primary record and controller without navigation; ordinary body annotation events retain notebook navigation. Resize preserves the request, and simultaneous popups stay within their own visible panes across side-by-side/stacked layouts.
+- Verification: C8D 4/4; full footnote/authored/mapping 47/47 including C8D; selected notes/selection/PDF 10/10, no skips (57 unique browser cases). Reader helpers 99/99; type check 0 errors/warnings; `pnpm exec vite build` and diff check PASS. Five desktop/mobile-sized/parallel screenshots inspected. Independent task-level static review PASS; final whole-C8 review recorded in the completion audit.
+- Closure: parent `631cd6454` is covered within the frozen native contract. The 678-row ledger now has 55 covered, 411 partial, 77 gap, 135 not-applicable, and 58 remaining primary task IDs.
+- Boundary: no second renderer/store or Foliate dependency change. C9 resource refcounts, full pending-open cancellation, packaged Tauri, Safari and native-mobile acceptance are not claimed.
+
+#### Next Task: S2-R04C9 - Audit shared EPUB resource lifetime
+
+- Resolve `a193cbc35` and its exact nested Foliate refcount change against current native callers before choosing a port. Prove repeated popup open/close preserves reader resources and final owners release resources correctly; do not infer applicability from the absence of a second popup renderer. C10-C21 retain their existing owners and acceptance map.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

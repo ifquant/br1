@@ -37,6 +37,7 @@
     type FoliateViewElement
   } from '$lib/reader';
   import { Overlayer } from 'foliate-js/overlayer.js';
+  import { isCFI } from 'foliate-js/epubcfi.js';
   import { createFootnoteExcerpt, type FootnoteExcerpt, type ReaderFootnoteRequest } from '$lib/reader/footnoteExcerpt';
   import {
     applyCrossDocSegments,
@@ -79,6 +80,10 @@
   export let hint = '中央阅读舞台保持安静，控制层只在边缘提供辅助。';
   export let isWindowMode = false;
   export let notes: ReaderNote[] = [];
+  // The route owns note hydration. Keep the expected source owner separate from
+  // the currently hydrated snapshot so an old book cannot draw during a reopen.
+  export let notesOwnerKey = '';
+  export let notesSnapshotKey = '';
   export let onFootnoteRequest: ((detail: ReaderFootnoteRequest | null) => void) | null = null;
   export let settings: ReaderSettings;
 
@@ -149,7 +154,10 @@
   let refreshNavigationCue: (() => void) | null = null;
   let cueRenderer: FoliateViewElement['renderer'] | null = null;
   let boundPdfPinchDocs = new WeakSet<Document>();
-  let syncedNoteValues = new Set<string>();
+  let noteSyncEpoch = 0;
+  let noteSyncScheduled = false;
+  let openedNotesOwnerKey = '';
+  let appliedNoteIdsByLayer = new WeakMap<Overlayer, Set<string>>();
   let stageResizeObserver: ResizeObserver | null = null;
   let currentFormatLabel = READER_UNKNOWN_FORMAT_LABEL;
   let currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
@@ -668,7 +676,7 @@
     return getReaderPageMargin();
   };
 
-  const NOTE_PREFIX = 'foliate-note:';
+  const NOTE_PREFIX = 'br1-note:';
   const emitSelectionState = (detail: ReaderSelectionState | null) => {
     dispatch('selectionchange', detail);
   };
@@ -687,11 +695,26 @@
       const book = view?.book;
       // Synthetic text has no CFI, but its text tools still belong to one book.
       detail.isCurrent = () => activeFootnoteRequest === detail &&
-        foliateViewElement === view && view?.book === book;
+        foliateViewElement === view && view?.book === book &&
+        (!notesOwnerKey || openedNotesOwnerKey === notesOwnerKey);
     }
     onFootnoteRequest?.(detail);
     dispatch('footnoterequest', detail);
   };
+
+  const rangeBelongsToDocument = (range: unknown, doc: Document): range is Range =>
+    // A loaded iframe has its own Range constructor; pristine DOMs have none.
+    range instanceof (doc.defaultView?.Range ?? Range) &&
+    range.startContainer.ownerDocument === doc &&
+    range.endContainer.ownerDocument === doc &&
+    doc.documentElement.contains(range.startContainer) &&
+    doc.documentElement.contains(range.endContainer);
+
+  const sameRange = (left: Range, right: Range) =>
+    left.startContainer === right.startContainer &&
+    left.startOffset === right.startOffset &&
+    left.endContainer === right.endContainer &&
+    left.endOffset === right.endOffset;
 
   const clampSelectionPopupLeft = (value: number) => {
     if (typeof window === 'undefined') return value;
@@ -1370,6 +1393,7 @@
       refreshNavigationCue?.();
       return;
     }
+    emitFootnoteRequest(null);
     clearNavigationCue();
     // Foliate's host event omits the reason. Its native renderer distinguishes
     // our own goTo/relayout from a newer scroll, page turn or selection intent.
@@ -1572,7 +1596,9 @@
     const requestId = footnoteRequestId;
     const view = foliateViewElement;
     const book = view?.book;
-    const isCurrent = () => requestId === footnoteRequestId && foliateViewElement === view && view?.book === book;
+    const isCurrent = () => requestId === footnoteRequestId &&
+      foliateViewElement === view && view?.book === book &&
+      (!notesOwnerKey || openedNotesOwnerKey === notesOwnerKey);
     let excerpt: FootnoteExcerpt = createFootnoteExcerpt(null);
     let sourceLocation: { index: number; anchor: (doc: Document) => unknown } | null = null;
     let jumpTarget = fallbackHref;
@@ -1616,7 +1642,8 @@
     const section = location && book?.sections?.[location.index];
     if (location && section?.createDocument && view) {
       const isSelectionCurrent = () => activeFootnoteRequest === request &&
-        foliateViewElement === view && view.book === book && book?.sections?.[location.index] === section;
+        foliateViewElement === view && view.book === book && book?.sections?.[location.index] === section &&
+        (!notesOwnerKey || openedNotesOwnerKey === notesOwnerKey);
       request.isCurrent = isSelectionCurrent;
       request.resolveSelection = async (root, selection) => {
         if (!isSelectionCurrent() || !excerpt.resolveRange(root, selection)) return null;
@@ -1645,6 +1672,67 @@
         } catch (error) {
           console.warn('Failed to validate footnote selection in its original chapter', error);
           return null;
+        }
+      };
+      request.resolveAnnotations = async (root, requestedNotes) => {
+        const isAnnotationRequestCurrent = () => isSelectionCurrent() && root.isConnected;
+        if (!isAnnotationRequestCurrent()) return [];
+
+        // Resolve only this footnote's section before creating a pristine DOM.
+        // The route passes every current-book note, so opening a chapter for an
+        // unrelated CFI would both waste work and widen this popup's authority.
+        const candidates = requestedNotes.flatMap((note) => {
+          try {
+            // Native parsing also accepts bare/unfinished paths. Persisted
+            // annotations must carry the complete CFI envelope before resolving.
+            if (typeof note.cfi !== 'string' || !isCFI.test(note.cfi)) return [];
+            const resolved = view.resolveCFI(note.cfi);
+            return resolved?.index === location.index ? [{ note, resolved }] : [];
+          } catch {
+            return [];
+          }
+        });
+        if (!candidates.length || !isAnnotationRequestCurrent()) return [];
+
+        try {
+          const pristine = await section.createDocument!();
+          if (!isAnnotationRequestCurrent()) return [];
+          const target = location.anchor(pristine) as Node | null;
+          if (target?.nodeType !== Node.ELEMENT_NODE) return [];
+          const pristineExcerpt = createFootnoteExcerpt(target as Element, checked);
+
+          return candidates.flatMap(({ note, resolved }) => {
+            try {
+              if (!isAnnotationRequestCurrent()) return [];
+              const sourceRange = resolved.anchor(pristine);
+              if (!rangeBelongsToDocument(sourceRange, pristine)) return [];
+              const mapped = pristineExcerpt.resolvePreviewRange(root, sourceRange);
+              if (!mapped) return [];
+
+              // The mapper owns clipping and endpoint normalization. Verify the
+              // visible intersection round-trips without reinterpreting it here.
+              const mappedBack = pristineExcerpt.resolveRange(root, mapped.range);
+              const mappedForward = mappedBack && pristineExcerpt.resolvePreviewRange(root, mappedBack);
+              if (!mappedBack || !mappedForward || !sameRange(mapped.range, mappedForward.range)) {
+                return [];
+              }
+
+              // Validate the same preview interval against the originally displayed
+              // excerpt as well. This rejects a stale popup root or changed source
+              // DOM even when the pristine chapter still resolves the old CFI.
+              const displayedRange = excerpt.resolveRange(root, mapped.range);
+              const displayedForward = displayedRange && excerpt.resolvePreviewRange(root, displayedRange);
+              if (!displayedRange || !displayedForward || !sameRange(mapped.range, displayedForward.range) ||
+                !isAnnotationRequestCurrent()) return [];
+
+              return [{ note, range: mapped.range, clipped: mapped.clipped }];
+            } catch {
+              return [];
+            }
+          });
+        } catch (error) {
+          console.warn('Failed to map footnote annotations to the displayed excerpt', error);
+          return [];
         }
       };
     }
@@ -1718,6 +1806,7 @@
     source: string | File,
     sourceLabel: string,
     cacheBookKey: string,
+    openingNotesOwnerKey: string,
     restoreFraction?: number,
     restoreLocation?: string
   ) => {
@@ -1734,6 +1823,8 @@
     resetPdfSelectionGesture();
     // Foliate open() appends a renderer; it does not retire the previous one.
     // Remove old interactive documents before loading either Foliate or TXT.
+    invalidateNoteSync();
+    openedNotesOwnerKey = '';
     foliateViewElement.close();
     pdfScaleFactor = 100;
     searchCache = new Map();
@@ -1741,7 +1832,6 @@
     dispatch('searchcachekeychange', cacheBookKey);
     emitSearchState({ query: '', status: 'idle', results: [] });
     emitSelectionState(null);
-    syncedNoteValues = new Set();
       emitReaderState({
         title: sourceLabel || READER_EMPTY_TITLE,
         author: '正在准备书籍',
@@ -1782,6 +1872,7 @@
         });
         currentLayoutLabel = 'SCROLL';
         syncEngineModeVisibility();
+        openedNotesOwnerKey = openingNotesOwnerKey;
         openStatus = 'open';
         await applyInitialNavigation(restoreFraction, restoreLocation);
         dispatch('tocchange', plainTextSections
@@ -1815,6 +1906,7 @@
       await waitForReaderLayoutToSettle();
       configureFoliatePreview();
       await waitForReaderLayoutToSettle();
+      openedNotesOwnerKey = openingNotesOwnerKey;
       openStatus = 'open';
       bindOpenRendererDocs();
       dispatch('tocchange', flattenToc(foliateViewElement.book?.toc));
@@ -2063,11 +2155,15 @@
         controlRequest.type === 'library-file' ||
         controlRequest.type === 'file'
       ) {
+        // File/fingerprint loading can yield. Bind notes to this admitted source,
+        // not whichever route owner happens to be current when it resolves.
+        const openingNotesOwnerKey = notesOwnerKey;
         const resolvedSource = await resolveControlOpenSource(controlRequest);
         await openBook(
           resolvedSource.source,
           resolvedSource.sourceLabel,
           resolvedSource.cacheBookKey,
+          openingNotesOwnerKey,
           resolvedSource.restoreFraction,
           resolvedSource.restoreLocation
         );
@@ -2158,32 +2254,98 @@
     }
   }
 
-  const syncNotesToView = async () => {
-    if (openEngineMode === 'plain-text') return;
-    if (!foliateViewElement || openStatus !== 'open') return;
-    const nextValues = new Set(notes.map((note) => `${NOTE_PREFIX}${note.cfi}`));
+  const noteKey = (id: string) => `${NOTE_PREFIX}${id}`;
 
-    for (const value of syncedNoteValues) {
-      if (!nextValues.has(value)) {
-        await foliateViewElement.addAnnotation({ value }, true);
+  const invalidateNoteSync = () => {
+    noteSyncEpoch += 1;
+    noteSyncScheduled = false;
+  };
+
+  const isCurrentNoteSync = (
+    view: FoliateViewElement,
+    book: ReaderBookDocument,
+    renderer: NonNullable<FoliateViewElement['renderer']>,
+    epoch: number
+  ) =>
+    noteSyncEpoch === epoch &&
+    openStatus === 'open' &&
+    openEngineMode === 'foliate' &&
+    foliateViewElement === view &&
+    view.book === book &&
+    view.renderer === renderer &&
+    !!openedNotesOwnerKey &&
+    notesOwnerKey === openedNotesOwnerKey &&
+    notesSnapshotKey === openedNotesOwnerKey;
+
+  const syncNotesToLayer = (
+    view: FoliateViewElement,
+    book: ReaderBookDocument,
+    renderer: NonNullable<FoliateViewElement['renderer']>,
+    snapshot: ReaderNote[],
+    epoch: number
+  ) => {
+    if (!isCurrentNoteSync(view, book, renderer, epoch)) return;
+    for (const { doc, index, overlayer } of renderer.getContents?.() ?? []) {
+      if (!overlayer || typeof index !== 'number' || !doc.documentElement.isConnected) continue;
+      const applied = appliedNoteIdsByLayer.get(overlayer) ?? new Set<string>();
+      const nextApplied = new Set<string>();
+
+      for (const note of snapshot) {
+        let resolved: ReturnType<FoliateViewElement['resolveCFI']>;
+        let range: unknown;
+        try {
+          if (typeof note.cfi !== 'string' || !isCFI.test(note.cfi)) continue;
+          resolved = view.resolveCFI(note.cfi);
+          if (resolved?.index !== index) continue;
+          range = resolved.anchor(doc);
+        } catch {
+          continue;
+        }
+        if (!rangeBelongsToDocument(range, doc)) continue;
+        const key = noteKey(note.id);
+        nextApplied.add(note.id);
+        if (!isCurrentNoteSync(view, book, renderer, epoch) ||
+          !renderer.getContents?.().some((content) => content.doc === doc && content.index === index && content.overlayer === overlayer)) return;
+        overlayer.add(key, range, Overlayer.highlight, {
+          color: note.kind === 'highlight' ? 'rgba(218, 193, 112, 0.42)' : 'rgba(190, 150, 78, 0.28)'
+        });
       }
-    }
 
-    for (const note of notes) {
-      await foliateViewElement.addAnnotation({
-        ...note,
-        value: `${NOTE_PREFIX}${note.cfi}`
-      });
+      for (const id of applied) {
+        if (nextApplied.has(id)) continue;
+        if (!isCurrentNoteSync(view, book, renderer, epoch) ||
+          !renderer.getContents?.().some((content) => content.doc === doc && content.index === index && content.overlayer === overlayer)) return;
+        overlayer.remove(noteKey(id));
+      }
+      appliedNoteIdsByLayer.set(overlayer, nextApplied);
     }
+  };
 
-    syncedNoteValues = nextValues;
+  const scheduleNotesToView = () => {
+    if (openEngineMode === 'plain-text' || openStatus !== 'open' || noteSyncScheduled) return;
+    if (!openedNotesOwnerKey || notesOwnerKey !== openedNotesOwnerKey || notesSnapshotKey !== openedNotesOwnerKey) return;
+    const view = foliateViewElement;
+    const book = view?.book;
+    const renderer = view?.renderer;
+    const epoch = noteSyncEpoch;
+    if (!view || !book || !renderer?.getContents) return;
+    noteSyncScheduled = true;
+    queueMicrotask(() => {
+      if (epoch !== noteSyncEpoch || foliateViewElement !== view || view.book !== book || view.renderer !== renderer) return;
+      noteSyncScheduled = false;
+      // `create-overlay` fires before its SVG is attached. Read the live content
+      // list only here, then mutate each captured native overlayer synchronously.
+      syncNotesToLayer(view, book, renderer, notes, epoch);
+    });
   };
 
   $: {
     notes;
+    notesOwnerKey;
+    notesSnapshotKey;
     foliateViewElement;
     openStatus;
-    void syncNotesToView();
+    scheduleNotesToView();
   }
 
   onMount(() => {
@@ -2227,28 +2389,15 @@
             if (!(currentFormatLabel === 'PDF' && settings.flowMode === 'scrolled')) {
               emitSelectionState(null);
             }
-            emitFootnoteRequest(null);
-          });
-          view.addEventListener('draw-annotation', (event: Event) => {
-            const detail = (event as CustomEvent<{
-              draw: (func: typeof Overlayer.highlight, opts?: Record<string, unknown>) => void;
-              annotation?: { value?: string; kind?: string };
-            }>).detail;
-            if (!detail?.annotation?.value?.startsWith(NOTE_PREFIX)) return;
-            detail.draw(Overlayer.highlight, {
-              color:
-                detail.annotation.kind === 'highlight'
-                  ? 'rgba(218, 193, 112, 0.42)'
-                  : 'rgba(190, 150, 78, 0.28)'
-            });
           });
           view.addEventListener('create-overlay', () => {
-            void syncNotesToView();
+            scheduleNotesToView();
           });
           view.addEventListener('show-annotation', (event: Event) => {
             const detail = (event as CustomEvent<{ value?: string }>).detail;
             if (!detail?.value?.startsWith(NOTE_PREFIX)) return;
-            dispatch('notefocus', detail.value.slice(NOTE_PREFIX.length));
+            const note = notes.find((candidate) => candidate.id === detail.value!.slice(NOTE_PREFIX.length));
+            if (note) dispatch('notefocus', note.cfi);
           });
           view.addEventListener('load', (event: Event) => {
             const detail = (event as CustomEvent<{ doc: Document; index: number }>).detail;
@@ -2288,6 +2437,8 @@
     return () => {
       cancelled = true;
       invalidateNavigationCue();
+      invalidateNoteSync();
+      openedNotesOwnerKey = '';
       cueRenderer?.removeEventListener('relocate', handleCueRelocate);
       cueRenderer = null;
       footnoteRequestId += 1;
