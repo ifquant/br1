@@ -9,6 +9,12 @@
 
 ## Engineering Debt
 
+- Gate C8B footnote actions on pristine-CFI round-trip validation and exact popup payload identity.
+  Why: a nonempty CFI does not prove the intended source range, and identical preview text does not identify the current popup request.
+  Context: the independent Sol source audit of `631cd6454` found no actual resolve-and-text round trip and identified an upstream popup-view late-completion race. Nested `57c9358ad` serves second-view extraction mapping and exports, not a required native br1 renderer path.
+  Depends on: resolving the generated CFI in the correct pristine section with text and boundary checks; preserving the existing Viewport epoch and extending book/view/payload identity checks through close, replacement, navigation, teardown, and asynchronous UI completion. Never use current-location/TOC fallback or anchor synthetic alt/data text. Full gates are recorded in `.planning/readest-alignment-analysis/2026-09-05-authored-layout-commit-audit.md` under C8A/C8B.
+  Not included: C8A remains extraction/provenance and safe Range mapping only, with existing snippet strings and no CFI generation or annotation writes. These gates are pending, not verified.
+
 - Decide source-footnote visibility together with destination access before hiding EPUB asides.
   Why: br1 previews only recognized footnote links; ordinary links, rejected numeric markers, and fallback navigation can still need the original aside.
   Context: S2-R04C4 marks Readest `d6e981e56`'s exact custom-font/namespace ordering bug not-applicable, not source-aside border suppression as complete.

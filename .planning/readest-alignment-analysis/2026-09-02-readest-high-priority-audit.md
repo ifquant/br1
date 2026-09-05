@@ -649,7 +649,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 610 | `4549a026d` | library | feat(library): add hide-covers privacy option for the bookshelf (#5733) | `partial` | S2-L08 | P0-4.1/P0-4.2 and library smoke tests; search/detail behavior is incomplete. |
 | 611 | `7fa3daa19` | tts/audio | feat(tts): queue chapter downloads with per-book persistence (#5690) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 612 | `b463f014b` | library | feat(library): show download progress overlay on book covers (#5736) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
-| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `partial` | S2-R04C8 | Core reading exists; this authored-layout/script edge is unverified. |
+| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `partial` | S2-R04C8B | C8A preserves native excerpt text provenance and restricted source Range mapping. Live popup selection, pristine CFI validation, actions and annotation redraw remain pending; nested second-view CFI rewriting is not needed by the native architecture. |
 | 614 | `9dedaf804` | tts/audio | feat(reader): pair local audiobooks with ebooks (#5754) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 615 | `9213c6af1` | tts/audio | fix(tts): make sentence and paragraph pauses consistent (#5753) | `partial` | S2-T04A | tts.ts, ttsRuntime.ts, and TTS tests; voice/timing parity is incomplete. |
 | 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `partial` | S2-R04C9 | Core reading exists; this authored-layout/script edge is unverified. |
@@ -988,10 +988,17 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: C7 focused 4/4 PASS; footnote/authored-text 22/22 PASS; legacy footnote/sanitizer/TXT 4/4 PASS (26 unique cases). The initially failing short-chapter cue case passes with native anchor refresh; deadline, selection and held-return layout invalidation regressions PASS. `pnpm check` (0 errors/warnings), `pnpm build` (final production source) and `git diff --check` PASS. Fresh Terra high production/test reviews and Astra high final whole-change review PASS.
 - Boundary: Unknown/unrendered/missing/error cases remain navigable, not proven visible. No preloading, alternate renderer, source-aside hiding, popup-internal links/history, rich media, selection mapping or packaged/mobile/Safari runtime acceptance.
 
-#### Next Task: S2-R04C8 - Audit footnote selection and annotation mapping
+#### Completed Slice: S2-R04C8A - Preserve native excerpt source correspondence
 
-- Scope: `631cd6454` and nested Foliate range `9fde61a10..57c9358ad`. Adjudicate native popup-to-source mapping before introducing selection or annotation controls.
-- Remaining C8-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
+- Scope: Audit `631cd6454` and its sole nested commit `57c9358ad`; move existing native excerpt extraction/sanitization into one source-preserving module.
+- Outcome: Original Text identities and UTF-16 offsets survive clone cleanup. Restricted DOM Range mapping validates the preview text, source scope/order and text, rejecting removed-text gaps. The live Viewport still consumes only the existing snippet strings; no popup controls or writes are added.
+- Verification: `footnote-mapping.spec.ts --workers=1` 5/5 PASS, including the corrected duplicate-CDATA regression; footnote/authored-text suites 22/22 PASS; selected legacy footnote/sanitizer/TXT/fenced-code cases 4/4 PASS (31 unique runtime cases). `pnpm check` (0 errors/warnings), `pnpm build`, `git diff --check` and 678-row ledger recount PASS. Fresh Terra high task review and CDATA re-review PASS; Astra high final whole-change re-review PASS.
+- Boundary: This is not live popup selection or CFI proof. Parent remains partial. The exact upstream forward-save path only checks nonempty CFIs and its popup-view completion race is not copied; C8B requires actual pristine-section resolve/text/boundary validation and exact payload identity. Synthetic data remains unanchored. No Foliate source or dependency change.
+
+#### Next Task: S2-R04C8B - Bind popup selections to validated source locations
+
+- Scope: Bind the native selection to its active book/view/payload, resolve the generated CFI in the intended pristine section, and verify text plus boundaries before enabling any anchored action.
+- C8C actions/persistence and C8D reverse mapping/redraw follow only after B. Remaining C9-C21 slices retain their existing owners and acceptance map; C17's four IDPF cases remain independent.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

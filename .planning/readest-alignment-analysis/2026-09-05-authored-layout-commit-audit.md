@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7.
+local implementation and verification are recorded separately for C1-C7 and C8A.
 
 ## Frozen and provisional slices
 
@@ -26,7 +26,7 @@ local implementation and verification are recorded separately for C1-C7.
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Native text-scope equivalent with cleaned-empty navigation fallback. Popup images and late-image sizing are excluded, not claimed as full rich-media parity. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Shared native navigation completion with a four-second visual-only target cue; popup-internal links remain absent. |
 | **S2-R04C7** | Jump from popup to the book target unless known hidden | `aab58241d` | Native preview action with original-target ancestor styles and upstream unknown-default-allow policy; not pre-rendered visibility proof. |
-| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Provisional standalone cross-document selection slice. |
+| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Partial: C8A native extraction/provenance foundation; next C8B validated selection, then C8C actions and C8D reverse annotation mapping. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Provisional renderer-lifetime slice; requires the exact foliate refcount behavior. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Provisional directional-flow slice. Ignore unrelated locale and submodule churn in the Readest commits. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Provisional standalone paginator/input slice; large behavior surface. |
@@ -105,7 +105,7 @@ Russian configured words in `370a51662` are:
 | `7c0419961` | 2 files, +272/-32 | Uses a `ResizeObserver` to keep popup height fitted after content settles; seeds alt-text popup size without a later 88px overwrite; disconnects stale observers and ignores superseded loads; shows image/element-only popups from measured content even when foliate emits no relocate event. | No foliate move. Standalone lifecycle behavior. |
 | `dbe0dae0a` | 5 files, +176/-58 | Generalizes the transient search marker into an href/range highlighter and flashes the target after default in-page navigation, failed popup extraction fallback, and links followed inside a popup. Timers are cleared on replacement/unmount. | No foliate move. |
 | `aab58241d` | 4 files, +442/-23 | Adds popup-to-book navigation and flashes the destination. It rejects rendered targets whose ancestor computed styles have `display:none` or `visibility:hidden`; unrendered, unresolved and inspection-error cases deliberately retain navigation. The final revision floats controls over text with pointer-transparent chrome rather than reserving blank padding. | No foliate move; `79191075dfc513f563fd8e8acc56e50470fd9f4c` on both sides. |
-| `631cd6454` | 10 files, +914/-68 | Maps selections from the extracted popup DOM back to pristine-section CFIs, enables applicable selection/annotation tools, redraws popup highlights/notes, validates CFI before save, rejects cross-section notes early, normalizes element boundaries, and guards async selection state with an epoch. Synthetic alt/data text has no CFI, so anchoring actions and TTS remain disabled there. | `9fde61a10..57c9358ad`: foliate exports CFI serialization/range building and emits section index plus extraction mapping. |
+| `631cd6454` | 10 files, +914/-68 | Maps selections from the extracted popup DOM back to pristine-section CFIs, enables applicable selection/annotation tools, redraws popup highlights/notes, checks that CFI is nonempty before save (not an actual resolve-and-text round trip), rejects cross-section notes early, normalizes element boundaries, and guards async selection state with an epoch. Synthetic alt/data text has no CFI, so anchoring actions remain disabled; TTS is disabled for all popup selections. The selection epoch does not establish safety for late popup-view completion; see the C8B gates below. | `9fde61a10..57c9358ad`: foliate exports CFI serialization/range building and emits section index plus extraction mapping for the second popup view; this is not a required native br1 dependency. |
 | `a193cbc35` | 2 files, +167/-1 | Fixes top-level EPUB loader references so opening/dismissing a second view cannot decrement a still-live reader section to zero and revoke its image/blob URLs. `loadItemXHTMLContent` reuses the caller's held section reference to avoid leaking an unmatched count. | `57c9358ad..c1f0c3c55`: exact loader refcount fix; Readest adds focused shared-view lifetime tests. |
 
 ### C10-C13: directional flow and CJK
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C8**. Each slice starts by checking current local callers
+Continue with **S2-R04C8B**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8-C21 remain pending; their table entries are executable specifications,
+run. C8B-C8D and C9-C21 remain pending; their table entries are executable specifications,
 not completion claims.
 
 ### C2 implementation boundary
@@ -461,3 +461,77 @@ or packaged-platform acceptance.
 At C7 closure: 54 covered, 412 partial, 77 gap, 135 not-applicable, and
 59 remaining task IDs. Next: C8 footnote selection and annotation mapping,
 including its own nested Foliate commit audit.
+
+### C8A foundation boundary and C8B mandatory gates
+
+Independent Sol source audit: Readest `631cd6454fe38721e56fad7cd3ecf60e750d3f29`
+(parent `b463f014b3f23690c7a68ec4bb7597bf5b87e32e`) checks a nonempty CFI,
+but does not prove an actual pristine-document
+resolve-and-text round trip. Nested `57c9358ad` provides extraction mapping and
+exports for the second popup view; br1's native popup does not require that
+renderer path. The upstream popup-view late-completion race must not be copied
+as an accepted lifecycle contract. The nested range
+`9fde61a10f598575f979ec3a136b93f5d324f9b6..57c9358ad83076ebe99c127f82125103319d170e`
+contains one commit. Its extraction mapping is recorded before mutating the
+second view's document; exported CFI serialization/building helpers serve that
+architecture. Neither it nor a second renderer is added to br1. The upstream
+eleven mapping tests and both source diffs were inspected; upstream test execution
+was unavailable because its installed Vitest links point to an absent store.
+
+C8A replaces the private Viewport extraction/sanitizer with `footnoteExcerpt.ts`.
+The live path still consumes only HTML/text; a private ordered mapping associates
+sanitized text with original Text nodes and offsets before any removal/unwrap.
+It uses raw UTF-16 positions, accounting for top-level whitespace trimmed from
+serialized HTML. Range mapping checks root text, containment, source scope,
+source text and order, and rejects gaps caused by removed script/style text.
+Excerpts containing CDATA retain their output but reject mapping: CDATA affects
+full-text offsets without participating in the ordinary Text-node segments.
+Equal strings are an integrity check, never source lookup or popup identity.
+No CFI generation, annotation writes or persistent mapping metadata is added.
+Module mapping tests are separate from real reader snippet regressions; C8A
+does not yet connect a live popup Selection to the mapper.
+
+| Native slice | Closure requirement |
+|---|---|
+| C8A | Existing excerpt production uses source-preserving extraction; restricted Range mapping has browser DOM proof. |
+| C8B | Bind real popup selections to the exact current payload and validate pristine-section CFIs by resolution, text and boundaries. |
+| C8C | Enable applicable actions only after B, retain unanchored synthetic restrictions, validate before writes and prove annotation merge/toggle/persistence. |
+| C8D | Map stored annotations back to the native popup, prove redraw/update/delete and complete popup replacement/teardown integration. |
+
+Verification: final C8A mapping suite 5/5 PASS, including duplicate CDATA;
+footnote/authored-text suites 22/22 PASS; selected legacy footnote/sanitizer/TXT/
+fenced-code cases 4/4 PASS (31 unique runtime cases). `pnpm check` reports zero
+errors/warnings; `pnpm build`, `git diff --check` and the 678-row ledger recount
+PASS. Fresh Terra high task review and CDATA re-review PASS; Astra high final
+whole-change re-review PASS. Its initial CDATA finding was corrected by disabling mapping
+for unsupported CDATA while preserving excerpt output. Parent `631cd6454`
+remains `partial`; totals stay 54/412/77/135 and 59 remaining primary task IDs.
+Next: C8B. C8C/C8D remain dependent steps within the same parent obligation.
+
+C8B must satisfy these gates before exposing anchored actions:
+
+- Generate the locator from the mapped target section's pristine document,
+  then actually resolve that CFI against that document and compare the resolved
+  range text with the intended mapped source selection. Require the expected
+  section and valid range boundaries; a nonempty or parseable CFI is not proof.
+  Duplicate-string tests must also verify the intended source boundaries, not
+  merely equal text. Never substitute the current location or current TOC;
+  any reuse of `getSelectionStateFromRange` must explicitly disable
+  `allowLocationFallback` and still meet the pristine validation gate.
+- Bind the displayed preview root, mapping, selection, and every asynchronous
+  result to the current book/view and exact popup payload/request identity.
+  Equal preview text is an integrity check, not identity. Preserve the existing
+  Viewport request epoch and extend invalidation through the native UI owner
+  for close, replacement, navigation, book/view replacement, and teardown.
+  Recheck identity after asynchronous work and before publishing selection,
+  enabling an action, or committing a write; late completion must not restore
+  a dismissed popup or apply an older payload to a newer one.
+- Keep synthetic alt/data text unanchored and reject failed or stale mappings.
+  Prove held-completion-after-close/replacement/navigation/book-change cases,
+  including identical text in distinct payloads, alongside real pristine-CFI
+  round-trip and wrong-section rejection cases. No fake CFI or developer-only
+  UI hook may stand in for these proofs.
+
+Popup selection/UI integration and these gates belong to C8B, not the active
+C8A integration. Annotation controls/writes, redraw, and full lifecycle closure
+remain deferred until their own implementation and verification are complete.

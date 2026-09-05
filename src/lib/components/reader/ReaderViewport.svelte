@@ -37,6 +37,7 @@
     type FoliateViewElement
   } from '$lib/reader';
   import { Overlayer } from 'foliate-js/overlayer.js';
+  import { createFootnoteExcerpt } from '$lib/reader/footnoteExcerpt';
   import {
     applyCrossDocSegments,
     buildCrossDocSegments,
@@ -1506,46 +1507,6 @@
     return true;
   };
 
-  const extractCheckedFootnote = (target: Element) => {
-    const doc = target.ownerDocument;
-    const inline = 'a, span, sup, sub, em, strong, i, b, small, big';
-    let element = target;
-    while (element.matches(inline) && element.parentElement) element = element.parentElement;
-    if (element === doc.body) {
-      const sibling = target.nextElementSibling;
-      if (!sibling || sibling.matches(inline)) return null;
-      element = sibling;
-    }
-
-    // Port the nested Foliate 2bf0cecfc decision at br1's existing extraction
-    // owner. The three-child limit applies ONLY to the generic backlink branch.
-    const range = doc.createRange();
-    const enclosingNote = element.closest('li') || element.closest('.note');
-    if (element.matches('li, aside')) {
-      range.selectNodeContents(element);
-    } else if (element.matches('dt')) {
-      range.setStartBefore(element);
-      let last = element;
-      while (last.nextElementSibling?.matches('dd')) last = last.nextElementSibling;
-      range.setEndAfter(last);
-    } else if (enclosingNote) {
-      range.selectNodeContents(enclosingNote);
-    } else if (element.querySelector('a') && element.children.length <= 3) {
-      range.setStartBefore(element);
-      let next = element.nextElementSibling;
-      while (next && !next.querySelector('a')) next = next.nextElementSibling;
-      if (next) range.setEndBefore(next);
-      // The range's start already requires a parent; include its trailing text
-      // nodes, not only its last element, when no next linked block exists.
-      else range.setEndAfter(element.parentNode!.lastChild!);
-    } else {
-      return null;
-    }
-    const container = doc.createElement('div');
-    container.append(range.cloneContents());
-    return container;
-  };
-
   const resolveFootnoteTarget = (doc: Document, href: string) => {
     const hash = href.split('#')[1] || '';
     if (!hash) return null;
@@ -1560,72 +1521,6 @@
       doc.querySelector(`[id="${CSS.escape(decoded)}"]`) ||
       doc.querySelector(`[name="${CSS.escape(decoded)}"]`)
     );
-  };
-
-  const FOOTNOTE_PREVIEW_ALLOWED_TAGS = new Set([
-    'p',
-    'ol',
-    'ul',
-    'li',
-    'blockquote',
-    'em',
-    'strong',
-    'b',
-    'i',
-    'code',
-    'sup',
-    'sub',
-    'span',
-    'br'
-  ]);
-
-  const sanitizeFootnoteExcerpt = (container: Element) => {
-    // Wrap the clone so the root itself is filtered too. Book nodes can belong
-    // to an iframe realm, where host instanceof Element checks would fail.
-    const preview = container.ownerDocument.createElement('div');
-    preview.append(container.cloneNode(true));
-
-    for (const node of Array.from(preview.querySelectorAll('*'))) {
-      const tagName = node.tagName.toLowerCase();
-      if (tagName === 'script' || tagName === 'style') {
-        node.remove();
-        continue;
-      }
-
-      if (!FOOTNOTE_PREVIEW_ALLOWED_TAGS.has(tagName)) {
-        node.replaceWith(...Array.from(node.childNodes));
-        continue;
-      }
-
-      for (const attributeName of node.getAttributeNames()) {
-        node.removeAttribute(attributeName);
-      }
-    }
-
-    // Images can leave nonempty markup such as <p></p> after filtering. Only
-    // cleaned text makes a preview readable; otherwise keep navigation usable.
-    // Derive both representations here so removed style text cannot return via
-    // the plaintext fallback. The original book DOM remains untouched.
-    const excerptText = normalizeFootnoteLabel(preview.textContent || '');
-    return {
-      excerptHtml: excerptText ? preview.innerHTML.trim() : '',
-      excerptText
-    };
-  };
-
-  const resolveFootnoteExcerpt = (target: Element | null, checked = false) => {
-    if (!target) {
-      return {
-        excerptHtml: '',
-        excerptText: ''
-      };
-    }
-
-    const container = checked
-      ? extractCheckedFootnote(target)
-      : target.closest('aside, li, p, section, div') || target;
-    if (!container) return { excerptHtml: '', excerptText: '' };
-    return sanitizeFootnoteExcerpt(container);
   };
 
   const isFootnoteTargetHidden = (target: Element | null) => {
@@ -1694,7 +1589,7 @@
       } else if (link.getAttribute('href')?.trim().startsWith('#')) {
         target = resolveFootnoteTarget(link.ownerDocument, href);
       }
-      excerpt = resolveFootnoteExcerpt(target, checked);
+      excerpt = createFootnoteExcerpt(target, checked);
       if (isFootnoteTargetHidden(target)) jumpTarget = '';
     } catch (error) {
       console.warn('Failed to extract footnote preview', error);
