@@ -22,7 +22,7 @@ import {
   normalizeReaderTtsSpeechTarget,
   planReaderTtsRetargetAction,
   resolveReaderTtsSpeechTargetForMode
-} from './tts';
+} from './tts.js';
 
 test('normalizeReaderTtsSpeechTarget keeps explicit source and follow-current metadata', () => {
   const target = normalizeReaderTtsSpeechTarget({
@@ -129,6 +129,7 @@ test('playback drift falls back to visible reading metadata when raw progress lo
       locationLabel: '第 188 / 229 行',
       formatLabel: 'TXT',
       layoutLabel: 'SCROLL',
+      rtl: false,
       progressFraction: 0.821,
       progressLocation: 'txt:0.821337',
       koreaderProgressLocation: '',

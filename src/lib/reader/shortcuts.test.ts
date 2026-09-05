@@ -82,6 +82,8 @@ test('reader keyboard shortcuts require their exact modifiers', () => {
 test('reader navigation resolves keyboard arrows and mouse side buttons', () => {
   assert.equal(resolveReaderKeyboardShortcut(keyboardEvent('ArrowLeft')), 'previous-page');
   assert.equal(resolveReaderKeyboardShortcut(keyboardEvent('ArrowRight')), 'next-page');
+  assert.equal(resolveReaderKeyboardShortcut(keyboardEvent('ArrowLeft'), true), 'next-page');
+  assert.equal(resolveReaderKeyboardShortcut(keyboardEvent('ArrowRight'), true), 'previous-page');
   assert.equal(resolveReaderMouseShortcut(3), 'previous-page');
   assert.equal(resolveReaderMouseShortcut(4), 'next-page');
   assert.equal(resolveReaderMouseShortcut(2), null);
@@ -94,4 +96,15 @@ test('reader shortcut labels adapt the primary key by platform', () => {
   assert.ok(bookmarkBinding);
   assert.equal(getReaderShortcutBindingLabel(bookmarkBinding, false), 'Ctrl+B');
   assert.equal(getReaderShortcutBindingLabel(bookmarkBinding, true), 'Cmd+B');
+
+  const previousBinding = READER_SHORTCUTS.find(
+    (shortcut) => shortcut.action === 'previous-page'
+  )?.bindings.find((binding) => binding.kind === 'keyboard');
+  const nextBinding = READER_SHORTCUTS.find(
+    (shortcut) => shortcut.action === 'next-page'
+  )?.bindings.find((binding) => binding.kind === 'keyboard');
+  assert.ok(previousBinding);
+  assert.ok(nextBinding);
+  assert.equal(getReaderShortcutBindingLabel(previousBinding, false, true), '→');
+  assert.equal(getReaderShortcutBindingLabel(nextBinding, false, true), '←');
 });

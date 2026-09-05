@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7, C8A-C8D and C9.
+local implementation and verification are recorded separately for C1-C7, C8A-C8D, C9 and C10.
 
 ## Frozen and provisional slices
 
@@ -28,7 +28,7 @@ local implementation and verification are recorded separately for C1-C7, C8A-C8D
 | **S2-R04C7** | Jump from popup to the book target unless known hidden | `aab58241d` | Native preview action with original-target ancestor styles and upstream unknown-default-allow policy; not pre-rendered visibility proof. |
 | **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Complete within the frozen native contract: C8A provenance, C8B validated selection, C8C scoped actions/persistence and C8D reverse mapping/record interactions. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Complete: exact Loader count/content-read fix plus native paginator single-release ownership, proved through shared-view and actual br1 resource lifetimes. |
-| **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Provisional directional-flow slice. Ignore unrelated locale and submodule churn in the Readest commits. |
+| **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Complete within the frozen same-direction reflowable contract: native detection, semantic controls and visible CFI restoration after real preload/reopen. Mixed-direction lifecycle and C11 gestures remain separate. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Provisional standalone paginator/input slice; large behavior surface. |
 | **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Provisional small CJK selection slice. |
 | **S2-R04C13** | Warichu/Gezhu transformation and measured column layout | `ebbbf104b` | Provisional standalone CJK layout slice; do not merge with the smaller ruby work. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C10**. Each slice starts by checking current local callers
+Continue with **S2-R04C11**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8 and C9 are complete within their documented native contracts below. C10-C21 remain
+run. C8-C10 are complete within their documented native contracts below. C11-C21 remain
 pending; their table entries are executable specifications, not completion claims.
 
 ### C2 implementation boundary
@@ -802,3 +802,108 @@ At C9 closure: 678 commits, 56 covered, 410 partial, 77 gap, 135 not-applicable,
 and 57 remaining primary task IDs. Next: S2-R04C10. The independent fixed-layout,
 navigation rollback and pending-open obligations above remain open. Browser
 automation is not packaged Tauri, Safari, native mobile or manual demo acceptance.
+
+### C10 directional-flow completion contract
+
+Astra high independently checked the following Git objects before implementation.
+Each nested range contains exactly one commit, changing only `paginator.js`:
+
+| Readest parent -> commit | Nested Foliate old -> new | Required behavior |
+|---|---|---|
+| `45bd355981e8fe2dcaf0588dbaa3522151116ed9` -> `caa0d719c5042b757123e0bad1786e9b7fe113e1` | `68f454a6ed097e09eba3c930091c2dd7cdd8d38e` -> `9a0c1c6f5bcb3a16b659d4ee4c4ceb437170fda9` | Body writing mode takes precedence; empty/horizontal body falls back only to its first direct non-`cfi-inert` child. |
+| `c6daf72da961c39d7740f8dcc1b1df7c2b8cdd30` -> `23d5f3363dfb7631e47a91a8cdabb0cd5f6ffd71` | `ec7e16aa483429701c7f4f19ab909ecae79dfd58` -> `183f296aaf1484e143edd6c3eb55fb77673df3de` | Remove double reversal of the RTL flex container; preserve semantic previous/next while mirroring physical input and icons. |
+| `1eaf16ffc26c9fec148cbfcb731873b37db42d40` -> `676e14234bede91e0ec89631290a2b9faa88773e` | `cc86688523f06308159b25e91649fde436788f25` -> `70d77aa747d3d6f12dc566f2fa6fa01afe464a84` | Mirror iframe-local RTL rectangles using the explicit target view, otherwise primary view, not all loaded views together. |
+
+The host already routes footer previous/next directly to native renderer actions.
+Keep that chain and semantic mouse back/forward intact. Derive ephemeral RTL from
+the rendered document matching `lastLocation.section.current`; do not select the
+first preloaded document, infer RTL from vertical writing, or persist a new setting.
+Use neutral direction while no current document is available and for TXT/FXL/PDF.
+Only physical left/right keys and footer icons mirror; keyboard help must agree.
+The renderer owns vertical detection; no second host vertical layout implementation
+or new Foliate export is needed.
+
+Acceptance requires actual same-direction reflowable EPUBs, including metadata
+that disagrees with body direction: detection positives and negatives, semantic
+navigation across sections, non-first-section/non-first-screen restore after
+adjacent fill, stable saved position and repeated reopen. Host current-document
+selection, source reset and independent panes need separate evidence. Preserve
+LTR, scrolled behavior and C9 resource ownership. No skipped tests count as proof.
+
+Mixed-direction chapter lifecycle is independently deferred in both `TODOS.md`
+files: adjacent loading calls shared `#beforeRender`, replacing `#rtl/#vertical`
+and layout state. Host selection proof does not establish mixed-direction renderer
+support. Detection of `vertical-lr` is not complete layout support. C11 gestures,
+fixed-layout/PDF direction, navigation rollback and unfinished-open cancellation
+remain separate. Unrelated locale, BooksGrid/Hardcover and gstack changes are not
+ported. Browser automation does not establish packaged or native-platform acceptance.
+
+#### C10 local RTL coordinate adaptation
+
+The literal upstream target-wrapper measurement is insufficient for this sibling's
+existing `View.expand()` layout: the content-box wrapper adds before/after blank-page
+padding, while the iframe contains only content. `#scrollToRect` already adds the
+before-padding offset, and `#getVisibleRange` subtracts it. Mirroring with the padded
+wrapper double-counted one page on a real non-first-section reopen: the small target
+was initially visible, but the iframe shifted exactly 700 CSS pixels after restore.
+Equal reported CFIs did not prove a correct display.
+
+Astra high approved the narrow local adaptation: in paginated RTL only, measure
+`targetView.document.defaultView.frameElement.getBoundingClientRect()[sideProp]`.
+Do not reconstruct a size from page counts and live paginator dimensions, which can
+refer to different layout generations during resize. Keep explicit-target/primary
+selection, the no-target fallback and both callers' padding conversion unchanged.
+Scrolled and non-RTL mappings are untouched. This remains C10, not a new layout API.
+
+#### C10 runtime evidence
+
+Final frozen browser specification: `foliate-directional-flow.spec.ts`, 5/5 PASS,
+no skips. Detection covers body precedence, both direct-child vertical modes,
+inert-child exclusion and horizontal/sideways/deeper/later-child negatives. Native
+RTL tests preserve semantic turns and restore actual visible text with unequal
+adjacent sections and with no preload plus both blank-page pads.
+
+The host test follows the current section rather than a controlled unrelated
+document in the preload collection, verifies mirrored arrows and physical keys,
+unchanged mouse-back semantics and LTR source reset. UI turns await the actual
+forwarded native Promise, not the earlier relocate event or a test sleep.
+
+Managed-file proof uses real EPUB bytes with mocked desktop file/save calls. It
+navigates to a non-first-screen anchor in section 1, checks tiny-range XY geometry,
+unmounts through `/library` twice and reconstructs distinct native views. A forwarding
+test-only public `open`/`perfTracker` observer waits for each instance's actual
+`renderer:display:fillVisibleArea` Promise. Section 2 is confirmed preloaded before
+reopen geometry and persistence checks. The saved range and target remain visible,
+the first-screen marker remains hidden, and every new save after the recorded
+boundary retains the original CFI. This proves host IPC routing, not disk persistence.
+
+The parallel case opens a real second LTR book through the production loader and
+the mounted secondary view's public API, while the primary remains RTL. This is
+direction-preview isolation, not a new secondary-route or annotation-owner contract.
+
+After the iframe-padding fix, existing six-file regressions pass 60/60 and selected
+keyboard/TXT/layout regressions pass 4/4: 69 unique browser cases including C10.
+Reader helpers 99/99, direct TTS units 15/15, sibling ZIP units 6/6, paginator syntax,
+check (zero errors/warnings), strict TypeScript, Vite build and both diff checks PASS.
+The additional legacy keyboard test needed its stale PDF sample-total assertion
+updated from 4 to the fixture's actual 5 pages. A required neutral RTL fixture field
+and existing ESM import suffix were corrected in the direct TTS test only.
+
+Evidence logs: `/tmp/br1-c10-final-freeze-e2e.log`,
+`/tmp/br1-c10-final-old60.log`, `/tmp/br1-c10-final-library4.log`,
+`/tmp/br1-c10-reader-helpers.log`, `/tmp/br1-c10-final-tts-direct.log`,
+`/tmp/br1-c10-final-freeze-check.log`, `/tmp/br1-c10-final-freeze-tsc.log`,
+`/tmp/br1-c10-final-vite-build-last.log` and `/tmp/br1-c10-sibling-zip6.log`.
+Earlier import, iframe-attribute, realm and mock-shape harness failures are not
+product RED evidence. All verification processes and task-owned compiler outputs
+were stopped/removed. No vendor generation or packaging was performed.
+
+Terra high independent task-level source, fixture and evidence review PASS,
+including the final real-fill persistence proof. Fresh Astra high whole-change
+source, ownership, evidence and ledger review PASS with no remaining blockers.
+The final reviewer independently reran strict TypeScript, paginator syntax and
+both diff checks, and recounted all ledger statuses and remaining task IDs.
+
+At C10 task closure: 678 commits, 59 covered, 407 partial, 77 gap,
+135 not-applicable, and 56 remaining primary task IDs. Authored-layout's 34 rows
+are 15 covered, 14 partial, 2 gap and 3 not-applicable. Next: S2-R04C11.

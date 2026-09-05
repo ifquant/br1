@@ -1055,6 +1055,17 @@
     const progressPercent = formatReaderProgressPercent(fraction);
     const sectionCurrent = lastLocation?.section?.current;
     const sectionTotal = lastLocation?.section?.total;
+    // Preloaded documents may come first. Chrome must follow the current
+    // section, using the same body/root RTL rule as the reflowable renderer.
+    const currentDoc = typeof sectionCurrent === 'number'
+      ? getRendererContents().find(({ index }) => index === sectionCurrent)?.doc
+      : undefined;
+    const rtl = currentFormatLabel !== 'PDF' && book.rendition?.layout !== 'pre-paginated' &&
+      !!currentDoc?.body && (
+        currentDoc.body.dir === 'rtl' ||
+        currentDoc.defaultView?.getComputedStyle(currentDoc.body).direction === 'rtl' ||
+        currentDoc.documentElement.dir === 'rtl'
+      );
     const fallbackChapter =
       typeof sectionCurrent === 'number' && typeof sectionTotal === 'number'
         ? `第 ${sectionCurrent + 1} / ${sectionTotal} 节`
@@ -1092,6 +1103,7 @@
       ),
       formatLabel: currentFormatLabel,
       layoutLabel: currentLayoutLabel,
+      rtl,
       ttsSourceText: excerpt.text,
       ttsSourceLabel: excerpt.label,
       ttsSourceLanguage: metadataLanguage.trim(),

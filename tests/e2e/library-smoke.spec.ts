@@ -2877,7 +2877,7 @@ test('reader focused-reading overlay supports keyboard transport in web mode', a
     '/reader?source=asset&url=%2Fsamples%2Fsample-outline.pdf&label=Sample%20Outline%20PDF'
   );
   await expect(page.getByLabel('reader stage').getByText(/^PDF$/)).toBeVisible();
-  await expect(page.getByLabel('当前阅读状态').getByText('第 1 / 4 页')).toBeVisible();
+  await expect(page.getByLabel('当前阅读状态').getByText('第 1 / 5 页')).toBeVisible();
   await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('menuitem', { name: '打开段落聚焦' }).click();
   const unsupportedOverlay = page.getByRole('dialog', { name: '专注阅读浮层' });

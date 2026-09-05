@@ -9,6 +9,11 @@
 
 ## Engineering Debt
 
+- Audit renderer direction ownership across mixed-direction chapters.
+  Why: adjacent-section loading calls the paginator's shared `#beforeRender`, which overwrites `#rtl` and `#vertical` even when that section is not primary.
+  Context: C10's three exact upstream patches address detection, RTL ordering and local restore coordinates, not this pre-existing lifecycle problem. Current-section selection in the host does not establish mixed-direction renderer support.
+  Depends on: a separate primary/preload direction and layout contract for LTR/RTL and horizontal/vertical transitions. Do not fold it silently into C11's vertical gesture work.
+
 - Audit cancellation of an in-flight Foliate open during source replacement or teardown.
   Why: native `close()` removes the current renderer but does not cancel an awaited `open()` or destroy book resources.
   Context: C8B retires already-open renderers before new source loading and on teardown, fixing retained interactive old documents. It does not introduce a new asynchronous open owner.

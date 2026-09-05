@@ -467,7 +467,7 @@
     }
     if (focusedReadingMode !== 'off' || event.defaultPrevented) return;
     if (!isReaderKeyboardContext(event)) return;
-    const action = resolveReaderKeyboardShortcut(event);
+    const action = resolveReaderKeyboardShortcut(event, readerPreview.rtl);
     if (!action) return;
     event.preventDefault();
     runReaderShortcut(action);
@@ -849,7 +849,7 @@
                     <dt>{shortcut.description}</dt>
                     <dd>
                       {#each shortcut.bindings as binding}
-                        <kbd>{getReaderShortcutBindingLabel(binding, usesCommandKey)}</kbd>
+                        <kbd>{getReaderShortcutBindingLabel(binding, usesCommandKey, readerPreview.rtl)}</kbd>
                       {/each}
                     </dd>
                   </div>

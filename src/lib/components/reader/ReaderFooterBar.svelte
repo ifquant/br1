@@ -66,9 +66,9 @@
     class="footer-frame"
     >
     <div class="footer-controls">
-      <button type="button" aria-label="上一页" title="上一页" on:click={() => issueControl('prev')}>‹</button>
+      <button type="button" aria-label="上一页" title="上一页" on:click={() => issueControl('prev')}>{preview.rtl ? '›' : '‹'}</button>
       <button type="button" aria-label="回到开头" title="回到开头" on:click={() => issueControl('start')}>·</button>
-      <button type="button" aria-label="下一页" title="下一页" on:click={() => issueControl('next')}>›</button>
+      <button type="button" aria-label="下一页" title="下一页" on:click={() => issueControl('next')}>{preview.rtl ? '‹' : '›'}</button>
     </div>
     <div class="footer-reading-status" aria-label="当前阅读状态">
       <div class="reading-summary">

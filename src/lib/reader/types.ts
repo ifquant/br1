@@ -22,6 +22,8 @@ export type ReaderPreviewState = {
   locationLabel: string;
   formatLabel: string;
   layoutLabel: string;
+  // Current rendered text direction, not a persisted book preference.
+  rtl: boolean;
   progressFraction: number;
   progressLocation: string;
   koreaderProgressLocation: string;
@@ -49,6 +51,7 @@ export const createEmptyReaderPreviewState = (
   locationLabel: READER_NOT_OPENED_LOCATION_LABEL,
   formatLabel: READER_UNKNOWN_FORMAT_LABEL,
   layoutLabel: READER_WAITING_LAYOUT_LABEL,
+  rtl: false,
   progressFraction: 0,
   progressLocation: '',
   koreaderProgressLocation: '',

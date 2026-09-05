@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 56 |
-| `partial` | 410 |
+| `covered` | 59 |
+| `partial` | 407 |
 | `gap` | 77 |
 | `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 37 | 220 | 22 | 55 |
+| reader core | 40 | 217 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -69,7 +69,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 30 | `888f4afde` | reader core | fix: preserve paragraph mode reading layouts and other UI/UX fixes (#3730) | `partial` | S2-F05 | Paragraph focus exists; authored layout preservation remains unproved. |
 | 31 | `6a44f609b` | reader core | fix(paginator): fixed paginator section preloading, closes #3600 and closes #3601 (#3734) | `partial` | S2-R01B | P0-2/P0-3 and reader smoke tests; exact paginator boundary is unproved. |
 | 32 | `45bd35598` | catalog/import | feat(opds): support custom catalog headers with web proxy consent (#3740) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
-| 33 | `caa0d719c` | reader core | compat(vertical): check writing mode also for child element of body, closes #3583 (#3743) | `partial` | S2-R04C10 | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 33 | `caa0d719c` | reader core | compat(vertical): check writing mode also for child element of body, closes #3583 (#3743) | `covered` | S2-R04C10 | Native body-first writing-mode detection falls back only to the first direct non-CFI-inert child; real EPUB positive and negative cases pass. This is detection, not full vertical-lr layout or mixed-direction support. |
 | 34 | `21795e5cd` | tts/audio | fix(tts): avoid race condition in preloadNextSSML causing wrong highlights (#3748) | `partial` | S2-T01 | tts.ts, ttsRuntime.ts, and TTS tests; upstream race needs a local regression. |
 | 35 | `70b94d898` | reader core | fix(layout): fixed layout of progress bar in vertical mode (#3749) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 36 | `d53f3b42e` | reading modes/controls | feat(rsvp): split words option, faster countdown, and skip pages RSVP cant open (#3755) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
@@ -99,7 +99,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 60 | `a5690e9a8` | tts/audio | fix(tts): skip br elements in PDF text layer to prevent TTS interruptions at line breaks, closes #3771 (#3811) | `partial` | S2-T03 | tts.ts, ttsRuntime.ts, and TTS tests; extraction/section parity is incomplete. |
 | 61 | `bd866cb04` | catalog/import | fix(opds): harden Content-Disposition filename parsing for complex names and encoding (#3816) | `partial` | S2-O02B | catalogs.rs and catalog tests; exact filename fixture is missing. |
 | 62 | `c6daf72da` | catalog/import | feat(opds): allow editing of registered catalogs (#3814) | `gap` | S2-O03 | catalogs.rs and catalog tests; edit/request configuration is absent. |
-| 63 | `23d5f3363` | reader core | fix(rtl): fix page navigation for Arabic books (#3817) | `partial` | S2-R04C10 | Core reading exists; this authored-layout/script edge is unverified. |
+| 63 | `23d5f3363` | reader core | fix(rtl): fix page navigation for Arabic books (#3817) | `covered` | S2-R04C10 | Remove native container double reversal; current rendered-document RTL mirrors footer glyphs and physical arrows without reversing semantic buttons or mouse actions. Actual host source reset and separate pane previews pass. |
 | 64 | `07e324878` | reader core | fix: apply disable click to paginate also for non-iframe clicks (#3818) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 65 | `3df75a67f` | tts/audio | feat(tts): support edge tts on cloudflare worker (#3819) | `not-applicable` | — | Cloud TTS provider expansion is outside the Web Speech scope. |
 | 66 | `de11511c3` | reader core | fix(layout): fixed bleed layout of images (#3823) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
@@ -274,7 +274,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 235 | `c2bbb6119` | reader core | fix(reader): keep paginated page background inside its column (#4394) (#4429) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 236 | `4d1205fdf` | reader core | fix(reader): stop zoomed image pan from flickering on desktop, closes #4451 (#4465) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
 | 237 | `1eaf16ffc` | catalog/import | fix(opds): tolerate junk after document element in feeds (#4479) (#4506) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
-| 238 | `676e14234` | reader core | fix(reader): correct RTL reading position restore on book reopen (#4505) | `partial` | S2-R04C10 | Core reading exists; this authored-layout/script edge is unverified. |
+| 238 | `676e14234` | reader core | fix(reader): correct RTL reading position restore on book reopen (#4505) | `covered` | S2-R04C10 | Mirror rectangles within the target iframe, excluding wrapper blank-page padding. Unequal adjacent views, no-preload padding, and two real managed-route unmount/reopens preserve visible non-first-screen text and saved CFI after native fill. Desktop persistence calls are mocked, not disk acceptance. |
 | 239 | `ad23fbba9` | reader core | fix(reader): dismiss annotation popup when selection clears (#4483) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
 | 240 | `8425d0b91` | catalog/import | fix(opds): render HTML in publication descriptions (#4510) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed fixture is missing. |
 | 241 | `d12e1ad08` | catalog/import | fix(opds): enable search for OPDS 2.0 JSON catalogs, closes #4502 (#4509) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (12 covered, 17 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
+- Upstream decisions: 34 commits (15 covered, 14 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -1027,9 +1027,17 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Boundary: no host refcount/store, second popup renderer, dependency/vendor churn or new image viewer. Fixed-layout cache disposal, failed navigation display rollback, full pending-open cancellation, packaged Tauri/Safari/native-mobile acceptance remain separate. Independent review closure is recorded in the C9 completion audit.
 - Ledger: 678 commits, 56 covered, 410 partial, 77 gap, 135 not-applicable, and 57 remaining primary task IDs.
 
-#### Next Task: S2-R04C10 - Align reflowable vertical and RTL behavior
+#### Completed Slice: S2-R04C10 - Align reflowable vertical and RTL behavior
 
-- Audit `caa0d719c`, `23d5f3363` and `676e14234`, including their exact nested Foliate changes. Reproduce body-child vertical detection, semantic RTL next/previous navigation, and restoration with adjacent preloaded sections before porting. C11-C21 retain their existing owners and acceptance map.
+- Scope: `caa0d719c`, `23d5f3363`, `676e14234` and their three exact nested Foliate commits. Renderer fixes stay in sibling Foliate; br1 uses transient current-document direction at its existing control boundary.
+- Result: body-child vertical detection, semantic RTL paging and visible saved-position restoration pass. Local iframe geometry avoids counting wrapper blank-page padding twice. Managed-library tests await real native fills across two unmount/reopen cycles and check both visible text and subsequent saved CFIs.
+- Verification: C10 5/5, existing browser regressions 60/60, selected keyboard/TXT/layout 4/4 (69 unique, no skips); helpers 99/99, direct TTS 15/15, sibling ZIP 6/6. Svelte check 0 errors/warnings, strict TypeScript, module syntax, Vite build and diff checks PASS. Terra high task review PASS; final whole-change review recorded in the C10 completion audit.
+- Ledger: 678 commits, 59 covered, 407 partial, 77 gap, 135 not-applicable, and 56 remaining primary task IDs.
+- Boundary: mixed-direction preload ownership is separately tracked in both TODOs. C11 gestures, complete vertical-lr/FXL/PDF direction, failed-navigation rollback, pending-open cancellation and packaged/native acceptance remain separate. Mock desktop persistence is not disk database proof.
+
+#### Next Task: S2-R04C11 - Align vertical-rl horizontal input gestures
+
+- Audit `c5304cd46` and nested Foliate `0f8570712..cecaef95b` against current input callers before reproducing and changing gesture behavior. C12-C21 retain their existing owners and acceptance map.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

@@ -109,11 +109,16 @@ type ReaderKeyboardShortcutEvent = Pick<
   'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'altKey'
 >;
 
+// Physical arrows mirror in RTL; semantic actions and mouse back/forward do not.
+const mirrorArrowKey = (key: string, rtl: boolean) =>
+  rtl && key === 'ArrowLeft' ? 'ArrowRight' : rtl && key === 'ArrowRight' ? 'ArrowLeft' : key;
+
 export const resolveReaderKeyboardShortcut = (
-  event: ReaderKeyboardShortcutEvent
+  event: ReaderKeyboardShortcutEvent,
+  rtl = false
 ): ReaderShortcutAction | null => {
   // Keyboard layouts differ on whether Shift+/ reports "/" or "?".
-  const normalizedKey = normalizeKey(event.key, event.shiftKey);
+  const normalizedKey = normalizeKey(mirrorArrowKey(event.key, rtl), event.shiftKey);
   for (const shortcut of READER_SHORTCUTS) {
     for (const binding of shortcut.bindings) {
       if (
@@ -142,7 +147,8 @@ export const resolveReaderMouseShortcut = (button: number): ReaderShortcutAction
 
 export const getReaderShortcutBindingLabel = (
   binding: ReaderShortcutBinding,
-  isMac: boolean
+  isMac: boolean,
+  rtl = false
 ) => {
   if (binding.kind === 'mouse') {
     return binding.button === 3 ? '鼠标后退键' : '鼠标前进键';
@@ -151,12 +157,13 @@ export const getReaderShortcutBindingLabel = (
   const parts: string[] = [];
   if (binding.primary) parts.push(isMac ? 'Cmd' : 'Ctrl');
   if (binding.shift) parts.push('Shift');
+  const key = mirrorArrowKey(binding.key, rtl);
   const keyLabel =
-    binding.key === 'ArrowLeft'
+    key === 'ArrowLeft'
       ? '←'
-      : binding.key === 'ArrowRight'
+      : key === 'ArrowRight'
         ? '→'
-        : binding.key.toUpperCase();
+        : key.toUpperCase();
   parts.push(keyLabel);
   return parts.join('+');
 };
