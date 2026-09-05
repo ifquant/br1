@@ -421,3 +421,108 @@ test('does not let delayed footnote extraction survive a newer click or control 
   await releaseNext();
   await expect.poll(nextStatus).toBe('completed');
 });
+
+test('keeps same- and cross-chapter explicit footnote previews independent from authored backgrounds and layout', async ({ page }) => {
+  const image = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+  const hostileNote = (id: string, imageId = '') =>
+    `<aside id="${id}" epub:type="footnote" class="hostile-footnote" style="background-image: url('${image}'); width: 1200px; height: 900px; border: 37px solid rgb(255, 0, 0)"><p class="hostile-copy" style="display: block; width: 1100px">C4 native <em class="hostile-emphasis" style="font-size: 96px">emphasis</em><img${imageId ? ` id="${imageId}"` : ''} class="hostile-image" style="width: 800px; height: 700px" src="${image}" alt="" /></p></aside>`;
+  const plainNote = (id: string) =>
+    `<aside id="${id}" epub:type="footnote"><p>C4 native <em>emphasis</em></p></aside>`;
+
+  for (const [viewportName, viewport] of [
+    ['desktop', { width: 1280, height: 720 }],
+    ['narrow', { width: 640, height: 720 }]
+  ] as const) {
+    await page.setViewportSize(viewport);
+    const frame = await openEpub(
+      page,
+      `c4-authored-layout-${viewportName}`,
+      `<p><a id="styled-note-ref" href="#styled-note" epub:type="noteref">[1]</a></p>
+       <p><a id="plain-note-ref" href="#plain-note" epub:type="noteref">[1]</a></p>
+       <p><a id="cross-styled-note-ref" href="notes.xhtml#cross-styled-note" epub:type="noteref">[1]</a></p>
+       <p><a id="cross-plain-note-ref" href="notes.xhtml#cross-plain-note" epub:type="noteref">[1]</a></p>
+       ${hostileNote('styled-note', 'styled-note-image')}
+       ${plainNote('plain-note')}`,
+      [
+        {
+          id: 'notes',
+          href: 'notes.xhtml',
+          body: `${hostileNote('cross-styled-note')}${plainNote('cross-plain-note')}`
+        }
+      ]
+    );
+    const dialog = page.getByRole('dialog', { name: '脚注预览' });
+    const styledTarget = frame.locator('#styled-note');
+    await expect.poll(() =>
+      frame.locator('#styled-note-image').evaluate((element) => (element as HTMLImageElement).naturalWidth)
+    ).toBe(1);
+    const sourceBefore = await styledTarget.evaluate((target) => ({
+      html: target.outerHTML,
+      className: target.getAttribute('class'),
+      style: target.getAttribute('style'),
+      imageCount: target.querySelectorAll('img').length,
+      backgroundImage: target.ownerDocument.defaultView?.getComputedStyle(target).backgroundImage,
+      width: target.ownerDocument.defaultView?.getComputedStyle(target).width,
+      height: target.ownerDocument.defaultView?.getComputedStyle(target).height,
+      borderTopWidth: target.ownerDocument.defaultView?.getComputedStyle(target).borderTopWidth
+    }));
+
+    expect(sourceBefore.className).toBe('hostile-footnote');
+    expect(sourceBefore.style).toContain('background-image');
+    expect(sourceBefore.imageCount).toBe(1);
+    expect(sourceBefore.backgroundImage).not.toBe('none');
+    expect(sourceBefore.width).toBe('1200px');
+    expect(sourceBefore.height).toBe('900px');
+    expect(sourceBefore.borderTopWidth).toBe('37px');
+
+    const openPreview = async (referenceId: string) => {
+      await frame.locator(`#${referenceId}`).click();
+      await expect(dialog).toBeVisible();
+      const body = dialog.locator('.footnote-body');
+      await expect(body).toHaveText('C4 native emphasis');
+      await expect(body.locator('em')).toHaveText('emphasis');
+      await expect(body.locator('img')).toHaveCount(0);
+      const preview = await body.evaluate((element) => ({
+        html: element.innerHTML,
+        attributes: Array.from(element.querySelectorAll('*')).flatMap((node) => node.getAttributeNames()),
+        backgroundImage: getComputedStyle(element).backgroundImage
+      }));
+      const box = await dialog.boundingBox();
+      if (!box) throw new Error('expected the native footnote popup geometry');
+      const stage = await dialog.evaluate((element) => {
+        const stage = element.closest('.reader-stage');
+        if (!stage) throw new Error('expected the native footnote popup stage');
+        const { x, y, width, height } = stage.getBoundingClientRect();
+        return { x, y, width, height };
+      });
+      expect(preview.attributes).toEqual([]);
+      expect(preview.backgroundImage).toBe('none');
+      // The reader page itself can scroll; C4 bounds the excerpt to its stage,
+      // not the whole reader chrome to a short browser viewport.
+      expect(box.width).toBeLessThanOrEqual(stage.width);
+      expect(box.height).toBeLessThanOrEqual(300);
+      expect(box.height).toBeLessThanOrEqual(stage.height);
+      expect(box.x).toBeGreaterThanOrEqual(stage.x - 1);
+      expect(box.y).toBeGreaterThanOrEqual(stage.y - 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(stage.x + stage.width + 1);
+      expect(box.y + box.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
+      await closeFootnote(page);
+      return { preview, box };
+    };
+    const sameChapterStyled = await openPreview('styled-note-ref');
+    expect(await styledTarget.evaluate((target) => target.outerHTML)).toBe(sourceBefore.html);
+    const sameChapterPlain = await openPreview('plain-note-ref');
+    const crossChapterStyled = await openPreview('cross-styled-note-ref');
+    const crossChapterPlain = await openPreview('cross-plain-note-ref');
+
+    for (const [styled, plain] of [
+      [sameChapterStyled, sameChapterPlain],
+      [crossChapterStyled, crossChapterPlain]
+    ]) {
+      expect(plain.preview.html).toBe(styled.preview.html);
+      expect(Math.abs(plain.box.width - styled.box.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(plain.box.height - styled.box.height)).toBeLessThanOrEqual(1);
+    }
+    expect(crossChapterStyled.preview.html).toBe(sameChapterStyled.preview.html);
+  }
+});

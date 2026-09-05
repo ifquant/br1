@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C3.
+local implementation and verification are recorded separately for C1-C4.
 
 ## Frozen and provisional slices
 
@@ -22,7 +22,7 @@ local implementation and verification are recorded separately for C1-C3.
 | **S2-R04C1** | Code literal rendering plus Persian/Arabic BiDi sanitization | `69599e2bc`, `44953f568`, `2f9262e02`; decisions for `6626db967`, `86493e801` | Complete: first three covered, two skip-link fixes not-applicable because br1 injects no equivalent skip link. |
 | **S2-R04C2** | Russian short-word non-breaking spaces | `370a51662` | Complete: metadata-gated prose rule, valid XHTML output, and representative EPUB/CFI regression. |
 | **S2-R04C3** | Footnote recognition and guarded extraction | `87f0240b0`, `b223ccaee`, `54aa20d4f` | Complete at the native host owner, with real-reader regressions and explicit inactive-library boundaries. |
-| **S2-R04C4** | Footnote popup visual integrity | `1d8ed3fc9`, `d6e981e56` | Provisional. Background suppression and namespace ordering are small, independent guards in one popup-layout slice. |
+| **S2-R04C4** | Footnote popup visual integrity | `1d8ed3fc9`, `d6e981e56` | Native background-isolation proof; the exact custom-font/namespace ordering bug is not-applicable. No new popup renderer or source-aside hiding policy. |
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Provisional standalone interaction slice. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Provisional standalone navigation-feedback slice. |
 | **S2-R04C7** | Jump from popup to the visible book target | `aab58241d` | Provisional standalone popup-navigation slice. |
@@ -100,7 +100,7 @@ Russian configured words in `370a51662` are:
 | `87f0240b0` | 8 files, +6/-84 | Adds the first descendant image's `alt` to the no-navigation vendor-marker path, not href target extraction. Priority is `data-wr-footernote`, `zy-footnote`, descendant image `alt`, marker `alt`, clicked element `alt`. The four vendor classes include a no-href Duokan anchor; Readest renders the string via `textContent`. Unrelated continuous-scroll removal is not part of C3. | No foliate move. |
 | `b223ccaee` | 2 files, +4/-1 | Marks anchors matching `^.{0,2}\d+$` as deferred `check` candidates. Nested Foliate accepts `maybe() || check`; after inline-ancestor extraction it accepts semantic note/list/definition branches. Only the generic descendant-link branch requires at most three direct element children; a generic no-link target is rejected. Missing/malformed targets fall back to ordinary navigation. This is a structural heuristic, not a content-size security limit. | `7657c78bd..2bf0cecfc`: one nested commit, deferred validation in `footnotes.js`. |
 | `54aa20d4f` | 3 files, +119/-1 | Replaces the bare numeric test with `shouldCheckAsFootnote`. It rejects a candidate when any of the first three ancestor containers contains at least two *other* short-numeric links, preventing numeric chapter/verse lists from opening as footnotes. | No foliate move. Refines `b223ccaee`; both rules are needed for the final detector. |
-| `1d8ed3fc9` | 2 files, +2/-1 | Sets `no-background` on the popup renderer. Foliate observes that attribute and skips document background-image sizing/replacement, so an authored background is not treated as popup content. | `f860916a2..af4f384b7`: adds the paginator `no-background` contract. |
+| `1d8ed3fc9` | 2 files, +2/-1 | Sets `no-background` on the popup renderer. Foliate observes that attribute and skips document background-image sizing/replacement, so an authored background is not treated as popup content. | `f860916a2..af4f384b7`: adds the paginator `no-background` contract and changes scrolled horizontal page-margin variables. Background proof is C4; the remaining margin obligation keeps this parent partial under S2-U01B. |
 | `d6e981e56` | 2 files, +25/-7 | Moves `@namespace epub` to the first line of the assembled reader stylesheet, before custom `@font-face` rules. This keeps `aside[epub|type~=footnote]` valid and hidden when custom fonts are loaded. | No foliate move. |
 | `7c0419961` | 2 files, +272/-32 | Uses a `ResizeObserver` to keep popup height fitted after content settles; seeds alt-text popup size without a later 88px overwrite; disconnects stale observers and ignores superseded loads; shows image/element-only popups from measured content even when foliate emits no relocate event. | No foliate move. Standalone lifecycle behavior. |
 | `dbe0dae0a` | 5 files, +176/-58 | Generalizes the transient search marker into an href/range highlighter and flashes the target after default in-page navigation, failed popup extraction fallback, and links followed inside a popup. Timers are cleared on replacement/unmount. | No foliate move. |
@@ -151,7 +151,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 | `caa0d719c` | `68f454a6e..9a0c1c6f5` | `9a0c1c6` | Detect vertical writing mode on the first non-CFI-inert body child. |
 | `23d5f3363` | `ec7e16aa4..183f296aa` | `183f296` | Remove RTL `row-reverse` from paginator container layout. |
 | `b223ccaee` | `7657c78bd..2bf0cecfc` | `2bf0cec` | Accept deferred footnote validation and reject implausible checked extraction targets. |
-| `1d8ed3fc9` | `f860916a2..af4f384b7` | `af4f384` | Add `no-background` paginator behavior used by footnote popups. |
+| `1d8ed3fc9` | `f860916a2..af4f384b7` | `af4f384` | Add `no-background` getter/observed attribute and guards for image sizing/background replacement. Also change scrolled horizontal `--page-margin-left/right` to half margin plus half gap; that outstanding obligation is assigned to S2-U01B. Paginated formula extraction is equivalent. |
 | `cf44e8518` | `554b4bf2b..4460d75ae` | `4460d75` | Set fullscreen image/SVG fitting to contain/meet. |
 | `676e14234` | `cc8668852..70d77aa74` | `70d77aa` | Mirror RTL rects in the target view's local width during restore. |
 | `a9526377a` | `18d304bd6..828d6132e` | `828d613` | Stretch paginated Duokan covers with fill/none; later superseded. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C4**. Each slice starts by checking current local callers
+Continue with **S2-R04C5**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -193,7 +193,7 @@ an explicit owner explanation rather than a manufactured runtime test.
 |---|---|
 | C2 | Russian-only short/function-word NBSP, consecutive matches, number successors, literal-content exclusions, and stable text length. |
 | C3 | No-href vendor image-alt markers render inert text; checked `li`/`aside`/`dt`/enclosing-`li`/`.note` targets remain accepted, including over three children. Generic link-bearing targets accept at most three direct children; no-link/missing targets navigate normally. Numeric chapter/verse lists suppress only provisional checks. Cross-section resolution must not reuse a current-document ID. |
-| C4 | Popup backgrounds do not affect size; namespace footnote selectors still work after custom fonts. |
+| C4 | Native popup content excludes authored backgrounds and layout attributes without changing preview size. The original namespace/custom-font criterion is not-applicable: br1 assembles neither custom font faces nor namespace-dependent hide selectors. This does not establish source-aside border suppression or custom-font parity. |
 | C5 | Late-loading image content fits; closing or replacing the popup cancels observers and stale loads. |
 | C6 | In-page target cue appears and is cleared on replacement, close, or navigation. |
 | C7 | Visible targets support popup-to-book jumps; hidden footnote targets do not offer misleading jumps. |
@@ -273,8 +273,51 @@ that no stale popup or fallback `goTo` occurs. The added no-next-block range cas
 passed the six-case footnote rerun; a final `.note` fixture rename to avoid the
 legacy ID heuristic passed its focused rerun. Production source was unchanged
 by those fixture-only edits. Independent Terra high task review and Astra
-high final review passed. Current totals are 678 commits: 51 covered,
+high final review passed. At C3 closure, totals were 678 commits: 51 covered,
 416 partial, 77 gap, 134 not-applicable, and 63 remaining task IDs.
 
 C4-C9's visual, media, selection and resource-lifetime obligations remain
 separate. No packaged Tauri/mobile or full concurrency stress is claimed.
+
+### C4 native popup applicability
+
+Readest `1d8ed3fc9` enables `no-background` on its separate Foliate popup.
+br1 instead clones the selected excerpt in `ReaderViewport`, strips authored
+styles, images and attributes, and presents only allowed markup in the native
+`ReaderFootnotePopup`. The popup's own background and scroll limits remain
+intentional. No paginator attribute or second popup renderer is needed here.
+
+The nested range `f860916a2..af4f384b7` contains one commit, touching
+`paginator.js` (+18/-9). Besides the background contract, its scrolled layout
+changes both horizontal `--page-margin-left/right` variables from full margin
+plus half gap to half margin plus half gap. The paginated hunk extracts
+equivalent formulas into variables. br1's sibling still has the older scrolled
+formula. Keep parent `1d8ed3fc9` partial under existing S2-U01B for this separate
+spacing obligation; do not infer coverage from nearby `a43845b4c`.
+
+Readest `d6e981e56` changes the order of rules in its host-assembled stylesheet;
+it does not move the Foliate gitlink. br1's `getReaderViewStyles` has no injected
+custom `@font-face`, `@namespace`, or namespace-dependent aside selector, and
+its current settings select only serif/sans families. The exact ordering bug
+is therefore not-applicable, not a claim that font support is complete.
+
+Source-aside border suppression remains unimplemented. Adding `display: none`
+would introduce a separate visibility policy: a descriptive link or a rejected
+numeric marker may use normal navigation rather than a popup. Hiding its target
+without a reveal contract could make the content inaccessible. Track that
+decision separately; do not hide source content merely to emulate the repair.
+
+The final browser run passed 13/13 (seven footnote tests and six authored-text
+regressions). C4 compares same/cross-chapter previews at 1280px and 640px widths,
+checks that embedded artwork loads and source styling is present, preserves the
+source DOM, and verifies clean markup, stage containment and equal styled/plain
+dimensions. Initial desktop-only width and absolute-viewport assertions were
+corrected: C4 does not prove full reader layout inside a short-height viewport.
+`pnpm check` passed with 0 errors/warnings, `pnpm build` passed (before later
+test-only corrections), and `git diff --check` plus the ledger recount passed.
+Fresh Terra high task review and Astra high final review passed.
+
+Current totals: 678 commits, 51 covered, 415 partial, 77 gap, 135 not-applicable,
+and 62 remaining task IDs. C4 is closed at its native owner; parent `1d8ed3fc9`
+remains partial for the separate S2-U01B obligation. No packaged Tauri/mobile,
+custom-font assembly, rich popup media, or source-aside hiding is claimed.

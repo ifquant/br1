@@ -9,6 +9,11 @@
 
 ## Engineering Debt
 
+- Decide source-footnote visibility together with destination access before hiding EPUB asides.
+  Why: br1 previews only recognized footnote links; ordinary links, rejected numeric markers, and fallback navigation can still need the original aside.
+  Context: S2-R04C4 marks Readest `d6e981e56`'s exact custom-font/namespace ordering bug not-applicable, not source-aside border suppression as complete.
+  Depends on: an explicit hide/reveal contract covering normal navigation and image-only targets. If custom font faces and namespaced selectors are later assembled together, declare the namespace before font-face and style rules.
+
 - Split the unified reader/bridge store after the first stable v1 loop.
   Why: the current plan explicitly chooses one larger store for speed, which will increase coupling between reading state, bridge UI state, persistence, and TTS interactions over time.
   Pros: clearer test boundaries, easier bug isolation, lower blast radius when bridge features grow.

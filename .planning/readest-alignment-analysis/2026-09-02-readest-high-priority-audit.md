@@ -19,13 +19,13 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | Status | Commits |
 | --- | ---: |
 | `covered` | 51 |
-| `partial` | 416 |
+| `partial` | 415 |
 | `gap` | 77 |
-| `not-applicable` | 134 |
+| `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 32 | 226 | 22 | 54 |
+| reader core | 32 | 225 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -149,7 +149,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 110 | `dab92c8a4` | reader core | fix(pdf): prevent continuous scroll kickback (#3990) | `covered` | S2-R03B2 | The nested foliate-js change `2204a28..9f12ba9` is matched by page-index plus intra-page-fraction anchoring around scroll-page resize, with a repeated real-PDF browser regression. |
 | 111 | `234ecc311` | ai/assist/dictionary | fix(epub): fall back to case-insensitive zip lookups (#3991) | `covered` | S2-R04A1 | foliate now prefers exact ZIP paths, falls back only to unique case-folded paths, and rejects ambiguous collisions in a focused real-ZIP regression. |
 | 112 | `d609de58f` | reader core | fix(reader): preserve position when toggling scrolled mode, closes #3987 (#3996) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
-| 113 | `1d8ed3fc9` | reader core | fix(footnote): ignore background image in footnotes (#3998) | `partial` | S2-R04C4 | Core reading exists; this authored-layout/script edge is unverified. |
+| 113 | `1d8ed3fc9` | reader core | fix(footnote): ignore background image in footnotes (#3998) | `partial` | S2-U01B | C4 covers native popup background isolation without a second paginator. Nested `af4f384b7` also changes scrolled horizontal page-margin variables; that separate spacing behavior remains unproved under S2-U01B. |
 | 114 | `a43845b4c` | reader core | fix(layout): symmetric margins and gap in 2-column layout, closes #3909 (#4002) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 115 | `5a0a70a30` | ai/assist/dictionary | feat(reader): custom dictionaries (StarDict + MDict) (#4012) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
 | 116 | `486659a1c` | reader core | feat(annotations): deep links for highlight exports (#4018) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
@@ -290,7 +290,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 251 | `cf41e7d50` | reading modes/controls | feat(rsvp): apply reader font face/family settings to the RSVP word (#4519) (#4537) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 252 | `64350ca63` | reader core | fix(reader): keep scrolled-mode scrollbar visible after opening a book (#4470) (#4538) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 253 | `755bee1ee` | reader core | fix(reader): prevent accidental paragraph-mode exit and center its bar (#4474) (#4539) | `partial` | S2-F05 | Paragraph focus exists; exit arbitration and bar placement need focused proof. |
-| 254 | `d6e981e56` | reader core | fix(reader): hide footnote aside border again when custom fonts are loaded (#4438) (#4540) | `partial` | S2-R04C4 | Core reading exists; this authored-layout/script edge is unverified. |
+| 254 | `d6e981e56` | reader core | fix(reader): hide footnote aside border again when custom fonts are loaded (#4438) (#4540) | `not-applicable` | S2-R04C4 | br1 assembles neither custom font faces nor namespace-dependent aside selectors. The exact ordering regression is absent; source-aside hiding remains unsupported and tracked separately in TODOS.md. |
 | 255 | `390c71107` | ai/assist/dictionary | feat(rsvp): configurable start delay, word stepping, context dictionary lookup, and keyboard shortcut (#4541) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 256 | `ceddee379` | library | feat(library): search a book on Goodreads from the library and reader (#4543) (#4548) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 257 | `9dc41e7ad` | reader core | feat(reader): reference page numbers from EPUB page-list with manual page count fallback (#4549) | `partial` | S2-R04C20 | foliate exposes EPUB page-list data, but br1 lacks focused proof for labels and the missing-page-list fallback. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (7 covered, 23 partial, 2 gap, 2 not-applicable)
+- Upstream decisions: 34 commits (7 covered, 22 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -959,11 +959,18 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: six real-reader footnote browser tests, six authored-text regressions, and four existing footnote/sanitizer/TXT regressions passed (16/16). After adding the no-next-block case, the footnote suite passed again (6/6); the final `.note` fixture correction passed its focused rerun (1/1). `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS, production source unchanged by later fixture-only edits); `git diff --check` (PASS). Independent Terra high task review and Astra high final review passed.
 - Boundary: Structural validation is not a size/security limit. br1 ports the nested behavior at its active host owner without a second view; the unused sibling `FootnoteHandler` API remains unchanged. Delayed-read tests instrument the real book's `createDocument` and hold the real `next` entrypoint, not the whole renderer. Superscript-only inference, rich popup media/layout, selection anchoring, packaged Tauri/mobile, and full lifecycle stress remain unclaimed.
 
-#### Next Task: S2-R04C4 - Preserve footnote popup visual integrity
+#### Completed Task: S2-R04C4 - Preserve footnote popup visual integrity
 
 - Scope: `1d8ed3fc9`, `d6e981e56`, including nested foliate `f860916a2..af4f384b7`.
-- Start by checking applicability to br1's sanitized native popup, then verify background handling and namespace/style ordering at their actual owners. Do not introduce a second popup renderer solely for parity.
-- Remaining C4-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
+- Outcome: Existing native sanitization excludes authored background images, borders, and layout attributes. No production change or popup paginator is needed. `d6e981e56`'s exact custom-font/namespace ordering bug is not-applicable; source-aside hiding is not claimed.
+- Nested boundary: `af4f384b7` observes `no-background`, exposes its getter, and guards background sizing/replacement. It also changes scrolled horizontal `--page-margin-left/right` from full margin plus half gap to half margin plus half gap. That unproved spacing delta keeps the parent commit partial under S2-U01B; paginated formula extraction does not prove scrolled parity.
+- Verification: `pnpm exec playwright test tests/e2e/footnote-compat.spec.ts tests/e2e/authored-text-compat.spec.ts --workers=1` (PASS, 13/13 after correcting overbroad geometry assertions); `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS, production source unchanged by later test edits); `git diff --check` and 678-row ledger recount (PASS). Fresh Terra high task review and Astra high final review passed.
+- Boundary: No rich popup media, custom-font infrastructure, source-aside hide/reveal policy, complete short-height viewport layout, packaged Tauri, or mobile acceptance. The native-popup proof covers 1280px and 640px browser widths, same/cross-chapter excerpts, stage containment, equal styled/plain sizes, and intact source DOM.
+
+#### Next Task: S2-R04C5 - Audit popup sizing and stale-load lifecycle
+
+- Scope: `7c0419961`. Check applicability at the native popup and extraction owners before changing behavior; br1 currently strips image content rather than mounting a second renderer.
+- Remaining C5-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 
@@ -1366,11 +1373,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-U01B - Consolidate typography and spacing settings
 
 - Phase: Step 2
-- Upstream decisions: 19 commits (0 gap, 19 partial)
+- Upstream decisions: 20 commits (0 gap, 20 partial), including the remaining nested margin obligation from `1d8ed3fc9`.
 - Outcome: Keep fonts, authored paragraph overrides, margins, columns, and readable limits coherent.
 - Touches: typography/layout settings and persistence tests
 - Verify: `pnpm check`; `typography smoke`; `visual desktop check`
-- Commits: `e9c5ebb69`, `e9d71b293`, `c58153e94`, `a43845b4c`, `49b171f5e`, `e8675fb7e`, `c2bbb6119`, `5cab1fa94`, `97868f048`, `fd8fbb178`, `0c24aad60`, `fdd13a5a6`, `0e125b156`, `eacb517de`, `46947af4b`, `ca2c1298b`, `9700e59cd`, `181ac99a8`, `13e027286`
+- Commits: `e9c5ebb69`, `e9d71b293`, `c58153e94`, `1d8ed3fc9`, `a43845b4c`, `49b171f5e`, `e8675fb7e`, `c2bbb6119`, `5cab1fa94`, `97868f048`, `fd8fbb178`, `0c24aad60`, `fdd13a5a6`, `0e125b156`, `eacb517de`, `46947af4b`, `ca2c1298b`, `9700e59cd`, `181ac99a8`, `13e027286`
+- Nested follow-up: Reproduce scrolled horizontal `--page-margin-left/right` consumers for `af4f384b7` before porting its half-margin formula. Audit beside `a43845b4c`, without assuming the latter supersedes or covers it. C4's popup-background proof is independent.
 
 ## Verification
 
