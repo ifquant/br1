@@ -14,10 +14,15 @@
   Context: C8B retires already-open renderers before new source loading and on teardown, fixing retained interactive old documents. It does not introduce a new asynchronous open owner.
   Depends on: a separate source-open lifecycle audit and held-open completion tests; do not equate the C8B selection epoch with complete open cancellation.
 
-- Audit C9 shared EPUB resource lifetime against the exact nested Foliate refcount change.
-  Why: C8's selection and annotation proof does not establish shared loader ownership or final blob release.
-  Context: C8A-D are complete within the native popup contract, without adding a second renderer or modifying Foliate. The next upstream parent is `a193cbc35`.
-  Depends on: inspecting each current reader/parallel/popup source caller and the nested old/new commits, then proving repeated popup close cannot break live reader resources and final owners release them correctly. Full pending-open cancellation remains a separate audit above.
+- Audit fixed-layout cache release independently of completed C9 paginator resource accounting.
+  Why: the fixed-layout renderer has section loads without corresponding unload calls; paginator final-release proof cannot establish its cache/disposal policy.
+  Context: C9 ports the EPUB Loader reference/content-read fix and removes the paginator's duplicate release. Its real shared-book and br1 resource gates pass without a second popup renderer or host compensation.
+  Depends on: fixed-layout spread/scroll cache ownership, final disposal and shared-book tests. Keep this distinct from pending-open cancellation above.
+
+- Preserve the prior reader display/state when a destination chapter fails to load.
+  Why: existing paginator far navigation retires old views before loading the destination and catches failure as an empty display result.
+  Context: this predates C9. The C9 rejected-load regression proves other holders remain valid and final resources release; it does not claim to restore the failing view's previous display, location or history.
+  Depends on: a separate navigation-failure admission/rollback audit, not a second resource store or blanket book destruction.
 
 - Decide source-footnote visibility together with destination access before hiding EPUB asides.
   Why: br1 previews only recognized footnote links; ordinary links, rejected numeric markers, and fallback navigation can still need the original aside.

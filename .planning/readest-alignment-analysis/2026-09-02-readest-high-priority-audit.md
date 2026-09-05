@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 55 |
-| `partial` | 411 |
+| `covered` | 56 |
+| `partial` | 410 |
 | `gap` | 77 |
 | `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 36 | 221 | 22 | 55 |
+| reader core | 37 | 220 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -652,7 +652,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `covered` | S2-R04C8 | C8A-D verify source provenance, pristine CFI round trips, scoped tools/persistence, reverse annotation mapping, ID-keyed redraw/edit/delete and stale lifetime rejection. Native mouse/keyboard, resize and simultaneous parallel popups pass; nested second-view CFI rewriting is not needed by the native architecture. |
 | 614 | `9dedaf804` | tts/audio | feat(reader): pair local audiobooks with ebooks (#5754) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 615 | `9213c6af1` | tts/audio | fix(tts): make sentence and paragraph pauses consistent (#5753) | `partial` | S2-T04A | tts.ts, ttsRuntime.ts, and TTS tests; voice/timing parity is incomplete. |
-| 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `partial` | S2-R04C9 | Core reading exists; this authored-layout/script edge is unverified. |
+| 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `covered` | S2-R04C9 | Exact nested Loader reference/content-read fix plus native paginator single-release correction. Real shared-book views, normal/rejected navigation, fresh image fetch/decode, final release and br1 popup/parallel/replacement/teardown paths pass. Fixed-layout disposal and transactional navigation failure recovery remain separate audited gaps. |
 | 617 | `f7f8a830d` | catalog/import | feat(opds): confirm auto-download toggles and allow catalog reordering (#5746) (#5760) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 618 | `89821136f` | library | fix(cbz): order split chapter folders base-first (#5762) | `covered` | S2-R04A3 | CBZ page paths are compared segment by segment with numeric collation; browser coverage proves base, `(2)`, `(3)`, `(10)` and numeric page order. |
 | 619 | `771b152e5` | ai/assist/dictionary | feat(dictionaries): add bundled plugin and Yomitan support (#5764) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (11 covered, 18 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
+- Upstream decisions: 34 commits (12 covered, 17 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -1018,9 +1018,18 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Closure: parent `631cd6454` is covered within the frozen native contract. The 678-row ledger now has 55 covered, 411 partial, 77 gap, 135 not-applicable, and 58 remaining primary task IDs.
 - Boundary: no second renderer/store or Foliate dependency change. C9 resource refcounts, full pending-open cancellation, packaged Tauri, Safari and native-mobile acceptance are not claimed.
 
-#### Next Task: S2-R04C9 - Audit shared EPUB resource lifetime
+#### Completed Slice: S2-R04C9 - Balance shared EPUB resource lifetime
 
-- Resolve `a193cbc35` and its exact nested Foliate refcount change against current native callers before choosing a port. Prove repeated popup open/close preserves reader resources and final owners release resources correctly; do not infer applicability from the absence of a second popup renderer. C10-C21 retain their existing owners and acceptance map.
+- Implementation: sibling `foliate-js@4b6ecb21116cf2f5a8da07b50c97ce1d3440b2c6`; br1 integration evidence and tutorial `0730`.
+- Exact source audit: parent `a193cbc35e0bba954e6610b1d0170c3548a37d80`, sole nested `57c9358ad83076ebe99c127f82125103319d170e..c1f0c3c558cc919db89a1380edea836d6e846835`. Both upstream Loader behaviors were missing locally. Top-level section loads now count independently; content reads borrow held references. Native paginator view removal owns the only settled release, eliminating its extra old-section unload on navigation completion.
+- Verification: C9 browser matrix 5/5, existing footnote/authored/mapping/archive regressions 55/55 (60 unique browser cases, no skips), helpers 99/99, check 0 errors/warnings, final strict TypeScript and production build PASS. Sibling ZIP tests 6/6, module syntax and both diff checks PASS. Red/green evidence distinguishes loader over/under-counting from the native navigation double release.
+- Ownership proof includes two native views on one book in paginated/scrolled modes, three plain-close and three navigation-close cycles per mode, rejected destinations, shared CSS/image dependencies, and final release before book destruction. Actual br1 popup/parallel/replacement/SPA teardown keeps its own existing owners.
+- Boundary: no host refcount/store, second popup renderer, dependency/vendor churn or new image viewer. Fixed-layout cache disposal, failed navigation display rollback, full pending-open cancellation, packaged Tauri/Safari/native-mobile acceptance remain separate. Independent review closure is recorded in the C9 completion audit.
+- Ledger: 678 commits, 56 covered, 410 partial, 77 gap, 135 not-applicable, and 57 remaining primary task IDs.
+
+#### Next Task: S2-R04C10 - Align reflowable vertical and RTL behavior
+
+- Audit `caa0d719c`, `23d5f3363` and `676e14234`, including their exact nested Foliate changes. Reproduce body-child vertical detection, semantic RTL next/previous navigation, and restoration with adjacent preloaded sections before porting. C11-C21 retain their existing owners and acceptance map.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

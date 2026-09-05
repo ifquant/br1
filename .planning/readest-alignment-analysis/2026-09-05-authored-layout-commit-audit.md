@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7 and C8A-C8D.
+local implementation and verification are recorded separately for C1-C7, C8A-C8D and C9.
 
 ## Frozen and provisional slices
 
@@ -27,7 +27,7 @@ local implementation and verification are recorded separately for C1-C7 and C8A-
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Shared native navigation completion with a four-second visual-only target cue; popup-internal links remain absent. |
 | **S2-R04C7** | Jump from popup to the book target unless known hidden | `aab58241d` | Native preview action with original-target ancestor styles and upstream unknown-default-allow policy; not pre-rendered visibility proof. |
 | **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Complete within the frozen native contract: C8A provenance, C8B validated selection, C8C scoped actions/persistence and C8D reverse mapping/record interactions. |
-| **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Provisional renderer-lifetime slice; requires the exact foliate refcount behavior. |
+| **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Complete: exact Loader count/content-read fix plus native paginator single-release ownership, proved through shared-view and actual br1 resource lifetimes. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Provisional directional-flow slice. Ignore unrelated locale and submodule churn in the Readest commits. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Provisional standalone paginator/input slice; large behavior surface. |
 | **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Provisional small CJK selection slice. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C9**. Each slice starts by checking current local callers
+Continue with **S2-R04C10**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8 is complete within its documented native contract below. C9-C21 remain
+run. C8 and C9 are complete within their documented native contracts below. C10-C21 remain
 pending; their table entries are executable specifications, not completion claims.
 
 ### C2 implementation boundary
@@ -704,3 +704,101 @@ At C8 closure the ledger contains 678 commits: 55 covered, 411 partial, 77 gap,
 No Foliate dependency change, second popup renderer or independent notes store.
 C9 and full pending source-open cancellation remain separate obligations.
 Packaged Tauri, Safari and native mobile gestures remain unverified.
+
+### C9 resource-reference completion contract
+
+Target: Readest `a193cbc35e0bba954e6610b1d0170c3548a37d80`, including
+`57c9358ad..c1f0c3c55`. The following runtime gates have passed.
+Independent Sol high audit resolves the parent to
+`9213c6af105a65b6156039d90eece90b3b20df04` and the sole nested range to
+`57c9358ad83076ebe99c127f82125103319d170e..c1f0c3c558cc919db89a1380edea836d6e846835`.
+The Readest parent adds 166 test lines plus the gitlink (`+167/-1`); the nested
+commit changes only `epub.js` (`+18/-1`). Its two inseparable behaviors are
+top-level acquisition on every cached section load and borrowing the cached URL
+for the subsequent XHTML content read. Both are missing at sibling
+`758f218f2f6964b7c595906732520fc788c55f23`.
+
+The nested paginator blob is unchanged across that range
+(`8ecc8de8188514c4c135771d70caafbc4b8d4cef`); the Readest test blob is
+`a88bd180f8a233088704c813cccb250e900d3e70`. Its two tests exercise Loader calls,
+not actual views or settled navigation. The local runtime gates below extend
+that evidence through br1's actual owners rather than copying its test boundary.
+
+Astra high freezes the existing EPUB loader as the reference-count owner.
+Each successful top-level section load acquires one reference; the owning
+renderer releases it once. A following content read borrows that held reference.
+Parent-to-child resource deduplication remains separate from top-level owners.
+br1's sanitized text popup reads a loaded/pristine document without acquiring a
+second renderer reference. Independently opened parallel books remain independent.
+
+| Required gate | Evidence needed before closure |
+| --- | --- |
+| Both upstream accounting defects | Repeated section load/unload retains surviving owners; repeated held content reads do not leak an extra reference; cold content reads retain their existing releasable-load behavior. |
+| Shared children | Repeated dependencies within one parent do not overcount; two section parents keep a shared CSS/image resource alive until its last parent closes. |
+| Real shared-book renderers | Two actual native views use one book. Three temporary open/init/close cycles leave the held reader image freshly fetchable and decodable. Final close releases chapter and child URLs before any test cleanup calls book destruction. |
+| Settled navigation balance | A navigating view cannot release the other view's section reference. Exercise paginated and scrolled paginator paths, including adjacent section acquisition. |
+| Rejected destination | When another view's destination load rejects before acquiring resources, the original holder retains fetchable/decodable resources through that view's close. Final holder close still releases them. |
+| Actual br1 popup and teardown | Three real popup cycles preserve the original reader image URL. Normal settled source replacement and SPA reader teardown release old section resources while the replacement reader stays usable. |
+| Closure | Focused red/green evidence, compatibility regressions, checks/build, fresh task review, final whole-change review, and a reconciled commit ledger. |
+
+The caller audit identifies a second release in the paginator's navigation
+completion callback after its existing view-removal owner already unloads the
+old section. A demonstrated settled-navigation imbalance belongs to C9 and must
+not be deferred as pending-open cancellation.
+
+An already-decoded image can remain painted after its URL is revoked. The
+resource gates therefore require a fresh fetch and image decode, not merely a
+screenshot or the existing image's natural dimensions. br1 has no popup image
+viewer, and C5 deliberately excludes images from its text excerpt; C9 does not
+introduce either surface to manufacture parity.
+
+Full in-flight open cancellation and broader book disposal remain separate.
+The fixed-layout renderer has loads without corresponding section unload calls;
+its cache/disposal ownership needs a separate fixed-layout audit and cannot be
+claimed covered by paginator proof. C9 is not an all-format leak-free claim.
+
+Scope adjudication (Astra high): retaining the navigating view's prior display
+after destination failure is an independent, pre-existing navigation defect.
+C9 still requires survivor validity and final release on that rejected-load path;
+it does not require a transactional display/history rewrite. Failed navigation
+does not emit a successful-load/fill completion, so its negative test must await
+the attempted public navigation's settlement rather than a success event.
+
+### C9 implementation and evidence
+
+Sibling implementation: `foliate-js@4b6ecb21116cf2f5a8da07b50c97ce1d3440b2c6` (branch `performance`).
+
+The sibling EPUB loader now separates top-level holder references from the
+existing parent/child dependency deduplication and borrows cached URLs for
+content reads, retaining local performance instrumentation. The paginator's
+view-removal path owns the release; its navigation completion callback no
+longer releases an already-retired section a second time. No br1 production
+adapter, public interface, dependency lock or vendor asset changes are needed.
+
+Red evidence: original content reads left all three tracked resources unreleased;
+the transient-holder test also failed to fetch its held resource. After only the
+Loader port, its three tests and the br1 route passed, but the actual paginator
+reported `unexpected target revoke at paginated: temporary navigation 1` after
+three successful plain-close cycles. Removing the duplicate release turns this
+native regression green. Initial iframe-address harness errors were corrected
+to track real XHTML blobs; they are not counted as product failure evidence.
+
+Final C9 browser matrix: 5/5 PASS, including three plain-close cycles, three
+far-navigation cycles and one rejected destination per paginated/scrolled mode.
+Native background preload completion is awaited through the existing timing
+hook's actual fill promise, not a sleep or an extra resource acquisition.
+Resource checks assert no premature revoke, freshly fetch and decode the bytes,
+then prove exactly one final revoke and failed fresh fetch before cleanup.
+The actual br1 route proves three popup cycles, independent parallel closure,
+settled source replacement and SPA teardown without browser-page disposal.
+
+Existing footnote/authored/mapping/EPUB/MOBI/CBZ regressions: 55/55 PASS; 60 unique
+browser cases with C9, no skips. Reader helpers 99/99, check zero errors/warnings,
+final strict TypeScript, production build, sibling syntax checks, ZIP loader
+tests 6/6 and both diff checks PASS. Fresh Terra high task acceptance and fresh
+Astra high whole-C9 source/evidence/scope review PASS, with no remaining blockers.
+
+At C9 closure: 678 commits, 56 covered, 410 partial, 77 gap, 135 not-applicable,
+and 57 remaining primary task IDs. Next: S2-R04C10. The independent fixed-layout,
+navigation rollback and pending-open obligations above remain open. Browser
+automation is not packaged Tauri, Safari, native mobile or manual demo acceptance.
