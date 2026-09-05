@@ -9,6 +9,10 @@
 
 ## Engineering Debt
 
+- Complete S2-R04C11B after the C11A default instant page-turn slice.
+  Why: the remaining upstream behavior includes horizontal drag-follow, two-phase animation and cancellation of stale rendering/navigation callbacks.
+  Context: the native paginator owns this work; br1 currently does not enable animated pagination. Verify actual source replacement and SPA teardown without adding host animation settings or claiming complete pending-open cancellation.
+
 - Audit renderer direction ownership across mixed-direction chapters.
   Why: adjacent-section loading calls the paginator's shared `#beforeRender`, which overwrites `#rtl` and `#vertical` even when that section is not primary.
   Context: C10's three exact upstream patches address detection, RTL ordering and local restore coordinates, not this pre-existing lifecycle problem. Current-section selection in the host does not establish mixed-direction renderer support.

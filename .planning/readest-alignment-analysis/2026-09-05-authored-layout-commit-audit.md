@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7, C8A-C8D, C9 and C10.
+local implementation and verification are recorded separately for C1-C7, C8A-C8D, C9, C10 and C11A.
 
 ## Frozen and provisional slices
 
@@ -29,7 +29,7 @@ local implementation and verification are recorded separately for C1-C7, C8A-C8D
 | **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Complete within the frozen native contract: C8A provenance, C8B validated selection, C8C scoped actions/persistence and C8D reverse mapping/record interactions. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Complete: exact Loader count/content-read fix plus native paginator single-release ownership, proved through shared-view and actual br1 resource lifetimes. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Complete within the frozen same-direction reflowable contract: native detection, semantic controls and visible CFI restoration after real preload/reopen. Mixed-direction lifecycle and C11 gestures remain separate. |
-| **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Provisional standalone paginator/input slice; large behavior surface. |
+| **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | C11A default instant input/coordinates complete; next C11B drag/animation lifecycle. Parent remains partial until both contracts pass. |
 | **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Provisional small CJK selection slice. |
 | **S2-R04C13** | Warichu/Gezhu transformation and measured column layout | `ebbbf104b` | Provisional standalone CJK layout slice; do not merge with the smaller ruby work. |
 | **S2-R04C14** | Fixed-layout spread seam, zoom-out visibility, and text autosizing | `17e60f1e4`, `42c7a2cb0` | Provisional FXL rendering slice. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C11**. Each slice starts by checking current local callers
+Continue with **S2-R04C11B**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8-C10 are complete within their documented native contracts below. C11-C21 remain
+run. C8-C10 and C11A are complete within their documented native contracts below. C11B-C21 remain
 pending; their table entries are executable specifications, not completion claims.
 
 ### C2 implementation boundary
@@ -907,3 +907,119 @@ both diff checks, and recounted all ledger statuses and remaining task IDs.
 At C10 task closure: 678 commits, 59 covered, 407 partial, 77 gap,
 135 not-applicable, and 56 remaining primary task IDs. Authored-layout's 34 rows
 are 15 covered, 14 partial, 2 gap and 3 not-applicable. Next: S2-R04C11.
+
+### C11 execution contract
+
+Fresh Astra high planning audit resolved Readest parent
+`fd8fbb178c58826a14dafc7a7dc1d78fa902dde0` to
+`c5304cd46ccead0b52037ebcd6a5e59464a69b71`. The exact Foliate range is
+`0f85707129f61f42ee7a9313b7bd58a2afd0432d` to
+`cecaef95be787cfb135b3d9a68325d62676c8f58`: one commit, only `paginator.js`,
+273 additions and 28 deletions. The Readest host already inferred RTL from
+effective vertical-rl writing mode in the parent; the outer commit adds nine
+browser tests, an EPUB fixture and the gitlink. Its tests do not establish
+host keyboard/wheel, vertical-lr or book-replacement cancellation behavior.
+
+#### C11A: default instant page turns
+
+- Preserve private native direction detection. Resolve effective body/first
+  non-CFI-inert direct-child writing mode, then treat vertical-rl as RTL in
+  addition to the existing explicit direction rules. Do not promote vertical-lr,
+  sideways, deeper or later fragments to RTL merely because they are vertical.
+- Mirror the same rule only in the existing host current-document preview.
+  Keep semantic footer/mouse actions, physical arrow/help mapping and transient
+  state ownership. No public export, new direction preference or storage field.
+- Paginated vertical keeps positive scrollTop. Apply negative coordinates only
+  to horizontal RTL in host dir, bounds and page offsets; map vertical rects
+  before considering horizontal RTL. Preserve C10's measured iframe width and
+  the existing caller-owned blank-page padding conversion.
+- Add horizontal swipes only for paginated vertical with animation off or eink:
+  rightward next for vertical-rl, opposite for ordinary vertical-lr. Retain
+  upward next/downward previous. Existing animated vertical swipes remain on
+  their legacy axis, with a positive block-axis sign independent of RTL.
+- Keep local sentinel-page and adjacent-section ownership, rather than copying
+  upstream's different out-of-range tests. Missing initial bounds return safely.
+- Production allowlist: sibling `paginator.js` and host `ReaderViewport.svelte`.
+  Tests live in `tests/e2e/foliate-vertical-page-turn.spec.ts`, using real EPUBs.
+  Check directions, touch/snap, real visible CFI restoration, book/section edges,
+  preload/no-preload, host controls and horizontal/scrolled/animated regressions.
+
+#### C11B: drag and animation lifecycle
+
+- Follow horizontal drags, commit distance/flick or settle, and reject stale
+  release velocity. Animate exit, swap at off-screen midpoint, then enter using
+  only X transforms. Reuse local animationDuration and background ownership;
+  do not import unrelated GPU/RAF/background-cache infrastructure.
+- Generation guards alone are insufficient: cancel timers, touch-end rAF and
+  navigation/event completion tails on supersession, touchcancel, layout/flow
+  invalidation, destroy and actual source replacement. Settle old promises and
+  prevent old callbacks from writing coordinates, styles, locks or events into
+  a newer operation. Before swap retain old position; after swap retain the
+  committed position. This is not transactional navigation rollback.
+- Add real phase/geometry samples and cancellation/replacement proofs. The only
+  planned production owner is the same native paginator; changed ownership
+  requires a new planning decision before implementation.
+
+br1 currently does not enable animated pagination and has no EPUB wheel or tap
+zone paging handlers. Neither slice adds these host features or changes demo-only
+`View.goLeft/goRight`. Mixed-direction preload ownership, complete vertical-lr
+scrolled layout, FXL/PDF, pending-open cancellation and packaged/native acceptance
+remain separate. C11A completion leaves parent `c5304cd46` partial for C11B.
+
+#### C11A baseline evidence
+
+The first four-case browser run against unchanged C10 production had one pass
+and three failures (`/tmp/br1-c11a-baseline.log`). Instant vertical rightward
+turns, vertical-lr leftward turns and missing-bounds admission failed. The initial
+direction test incorrectly expected the paginated renderer's host dir to become
+RTL; this contradicts the positive-scrollTop contract and is not product RED.
+The initial host fixture mixed horizontal and vertical chapters, which enters
+the separately deferred preload-ownership gap; its failure is not standalone
+evidence for this same-direction contract. Corrected fixtures establish host
+direction independently using a direct-child vertical-rl chapter. Animated
+gesture checks now wait for the requested page, not an unrelated early event.
+
+#### C11A implementation and verification
+
+Production changes are confined to native `paginator.js` and the existing host
+`emitReaderState`. Effective vertical-rl determines reading direction while
+vertical pagination keeps positive scrollTop; instant/eink horizontal swipes
+respect that direction and legacy animated vertical input keeps its prior axis.
+The private/native and current-document host ownership remain unchanged.
+
+Final focused browser suite: 4/4 PASS, covering body/direct-child direction and
+negative modes, visible non-first-screen native CFI restoration, preloaded and
+no-preload cross-section text landings, missing bounds, first/last book edges,
+instant/eink bidirectional swipes, legacy animated and horizontal/scrolled paths,
+and real host footer, physical-arrow, help and mouse behavior with source reset.
+Touch events are dispatched in Chrome; this is not physical touch-device proof.
+
+The host proof waits for initial native fill before navigating to a cached
+middle anchor and checks actual page, positive position and CFI changes. It does
+not assume one page turn equals one chapter transition. A late-attached timing
+hook was invalid because cached navigation bypasses the display timing entrypoint;
+the final hook observes each host instance before open, as in C10. Keyboard
+checks explicitly focus the existing host stage after native anchor navigation;
+cross-iframe key forwarding is unchanged and not claimed.
+
+Seven existing browser suites pass 65/65; selected keyboard/TXT/layout checks
+pass 4/4. Total: 73 unique browser cases, no skips. Reader helpers 99/99 and
+sibling ZIP units 6/6 PASS. Svelte check reports zero errors/warnings; strict
+TypeScript, paginator syntax, Vite build and both diff checks PASS. An initial
+helper compilation stopped on a nullable test document; it did not execute
+tests. The corrected final helper run passes. No vendor generation or packaged
+build was run. All test processes and task-owned compiler outputs were removed.
+
+Final logs: `/tmp/br1-c11a-final2-focused.log`,
+`/tmp/br1-c11a-regressions.log`, `/tmp/br1-c11a-library4.log`,
+`/tmp/br1-c11a-final2-helpers.log`, `/tmp/br1-c11a-final2-check.log`,
+`/tmp/br1-c11a-final2-strict-ts.log`, `/tmp/br1-c11a-final2-vite-build.log`,
+`/tmp/br1-c11a-paginator-syntax.log` and `/tmp/br1-c11a-zip6.log`.
+
+Fresh Terra high production, corrected test and final evidence review PASS.
+Astra high final source, composition, evidence and ledger review PASS with no
+remaining blockers. The final reviewer independently reran strict TypeScript,
+paginator syntax and diff checks and recounted the ledger.
+Parent `c5304cd46` stays partial under C11B. Counts remain 678 unique commits,
+59 covered, 407 partial, 77 gap, 135 not-applicable, and 56 remaining primary
+task IDs; authored-layout remains 15 covered, 14 partial, 2 gap, 3 not-applicable.

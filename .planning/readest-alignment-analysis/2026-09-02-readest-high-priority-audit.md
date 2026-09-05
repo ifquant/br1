@@ -415,7 +415,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 376 | `5bc8eda50` | ai/assist/dictionary | feat(proofread): editable Find pattern and per-rule enable/disable toggle (#4859) (#4888) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 377 | `4d645befd` | library | feat(library): add "Progress Read" sort option (#4427) (#4893) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 378 | `fd8fbb178` | reader core | fix(reader): apply page margin changes live on all platforms (#4898) (#4900) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
-| 379 | `c5304cd46` | reader core | fix(reader): turn pages horizontally for vertical-rl books (#624) (#4899) | `partial` | S2-R04C11 | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 379 | `c5304cd46` | reader core | fix(reader): turn pages horizontally for vertical-rl books (#624) (#4899) | `partial` | S2-R04C11B | C11A proves effective vertical-rl direction, positive paginated coordinates, instant/eink swipes and host controls. Horizontal drag-follow, two-phase animation and cancellation remain for C11B; no complete parent coverage claim. |
 | 380 | `c8e2c9533` | library | feat(library): auto-import new books from watched folders (#3889) (#4902) | `gap` | S2-L01 | P0-4.1/P0-4.2 and library smoke tests; bounded directory import is absent. |
 | 381 | `8c91ad411` | reader core | fix(reader): open annotation deep link when a different book is open (#4887) (#4910) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
 | 382 | `2b524439b` | reader core | fix(reader): keep running header/footer readable over light PDFs in dark mode (#4901) (#4911) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
@@ -1035,9 +1035,16 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Ledger: 678 commits, 59 covered, 407 partial, 77 gap, 135 not-applicable, and 56 remaining primary task IDs.
 - Boundary: mixed-direction preload ownership is separately tracked in both TODOs. C11 gestures, complete vertical-lr/FXL/PDF direction, failed-navigation rollback, pending-open cancellation and packaged/native acceptance remain separate. Mock desktop persistence is not disk database proof.
 
-#### Next Task: S2-R04C11 - Align vertical-rl horizontal input gestures
+#### Completed Slice: S2-R04C11A - Align default instant vertical page turns
 
-- Audit `c5304cd46` and nested Foliate `0f8570712..cecaef95b` against current input callers before reproducing and changing gesture behavior. C12-C21 retain their existing owners and acceptance map.
+- Exact source: `c5304cd46` and sole nested Foliate `0f8570712..cecaef95b`. Astra planning split instant direction/coordinates from the larger drag/animation lifecycle; parent remains partial.
+- Result: effective body/direct-child vertical-rl informs native and current-document host direction. Vertical pagination keeps positive coordinates. Default/eink horizontal swipes and legacy vertical input preserve semantic next/previous; local sentinel and C10 iframe mapping stay intact.
+- Verification: focused 4/4, existing 65/65 and selected legacy 4/4 (73 unique browser cases, no skips); helpers 99/99, ZIP 6/6, Svelte check 0 errors/warnings, strict TypeScript, paginator syntax, Vite build and both diff checks PASS. Independent review closure is recorded in the C11A completion audit.
+- Boundary: no host wheel/tap-zone, cross-iframe key forwarding, new animation setting, public export or vendor change. Mixed-direction preload, full vertical-lr scrolled layout, FXL/PDF, pending-open cancellation and packaged/native acceptance remain separate. Ledger counts and 56 remaining primary task IDs are unchanged.
+
+#### Next Task: S2-R04C11B - Add horizontal drag and cancellable vertical page-turn animation
+
+- Follow the frozen C11B lifecycle contract before porting presentation code. Native timer, touch-end rAF and navigation/event tails must not affect a replaced view or newer operation. C12-C21 retain their existing owners and acceptance map.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

@@ -1060,12 +1060,21 @@
     const currentDoc = typeof sectionCurrent === 'number'
       ? getRendererContents().find(({ index }) => index === sectionCurrent)?.doc
       : undefined;
-    const rtl = currentFormatLabel !== 'PDF' && book.rendition?.layout !== 'pre-paginated' &&
-      !!currentDoc?.body && (
-        currentDoc.body.dir === 'rtl' ||
-        currentDoc.defaultView?.getComputedStyle(currentDoc.body).direction === 'rtl' ||
-        currentDoc.documentElement.dir === 'rtl'
-      );
+    let rtl = false;
+    if (currentFormatLabel !== 'PDF' && book.rendition?.layout !== 'pre-paginated' &&
+      currentDoc?.body && currentDoc.defaultView) {
+      const style = currentDoc.defaultView.getComputedStyle(currentDoc.body);
+      let writingMode = style.writingMode;
+      // Match native body-first detection; local vertical fragments do not
+      // change the whole chapter's physical controls.
+      if (!writingMode || writingMode === 'horizontal-tb') {
+        const child = currentDoc.body.querySelector(':scope > :not([cfi-inert])');
+        const childMode = child && currentDoc.defaultView.getComputedStyle(child).writingMode;
+        if (childMode === 'vertical-rl' || childMode === 'vertical-lr') writingMode = childMode;
+      }
+      rtl = writingMode === 'vertical-rl' || currentDoc.body.dir === 'rtl' ||
+        style.direction === 'rtl' || currentDoc.documentElement.dir === 'rtl';
+    }
     const fallbackChapter =
       typeof sectionCurrent === 'number' && typeof sectionTotal === 'number'
         ? `第 ${sectionCurrent + 1} / ${sectionTotal} 节`
