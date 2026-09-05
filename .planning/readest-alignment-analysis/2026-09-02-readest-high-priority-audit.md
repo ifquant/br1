@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 51 |
-| `partial` | 415 |
+| `covered` | 52 |
+| `partial` | 414 |
 | `gap` | 77 |
 | `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 32 | 225 | 22 | 55 |
+| reader core | 33 | 224 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -688,7 +688,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 649 | `8f9028579` | catalog/import | feat(library): select chapters when importing web novels (#5892) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
 | 650 | `800af00f3` | reader core | fix(ui): size toasts to their message and fade dialogs out whole (#5894) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact responsive/interaction state is unverified. |
 | 651 | `e8f7a4875` | library | fix(library): refresh PDF metadata on re-import (#5895) | `covered` | S2-R03E | Re-import refreshes file-derived PDF metadata without replacing curated fields, verifies the parsed byte hash before write, and reuses exact-content identity and managed paths. |
-| 652 | `7c0419961` | reader core | fix(reader): do not truncate footnote popups (#5887) | `partial` | S2-R04C5 | Core reading exists; this authored-layout/script edge is unverified. |
+| 652 | `7c0419961` | reader core | fix(reader): do not truncate footnote popups (#5887) | `covered` | S2-R04C5 | Native text-scope equivalent: intrinsic scrolling retains long excerpts, superseded reads stay invalid, and sanitized empty/image-only notes preserve existing navigation. No popup image rendering/late-image sizing parity is claimed; Readest observer/seed machinery has no local owner. |
 | 653 | `a91b503e5` | reader core | fix(reader): make cross-page selection actually work (#5888) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 654 | `b1a62c059` | tts/audio | fix: folder import of Markdown, widget opens, comic zoom, selection handle and TTS word highlight (#5903) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 655 | `fabbcc640` | tts/audio | feat(tts): lyric-style sentence view in the Read Aloud player (#5755) (#5908) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (7 covered, 22 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
+- Upstream decisions: 34 commits (8 covered, 21 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -967,10 +967,17 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: `pnpm exec playwright test tests/e2e/footnote-compat.spec.ts tests/e2e/authored-text-compat.spec.ts --workers=1` (PASS, 13/13 after correcting overbroad geometry assertions); `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS, production source unchanged by later test edits); `git diff --check` and 678-row ledger recount (PASS). Fresh Terra high task review and Astra high final review passed.
 - Boundary: No rich popup media, custom-font infrastructure, source-aside hide/reveal policy, complete short-height viewport layout, packaged Tauri, or mobile acceptance. The native-popup proof covers 1280px and 640px browser widths, same/cross-chapter excerpts, stage containment, equal styled/plain sizes, and intact source DOM.
 
-#### Next Task: S2-R04C5 - Audit popup sizing and stale-load lifecycle
+#### Completed Task: S2-R04C5 - Audit popup sizing and stale-load lifecycle
 
-- Scope: `7c0419961`. Check applicability at the native popup and extraction owners before changing behavior; br1 currently strips image content rather than mounting a second renderer.
-- Remaining C5-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
+- Scope: `7c0419961`, two host/test files with no Foliate gitlink change. Retain C4's text-and-allowed-markup native popup boundary; do not import a second renderer or observer lifecycle.
+- Outcome: HTML and text come from the same cleaned clone. Empty structure no longer counts as a preview or leaks removed style text through the text fallback. Explicit links keep the jump action; checked links navigate normally. CSS owns long-text sizing, and the C3 request generation guard remains unchanged.
+- Verification: pre-fix browser run reproduced the empty `.footnote-body` failure. Final footnote/authored-text regressions passed 15/15 after lengthening the plaintext fixture to actually overflow; four existing footnote/sanitizer/TXT regressions also passed. `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS, production source unchanged by later fixture edits); `git diff --check` and 678-row recount (PASS). Fresh Terra high task review and Astra high final review passed.
+- Boundary: `covered` is scoped to native text-preview equivalents. Rich image previews and late-image resizing remain unimplemented; this is not full rich-media parity. No complete short-height viewport, packaged Tauri, or mobile acceptance.
+
+#### Next Task: S2-R04C6 - Add a visual cue for in-page footnote landings
+
+- Scope: `dbe0dae0a`. Trace normal href navigation and empty-preview fallback at the existing navigation/highlight owner; do not create a second navigation state.
+- Remaining C6-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

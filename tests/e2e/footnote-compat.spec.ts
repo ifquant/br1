@@ -322,6 +322,7 @@ test('does not let delayed footnote extraction survive a newer click or control 
     const originalGoTo = view.goTo.bind(view);
     const states: PendingSectionState[] = [
       { entered: false, completed: false, release: null },
+      { entered: false, completed: false, release: null },
       { entered: false, completed: false, release: null }
     ];
     let calls = 0;
@@ -407,15 +408,24 @@ test('does not let delayed footnote extraction survive a newer click or control 
   await expect.poll(() => sectionStatus(0)).toBe('completed');
   await expect(dialog).toContainText('Fresh local preview');
   await expect(dialog).not.toContainText('Delayed cross chapter preview');
-
   await closeFootnote(page);
-  await frame.locator('#delayed-numeric-note').click();
+
+  await frame.locator('#delayed-cross-note').click();
   await expect.poll(() => sectionStatus(1)).toBe('entered');
+  await frame.locator('#fresh-local-note').click();
+  await expect(dialog).toContainText('Fresh local preview');
+  await closeFootnote(page);
+  await releaseSection(1);
+  await expect.poll(() => sectionStatus(1)).toBe('completed');
+  await expect(dialog).toHaveCount(0);
+
+  await frame.locator('#delayed-numeric-note').click();
+  await expect.poll(() => sectionStatus(2)).toBe('entered');
   await expect(dialog).toHaveCount(0);
   await page.getByRole('button', { name: '下一页', exact: true }).first().click();
   await expect.poll(nextStatus).toBe('entered');
-  await releaseSection(1);
-  await expect.poll(() => sectionStatus(1)).toBe('completed');
+  await releaseSection(2);
+  await expect.poll(() => sectionStatus(2)).toBe('completed');
   await expect(dialog).toHaveCount(0);
   await expect.poll(goToTargets).toEqual([]);
   await releaseNext();
@@ -525,4 +535,127 @@ test('keeps same- and cross-chapter explicit footnote previews independent from 
     }
     expect(crossChapterStyled.preview.html).toBe(sameChapterStyled.preview.html);
   }
+});
+
+test('keeps long plaintext and rich footnotes readable in the native scrollable popup', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const vendorAlt = Array.from(
+    { length: 44 },
+    (_, index) => `Vendor plaintext segment ${index + 1}.`
+  ).concat('Vendor plaintext last words remain readable.').join(' ');
+  const richParagraphs = Array.from(
+    { length: 24 },
+    (_, index) => `<p>Rich note body paragraph ${index + 1} stays readable.</p>`
+  ).join('');
+  const frame = await openEpub(
+    page,
+    'long-scrollable-notes',
+    `<p><a id="long-vendor-note" class="duokan-footnote"><img alt="${vendorAlt}"/>*</a></p>
+     <p><a id="rich-note-ref" href="#rich-note" epub:type="noteref">[1]</a></p>
+     <aside id="rich-note" epub:type="footnote"><p>Rich note opening <em>emphasis</em>.</p>${richParagraphs}<p>Rich note last words remain readable.</p></aside>`
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const body = dialog.locator('.footnote-body');
+
+  await frame.locator('#long-vendor-note').click();
+  await expect(body).toHaveText(vendorAlt);
+  const vendorMetrics = await body.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+      maxHeight: Number.parseFloat(style.maxHeight),
+      overflowY: style.overflowY
+    };
+  });
+  expect(vendorMetrics.clientHeight).toBeGreaterThan(88);
+  expect(vendorMetrics.maxHeight).toBeGreaterThan(88);
+  expect(vendorMetrics.scrollHeight).toBeGreaterThan(vendorMetrics.clientHeight);
+  expect(vendorMetrics.scrollTop).toBe(0);
+  expect(vendorMetrics.overflowY).toMatch(/auto|scroll/);
+  await body.hover();
+  await page.mouse.wheel(0, 1000);
+  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() =>
+    body.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)
+  ).toBeLessThanOrEqual(1);
+  await expect(body.getByText('Vendor plaintext last words remain readable.', { exact: false })).toBeInViewport();
+
+  // A new reference replaces an already-open preview; it does not require an
+  // intervening close or let the prior plaintext request keep ownership.
+  await frame.locator('#rich-note-ref').click();
+  await expect(body.locator('em')).toHaveText('emphasis');
+  await expect(body).toContainText('Rich note last words remain readable.');
+  const metrics = await body.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+      maxHeight: Number.parseFloat(style.maxHeight),
+      overflowY: style.overflowY
+    };
+  });
+  expect(metrics.clientHeight).toBeGreaterThan(88);
+  expect(metrics.maxHeight).toBeGreaterThan(88);
+  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+  expect(metrics.scrollTop).toBe(0);
+  expect(metrics.overflowY).toMatch(/auto|scroll/);
+
+  await body.hover();
+  await page.mouse.wheel(0, 1000);
+  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() =>
+    body.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)
+  ).toBeLessThanOrEqual(1);
+  await expect(body.getByText('Rich note last words remain readable.')).toBeInViewport();
+  await closeFootnote(page);
+
+  await frame.locator('#long-vendor-note').click();
+  await expect(body).toHaveText(vendorAlt);
+  await closeFootnote(page);
+});
+
+test('offers an explicit empty image note a jump fallback while a checked numeric link navigates', async ({ page }) => {
+  const image = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>Image target filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'empty-image-noteref',
+    `<p><a id="empty-image-ref" href="#image-destination" epub:type="noteref">[1]</a></p>${filler}
+     <aside id="image-destination" epub:type="footnote"><style id="source-note-style">.STYLE_TEXT_MUST_NOT_LEAK { color: red; }</style><script id="trusted-book-script">window.__BR1_UNTRUSTED_BOOK_SCRIPT__ = true;</script><p><span><img id="empty-image" src="${image}"/></span></p></aside>`
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const sourceTarget = frame.locator('#image-destination');
+  const imageTarget = frame.locator('#empty-image');
+
+  await expect(frame.locator('#source-note-style')).toHaveCount(1);
+  await expect(frame.locator('#trusted-book-script')).toHaveCount(0);
+  await expect(imageTarget).not.toHaveAttribute('alt');
+  await expect.poll(() => imageTarget.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(1);
+  await expect(imageTarget).not.toBeInViewport();
+  const sourceBefore = await sourceTarget.evaluate((element) => element.outerHTML);
+
+  await frame.locator('#empty-image-ref').click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.footnote-body')).toHaveCount(0);
+  await expect(dialog).toContainText('无法预览，可跳转到正文位置');
+  await expect(dialog).not.toContainText('STYLE_TEXT_MUST_NOT_LEAK');
+  expect(await sourceTarget.evaluate((element) => element.outerHTML)).toBe(sourceBefore);
+  await dialog.getByRole('button', { name: '跳转到正文位置' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(imageTarget).toBeInViewport();
+
+  const numericFrame = await openEpub(
+    page,
+    'empty-image-numeric',
+    `${isolateNumericContext('<p><a id="empty-image-numeric-ref" href="#numeric-destination">1</a></p>')}${filler}
+     <aside id="numeric-destination"><p><span><img id="numeric-empty-image" src="${image}"/></span></p></aside>`
+  );
+  const numericImageTarget = numericFrame.locator('#numeric-empty-image');
+  await expect(numericImageTarget).not.toBeInViewport();
+  await numericFrame.locator('#empty-image-numeric-ref').click();
+  await expect(numericImageTarget).toBeInViewport();
+  await expect(dialog).toHaveCount(0);
 });

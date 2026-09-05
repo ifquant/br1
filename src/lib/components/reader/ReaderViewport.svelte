@@ -1458,7 +1458,7 @@
     'br'
   ]);
 
-  const sanitizeFootnoteExcerptHtml = (container: Element) => {
+  const sanitizeFootnoteExcerpt = (container: Element) => {
     // Wrap the clone so the root itself is filtered too. Book nodes can belong
     // to an iframe realm, where host instanceof Element checks would fail.
     const preview = container.ownerDocument.createElement('div');
@@ -1481,7 +1481,15 @@
       }
     }
 
-    return preview.innerHTML.trim();
+    // Images can leave nonempty markup such as <p></p> after filtering. Only
+    // cleaned text makes a preview readable; otherwise keep navigation usable.
+    // Derive both representations here so removed style text cannot return via
+    // the plaintext fallback. The original book DOM remains untouched.
+    const excerptText = normalizeFootnoteLabel(preview.textContent || '');
+    return {
+      excerptHtml: excerptText ? preview.innerHTML.trim() : '',
+      excerptText
+    };
   };
 
   const resolveFootnoteExcerpt = (target: Element | null, checked = false) => {
@@ -1496,12 +1504,7 @@
       ? extractCheckedFootnote(target)
       : target.closest('aside, li, p, section, div') || target;
     if (!container) return { excerptHtml: '', excerptText: '' };
-    return {
-      // Keep a little structural markup for readability, but strip unknown tags
-      // and attributes so the stage popup does not replay arbitrary book DOM.
-      excerptHtml: sanitizeFootnoteExcerptHtml(container),
-      excerptText: normalizeFootnoteLabel(container.textContent || '')
-    };
+    return sanitizeFootnoteExcerpt(container);
   };
 
   const maybeOpenFootnotePopupFromViewLink = async (

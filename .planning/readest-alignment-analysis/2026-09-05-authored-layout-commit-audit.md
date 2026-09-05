@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C4.
+local implementation and verification are recorded separately for C1-C5.
 
 ## Frozen and provisional slices
 
@@ -23,7 +23,7 @@ local implementation and verification are recorded separately for C1-C4.
 | **S2-R04C2** | Russian short-word non-breaking spaces | `370a51662` | Complete: metadata-gated prose rule, valid XHTML output, and representative EPUB/CFI regression. |
 | **S2-R04C3** | Footnote recognition and guarded extraction | `87f0240b0`, `b223ccaee`, `54aa20d4f` | Complete at the native host owner, with real-reader regressions and explicit inactive-library boundaries. |
 | **S2-R04C4** | Footnote popup visual integrity | `1d8ed3fc9`, `d6e981e56` | Native background-isolation proof; the exact custom-font/namespace ordering bug is not-applicable. No new popup renderer or source-aside hiding policy. |
-| **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Provisional standalone interaction slice. |
+| **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Native text-scope equivalent with cleaned-empty navigation fallback. Popup images and late-image sizing are excluded, not claimed as full rich-media parity. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Provisional standalone navigation-feedback slice. |
 | **S2-R04C7** | Jump from popup to the visible book target | `aab58241d` | Provisional standalone popup-navigation slice. |
 | **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Provisional standalone cross-document selection slice. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C5**. Each slice starts by checking current local callers
+Continue with **S2-R04C6**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -194,7 +194,7 @@ an explicit owner explanation rather than a manufactured runtime test.
 | C2 | Russian-only short/function-word NBSP, consecutive matches, number successors, literal-content exclusions, and stable text length. |
 | C3 | No-href vendor image-alt markers render inert text; checked `li`/`aside`/`dt`/enclosing-`li`/`.note` targets remain accepted, including over three children. Generic link-bearing targets accept at most three direct children; no-link/missing targets navigate normally. Numeric chapter/verse lists suppress only provisional checks. Cross-section resolution must not reuse a current-document ID. |
 | C4 | Native popup content excludes authored backgrounds and layout attributes without changing preview size. The original namespace/custom-font criterion is not-applicable: br1 assembles neither custom font faces nor namespace-dependent hide selectors. This does not establish source-aside border suppression or custom-font parity. |
-| C5 | Late-loading image content fits; closing or replacing the popup cancels observers and stale loads. |
+| C5 | Native-scope acceptance: long alt/rich-text excerpts remain scrollable through their final text; replacement and close do not revive superseded reads. Sanitized empty/image-only content uses existing explicit fallback or checked-link navigation. br1 intentionally excludes popup images; upstream image resizing/observer APIs are not ported, and full rich-media parity is not claimed. |
 | C6 | In-page target cue appears and is cleared on replacement, close, or navigation. |
 | C7 | Visible targets support popup-to-book jumps; hidden footnote targets do not offer misleading jumps. |
 | C8 | Real popup selections map to original section CFIs; synthetic alt text cannot create anchored notes. |
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C4-C21 remain pending; their table entries are executable specifications,
+run. C6-C21 remain pending; their table entries are executable specifications,
 not completion claims.
 
 ### C2 implementation boundary
@@ -317,7 +317,46 @@ corrected: C4 does not prove full reader layout inside a short-height viewport.
 test-only corrections), and `git diff --check` plus the ledger recount passed.
 Fresh Terra high task review and Astra high final review passed.
 
-Current totals: 678 commits, 51 covered, 415 partial, 77 gap, 135 not-applicable,
+At C4 closure: 678 commits, 51 covered, 415 partial, 77 gap, 135 not-applicable,
 and 62 remaining task IDs. C4 is closed at its native owner; parent `1d8ed3fc9`
 remains partial for the separate S2-U01B obligation. No packaged Tauri/mobile,
 custom-font assembly, rich popup media, or source-aside hiding is claimed.
+
+### C5 native sizing and empty-preview boundary
+
+Readest `7c0419961` changes its popup and a focused sizing test, with no Foliate
+gitlink movement. Its observer, animation frame, first-relocate measurement and
+88px seed belong to a separate popup view that br1 does not create. The native
+popup uses intrinsic CSS layout with `max-height: min(38vh, 260px)` and
+`overflow: auto`; no second sizing state or observer is needed.
+
+The applicable local defect is an empty preview after unsupported media is
+removed. A nonempty string such as `<p><span></span></p>` previously suppressed
+the jump fallback despite containing no text. The existing sanitizer now
+derives HTML and normalized text from the same cleaned clone, and returns both
+empty when no text remains. Explicit noterefs retain the existing jump action;
+checked numeric links use existing ordinary navigation. Original source DOM
+and images remain available in the reader.
+
+The C4 text-and-allowed-markup boundary is retained. Image previews themselves
+and late image sizing are not implemented, so the revised C5 criterion proves
+native-scope equivalents, not full rich-media parity. The generation guard
+already introduced in C3 remains the request owner; no new Stage cancellation
+or observer infrastructure is introduced without a user-reachable failure.
+
+Pre-fix regression reproduced the empty-body failure. Final footnote and
+authored-text tests passed 15/15, and four existing footnote/sanitizer/TXT checks
+passed. The first post-fix run exposed a too-short plaintext fixture (248px,
+no overflow); extending that fixture retained the real wheel-to-scroll-bottom
+assertion. Tests also preserve C3's replacement proof, add closing the fresh
+popup before releasing an older read, and verify actual source-image navigation
+for explicit and structurally accepted numeric links.
+
+`pnpm check` passed with 0 errors/warnings; `pnpm build` passed before later
+fixture-only changes. `git diff --check` and the 678-row recount passed. Fresh
+Terra high task review and Astra high final review passed.
+
+Current totals: 52 covered, 414 partial, 77 gap, 135 not-applicable, and
+61 remaining task IDs. C5 is covered within the documented native text scope;
+this does not add rich-media popup capability or change the separate nested
+margin obligation under S2-U01B. Next: C6 in-page target feedback.
