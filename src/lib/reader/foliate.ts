@@ -50,7 +50,7 @@ export interface FoliateViewElement extends HTMLElement {
   prev(): Promise<void>;
   next(): Promise<void>;
   goToFraction(fraction: number): Promise<void>;
-  goTo(target: string): Promise<void>;
+  goTo(target: string): Promise<{ index: number; anchor?: (doc: Document) => unknown } | undefined>;
   getCFI(index: number, range?: Range): string;
   addAnnotation(annotation: Record<string, unknown>, remove?: boolean): Promise<unknown>;
   search(opts: {
@@ -89,7 +89,7 @@ export interface FoliateViewElement extends HTMLElement {
       }
   >;
   clearSearch(): void;
-  renderer?: {
+  renderer?: EventTarget & {
     pageColors?: {
       background: string;
       foreground: string;
@@ -97,7 +97,7 @@ export interface FoliateViewElement extends HTMLElement {
     setAttribute(name: string, value: string | number): void;
     removeAttribute(name: string): void;
     setStyles?(css: string): void;
-    getContents?(): Array<{ doc: Document; index?: number; overlayer?: unknown }>;
+    getContents?(): Array<{ doc: Document; index?: number; overlayer?: { element: SVGElement } }>;
     readonly scrolled?: boolean;
     pinchZoom?(ratio: number): void;
     pinchEnd?(commit?: boolean): void;

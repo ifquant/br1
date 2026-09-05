@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C5.
+local implementation and verification are recorded separately for C1-C6.
 
 ## Frozen and provisional slices
 
@@ -24,7 +24,7 @@ local implementation and verification are recorded separately for C1-C5.
 | **S2-R04C3** | Footnote recognition and guarded extraction | `87f0240b0`, `b223ccaee`, `54aa20d4f` | Complete at the native host owner, with real-reader regressions and explicit inactive-library boundaries. |
 | **S2-R04C4** | Footnote popup visual integrity | `1d8ed3fc9`, `d6e981e56` | Native background-isolation proof; the exact custom-font/namespace ordering bug is not-applicable. No new popup renderer or source-aside hiding policy. |
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Native text-scope equivalent with cleaned-empty navigation fallback. Popup images and late-image sizing are excluded, not claimed as full rich-media parity. |
-| **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Provisional standalone navigation-feedback slice. |
+| **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Shared native navigation completion with a four-second visual-only target cue; popup-internal links remain absent. |
 | **S2-R04C7** | Jump from popup to the visible book target | `aab58241d` | Provisional standalone popup-navigation slice. |
 | **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Provisional standalone cross-document selection slice. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Provisional renderer-lifetime slice; requires the exact foliate refcount behavior. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C6**. Each slice starts by checking current local callers
+Continue with **S2-R04C7**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C6-C21 remain pending; their table entries are executable specifications,
+run. C7-C21 remain pending; their table entries are executable specifications,
 not completion claims.
 
 ### C2 implementation boundary
@@ -356,7 +356,51 @@ for explicit and structurally accepted numeric links.
 fixture-only changes. `git diff --check` and the 678-row recount passed. Fresh
 Terra high task review and Astra high final review passed.
 
-Current totals: 52 covered, 414 partial, 77 gap, 135 not-applicable, and
+At C5 closure: 52 covered, 414 partial, 77 gap, 135 not-applicable, and
 61 remaining task IDs. C5 is covered within the documented native text scope;
 this does not add rich-media popup capability or change the separate nested
 margin obligation under S2-U01B. Next: C6 in-page target feedback.
+
+### C6 native navigation target cue
+
+Readest `dbe0dae0a` changes five host/test files (+176/-58), with no Foliate
+gitlink change. It extends the existing transient search marker to href
+destinations, promotes element anchors to nearby blocks, and removes the cue
+after 4000ms. Its bounded render polling belongs to its existing helper;
+br1 instead consumes the destination returned by the completed native `goTo`.
+
+`ReaderViewport.navigateAndFlash` is the shared host entry for ordinary internal
+links, checked-footnote extraction fallback and the existing popup jump control.
+Ordinary links are cancelled synchronously before awaiting, preventing Foliate
+from scheduling a second default navigation. The cue uses the resolved section
+and anchor, not an ID lookup in the originating iframe. Hidden, missing and
+off-surface targets do not get a fabricated marker. Empty-element promotion
+stops before body/html to avoid highlighting an entire chapter for an image note.
+
+The existing Overlayer drawing function supplies a temporary SVG group, appended
+without registering an annotation. It cannot enter Foliate's manual hit-test
+map, change its cursor policy, or become a persistent note/search result.
+Safari CSS-zoom coordinate normalization follows `Overlayer.add`; packaged
+WebKit/Safari zoom rendering is still not runtime-verified.
+
+A separate navigation intent epoch guards pending completions. New link/control
+intents, book changes and teardown invalidate it. Native renderer relocate
+reasons distinguish navigation/anchor completion from page/scroll/selection
+changes; the host event alone does not expose that reason. Relocation and
+configuration clear drawn geometry; replaced renderer listeners are removed.
+The duplicate host relocate handlers are consolidated, retaining the scrolled
+PDF selection exception. Drawing failure is isolated from navigation success.
+
+Popup-internal navigation is not-applicable because native preview anchors are
+stripped. Search sentence expansion, rich popup media, TXT/PDF cue coverage,
+packaged/mobile and exhaustive native-gesture concurrency are not claimed.
+Verification: C6 focused tests 3/3 PASS; footnote plus authored-text suites
+18/18 PASS; legacy footnote/sanitizer/TXT selection 4/4 PASS (22 unique cases).
+`pnpm check`: 0 errors, 0 warnings. `pnpm build` and `git diff --check`: PASS.
+Fresh Terra high task review and Astra high final static review: PASS.
+The source-DOM assertion starts after Foliate's own focus mutations; cue
+geometry checks individual SVG shapes against the actual destination content.
+Controlled held-return supersession is not native-gesture stress acceptance.
+
+At C6 closure: 53 covered, 413 partial, 77 gap, 135 not-applicable, and
+60 remaining task IDs. Next: C7 popup-to-book navigation audit.

@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 52 |
-| `partial` | 414 |
+| `covered` | 53 |
+| `partial` | 413 |
 | `gap` | 77 |
 | `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 33 | 224 | 22 | 55 |
+| reader core | 34 | 223 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -620,7 +620,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 581 | `4f1850563` | catalog/import | fix(novel): retry transient fetch failures and backfill work metadata (#5650) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 582 | `05d289a4e` | library | fix(markdown): title imported books after the file, not the first heading (#5653) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 583 | `2f9262e02` | reader core | fix(sanitizer): render Persian/Arabic half-space by converting misused RLM to ZWNJ (#5651) | `covered` | S2-R04C1 | Decoded prose text converts contextual RLM runs to equal-length ZWNJ using upstream Arabic ranges; code/style/attributes/SVG and direction/digit boundaries are preserved. |
-| 584 | `dbe0dae0a` | reader core | feat(reader): flash the target of in-page footnote jumps, closes #5647 (#5655) | `partial` | S2-R04C6 | Core reading exists; this authored-layout/script edge is unverified. |
+| 584 | `dbe0dae0a` | reader core | feat(reader): flash the target of in-page footnote jumps, closes #5647 (#5655) | `covered` | S2-R04C6 | Shared host completion flashes the resolved target after ordinary links and both native footnote fallback paths. A temporary SVG group stays outside annotation hit-testing; intent guards and cleanup reject obsolete cues. Popup-internal links are absent in the native sanitized preview. |
 | 585 | `42c7a2cb0` | reader core | fix(reader): disable text autosizing in fixed-layout books, closes #5641 (#5659) | `partial` | S2-R04C14 | Core reading exists; this authored-layout/script edge is unverified. |
 | 586 | `34922b172` | catalog/import | fix(opds): stop auto-downloaded books from vanishing on restart (#5665) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 587 | `561356628` | reader core | fix(ui): size the alert surface off its container, not its content (#5662) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact responsive/interaction state is unverified. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (8 covered, 21 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
+- Upstream decisions: 34 commits (9 covered, 20 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -974,10 +974,17 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: pre-fix browser run reproduced the empty `.footnote-body` failure. Final footnote/authored-text regressions passed 15/15 after lengthening the plaintext fixture to actually overflow; four existing footnote/sanitizer/TXT regressions also passed. `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS, production source unchanged by later fixture edits); `git diff --check` and 678-row recount (PASS). Fresh Terra high task review and Astra high final review passed.
 - Boundary: `covered` is scoped to native text-preview equivalents. Rich image previews and late-image resizing remain unimplemented; this is not full rich-media parity. No complete short-height viewport, packaged Tauri, or mobile acceptance.
 
-#### Next Task: S2-R04C6 - Add a visual cue for in-page footnote landings
+#### Completed Task: S2-R04C6 - Add a visual cue for in-page footnote landings
 
-- Scope: `dbe0dae0a`. Trace normal href navigation and empty-preview fallback at the existing navigation/highlight owner; do not create a second navigation state.
-- Remaining C6-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
+- Scope: `dbe0dae0a`, five host/test files with no Foliate gitlink movement.
+- Outcome: One host helper consumes the actual `goTo` result for default internal links, checked-empty fallback and the popup jump action. It draws a four-second cue using the existing Overlayer drawing function, outside the annotation map. New intents invalidate pending completions; relocation, layout changes and teardown clear visual resources without modifying book content or selection.
+- Verification: C6 focused tests 3/3 PASS; footnote/authored-text suites 18/18 PASS; legacy footnote/sanitizer/TXT selection 4/4 PASS (22 unique regression cases). `pnpm check` reports 0 errors and 0 warnings; `pnpm build` and `git diff --check` PASS. Fresh Terra high task review and Astra high final static review PASS. Tests cover actual navigation/geometry, post-native-navigation DOM baselines, cross-chapter ownership and held-return supersession.
+- Boundary: Native popup links are stripped, so its internal-link branch is not-applicable. No search sentence-expansion, TXT/PDF cue, packaged/mobile, exhaustive native-gesture concurrency or Safari runtime zoom acceptance is claimed. Safari normalization matches the existing vendor source contract.
+
+#### Next Task: S2-R04C7 - Audit popup-to-book navigation
+
+- Scope: `aab58241d`. Check the existing fallback-only jump action against upstream availability and destination visibility rules before adding controls.
+- Remaining C7-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

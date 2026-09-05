@@ -61,6 +61,52 @@ const closeFootnote = async (page: import('@playwright/test').Page) => {
   await expect(page.getByRole('dialog', { name: '脚注预览' })).toHaveCount(0);
 };
 
+const expectJumpCueAt = async (
+  page: import('@playwright/test').Page,
+  target: import('@playwright/test').Locator
+) => {
+  const cue = page.locator('[data-reader-jump-cue]');
+  await expect(target).toBeInViewport();
+  await expect(cue).toHaveCount(1, { timeout: 3000 });
+  await expect.poll(async () => {
+    const cueRects = await cue.evaluate((element) => {
+      const toRect = (node: Element) => {
+        const { left, top, right, bottom, width, height } = node.getBoundingClientRect();
+        return { left, top, right, bottom, width, height };
+      };
+      return { group: toRect(element), children: Array.from(element.children).map(toRect) };
+    });
+    const targetBox = await target.evaluate((element) => {
+      const frame = element.ownerDocument.defaultView?.frameElement;
+      if (!frame || frame.tagName.toLowerCase() !== 'iframe') return null;
+      const targetRect = element.getBoundingClientRect();
+      const frameRect = frame.getBoundingClientRect();
+      const scaleX = frame.clientWidth ? frameRect.width / frame.clientWidth : 1;
+      const scaleY = frame.clientHeight ? frameRect.height / frame.clientHeight : 1;
+      return {
+        left: frameRect.left + targetRect.left * scaleX,
+        top: frameRect.top + targetRect.top * scaleY,
+        right: frameRect.left + targetRect.right * scaleX,
+        bottom: frameRect.top + targetRect.bottom * scaleY
+      };
+    });
+    if (!targetBox || !cueRects.group.width || !cueRects.group.height) return false;
+    // EPUB coordinates are local to an iframe; the cue is in the reader overlay.
+    return cueRects.children.some(({ left, top, right, bottom, width, height }) =>
+      width > 0 &&
+      height > 0 &&
+      right > targetBox.left &&
+      left < targetBox.right &&
+      bottom > targetBox.top &&
+      top < targetBox.bottom
+    );
+  }, { timeout: 3000 }).toBe(true);
+};
+
+const expectJumpCueToExpire = async (page: import('@playwright/test').Page) => {
+  await expect.poll(() => page.locator('[data-reader-jump-cue]').count(), { timeout: 6000 }).toBe(0);
+};
+
 test('opens href-less Duokan and Zhangyue markers by their first available plaintext metadata', async ({ page }) => {
   await page.addInitScript(() => {
     (window as Window & { __BR1_FOOTNOTE_ALT_XSS__?: number }).__BR1_FOOTNOTE_ALT_XSS__ = 0;
@@ -658,4 +704,267 @@ test('offers an explicit empty image note a jump fallback while a checked numeri
   await numericFrame.locator('#empty-image-numeric-ref').click();
   await expect(numericImageTarget).toBeInViewport();
   await expect(dialog).toHaveCount(0);
+});
+
+test('flashes a temporary cue after ordinary, rejected numeric, and empty-preview fallback navigation without touching annotations or EPUB DOM', async ({ page }) => {
+  const image = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>C6 filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'c6-local-navigation',
+    `<p><a id="story-link" href="#story-target">Read the destination</a></p>
+     <p><a id="digit-link" href="#digit-target">1</a></p>
+     <p><a id="picture-link" href="#image-target" epub:type="noteref">[2]</a></p>
+     ${filler}<p id="story-target">Ordinary descriptive destination</p>
+     ${filler}<p id="digit-target">Rejected numeric plain paragraph destination</p>
+     ${filler}<aside id="image-target" epub:type="footnote"><p><img id="image-target-content" src="${image}" style="width: 64px; height: 64px"/></p></aside>`
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const cue = page.locator('[data-reader-jump-cue]');
+
+  await page.evaluate(() => {
+    type C6AnnotationWindow = Window & { __BR1_C6_ANNOTATION_EVENTS__?: string[] };
+    const view = document.querySelector('foliate-view');
+    if (!view) throw new Error('expected the live reader view');
+    const events: string[] = [];
+    for (const type of ['draw-annotation', 'show-annotation']) {
+      view.addEventListener(type, () => events.push(type));
+    }
+    (window as C6AnnotationWindow).__BR1_C6_ANNOTATION_EVENTS__ = events;
+  });
+  await frame.locator('body').evaluate((body) => {
+    type C6MutationWindow = Window & {
+      __BR1_C6_NATIVE_MUTATIONS__?: { observer: MutationObserver; records: string[]; baseline: string | null };
+    };
+    const records: string[] = [];
+    const observer = new MutationObserver((mutations) => {
+      records.push(...mutations.map((mutation) => mutation.type));
+    });
+    observer.observe(body, { attributes: true, childList: true, characterData: true, subtree: true });
+    (body.ownerDocument.defaultView as C6MutationWindow).__BR1_C6_NATIVE_MUTATIONS__ = {
+      observer,
+      records,
+      baseline: null
+    };
+  });
+  await page.evaluate(() => {
+    type Content = { index?: number; doc?: Document };
+    type C6MutationWindow = Window & {
+      __BR1_C6_NATIVE_MUTATIONS__?: { observer: MutationObserver; records: string[]; baseline: string | null };
+    };
+    type C6NavigationWindow = Window & { __BR1_C6_LOCAL_GOTO__?: { calls: () => string[] } };
+    const view = document.querySelector('foliate-view') as (HTMLElement & {
+      goTo?: (target: unknown) => Promise<unknown>;
+      renderer?: { getContents?: () => Content[] };
+    }) | null;
+    if (!view?.goTo) throw new Error('expected the live reader goTo API');
+    const originalGoTo = view.goTo.bind(view);
+    const calls: string[] = [];
+    view.goTo = async (target) => {
+      const resolved = await originalGoTo(target);
+      calls.push(String(target));
+      const index =
+        typeof resolved === 'object' && resolved && 'index' in resolved
+          ? (resolved as { index?: unknown }).index
+          : undefined;
+      const body =
+        typeof index === 'number'
+          ? view.renderer?.getContents?.().find((content) => content.index === index)?.doc?.body
+          : null;
+      const state = body
+        ? (body.ownerDocument.defaultView as C6MutationWindow).__BR1_C6_NATIVE_MUTATIONS__
+        : null;
+      if (state) {
+        state.records.length = 0;
+        state.observer.takeRecords();
+        state.baseline = body!.outerHTML;
+      }
+      return resolved;
+    };
+    (window as C6NavigationWindow).__BR1_C6_LOCAL_GOTO__ = { calls: () => [...calls] };
+  });
+  const expectSourceMatchesNavigationBaseline = async () => {
+    const state = await frame.locator('body').evaluate((body) => {
+      type C6MutationWindow = Window & {
+        __BR1_C6_NATIVE_MUTATIONS__?: { observer: MutationObserver; records: string[]; baseline: string | null };
+      };
+      const state = (body.ownerDocument.defaultView as C6MutationWindow).__BR1_C6_NATIVE_MUTATIONS__;
+      if (!state) return null;
+      state.records.push(...state.observer.takeRecords().map((mutation) => mutation.type));
+      return { baseline: state.baseline, current: body.outerHTML, records: state.records };
+    });
+    expect(state).not.toBeNull();
+    expect(state?.baseline).not.toBeNull();
+    expect(state?.current).toBe(state?.baseline);
+    expect(state?.records).toEqual([]);
+  };
+  const goToCalls = () =>
+    page.evaluate(() =>
+      (window as Window & { __BR1_C6_LOCAL_GOTO__?: { calls: () => string[] } }).__BR1_C6_LOCAL_GOTO__?.calls() ?? []
+    );
+
+  const storyTarget = frame.locator('#story-target');
+  await expect(storyTarget).not.toBeInViewport();
+  await frame.locator('#story-link').click();
+  await expectJumpCueAt(page, storyTarget);
+  expect(await goToCalls()).toHaveLength(1);
+  await expectSourceMatchesNavigationBaseline();
+  await expectJumpCueToExpire(page);
+  await expectSourceMatchesNavigationBaseline();
+
+  const digitTarget = frame.locator('#digit-target');
+  await expect(digitTarget).not.toBeInViewport();
+  await frame.locator('#digit-link').click();
+  await expect(dialog).toHaveCount(0);
+  await expectJumpCueAt(page, digitTarget);
+  expect(await goToCalls()).toHaveLength(2);
+  await expectSourceMatchesNavigationBaseline();
+
+  const imageTarget = frame.locator('#image-target');
+  await expect.poll(() =>
+    frame.locator('#image-target-content').evaluate((element) => (element as HTMLImageElement).naturalWidth)
+  ).toBe(1);
+  await expect(imageTarget).not.toBeInViewport();
+  await frame.locator('#picture-link').click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.footnote-body')).toHaveCount(0);
+  await expect(cue).toHaveCount(0);
+  await dialog.getByRole('button', { name: '跳转到正文位置' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expectJumpCueAt(page, frame.locator('#image-target-content'));
+  expect(await goToCalls()).toHaveLength(3);
+  await expectSourceMatchesNavigationBaseline();
+  await expectJumpCueToExpire(page);
+  await expectSourceMatchesNavigationBaseline();
+
+  expect(await page.evaluate(() => (window as Window & { __BR1_C6_ANNOTATION_EVENTS__?: string[] }).__BR1_C6_ANNOTATION_EVENTS__)).toEqual([]);
+});
+
+test('places a cross-chapter duplicate-ID cue in the loaded destination section', async ({ page }) => {
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>Cross C6 filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'c6-cross-chapter',
+    `<p><a id="cross-link" href="chapter-two.xhtml#shared-target">Open chapter two destination</a></p>${filler}
+     <p id="shared-target">Current chapter duplicate destination</p>`,
+    [
+      {
+        id: 'chapter-two',
+        href: 'chapter-two.xhtml',
+        body: `<p id="shared-target">Cross chapter loaded destination</p>${filler}`
+      }
+    ]
+  );
+  await frame.locator('#cross-link').click();
+
+  const findDestinationFrame = async () => {
+    for (const candidate of page.frames()) {
+      const target = candidate.locator('#shared-target');
+      if (
+        (await target.count()) === 1 &&
+        (await target.textContent())?.trim() === 'Cross chapter loaded destination'
+      ) {
+        return candidate;
+      }
+    }
+    return null;
+  };
+  await expect.poll(async () => !!(await findDestinationFrame())).toBe(true);
+  const destinationFrame = await findDestinationFrame();
+  if (!destinationFrame) throw new Error('expected the cross-chapter destination frame');
+  const destination = destinationFrame.locator('#shared-target');
+  await expectJumpCueAt(page, destination);
+  await expectJumpCueToExpire(page);
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as (HTMLElement & {
+        renderer?: { getContents?: () => Array<{ index?: number; doc?: Document }> };
+      }) | null;
+      return view?.renderer?.getContents?.().find(({ doc }) =>
+        doc?.querySelector('#shared-target')?.textContent?.trim() === 'Cross chapter loaded destination'
+      )?.index;
+    })
+  ).toBe(1);
+});
+
+test('does not paint a stale cue when a control navigation supersedes a returned goTo', async ({ page }) => {
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>Stale C6 filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'c6-stale-navigation',
+    `<p><a id="held-link" href="#held-target">Open held destination</a></p>${filler}
+     <p id="held-target">Held native destination</p>`
+  );
+  const target = frame.locator('#held-target');
+  await page.evaluate(() => {
+    type C6StaleWindow = Window & {
+      __BR1_C6_STALE__?: {
+        navigated: () => boolean;
+        goToCalls: () => number;
+        nextCalls: () => number;
+        release: () => void;
+        returned: () => boolean;
+      };
+    };
+    const view = document.querySelector('foliate-view') as (HTMLElement & {
+      goTo?: (target: unknown) => Promise<unknown>;
+      next?: () => Promise<unknown>;
+    }) | null;
+    if (!view?.goTo || !view.next) throw new Error('expected the live reader navigation API');
+    const originalGoTo = view.goTo.bind(view);
+    const originalNext = view.next.bind(view);
+    let firstReturn = true;
+    let didNavigate = false;
+    let didReturn = false;
+    let goToCalls = 0;
+    let nextCalls = 0;
+    let release: (() => void) | null = null;
+    const heldReturn = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    view.goTo = async (target) => {
+      goToCalls += 1;
+      const result = await originalGoTo(target);
+      if (firstReturn) {
+        firstReturn = false;
+        didNavigate = true;
+        await heldReturn;
+        didReturn = true;
+      }
+      return result;
+    };
+    view.next = async () => {
+      nextCalls += 1;
+      return originalNext();
+    };
+    (window as C6StaleWindow).__BR1_C6_STALE__ = {
+      navigated: () => didNavigate,
+      goToCalls: () => goToCalls,
+      nextCalls: () => nextCalls,
+      release: () => release?.(),
+      returned: () => didReturn
+    };
+  });
+
+  await expect(target).not.toBeInViewport();
+  await frame.locator('#held-link').click();
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C6_STALE__?: { navigated: () => boolean } }).__BR1_C6_STALE__?.navigated())
+  ).toBe(true);
+  await expect(target).toBeInViewport();
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C6_STALE__?: { goToCalls: () => number } }).__BR1_C6_STALE__?.goToCalls())
+  ).toBe(1);
+  await expect(page.locator('[data-reader-jump-cue]')).toHaveCount(0);
+
+  await page.getByRole('button', { name: '下一页', exact: true }).first().click();
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C6_STALE__?: { nextCalls: () => number } }).__BR1_C6_STALE__?.nextCalls())
+  ).toBe(1);
+  await page.evaluate(() => (window as Window & { __BR1_C6_STALE__?: { release: () => void } }).__BR1_C6_STALE__?.release());
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C6_STALE__?: { returned: () => boolean } }).__BR1_C6_STALE__?.returned())
+  ).toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  await expect(page.locator('[data-reader-jump-cue]')).toHaveCount(0);
 });
