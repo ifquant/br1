@@ -152,6 +152,7 @@
   let navigationCueId = 0;
   let navigationCue: SVGElement | null = null;
   let navigationCueTimer: ReturnType<typeof setTimeout> | null = null;
+  let refreshNavigationCue: (() => void) | null = null;
   let cueRenderer: FoliateViewElement['renderer'] | null = null;
   let boundPdfPinchDocs = new WeakSet<Document>();
   let syncedNoteValues = new Set<string>();
@@ -957,9 +958,14 @@
     boundSelectionDocs.add(doc);
     doc.addEventListener('selectionchange', () => {
       if (selectionMutationGuard || pdfDragAnchor) return;
+      if (doc.defaultView?.getSelection()?.isCollapsed === false) invalidateNavigationCue();
       emitTrackedSelection(doc, index);
     });
+    // Keyboard selection can also produce an internal anchor event. Cancel at
+    // the input boundary so it cannot refresh a previous navigation's cue.
+    doc.addEventListener('keydown', invalidateNavigationCue);
     doc.addEventListener('pointerdown', (event: PointerEvent) => {
+      invalidateNavigationCue();
       clearPdfCrossDocSelection();
       pdfDragAnchor = null;
       if (
@@ -1173,7 +1179,7 @@
   const configureFoliatePreview = () => {
     const renderer = foliateViewElement?.renderer;
     if (!renderer) return;
-    clearNavigationCue();
+    invalidateNavigationCue();
     if (cueRenderer !== renderer) {
       cueRenderer?.removeEventListener('relocate', handleCueRelocate);
       cueRenderer = renderer;
@@ -1346,6 +1352,7 @@
     navigationCueTimer = null;
     navigationCue?.remove();
     navigationCue = null;
+    refreshNavigationCue = null;
   };
 
   const invalidateNavigationCue = () => {
@@ -1354,11 +1361,17 @@
   };
 
   const handleCueRelocate = (event: Event) => {
-    clearNavigationCue();
     const reason = (event as CustomEvent<{ reason?: string }>).detail?.reason;
+    // Short chapters can settle after goTo returns. Reproject the same target
+    // for internal anchoring, without navigating again or extending its timer.
+    if (reason === 'anchor') {
+      refreshNavigationCue?.();
+      return;
+    }
+    clearNavigationCue();
     // Foliate's host event omits the reason. Its native renderer distinguishes
     // our own goTo/relayout from a newer scroll, page turn or selection intent.
-    if (reason !== 'navigation' && reason !== 'anchor') navigationCueId += 1;
+    if (reason !== 'navigation') navigationCueId += 1;
   };
 
   const navigateAndFlash = async (href: string) => {
@@ -1372,58 +1385,71 @@
 
     // Feedback must never turn a successful navigation into an open-book error.
     // Consume Foliate's resolved destination, not a second current-document ID lookup.
-    try {
-      const content = view?.renderer?.getContents?.().find(({ index }) => index === resolved.index);
-      if (!content?.overlayer || !resolved.anchor) return;
-      const { doc, overlayer } = content;
-      const target = resolved.anchor(doc) as Node | Range | null;
-      let range: Range;
-      if (target && 'startContainer' in target) {
-        range = target;
-      } else if (target?.nodeType === Node.ELEMENT_NODE) {
-        const element = target as Element;
-        if (!element.getClientRects().length || doc.defaultView?.getComputedStyle(element).visibility !== 'visible') return;
-        let root = element.closest('p, li, blockquote, dd, dt, h1, h2, h3, h4, h5, h6') || element;
-        // An empty marker may need its surrounding block, but an image-only
-        // aside must not promote to the whole chapter merely for lacking text.
-        if (!root.textContent?.trim() && root.parentElement && root.parentElement !== doc.body && root.parentElement !== doc.documentElement) {
-          root = root.parentElement;
-        }
-        if (root === doc.body || root === doc.documentElement) return;
-        range = doc.createRange();
-        range.selectNodeContents(root);
-      } else return;
+    const expiresAt = performance.now() + 4000;
+    const drawCue = () => {
+      if (requestId !== navigationCueId || view !== foliateViewElement || book !== view?.book) return;
+      if (performance.now() >= expiresAt) {
+        clearNavigationCue();
+        return;
+      }
+      navigationCue?.remove();
+      navigationCue = null;
+      try {
+        const content = view?.renderer?.getContents?.().find(({ index }) => index === resolved.index);
+        if (!content?.overlayer || !resolved.anchor) return;
+        const { doc, overlayer } = content;
+        const target = resolved.anchor(doc) as Node | Range | null;
+        let range: Range;
+        if (target && 'startContainer' in target) {
+          range = target;
+        } else if (target?.nodeType === Node.ELEMENT_NODE) {
+          const element = target as Element;
+          if (!element.getClientRects().length || doc.defaultView?.getComputedStyle(element).visibility !== 'visible') return;
+          let root = element.closest('p, li, blockquote, dd, dt, h1, h2, h3, h4, h5, h6') || element;
+          // An empty marker may need its surrounding block, but an image-only
+          // aside must not promote to the whole chapter merely for lacking text.
+          if (!root.textContent?.trim() && root.parentElement && root.parentElement !== doc.body && root.parentElement !== doc.documentElement) {
+            root = root.parentElement;
+          }
+          if (root === doc.body || root === doc.documentElement) return;
+          range = doc.createRange();
+          range.selectNodeContents(root);
+        } else return;
 
-      // Match Overlayer.add's Safari CSS-zoom normalization even though this
-      // temporary decoration deliberately bypasses its interactive registry.
-      const safari = /^((?!chrome|android).)*AppleWebKit/i.test(navigator.userAgent)
-        && !(window as Window & { chrome?: unknown }).chrome;
-      const zoom = safari ? Number(doc.defaultView?.getComputedStyle(doc.body).zoom) || 1 : 1;
-      const rects = Array.from(range.getClientRects())
-        .filter(({ width, height }) => width > 0 && height > 0)
-        .map(({ left, top, right, bottom, width, height }) => ({
-          left: left * zoom, top: top * zoom, right: right * zoom,
-          bottom: bottom * zoom, width: width * zoom, height: height * zoom
-        }));
-      const frame = doc.defaultView?.frameElement?.getBoundingClientRect();
-      const stage = stageElement?.getBoundingClientRect();
-      if (!frame || !stage || !rects.some((rect) =>
-        rect.right + frame.left > stage.left && rect.left + frame.left < stage.right &&
-        rect.bottom + frame.top > stage.top && rect.top + frame.top < stage.bottom
-      )) return;
+        // Match Overlayer.add's Safari CSS-zoom normalization even though this
+        // temporary decoration deliberately bypasses its interactive registry.
+        const safari = /^((?!chrome|android).)*AppleWebKit/i.test(navigator.userAgent)
+          && !(window as Window & { chrome?: unknown }).chrome;
+        const zoom = safari ? Number(doc.defaultView?.getComputedStyle(doc.body).zoom) || 1 : 1;
+        const rects = Array.from(range.getClientRects())
+          .filter(({ width, height }) => width > 0 && height > 0)
+          .map(({ left, top, right, bottom, width, height }) => ({
+            left: left * zoom, top: top * zoom, right: right * zoom,
+            bottom: bottom * zoom, width: width * zoom, height: height * zoom
+          }));
+        const frame = doc.defaultView?.frameElement?.getBoundingClientRect();
+        const stage = stageElement?.getBoundingClientRect();
+        if (!frame || !stage || !rects.some((rect) =>
+          rect.right + frame.left > stage.left && rect.left + frame.left < stage.right &&
+          rect.bottom + frame.top > stage.top && rect.top + frame.top < stage.bottom
+        )) return;
 
-      // Do not register this decoration in Overlayer's annotation map: that map
-      // also owns hit-testing and cursor changes. Source DOM and selections stay intact.
-      const cue = Overlayer.highlight(rects, { color: '#eab941' });
-      cue.setAttribute('data-reader-jump-cue', '');
-      overlayer.element.append(cue);
-      navigationCue = cue;
-      navigationCueTimer = setTimeout(() => {
-        if (requestId === navigationCueId) clearNavigationCue();
-      }, 4000);
-    } catch (error) {
-      console.warn('Failed to show navigation target cue', error);
-    }
+        // Do not register this decoration in Overlayer's annotation map: that map
+        // also owns hit-testing and cursor changes. Source DOM and selections stay intact.
+        const cue = Overlayer.highlight(rects, { color: '#eab941' });
+        cue.setAttribute('data-reader-jump-cue', '');
+        overlayer.element.append(cue);
+        navigationCue = cue;
+      } catch (error) {
+        console.warn('Failed to show navigation target cue', error);
+      }
+    };
+    drawCue();
+    if (!navigationCue) return;
+    refreshNavigationCue = drawCue;
+    navigationCueTimer = setTimeout(() => {
+      if (requestId === navigationCueId) clearNavigationCue();
+    }, 4000);
   };
 
   const normalizeFootnoteLabel = (value: string) => value.replace(/\s+/g, ' ').trim();
@@ -1602,6 +1628,24 @@
     return sanitizeFootnoteExcerpt(container);
   };
 
+  const isFootnoteTargetHidden = (target: Element | null) => {
+    const window = target?.ownerDocument.defaultView;
+    // Match Readest's unknown-target policy: parsed, unrendered chapters have
+    // no computed styles. Keep their existing jump, without claiming visibility.
+    if (!window || !target?.isConnected) return false;
+    try {
+      for (let element: Element | null = target; element; element = element.parentElement) {
+        const style = window.getComputedStyle(element);
+        if (style.display === 'none' || style.visibility === 'hidden') return true;
+      }
+    } catch (error) {
+      console.warn('Failed to inspect footnote target visibility', error);
+    }
+    // Do not use viewport intersection or box size: offscreen text and empty
+    // inline anchors still name valid destinations for the existing navigator.
+    return false;
+  };
+
   const maybeOpenFootnotePopupFromViewLink = async (
     event: CustomEvent<{
       a: ReaderAnchorLike;
@@ -1634,6 +1678,7 @@
     const book = view?.book;
     const isCurrent = () => requestId === footnoteRequestId && foliateViewElement === view && view?.book === book;
     let excerpt = { excerptHtml: '', excerptText: '' };
+    let jumpTarget = fallbackHref;
     try {
       let target: Element | null = null;
       if (book?.resolveHref) {
@@ -1650,6 +1695,7 @@
         target = resolveFootnoteTarget(link.ownerDocument, href);
       }
       excerpt = resolveFootnoteExcerpt(target, checked);
+      if (isFootnoteTargetHidden(target)) jumpTarget = '';
     } catch (error) {
       console.warn('Failed to extract footnote preview', error);
     }
@@ -1661,7 +1707,7 @@
     emitFootnoteRequest({
       label: normalizeFootnoteLabel(link.textContent || '') || '脚注',
       href,
-      fallbackNavigationTarget: fallbackHref,
+      fallbackNavigationTarget: jumpTarget,
       excerptHtml: excerpt.excerptHtml,
       excerptText: excerpt.excerptText
     });
@@ -2235,7 +2281,6 @@
             emitReaderState();
           });
           view.addEventListener('relocate', () => {
-            clearNavigationCue();
             bindOpenRendererDocs();
             emitReaderState();
             if (!(currentFormatLabel === 'PDF' && settings.flowMode === 'scrolled')) {

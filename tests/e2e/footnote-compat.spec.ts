@@ -107,6 +107,38 @@ const expectJumpCueToExpire = async (page: import('@playwright/test').Page) => {
   await expect.poll(() => page.locator('[data-reader-jump-cue]').count(), { timeout: 6000 }).toBe(0);
 };
 
+const captureNativeRelocateDetail = async (page: import('@playwright/test').Page) => {
+  await page.evaluate(() => {
+    type NativeRelocateDetail = { index: number; range: { getClientRects?: () => DOMRectList }; fraction?: number; size?: number };
+    type C7Window = Window & { __BR1_C7_RELOCATE__?: { dispatch: (reason: 'anchor' | 'scroll') => void } };
+    const renderer = (document.querySelector('foliate-view') as (HTMLElement & { renderer?: EventTarget }) | null)?.renderer;
+    if (!renderer) throw new Error('expected the live reader renderer');
+    let detail: NativeRelocateDetail | null = null;
+    renderer.addEventListener('relocate', (event) => {
+      const candidate = (event as CustomEvent<NativeRelocateDetail>).detail;
+      if (typeof candidate?.index === 'number' && typeof candidate.range?.getClientRects === 'function') detail = candidate;
+    });
+    (window as C7Window).__BR1_C7_RELOCATE__ = {
+      dispatch: (reason) => {
+        if (!detail) throw new Error('expected a native renderer relocate detail');
+        renderer.dispatchEvent(new CustomEvent('relocate', { detail: { ...detail, reason } }));
+      }
+    };
+  });
+};
+
+const dispatchCapturedNativeRelocate = async (
+  page: import('@playwright/test').Page,
+  reason: 'anchor' | 'scroll'
+) => {
+  await page.evaluate((relocateReason) => {
+    type C7Window = Window & { __BR1_C7_RELOCATE__?: { dispatch: (reason: 'anchor' | 'scroll') => void } };
+    const relocate = (window as C7Window).__BR1_C7_RELOCATE__;
+    if (!relocate) throw new Error('expected a captured renderer relocate detail');
+    relocate.dispatch(relocateReason);
+  }, reason);
+};
+
 test('opens href-less Duokan and Zhangyue markers by their first available plaintext metadata', async ({ page }) => {
   await page.addInitScript(() => {
     (window as Window & { __BR1_FOOTNOTE_ALT_XSS__?: number }).__BR1_FOOTNOTE_ALT_XSS__ = 0;
@@ -967,4 +999,341 @@ test('does not paint a stale cue when a control navigation supersedes a returned
   ).toBe(true);
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   await expect(page.locator('[data-reader-jump-cue]')).toHaveCount(0);
+});
+
+test('applies C7 known-hidden policy while preserving unknown footnote fallbacks', async ({ page }) => {
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>C7 target filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'c7-rendered-local-targets',
+    `<style>
+       .c7-display-none, .c7-hidden-ancestor { display: none; }
+       .c7-inherited-hidden { visibility: hidden; }
+       .c7-display-contents { display: contents; }
+     </style>
+     <p><a id="visible-ref" href="#visible-target" epub:type="noteref">[1]</a></p>
+     <p><a id="display-none-ref" href="#display-none-target" epub:type="noteref">[2]</a></p>
+     <p><a id="hidden-ancestor-ref" href="#hidden-ancestor-target" epub:type="noteref">[3]</a></p>
+     <p><a id="inherited-hidden-ref" href="#inherited-hidden-target" epub:type="noteref">[4]</a></p>
+     <p><a id="missing-ref" href="#missing-target" epub:type="noteref">[5]</a></p>
+     <p><a id="error-ref" href="#error-target" epub:type="noteref">[6]</a></p>
+     <p><a id="contents-ref" href="#contents-target" epub:type="noteref">[7]</a></p>
+     <p><a id="empty-inline-ref" href="#empty-inline-target" epub:type="noteref">[8]</a></p>
+     <p><a id="empty-hidden-ref" href="#empty-hidden-target" epub:type="noteref">[9]</a></p>
+     <p><a id="href-less-marker" class="duokan-footnote" data-wr-footernote="Href-less metadata preview">*</a></p>
+     ${filler}
+     <aside id="visible-target" epub:type="footnote"><p>Visible local preview</p></aside>
+     <aside id="display-none-target" class="c7-display-none" epub:type="footnote"><p>Display none preview remains readable</p></aside>
+     <section id="hidden-ancestor" class="c7-hidden-ancestor"><aside id="hidden-ancestor-target" epub:type="footnote"><p>Hidden ancestor preview remains readable</p></aside></section>
+     <section class="c7-inherited-hidden"><aside id="inherited-hidden-target" epub:type="footnote"><p>Inherited visibility preview remains readable</p></aside></section>
+     <aside id="contents-target" class="c7-display-contents" epub:type="footnote"><p id="contents-copy">Display contents preview</p></aside>
+     <aside epub:type="footnote"><a id="empty-inline-target"></a><p>Empty inline anchor preview</p></aside>
+     <aside id="empty-hidden-target" class="c7-display-none" epub:type="footnote"><p><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt=""/></p></aside>`
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const jump = dialog.getByRole('button', { name: '跳转到正文位置' });
+
+  await page.evaluate(() => {
+    type C7Window = Window & { __BR1_C7_GOTO__?: { calls: () => string[] } };
+    const view = document.querySelector('foliate-view') as (HTMLElement & {
+      goTo?: (target: unknown) => Promise<unknown>;
+      book?: { resolveHref?: (href: string) => unknown };
+    }) | null;
+    if (!view?.goTo || !view.book?.resolveHref) throw new Error('expected the live reader footnote APIs');
+    const goTo = view.goTo.bind(view);
+    const resolveHref = view.book.resolveHref.bind(view.book);
+    const calls: string[] = [];
+    view.goTo = async (target) => {
+      calls.push(String(target));
+      return goTo(target);
+    };
+    view.book.resolveHref = (href) => {
+      const resolved = resolveHref(href);
+      if (!href.endsWith('#error-target') || !resolved || typeof resolved !== 'object') return resolved;
+      return { ...resolved, anchor: () => { throw new Error('C7 expected anchor failure'); } };
+    };
+    (window as C7Window).__BR1_C7_GOTO__ = { calls: () => [...calls] };
+  });
+  const goToCalls = () =>
+    page.evaluate(() =>
+      (window as Window & { __BR1_C7_GOTO__?: { calls: () => string[] } }).__BR1_C7_GOTO__?.calls() ?? []
+    );
+
+  const visibleTarget = frame.locator('#visible-target');
+  await expect(visibleTarget).not.toBeInViewport();
+  await expect.poll(() => visibleTarget.evaluate((element) => getComputedStyle(element).visibility)).toBe('visible');
+  await frame.locator('#visible-ref').click();
+  await expect(dialog).toContainText('Visible local preview');
+  await expect(jump).toBeVisible();
+  expect(await goToCalls()).toEqual([]);
+  await closeFootnote(page);
+  const sourceBefore = await frame.locator('body').evaluate((body) => body.outerHTML);
+
+  for (const [referenceId, targetId, preview, expected, hiddenAncestorId] of [
+    ['display-none-ref', 'display-none-target', 'Display none preview remains readable', { display: 'none', hasPositiveRect: false }, ''],
+    ['hidden-ancestor-ref', 'hidden-ancestor-target', 'Hidden ancestor preview remains readable', { hasPositiveRect: false }, 'hidden-ancestor'],
+    ['inherited-hidden-ref', 'inherited-hidden-target', 'Inherited visibility preview remains readable', { visibility: 'hidden' }, ''],
+    ['contents-ref', 'contents-target', 'Display contents preview', { display: 'contents', visibility: 'visible', hasPositiveRect: false }, ''],
+    ['empty-inline-ref', 'empty-inline-target', 'Empty inline anchor preview', { visibility: 'visible', hasPositiveRect: false }, '']
+  ] as const) {
+    await frame.locator(`#${referenceId}`).click();
+    await expect(dialog).toContainText(preview);
+    const computed = await frame.locator(`#${targetId}`).evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        display: style.display,
+        visibility: style.visibility,
+        hasPositiveRect: Array.from(element.getClientRects()).some(({ width, height }) => width > 0 && height > 0)
+      };
+    });
+    expect(computed).toMatchObject(expected);
+    if (hiddenAncestorId) {
+      expect(await frame.locator(`#${hiddenAncestorId}`).evaluate((element) => getComputedStyle(element).display)).toBe('none');
+    }
+    await expect(jump).toHaveCount(hiddenAncestorId || referenceId === 'display-none-ref' || referenceId === 'inherited-hidden-ref' ? 0 : 1);
+    expect(await goToCalls()).toEqual([]);
+    await closeFootnote(page);
+    if (hiddenAncestorId || referenceId === 'display-none-ref' || referenceId === 'inherited-hidden-ref') {
+      expect(await frame.locator('body').evaluate((body) => body.outerHTML)).toBe(sourceBefore);
+    }
+  }
+
+  // The missing anchor has no resolved node to inspect, so it remains an
+  // UNKNOWN target and preserves Foliate's existing jump fallback.
+  await frame.locator('#missing-ref').click();
+  await expect(dialog).toBeVisible();
+  await expect(jump).toBeVisible();
+  expect(await goToCalls()).toEqual([]);
+  await closeFootnote(page);
+
+  await frame.locator('#error-ref').click();
+  await expect(dialog).toBeVisible();
+  await expect(jump).toBeVisible();
+  expect(await goToCalls()).toEqual([]);
+  await closeFootnote(page);
+
+  await frame.locator('#href-less-marker').click();
+  await expect(dialog).toContainText('Href-less metadata preview');
+  await expect(jump).toHaveCount(0);
+  expect(await goToCalls()).toEqual([]);
+  await closeFootnote(page);
+
+  await frame.locator('#empty-hidden-ref').click();
+  await expect(dialog.locator('.footnote-body')).toHaveCount(0);
+  await expect(dialog.locator('.footnote-fallback')).toHaveText('无法预览');
+  await expect(jump).toHaveCount(0);
+  expect(await goToCalls()).toEqual([]);
+
+  await frame.locator('#visible-ref').click();
+  await expect(jump).toBeVisible();
+  await jump.click();
+  await expect(dialog).toHaveCount(0);
+  await expectJumpCueAt(page, visibleTarget);
+  expect(await goToCalls()).toHaveLength(1);
+});
+
+test('keeps an unloaded cross-chapter footnote target as an unknown jump fallback', async ({ page }) => {
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error));
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>C7 unloaded filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'c7-unloaded-cross-chapter',
+    `<style>.c7-current-collision { display: none; }</style>
+     <p><a id="unloaded-ref" href="chapter-two.xhtml#shared-target" epub:type="noteref">[1]</a></p>
+     <aside id="shared-target" class="c7-current-collision">Current chapter collision</aside>`,
+    [
+      { id: 'middle-one', href: 'middle-one.xhtml', body: filler },
+      { id: 'middle-two', href: 'middle-two.xhtml', body: filler },
+      { id: 'middle-three', href: 'middle-three.xhtml', body: filler },
+      { id: 'middle-four', href: 'middle-four.xhtml', body: filler },
+      { id: 'middle-five', href: 'middle-five.xhtml', body: filler },
+      {
+        id: 'chapter-two',
+        href: 'chapter-two.xhtml',
+        body: `<aside id="shared-target">Unloaded cross chapter destination preview</aside>
+               <p><a id="scroll-link" href="#scroll-target">Follow the destination</a></p>
+               <p id="scroll-target">Destination scroll cue target</p>`
+      }
+    ]
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const jump = dialog.getByRole('button', { name: '跳转到正文位置' });
+  const isDestinationLoaded = () =>
+    page.evaluate(() => {
+      const view = document.querySelector('foliate-view') as (HTMLElement & {
+        renderer?: { getContents?: () => Array<{ index?: number }> };
+      }) | null;
+      return view?.renderer?.getContents?.().some(({ index }) => index === 6) ?? false;
+    });
+
+  await page.evaluate(() => {
+    type C7Window = Window & { __BR1_C7_UNLOADED_GOTO__?: { calls: () => string[] } };
+    const view = document.querySelector('foliate-view') as (HTMLElement & {
+      goTo?: (target: unknown) => Promise<unknown>;
+    }) | null;
+    if (!view?.goTo) throw new Error('expected the live reader goTo API');
+    const goTo = view.goTo.bind(view);
+    const calls: string[] = [];
+    view.goTo = async (target) => {
+      calls.push(String(target));
+      return goTo(target);
+    };
+    (window as C7Window).__BR1_C7_UNLOADED_GOTO__ = { calls: () => [...calls] };
+  });
+  const goToCalls = () =>
+    page.evaluate(() =>
+      (window as Window & { __BR1_C7_UNLOADED_GOTO__?: { calls: () => string[] } })
+        .__BR1_C7_UNLOADED_GOTO__?.calls() ?? []
+    );
+
+  expect(await isDestinationLoaded()).toBe(false);
+  expect(await frame.locator('#shared-target').evaluate((element) => getComputedStyle(element).display)).toBe('none');
+  await frame.locator('#unloaded-ref').click();
+  await expect(dialog).toContainText('Unloaded cross chapter destination preview');
+  await expect(dialog).not.toContainText('Current chapter collision');
+  await expect(jump).toBeVisible();
+  expect(await goToCalls()).toEqual([]);
+  expect(await isDestinationLoaded()).toBe(false);
+  await captureNativeRelocateDetail(page);
+  await jump.click();
+  await expect(dialog).toHaveCount(0);
+  expect(await goToCalls()).toHaveLength(1);
+
+  const findDestinationFrame = async () => {
+    for (const candidate of page.frames()) {
+      const destination = candidate.locator('#shared-target');
+      if (
+        (await destination.count()) === 1 &&
+        (await destination.textContent())?.trim() === 'Unloaded cross chapter destination preview'
+      ) {
+        return candidate;
+      }
+    }
+    return null;
+  };
+  await expect.poll(async () => !!(await findDestinationFrame())).toBe(true);
+  const destinationFrame = await findDestinationFrame();
+  if (!destinationFrame) throw new Error('expected the unloaded cross-chapter destination frame');
+  await expectJumpCueAt(page, destinationFrame.locator('#shared-target'));
+  const cue = page.locator('[data-reader-jump-cue]');
+
+  await page.evaluate(() => {
+    type C7Window = Window & { __BR1_C7_ANCHOR_FIRED__?: boolean };
+    setTimeout(() => {
+      (window as C7Window).__BR1_C7_ANCHOR_FIRED__ = true;
+    }, 1000);
+  });
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C7_ANCHOR_FIRED__?: boolean }).__BR1_C7_ANCHOR_FIRED__ ?? false)
+  ).toBe(true);
+  await dispatchCapturedNativeRelocate(page, 'anchor');
+  await expect(cue).toHaveCount(1);
+  await expect.poll(() => cue.count(), { timeout: 3200 }).toBe(0);
+  await expectJumpCueToExpire(page);
+  await dispatchCapturedNativeRelocate(page, 'anchor');
+  await expect(cue).toHaveCount(0);
+
+  const scrollTarget = destinationFrame.locator('#scroll-target');
+  await destinationFrame.locator('#scroll-link').click();
+  await expectJumpCueAt(page, scrollTarget);
+  await dispatchCapturedNativeRelocate(page, 'scroll');
+  await expect(cue).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+});
+
+test('does not revive a C7 cue after a real iframe selection', async ({ page }) => {
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error));
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>C7 selection filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'c7-selection-cue',
+    `<p><a id="selection-ref" href="#selection-target" epub:type="noteref">[1]</a></p>${filler}
+     <aside id="selection-target" epub:type="footnote"><p id="selection-copy">C7 selected destination text</p></aside>`
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const cue = page.locator('[data-reader-jump-cue]');
+
+  await frame.locator('#selection-ref').click();
+  await expect(dialog.getByRole('button', { name: '跳转到正文位置' })).toBeVisible();
+  await captureNativeRelocateDetail(page);
+  await dialog.getByRole('button', { name: '跳转到正文位置' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expectJumpCueAt(page, frame.locator('#selection-target'));
+
+  await frame.locator('#selection-copy').evaluate((element) => {
+    const selection = element.ownerDocument.defaultView?.getSelection();
+    if (!selection) throw new Error('expected the iframe selection API');
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    element.ownerDocument.dispatchEvent(new Event('selectionchange'));
+  });
+  await expect(cue).toHaveCount(0);
+  await dispatchCapturedNativeRelocate(page, 'anchor');
+  await expect(cue).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+});
+
+test('does not paint a C7 cue after layout invalidates a held jump', async ({ page }) => {
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error));
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const filler = Array.from({ length: 80 }, (_, index) => `<p>C7 layout filler ${index}</p>`).join('');
+  const frame = await openEpub(
+    page,
+    'c7-layout-held-jump',
+    `<p><a id="held-ref" href="#held-target" epub:type="noteref">[1]</a></p>${filler}
+     <aside id="held-target" epub:type="footnote">C7 held layout destination</aside>`
+  );
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  const target = frame.locator('#held-target');
+
+  await page.evaluate(() => {
+    type C7Window = Window & {
+      __BR1_C7_LAYOUT_HELD__?: { entered: () => boolean; release: () => void; returned: () => boolean };
+    };
+    const view = document.querySelector('foliate-view') as (HTMLElement & {
+      goTo?: (target: unknown) => Promise<unknown>;
+    }) | null;
+    if (!view?.goTo) throw new Error('expected the live reader goTo API');
+    const goTo = view.goTo.bind(view);
+    let entered = false;
+    let returned = false;
+    let release: (() => void) | null = null;
+    const heldReturn = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    view.goTo = async (target) => {
+      const result = await goTo(target);
+      entered = true;
+      await heldReturn;
+      returned = true;
+      return result;
+    };
+    (window as C7Window).__BR1_C7_LAYOUT_HELD__ = {
+      entered: () => entered,
+      release: () => release?.(),
+      returned: () => returned
+    };
+  });
+
+  await frame.locator('#held-ref').click();
+  await dialog.getByRole('button', { name: '跳转到正文位置' }).click();
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C7_LAYOUT_HELD__?: { entered: () => boolean } }).__BR1_C7_LAYOUT_HELD__?.entered())
+  ).toBe(true);
+  await expect(target).toBeInViewport();
+  await page.setViewportSize({ width: 1120, height: 720 });
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C7_LAYOUT_HELD__?: { release: () => void } }).__BR1_C7_LAYOUT_HELD__?.release()
+  );
+  await expect.poll(() =>
+    page.evaluate(() => (window as Window & { __BR1_C7_LAYOUT_HELD__?: { returned: () => boolean } }).__BR1_C7_LAYOUT_HELD__?.returned())
+  ).toBe(true);
+  await expect(page.locator('[data-reader-jump-cue]')).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
 });

@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C6.
+local implementation and verification are recorded separately for C1-C7.
 
 ## Frozen and provisional slices
 
@@ -25,7 +25,7 @@ local implementation and verification are recorded separately for C1-C6.
 | **S2-R04C4** | Footnote popup visual integrity | `1d8ed3fc9`, `d6e981e56` | Native background-isolation proof; the exact custom-font/namespace ordering bug is not-applicable. No new popup renderer or source-aside hiding policy. |
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Native text-scope equivalent with cleaned-empty navigation fallback. Popup images and late-image sizing are excluded, not claimed as full rich-media parity. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Shared native navigation completion with a four-second visual-only target cue; popup-internal links remain absent. |
-| **S2-R04C7** | Jump from popup to the visible book target | `aab58241d` | Provisional standalone popup-navigation slice. |
+| **S2-R04C7** | Jump from popup to the book target unless known hidden | `aab58241d` | Native preview action with original-target ancestor styles and upstream unknown-default-allow policy; not pre-rendered visibility proof. |
 | **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Provisional standalone cross-document selection slice. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Provisional renderer-lifetime slice; requires the exact foliate refcount behavior. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Provisional directional-flow slice. Ignore unrelated locale and submodule churn in the Readest commits. |
@@ -104,7 +104,7 @@ Russian configured words in `370a51662` are:
 | `d6e981e56` | 2 files, +25/-7 | Moves `@namespace epub` to the first line of the assembled reader stylesheet, before custom `@font-face` rules. This keeps `aside[epub|type~=footnote]` valid and hidden when custom fonts are loaded. | No foliate move. |
 | `7c0419961` | 2 files, +272/-32 | Uses a `ResizeObserver` to keep popup height fitted after content settles; seeds alt-text popup size without a later 88px overwrite; disconnects stale observers and ignores superseded loads; shows image/element-only popups from measured content even when foliate emits no relocate event. | No foliate move. Standalone lifecycle behavior. |
 | `dbe0dae0a` | 5 files, +176/-58 | Generalizes the transient search marker into an href/range highlighter and flashes the target after default in-page navigation, failed popup extraction fallback, and links followed inside a popup. Timers are cleared on replacement/unmount. | No foliate move. |
-| `aab58241d` | 4 files, +442/-23 | Adds popup-to-book navigation and flashes the destination. It offers the jump only when the target is not hidden by reader footnote styles (ancestor computed-style walk); the final revision floats controls over text with pointer-transparent chrome rather than reserving blank padding. | No foliate move. |
+| `aab58241d` | 4 files, +442/-23 | Adds popup-to-book navigation and flashes the destination. It rejects rendered targets whose ancestor computed styles have `display:none` or `visibility:hidden`; unrendered, unresolved and inspection-error cases deliberately retain navigation. The final revision floats controls over text with pointer-transparent chrome rather than reserving blank padding. | No foliate move; `79191075dfc513f563fd8e8acc56e50470fd9f4c` on both sides. |
 | `631cd6454` | 10 files, +914/-68 | Maps selections from the extracted popup DOM back to pristine-section CFIs, enables applicable selection/annotation tools, redraws popup highlights/notes, validates CFI before save, rejects cross-section notes early, normalizes element boundaries, and guards async selection state with an epoch. Synthetic alt/data text has no CFI, so anchoring actions and TTS remain disabled there. | `9fde61a10..57c9358ad`: foliate exports CFI serialization/range building and emits section index plus extraction mapping. |
 | `a193cbc35` | 2 files, +167/-1 | Fixes top-level EPUB loader references so opening/dismissing a second view cannot decrement a still-live reader section to zero and revoke its image/blob URLs. `loadItemXHTMLContent` reuses the caller's held section reference to avoid leaking an unmatched count. | `57c9358ad..c1f0c3c55`: exact loader refcount fix; Readest adds focused shared-view lifetime tests. |
 
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C7**. Each slice starts by checking current local callers
+Continue with **S2-R04C8**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -196,7 +196,7 @@ an explicit owner explanation rather than a manufactured runtime test.
 | C4 | Native popup content excludes authored backgrounds and layout attributes without changing preview size. The original namespace/custom-font criterion is not-applicable: br1 assembles neither custom font faces nor namespace-dependent hide selectors. This does not establish source-aside border suppression or custom-font parity. |
 | C5 | Native-scope acceptance: long alt/rich-text excerpts remain scrollable through their final text; replacement and close do not revive superseded reads. Sanitized empty/image-only content uses existing explicit fallback or checked-link navigation. br1 intentionally excludes popup images; upstream image resizing/observer APIs are not ported, and full rich-media parity is not claimed. |
 | C6 | In-page target cue appears and is cleared on replacement, close, or navigation. |
-| C7 | Visible targets support popup-to-book jumps; hidden footnote targets do not offer misleading jumps. |
+| C7 | Rendered targets/ancestors hidden by display or visibility suppress popup jumps; unknown targets retain the upstream fallback policy without visibility claims. |
 | C8 | Real popup selections map to original section CFIs; synthetic alt text cannot create anchored notes. |
 | C9 | Repeated popup open/close preserves reader images and releases final blob references once all views close. |
 | C10 | Body-child vertical detection, semantic RTL next/previous, and restore with adjacent preloaded sections. |
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C7-C21 remain pending; their table entries are executable specifications,
+run. C8-C21 remain pending; their table entries are executable specifications,
 not completion claims.
 
 ### C2 implementation boundary
@@ -404,3 +404,60 @@ Controlled held-return supersession is not native-gesture stress acceptance.
 
 At C6 closure: 53 covered, 413 partial, 77 gap, 135 not-applicable, and
 60 remaining task IDs. Next: C7 popup-to-book navigation audit.
+
+### C7 popup-to-book navigation policy
+
+Exact source: `aab58241d492c336b682962e6302d69e7c1004dc`, parent
+`39580e75457b05afbdbcc459777d68792f9eabb1`. Four app/test files change;
+there is no nested Foliate update to port. The upstream helper deliberately
+allows unknown destinations. It is a known-hidden filter, not proof that any
+unloaded chapter will be visible after navigation.
+
+br1 keeps that compatibility policy and its existing fallback behavior.
+The Viewport checks the original resolved element and ancestors in the actual
+rendered chapter, rejecting computed `display:none` or `visibility:hidden`.
+It does not test current viewport intersection, opacity or rectangle size.
+Detached `createDocument()` results have no browsing context; their unknown
+styles, missing anchors and inspection errors do not disable the jump.
+No temporary renderer, CSS parser, pre-navigation or chapter preloader is added.
+
+The existing `fallbackNavigationTarget` carries the accepted href, or an empty
+string for a known-hidden destination. The native popup offers that action for
+readable previews as well as empty previews, and no longer promises a jump for
+a hidden empty note. Stage already dismisses before issuing one href control;
+C6 owns the navigation and temporary landing cue. Existing numeric-link fallback
+navigation and source content remain unchanged.
+
+The real unloaded-short-chapter regression exposed a C6 lifecycle defect:
+Foliate can emit another internal `anchor` relocation after `goTo` returns,
+immediately clearing the newly drawn cue. The host now lets that native reason
+redraw the captured destination with fresh geometry and the original timer.
+It does not navigate again or restart the four-second lifetime. Other native
+relocations clear the callback; expiry, layout changes and teardown cannot
+leave a callback that revives a dismissed cue. The reason-less host relocate
+event no longer independently clears the same visual resource.
+
+Native text previews strip internal anchors and use a separate action row.
+Upstream popup-internal history and floating renderer chrome are not applicable
+to this surface. Href-less metadata popups still cannot jump. No source-aside
+hiding policy, rich-media renderer, selection/CFI tools, packaged/mobile or
+Safari runtime acceptance is included. Unknown-target navigation can still land
+on hidden content; this is the retained upstream policy, not a solved edge.
+
+Verification: C7 focused 4/4 PASS; footnote plus authored-text 22/22 PASS;
+legacy footnote/sanitizer/TXT selection 4/4 PASS (26 unique cases).
+`pnpm check`: 0 errors, 0 warnings. `pnpm build` on the final production source
+and `git diff --check`: PASS. Fresh Terra high production/test reviews: PASS.
+Final Astra high whole-change review: PASS.
+
+The short-chapter regression initially failed because an internal relocation
+removed the cue immediately. Final tests keep that real navigation assertion,
+replay complete native relocation details for controlled deadline/cancellation
+checks, and reject browser page errors. Selection uses the real iframe Selection
+API; a held navigation result released after actual viewport resize cannot paint
+a stale cue. These are focused lifecycle checks, not full native-gesture stress
+or packaged-platform acceptance.
+
+At C7 closure: 54 covered, 412 partial, 77 gap, 135 not-applicable, and
+59 remaining task IDs. Next: C8 footnote selection and annotation mapping,
+including its own nested Foliate commit audit.

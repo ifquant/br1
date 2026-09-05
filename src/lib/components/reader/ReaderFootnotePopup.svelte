@@ -29,12 +29,12 @@
         {/if}
       </div>
     {:else}
-      <p class="footnote-fallback">无法预览，可跳转到正文位置</p>
+      <p class="footnote-fallback">{fallbackHref.trim() ? '无法预览，可跳转到正文位置' : '无法预览'}</p>
     {/if}
 
     <div class="popup-actions">
       <button type="button" class="primary-action" on:click={() => onClose?.()}>关闭脚注</button>
-      {#if !hasPreview && fallbackHref.trim()}
+      {#if fallbackHref.trim()}
         <button type="button" on:click={() => onJump?.()}>跳转到正文位置</button>
       {/if}
     </div>
