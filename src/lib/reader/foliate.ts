@@ -139,6 +139,12 @@ const SANITIZED_BOOK_RESOURCE_TYPES = new Set([
   'text/html'
 ]);
 
+// Match the upstream Arabic shaping ranges, including combining marks and
+// presentation forms but excluding both Arabic digit ranges. Replacing an RLM
+// run with an equally long ZWNJ run keeps text offsets stable for annotations.
+const arabicShapingCharacter = '[\\u0600-\\u065F\\u066A-\\u06EF\\u06FA-\\u06FF\\uFB50-\\uFDFF\\uFE70-\\uFEFC]';
+const misplacedArabicRlm = new RegExp(`(${arabicShapingCharacter})(\\u200F+)(?=${arabicShapingCharacter})`, 'g');
+
 const sanitizeReaderBookMarkup = (content: string, type: string) => {
   const normalized = content.replaceAll('&nbsp;', '&#160;');
   const sharedConfig = {
@@ -155,20 +161,30 @@ const sanitizeReaderBookMarkup = (content: string, type: string) => {
 
   // SVG resources must keep their SVG root because Foliate still serves the
   // sanitized result as image/svg+xml rather than as an HTML document.
-  const sanitized =
-    type === 'image/svg+xml'
-      ? DOMPurify.sanitize(normalized, {
-          ...sharedConfig,
-          USE_PROFILES: { svg: true, svgFilters: true }
-        })
-      : new XMLSerializer().serializeToString(
-          DOMPurify.sanitize(normalized, {
-            ...sharedConfig,
-            WHOLE_DOCUMENT: true,
-            ADD_TAGS: ['link', 'meta'],
-            RETURN_DOM: true
-          })
-        );
+  let sanitized: string;
+  if (type === 'image/svg+xml') {
+    sanitized = DOMPurify.sanitize(normalized, {
+      ...sharedConfig,
+      USE_PROFILES: { svg: true, svgFilters: true }
+    });
+  } else {
+    const root = DOMPurify.sanitize(normalized, {
+      ...sharedConfig,
+      WHOLE_DOCUMENT: true,
+      ADD_TAGS: ['link', 'meta'],
+      RETURN_DOM: true
+    });
+    // Work on decoded prose nodes so entities follow the same rule, while
+    // attributes, literal code, CSS, and embedded vector/math content stay intact.
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.parentElement?.closest('head, style, script, pre, code, kbd, samp, textarea, svg, math')) continue;
+      const text = node as Text;
+      text.data = text.data.replace(misplacedArabicRlm, (_match, before: string, marks: string) =>
+        before + '\u200C'.repeat(marks.length));
+    }
+    sanitized = new XMLSerializer().serializeToString(root);
+  }
 
   return String(sanitized)
     .replaceAll('&#160;', '&nbsp;')
@@ -351,6 +367,7 @@ export const getReaderViewStyles = (settings: ReaderSettings) => {
   code,
   kbd {
     font-family: var(--monospace);
+    font-variant-ligatures: none !important;
   }
 
   pre {

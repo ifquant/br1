@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 44 |
-| `partial` | 425 |
+| `covered` | 47 |
+| `partial` | 420 |
 | `gap` | 77 |
-| `not-applicable` | 132 |
+| `not-applicable` | 134 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 25 | 235 | 22 | 52 |
+| reader core | 28 | 230 | 22 | 54 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -39,7 +39,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | ---: | --- | --- | --- | --- | --- | --- |
 | 1 | `193613659` | reader core | fix: resolve various tracked exceptions in ph (#3584) | `partial` | S2-R07 | Relevant failure class; reproduce locally before changing code. |
 | 2 | `290550601` | reader core | fix(layout): fixed total scrollable width in vertical scrolled mode, closes #3583 (#3586) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
-| 3 | `87f0240b0` | reader core | compat(footnote): support footnote text in alt attribute of the image, closes #3576 (#3587) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 3 | `87f0240b0` | reader core | compat(footnote): support footnote text in alt attribute of the image, closes #3576 (#3587) | `partial` | S2-R04C3 | Core reading exists; this authored-layout/script edge is unverified. |
 | 4 | `5a072e7d1` | reader core | fix(pdf): apply theme colors for PDFs, closes #3593 (#3626) | `covered` | S2-R03A | The PDF renderer receives the active br1 theme palette through `pageColors`, with a focused browser regression. |
 | 5 | `f31030583` | library | fix(library): mixed sorting for group and ungroupped books, closes #3596 (#3627) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 6 | `52df478f2` | reader core | fix: show proper background images in continuous scrolled mode, closes #3638 (#3645) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
@@ -69,7 +69,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 30 | `888f4afde` | reader core | fix: preserve paragraph mode reading layouts and other UI/UX fixes (#3730) | `partial` | S2-F05 | Paragraph focus exists; authored layout preservation remains unproved. |
 | 31 | `6a44f609b` | reader core | fix(paginator): fixed paginator section preloading, closes #3600 and closes #3601 (#3734) | `partial` | S2-R01B | P0-2/P0-3 and reader smoke tests; exact paginator boundary is unproved. |
 | 32 | `45bd35598` | catalog/import | feat(opds): support custom catalog headers with web proxy consent (#3740) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
-| 33 | `caa0d719c` | reader core | compat(vertical): check writing mode also for child element of body, closes #3583 (#3743) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 33 | `caa0d719c` | reader core | compat(vertical): check writing mode also for child element of body, closes #3583 (#3743) | `partial` | S2-R04C10 | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
 | 34 | `21795e5cd` | tts/audio | fix(tts): avoid race condition in preloadNextSSML causing wrong highlights (#3748) | `partial` | S2-T01 | tts.ts, ttsRuntime.ts, and TTS tests; upstream race needs a local regression. |
 | 35 | `70b94d898` | reader core | fix(layout): fixed layout of progress bar in vertical mode (#3749) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 36 | `d53f3b42e` | reading modes/controls | feat(rsvp): split words option, faster countdown, and skip pages RSVP cant open (#3755) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
@@ -99,7 +99,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 60 | `a5690e9a8` | tts/audio | fix(tts): skip br elements in PDF text layer to prevent TTS interruptions at line breaks, closes #3771 (#3811) | `partial` | S2-T03 | tts.ts, ttsRuntime.ts, and TTS tests; extraction/section parity is incomplete. |
 | 61 | `bd866cb04` | catalog/import | fix(opds): harden Content-Disposition filename parsing for complex names and encoding (#3816) | `partial` | S2-O02B | catalogs.rs and catalog tests; exact filename fixture is missing. |
 | 62 | `c6daf72da` | catalog/import | feat(opds): allow editing of registered catalogs (#3814) | `gap` | S2-O03 | catalogs.rs and catalog tests; edit/request configuration is absent. |
-| 63 | `23d5f3363` | reader core | fix(rtl): fix page navigation for Arabic books (#3817) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 63 | `23d5f3363` | reader core | fix(rtl): fix page navigation for Arabic books (#3817) | `partial` | S2-R04C10 | Core reading exists; this authored-layout/script edge is unverified. |
 | 64 | `07e324878` | reader core | fix: apply disable click to paginate also for non-iframe clicks (#3818) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 65 | `3df75a67f` | tts/audio | feat(tts): support edge tts on cloudflare worker (#3819) | `not-applicable` | — | Cloud TTS provider expansion is outside the Web Speech scope. |
 | 66 | `de11511c3` | reader core | fix(layout): fixed bleed layout of images (#3823) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
@@ -119,7 +119,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 80 | `802212c42` | library | refactor: fixed typo in module name (#3881) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
 | 81 | `976bbcc15` | library | fix(library): fixed opening shared books from other apps (#3884) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 82 | `31e44d2e4` | reader core | fix(a11y): fixed saving reading progress with screen readers, closes #3864 (#3891) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; baseline a11y exists, exact case needs proof. |
-| 83 | `b223ccaee` | reader core | feat(footnotes): detect more formats of footnote (#3894) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 83 | `b223ccaee` | reader core | feat(footnotes): detect more formats of footnote (#3894) | `partial` | S2-R04C3 | Core reading exists; this authored-layout/script edge is unverified. |
 | 84 | `e1dad98e5` | reader core | fix(toc): prevent auto-scroll snap-back on sidebar open (#3900) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
 | 85 | `ff94dc76c` | reader core | fix: fixed crash on app start when there is no main window but a reader window running, closes #3897 (#3902) | `partial` | S2-R07 | Relevant failure class; reproduce locally before changing code. |
 | 86 | `c58153e94` | reader core | compat(css): remove no-op css that might break column layout, closes #3895 (#3903) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
@@ -133,7 +133,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 94 | `38d7ba80f` | catalog/import | feat(opds): support auto-download books from OPDS feeds (#3844) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 95 | `1527dd9b3` | reader core | fix: exponential wheel zoom for images and tables, closes #3956 (#3957) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 96 | `aa60123d3` | reading modes/controls | fix(rsvp): unicode-aware ORP calculation for non-Latin scripts, closes #3958 (#3964) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
-| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C13 | Core reading exists; this authored-layout/script edge is unverified. |
 | 98 | `6d798542f` | library | fix: restore main library window when going to library from reader, closes #3969 (#3973) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 99 | `e18bfd681` | reader core | fix(reader): smooth out mouse wheel scrolling in scroll mode, closes #3966 (#3974) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 100 | `17f2a17ad` | reading modes/controls | fix(toc): fix auto scroll on book open with pinned sidebar, closes #3945 (#3975) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
@@ -149,7 +149,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 110 | `dab92c8a4` | reader core | fix(pdf): prevent continuous scroll kickback (#3990) | `covered` | S2-R03B2 | The nested foliate-js change `2204a28..9f12ba9` is matched by page-index plus intra-page-fraction anchoring around scroll-page resize, with a repeated real-PDF browser regression. |
 | 111 | `234ecc311` | ai/assist/dictionary | fix(epub): fall back to case-insensitive zip lookups (#3991) | `covered` | S2-R04A1 | foliate now prefers exact ZIP paths, falls back only to unique case-folded paths, and rejects ambiguous collisions in a focused real-ZIP regression. |
 | 112 | `d609de58f` | reader core | fix(reader): preserve position when toggling scrolled mode, closes #3987 (#3996) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
-| 113 | `1d8ed3fc9` | reader core | fix(footnote): ignore background image in footnotes (#3998) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 113 | `1d8ed3fc9` | reader core | fix(footnote): ignore background image in footnotes (#3998) | `partial` | S2-R04C4 | Core reading exists; this authored-layout/script edge is unverified. |
 | 114 | `a43845b4c` | reader core | fix(layout): symmetric margins and gap in 2-column layout, closes #3909 (#4002) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 115 | `5a0a70a30` | ai/assist/dictionary | feat(reader): custom dictionaries (StarDict + MDict) (#4012) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
 | 116 | `486659a1c` | reader core | feat(annotations): deep links for highlight exports (#4018) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
@@ -180,9 +180,9 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 141 | `772bb73b4` | reader core | ui/ux: codify design system and migrate settings to shared primitives (#4116) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
 | 142 | `d326e1c73` | reader core | fix: hide popup triangle when inside popup + EPUB image-only paragraph rendering (#4121) | `covered` | S2-R04A3 | Existing br1 coverage preserves image-only EPUB paragraphs, and foliate now rewrites the observed MOBI6 self-closing non-void tags before HTML parsing. |
 | 143 | `598eb7723` | library | feat(library): redesign empty-library onboarding (#4122) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
-| 144 | `9a05935ca` | reader core | feat(reader): improve Japanese selection UX by disabling furigana selection (#4137) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 144 | `9a05935ca` | reader core | feat(reader): improve Japanese selection UX by disabling furigana selection (#4137) | `partial` | S2-R04C12 | Core reading exists; this authored-layout/script edge is unverified. |
 | 145 | `fed8ab7b6` | tts/audio | fix(tts): restore cross-section auto-page-turn during TTS playback (#4148) | `partial` | S2-T03 | tts.ts, ttsRuntime.ts, and TTS tests; extraction/section parity is incomplete. |
-| 146 | `54aa20d4f` | reader core | fix(footnote): don't treat in-book numeric chapter/verse links as footnotes (#4152) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 146 | `54aa20d4f` | reader core | fix(footnote): don't treat in-book numeric chapter/verse links as footnotes (#4152) | `partial` | S2-R04C3 | Core reading exists; this authored-layout/script edge is unverified. |
 | 147 | `244b3fd99` | reader core | fix(dev): rewrite HMR WebSocket URL in Tauri mobile dev, closes #4150 (#4160) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
 | 148 | `708e06a46` | catalog/import | fix(opds): show summary as book description, closes #4156 (#4162) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed fixture is missing. |
 | 149 | `7716f189c` | reader core | fix(layout): keep header/footer transparent and fixed in scrolled mode, closes #4157 (#4168) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -231,7 +231,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 192 | `ff605e000` | library | feat(library): in-place import from registered external folders (#4315) | `gap` | S2-L01 | P0-4.1/P0-4.2 and library smoke tests; bounded directory import is absent. |
 | 193 | `1f5481c0e` | tts/audio | fix(fxl): align TTS highlight overlay with scaled iframe coords (#4324) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
 | 194 | `315d144d8` | library | fix(library): suppress loading-dots flicker on reader→library return (#4325) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
-| 195 | `cf44e8518` | reader core | fix(reader): fit duokan-page-fullscreen cover image without cropping (#4328) | `partial` | S2-R04C | br1 recognizes the Duokan fullscreen marker, but its exact contain/letterbox behavior is unproved. |
+| 195 | `cf44e8518` | reader core | fix(reader): fit duokan-page-fullscreen cover image without cropping (#4328) | `partial` | S2-R04C18 | br1 recognizes the Duokan fullscreen marker, but its exact contain/letterbox behavior is unproved. |
 | 196 | `a1cb228d0` | library | fix(library): wrap select-mode action bar on small screens (#4329) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
 | 197 | `4e01e13ee` | library | fix(library): make bookitem-main shrink to match cover in fit mode (#4331) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact interaction/layout state is unproved. |
 | 198 | `93abca896` | ai/assist/dictionary | feat(dict): faster MDict/StarDict import + lazy lookup; raw .dict; UX (#4334) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
@@ -260,7 +260,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 221 | `97191a57c` | reading modes/controls | fix(reader): stop reading ruler creeping down on scroll (#4386) (#4388) | `partial` | S2-F04 | Focused reading exists; ruler scroll anchoring remains unimplemented. |
 | 222 | `45ef5f751` | reader core | fix(metainfo): declare desktop and mobile device support (#4395) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
 | 223 | `bc9fe67ab` | security | fix(desktop): sanitize invalid .window-state.json before restore (#4401) | `not-applicable` | — | br1 neither installs a window-state plugin nor persists/restores native window geometry; its main and reader windows start from static configuration or explicit fresh geometry. |
-| 224 | `458ad7510` | reader core | fix(reader): scroll wide EPUB tables horizontally (#4391) | `gap` | S2-R04C | Wide authored tables still need a fixture proving horizontal access without accidental pagination. |
+| 224 | `458ad7510` | reader core | fix(reader): scroll wide EPUB tables horizontally (#4391) | `gap` | S2-R04C19 | Wide authored tables still need a fixture proving horizontal access without accidental pagination. |
 | 225 | `176b950c9` | reader core | fix(reader): replace light callout backgrounds in dark mode (#4392) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
 | 226 | `3a81e0991` | reader core | fix(reader): scroll oversized blocks in-place instead of turning the page (#4400) (#4415) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 227 | `fe7fe2548` | reader core | fix(reader): show background texture in paginated mode (#4399) (#4417) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
@@ -274,7 +274,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 235 | `c2bbb6119` | reader core | fix(reader): keep paginated page background inside its column (#4394) (#4429) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 236 | `4d1205fdf` | reader core | fix(reader): stop zoomed image pan from flickering on desktop, closes #4451 (#4465) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
 | 237 | `1eaf16ffc` | catalog/import | fix(opds): tolerate junk after document element in feeds (#4479) (#4506) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
-| 238 | `676e14234` | reader core | fix(reader): correct RTL reading position restore on book reopen (#4505) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 238 | `676e14234` | reader core | fix(reader): correct RTL reading position restore on book reopen (#4505) | `partial` | S2-R04C10 | Core reading exists; this authored-layout/script edge is unverified. |
 | 239 | `ad23fbba9` | reader core | fix(reader): dismiss annotation popup when selection clears (#4483) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
 | 240 | `8425d0b91` | catalog/import | fix(opds): render HTML in publication descriptions (#4510) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed fixture is missing. |
 | 241 | `d12e1ad08` | catalog/import | fix(opds): enable search for OPDS 2.0 JSON catalogs, closes #4502 (#4509) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
@@ -290,10 +290,10 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 251 | `cf41e7d50` | reading modes/controls | feat(rsvp): apply reader font face/family settings to the RSVP word (#4519) (#4537) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 252 | `64350ca63` | reader core | fix(reader): keep scrolled-mode scrollbar visible after opening a book (#4470) (#4538) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 253 | `755bee1ee` | reader core | fix(reader): prevent accidental paragraph-mode exit and center its bar (#4474) (#4539) | `partial` | S2-F05 | Paragraph focus exists; exit arbitration and bar placement need focused proof. |
-| 254 | `d6e981e56` | reader core | fix(reader): hide footnote aside border again when custom fonts are loaded (#4438) (#4540) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 254 | `d6e981e56` | reader core | fix(reader): hide footnote aside border again when custom fonts are loaded (#4438) (#4540) | `partial` | S2-R04C4 | Core reading exists; this authored-layout/script edge is unverified. |
 | 255 | `390c71107` | ai/assist/dictionary | feat(rsvp): configurable start delay, word stepping, context dictionary lookup, and keyboard shortcut (#4541) | `partial` | S2-A03 | assistance.ts and readerAssistance tests; exact language/normalization behavior is missing. |
 | 256 | `ceddee379` | library | feat(library): search a book on Goodreads from the library and reader (#4543) (#4548) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
-| 257 | `9dc41e7ad` | reader core | feat(reader): reference page numbers from EPUB page-list with manual page count fallback (#4549) | `partial` | S2-R04C | foliate exposes EPUB page-list data, but br1 lacks focused proof for labels and the missing-page-list fallback. |
+| 257 | `9dc41e7ad` | reader core | feat(reader): reference page numbers from EPUB page-list with manual page count fallback (#4549) | `partial` | S2-R04C20 | foliate exposes EPUB page-list data, but br1 lacks focused proof for labels and the missing-page-list fallback. |
 | 258 | `5cab1fa94` | reader core | feat(css): override document layout also apply to hyphenation, closes #4529 (#4546) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
 | 259 | `da6f45f69` | reader core | ci: single, workspace-aware rust-cache for build_tauri_app (#4550) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 260 | `12ac7ae6c` | reader core | fix(reader): draw annotation highlights over bullet lists (#4552) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
@@ -336,7 +336,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 297 | `4025c4d7b` | security | fix(security): scope Tauri download_file/upload_file to fs_scope (#4639) | `not-applicable` | — | br1 exposes no generic renderer-directed download/upload command or arbitrary filesystem destination. |
 | 298 | `403be32d5` | library | fix(epub): import books whose OPF has an unescaped ampersand (#4640) | `covered` | S2-R04A2 | foliate escapes stray bare ampersands while preserving valid named and numeric XML entities; a real EPUB fixture proves metadata and chapter loading. |
 | 299 | `bcd9ed724` | reader core | fix(reader): paginate inline-block-wrapped chapters instead of clipping them (#4641) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
-| 300 | `6626db967` | reader core | fix(reader): keep last paragraph's line spacing by making the section skip link a <span> (#4642) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 300 | `6626db967` | reader core | fix(reader): keep last paragraph's line spacing by making the section skip link a <span> (#4642) | `not-applicable` | — | br1 has no injected section skip-link element, so this Readest-specific last-div layout regression has no local owner. |
 | 301 | `ff96c6d3f` | reader core | feat(annotations): unify highlights and annotations into one record (#3870, #4511) (#4647) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 302 | `be17654fc` | reading modes/controls | fix(rsvp): render RTL words whole so Arabic shapes correctly (#4630) (#4648) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 303 | `af587b1a4` | library | fix(metadata): parse FB2 series from title-info sequence (#4646) (#4649) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
@@ -353,7 +353,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 314 | `23d1ef6f1` | reading modes/controls | fix(rsvp): restore in-flow control bar layout reverted by #4589 (#4671) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
 | 315 | `b9a3ee725` | catalog/import | fix(opds): make saved catalog card hover distinct from dialog background (#4673) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 316 | `0ab8f6042` | library | fix(reader): keep cover background-image visible under a texture (#4675) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
-| 317 | `a9526377a` | reader core | fix(reader): stretch Duokan fullscreen cover to fill the page (#4679) | `partial` | S2-R04C | This superseded Duokan cover decision belongs with authored-layout compatibility, not library behavior. |
+| 317 | `a9526377a` | reader core | fix(reader): stretch Duokan fullscreen cover to fill the page (#4679) | `partial` | S2-R04C18 | This superseded Duokan cover decision belongs with authored-layout compatibility, not library behavior. |
 | 318 | `7185dca1a` | reader core | feat(reader): add save/share button to image gallery toolbar (#4680) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
 | 319 | `353d38142` | security | fix(deps): bump undici and dompurify overrides for security advisories (#4684) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 320 | `2153f7cc0` | reader core | fix(reader): reset scroll to top on paginated fit-width page turn (#4683) (#4695) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -388,7 +388,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 349 | `44a6900da` | reader core | feat(reader): extend selections and highlights across pages (#4741) (#4767) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
 | 350 | `0589cb4f4` | reader core | fix(reader): stop a quick-deleted highlight from being re-drawn (#4773) (#4779) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 351 | `fb943987e` | catalog/import | fix(opds): hide popular catalog after adding it to My Catalogs (#4782) (#4787) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
-| 352 | `370a51662` | reader core | feat(reader): glue non-breaking spaces after short Russian words (#4769) (#4798) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 352 | `370a51662` | reader core | feat(reader): glue non-breaking spaces after short Russian words (#4769) (#4798) | `partial` | S2-R04C2 | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
 | 353 | `0b4993407` | reader core | feat(reader): add contrast option to PDF/CBZ view menu (#4800) | `partial` | S2-U01A | Theme controls exist, but PDF/CBZ contrast adjustment, reset, and persistence are not implemented. |
 | 354 | `4ba78490a` | library | fix(library): prevent series and description overlap in list view (#4796) (#4799) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
 | 355 | `7544835fb` | catalog/import | chore(agent): update agent memories (#4802) | `not-applicable` | — | Readest agent-memory bookkeeping. |
@@ -403,19 +403,19 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 364 | `f8916e128` | reader core | fix(reader): smooth pinch-zoom and pan for scrolled-mode PDF (#4817) | `covered` | S2-R03B5 | The nested foliate-js changes `6f1a19018..0fa407c4c` are matched by live centered pinch, anchored commit, horizontal overflow, idle iframe interaction, and a br1 touch bridge, with a repeated real-PDF regression. |
 | 365 | `324bb8a36` | reader core | feat(reader): add e-ink screen refresh page-turner action (#4687) (#4822) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 366 | `4d08b01b4` | library | feat(library): add recently read shelf to the library (#3797) (#4829) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
-| 367 | `69599e2bc` | reader core | fix(reader): render code operators literally instead of as ligatures (#4832) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 367 | `69599e2bc` | reader core | fix(reader): render code operators literally instead of as ligatures (#4832) | `covered` | S2-R04C1 | Reader code styles disable ligatures for EPUB pre/code/kbd and TXT fences; computed-style and unchanged source/range text regressions cover the contract. |
 | 368 | `ae03be96d` | tts/audio | chore(agent): update agent memories (#4833) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 369 | `7da41a65a` | reader core | feat(widget): add mobile home-screen reading widgets (#1602) (#4842) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
 | 370 | `eaf307e71` | ai/assist/dictionary | fix(translate): align RTL translated text to the start (#4844) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 371 | `70bad93eb` | reader core | feat(reader): select word on double-click and run instant action or toolbar (#4846) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 372 | `a23427ccc` | library | fix(widget): avoid recycling aliased source bitmap for 2:3 covers (#4850) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 373 | `3ac1a1a45` | reader core | fix(reader): remember last read position for markdown files (#4871) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
-| 374 | `17e60f1e4` | reader core | fix(reader): fix fixed-layout spread spine seam and zoomed-out blank page (#4857) (#4873) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 374 | `17e60f1e4` | reader core | fix(reader): fix fixed-layout spread spine seam and zoomed-out blank page (#4857) (#4873) | `partial` | S2-R04C14 | Core reading exists; this authored-layout/script edge is unverified. |
 | 375 | `49391124c` | reading modes/controls | fix(reader): correct reading ruler direction for vertical-rl books (#4865) (#4879) | `partial` | S2-F04 | Focused reading exists; vertical-writing ruler direction is not implemented. |
 | 376 | `5bc8eda50` | ai/assist/dictionary | feat(proofread): editable Find pattern and per-rule enable/disable toggle (#4859) (#4888) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 377 | `4d645befd` | library | feat(library): add "Progress Read" sort option (#4427) (#4893) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 378 | `fd8fbb178` | reader core | fix(reader): apply page margin changes live on all platforms (#4898) (#4900) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
-| 379 | `c5304cd46` | reader core | fix(reader): turn pages horizontally for vertical-rl books (#624) (#4899) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 379 | `c5304cd46` | reader core | fix(reader): turn pages horizontally for vertical-rl books (#624) (#4899) | `partial` | S2-R04C11 | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
 | 380 | `c8e2c9533` | library | feat(library): auto-import new books from watched folders (#3889) (#4902) | `gap` | S2-L01 | P0-4.1/P0-4.2 and library smoke tests; bounded directory import is absent. |
 | 381 | `8c91ad411` | reader core | fix(reader): open annotation deep link when a different book is open (#4887) (#4910) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
 | 382 | `2b524439b` | reader core | fix(reader): keep running header/footer readable over light PDFs in dark mode (#4901) (#4911) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
@@ -434,7 +434,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 395 | `f7f85330a` | library | chore(agent): update agent memories (#4958) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 396 | `2a837cb50` | reader core | fix(reader): fix PDF text selection misplaced by OS font scaling (#49) (#4960) | `covered` | foliate-js measures WebView font enlargement and divides it out of the text-layer glyph scale after each render; deterministic browser coverage verifies the 1.25 and 1.0 paths. |
 | 397 | `a02b236e9` | reader core | fix: more production crashes (View Transition noise, book-dir race, stats transaction) (#4962) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
-| 398 | `db1d63cdc` | reader core | test(reader): harden fixed-layout wheel double-scroll test against CI flake (#4978) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 398 | `db1d63cdc` | reader core | test(reader): harden fixed-layout wheel double-scroll test against CI flake (#4978) | `partial` | S2-R04C15 | Core reading exists; this authored-layout/script edge is unverified. |
 | 399 | `600d69fa5` | reader core | fix(reader): gate route View Transitions on API support (READEST-9) (#4989) | `not-applicable` | — | Readest-specific transition or optional desktop behavior. |
 | 400 | `3ce5a5c8e` | reader core | fix(reader): center the lone PDF page in portrait auto-spread (#4984) (#4992) | `covered` | S2-R03B6 | The nested foliate-js change `f6dced2aa` is matched by symmetric portrait margins, explicit landscape margin reset, and a repeated real-PDF left/right/rotation regression. |
 | 401 | `17de9357d` | tts/audio | feat(reader): redesign the TTS control as a mini player with an expandable player sheet (#4996) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
@@ -473,7 +473,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 434 | `114396b84` | reader core | fix(reader): resolve footer items overlapping on narrow screens (#5158) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact chrome interaction/layout is unproved. |
 | 435 | `db38e2a7b` | tts/audio | feat(tts): add 0.8x and 0.85x tts speech speed presets (#5157) | `partial` | S2-T04A | tts.ts, ttsRuntime.ts, and TTS tests; voice/timing parity is incomplete. |
 | 436 | `2e90d3719` | reader core | fix(reader): return the turn promise from the captured view.next/prev wrappers (#5159) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
-| 437 | `6807664e9` | reader core | fix(reader): do not toggle bars on vertical pan swipes over fixed-layout pages (#5160) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 437 | `6807664e9` | reader core | fix(reader): do not toggle bars on vertical pan swipes over fixed-layout pages (#5160) | `partial` | S2-R04C15 | Core reading exists; this authored-layout/script edge is unverified. |
 | 438 | `d440df50e` | tts/audio | feat(tts): refine the TTS player sheet and redesign the mini player (#5162) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 439 | `01dabc69d` | tts/audio | feat(tts): add mini player Player Style (full/minimal); keep Tauri off the edge proxy (#5170) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 440 | `9ec7b3df9` | reader core | feat(annotator): copy a highlight or note with its deep link (#5171) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
@@ -524,7 +524,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 485 | `8c212e5b8` | ai/assist/dictionary | fix(translate): restore Yandex Translate provider (#5256) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 486 | `46e75586f` | reader core | feat(markdown): support full heading depth in the TOC (#5357) (#5363) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
 | 487 | `3a0b9cac8` | reader core | fix(reader): report image zoom against the image resolution, closes #5362 (#5365) | `partial` | S2-R09 | P0-2/P0-3 and reader smoke tests; exact media-viewer behavior is incomplete. |
-| 488 | `44953f568` | reader core | fix: preserve U+200F/U+200E BiDi marks in Persian/Arabic ebooks (#5216) (#5361) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 488 | `44953f568` | reader core | fix: preserve U+200F/U+200E BiDi marks in Persian/Arabic ebooks (#5216) (#5361) | `covered` | S2-R04C1 | DOM sanitization preserves literal and decimal/hex LRM/RLM controls; br1 does not have Readest's invisible-paragraph style classifier. |
 | 489 | `201868e26` | tts/audio | feat(tts): add End of Chapter option to sleep timer (#5355) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 490 | `b99bea307` | tts/audio | fix(translate): restore Yandex auto-detection and translated TTS (#5374) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 491 | `f246fade9` | reader core | feat(clip): capture login-walled articles with an in-app sign-in (#5377) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
@@ -566,7 +566,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 527 | `47f0a52b3` | library | feat(library): give the "Then by" sort its own order, closes #5119 (#5474) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 528 | `ffdcfca0a` | catalog/import | fix(opds): apply the metadata advertised by the feed entry (#5477) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 529 | `da86aba6b` | reader core | fix(reader): stop the header hover strip from covering the page text (#5478) | `partial` | S2-R05 | br1 has hover chrome, but this exact first-line occlusion boundary lacks focused proof. |
-| 530 | `6469cbb5b` | reader core | fix(reader): fix duokan fullscreen cover rendering and swipe (#5263) (#5473) | `partial` | S2-R04C | The final Duokan cover and post-restore swipe behavior remains an authored-layout fixture task. |
+| 530 | `6469cbb5b` | reader core | fix(reader): fix duokan fullscreen cover rendering and swipe (#5263) (#5473) | `partial` | S2-R04C18 | The final Duokan cover and post-restore swipe behavior remains an authored-layout fixture task. |
 | 531 | `35450e965` | tts/audio | feat(tts): play a book's own recorded narration (EPUB 3 Media Overlays) (#5480) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 532 | `69985e5e5` | reader core | feat(reader): horizontal scrolling mode for fixed layout books (#5485) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 533 | `aa08ce95f` | library | fix(library): select books in the recently read shelf and pull it with the grid (#5486) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
@@ -619,9 +619,9 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 580 | `10bf99158` | reader core | fix(reader): commit settled image zoom into the layout size, closes #5633 (#5639) | `partial` | S2-R01C | P0-2/P0-3 and reader smoke tests; exact responsive/metric edge is unproved. |
 | 581 | `4f1850563` | catalog/import | fix(novel): retry transient fetch failures and backfill work metadata (#5650) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
 | 582 | `05d289a4e` | library | fix(markdown): title imported books after the file, not the first heading (#5653) | `gap` | S2-M01 | Markdown is absent from the managed format list. |
-| 583 | `2f9262e02` | reader core | fix(sanitizer): render Persian/Arabic half-space by converting misused RLM to ZWNJ (#5651) | `partial` | S2-R04C | This is authored-text shaping compatibility, not a malicious-content boundary; no RLM-to-ZWNJ fixture exists. |
-| 584 | `dbe0dae0a` | reader core | feat(reader): flash the target of in-page footnote jumps, closes #5647 (#5655) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
-| 585 | `42c7a2cb0` | reader core | fix(reader): disable text autosizing in fixed-layout books, closes #5641 (#5659) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 583 | `2f9262e02` | reader core | fix(sanitizer): render Persian/Arabic half-space by converting misused RLM to ZWNJ (#5651) | `covered` | S2-R04C1 | Decoded prose text converts contextual RLM runs to equal-length ZWNJ using upstream Arabic ranges; code/style/attributes/SVG and direction/digit boundaries are preserved. |
+| 584 | `dbe0dae0a` | reader core | feat(reader): flash the target of in-page footnote jumps, closes #5647 (#5655) | `partial` | S2-R04C6 | Core reading exists; this authored-layout/script edge is unverified. |
+| 585 | `42c7a2cb0` | reader core | fix(reader): disable text autosizing in fixed-layout books, closes #5641 (#5659) | `partial` | S2-R04C14 | Core reading exists; this authored-layout/script edge is unverified. |
 | 586 | `34922b172` | catalog/import | fix(opds): stop auto-downloaded books from vanishing on restart (#5665) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 587 | `561356628` | reader core | fix(ui): size the alert surface off its container, not its content (#5662) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact responsive/interaction state is unverified. |
 | 588 | `1cbab73f9` | reading modes/controls | feat(reader): jump to the start or end of the book with Home/End, closes #5660 (#5673) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
@@ -636,7 +636,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 597 | `fb684ab60` | reader core | fix(reader): remove header controls duplicated by the mobile footer bar (#5708) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
 | 598 | `be6845371` | reading modes/controls | feat(reader): resume Auto Scroll when reopening a book, closes #5631 (#5710) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 599 | `522e504b6` | reading modes/controls | fix(reader): support page turner key combinations (#5709) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
-| 600 | `a6e6691c8` | reader core | feat(reader): right-to-left page order for fixed-layout books (#5712) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 600 | `a6e6691c8` | reader core | feat(reader): right-to-left page order for fixed-layout books (#5712) | `partial` | S2-R04C16 | Core reading exists; this authored-layout/script edge is unverified. |
 | 601 | `6f67be703` | reader core | fix(reader): restore scrolled PDF highlights (#5719) | `covered` | S2-R03B7 | The nested foliate-js change `9fde61a10` is matched by refreshing the scrolled page overlayer after async PDF text-layer rendering, with a repeated real-highlight replacement regression. |
 | 602 | `7e998d384` | reader core | fix(reader): highlight search results visible across chapter boundary (#5725) | `partial` | S2-A01A | P0-2/P0-3 and reader smoke tests; this anchor/grouping edge is unproved. |
 | 603 | `8226c5545` | reader core | fix(reader): drop the 500-result cap from in-book search, closes #5724 (#5728) | `partial` | S2-R06 | P0-2/P0-3 and reader smoke tests; exact search behavior is incomplete. |
@@ -649,10 +649,10 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 610 | `4549a026d` | library | feat(library): add hide-covers privacy option for the bookshelf (#5733) | `partial` | S2-L08 | P0-4.1/P0-4.2 and library smoke tests; search/detail behavior is incomplete. |
 | 611 | `7fa3daa19` | tts/audio | feat(tts): queue chapter downloads with per-book persistence (#5690) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 612 | `b463f014b` | library | feat(library): show download progress overlay on book covers (#5736) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
-| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `partial` | S2-R04C8 | Core reading exists; this authored-layout/script edge is unverified. |
 | 614 | `9dedaf804` | tts/audio | feat(reader): pair local audiobooks with ebooks (#5754) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 615 | `9213c6af1` | tts/audio | fix(tts): make sentence and paragraph pauses consistent (#5753) | `partial` | S2-T04A | tts.ts, ttsRuntime.ts, and TTS tests; voice/timing parity is incomplete. |
-| 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `partial` | S2-R04C9 | Core reading exists; this authored-layout/script edge is unverified. |
 | 617 | `f7f8a830d` | catalog/import | feat(opds): confirm auto-download toggles and allow catalog reordering (#5746) (#5760) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 618 | `89821136f` | library | fix(cbz): order split chapter folders base-first (#5762) | `covered` | S2-R04A3 | CBZ page paths are compared segment by segment with numeric collation; browser coverage proves base, `(2)`, `(3)`, `(10)` and numeric page order. |
 | 619 | `771b152e5` | ai/assist/dictionary | feat(dictionaries): add bundled plugin and Yomitan support (#5764) | `gap` | S2-A04 | assistance.ts and readerAssistance tests; local dictionary formats are absent. |
@@ -678,17 +678,17 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 639 | `6ccdf8fb7` | reader core | feat(toc): wrap long headings onto multiple lines instead of truncating (#5858) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
 | 640 | `8d44c6b66` | ai/assist/dictionary | fix(wordlens): build kaikki packs from the raw wiktextract dump (#5861) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 641 | `c6a1901a5` | tts/audio | fix(reader): move a paired audiobook by audio and decode WebP covers (#5863) (#5865) | `not-applicable` | — | Optional product surface outside current br1 scope. |
-| 642 | `5aae8d6c5` | reader core | fix(reader): resolve media that book scripts add after the section loads, closes #1812 (#5868) | `partial` | S2-R04C | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 642 | `5aae8d6c5` | reader core | fix(reader): resolve media that book scripts add after the section loads, closes #1812 (#5868) | `partial` | S2-R04C21 | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
 | 643 | `f45036556` | catalog/import | feat(library): add From Web Browser import with an in-app browser (#5775) (#5870) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
-| 644 | `07371ccce` | reader core | fix(reader): render the IDPF EPUB 3 samples correctly (#480) (#5872) | `gap` | S2-R04C | Fixed-layout bitmap spines still need to fall back from synthetic device-width metadata to the image's natural dimensions. |
+| 644 | `07371ccce` | reader core | fix(reader): render the IDPF EPUB 3 samples correctly (#480) (#5872) | `gap` | S2-R04C17 | Fixed-layout bitmap spines still need to fall back from synthetic device-width metadata to the image's natural dimensions. |
 | 645 | `bc4b253b6` | library | fix(library): rubber-band the bookshelf at both edges and keep the reader from overscrolling (#5867) | `partial` | S2-L07 | P0-4.1/P0-4.2 and library smoke tests; exact library interaction needs a regression. |
 | 646 | `2fd8b3bc9` | reader core | chore: update agent memories (#5875) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 647 | `aa619f8f8` | library | fix(library): save the new data location when migrating an empty library (#5878) | `partial` | S2-L05 | P0-4.1/P0-4.2 and library smoke tests; exact persistence/recovery case is unproved. |
-| 648 | `aab58241d` | reader core | feat(reader): jump from a footnote popup to the location in the book (#5889) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 648 | `aab58241d` | reader core | feat(reader): jump from a footnote popup to the location in the book (#5889) | `partial` | S2-R04C7 | Core reading exists; this authored-layout/script edge is unverified. |
 | 649 | `8f9028579` | catalog/import | feat(library): select chapters when importing web novels (#5892) | `partial` | S2-O01 | catalogs.rs and catalog tests; fixture browsing exists, live fetch is incomplete. |
 | 650 | `800af00f3` | reader core | fix(ui): size toasts to their message and fade dialogs out whole (#5894) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; exact responsive/interaction state is unverified. |
 | 651 | `e8f7a4875` | library | fix(library): refresh PDF metadata on re-import (#5895) | `covered` | S2-R03E | Re-import refreshes file-derived PDF metadata without replacing curated fields, verifies the parsed byte hash before write, and reuses exact-content identity and managed paths. |
-| 652 | `7c0419961` | reader core | fix(reader): do not truncate footnote popups (#5887) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 652 | `7c0419961` | reader core | fix(reader): do not truncate footnote popups (#5887) | `partial` | S2-R04C5 | Core reading exists; this authored-layout/script edge is unverified. |
 | 653 | `a91b503e5` | reader core | fix(reader): make cross-page selection actually work (#5888) | `partial` | S2-R08 | P0-2/P0-3 and reader smoke tests; exact input arbitration is unproved. |
 | 654 | `b1a62c059` | tts/audio | fix: folder import of Markdown, widget opens, comic zoom, selection handle and TTS word highlight (#5903) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
 | 655 | `fabbcc640` | tts/audio | feat(tts): lyric-style sentence view in the Read Aloud player (#5755) (#5908) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
@@ -697,7 +697,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 658 | `e782af530` | ai/assist/dictionary | fix(translate): Chinese targets, provider rate limits, and translator popup layout (#5913) | `partial` | S2-A05 | assistance.ts and readerAssistance tests; exact provider/layout/error behavior is incomplete. |
 | 659 | `7e8abebcd` | reader core | fix(mobi): keep AZW3 text and TOC intact when section loads overlap (#5920) | `covered` | S2-R04A3 | KF8 serializes shared raw accumulation; the exact #5918 fixture returns identical text for serial and seeded out-of-order overlapping section loads. |
 | 660 | `0fcbd16f7` | reader core | fix(ui): search cloud storage files on demand instead of while typing (#5923) (#5925) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
-| 661 | `86493e801` | reader core | fix(reader): stop the a11y skip link from padding RTL sections with blank pages (#5924) (#5926) | `partial` | S2-R04C | Core reading exists; this authored-layout/script edge is unverified. |
+| 661 | `86493e801` | reader core | fix(reader): stop the a11y skip link from padding RTL sections with blank pages (#5924) (#5926) | `not-applicable` | — | br1 injects no positioned section skip link, so Readest's left:0 RTL phantom-page trigger does not exist. |
 | 662 | `76e81d604` | reading modes/controls | fix(ui): align the keyboard shortcuts header with its group titles (#5927) | `covered` | S1-R02 | The shortcuts header and group titles share one aligned dialog column. |
 | 663 | `7a7ab7642` | reader core | feat(reader): Notebook as a linked writing workspace (#5928) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; exact note lifecycle is unproved. |
 | 664 | `5755f25d7` | reader core | feat(settings): show which scope the Settings dialog writes (#5933) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; exact theme setting/scope is incomplete. |
@@ -927,14 +927,30 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: focused TXT Chromium regressions including short-book navigation and selection ownership (PASS, 7/7); existing code-highlighting, literal-markup, and visible-excerpt TTS regressions (PASS, 3/3); `pnpm check` (PASS, 0 errors / 0 warnings); `pnpm build` (PASS); `git diff --check` (PASS); independent Terra high task review and Astra high final review, including fix re-reviews (PASS).
 - Evidence boundary: The resume test mocks desktop IPC to supply a raw File and explicit stored fraction/location inputs; it does not prove disk-library persistence, asset-reload persistence, or packaged Tauri/mobile behavior. Encoding has no general Shift-JIS/Big5 or damaged-file detection claim. Headingless text remains intact without Readest's artificial 100-paragraph chapters. The sole nested foliate update in these five commits (`4361f29b5..3c597a6dc`) changes TTS block filtering, not TXT; sibling code still lacks it, so the outer commit remains partial under S2-T03.
 
-### Next Task: S2-R04C - Harden authored-layout compatibility
+### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 31 commits (0 gap, 31 partial)
+- Upstream decisions: 34 commits (3 covered, 27 partial, 2 gap, 2 not-applicable)
+- Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
+- Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
 - Touches: foliate compatibility fixtures and focused guards
 - Verify: `pnpm check`; `authored-layout smoke`; `git diff --check`
-- Commits: `87f0240b0`, `caa0d719c`, `23d5f3363`, `b223ccaee`, `ebbbf104b`, `1d8ed3fc9`, `9a05935ca`, `54aa20d4f`, `676e14234`, `d6e981e56`, `6626db967`, `370a51662`, `69599e2bc`, `17e60f1e4`, `c5304cd46`, `db1d63cdc`, `6807664e9`, `44953f568`, `dbe0dae0a`, `42c7a2cb0`, `a6e6691c8`, `631cd6454`, `a193cbc35`, `5aae8d6c5`, `aab58241d`, `7c0419961`, `86493e801`, `cf44e8518`, `a9526377a`, `6469cbb5b`, `2f9262e02`
+- Commits: `87f0240b0`, `caa0d719c`, `23d5f3363`, `b223ccaee`, `ebbbf104b`, `1d8ed3fc9`, `9a05935ca`, `54aa20d4f`, `676e14234`, `d6e981e56`, `6626db967`, `370a51662`, `69599e2bc`, `17e60f1e4`, `c5304cd46`, `db1d63cdc`, `6807664e9`, `44953f568`, `dbe0dae0a`, `42c7a2cb0`, `a6e6691c8`, `631cd6454`, `a193cbc35`, `5aae8d6c5`, `aab58241d`, `7c0419961`, `86493e801`, `cf44e8518`, `a9526377a`, `6469cbb5b`, `2f9262e02`, `458ad7510`, `9dc41e7ad`, `07371ccce`
+
+#### Completed Task: S2-R04C1 - Preserve authored text shaping
+
+- Scope: `69599e2bc`, `44953f568`, `2f9262e02`; classify skip-link fixes `6626db967` and `86493e801` as not-applicable.
+- Result: Code ligatures are disabled without changing copy text. Prose-only contextual RLM runs become equal-length ZWNJ runs after safe entity decoding, while other direction marks and literal content remain intact. None of these five commits changes the foliate-js gitlink.
+- Evidence: focused authored-text browser regressions (PASS, 3/3); existing sanitizer, literal TXT, and fenced-code regressions (PASS, 3/3); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); `git diff --check` (PASS); independent Terra high task review and Astra high final review (PASS).
+- Evidence boundary: Transform-hook DOM tests and computed styles do not prove packaged Tauri/mobile rendering or every font's glyph output. The skip-link decisions do not claim complete accessibility parity. Russian typography and the remaining authored-layout surfaces are separate tasks.
+
+#### Next Task: S2-R04C2 - Keep Russian short words with their successors
+
+- Scope: `370a51662`.
+- Outcome: Apply the upstream Russian-only NBSP rule at the existing text-transform boundary, preserving literal content and character offsets.
+- Verify: one/two-letter and configured function words, consecutive words, Cyrillic/numeric successors, non-Russian and code/style exclusions, idempotence, and unchanged UTF-16 length; then `pnpm check`, `pnpm build`, and `git diff --check`.
+- Remaining C3-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

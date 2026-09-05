@@ -2448,6 +2448,7 @@
 
   :global(.plain-text-code-block code) {
     font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+    font-variant-ligatures: none;
     font-size: 0.88em;
     line-height: 1.66;
     tab-size: 2;
