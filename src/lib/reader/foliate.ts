@@ -145,7 +145,23 @@ const SANITIZED_BOOK_RESOURCE_TYPES = new Set([
 const arabicShapingCharacter = '[\\u0600-\\u065F\\u066A-\\u06EF\\u06FA-\\u06FF\\uFB50-\\uFDFF\\uFE70-\\uFEFC]';
 const misplacedArabicRlm = new RegExp(`(${arabicShapingCharacter})(\\u200F+)(?=${arabicShapingCharacter})`, 'g');
 
-const sanitizeReaderBookMarkup = (content: string, type: string) => {
+// Readest 370a51662: only Russian has a configured function-word rule. Keep
+// the captured Unicode boundary (rather than ASCII \b) and exact word list.
+const russianFunctionWords = [
+  'без', 'для', 'близ', 'под', 'над', 'про', 'при', 'ради', 'сквозь', 'среди',
+  'через', 'около', 'перед', 'после', 'между', 'кроме', 'вокруг', 'против',
+  'вместо', 'внутри', 'возле', 'или', 'либо', 'ибо', 'если', 'едва', 'дабы',
+  'чтобы', 'чтоб', 'хотя', 'пока', 'зато', 'тоже', 'также', 'итак', 'как',
+  'что', 'чем', 'так', 'даже', 'лишь', 'ведь', 'вот', 'вон', 'уже', 'хоть',
+  'разве', 'только', 'именно', 'неужели'
+];
+const russianWordSpace = new RegExp(
+  `(^|[^\\p{L}])(${russianFunctionWords.join('|')}|\\p{Script=Cyrillic}{1,2})` +
+    '\\u0020(?=[\\p{Script=Cyrillic}\\p{N}])',
+  'giu'
+);
+
+const sanitizeReaderBookMarkup = (content: string, type: string, isRussian: boolean) => {
   const normalized = content.replaceAll('&nbsp;', '&#160;');
   const sharedConfig = {
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
@@ -182,13 +198,25 @@ const sanitizeReaderBookMarkup = (content: string, type: string) => {
       const text = node as Text;
       text.data = text.data.replace(misplacedArabicRlm, (_match, before: string, marks: string) =>
         before + '\u200C'.repeat(marks.length));
+      if (isRussian) {
+        // A match consumes the next short word's boundary, so repeat for runs.
+        // One space becomes one NBSP: existing DOM/CFI offsets do not shift.
+        let previous: string;
+        do {
+          previous = text.data;
+          text.data = previous.replace(russianWordSpace, '$1$2\u00A0');
+        } while (text.data !== previous);
+      }
     }
     sanitized = new XMLSerializer().serializeToString(root);
   }
 
+  // XHTML blobs are parsed as XML, where the HTML-only named entity is not
+  // defined without a DTD. Numeric references work without changing the MIME.
+  const nbsp = type === 'application/xhtml+xml' ? '&#160;' : '&nbsp;';
   return String(sanitized)
-    .replaceAll('&#160;', '&nbsp;')
-    .replaceAll('\u00A0', '&nbsp;');
+    .replaceAll('&#160;', nbsp)
+    .replaceAll('\u00A0', nbsp);
 };
 
 export const ensureFoliateViewDefinition = async () => {
@@ -217,7 +245,11 @@ export const installReaderBookTransformGuards = (book: ReaderBookDocument | unde
         typeof data === 'string' &&
         typeof detail.type === 'string' &&
         SANITIZED_BOOK_RESOURCE_TYPES.has(detail.type)
-          ? sanitizeReaderBookMarkup(data, detail.type)
+          ? sanitizeReaderBookMarkup(
+              data,
+              detail.type,
+              pickText(book?.metadata?.language).trim().split('-')[0].toLowerCase() === 'ru'
+            )
           : data
       )
       .catch((error) => {

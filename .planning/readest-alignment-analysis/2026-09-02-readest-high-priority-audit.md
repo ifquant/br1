@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 47 |
-| `partial` | 420 |
+| `covered` | 48 |
+| `partial` | 419 |
 | `gap` | 77 |
 | `not-applicable` | 134 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 28 | 230 | 22 | 54 |
+| reader core | 29 | 229 | 22 | 54 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -388,7 +388,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 349 | `44a6900da` | reader core | feat(reader): extend selections and highlights across pages (#4741) (#4767) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
 | 350 | `0589cb4f4` | reader core | fix(reader): stop a quick-deleted highlight from being re-drawn (#4773) (#4779) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 351 | `fb943987e` | catalog/import | fix(opds): hide popular catalog after adding it to My Catalogs (#4782) (#4787) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
-| 352 | `370a51662` | reader core | feat(reader): glue non-breaking spaces after short Russian words (#4769) (#4798) | `partial` | S2-R04C2 | P0-2/P0-3 and reader smoke tests; authored-content compatibility is unproved. |
+| 352 | `370a51662` | reader core | feat(reader): glue non-breaking spaces after short Russian words (#4769) (#4798) | `covered` | S2-R04C2 | The guarded prose walker applies the exact Russian short/function-word NBSP rule using book metadata; literal nodes and decoded UTF-16 offsets stay intact. XHTML emits numeric NBSP entities. No foliate gitlink change. |
 | 353 | `0b4993407` | reader core | feat(reader): add contrast option to PDF/CBZ view menu (#4800) | `partial` | S2-U01A | Theme controls exist, but PDF/CBZ contrast adjustment, reset, and persistence are not implemented. |
 | 354 | `4ba78490a` | library | fix(library): prevent series and description overlap in list view (#4796) (#4799) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
 | 355 | `7544835fb` | catalog/import | chore(agent): update agent memories (#4802) | `not-applicable` | — | Readest agent-memory bookkeeping. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (3 covered, 27 partial, 2 gap, 2 not-applicable)
+- Upstream decisions: 34 commits (4 covered, 26 partial, 2 gap, 2 not-applicable)
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -945,11 +945,18 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence: focused authored-text browser regressions (PASS, 3/3); existing sanitizer, literal TXT, and fenced-code regressions (PASS, 3/3); `pnpm check` (PASS, 0 errors and 0 warnings); `pnpm build` (PASS); `git diff --check` (PASS); independent Terra high task review and Astra high final review (PASS).
 - Evidence boundary: Transform-hook DOM tests and computed styles do not prove packaged Tauri/mobile rendering or every font's glyph output. The skip-link decisions do not claim complete accessibility parity. Russian typography and the remaining authored-layout surfaces are separate tasks.
 
-#### Next Task: S2-R04C2 - Keep Russian short words with their successors
+#### Completed Task: S2-R04C2 - Keep Russian short words with their successors
 
 - Scope: `370a51662`.
-- Outcome: Apply the upstream Russian-only NBSP rule at the existing text-transform boundary, preserving literal content and character offsets.
-- Verify: one/two-letter and configured function words, consecutive words, Cyrillic/numeric successors, non-Russian and code/style exclusions, idempotence, and unchanged UTF-16 length; then `pnpm check`, `pnpm build`, and `git diff --check`.
+- Outcome: The existing sanitized prose walker applies the exact 50-word list and short-Cyrillic-word rule. XHTML serialization uses numeric NBSP references so DTD-less chapters remain valid XML; HTML keeps its existing output.
+- Verification: `authored-text-compat.spec.ts --workers=1` (PASS, 6/6 including 3 C1 regressions); selected existing sanitizer/literal-TXT/fenced-code checks (PASS, 3/3); `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS); `git diff --check` (PASS). The EPUB fixture loads a real XHTML blob, preserves archive bytes, and resolves a representative raw-document CFI to the transformed range. Independent Terra high task review and Astra high final review passed.
+- Evidence boundary: The primary metadata value is chosen by existing `pickText`, trimmed, lowercased, and split at the hyphen. Only `ru` enables the rule; no `rus` alias, HTML-language inference, user language override, or cross-node joining is introduced. Existing non-guarded TXT/PDF paths are unchanged. Serialized HTML length is not a CFI invariant; decoded node offsets are. No packaged Tauri/mobile, native clipboard, or full annotation-persistence acceptance is claimed.
+
+#### Next Task: S2-R04C3 - Recognize and safely extract footnotes
+
+- Scope: `87f0240b0`, `b223ccaee`, `54aa20d4f`, including nested foliate `7657c78bd..2bf0cecfc`.
+- Outcome: Reuse current footnote recognition/extraction owners; add image-alt fallback and deferred small-target checks without turning numeric chapter/verse lists into footnotes.
+- Verify: image-alt fallback, unresolved/large target rejection, and neighboring numeric-link false positives at the existing click-to-popup boundary.
 - Remaining C3-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
 
 ### S2-R05 - Polish interaction and accessibility boundaries

@@ -13,14 +13,14 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation closure is recorded separately for C1 only.
+local implementation and verification are recorded separately for C1 and C2.
 
 ## Frozen and provisional slices
 
 | Slice | Ownership and bounded outcome | Commits | Audit disposition |
 |---|---|---|---|
 | **S2-R04C1** | Code literal rendering plus Persian/Arabic BiDi sanitization | `69599e2bc`, `44953f568`, `2f9262e02`; decisions for `6626db967`, `86493e801` | Complete: first three covered, two skip-link fixes not-applicable because br1 injects no equivalent skip link. |
-| **S2-R04C2** | Russian short-word non-breaking spaces | `370a51662` | Frozen as a separate deferred slice; no Russian code belongs in C1. |
+| **S2-R04C2** | Russian short-word non-breaking spaces | `370a51662` | Complete: metadata-gated prose rule, valid XHTML output, and representative EPUB/CFI regression. |
 | **S2-R04C3** | Footnote recognition and guarded extraction | `87f0240b0`, `b223ccaee`, `54aa20d4f` | Provisional. Keep recognition false-positive tests with the detector. |
 | **S2-R04C4** | Footnote popup visual integrity | `1d8ed3fc9`, `d6e981e56` | Provisional. Background suppression and namespace ordering are small, independent guards in one popup-layout slice. |
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Provisional standalone interaction slice. |
@@ -50,7 +50,7 @@ local implementation closure is recorded separately for C1 only.
 | `2f9262e02` | C1 | Covered: contextual prose RLM runs become equal-length ZWNJ; literal-content boundaries preserved. |
 | `6626db967` | C1 | Frozen N/A decision: end skip link does not exist locally. |
 | `86493e801` | C1 | Frozen N/A decision: reading-position skip link does not exist locally. |
-| `370a51662` | C2 | Deferred own slice. |
+| `370a51662` | C2 | Covered: exact word rule with metadata-only language gating, literal exclusions, and valid numeric XHTML entities. |
 | `87f0240b0`, `b223ccaee`, `54aa20d4f` | C3 | Recognition/extraction. |
 | `1d8ed3fc9`, `d6e981e56` | C4 | Popup visual integrity. |
 | `7c0419961` | C5 | Popup sizing/lifecycle. |
@@ -78,7 +78,7 @@ local implementation closure is recorded separately for C1 only.
 | Commit | Readest stat | Exact upstream behavior | Relationship / gitlink |
 |---|---:|---|---|
 | `6626db967` | 2 files, +71/-1 | Changes the end-of-section accessibility node from `<div>` to `<span>`. The node is nested in the last content element; `<span>` remains inside the paragraph override selector's inline-tag allowlist, so a paragraph-like final `<div>` keeps line spacing, word/letter spacing, indent, and hyphenation. | No foliate move. Distinct from `86493e801`; frozen N/A locally. |
-| `370a51662` | 4 files, +265 | For normalized language `ru`, changes U+0020 to U+00A0 after any one/two-character Cyrillic word or a configured longer function word, only when followed by Cyrillic or a Unicode number. It processes raw text between tags, skips complete `style`/`script` blocks, repeats until stable, and preserves UTF-16 length. It runs after whitespace normalization and `simplecc`, before proofread/warichu. | No foliate move. Deferred C2, not part of C1. |
+| `370a51662` | 4 files, +265 | For normalized language `ru`, changes U+0020 to U+00A0 after any one/two-character Cyrillic word or a configured longer function word, only when followed by Cyrillic or a Unicode number. It processes raw text between tags, skips complete `style`/`script` blocks, repeats until stable, and preserves UTF-16 length. It runs after whitespace normalization and `simplecc`, before proofread/warichu. | No foliate move. Covered in C2 using the existing sanitized DOM traversal, not a second raw-markup parser. |
 | `69599e2bc` | 1 file, +1 | Adds `font-variant-ligatures: none` to `pre, code, kbd`; glyph shaping changes while source, selection, and copied text remain unchanged. | No foliate move. Active C1. |
 | `44953f568` | 2 files, +12/-2 | After whole-document sanitization/XML serialization, restores hex/decimal LRM entities to literal U+200E and RLM entities to literal U+200F. It also extends paragraph emptiness filtering through U+200F so direction marks are not meaningful content. | No foliate move. Required before `2f9262e02`; not superseded. |
 | `2f9262e02` | 2 files, +59 | Replaces each U+200F in an RLM run with one U+200C only when the run is between characters in the exact broad ranges `0600-065F`, `066A-06EF`, `06FA-06FF`, `FB50-FDFF`, or `FE70-FEFC`. Arabic/Persian digit ranges are excluded; Latin-adjacent and boundary RLMs remain. Length is preserved. The class is broader than Unicode letters and includes some marks/punctuation. | No foliate move. Cumulative follow-on to `44953f568`. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C2**. Each slice starts by checking current local callers
+Continue with **S2-R04C3**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,5 +219,30 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C2-C21 remain pending; their table entries are executable specifications,
+run. C3-C21 remain pending; their table entries are executable specifications,
 not completion claims.
+
+### C2 implementation boundary
+
+The host reuses C1's sanitized text-node walker and literal-content exclusions.
+It uses `pickText`'s first nonblank metadata language, trims it, and compares the
+lowercase hyphen-primary code with `ru`. The upstream transform's 50-word list
+and Unicode regex are retained, but Readest's broader primary-language alias
+and user-override system is not imported: `rus`, `ru_RU`, missing metadata, and
+`['en', 'ru']` do not activate C2. Document language attributes are not inference
+inputs. Existing TXT/PDF paths and words split across elements remain untouched.
+
+Only decoded U+0020 becomes U+00A0, leaving node structure and UTF-16 offsets
+unchanged. XHTML emits `&#160;` because named `&nbsp;` in a DTD-less XML blob
+causes a parser error. The same named entity remains valid in HTML, whose
+serialization is unchanged. Source EPUB bytes are not rewritten.
+
+C2 passed the six-case authored-text browser file (three C1 cases plus three
+C2 cases), three selected existing sanitizer/TXT regressions, `pnpm check`
+(0 errors/warnings), `pnpm build`, and `git diff --check`. The real EPUB fixture
+loads its XHTML blob without parser errors, keeps source archive bytes unchanged,
+and resolves a representative raw-document CFI in the transformed document.
+Independent Terra high task review and Astra high final review passed.
+The ledger reconciles to 678 commits: 48 covered, 419 partial, 77 gap, and 134
+not-applicable, with 64 remaining task IDs. No full annotation-persistence,
+native clipboard, font-pixel, packaged Tauri, or mobile acceptance is claimed.
