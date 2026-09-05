@@ -34,8 +34,7 @@
     wrapFoliateViewElement,
     type ReaderControlRequest,
     type ReaderBookDocument,
-    type FoliateViewElement,
-    type ReaderPlainTextBlock
+    type FoliateViewElement
   } from '$lib/reader';
   import { Overlayer } from 'foliate-js/overlayer.js';
   import {
@@ -53,6 +52,7 @@
     type SectionAnchor
   } from '$lib/reader/crossDocSelection';
   import { getPdfSelectionText } from '$lib/reader/pdfText';
+  import { decodePlainText, parsePlainTextChapters } from '$lib/reader/plainText';
   import type {
     ReaderNote,
     ReaderPreviewState,
@@ -155,9 +155,8 @@
   let currentLayoutLabel = READER_WAITING_LAYOUT_LABEL;
   let openEngineMode: 'foliate' | 'plain-text' = 'foliate';
   let plainTextContent = '';
-  let plainTextBlocks: ReaderPlainTextBlock[] = [];
-  let plainTextHasCodeBlocks = false;
-  let plainTextHighlightedHtml = '';
+  let plainTextSections: Array<{ label: string; href: string; text: string; html: string }> = [];
+  let plainTextChapterTarget: { href: string; scrollTop: number } | null = null;
   let plainTextTitle = '';
   let plainTextScroller: HTMLDivElement | null = null;
   let readerViewportVars = '';
@@ -257,6 +256,42 @@
   // Boundary: this view-normalization logic keeps format-specific renderer quirks
   // from leaking into notebook, sidebar, TTS, or translation surfaces.
   const getPlainTextLines = () => plainTextContent.split(/\r?\n/);
+
+  // Chapter anchors use rendered positions, since wrapped lines and code blocks
+  // do not occupy equal heights. Persisted txt: fractions keep their old meaning.
+  const getPlainTextChapter = () => {
+    if (!plainTextScroller) return undefined;
+    // A short final chapter cannot reach the top. Keep the requested chapter
+    // while the viewport remains at that clamped position; actual scrolling
+    // resumes the normal visible-position lookup.
+    if (plainTextChapterTarget) {
+      if (Math.abs(plainTextScroller.scrollTop - plainTextChapterTarget.scrollTop) < 1) {
+        return plainTextSections.find((section) => section.href === plainTextChapterTarget?.href);
+      }
+      plainTextChapterTarget = null;
+    }
+    const top = plainTextScroller.getBoundingClientRect().top;
+    let index = 0;
+    for (const element of plainTextScroller.querySelectorAll<HTMLElement>('[data-txt-section]')) {
+      if (element.getBoundingClientRect().top > top + 2) break;
+      index = Number(element.dataset.txtSection);
+    }
+    return plainTextSections[index];
+  };
+
+  const applyPlainTextChapter = async (href: string) => {
+    await tick();
+    const index = plainTextSections.findIndex((section) => section.href === href);
+    const element = plainTextScroller?.querySelector<HTMLElement>(`[data-txt-section="${index}"]`);
+    if (!element || !plainTextScroller) return;
+    const requestedTop = plainTextScroller.scrollTop +
+      element.getBoundingClientRect().top - plainTextScroller.getBoundingClientRect().top;
+    plainTextScroller.scrollTop = requestedTop;
+    plainTextChapterTarget = Math.abs(plainTextScroller.scrollTop - requestedTop) >= 1
+      ? { href, scrollTop: plainTextScroller.scrollTop }
+      : null;
+    emitPlainTextReaderState();
+  };
 
   const isPlainTextExcerptCandidate = (line: string) => {
     const normalized = line.trim();
@@ -439,13 +474,14 @@
       Math.max(1, Math.round(fraction * Math.max(totalLines - 1, 0)) + 1)
     );
     const progressPercent = formatReaderProgressPercent(fraction);
+    const chapter = getPlainTextChapter();
 
     return {
       ...getFallbackReaderState(),
       title: plainTextTitle || openSourceLabel || '纯文本书籍',
       author: '纯文本来源',
-      chapterLabel: '纯文本',
-      chapterHref: '',
+      chapterLabel: chapter?.label || '纯文本',
+      chapterHref: chapter?.href || '',
       progressLabel: `${progressPercent}%`,
       progressFraction: fraction,
       progressLocation: `txt:${fraction.toFixed(6)}`,
@@ -594,9 +630,6 @@
     isWindowMode;
     readerViewportVars = getReaderViewportVars();
   }
-
-  $: plainTextHasCodeBlocks = plainTextBlocks.some((block) => block.kind === 'code');
-
   const getResponsiveMaxInlineSize = () => {
     const { width, height } = getViewportStageSize();
     const aspectRatio = width / Math.max(height, 1);
@@ -700,11 +733,18 @@
     }
 
     const fraction = getPlainTextScrollFraction();
+    // A selection may start in another visible chapter, even without scrolling.
+    const startNode = range.startContainer.childNodes[range.startOffset] ?? range.startContainer;
+    const startElement = startNode instanceof Element ? startNode : startNode.parentElement;
+    const sectionElement = startElement?.closest<HTMLElement>('[data-txt-section]');
+    const chapter = sectionElement
+      ? plainTextSections[Number(sectionElement.dataset.txtSection)]
+      : getPlainTextChapter();
     return {
       cfi: `txt:${fraction.toFixed(6)}`,
       text,
-      chapterLabel: '纯文本',
-      chapterHref: ''
+      chapterLabel: chapter?.label || '纯文本',
+      chapterHref: chapter?.href || ''
     };
   };
 
@@ -1171,14 +1211,14 @@
 
   const loadPlainTextSource = async (source: string | File) => {
     if (source instanceof File) {
-      return source.text();
+      return decodePlainText(await source.arrayBuffer());
     }
 
     const response = await fetch(source);
     if (!response.ok) {
       throw new Error(`failed to load TXT source (${response.status})`);
     }
-    return response.text();
+    return decodePlainText(await response.arrayBuffer());
   };
 
   const applyPlainTextFraction = async (fraction?: number) => {
@@ -1186,6 +1226,7 @@
     if (!plainTextScroller || typeof fraction !== 'number' || Number.isNaN(fraction)) {
       return;
     }
+    plainTextChapterTarget = null;
     const maxScroll = plainTextScroller.scrollHeight - plainTextScroller.clientHeight;
     if (maxScroll <= 0) return;
     plainTextScroller.scrollTop = Math.max(0, Math.min(1, fraction)) * maxScroll;
@@ -1541,16 +1582,29 @@
 
       if (isPlainTextFormat(currentFormatLabel)) {
         openEngineMode = 'plain-text';
+        plainTextChapterTarget = null;
         plainTextContent = await loadPlainTextSource(source);
-        plainTextBlocks = parsePlainTextCodeBlocks(plainTextContent);
-        plainTextHasCodeBlocks = plainTextBlocks.some((block) => block.kind === 'code');
-        plainTextHighlightedHtml = plainTextHasCodeBlocks ? renderPlainTextBlocksHtml(plainTextBlocks) : '';
         plainTextTitle = sourceLabel || '纯文本书籍';
+        const chapters = parsePlainTextChapters(plainTextContent);
+        // Keep any title/preamble as source text ahead of the first chapter.
+        const starts = chapters[0]?.start === 0 ? chapters : [{ label: '', start: 0 }, ...chapters];
+        plainTextSections = starts.map((chapter, index) => {
+          const text = plainTextContent.slice(chapter.start, starts[index + 1]?.start);
+          const blocks = parsePlainTextCodeBlocks(text);
+          return {
+            label: chapter.label,
+            href: chapter.label ? `txt-chapter:${chapter.start}` : '',
+            text,
+            html: blocks.some((block) => block.kind === 'code') ? renderPlainTextBlocksHtml(blocks) : ''
+          };
+        });
         currentLayoutLabel = 'SCROLL';
         syncEngineModeVisibility();
         openStatus = 'open';
-        await applyPlainTextFraction(restoreFraction);
-        dispatch('tocchange', []);
+        await applyInitialNavigation(restoreFraction, restoreLocation);
+        dispatch('tocchange', plainTextSections
+          .filter((section) => section.href)
+          .map(({ label, href }) => ({ label, href, level: 0 })));
         emitSearchState({ query: '', status: 'idle', results: [], progress: 0 });
         emitPlainTextReaderState();
         return;
@@ -1558,9 +1612,8 @@
 
       openEngineMode = 'foliate';
       plainTextContent = '';
-      plainTextBlocks = [];
-      plainTextHasCodeBlocks = false;
-      plainTextHighlightedHtml = '';
+      plainTextSections = [];
+      plainTextChapterTarget = null;
       plainTextTitle = '';
       syncEngineModeVisibility();
 
@@ -1842,8 +1895,11 @@
           plainTextScroller.scrollBy({ top: plainTextScroller.clientHeight * 0.85, behavior: 'auto' });
           emitPlainTextReaderState();
         } else if (controlRequest.type === 'start' && plainTextScroller) {
+          plainTextChapterTarget = null;
           plainTextScroller.scrollTop = 0;
           emitPlainTextReaderState();
+        } else if (controlRequest.type === 'href' && controlRequest.href.startsWith('txt-chapter:')) {
+          await applyPlainTextChapter(controlRequest.href);
         } else if (controlRequest.type === 'href' && controlRequest.href.startsWith('txt:')) {
           const parsed = Number(controlRequest.href.slice(4).split(':')[0]);
           if (!Number.isNaN(parsed)) {
@@ -2098,13 +2154,15 @@
               aria-label="plain text reading surface"
             >
               <article class="plain-text-paper">
-                {#if plainTextHasCodeBlocks}
-                  <div class="plain-text-blocks">
-                    {@html plainTextHighlightedHtml}
+                {#each plainTextSections as section, index}
+                  <div data-txt-section={index}>
+                    {#if section.html}
+                      <div class="plain-text-blocks">{@html section.html}</div>
+                    {:else}
+                      <pre>{section.text}</pre>
+                    {/if}
                   </div>
-                {:else}
-                  <pre>{plainTextContent}</pre>
-                {/if}
+                {/each}
               </article>
             </div>
           {/if}
@@ -2159,13 +2217,15 @@
                 aria-label="plain text reading surface"
               >
                 <article class="plain-text-paper">
-                  {#if plainTextHasCodeBlocks}
-                    <div class="plain-text-blocks">
-                      {@html plainTextHighlightedHtml}
+                  {#each plainTextSections as section, index}
+                    <div data-txt-section={index}>
+                      {#if section.html}
+                        <div class="plain-text-blocks">{@html section.html}</div>
+                      {:else}
+                        <pre>{section.text}</pre>
+                      {/if}
                     </div>
-                  {:else}
-                    <pre>{plainTextContent}</pre>
-                  {/if}
+                  {/each}
                 </article>
               </div>
             {/if}

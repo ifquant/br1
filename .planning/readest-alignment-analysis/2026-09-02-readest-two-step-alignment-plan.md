@@ -1,6 +1,6 @@
 # Readest Two-Step Alignment Plan
 
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 ## Scope
 
@@ -74,9 +74,9 @@ Exit criteria for Step 2:
 
 ## First Slice Recommendation
 
-Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 47 remaining executable br1-native tasks after closing the EPUB/MOBI/CBZ archive-loading wave. `S1-R01` through `S1-R03` are verified br1 baselines, while `S2-S01` through `S2-S04`, `S2-R03A` through `S2-R03E`, and `S2-R04A1` through `S2-R04A3` are reviewed and closed decisions; remaining reading-ruler, paragraph-focus, user-customizable binding, authored-layout, and media-viewer work stays in the corresponding Step 2 tasks.
+Completed in [`2026-09-02-readest-high-priority-audit.md`](./2026-09-02-readest-high-priority-audit.md): all 678 high-priority pull-delta commits now have a final `covered`, `gap`, `partial`, or `not-applicable` decision and map to 46 remaining executable br1-native tasks after closing archive loading and native TXT chapter indexing. `S1-R01` through `S1-R03` are verified br1 baselines, while `S2-S01` through `S2-S04`, `S2-R03A` through `S2-R03E`, `S2-R04A1` through `S2-R04A3`, and `S2-R04B` are closed slices; remaining reading-ruler, paragraph-focus, user-customizable binding, authored-layout, and media-viewer work stays in the corresponding Step 2 tasks. The nested TTS obligation in `1d4b7eed8` remains partial and now belongs to `S2-T03`.
 
-Step 1, `S2-S01` through `S2-S04`, `S2-R03A` through `S2-R03E`, and `S2-R04A1` through `S2-R04A3` are complete. Continue the Step 2 format floor with `S2-R04B - Harden TXT chapter parsing`; each remaining task should land as its own implementation and verification commit.
+Step 1, `S2-S01` through `S2-S04`, `S2-R03A` through `S2-R03E`, `S2-R04A1` through `S2-R04A3`, and `S2-R04B` are complete. Continue the Step 2 format floor with `S2-R04C - Harden authored-layout compatibility`; each remaining task should land as its own implementation and verification commit.
 
 ## High-Priority Commit Queue
 

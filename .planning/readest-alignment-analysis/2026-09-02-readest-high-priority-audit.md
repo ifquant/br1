@@ -1,6 +1,6 @@
 # Readest High-Priority Commit Audit
 
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 This document finalizes the 678 high-priority decisions from `e0cf7e8d9f0c61e2cd859dd9cc0d026351eef3b6..6df90139dc7b72246572ab33b12d485b281ca6e6` against current br1 source. It complements the two-step plan; it does not replace the 1,189-commit history ledger.
 
@@ -18,15 +18,15 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 41 |
-| `partial` | 429 |
+| `covered` | 44 |
+| `partial` | 425 |
 | `gap` | 77 |
-| `not-applicable` | 131 |
+| `not-applicable` | 132 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 23 | 238 | 22 | 51 |
-| library | 8 | 59 | 17 | 20 |
+| reader core | 25 | 235 | 22 | 52 |
+| library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
 | catalog/import | 0 | 36 | 11 | 16 |
@@ -142,7 +142,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 103 | `6d5e59c79` | reading modes/controls | fix(rsvp): resume at stop word, prevent section replay, restore full context (#3960) | `partial` | S2-F02 | readingMode.ts and focused-reading e2e; chapter/window resume is incomplete. |
 | 104 | `ca8f0fe9f` | catalog/import | feat(opds): add OPDS-PSE streaming support and custom OPDS 2.0 parser (#3951) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 105 | `6fbf9ef68` | catalog/import | fix(layout): fixed layout for catalog title (#3982) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed behavior is not covered. |
-| 106 | `3b03b2c8d` | reader core | fix(txt): more robust txt parsing, closes #3970 (#3983) | `partial` | S2-R04B | TXT exists; this parser/chapter edge lacks a fixture. |
+| 106 | `3b03b2c8d` | reader core | fix(txt): more robust txt parsing, closes #3970 (#3983) | `covered` | S2-R04B | Native TXT chapter indexing accepts 36-character titles with boundary fixtures; Readest's cover/hash conversion guard has no equivalent owner here. |
 | 107 | `4b0720a3e` | reading modes/controls | perf(rsvp): windowed context, extraction caching and lazy CFI for sections with thousands of words, closes #3953 (#3984) | `partial` | S2-F02 | readingMode.ts and focused-reading e2e; chapter/window resume is incomplete. |
 | 108 | `920627ae5` | reading modes/controls | feat(rsvp): use jieba tokenizer to segment words for Chinese books (#3985) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
 | 109 | `34f19fd14` | reader core | fix(annotation): preserve line breaks in selected text across <br> elements, closes #3981 (#3986) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
@@ -155,7 +155,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 116 | `486659a1c` | reader core | feat(annotations): deep links for highlight exports (#4018) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
 | 117 | `fb37406b3` | reader core | feat(annotations): preview mode for deep-link landings (#4019) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
 | 118 | `293d5b5f5` | reading modes/controls | fix(rsvp): cross-device resume seeding + mobile slider drag (#4004) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
-| 119 | `eadb35539` | reader core | fix(txt): recognize 番外/外传 chapter prefixes, closes #4016 (#4025) | `partial` | S2-R04B | TXT exists; this parser/chapter edge lacks a fixture. |
+| 119 | `eadb35539` | reader core | fix(txt): recognize 番外/外传 chapter prefixes, closes #4016 (#4025) | `covered` | S2-R04B | Native chapter index and reader TOC recognize bonus/side-story prefixes without splitting fenced code. |
 | 120 | `579e95075` | reading modes/controls | fix(rsvp): split em-dash and en-dash compound words (#4026) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
 | 121 | `176e5df77` | reader core | refactor(settings): move Keep Screen Awake to Behavior > Device (#4027) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; exact theme setting/scope is incomplete. |
 | 122 | `d1e7b4902` | library | feat(share): time-limited share links with cfi-aware imports (#4037) | `not-applicable` | — | Unadopted Readest cloud/account/capture surface. |
@@ -200,7 +200,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 161 | `ad1c2d6bb` | reader core | fix(reader): filter Magic Mouse wheel events to stop accidental page turns (#4195) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 162 | `3620c6103` | library | feat(reader): import annotations from Moon+ Reader (.mrexpt) (#4174) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
 | 163 | `ba6e5899e` | reading modes/controls | feat(reader): RSVP CJK character mode and whole-word highlight (#4199) | `partial` | S2-F03 | readingMode.ts and focused-reading e2e; RSVP-lite lacks this complete control. |
-| 164 | `1d4b7eed8` | reader core | fix(txt): merge scene-break sections into the preceding chapter (#4063) (#4207) | `partial` | S2-R04B | TXT exists; this parser/chapter edge lacks a fixture. |
+| 164 | `1d4b7eed8` | reader core | fix(txt): merge scene-break sections into the preceding chapter (#4063) (#4207) | `partial` | S2-T03 | TXT scene-break behavior is covered by S2-R04B. Nested foliate 3c597a6dc TTS rejected-block filtering remains an extraction obligation. |
 | 165 | `0fba5b705` | reader core | feat(config): version book config schema (#4208) | `partial` | S2-D01 | Settings persist, but schema migration/version behavior is unproved. |
 | 166 | `52f963481` | reader core | feat(backup): include global settings in backup zip (#4211) | `gap` | S2-L04 | No complete versioned backup/restore workflow. |
 | 167 | `28a7785e5` | reader core | test(e2e): add a Playwright web e2e lane (reading & annotation flows) (#4214) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
@@ -308,7 +308,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 269 | `a56cc6c61` | tts/audio | feat(tts): word-by-word highlighting for Edge TTS, closes #4017 (#4566) | `gap` | S2-T02 | tts.ts, ttsRuntime.ts, and TTS tests; spoken-range highlighting is absent. |
 | 270 | `b6937f43f` | tts/audio | chore(agent): stage memories (#4569) | `not-applicable` | — | Readest agent-memory bookkeeping. |
 | 271 | `67c22c770` | reader core | feat(reader): Share intent + customizable annotation toolbar (#4014) (#4570) | `partial` | S2-A01B | P0-2/P0-3 and reader smoke tests; this selection/popup edge is unproved. |
-| 272 | `4b0bbc77b` | reader core | fix(reader): open TXT files shared via "Open with" (#4571) | `partial` | S2-R04B | TXT exists; this parser/chapter edge lacks a fixture. |
+| 272 | `4b0bbc77b` | reader core | fix(reader): open TXT files shared via "Open with" (#4571) | `not-applicable` | — | Android raw-TXT-to-EPUB fallback is outside the desktop scope; br1 already routes supported TXT files to its native plain-text surface. No Android delivery claim. |
 | 273 | `5a8f0873f` | library | fix(library): refresh book cover after editing metadata (#4572) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
 | 274 | `cc618b873` | tts/audio | test(tts): add browser e2e for auto-advance across a chapter boundary (#4573) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 275 | `0f0b4279a` | reader core | perf(reader): memoize global-annotation fan-out per section (#4575) (#4579) | `partial` | S2-A01C | P0-2/P0-3 and reader smoke tests; this note/highlight lifecycle edge is unproved. |
@@ -344,7 +344,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 305 | `be5862f08` | library | fix(library): group secondary series sort by series name then index (#4652) (#4653) | `partial` | S2-L03 | P0-4.1/P0-4.2 and library smoke tests; exact metadata/provenance is missing. |
 | 306 | `e00a1e4f0` | reader core | fix(settings): tidy Word Lens data pack and level rows on mobile (#4655) | `not-applicable` | — | Mobile/device-only behavior is outside the desktop target. |
 | 307 | `e327d0c99` | tts/audio | feat(tts): reuse the speaking session across paragraph & RSVP modes (#4657) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
-| 308 | `1faa931a0` | library | fix(txt): stop detecting measure-word prose as chapters in TXT import (#4658) (#4660) | `partial` | S2-R04B | TXT exists; this parser/chapter edge lacks a fixture. |
+| 308 | `1faa931a0` | library | fix(txt): stop detecting measure-word prose as chapters in TXT import (#4658) (#4660) | `covered` | S2-R04B | Chapter units accept attached titles; volume/measure units require a separator. Regression cases keep measure-word and date prose out of TOC. |
 | 309 | `4cb608be2` | catalog/import | chore(send-to-readest): v0.2.1, zip packaging script, store submission doc (#4661) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
 | 310 | `6caa376f8` | reader core | feat(reader): Webtoon Mode seamless continuous scroll for image books (#3647) (#4662) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 311 | `b7585ac46` | catalog/import | chore(send-to-readest): add Chrome Web Store screenshot generator (#4664) | `not-applicable` | — | Readest build, dependency, CI, or distribution detail. |
@@ -914,16 +914,20 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Evidence boundary: KF8 runs through the real parser with a jittered File, not packaged Tauri I/O. MOBI6 uses a production pure-helper regression plus static `createDocument()` call-chain proof rather than a binary fixture. CBZ covers representative ASCII split folders and numeric pages, not every locale collation. Readest's separate `RemoteFile.fetchRange` inclusive-end fix is not applicable because br1 materializes complete native `File` objects and has no remote range cache.
 - Commits: `758f218f2` (foliate-js), `780964127` (br1 integration proof)
 
-### Next Task: S2-R04B - Harden TXT chapter parsing
+### Completed Task: S2-R04B - Harden TXT chapter parsing
 
 - Phase: Step 2
-- Upstream decisions: 5 commits (0 gap, 5 partial)
+- Upstream decisions: 5 commits (3 covered, 1 not-applicable, 1 partial with its remaining TTS obligation moved to S2-T03)
 - Outcome: Cover encoding, scene breaks, chapter prefixes, and prose false positives.
 - Touches: TXT parser fixtures and focused tests
 - Verify: `pnpm check`; `TXT fixture smoke`; `git diff --check`
 - Commits: `3b03b2c8d`, `eadb35539`, `1d4b7eed8`, `4b0bbc77b`, `1faa931a0`
 
-### S2-R04C - Harden authored-layout compatibility
+- Result: Source-offset chapter indexing drives the existing TXT surface, TOC navigation, and chapter context without converting books to EPUB. Chapter/preface titles support 36 characters; bonus prefixes are recognized; scene dividers, fenced code, measure-word prose, and date-led prose do not create chapters. Raw File and fetched bytes share native UTF decoding with a bounded GB18030 fallback; persisted `txt:` fractions retain their meaning.
+- Evidence: focused TXT Chromium regressions including short-book navigation and selection ownership (PASS, 7/7); existing code-highlighting, literal-markup, and visible-excerpt TTS regressions (PASS, 3/3); `pnpm check` (PASS, 0 errors / 0 warnings); `pnpm build` (PASS); `git diff --check` (PASS); independent Terra high task review and Astra high final review, including fix re-reviews (PASS).
+- Evidence boundary: The resume test mocks desktop IPC to supply a raw File and explicit stored fraction/location inputs; it does not prove disk-library persistence, asset-reload persistence, or packaged Tauri/mobile behavior. Encoding has no general Shift-JIS/Big5 or damaged-file detection claim. Headingless text remains intact without Readest's artificial 100-paragraph chapters. The sole nested foliate update in these five commits (`4361f29b5..3c597a6dc`) changes TTS block filtering, not TXT; sibling code still lacks it, so the outer commit remains partial under S2-T03.
+
+### Next Task: S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
 - Upstream decisions: 31 commits (0 gap, 31 partial)
@@ -1052,11 +1056,12 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-T03 - Align TTS extraction and section movement
 
 - Phase: Step 2
-- Upstream decisions: 4 commits (0 gap, 4 partial)
+- Upstream decisions: 5 commits (0 gap, 5 partial)
 - Outcome: Skip hidden/PDF line-break artifacts, turn sections safely, and retain playback location.
 - Touches: text extraction, TTS target builder, EPUB/PDF fixtures
 - Verify: `pnpm check`; `EPUB/PDF TTS smoke`; `git diff --check`
-- Commits: `a5690e9a8`, `fed8ab7b6`, `f4483643f`, `fa2e9cdc5`
+- Commits: `a5690e9a8`, `fed8ab7b6`, `f4483643f`, `fa2e9cdc5`, `1d4b7eed8`
+- Nested obligation from S2-R04B: audit/port foliate `3c597a6dc` rejected-block filtering when aligning the TTS extraction owner; prove background footnote subtrees cannot leak into adjacent speech blocks. The TXT scene-break part of the outer commit is already covered.
 
 ### S2-T04A - Stabilize TTS voice and timing
 
