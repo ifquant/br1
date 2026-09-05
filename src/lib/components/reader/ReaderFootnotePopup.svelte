@@ -22,7 +22,11 @@
 
     {#if hasPreview}
       <div class="footnote-body">
-        {@html excerptHtml || `<p>${excerptText}</p>`}
+        {#if excerptHtml}
+          {@html excerptHtml}
+        {:else}
+          <p>{excerptText}</p>
+        {/if}
       </div>
     {:else}
       <p class="footnote-fallback">无法预览，可跳转到正文位置</p>

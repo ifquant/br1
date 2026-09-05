@@ -109,6 +109,10 @@ export interface ReaderBookDocument {
   toc?: unknown[];
   pageList?: Array<{ label?: string; href?: string; index?: number }> | null;
   sections?: Array<{ createDocument?: () => Promise<Document> }>;
+  resolveHref?: (href: string) =>
+    | { index: number; anchor: (doc: Document) => unknown }
+    | null
+    | Promise<{ index: number; anchor: (doc: Document) => unknown } | null>;
   rendition?: {
     layout?: 'pre-paginated' | 'reflowable';
   };
@@ -169,7 +173,7 @@ const sanitizeReaderBookMarkup = (content: string, type: string, isRussian: bool
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     ADD_ATTR: (attributeName: string) =>
-      ['xmlns', 'http-equiv', 'content', 'charset', 'cfi-inert', 'cfi-skip'].includes(attributeName) ||
+      ['xmlns', 'http-equiv', 'content', 'charset', 'cfi-inert', 'cfi-skip', 'zy-footnote'].includes(attributeName) ||
       attributeName.startsWith('xml:') ||
       attributeName.startsWith('xmlns:') ||
       attributeName.startsWith('epub:')

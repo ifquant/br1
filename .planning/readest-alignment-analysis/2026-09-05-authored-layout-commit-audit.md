@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1 and C2.
+local implementation and verification are recorded separately for C1-C3.
 
 ## Frozen and provisional slices
 
@@ -21,7 +21,7 @@ local implementation and verification are recorded separately for C1 and C2.
 |---|---|---|---|
 | **S2-R04C1** | Code literal rendering plus Persian/Arabic BiDi sanitization | `69599e2bc`, `44953f568`, `2f9262e02`; decisions for `6626db967`, `86493e801` | Complete: first three covered, two skip-link fixes not-applicable because br1 injects no equivalent skip link. |
 | **S2-R04C2** | Russian short-word non-breaking spaces | `370a51662` | Complete: metadata-gated prose rule, valid XHTML output, and representative EPUB/CFI regression. |
-| **S2-R04C3** | Footnote recognition and guarded extraction | `87f0240b0`, `b223ccaee`, `54aa20d4f` | Provisional. Keep recognition false-positive tests with the detector. |
+| **S2-R04C3** | Footnote recognition and guarded extraction | `87f0240b0`, `b223ccaee`, `54aa20d4f` | Complete at the native host owner, with real-reader regressions and explicit inactive-library boundaries. |
 | **S2-R04C4** | Footnote popup visual integrity | `1d8ed3fc9`, `d6e981e56` | Provisional. Background suppression and namespace ordering are small, independent guards in one popup-layout slice. |
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Provisional standalone interaction slice. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Provisional standalone navigation-feedback slice. |
@@ -51,7 +51,7 @@ local implementation and verification are recorded separately for C1 and C2.
 | `6626db967` | C1 | Frozen N/A decision: end skip link does not exist locally. |
 | `86493e801` | C1 | Frozen N/A decision: reading-position skip link does not exist locally. |
 | `370a51662` | C2 | Covered: exact word rule with metadata-only language gating, literal exclusions, and valid numeric XHTML entities. |
-| `87f0240b0`, `b223ccaee`, `54aa20d4f` | C3 | Recognition/extraction. |
+| `87f0240b0`, `b223ccaee`, `54aa20d4f` | C3 | Covered at the native host owner: inert vendor text, validated numeric targets, and numeric-list rejection. |
 | `1d8ed3fc9`, `d6e981e56` | C4 | Popup visual integrity. |
 | `7c0419961` | C5 | Popup sizing/lifecycle. |
 | `dbe0dae0a` | C6 | In-page target flash. |
@@ -97,8 +97,8 @@ Russian configured words in `370a51662` are:
 
 | Commit | Readest stat | Exact upstream behavior | Relationship / gitlink |
 |---|---:|---|---|
-| `87f0240b0` | 8 files, +6/-84 | Adds `footnote.querySelector('img')?.alt` to popup-text extraction, before container/target `alt` fallbacks. Most of the diff removes unrelated unused continuous-scroll plumbing and is not part of the footnote behavior. | No foliate move. |
-| `b223ccaee` | 2 files, +4/-1 | Marks anchors matching `^.{0,2}\d+$` as deferred `check` candidates. Foliate handles `maybe() || check`, then rejects a checked target if extraction cannot find it or if the resolved element has more than three children. | `7657c78bd..2bf0cecfc`: one nested commit, deferred validation in `footnotes.js`. |
+| `87f0240b0` | 8 files, +6/-84 | Adds the first descendant image's `alt` to the no-navigation vendor-marker path, not href target extraction. Priority is `data-wr-footernote`, `zy-footnote`, descendant image `alt`, marker `alt`, clicked element `alt`. The four vendor classes include a no-href Duokan anchor; Readest renders the string via `textContent`. Unrelated continuous-scroll removal is not part of C3. | No foliate move. |
+| `b223ccaee` | 2 files, +4/-1 | Marks anchors matching `^.{0,2}\d+$` as deferred `check` candidates. Nested Foliate accepts `maybe() || check`; after inline-ancestor extraction it accepts semantic note/list/definition branches. Only the generic descendant-link branch requires at most three direct element children; a generic no-link target is rejected. Missing/malformed targets fall back to ordinary navigation. This is a structural heuristic, not a content-size security limit. | `7657c78bd..2bf0cecfc`: one nested commit, deferred validation in `footnotes.js`. |
 | `54aa20d4f` | 3 files, +119/-1 | Replaces the bare numeric test with `shouldCheckAsFootnote`. It rejects a candidate when any of the first three ancestor containers contains at least two *other* short-numeric links, preventing numeric chapter/verse lists from opening as footnotes. | No foliate move. Refines `b223ccaee`; both rules are needed for the final detector. |
 | `1d8ed3fc9` | 2 files, +2/-1 | Sets `no-background` on the popup renderer. Foliate observes that attribute and skips document background-image sizing/replacement, so an authored background is not treated as popup content. | `f860916a2..af4f384b7`: adds the paginator `no-background` contract. |
 | `d6e981e56` | 2 files, +25/-7 | Moves `@namespace epub` to the first line of the assembled reader stylesheet, before custom `@font-face` rules. This keeps `aside[epub|type~=footnote]` valid and hidden when custom fonts are loaded. | No foliate move. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C3**. Each slice starts by checking current local callers
+Continue with **S2-R04C4**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -192,7 +192,7 @@ an explicit owner explanation rather than a manufactured runtime test.
 | Slice | Minimum behavior to prove before closure |
 |---|---|
 | C2 | Russian-only short/function-word NBSP, consecutive matches, number successors, literal-content exclusions, and stable text length. |
-| C3 | Image-alt footnotes and deferred small targets open; numeric chapter/verse link lists keep ordinary navigation. |
+| C3 | No-href vendor image-alt markers render inert text; checked `li`/`aside`/`dt`/enclosing-`li`/`.note` targets remain accepted, including over three children. Generic link-bearing targets accept at most three direct children; no-link/missing targets navigate normally. Numeric chapter/verse lists suppress only provisional checks. Cross-section resolution must not reuse a current-document ID. |
 | C4 | Popup backgrounds do not affect size; namespace footnote selectors still work after custom fonts. |
 | C5 | Late-loading image content fits; closing or replacing the popup cancels observers and stale loads. |
 | C6 | In-page target cue appears and is cleared on replacement, close, or navigation. |
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C3-C21 remain pending; their table entries are executable specifications,
+run. C4-C21 remain pending; their table entries are executable specifications,
 not completion claims.
 
 ### C2 implementation boundary
@@ -243,6 +243,38 @@ C2 cases), three selected existing sanitizer/TXT regressions, `pnpm check`
 loads its XHTML blob without parser errors, keeps source archive bytes unchanged,
 and resolves a representative raw-document CFI in the transformed document.
 Independent Terra high task review and Astra high final review passed.
-The ledger reconciles to 678 commits: 48 covered, 419 partial, 77 gap, and 134
+At C2 closure, the ledger reconciled to 678 commits: 48 covered, 419 partial, 77 gap, and 134
 not-applicable, with 64 remaining task IDs. No full annotation-persistence,
 native clipboard, font-pixel, packaged Tauri, or mobile acceptance is claimed.
+
+### C3 native behavior and nested dependency boundary
+
+`ReaderViewport` remains the only footnote extraction owner. Ordinary anchors
+use Foliate's resolved `link` event; unloaded destinations use the existing book
+`resolveHref` and section `createDocument`, never a second popup view or a
+current-document ID collision. Clones, including their roots, pass through the
+existing tag/attribute allowlist. Vendor text uses Svelte's escaped text path.
+The sanitizer retains `zy-footnote` only as inert metadata for that path.
+
+The nested `2bf0cecfc` behavior is implemented here rather than patched into
+the unused sibling `FootnoteHandler`. `li`/`aside`/`dt` and enclosing `li` before
+`.note` bypass the child limit; the generic branch requires a descendant link
+and at most three direct children, with the upstream trailing-range boundary.
+Rejected or unresolved provisional targets use normal reader navigation.
+Explicit local note classification remains stronger than the numeric heuristic;
+general superscript-only inference is not introduced.
+
+Six footnote cases, six authored-text regressions, and four existing reader
+regressions passed (16/16), as did `pnpm check` (0 errors/warnings), `pnpm build`,
+and `git diff --check`. The delayed-read fixture must use a destination beyond
+the renderer's initial five-view window, then prove uncached/entered/completed
+states. It also holds `next` while releasing an older numeric read and checks
+that no stale popup or fallback `goTo` occurs. The added no-next-block range case
+passed the six-case footnote rerun; a final `.note` fixture rename to avoid the
+legacy ID heuristic passed its focused rerun. Production source was unchanged
+by those fixture-only edits. Independent Terra high task review and Astra
+high final review passed. Current totals are 678 commits: 51 covered,
+416 partial, 77 gap, 134 not-applicable, and 63 remaining task IDs.
+
+C4-C9's visual, media, selection and resource-lifetime obligations remain
+separate. No packaged Tauri/mobile or full concurrency stress is claimed.

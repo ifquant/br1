@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 48 |
-| `partial` | 419 |
+| `covered` | 51 |
+| `partial` | 416 |
 | `gap` | 77 |
 | `not-applicable` | 134 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 29 | 229 | 22 | 54 |
+| reader core | 32 | 226 | 22 | 54 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -39,7 +39,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | ---: | --- | --- | --- | --- | --- | --- |
 | 1 | `193613659` | reader core | fix: resolve various tracked exceptions in ph (#3584) | `partial` | S2-R07 | Relevant failure class; reproduce locally before changing code. |
 | 2 | `290550601` | reader core | fix(layout): fixed total scrollable width in vertical scrolled mode, closes #3583 (#3586) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
-| 3 | `87f0240b0` | reader core | compat(footnote): support footnote text in alt attribute of the image, closes #3576 (#3587) | `partial` | S2-R04C3 | Core reading exists; this authored-layout/script edge is unverified. |
+| 3 | `87f0240b0` | reader core | compat(footnote): support footnote text in alt attribute of the image, closes #3576 (#3587) | `covered` | S2-R04C3 | Native no-href vendor markers preserve metadata/image-alt priority and render inert plaintext, including nested Duokan superscript clicks. Unrelated continuous-scroll removal is not ported. |
 | 4 | `5a072e7d1` | reader core | fix(pdf): apply theme colors for PDFs, closes #3593 (#3626) | `covered` | S2-R03A | The PDF renderer receives the active br1 theme palette through `pageColors`, with a focused browser regression. |
 | 5 | `f31030583` | library | fix(library): mixed sorting for group and ungroupped books, closes #3596 (#3627) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 6 | `52df478f2` | reader core | fix: show proper background images in continuous scrolled mode, closes #3638 (#3645) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
@@ -119,7 +119,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 80 | `802212c42` | library | refactor: fixed typo in module name (#3881) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
 | 81 | `976bbcc15` | library | fix(library): fixed opening shared books from other apps (#3884) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 82 | `31e44d2e4` | reader core | fix(a11y): fixed saving reading progress with screen readers, closes #3864 (#3891) | `partial` | S2-R05 | P0-2/P0-3 and reader smoke tests; baseline a11y exists, exact case needs proof. |
-| 83 | `b223ccaee` | reader core | feat(footnotes): detect more formats of footnote (#3894) | `partial` | S2-R04C3 | Core reading exists; this authored-layout/script edge is unverified. |
+| 83 | `b223ccaee` | reader core | feat(footnotes): detect more formats of footnote (#3894) | `covered` | S2-R04C3 | Provisional numeric links use native target extraction with the nested 2bf0cecfc branch matrix, correct cross-section resolution, and ordinary navigation on rejection. The inactive Foliate popup API is not adopted or changed. |
 | 84 | `e1dad98e5` | reader core | fix(toc): prevent auto-scroll snap-back on sidebar open (#3900) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
 | 85 | `ff94dc76c` | reader core | fix: fixed crash on app start when there is no main window but a reader window running, closes #3897 (#3902) | `partial` | S2-R07 | Relevant failure class; reproduce locally before changing code. |
 | 86 | `c58153e94` | reader core | compat(css): remove no-op css that might break column layout, closes #3895 (#3903) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
@@ -182,7 +182,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 143 | `598eb7723` | library | feat(library): redesign empty-library onboarding (#4122) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 144 | `9a05935ca` | reader core | feat(reader): improve Japanese selection UX by disabling furigana selection (#4137) | `partial` | S2-R04C12 | Core reading exists; this authored-layout/script edge is unverified. |
 | 145 | `fed8ab7b6` | tts/audio | fix(tts): restore cross-section auto-page-turn during TTS playback (#4148) | `partial` | S2-T03 | tts.ts, ttsRuntime.ts, and TTS tests; extraction/section parity is incomplete. |
-| 146 | `54aa20d4f` | reader core | fix(footnote): don't treat in-book numeric chapter/verse links as footnotes (#4152) | `partial` | S2-R04C3 | Core reading exists; this authored-layout/script edge is unverified. |
+| 146 | `54aa20d4f` | reader core | fix(footnote): don't treat in-book numeric chapter/verse links as footnotes (#4152) | `covered` | S2-R04C3 | Numeric candidate checks reject two other numeric anchors within any of three ancestors; small sets still preview, and explicit noterefs keep their stronger classification. |
 | 147 | `244b3fd99` | reader core | fix(dev): rewrite HMR WebSocket URL in Tauri mobile dev, closes #4150 (#4160) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
 | 148 | `708e06a46` | catalog/import | fix(opds): show summary as book description, closes #4156 (#4162) | `partial` | S2-O02A | catalogs.rs and catalog tests; exact feed fixture is missing. |
 | 149 | `7716f189c` | reader core | fix(layout): keep header/footer transparent and fixed in scrolled mode, closes #4157 (#4168) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (4 covered, 26 partial, 2 gap, 2 not-applicable)
+- Upstream decisions: 34 commits (7 covered, 23 partial, 2 gap, 2 not-applicable)
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -952,12 +952,18 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: `authored-text-compat.spec.ts --workers=1` (PASS, 6/6 including 3 C1 regressions); selected existing sanitizer/literal-TXT/fenced-code checks (PASS, 3/3); `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS); `git diff --check` (PASS). The EPUB fixture loads a real XHTML blob, preserves archive bytes, and resolves a representative raw-document CFI to the transformed range. Independent Terra high task review and Astra high final review passed.
 - Evidence boundary: The primary metadata value is chosen by existing `pickText`, trimmed, lowercased, and split at the hyphen. Only `ru` enables the rule; no `rus` alias, HTML-language inference, user language override, or cross-node joining is introduced. Existing non-guarded TXT/PDF paths are unchanged. Serialized HTML length is not a CFI invariant; decoded node offsets are. No packaged Tauri/mobile, native clipboard, or full annotation-persistence acceptance is claimed.
 
-#### Next Task: S2-R04C3 - Recognize and safely extract footnotes
+#### Completed Task: S2-R04C3 - Recognize and safely extract footnotes
 
 - Scope: `87f0240b0`, `b223ccaee`, `54aa20d4f`, including nested foliate `7657c78bd..2bf0cecfc`.
-- Outcome: Reuse current footnote recognition/extraction owners; add image-alt fallback and deferred small-target checks without turning numeric chapter/verse lists into footnotes.
-- Verify: image-alt fallback, unresolved/large target rejection, and neighboring numeric-link false positives at the existing click-to-popup boundary.
-- Remaining C3-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
+- Outcome: Reuse the native footnote owner for no-href vendor image-alt text and structurally validated numeric links, without turning chapter/verse indexes into popups. Resolve cross-section paths through the book, not a current-document ID lookup.
+- Evidence: six real-reader footnote browser tests, six authored-text regressions, and four existing footnote/sanitizer/TXT regressions passed (16/16). After adding the no-next-block case, the footnote suite passed again (6/6); the final `.note` fixture correction passed its focused rerun (1/1). `pnpm check` (PASS, 0 errors/warnings); `pnpm build` (PASS, production source unchanged by later fixture-only edits); `git diff --check` (PASS). Independent Terra high task review and Astra high final review passed.
+- Boundary: Structural validation is not a size/security limit. br1 ports the nested behavior at its active host owner without a second view; the unused sibling `FootnoteHandler` API remains unchanged. Delayed-read tests instrument the real book's `createDocument` and hold the real `next` entrypoint, not the whole renderer. Superscript-only inference, rich popup media/layout, selection anchoring, packaged Tauri/mobile, and full lifecycle stress remain unclaimed.
+
+#### Next Task: S2-R04C4 - Preserve footnote popup visual integrity
+
+- Scope: `1d8ed3fc9`, `d6e981e56`, including nested foliate `f860916a2..af4f384b7`.
+- Start by checking applicability to br1's sanitized native popup, then verify background handling and namespace/style ordering at their actual owners. Do not introduce a second popup renderer solely for parity.
+- Remaining C4-C21 slices, owners, gitlink evidence, and acceptance cases are defined in the execution map above. C17's four independent IDPF cases must be implemented separately.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

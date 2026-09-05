@@ -148,6 +148,7 @@
   let searchCache = new Map<string, ReaderSearchResult[]>();
   let boundSelectionDocs = new WeakSet<Document>();
   let boundFootnoteDocs = new WeakSet<Document>();
+  let footnoteRequestId = 0;
   let boundPdfPinchDocs = new WeakSet<Document>();
   let syncedNoteValues = new Set<string>();
   let stageResizeObserver: ResizeObserver | null = null;
@@ -678,6 +679,9 @@
   };
 
   const emitFootnoteRequest = (detail: ReaderFootnoteRequest | null) => {
+    // Any newer popup, navigation clear, or book replacement invalidates pending
+    // cross-section extraction before it can emit a popup or fallback navigation.
+    footnoteRequestId += 1;
     onFootnoteRequest?.(detail);
     dispatch('footnoterequest', detail);
   };
@@ -1364,6 +1368,63 @@
     );
   };
 
+  const INLINE_FOOTNOTE_SELECTOR = '.js_readerFooterNote, .zhangyue-footnote, .duokan-footnote, .qqreader-footnote';
+  const isNumericFootnoteText = (value: string | null) => /^.{0,2}\d+$/.test(value?.trim() || '');
+
+  const shouldCheckAsFootnote = (link: ReaderAnchorLike) => {
+    if (!isNumericFootnoteText(link.textContent)) return false;
+    let container = link.parentElement;
+    // Two OTHER numeric links within three ancestors indicate a chapter/verse
+    // list. Keep ordinary navigation; two references in one paragraph still fit.
+    for (let depth = 0; depth < 3 && container; depth++, container = container.parentElement) {
+      let siblings = 0;
+      for (const candidate of container.querySelectorAll('a')) {
+        if (candidate !== link && isNumericFootnoteText(candidate.textContent) && ++siblings >= 2) return false;
+      }
+    }
+    return true;
+  };
+
+  const extractCheckedFootnote = (target: Element) => {
+    const doc = target.ownerDocument;
+    const inline = 'a, span, sup, sub, em, strong, i, b, small, big';
+    let element = target;
+    while (element.matches(inline) && element.parentElement) element = element.parentElement;
+    if (element === doc.body) {
+      const sibling = target.nextElementSibling;
+      if (!sibling || sibling.matches(inline)) return null;
+      element = sibling;
+    }
+
+    // Port the nested Foliate 2bf0cecfc decision at br1's existing extraction
+    // owner. The three-child limit applies ONLY to the generic backlink branch.
+    const range = doc.createRange();
+    const enclosingNote = element.closest('li') || element.closest('.note');
+    if (element.matches('li, aside')) {
+      range.selectNodeContents(element);
+    } else if (element.matches('dt')) {
+      range.setStartBefore(element);
+      let last = element;
+      while (last.nextElementSibling?.matches('dd')) last = last.nextElementSibling;
+      range.setEndAfter(last);
+    } else if (enclosingNote) {
+      range.selectNodeContents(enclosingNote);
+    } else if (element.querySelector('a') && element.children.length <= 3) {
+      range.setStartBefore(element);
+      let next = element.nextElementSibling;
+      while (next && !next.querySelector('a')) next = next.nextElementSibling;
+      if (next) range.setEndBefore(next);
+      // The range's start already requires a parent; include its trailing text
+      // nodes, not only its last element, when no next linked block exists.
+      else range.setEndAfter(element.parentNode!.lastChild!);
+    } else {
+      return null;
+    }
+    const container = doc.createElement('div');
+    container.append(range.cloneContents());
+    return container;
+  };
+
   const resolveFootnoteTarget = (doc: Document, href: string) => {
     const hash = href.split('#')[1] || '';
     if (!hash) return null;
@@ -1398,8 +1459,10 @@
   ]);
 
   const sanitizeFootnoteExcerptHtml = (container: Element) => {
-    const preview = container.cloneNode(true);
-    if (!(preview instanceof Element)) return '';
+    // Wrap the clone so the root itself is filtered too. Book nodes can belong
+    // to an iframe realm, where host instanceof Element checks would fail.
+    const preview = container.ownerDocument.createElement('div');
+    preview.append(container.cloneNode(true));
 
     for (const node of Array.from(preview.querySelectorAll('*'))) {
       const tagName = node.tagName.toLowerCase();
@@ -1421,7 +1484,7 @@
     return preview.innerHTML.trim();
   };
 
-  const resolveFootnoteExcerpt = (target: Element | null) => {
+  const resolveFootnoteExcerpt = (target: Element | null, checked = false) => {
     if (!target) {
       return {
         excerptHtml: '',
@@ -1429,9 +1492,10 @@
       };
     }
 
-    const container =
-      target.closest('aside, li, p, section, div') ||
-      target;
+    const container = checked
+      ? extractCheckedFootnote(target)
+      : target.closest('aside, li, p, section, div') || target;
+    if (!container) return { excerptHtml: '', excerptText: '' };
     return {
       // Keep a little structural markup for readability, but strip unknown tags
       // and attributes so the stage popup does not replay arbitrary book DOM.
@@ -1440,7 +1504,7 @@
     };
   };
 
-  const maybeOpenFootnotePopupFromViewLink = (
+  const maybeOpenFootnotePopupFromViewLink = async (
     event: CustomEvent<{
       a: ReaderAnchorLike;
       href: string;
@@ -1448,13 +1512,47 @@
   ) => {
     const link = event.detail?.a;
     const href = event.detail?.href?.trim() || '';
-    if (!isAnchorLike(link) || !isFootnoteLikeLink(link)) return;
+    emitFootnoteRequest(null);
+    if (!isAnchorLike(link)) return;
+    const checked = !isFootnoteLikeLink(link);
+    if (checked && !shouldCheckAsFootnote(link)) return;
 
     const fallbackHref = resolveFootnoteFallbackHref(href);
     if (!fallbackHref) return;
 
+    // Foliate dispatches this cancelable event after resolving the chapter path.
+    // Claim it synchronously, then either show a validated excerpt or use its
+    // existing navigation API. Never find a foreign chapter's ID in this iframe.
     event.preventDefault();
-    const excerpt = resolveFootnoteExcerpt(resolveFootnoteTarget(link.ownerDocument, href));
+    const requestId = footnoteRequestId;
+    const view = foliateViewElement;
+    const book = view?.book;
+    const isCurrent = () => requestId === footnoteRequestId && foliateViewElement === view && view?.book === book;
+    let excerpt = { excerptHtml: '', excerptText: '' };
+    try {
+      let target: Element | null = null;
+      if (book?.resolveHref) {
+        const location = await book.resolveHref(href);
+        if (!isCurrent()) return;
+        if (location && location.index >= 0) {
+          const doc = view?.renderer?.getContents?.().find(({ index }) => index === location.index)?.doc
+            ?? await book.sections?.[location.index]?.createDocument?.();
+          if (!isCurrent()) return;
+          const anchor = doc ? location.anchor(doc) as Node | null : null;
+          if (anchor?.nodeType === Node.ELEMENT_NODE) target = anchor as Element;
+        }
+      } else if (link.getAttribute('href')?.trim().startsWith('#')) {
+        target = resolveFootnoteTarget(link.ownerDocument, href);
+      }
+      excerpt = resolveFootnoteExcerpt(target, checked);
+    } catch (error) {
+      console.warn('Failed to extract footnote preview', error);
+    }
+    if (!isCurrent()) return;
+    if (checked && !excerpt.excerptHtml && !excerpt.excerptText) {
+      await view?.goTo(fallbackHref).catch((error) => console.warn('Failed to follow book link', error));
+      return;
+    }
     emitFootnoteRequest({
       label: normalizeFootnoteLabel(link.textContent || '') || '脚注',
       href,
@@ -1464,43 +1562,33 @@
     });
   };
 
-  // Footnote interception stays in the viewport because only the renderer layer
-  // knows which iframe/document actually owns the clicked internal link. The
-  // stage can then present the popup without reverse-engineering renderer DOM.
+  // Inline vendor markers have no navigable href. All ordinary anchors use the
+  // single resolved Foliate link event above, including cross-section notes.
   const bindFootnoteTracking = (doc: Document) => {
     if (boundFootnoteDocs.has(doc)) return;
     boundFootnoteDocs.add(doc);
-    const interceptFootnoteClick = (event: Event, link: ReaderAnchorLike) => {
-      const href = link.getAttribute('href')?.trim() || '';
-      const fallbackHref = resolveFootnoteFallbackHref(href);
-      if (!fallbackHref) return;
-
+    doc.addEventListener('click', (event: Event) => {
+      const element = event.target as Element | null;
+      if (typeof element?.closest !== 'function') return;
+      const marker = element.closest(INLINE_FOOTNOTE_SELECTOR);
+      if (!marker) return;
+      const interactive = element.closest('sup, a, audio, video');
+      if (interactive && !element.closest('a.duokan-footnote:not([href])')) return;
+      const excerptText = marker.getAttribute('data-wr-footernote') || marker.getAttribute('zy-footnote')
+        || marker.querySelector('img')?.getAttribute('alt') || marker.getAttribute('alt')
+        || element.getAttribute('alt') || '';
+      if (!excerptText.trim()) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation?.();
-
-      const excerpt = resolveFootnoteExcerpt(resolveFootnoteTarget(doc, href));
       emitFootnoteRequest({
-        label: normalizeFootnoteLabel(link.textContent || '') || '脚注',
-        href,
-        fallbackNavigationTarget: fallbackHref,
-        excerptHtml: excerpt.excerptHtml,
-        excerptText: excerpt.excerptText
+        label: '脚注',
+        href: '',
+        fallbackNavigationTarget: '',
+        excerptHtml: '',
+        excerptText
       });
-    };
-
-    for (const link of Array.from(doc.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
-      if (!isFootnoteLikeLink(link)) continue;
-      if (link.dataset.br1FootnoteBound === 'true') continue;
-      link.dataset.br1FootnoteBound = 'true';
-      link.addEventListener(
-        'click',
-        (event) => {
-          interceptFootnoteClick(event, link);
-        },
-        { capture: true }
-      );
-    }
+    }, { capture: true });
   };
 
   const resolveControlOpenSource = async (
@@ -1862,6 +1950,7 @@
     }
 
     handledControlRequest = controlRequest;
+    emitFootnoteRequest(null);
     if (
       controlRequest.type === 'prev' ||
       controlRequest.type === 'next' ||
@@ -2107,6 +2196,7 @@
 
     return () => {
       cancelled = true;
+      footnoteRequestId += 1;
       resetPdfSelectionGesture();
       if (selectionMutationGuardTimer) clearTimeout(selectionMutationGuardTimer);
       selectionMutationGuardTimer = null;
