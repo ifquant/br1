@@ -649,7 +649,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 610 | `4549a026d` | library | feat(library): add hide-covers privacy option for the bookshelf (#5733) | `partial` | S2-L08 | P0-4.1/P0-4.2 and library smoke tests; search/detail behavior is incomplete. |
 | 611 | `7fa3daa19` | tts/audio | feat(tts): queue chapter downloads with per-book persistence (#5690) | `partial` | S2-T04B | tts.ts, ttsRuntime.ts, and TTS tests; basic playback exists, complete player parity does not. |
 | 612 | `b463f014b` | library | feat(library): show download progress overlay on book covers (#5736) | `not-applicable` | — | Unadopted external/transfer surface or Readest implementation optimization. |
-| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `partial` | S2-R04C8C | C8A preserves excerpt provenance; C8B binds native popup selection to pristine-section CFI round trips and request identity. Actions/persistence and annotation redraw remain pending; nested second-view CFI rewriting is not needed by the native architecture. |
+| 613 | `631cd6454` | reader core | feat(annotator): support text selection tools in footnote popups (#5744) | `partial` | S2-R04C8D | C8A provenance, C8B pristine CFI validation and C8C scoped actions/persistence are verified. Reverse annotation mapping/redraw remains pending; nested second-view CFI rewriting is not needed by the native architecture. |
 | 614 | `9dedaf804` | tts/audio | feat(reader): pair local audiobooks with ebooks (#5754) | `not-applicable` | — | Optional product surface outside current br1 scope. |
 | 615 | `9213c6af1` | tts/audio | fix(tts): make sentence and paragraph pauses consistent (#5753) | `partial` | S2-T04A | tts.ts, ttsRuntime.ts, and TTS tests; voice/timing parity is incomplete. |
 | 616 | `a193cbc35` | reader core | fix(reader): keep chapter images openable after repeated footnote popups (#5756) | `partial` | S2-R04C9 | Core reading exists; this authored-layout/script edge is unverified. |
@@ -1003,9 +1003,16 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: C8B focused 8/8 PASS; full footnote/authored-text suites 30/30 PASS; mapping 5/5 PASS; selected legacy footnote/sanitizer/TXT/fenced-code 4/4 PASS; real PDF metadata smoke 1/1 PASS (40 unique runtime cases). `pnpm check` reports 0 errors/warnings; production build (`pnpm exec vite build`), `git diff --check` and 678-row recount PASS. Fresh Terra high task review and Astra high final whole-change static review PASS.
 - Boundary: No annotation actions or writes, synthetic anchoring, CDATA mapping, second renderer or packaged/mobile/Safari runtime acceptance. Native `close()` does not cancel a pending `open()` or destroy book resources; full asynchronous open cancellation remains outside this slice. Parent remains partial and the 59 remaining primary task IDs are unchanged.
 
-#### Next Task: S2-R04C8C - Gate footnote actions and annotation persistence
+#### Completed Slice: S2-R04C8C - Gate footnote actions and annotation persistence
 
-- Consume only current validated selections, enforce action applicability, and revalidate identity before writes. C8D reverse mapping/redraw follows; remaining C9-C21 slices retain their existing owners and acceptance map.
+- Native popup tools consume a Stage-owned lease through existing primary route owners; body selection is not replaced. Source locations are revalidated before guarded note/highlight writes, synthetic text stays unanchored, and TTS stays disabled.
+- Existing notes persistence now serializes captured snapshots, gates hydration and per-book read-after-write ordering, preserves same-CFI distinct IDs and surfaces failures. Scoped assistance admits only current final results into history.
+- Verification: reader helpers 99/99; C8C 6/6; full footnote/authored/mapping 41/41 including C8C; extended notes/selection/PDF 10/10 in Chrome 152 with no skips (51 unique browser cases). Type check 0 errors/warnings; production build and diff check PASS. Fresh Terra high production/controller and test reviews PASS. TXT regression helpers now account for actual source chapters and scroll-based TXT positions.
+- Boundary: C8D reverse annotation mapping/redraw/record interaction remains open; no second renderer, dependency changes or packaged Tauri/Safari/native-mobile acceptance. Parent remains partial; 59 remaining primary task IDs.
+
+#### Next Task: S2-R04C8D - Redraw and interact with source footnote annotations
+
+- Extend existing DOM provenance in reverse, map only verified source intersections, and draw records by ID using native Overlayer. Reuse existing notes edit/delete ownership and invalidate drawings/actions on every popup lifecycle boundary. C9-C21 retain their existing owners and acceptance map.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

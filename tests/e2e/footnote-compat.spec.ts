@@ -7,6 +7,7 @@ const br1Root = process.cwd();
 const readerStageUrl = `/@fs/${br1Root}/src/lib/components/reader/ReaderStage.svelte`;
 const readerTtsUrl = `/@fs/${br1Root}/src/lib/reader/tts.ts`;
 const svelteLegacyClientUrl = '/node_modules/.vite/deps/svelte_legacy.js';
+const svelteNavigationUrl = `/@fs/${br1Root}/node_modules/@sveltejs/kit/src/runtime/app/navigation.js`;
 
 type EpubChapter = {
   id: string;
@@ -1953,4 +1954,614 @@ test('C8B keeps synthetic alt/data popup selections unanchored', async ({ page }
 
   await selectPopupText(page, 'p');
   await expect.poll(() => c8bAcceptedEvents(page)).toEqual([]);
+});
+
+type C8CNativeCall = { command: string; args: Record<string, unknown> | undefined };
+
+const c8cPageErrors = new WeakMap<import('@playwright/test').Page, Error[]>();
+
+test.afterEach(({ page }) => {
+  const errors = c8cPageErrors.get(page);
+  if (errors) expect(errors).toEqual([]);
+});
+
+const installC8CDesktop = async (page: import('@playwright/test').Page) => {
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error));
+  c8cPageErrors.set(page, pageErrors);
+  await page.addInitScript(() => {
+    type NativeCall = { command: string; args: Record<string, unknown> | undefined };
+    type TauriInternals = {
+      invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+      metadata: { currentWindow: { label: string }; currentWebview: { label: string } };
+      transformCallback: (callback: (...args: unknown[]) => void, once?: boolean) => number;
+      unregisterCallback: (id: number) => void;
+    };
+    type EventPluginInternals = { unregisterListener: (event: string, eventId: number) => void };
+    type NativeState = {
+      calls: NativeCall[];
+      notes: () => Array<{ bookKey: string; notes: unknown[] }>;
+      setPrompts: (values: Array<string | null>) => void;
+      failNextSave: () => void;
+    };
+    const notes = new Map<string, unknown[]>(JSON.parse(sessionStorage.getItem('br1.c8c.notes') ?? '[]'));
+    const calls: NativeCall[] = [];
+    let prompts: Array<string | null> = [];
+    let failNextSave = false;
+    let nextCallbackId = 0;
+    let nextEventId = 0;
+    const callbacks = new Map<number, (...args: unknown[]) => void>();
+    const eventListeners = new Map<string, Set<number>>();
+    window.prompt = () => prompts.shift() ?? null;
+    (window as Window & { __TAURI_EVENT_PLUGIN_INTERNALS__?: EventPluginInternals }).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+      unregisterListener: (event, eventId) => eventListeners.get(event)?.delete(eventId)
+    };
+    (window as Window & { __TAURI_INTERNALS__?: TauriInternals }).__TAURI_INTERNALS__ = {
+      metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
+      transformCallback: (callback, once = false) => {
+        const id = ++nextCallbackId;
+        callbacks.set(id, (...args) => {
+          callback(...args);
+          if (once) callbacks.delete(id);
+        });
+        return id;
+      },
+      unregisterCallback: (id) => { callbacks.delete(id); },
+      invoke: async (command, args) => {
+        calls.push({ command, args });
+        if (command === 'load_library_books' || command === 'load_reader_bookmarks') return [];
+        if (command === 'detect_readest_library') return { available: false, count: 0, importableCount: 0, missingFileCount: 0 };
+        if (command === 'plugin:event|listen') {
+          const event = String(args?.event);
+          const eventId = ++nextEventId;
+          let listeners = eventListeners.get(event);
+          if (!listeners) {
+            listeners = new Set();
+            eventListeners.set(event, listeners);
+          }
+          listeners.add(eventId);
+          return eventId;
+        }
+        if (command === 'plugin:event|unlisten') return;
+        if (command === 'load_reader_notes') return notes.get(String(args?.bookKey)) ?? [];
+        if (command === 'save_reader_notes') {
+          if (failNextSave) {
+            failNextSave = false;
+            throw new Error('C8C native note save failed');
+          }
+          notes.set(String(args?.bookKey), structuredClone((args?.notes as unknown[]) ?? []));
+          sessionStorage.setItem('br1.c8c.notes', JSON.stringify([...notes.entries()]));
+          return;
+        }
+        if (command === 'get_reader_translation_provider_statuses') {
+          return ['deepl', 'yandex'].map((provider) => ({ provider, status: 'configured', configured: true, label: 'configured', updatedAt: 1 }));
+        }
+        if (command === 'lookup_reader_assistance' || command === 'translate_reader_assistance') {
+          return {
+            status: 'ready',
+            result: { id: `c8c-${command}`, provider: command.includes('lookup') ? args?.provider : args?.provider, title: 'C8C', body: 'completed', createdAt: 1 }
+          };
+        }
+        throw new Error(`unexpected C8C native command: ${command}`);
+      }
+    };
+    (window as Window & { __BR1_C8C_NATIVE__?: NativeState }).__BR1_C8C_NATIVE__ = {
+      calls,
+      notes: () => [...notes.entries()].map(([bookKey, saved]) => ({ bookKey, notes: structuredClone(saved) })),
+      setPrompts: (values) => { prompts = [...values]; },
+      failNextSave: () => { failNextSave = true; }
+    };
+  });
+};
+
+const c8cNative = <T>(page: import('@playwright/test').Page, read: () => T) =>
+  page.evaluate(read);
+
+const c8cPersistedHistoryFor = (page: import('@playwright/test').Page, term: string) =>
+  page.evaluate((term) =>
+    Object.entries(localStorage)
+      .filter(([key]) => key.startsWith('br1.reader.assistance.history:'))
+      .flatMap(([, value]) => JSON.parse(value) as Array<{ request?: { term?: string; text?: string } }>)
+      .filter(({ request }) => request?.term === term || request?.text === term),
+  term);
+
+const navigateC8C = (page: import('@playwright/test').Page, href: string) =>
+  page.evaluate(async ({ href, svelteNavigationUrl }) => {
+    const { goto } = await import(/* @vite-ignore */ svelteNavigationUrl);
+    await goto(href, { keepFocus: true, noScroll: true });
+  }, { href, svelteNavigationUrl });
+
+const waitForC8CReaderReady = async (page: import('@playwright/test').Page, chapterProgress: string) => {
+  const stage = page.getByRole('main', { name: 'reader stage' });
+  await expect(stage).toContainText('S2-R04C3 Footnotes', { timeout: 15000 });
+  await expect(stage).toContainText(chapterProgress, { timeout: 15000 });
+};
+
+const selectC8CPopupTextByMouse = async (page: import('@playwright/test').Page) => {
+  const target = page.getByRole('dialog', { name: '脚注预览' }).locator('.footnote-body p');
+  const actions = page.getByRole('toolbar', { name: '脚注选区操作' });
+  await expect(actions.getByRole('button', { name: '复制' })).toBeDisabled();
+  const box = await target.evaluate((element) => {
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    const { left, right, top, bottom, width, height } = range.getBoundingClientRect();
+    return width > 2 && height > 0 ? { left, right, top, bottom } : null;
+  });
+  if (!box) throw new Error('expected a visible footnote text glyph rectangle for a browser mouse selection');
+  await page.mouse.move(box.left + 1, (box.top + box.bottom) / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.right - 1, (box.top + box.bottom) / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => target.evaluate((element) => {
+    const selection = element.ownerDocument.getSelection();
+    const range = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
+    return !!range && !range.collapsed && element.contains(range.startContainer) &&
+      element.contains(range.endContainer) && selection?.toString().trim() === 'anchored popup selection';
+  })).toBe(true);
+  await expect(actions.getByRole('button', { name: '复制' })).toBeEnabled();
+};
+
+const selectC8CPopupText = async (page: import('@playwright/test').Page) => {
+  await selectText(page.getByRole('dialog', { name: '脚注预览' }).locator('.footnote-body p'));
+  await expect(page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '复制' })).toBeEnabled();
+};
+
+const holdNextC8CPristineRead = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    type Section = { createDocument?: () => Promise<Document> };
+    type View = HTMLElement & { book?: { sections?: Section[] } };
+    type Held = { entered: () => boolean; completed: () => boolean; release: () => void };
+    const view = document.querySelector('foliate-view') as View | null;
+    const section = view?.book?.sections?.[1];
+    const createDocument = section?.createDocument?.bind(section);
+    if (!section || !createDocument) throw new Error('expected the real destination section createDocument API');
+    let entered = false;
+    let completed = false;
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    section.createDocument = async () => {
+      entered = true;
+      await gate;
+      try {
+        return await createDocument();
+      } finally {
+        completed = true;
+      }
+    };
+    (window as Window & { __BR1_C8C_HELD__?: Held }).__BR1_C8C_HELD__ = {
+      entered: () => entered,
+      completed: () => completed,
+      release: () => release?.()
+    };
+  });
+
+const releaseC8CHeldRead = async (page: import('@playwright/test').Page) => {
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C8C_HELD__?: { release: () => void } }).__BR1_C8C_HELD__?.release()
+  );
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_HELD__?: { completed: () => boolean } }).__BR1_C8C_HELD__?.completed() ?? false
+  )).toBe(true);
+};
+
+test('C8C persists anchored popup highlights and distinct notes without replacing the body selection', async ({ page }) => {
+  await installC8CDesktop(page);
+  const frame = await openEpub(
+    page,
+    'c8c-anchored-actions',
+    '<p id="body-source">body selection must remain unrelated</p><p><a id="ref" href="chapter-two.xhtml#note" epub:type="noteref">[1]</a></p>',
+    [{ id: 'notes', href: 'chapter-two.xhtml', body: '<aside id="note"><p>anchored popup selection</p></aside>' }]
+  );
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  await page.evaluate(() => {
+    type Location = { index: number };
+    type View = HTMLElement & {
+      getCFI?: (index: number, range?: Range) => string;
+      resolveCFI?: (cfi: string) => Location | null;
+    };
+    const view = document.querySelector('foliate-view') as View | null;
+    if (!view?.getCFI || !view.resolveCFI) throw new Error('expected the live Foliate CFI methods');
+    const getCFI = view.getCFI.bind(view);
+    const resolveCFI = view.resolveCFI.bind(view);
+    const calls: Array<{ cfi: string; index: number; text: string; resolvedIndex: number | null }> = [];
+    view.getCFI = (index, range) => {
+      const cfi = getCFI(index, range);
+      calls.push({ cfi, index, text: range?.toString() ?? '', resolvedIndex: null });
+      return cfi;
+    };
+    view.resolveCFI = (cfi) => {
+      const resolved = resolveCFI(cfi);
+      const call = calls.findLast(({ cfi: recorded }) => recorded === cfi);
+      if (call) call.resolvedIndex = resolved?.index ?? null;
+      return resolved;
+    };
+    (window as Window & { __BR1_C8C_LOCATORS__?: () => typeof calls }).__BR1_C8C_LOCATORS__ = () => [...calls];
+  });
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  await frame.locator('#body-source').evaluate((element) => {
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    element.ownerDocument.getSelection()?.removeAllRanges();
+    element.ownerDocument.getSelection()?.addRange(range);
+    element.ownerDocument.dispatchEvent(new Event('selectionchange'));
+  });
+  await frame.locator('#ref').click();
+  await expect(dialog).toBeVisible();
+  const beforeSelection = await dialog.locator('.footnote-body').boundingBox();
+  await selectC8CPopupTextByMouse(page);
+  expect(await dialog.locator('.footnote-body').boundingBox()).toEqual(beforeSelection);
+
+  const actions = page.getByRole('toolbar', { name: '脚注选区操作' });
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toHaveCount(0);
+  await expect(actions.getByRole('button', { name: '朗读' })).toBeDisabled();
+  await actions.getByRole('button', { name: '高亮' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('高亮已更新');
+  expect(await dialog.locator('.footnote-body').boundingBox()).toEqual(beforeSelection);
+  await actions.getByRole('button', { name: '高亮' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('高亮已更新');
+
+  await c8cNative(page, () =>
+    (window as Window & { __BR1_C8C_NATIVE__?: { setPrompts: (values: Array<string | null>) => void } })
+      .__BR1_C8C_NATIVE__?.setPrompts([null, 'first note', 'second note'])
+  );
+  await actions.getByRole('button', { name: '笔记' }).click();
+  await expect(dialog.getByRole('status')).toHaveCount(0);
+  await actions.getByRole('button', { name: '笔记' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('笔记已保存');
+  await actions.getByRole('button', { name: '笔记' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('笔记已保存');
+
+  const beforeReopen = await c8cNative(page, () => {
+    const state = (window as Window & {
+      __BR1_C8C_NATIVE__?: { notes: () => Array<{ bookKey: string; notes: Array<{ id: string; kind: string; cfi: string; text: string; note: string }> }> };
+    }).__BR1_C8C_NATIVE__;
+    return state?.notes() ?? [];
+  });
+  if (beforeReopen.length !== 1) throw new Error(`expected one persisted C8C book record, received ${beforeReopen.length}`);
+  const savedRecord = beforeReopen[0];
+  if (!savedRecord) throw new Error('expected the persisted C8C book record');
+  const savedNotes = savedRecord.notes;
+  expect(savedNotes).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'note', text: 'anchored popup selection', note: 'first note', cfi: expect.stringMatching(/^epubcfi\(/) }),
+    expect.objectContaining({ kind: 'note', text: 'anchored popup selection', note: 'second note', cfi: expect.stringMatching(/^epubcfi\(/) })
+  ]));
+  expect(savedNotes).toHaveLength(2);
+  expect(new Set(savedNotes.map((note) => note.cfi)).size).toBe(1);
+  expect(new Set(savedNotes.map((note) => note.id)).size).toBe(2);
+  const savedCfis = [...new Set(savedNotes.map((note) => note.cfi))];
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_LOCATORS__?: () => Array<unknown> }).__BR1_C8C_LOCATORS__?.() ?? []
+  )).toEqual(expect.arrayContaining(savedCfis.map((cfi) =>
+    expect.objectContaining({ cfi, index: 1, text: 'anchored popup selection', resolvedIndex: 1 })
+  )));
+  await dialog.getByRole('button', { name: '关闭脚注' }).click();
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' }).filter({ hasText: 'anchored popup selection' })).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const copied: string[] = [];
+    const shared: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text: string) => copied.push(text) } });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async ({ text }: { text: string }) => shared.push(text) });
+    (window as Window & { __BR1_C8C_SOURCE_TOOLS__?: { copied: string[]; shared: string[] } }).__BR1_C8C_SOURCE_TOOLS__ = { copied, shared };
+  });
+  for (const action of ['复制', '分享', '书内搜索', '词典', '百科', '翻译'] as const) {
+    await frame.locator('#ref').click();
+    await selectC8CPopupText(page);
+    await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: action }).click();
+    if (action === '书内搜索') await expect(page.getByPlaceholder('搜索正文内容')).toHaveValue('anchored popup selection');
+    if (action === '词典' || action === '百科' || action === '翻译') {
+      await expect(page.getByRole('tab', { name: action === '翻译' ? '翻译模式' : 'AI 助手' })).toBeVisible();
+      await expect.poll(() => page.evaluate((action) => {
+        const entry = Object.entries(localStorage).find(([key]) => key.startsWith('br1.reader.assistance.history:'));
+        const history = entry ? JSON.parse(entry[1]) as Array<{ request?: { provider?: string; kind?: string; text?: string; term?: string } }> : [];
+        return history.some(({ request }) => request?.kind === (action === '翻译' ? 'translation' : 'lookup') &&
+          (action === '翻译' ? request?.text : request?.provider) === (action === '翻译' ? 'anchored popup selection' : action === '词典' ? 'dictionary' : 'wikipedia'));
+      }, action)).toBe(true);
+    }
+  }
+  await expect.poll(() => page.evaluate(() => {
+    const entry = Object.entries(localStorage).find(([key]) => key.startsWith('br1.reader.assistance.history:'));
+    return entry ? JSON.parse(entry[1]) : [];
+  })).toEqual(expect.arrayContaining([
+    expect.objectContaining({ request: expect.objectContaining({ kind: 'lookup', provider: 'dictionary', term: 'anchored popup selection', cfi: expect.stringMatching(/^epubcfi\(/), chapterLabel: 'S2-R04C3' }) }),
+    expect.objectContaining({ request: expect.objectContaining({ kind: 'lookup', provider: 'wikipedia', term: 'anchored popup selection', cfi: expect.stringMatching(/^epubcfi\(/), chapterLabel: 'S2-R04C3' }) }),
+    expect.objectContaining({ request: expect.objectContaining({ kind: 'translation', text: 'anchored popup selection', cfi: expect.stringMatching(/^epubcfi\(/), chapterLabel: 'S2-R04C3' }) })
+  ]));
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_SOURCE_TOOLS__?: { copied: string[]; shared: string[] } }).__BR1_C8C_SOURCE_TOOLS__
+  )).toEqual({ copied: ['anchored popup selection'], shared: ['anchored popup selection'] });
+
+  await page.reload();
+  await expect(page.frameLocator('iframe').first().locator('body')).toBeVisible({ timeout: 15000 });
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  await expect.poll(() => c8cNative(page, () =>
+    (window as Window & { __BR1_C8C_NATIVE__?: { calls: C8CNativeCall[] } }).__BR1_C8C_NATIVE__?.calls
+      .filter(({ command }) => command === 'load_reader_notes').length ?? 0
+  )).toBeGreaterThan(0);
+  expect(await c8cNative(page, () => {
+    const state = (window as Window & { __BR1_C8C_NATIVE__?: { notes: () => Array<{ bookKey: string; notes: unknown[] }> } }).__BR1_C8C_NATIVE__;
+    return state?.notes() ?? [];
+  })).toEqual(beforeReopen);
+  await page.getByLabel('阅读侧栏标签').getByRole('tab', { name: '笔记' }).click();
+  await expect(page.getByRole('region', { name: '笔记面板' })).toContainText('anchored popup selection');
+});
+
+test('C8C keeps synthetic popup tools unanchored, reports native failures, and persists explicit offline provenance', async ({ page }) => {
+  await installC8CDesktop(page);
+  const frame = await openEpub(
+    page,
+    'c8c-synthetic-tools',
+    '<p><span id="synthetic" class="zhangyue-footnote" data-wr-footernote="synthetic popup text">*</span></p>'
+  );
+  await waitForC8CReaderReady(page, '第 1 / 1 节');
+  await page.evaluate(() => {
+    const copied: string[] = [];
+    const shared: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text: string) => copied.push(text) } });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async ({ text }: { text: string }) => shared.push(text) });
+    (window as Window & { __BR1_C8C_TOOLS__?: { copied: string[]; shared: string[] } }).__BR1_C8C_TOOLS__ = { copied, shared };
+  });
+  await frame.locator('#synthetic').click();
+  await selectC8CPopupText(page);
+  const actions = page.getByRole('toolbar', { name: '脚注选区操作' });
+  await expect(actions.getByRole('button', { name: '高亮' })).toBeDisabled();
+  await expect(actions.getByRole('button', { name: '笔记' })).toBeDisabled();
+  await expect(actions.getByRole('button', { name: '朗读' })).toBeDisabled();
+  await expect(page.getByRole('toolbar', { name: '选中文本操作' })).toHaveCount(0);
+  await actions.getByRole('button', { name: '复制' }).focus();
+  await page.keyboard.press('Enter');
+  await actions.getByRole('button', { name: '分享' }).click();
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_TOOLS__?: { copied: string[]; shared: string[] } }).__BR1_C8C_TOOLS__
+  )).toEqual({ copied: ['synthetic popup text'], shared: ['synthetic popup text'] });
+
+  await page.evaluate(() => Object.defineProperty(navigator, 'share', { configurable: true, value: undefined }));
+  await actions.getByRole('button', { name: '分享' }).click();
+  await expect(page.getByRole('dialog', { name: '脚注预览' }).getByRole('status')).toHaveText('已复制分享文本');
+  expect(await page.evaluate(() =>
+    (window as Window & { __BR1_C8C_TOOLS__?: { copied: string[] } }).__BR1_C8C_TOOLS__?.copied
+  )).toEqual(['synthetic popup text', 'synthetic popup text']);
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('clipboard denied'); } } });
+  });
+  await actions.getByRole('button', { name: '复制' }).click();
+  await expect(page.getByRole('alert')).toHaveText('clipboard denied');
+
+  for (const action of ['书内搜索', '词典', '百科', '翻译'] as const) {
+    await frame.locator('#synthetic').click();
+    await selectC8CPopupText(page);
+    await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: action }).click();
+    if (action === '书内搜索') await expect(page.getByPlaceholder('搜索正文内容')).toHaveValue('synthetic popup text');
+    if (action !== '书内搜索') {
+      await expect.poll(() => page.evaluate((action) => {
+        const entry = Object.entries(localStorage).find(([key]) => key.startsWith('br1.reader.assistance.history:'));
+        const history = entry ? JSON.parse(entry[1]) as Array<{ request?: { provider?: string; kind?: string; text?: string; term?: string } }> : [];
+        return history.some(({ request }) => request?.kind === (action === '翻译' ? 'translation' : 'lookup') &&
+          (action === '翻译' ? request?.text : request?.provider) === (action === '翻译' ? 'synthetic popup text' : action === '词典' ? 'dictionary' : 'wikipedia'));
+      }, action)).toBe(true);
+    }
+  }
+  await expect.poll(() => page.evaluate(() => {
+    const entry = Object.entries(localStorage).find(([key]) => key.startsWith('br1.reader.assistance.history:'));
+    return entry ? JSON.parse(entry[1]) : [];
+  })).toEqual(expect.arrayContaining([
+    expect.objectContaining({ request: expect.objectContaining({ kind: 'lookup', provider: 'dictionary', term: 'synthetic popup text', chapterLabel: '脚注' }) }),
+    expect.objectContaining({ request: expect.objectContaining({ kind: 'lookup', provider: 'wikipedia', term: 'synthetic popup text', chapterLabel: '脚注' }) }),
+    expect.objectContaining({ request: expect.objectContaining({ kind: 'translation', text: 'synthetic popup text', chapterLabel: '脚注' }) })
+  ]));
+  const syntheticCfiFields = await page.evaluate(() => {
+    const entry = Object.entries(localStorage).find(([key]) => key.startsWith('br1.reader.assistance.history:'));
+    const history = entry ? JSON.parse(entry[1]) as Array<{ request?: { term?: string; text?: string } }> : [];
+    return history
+      .filter(({ request }) => request?.term === 'synthetic popup text' || request?.text === 'synthetic popup text')
+      .map(({ request }) => Object.hasOwn(request ?? {}, 'cfi'));
+  });
+  expect(syntheticCfiFields).toEqual([false, false, false]);
+});
+
+test('C8C refuses wrong-source and post-click stale writes only after their real pristine reads settle', async ({ page }) => {
+  await installC8CDesktop(page);
+  const frame = await openEpub(
+    page,
+    'c8c-write-admission',
+    '<p id="wrong-source">wrong source</p><p><a id="ref" href="chapter-two.xhtml#note" epub:type="noteref">[1]</a></p><p><a id="replacement" href="chapter-two.xhtml#replacement-note" epub:type="noteref">[2]</a></p>',
+    [{ id: 'notes', href: 'chapter-two.xhtml', body: '<aside id="note"><p>write admission text</p></aside><aside id="replacement-note"><p>replacement text</p></aside>' }]
+  );
+  await waitForC8CReaderReady(page, '第 1 / 2 节');
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  await frame.locator('#ref').click();
+  await expect(dialog).toBeVisible();
+  await page.evaluate(() => {
+    type View = HTMLElement & { getCFI?: (index: number, range?: Range) => string; resolveCFI?: (cfi: string) => unknown; renderer?: { getContents?: () => Array<{ index?: number; doc?: Document }> } };
+    const view = document.querySelector('foliate-view') as View | null;
+    const wrong = view?.renderer?.getContents?.().find(({ index }) => index === 0)?.doc?.querySelector('#wrong-source');
+    if (!view?.getCFI || !view.resolveCFI || !wrong) throw new Error('expected a real current-section CFI source');
+    const range = wrong.ownerDocument.createRange();
+    range.selectNodeContents(wrong);
+    const wrongCfi = view.getCFI(0, range);
+    const resolveCFI = view.resolveCFI.bind(view);
+    view.resolveCFI = () => resolveCFI(wrongCfi);
+    (window as Window & { __BR1_C8C_RESTORE_CFI__?: () => void }).__BR1_C8C_RESTORE_CFI__ = () => {
+      view.resolveCFI = resolveCFI;
+    };
+  });
+  await selectC8CPopupText(page);
+  await expect(page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '高亮' })).toBeDisabled();
+  expect(await c8cNative(page, () =>
+    (window as Window & { __BR1_C8C_NATIVE__?: { calls: C8CNativeCall[] } }).__BR1_C8C_NATIVE__?.calls
+      .filter(({ command }) => command === 'save_reader_notes') ?? []
+  )).toEqual([]);
+
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C8C_RESTORE_CFI__?: () => void }).__BR1_C8C_RESTORE_CFI__?.()
+  );
+
+  await frame.locator('#ref').click();
+  await selectC8CPopupText(page);
+  await expect(page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '高亮' })).toBeEnabled();
+  await holdNextC8CPristineRead(page);
+  await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '高亮' }).click();
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_HELD__?: { entered: () => boolean } }).__BR1_C8C_HELD__?.entered() ?? false
+  )).toBe(true);
+  await dialog.getByRole('button', { name: '关闭脚注' }).click();
+  await releaseC8CHeldRead(page);
+  expect(await c8cNative(page, () =>
+    (window as Window & { __BR1_C8C_NATIVE__?: { calls: C8CNativeCall[] } }).__BR1_C8C_NATIVE__?.calls
+      .filter(({ command }) => command === 'save_reader_notes') ?? []
+  )).toEqual([]);
+
+  await frame.locator('#ref').click();
+  await selectC8CPopupText(page);
+  await holdNextC8CPristineRead(page);
+  await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '高亮' }).click();
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_HELD__?: { entered: () => boolean } }).__BR1_C8C_HELD__?.entered() ?? false
+  )).toBe(true);
+  await frame.locator('#replacement').click();
+  await expect(dialog).toContainText('replacement text');
+  await releaseC8CHeldRead(page);
+  expect(await c8cNative(page, () =>
+    (window as Window & { __BR1_C8C_NATIVE__?: { calls: C8CNativeCall[] } }).__BR1_C8C_NATIVE__?.calls
+      .filter(({ command }) => command === 'save_reader_notes') ?? []
+  )).toEqual([]);
+});
+
+test('C8C drops a held desktop assistance completion after its popup closes', async ({ page }) => {
+  await installC8CDesktop(page);
+  const frame = await openEpub(
+    page,
+    'c8c-held-assistance',
+    '<p><a id="ref" href="#note" epub:type="noteref">[1]</a></p><aside id="note"><p>held assistance text</p></aside>'
+  );
+  await waitForC8CReaderReady(page, '第 1 / 1 节');
+  await page.evaluate(() => {
+    type Internals = { invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown> };
+    const internals = (window as Window & { __TAURI_INTERNALS__?: Internals }).__TAURI_INTERNALS__;
+    if (!internals) throw new Error('expected the browser Tauri bridge');
+    const invoke = internals.invoke.bind(internals);
+    let entered = false;
+    let completed = false;
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    internals.invoke = async (command, args) => {
+      if (command === 'lookup_reader_assistance') {
+        entered = true;
+        await gate;
+      }
+      try {
+        return await invoke(command, args);
+      } finally {
+        if (command === 'lookup_reader_assistance') completed = true;
+      }
+    };
+    (window as Window & { __BR1_C8C_HELD_ASSISTANCE__?: { entered: () => boolean; completed: () => boolean; release: () => void } }).__BR1_C8C_HELD_ASSISTANCE__ = {
+      entered: () => entered,
+      completed: () => completed,
+      release: () => release?.()
+    };
+  });
+  await frame.locator('#ref').click();
+  await selectC8CPopupText(page);
+  const dialog = page.getByRole('dialog', { name: '脚注预览' });
+  await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '词典' }).click();
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_HELD_ASSISTANCE__?: { entered: () => boolean } }).__BR1_C8C_HELD_ASSISTANCE__?.entered() ?? false
+  )).toBe(true);
+  await expect.poll(() => c8cPersistedHistoryFor(page, 'held assistance text')).toEqual([]);
+  await dialog.getByRole('button', { name: '关闭脚注' }).click();
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C8C_HELD_ASSISTANCE__?: { release: () => void } }).__BR1_C8C_HELD_ASSISTANCE__?.release()
+  );
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_HELD_ASSISTANCE__?: { completed: () => boolean } }).__BR1_C8C_HELD_ASSISTANCE__?.completed() ?? false
+  )).toBe(true);
+  await expect.poll(() => c8cPersistedHistoryFor(page, 'held assistance text')).toEqual([]);
+  await expect(page.getByRole('tab', { name: 'AI 助手' })).toHaveCount(0);
+});
+
+test('C8C never persists a held scoped result after A to B to A route churn', async ({ page }) => {
+  test.setTimeout(60_000);
+  await installC8CDesktop(page);
+  const firstUrl = '/samples/c8c-assistance-a.epub';
+  const secondUrl = '/samples/c8c-assistance-b.epub';
+  await page.goto('/library');
+  const [firstArchive, secondArchive] = await Promise.all([
+    buildEpub(page, [{ id: 'a', href: 'a.xhtml', body: '<p><a id="ref" href="#note" epub:type="noteref">[1]</a></p><aside id="note"><p>A held assistance</p></aside>' }]),
+    buildEpub(page, [{ id: 'b', href: 'b.xhtml', body: '<p>B replacement book</p>' }])
+  ]);
+  await page.route(`**${firstUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(firstArchive) }));
+  await page.route(`**${secondUrl}`, (route) => route.fulfill({ contentType: 'application/epub+zip', body: Buffer.from(secondArchive) }));
+  const readerHref = (url: string, label: string) =>
+    `/reader?${new URLSearchParams({ source: 'asset', url, label }).toString()}`;
+  await page.goto(readerHref(firstUrl, 'C8C assistance A'));
+  await waitForC8CReaderReady(page, '第 1 / 1 节');
+  await expect(page.frameLocator('iframe').first().locator('#ref')).toBeVisible({ timeout: 15000 });
+  await page.evaluate(() => {
+    type Internals = { invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown> };
+    const internals = (window as Window & { __TAURI_INTERNALS__?: Internals }).__TAURI_INTERNALS__;
+    if (!internals) throw new Error('expected the browser Tauri bridge');
+    const invoke = internals.invoke.bind(internals);
+    let entered = false;
+    let completed = false;
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    internals.invoke = async (command, args) => {
+      if (command === 'lookup_reader_assistance') {
+        entered = true;
+        await gate;
+      }
+      try {
+        return await invoke(command, args);
+      } finally {
+        if (command === 'lookup_reader_assistance') completed = true;
+      }
+    };
+    (window as Window & { __BR1_C8C_CROSS_BOOK__?: { entered: () => boolean; completed: () => boolean; release: () => void } }).__BR1_C8C_CROSS_BOOK__ = {
+      entered: () => entered,
+      completed: () => completed,
+      release: () => release?.()
+    };
+  });
+  await page.frameLocator('iframe').first().locator('#ref').click();
+  await selectC8CPopupText(page);
+  await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '词典' }).click();
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_CROSS_BOOK__?: { entered: () => boolean } }).__BR1_C8C_CROSS_BOOK__?.entered() ?? false
+  )).toBe(true);
+  await expect.poll(() => c8cPersistedHistoryFor(page, 'A held assistance')).toEqual([]);
+
+  await navigateC8C(page, readerHref(secondUrl, 'C8C assistance B'));
+  await waitForC8CReaderReady(page, '第 1 / 1 节');
+  await expect(page.frameLocator('iframe').first().locator('body')).toContainText('B replacement book', { timeout: 15000 });
+  await expect.poll(() => c8cPersistedHistoryFor(page, 'A held assistance')).toEqual([]);
+  await navigateC8C(page, readerHref(firstUrl, 'C8C assistance A'));
+  await waitForC8CReaderReady(page, '第 1 / 1 节');
+  await expect(page.frameLocator('iframe').first().locator('#ref')).toBeVisible({ timeout: 15000 });
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C8C_CROSS_BOOK__?: { release: () => void } }).__BR1_C8C_CROSS_BOOK__?.release()
+  );
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __BR1_C8C_CROSS_BOOK__?: { completed: () => boolean } }).__BR1_C8C_CROSS_BOOK__?.completed() ?? false
+  )).toBe(true);
+  await expect.poll(() => c8cPersistedHistoryFor(page, 'A held assistance')).toEqual([]);
+});
+
+test('C8C shows the actual native note-save failure in the popup action feedback', async ({ page }) => {
+  await installC8CDesktop(page);
+  const frame = await openEpub(
+    page,
+    'c8c-save-failure',
+    '<p><a id="ref" href="#note" epub:type="noteref">[1]</a></p><aside id="note"><p>save failure text</p></aside>'
+  );
+  await waitForC8CReaderReady(page, '第 1 / 1 节');
+  await page.evaluate(() =>
+    (window as Window & { __BR1_C8C_NATIVE__?: { failNextSave: () => void } }).__BR1_C8C_NATIVE__?.failNextSave()
+  );
+  await frame.locator('#ref').click();
+  await selectC8CPopupText(page);
+  await page.getByRole('toolbar', { name: '脚注选区操作' }).getByRole('button', { name: '高亮' }).click();
+  await expect(page.getByRole('dialog', { name: '脚注预览' }).getByRole('alert'))
+    .toHaveText('C8C native note save failed');
 });

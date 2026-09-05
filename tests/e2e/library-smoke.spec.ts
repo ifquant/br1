@@ -6142,36 +6142,55 @@ test('reader productizes bookmarks as current reading positions in web mode', as
   await expect(page.getByRole('button', { name: '移除当前页书签' })).toBeVisible();
 });
 
+const selectPlainText = async (
+  page: import('@playwright/test').Page,
+  needle: string,
+  dispatchSelectionChange = true
+) => {
+  await page.evaluate(async ({ needle, dispatchSelectionChange }) => {
+    const root = document.querySelector('.plain-text-paper');
+    if (!root) throw new Error('expected the plain text surface to exist');
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    let start = -1;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const candidate = node as Text;
+      const index = candidate.textContent?.indexOf(needle) ?? -1;
+      if (index >= 0) {
+        textNode = candidate;
+        start = index;
+        break;
+      }
+    }
+    if (!textNode) throw new Error(`expected the TXT fixture text to contain "${needle}"`);
+    const range = document.createRange();
+    range.setStart(textNode, start);
+    range.setEnd(textNode, start + needle.length);
+    const scroller = root.closest('.plain-text-surface');
+    if (!(scroller instanceof HTMLElement)) throw new Error('expected the plain text scroller to exist');
+    scroller.scrollTop += range.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scroller.dispatchEvent(new Event('scroll', { bubbles: true }));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    if (dispatchSelectionChange) document.dispatchEvent(new Event('selectionchange'));
+  }, { needle, dispatchSelectionChange });
+};
+
 test('reader annotation controller interactions stay legible in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
-  const selectText = async (needle: string) => {
-    await page.evaluate((targetText) => {
-      const pre = document.querySelector('.plain-text-paper pre');
-      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
-      const textNode = pre.firstChild;
-      const raw = textNode.textContent ?? '';
-      const start = raw.indexOf(targetText);
-      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
-      const range = document.createRange();
-      range.setStart(textNode, start);
-      range.setEnd(textNode, start + targetText.length);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
-    }, needle);
-  };
 
   await page.goto(readerUrl);
   const sidebarTabs = page.getByLabel('阅读侧栏标签');
   await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
   const highlightButton = page.locator('.secondary-note-action').first();
 
-  await selectText('plain text file exists');
+  await selectPlainText(page, 'plain text file exists');
   await expect(highlightButton).toBeEnabled();
   await highlightButton.click();
-  await selectText('steady reading length');
+  await selectPlainText(page, 'steady reading length');
   await highlightButton.click();
 
   await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
@@ -6196,30 +6215,13 @@ test('reader annotation controller interactions stay legible in web mode', async
 test('reader saved-highlight helper flows stay legible in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
-  const selectText = async (needle: string) => {
-    await page.evaluate((targetText) => {
-      const pre = document.querySelector('.plain-text-paper pre');
-      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
-      const textNode = pre.firstChild;
-      const raw = textNode.textContent ?? '';
-      const start = raw.indexOf(targetText);
-      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
-      const range = document.createRange();
-      range.setStart(textNode, start);
-      range.setEnd(textNode, start + targetText.length);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
-    }, needle);
-  };
 
   await page.goto(readerUrl);
   const sidebarTabs = page.getByLabel('阅读侧栏标签');
   await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
   const highlightButton = page.locator('.secondary-note-action').first();
 
-  await selectText('plain text file exists');
+  await selectPlainText(page, 'plain text file exists');
   await expect(highlightButton).toBeEnabled();
   await highlightButton.click();
 
@@ -6265,33 +6267,16 @@ test('reader saved-highlight helper flows stay legible in web mode', async ({ pa
 test('reader highlights workspace persistence stays legible in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
-  const selectText = async (needle: string) => {
-    await page.evaluate((targetText) => {
-      const pre = document.querySelector('.plain-text-paper pre');
-      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
-      const textNode = pre.firstChild;
-      const raw = textNode.textContent ?? '';
-      const start = raw.indexOf(targetText);
-      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
-      const range = document.createRange();
-      range.setStart(textNode, start);
-      range.setEnd(textNode, start + targetText.length);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
-    }, needle);
-  };
 
   await page.goto(readerUrl);
   const sidebarTabs = page.getByLabel('阅读侧栏标签');
   await sidebarTabs.getByRole('tab', { name: '笔记' }).click();
   const highlightButton = page.locator('.secondary-note-action').first();
 
-  await selectText('plain text file exists');
+  await selectPlainText(page, 'plain text file exists');
   await expect(highlightButton).toBeEnabled();
   await highlightButton.click();
-  await selectText('steady reading length');
+  await selectPlainText(page, 'steady reading length');
   await highlightButton.click();
 
   await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
@@ -6322,22 +6307,6 @@ test('reader highlights workspace persistence stays legible in web mode', async 
 test('reader supports txt notes through selection, persistence, and note reopen in web mode', async ({ page }) => {
   const readerUrl =
     '/reader?source=asset&url=%2Fsamples%2Fsample-book.txt&label=Sample%20TXT%20Book';
-  const selectText = async (needle: string) => {
-    await page.evaluate((targetText) => {
-      const pre = document.querySelector('.plain-text-paper pre');
-      if (!pre || !pre.firstChild) throw new Error('expected the plain text surface to exist');
-      const textNode = pre.firstChild;
-      const raw = textNode.textContent ?? '';
-      const start = raw.indexOf(targetText);
-      if (start < 0) throw new Error(`expected the TXT fixture text to contain "${targetText}"`);
-      const range = document.createRange();
-      range.setStart(textNode, start);
-      range.setEnd(textNode, start + targetText.length);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    }, needle);
-  };
 
   await page.goto(readerUrl);
   const sidebarTabs = page.getByLabel('阅读侧栏标签');
@@ -6351,7 +6320,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(noteButton).toBeDisabled();
   await expect(highlightButton).toBeDisabled();
 
-  await selectText('plain text file exists');
+  await selectPlainText(page, 'plain text file exists', false);
 
   await expect(notesPanel.locator('.selection-card p')).toContainText('plain text file exists');
   await expect(notesPanel).toContainText('已选中一段正文，可以直接记笔记或高亮。');
@@ -6372,7 +6341,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
     element.scrollTop = maxScroll * 0.35;
     element.dispatchEvent(new Event('scroll', { bubbles: true }));
   });
-  await selectText('The rest of this fixture just adds enough steady reading length');
+  await selectPlainText(page, 'The rest of this fixture just adds enough steady reading length', false);
   await expect(notesPanel.locator('.selection-card p')).toContainText(
     'The rest of this fixture just adds enough steady reading length'
   );
@@ -6381,7 +6350,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(page.locator('.notes-meta-row')).toContainText('2 高亮');
   await expect(page.locator('.notes-meta-row')).toContainText('0 笔记');
 
-  await selectText('the book opens, the state moves, and the state comes back');
+  await selectPlainText(page, 'the book opens, the state moves, and the state comes back', false);
   await expect(notesPanel.locator('.selection-card p')).toContainText(
     'the book opens, the state moves, and the state comes back'
   );
@@ -6431,7 +6400,10 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await kindFilters.getByRole('button', { name: '笔记', exact: true }).click();
   await expect(notesMetaRow).toContainText('仅看笔记');
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: '删除本组笔记' }).click();
+  await notesCards.first()
+    .locator('xpath=ancestor::section[contains(@class, "note-group")]')
+    .getByRole('button', { name: '删除本组笔记' })
+    .click();
   await expect(notesCards).toHaveCount(0);
   await expect(page.getByText('当前筛选下还没有笔记')).toBeVisible();
 
@@ -6443,6 +6415,14 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await sidebarTabs.getByRole('tab', { name: '高亮' }).click();
   const highlightCards = page.locator('.highlight-card');
   const highlightsPanel = page.getByLabel('高亮面板');
+  const applyToEveryHighlightGroup = async (
+    name: '选中本组高亮' | '清空本组选择' | '反选本组高亮'
+  ) => {
+    const actions = highlightsPanel.getByRole('button', { name });
+    const count = await actions.count();
+    if (!count) throw new Error(`expected at least one current highlight group action: ${name}`);
+    for (let index = 0; index < count; index += 1) await actions.nth(index).click();
+  };
   await expect(highlightsPanel).toContainText('当前书已保存 2 条高亮，可继续筛选、选中或整理成跨书选择集。');
   await expect(highlightsPanel).toContainText('最近添加优先');
   await expect(highlightCards).toHaveCount(2);
@@ -6453,13 +6433,13 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await highlightSortControls.getByRole('button', { name: '最早添加', exact: true }).click();
   await expect(highlightsPanel).toContainText('最早添加优先');
   await expect(highlightCards.first()).toContainText('plain text file exists');
-  await page.getByRole('button', { name: '选中本组高亮' }).click();
+  await applyToEveryHighlightGroup('选中本组高亮');
   await expect(highlightsPanel).toContainText('已选 2 条');
   await page.getByRole('button', { name: '已选高亮' }).click();
   await expect(highlightsPanel).toContainText('2 已选高亮');
   await expect(highlightCards).toHaveCount(2);
   await page.getByRole('button', { name: '全部', exact: true }).click();
-  await page.getByRole('button', { name: '清空本组选择' }).click();
+  await applyToEveryHighlightGroup('清空本组选择');
   await expect(highlightsPanel).toContainText('未选高亮');
   await highlightSortControls.getByRole('button', { name: '最近添加', exact: true }).click();
   await expect(highlightsPanel).toContainText('最近添加优先');
@@ -6639,7 +6619,7 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await page.getByRole('button', { name: '全部', exact: true }).click();
   await expect(highlightsPanel).toContainText('全部章节');
   await expect(highlightCards).toHaveCount(2);
-  await page.getByRole('button', { name: '反选本组高亮' }).click();
+  await applyToEveryHighlightGroup('反选本组高亮');
   await expect(highlightsPanel).toContainText('已选 1 条');
   await expect(highlightCards.first().locator('.highlight-selection-toggle')).toHaveText('选中');
   await expect(highlightCards.nth(1).locator('.highlight-selection-toggle')).toHaveText('已选');
@@ -6650,7 +6630,10 @@ test('reader supports txt notes through selection, persistence, and note reopen 
   await expect(highlightCards).toHaveCount(1);
   await expect(highlightCards.first()).toContainText('plain text file exists');
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: '删除本组高亮' }).click();
+  await highlightCards.first()
+    .locator('xpath=ancestor::section[contains(@class, "note-group")]')
+    .getByRole('button', { name: '删除本组高亮' })
+    .click();
   await expect(highlightCards).toHaveCount(0);
   await expect(page.getByLabel('高亮面板')).toContainText(
     '当前书还没有高亮，但跨书高亮选择集还保留在上面，可以继续整理或导入匹配结果。'
@@ -6795,36 +6778,7 @@ test('reader shows selection-near annotation actions in web mode', async ({ page
   const pinnedSelectionText = 'plain text file exists';
   const replacementSelectionText = 'verify the current P0-1 downgrade contract';
 
-  const selectText = async (targetText: string) => {
-    await page.evaluate((nextTargetText) => {
-      const reader = document.querySelector('.plain-text-reader');
-      if (!(reader instanceof HTMLElement)) {
-        throw new Error('expected the plain-text reader surface to exist');
-      }
-
-      const pre = reader.querySelector('pre');
-      const textNode = pre?.firstChild;
-      if (!(textNode instanceof Text)) {
-        throw new Error('expected the TXT reader text node to exist');
-      }
-
-      const raw = textNode.textContent ?? '';
-      const start = raw.indexOf(nextTargetText);
-      if (start < 0) {
-        throw new Error(`expected the TXT fixture text to contain "${nextTargetText}"`);
-      }
-
-      const range = document.createRange();
-      range.setStart(textNode, start);
-      range.setEnd(textNode, start + nextTargetText.length);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
-    }, targetText);
-  };
-
-  await selectText(pinnedSelectionText);
+  await selectPlainText(page, pinnedSelectionText);
 
   const toolbar = page.getByRole('toolbar', { name: '选中文本操作' });
   await expect(toolbar).toBeVisible();
@@ -6843,7 +6797,7 @@ test('reader shows selection-near annotation actions in web mode', async ({ page
   await ttsWorkspace.getByRole('button', { name: '锁定当前朗读目标' }).click();
   await expect(ttsStatusStrip).toContainText('已锁定朗读目标');
 
-  await selectText(replacementSelectionText);
+  await selectPlainText(page, replacementSelectionText);
 
   await expect(toolbar).toBeVisible();
   await toolbar.getByRole('button', { name: '朗读' }).click();

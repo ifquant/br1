@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7 and C8A-C8B.
+local implementation and verification are recorded separately for C1-C7 and C8A-C8C.
 
 ## Frozen and provisional slices
 
@@ -26,7 +26,7 @@ local implementation and verification are recorded separately for C1-C7 and C8A-
 | **S2-R04C5** | Footnote popup sizing and stale-load lifecycle | `7c0419961` | Native text-scope equivalent with cleaned-empty navigation fallback. Popup images and late-image sizing are excluded, not claimed as full rich-media parity. |
 | **S2-R04C6** | Visual cue for in-page footnote landings | `dbe0dae0a` | Shared native navigation completion with a four-second visual-only target cue; popup-internal links remain absent. |
 | **S2-R04C7** | Jump from popup to the book target unless known hidden | `aab58241d` | Native preview action with original-target ancestor styles and upstream unknown-default-allow policy; not pre-rendered visibility proof. |
-| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Partial: C8A native provenance and C8B validated selection; next C8C actions/persistence, then C8D reverse annotation mapping. |
+| **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Partial: C8A provenance, C8B validated selection and C8C scoped actions/persistence complete; next C8D reverse annotation mapping/redraw. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Provisional renderer-lifetime slice; requires the exact foliate refcount behavior. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Provisional directional-flow slice. Ignore unrelated locale and submodule churn in the Readest commits. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Provisional standalone paginator/input slice; large behavior surface. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C8C**. Each slice starts by checking current local callers
+Continue with **S2-R04C8D**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8C-C8D and C9-C21 remain pending; their table entries are executable specifications,
+run. C8D and C9-C21 remain pending; their table entries are executable specifications,
 not completion claims.
 
 ### C2 implementation boundary
@@ -536,6 +536,47 @@ Popup selection/UI integration and these gates belong to C8B, not the historical
 C8A integration. Annotation controls/writes, redraw, and full lifecycle closure
 remain deferred until their own implementation and verification are complete.
 
+### C8 completion contract
+
+The final Sol commit audit confirms that a Stage-owned ephemeral selection lease
+passed to a route action callback is equivalent to a dedicated route selection
+event. Do not add a second selection store or replace the body's selection.
+The following obligations remain open until their executable evidence is recorded.
+
+| Slice | Required behavior | Evidence in Readest `631cd6454` |
+| --- | --- | --- |
+| C8C | Validated source selections support copy, search, dictionary, wiki, translation, share, highlight and note. Synthetic alt/data text supports only the six unanchored tools. TTS is rejected for all popup selections. | `Annotator.tsx`, added selection epoch and action hunks around lines 372, 1305, 1439, 1505 and 1990. |
+| C8C | Bind actions to exact request/book/view/root/selection revision; check after asynchronous work and prompts and immediately before mutation. Keep original source CFI and section metadata. | `FootnotePopup.tsx`, selection hunk `@@ -144,0 +181,91`; `Notebook.tsx`, `@@ -210 +210,5`. |
+| C8C | Reuse primary notes ownership; preserve highlight toggle and distinct note IDs at the same CFI. Prove save/reopen, cancellation, failures and held-save ordering. | Notebook CFI source changes, not a new annotation merge policy; br1 baseline `notesController.ts`. |
+| C8D | Resolve pristine-section annotations, reject wrong sections before loading, then reverse-map through retained DOM provenance. Reject malformed, unresolved, stale and disjoint ranges; never search for equal text. A boundary-crossing annotation may draw only its verified excerpt intersection. | `footnoteCfi.ts:108-149`, plus the native mapping safety requirement. |
+| C8D | Draw and interact by record ID, including multiple IDs at one CFI. Open/reopen, create, edit, toggle and delete refresh the corresponding records. A sibling deletion must not erase remaining IDs. | `FootnotePopup.tsx:510-556`. |
+| C8D | Clicking highlights opens applicable record actions; clicking notes opens the existing primary note record without an unintended navigation. Keep controls above the popup and redraw/hit-test accurately after scroll or resize. | `FootnotePopup.tsx:238-271`; existing native Overlayer contract. |
+| C8D | Invalidate reverse batches, geometry, callbacks, observers and listeners on close/replacement/navigation/modal/book/view change/teardown. Equal text in another payload must not inherit records. | `FootnotePopup.tsx:59-82,298-303,433-457`, extended native lifecycle checks. |
+
+True architecture N/A: popup-local Foliate view and CFI arithmetic,
+`getExtractMapping`/new CFI exports from nested `57c9358ad`, independent popup
+persistence, and secondary parallel-stage annotations (the established Stage is
+reference-only with `notes={[]}`). Readest-only copy-link, proofread,
+copy-to-notebook preference and richer highlight-style/range-edit controls are
+outside the frozen native action contract. C9 shared-loader refcount is a
+separate commit, not evidence of C8 completion. Packaged Tauri, Safari and native
+mobile gesture proof remain unverified, not N/A.
+
+C8D implementation boundary (Astra high): popup record inspection may display
+the existing primary `ReaderNote` by ID inside the popup, with only an ephemeral
+active ID and route-owned edit/delete callbacks. This is equivalent to opening
+the notebook record; navigation or a second record store is not required. All
+mapped same-CFI IDs must remain accessible through native chooser buttons.
+
+Body note reconciliation must use the loaded renderer's existing synchronous
+Overlayer API, not a tagged asynchronous `view.addAnnotation()` call. The latter
+awaits navigation resolution and then accesses the current renderer, including
+an unguardable removal branch. Coalesce host updates in a microtask (native
+`create-overlay` fires before attachment completes), capture current
+book/view/renderer/document membership, resolve CFIs synchronously, and reconcile
+only ID-keyed host notes with no await before mutation. Keep search decorations
+untouched. Extend only host Overlayer typings as needed; no Foliate source change.
+
 ### C8B native selection and pristine-location validation
 
 The actual Popup listens to native document selection changes and passes a
@@ -578,3 +619,35 @@ not-applicable, with 59 remaining primary task IDs. Next: C8C action applicabili
 and persistence, then C8D annotation reverse mapping/redraw. C8B does not expose
 new action buttons, write annotations, anchor synthetic/CDATA text or claim
 packaged Tauri/mobile/Safari acceptance.
+
+### C8C scoped actions and persistence
+
+The primary Stage now owns an ephemeral popup selection lease and passes it to
+the existing route action owners. Source selections expose highlight/note plus
+copy/search/dictionary/wiki/translate/share; synthetic text retains only the six
+unanchored tools. All popup TTS is rejected. The route revalidates source CFI
+after notes hydration and the controller checks the lease again after prompts.
+Generic body selection is never swapped with popup selection. Toolbar/status
+space is reserved before dragging, so action admission does not shift text.
+
+The existing notes controller retains distinct IDs at one CFI and highlight
+toggle semantics. Native snapshots are serialized; per-key pending writes form
+read barriers for A -> B -> A. Failed hydration rejects `ready()` and blocks
+mutation; explicit refresh retries a failed restore or retained failed snapshot.
+Errors reach the existing reader notice and scoped popup status. Scoped lookup
+and translation use explicit book/section/optional-CFI provenance; pending
+requests are not persisted as loading history, and stale completions cannot
+publish history or open the notebook.
+
+Verification: type check 0 errors/warnings and reader helpers 99/99 PASS;
+C8C 6/6 and full footnote/authored/mapping 41/41 PASS (includes C8C).
+Extended notes/selection/PDF regressions 10/10 PASS without skips in Chrome
+152.0.7977.77: 51 unique browser cases. Production build and diff check PASS.
+Fresh Terra high production/controller and static test review PASS. The native
+interface test double now models library/bookmark and Tauri event contracts and
+fails unknown commands; browser page errors fail these tests instead of silently
+leaving the reader in an incomplete startup state.
+
+C8D reverse mapping, ID-keyed redraw and record interactions remain open. No
+Foliate source/dependency changes or second reader. Native service mocks are
+browser proof, not packaged Tauri acceptance; Safari/native mobile are unverified.

@@ -682,6 +682,13 @@
     // cross-section extraction before it can emit a popup or fallback navigation.
     footnoteRequestId += 1;
     activeFootnoteRequest = detail;
+    if (detail && !detail.isCurrent) {
+      const view = foliateViewElement;
+      const book = view?.book;
+      // Synthetic text has no CFI, but its text tools still belong to one book.
+      detail.isCurrent = () => activeFootnoteRequest === detail &&
+        foliateViewElement === view && view?.book === book;
+    }
     onFootnoteRequest?.(detail);
     dispatch('footnoterequest', detail);
   };

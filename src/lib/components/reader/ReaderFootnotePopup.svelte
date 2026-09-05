@@ -2,6 +2,7 @@
  stage still decides whether to close or jump, so navigation policy stays in one
  reader coordination layer. -->
 <script lang="ts">
+  import type { ReaderFootnoteAction, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
   export let visible = false;
   export let label = '脚注';
   export let excerptHtml = '';
@@ -10,6 +11,11 @@
   export let onClose: (() => void) | null = null;
   export let onJump: (() => void) | null = null;
   export let onSelection: ((root: Element, range: Range | null) => void) | null = null;
+  export let selection: ReaderFootnoteSelection | null = null;
+  export let onAction: ((action: ReaderFootnoteAction) => void) | null = null;
+  export let actionPending = false;
+  export let actionMessage = '';
+  export let actionFailed = false;
   let previewRoot: HTMLDivElement | null = null;
 
   const handleSelectionChange = () => {
@@ -44,6 +50,24 @@
       <p class="footnote-fallback">{fallbackHref.trim() ? '无法预览，可跳转到正文位置' : '无法预览'}</p>
     {/if}
 
+    {#if onAction}
+      <div class="selection-actions" role="toolbar" tabindex="-1" aria-label="脚注选区操作" on:mousedown|preventDefault>
+        <button type="button" disabled={actionPending || !selection?.source} on:click={() => onAction?.('highlight')}>高亮</button>
+        <button type="button" disabled={actionPending || !selection?.source} on:click={() => onAction?.('note')}>笔记</button>
+        <button type="button" disabled={actionPending || !selection} on:click={() => onAction?.('copy')}>复制</button>
+        <button type="button" disabled={actionPending || !selection} on:click={() => onAction?.('search')}>书内搜索</button>
+        <button type="button" disabled={actionPending || !selection} on:click={() => onAction?.('dictionary')}>词典</button>
+        <button type="button" disabled={actionPending || !selection} on:click={() => onAction?.('wikipedia')}>百科</button>
+        <button type="button" disabled={actionPending || !selection} on:click={() => onAction?.('translate')}>翻译</button>
+        <button type="button" disabled={actionPending || !selection} on:click={() => onAction?.('share')}>分享</button>
+        <button type="button" disabled title="脚注选区不支持朗读">朗读</button>
+      </div>
+    {/if}
+    {#if onAction}
+      <p class="action-message" class:action-failed={actionFailed} role={actionPending || actionMessage ? (actionFailed ? 'alert' : 'status') : undefined}>
+        {actionPending ? '正在处理…' : actionMessage}
+      </p>
+    {/if}
     <div class="popup-actions">
       <button type="button" class="primary-action" on:click={() => onClose?.()}>关闭脚注</button>
       {#if fallbackHref.trim()}
@@ -108,13 +132,15 @@
     margin: 0;
   }
 
-  .popup-actions {
+  .popup-actions,
+  .selection-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  .popup-actions button {
+  .popup-actions button,
+  .selection-actions button {
     border: 1px solid color-mix(in srgb, var(--reader-shell-border, rgba(84, 62, 34, 0.16)) 90%, white 10%);
     border-radius: 999px;
     padding: 8px 12px;
@@ -123,6 +149,11 @@
     font: inherit;
     cursor: pointer;
   }
+
+  .selection-actions button:disabled { opacity: 0.45; cursor: default; }
+  .selection-actions button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .action-message { margin: 0; min-height: 1.5em; font-size: 13px; line-height: 1.5; }
+  .action-failed { color: #a22222; }
 
   .popup-actions button.primary-action {
     background: color-mix(in srgb, var(--reader-shell-accent, #8c6a3b) 14%, white 86%);

@@ -2,6 +2,17 @@
 // can remove text, so a later selection must never locate its source by search.
 import type { ReaderSelectionState } from './types';
 
+export type ReaderFootnoteAction = 'highlight' | 'note' | 'copy' | 'search' |
+  'dictionary' | 'wikipedia' | 'translate' | 'share';
+
+/** A live popup selection, not a replacement for the route's body selection. */
+export type ReaderFootnoteSelection = {
+  text: string;
+  source: ReaderSelectionState | null;
+  isCurrent: () => boolean;
+  validate: () => Promise<ReaderSelectionState | null>;
+};
+
 /** Ephemeral popup payload. Neither DOM correspondence nor callbacks are saved. */
 export type ReaderFootnoteRequest = {
   label: string;

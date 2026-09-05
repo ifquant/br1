@@ -3,7 +3,7 @@
  not silently become a second owner of persistence or route semantics. -->
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
-  import type { ReaderFootnoteRequest } from '$lib/reader/footnoteExcerpt';
+  import type { ReaderFootnoteAction, ReaderFootnoteRequest, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
   import type {
     ReaderControlRequest,
     ReaderFocusedReadingMode,
@@ -135,6 +135,7 @@
   export let onTranslateSelection: (() => void) | null = null;
   export let onReadAloudSelection: (() => void) | null = null;
   export let onCopySelection: (() => void) | null = null;
+  export let onFootnoteAction: ((action: ReaderFootnoteAction, selection: ReaderFootnoteSelection) => Promise<string | void>) | null = null;
 
   let readerPreview: ReaderPreviewState = createEmptyReaderPreviewState();
   let importInput: HTMLInputElement | null = null;
@@ -150,6 +151,12 @@
   let footnoteRequest: ReaderFootnoteRequest | null = null;
   let footnoteSelectionRevision = 0;
   let footnotePreviewRoot: Element | null = null;
+  let footnoteSelection: ReaderFootnoteSelection | null = null;
+  let footnoteSelectionRange: Range | null = null;
+  let footnoteActionRevision = 0;
+  let footnoteActionPending = false;
+  let footnoteActionMessage = '';
+  let footnoteActionFailed = false;
   let handledControlRequestNonce = 0;
   let hasMounted = false;
   let hasAppliedInitialKeyboardFocus = false;
@@ -240,6 +247,12 @@
     footnoteRequest = request;
     footnoteSelectionRevision += 1;
     footnotePreviewRoot = null;
+    footnoteSelection = null;
+    footnoteSelectionRange = null;
+    footnoteActionRevision += 1;
+    footnoteActionPending = false;
+    footnoteActionMessage = '';
+    footnoteActionFailed = false;
     dispatch('footnoteselectionchange', null);
     previous?.dismiss?.();
   };
@@ -249,24 +262,71 @@
 
   const handleFootnoteSelection = async (root: Element, range: Range | null) => {
     const request = footnoteRequest;
+    const sameRange = (left: Range, right: Range) =>
+      left.startContainer === right.startContainer && left.startOffset === right.startOffset &&
+      left.endContainer === right.endContainer && left.endOffset === right.endOffset;
+    // Native selectionchange can repeat without a real reselection. Keep the
+    // same lease so a toolbar focus event cannot supersede its own action.
+    if (range && footnoteSelectionRange && root === footnotePreviewRoot &&
+      sameRange(range, footnoteSelectionRange) && footnoteSelection?.isCurrent()) return;
     const revision = ++footnoteSelectionRevision;
     footnotePreviewRoot = root;
+    footnoteSelection = null;
+    footnoteSelectionRange = null;
+    footnoteActionMessage = '';
+    footnoteActionFailed = false;
     // This channel cannot activate the route's generic annotation controls.
     dispatch('footnoteselectionchange', null);
-    if (!request?.resolveSelection || !request.isCurrent?.() || !range || !root.isConnected || readerModalOpen) return;
+    if (!request?.isCurrent?.() || !range || !root.isConnected || readerModalOpen) return;
     const snapshot = range.cloneRange();
-    const result = await request.resolveSelection(root, snapshot);
-    if (revision !== footnoteSelectionRevision || request !== footnoteRequest || !request.isCurrent?.() ||
-      root !== footnotePreviewRoot || !root.isConnected || readerModalOpen) return;
-    // Selectionchange may be queued behind a promise completion. Check the
-    // browser's current boundaries too before accepting that asynchronous result.
-    const selection = root.ownerDocument.getSelection();
-    const current = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
-    if (!current || current.collapsed || current.startContainer !== snapshot.startContainer ||
-      current.startOffset !== snapshot.startOffset || current.endContainer !== snapshot.endContainer ||
-      current.endOffset !== snapshot.endOffset || !root.contains(current.startContainer) ||
-      !root.contains(current.endContainer)) return;
+    const text = snapshot.toString().trim();
+    if (!text) return;
+    const isCurrent = () => {
+      if (revision !== footnoteSelectionRevision || request !== footnoteRequest || !request.isCurrent?.() ||
+        root !== footnotePreviewRoot || !root.isConnected || readerModalOpen) return false;
+      // Check the actual boundaries even if selectionchange is still queued.
+      const selection = root.ownerDocument.getSelection();
+      const current = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
+      return !!current && !current.collapsed && sameRange(current, snapshot) &&
+        root.contains(current.startContainer) && root.contains(current.endContainer);
+    };
+    const lease: ReaderFootnoteSelection = {
+      text,
+      source: null,
+      isCurrent,
+      validate: async () => {
+        if (!isCurrent() || !request.resolveSelection) return null;
+        const result = await request.resolveSelection(root, snapshot);
+        return isCurrent() ? result : null;
+      }
+    };
+    footnoteSelectionRange = snapshot;
+    footnoteSelection = lease;
+    const result = await lease.validate();
+    if (!isCurrent()) return;
+    footnoteSelection = { ...lease, source: result };
     dispatch('footnoteselectionchange', result);
+  };
+
+  const runFootnoteAction = async (action: ReaderFootnoteAction) => {
+    const selection = footnoteSelection;
+    if (!onFootnoteAction || !selection?.isCurrent() || footnoteActionPending) return;
+    if ((action === 'highlight' || action === 'note') && !selection.source) return;
+    const revision = ++footnoteActionRevision;
+    footnoteActionPending = true;
+    footnoteActionMessage = '';
+    footnoteActionFailed = false;
+    try {
+      const message = await onFootnoteAction(action, selection);
+      if (revision === footnoteActionRevision && selection.isCurrent()) footnoteActionMessage = message || '';
+    } catch (error) {
+      if (revision === footnoteActionRevision && selection.isCurrent()) {
+        footnoteActionFailed = true;
+        footnoteActionMessage = error instanceof Error ? error.message : '操作失败，请重试';
+      }
+    } finally {
+      if (revision === footnoteActionRevision) footnoteActionPending = false;
+    }
   };
 
   const jumpToFootnoteLocation = () => {
@@ -666,7 +726,7 @@
     <!-- The stage owns popup presentation, but the route still owns the real
      selection actions so highlights/notes/TTS keep using one coordination path. -->
     <ReaderAnnotationPopup
-      visible={!!annotationSelection?.text.trim() && !readerModalOpen}
+      visible={!!annotationSelection?.text.trim() && !readerModalOpen && !footnoteRequest}
       placement={annotationPopupPlacement}
       position={annotationPopupPosition}
       selectionSummary={annotationSelectionSummary}
@@ -690,6 +750,11 @@
         onClose={closeFootnotePopup}
         onJump={jumpToFootnoteLocation}
         onSelection={handleFootnoteSelection}
+        selection={footnoteSelection}
+        onAction={onFootnoteAction ? runFootnoteAction : null}
+        actionPending={footnoteActionPending}
+        actionMessage={footnoteActionMessage}
+        actionFailed={footnoteActionFailed}
       />
     {/key}
   </article>

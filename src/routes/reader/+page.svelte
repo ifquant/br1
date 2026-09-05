@@ -7,6 +7,7 @@
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
   import ReaderNotebook from '$lib/components/reader/ReaderNotebook.svelte';
+  import type { ReaderFootnoteAction, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
   import type {
     ReaderAssistanceHistoryEntry,
     ReaderAssistanceWorkspaceSelection,
@@ -498,6 +499,8 @@
     canPersistNotes: canPersistReaderNotes,
     loadPersistedNotes: loadReaderNotes,
     savePersistedNotes: saveReaderNotes,
+    onError: (error) => setReaderSyncNotice('error',
+      `笔记读取或保存失败：${error instanceof Error ? error.message : String(error)}`),
     promptNoteDraft: (message, initialValue = '') => window.prompt(message, initialValue),
     confirmDelete: (message) => window.confirm(message)
   });
@@ -1638,6 +1641,60 @@
     }
   };
 
+  const handleFootnoteAction = async (action: ReaderFootnoteAction, lease: ReaderFootnoteSelection) => {
+    const bookKey = readerBookKey;
+    const storageKey = notesStorageKey;
+    const isCurrent = () => lease.isCurrent() && readerBookKey === bookKey && notesStorageKey === storageKey;
+    if (!isCurrent()) return;
+
+    if (action === 'highlight' || action === 'note') {
+      await notesController.ready();
+      if (!isCurrent()) return;
+      const selection = await lease.validate();
+      if (!isCurrent()) return;
+      if (!selection) throw new Error('无法确认这段文字的原文位置，请重新选择');
+      // Never swap the body selection. The existing owner checks this lease
+      // again after its prompt and dispatches persistence to the captured book.
+      const changed = notesController.addFromSelection(action, { selection, isCurrent });
+      if (!changed) return;
+      await notesController.flush();
+      return action === 'highlight' ? '高亮已更新' : '笔记已保存';
+    }
+    if (action === 'copy') {
+      if (!navigator.clipboard?.writeText) throw new Error('当前环境无法写入剪贴板');
+      await navigator.clipboard.writeText(lease.text);
+      return '已复制';
+    }
+    if (action === 'share') {
+      if (navigator.share) {
+        try { await navigator.share({ text: lease.text }); }
+        catch (error) { if (!(error instanceof DOMException && error.name === 'AbortError')) throw error; }
+        return;
+      }
+      if (!navigator.clipboard?.writeText) throw new Error('当前环境不支持分享或复制');
+      await navigator.clipboard.writeText(lease.text);
+      return '已复制分享文本';
+    }
+    if (action === 'search') {
+      searchController.issueSearch(lease.text);
+      sidebarController.openTab('search');
+      return;
+    }
+
+    // The popup has no TTS/proofreading path, including unexpected runtime calls.
+    if (action !== 'translate' && action !== 'dictionary' && action !== 'wikipedia') return;
+    const source = lease.source ? await lease.validate() : null;
+    if (!isCurrent()) return;
+    const context: ReaderScopedAssistanceContext = {
+      bookKey, cfi: source?.cfi, chapterLabel: source?.chapterLabel || '脚注', isCurrent
+    };
+    if (action === 'translate') {
+      await requestAssistanceTranslation(translationProvider, lease.text, translationTargetLanguage, context);
+    } else {
+      await requestAssistanceLookup(action, lease.text, context);
+    }
+  };
+
   const lookupCurrentSelection = () => {
     const selectionText = normalizeAssistanceTerm(currentReaderSelection?.text || '');
     if (!selectionText) return;
@@ -2186,16 +2243,37 @@
     );
   };
 
-  const requestAssistanceLookup = async (provider: ReaderLookupProvider, term: string) => {
+  type ReaderScopedAssistanceContext = {
+    bookKey: string;
+    cfi?: string;
+    chapterLabel: string;
+    isCurrent: () => boolean;
+  };
+
+  const acceptAssistanceCompletion = (token: number, context?: ReaderScopedAssistanceContext) => {
+    if (token !== assistanceRequestNonce) return false;
+    if (!context || context.isCurrent()) return true;
+    // Scoped pending requests never enter saved history. A newer request or
+    // another book owns its state, so only clear the cancelled current request.
+    if (readerBookKey === context.bookKey) {
+      assistanceState = createEmptyReaderAssistanceState();
+    }
+    return false;
+  };
+
+  const requestAssistanceLookup = async (
+    provider: ReaderLookupProvider, term: string, context?: ReaderScopedAssistanceContext
+  ) => {
+    if (context && !context.isCurrent()) return;
     const normalizedTerm = normalizeAssistanceTerm(term);
     const request = {
       kind: 'lookup' as const,
       provider,
       term: normalizedTerm,
       language: getAssistanceLookupLanguage(provider),
-      bookKey: readerBookKey,
-      cfi: $notesState.selection?.cfi,
-      chapterLabel: currentPreview.chapterLabel
+      bookKey: context?.bookKey ?? readerBookKey,
+      cfi: context ? context.cfi : $notesState.selection?.cfi,
+      chapterLabel: context ? context.chapterLabel : currentPreview.chapterLabel
     };
     const historyEntry = createReaderAssistanceHistoryEntry(request, {
       id: `assist-${Date.now()}-${assistanceRequestNonce + 1}`
@@ -2215,12 +2293,14 @@
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
-    assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
-    void openNotebookWorkspaceTab('assistant');
+    if (!context) assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
+    // Opening the workspace resizes the reader and dismisses its popup. Keep
+    // scoped requests in that popup until their result has passed admission.
+    if (!context) void openNotebookWorkspaceTab('assistant');
 
     try {
       const nextState = await requestReaderAssistance(request);
-      if (token !== assistanceRequestNonce) return;
+      if (!acceptAssistanceCompletion(token, context)) return;
       assistanceState = nextState;
       assistanceHistory = upsertReaderAssistanceHistoryEntry(
         assistanceHistory,
@@ -2230,8 +2310,9 @@
           error: nextState.error
         })
       );
+      if (context) void openNotebookWorkspaceTab('assistant');
     } catch (error) {
-      if (token !== assistanceRequestNonce) return;
+      if (!acceptAssistanceCompletion(token, context)) return;
       assistanceState = createErrorReaderAssistanceState(
         request,
         error instanceof Error ? error.message : String(error)
@@ -2243,6 +2324,7 @@
           error: error instanceof Error ? error.message : String(error)
         })
       );
+      if (context) void openNotebookWorkspaceTab('assistant');
     }
   };
 
@@ -2254,13 +2336,15 @@
   const requestAssistanceTranslation = async (
     provider: ReaderTranslationProvider,
     text: string,
-    targetLanguage: string
+    targetLanguage: string,
+    context?: ReaderScopedAssistanceContext
   ) => {
+    if (context && !context.isCurrent()) return;
     // Translation requests deliberately reuse the same fallback source contract
     // as translation mode itself. That keeps history entries, archive replay,
     // and translated-TTS provenance aligned even when the request started from
     // a popup action or an empty explicit text input.
-    const fallback = resolveReaderTranslationFallback();
+    const fallback = context ? { text: '', chapterLabel: context.chapterLabel } : resolveReaderTranslationFallback();
     const normalizedText = normalizeAssistanceText(text || fallback.text);
     const request = {
       kind: 'translation' as const,
@@ -2268,8 +2352,8 @@
       text: normalizedText,
       sourceLanguage: undefined,
       targetLanguage: targetLanguage.trim() || 'zh',
-      bookKey: readerBookKey,
-      cfi: $notesState.selection?.cfi,
+      bookKey: context?.bookKey ?? readerBookKey,
+      cfi: context ? context.cfi : $notesState.selection?.cfi,
       chapterLabel: fallback.chapterLabel
     };
     const historyEntry = createReaderAssistanceHistoryEntry(request, {
@@ -2294,12 +2378,12 @@
 
     const token = ++assistanceRequestNonce;
     assistanceState = createLoadingReaderAssistanceState(request);
-    assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
-    void openNotebookWorkspaceTab('translation');
+    if (!context) assistanceHistory = upsertReaderAssistanceHistoryEntry(assistanceHistory, historyEntry);
+    if (!context) void openNotebookWorkspaceTab('translation');
 
     try {
       const nextState = await requestReaderAssistance(request);
-      if (token !== assistanceRequestNonce) return;
+      if (!acceptAssistanceCompletion(token, context)) return;
       assistanceState = nextState;
       assistanceHistory = upsertReaderAssistanceHistoryEntry(
         assistanceHistory,
@@ -2309,8 +2393,9 @@
           error: nextState.error
         })
       );
+      if (context) void openNotebookWorkspaceTab('translation');
     } catch (error) {
-      if (token !== assistanceRequestNonce) return;
+      if (!acceptAssistanceCompletion(token, context)) return;
       assistanceState = createErrorReaderAssistanceState(
         request,
         error instanceof Error ? error.message : String(error)
@@ -2322,6 +2407,7 @@
           error: error instanceof Error ? error.message : String(error)
         })
       );
+      if (context) void openNotebookWorkspaceTab('translation');
     }
   };
 
@@ -2734,6 +2820,7 @@
           onToggleInlineTranslationTranslationVisibility={toggleInlineTranslationTranslationVisibility}
           onAddHighlightFromSelection={addHighlightFromSelection}
           onAddNoteFromSelection={addNoteFromSelection}
+          onFootnoteAction={handleFootnoteAction}
           onLookupSelection={lookupCurrentSelection}
           onTranslateSelection={translateCurrentSelection}
           onReadAloudSelection={readCurrentSelectionAloud}
