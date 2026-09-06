@@ -6,6 +6,7 @@
   import { Overlayer } from 'foliate-js/overlayer.js';
   import type { ReaderNote } from '$lib/reader/types';
   import type { ReaderFootnoteAction, ReaderFootnoteAnnotation, ReaderFootnoteRecordAction, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
+  import { copyReaderRubySelection } from '$lib/reader/selectionText';
   export let visible = false;
   export let label = '脚注';
   export let excerptHtml = '';
@@ -151,6 +152,10 @@
       previewRoot.contains(range.endContainer) ? range.cloneRange() : null);
   };
 
+  const handlePreviewCopy = (event: ClipboardEvent) => {
+    if (previewRoot) copyReaderRubySelection(event, previewRoot);
+  };
+
   $: hasPreview = !!excerptHtml.trim() || !!excerptText.trim();
   $: if (visible && previewRoot && layer && resolveAnnotations) void updateAnnotations(previewRoot, notes, resolveAnnotations, layer);
   $: if (activeRecordId && !notes.some((note) => note.id === activeRecordId)) activeRecordId = '';
@@ -158,7 +163,7 @@
   $: { activeRecordId; actionMessage; if (layer) void tick().then(scheduleRedraw); }
 </script>
 
-<svelte:document on:selectionchange={handleSelectionChange} />
+<svelte:document on:selectionchange={handleSelectionChange} on:copy={handlePreviewCopy} />
 
 {#if visible}
   <div class="footnote-dialog" use:watchPopup role="dialog" aria-modal="false" aria-label="脚注预览">
@@ -307,6 +312,15 @@
   .footnote-body :global(p),
   .footnote-body :global(li) {
     margin: 0;
+  }
+
+  .footnote-body :global(rt) {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .footnote-body :global(rp) {
+    display: none !important;
   }
 
   .popup-actions,

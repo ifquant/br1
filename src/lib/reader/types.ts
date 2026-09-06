@@ -252,6 +252,8 @@ export type ReaderSelectionSegment = {
 
 export type ReaderSelectionState = Omit<ReaderSelectionSegment, 'index'> & {
   index?: number;
+  /** Original range text retained only for source-language selection TTS. */
+  rawText?: string;
   /** One logical selection can contain one native Range per fixed-layout page. */
   segments?: ReaderSelectionSegment[];
 };

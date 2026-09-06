@@ -54,6 +54,7 @@
     type SectionAnchor
   } from '$lib/reader/crossDocSelection';
   import { getPdfSelectionText } from '$lib/reader/pdfText';
+  import { copyReaderRubySelection, getReaderSelectionText } from '$lib/reader/selectionText';
   import { decodePlainText, parsePlainTextChapters } from '$lib/reader/plainText';
   import type {
     ReaderNote,
@@ -803,7 +804,8 @@
     allowLocationFallback = true
   ): ReaderSelectionState | null => {
     if (!foliateViewElement) return null;
-    const text = (currentFormatLabel === 'PDF' ? getPdfSelectionText(range) : range.toString()).trim();
+    const rawText = range.toString().trim();
+    const text = (currentFormatLabel === 'PDF' ? getPdfSelectionText(range) : getReaderSelectionText(range)).trim();
     if (!text) return null;
     const chapterLabel = foliateViewElement.lastLocation?.tocItem?.label || '当前章节';
     const chapterHref = foliateViewElement.lastLocation?.tocItem?.href || '';
@@ -823,7 +825,7 @@
         `fraction:${(foliateViewElement.lastLocation?.fraction ?? 0).toFixed(6)}`;
     }
 
-    return { index, cfi, text, chapterLabel, chapterHref };
+    return { index, cfi, text, chapterLabel, chapterHref, ...(currentFormatLabel !== 'PDF' && rawText !== text ? { rawText } : {}) };
   };
 
   const getSelectionState = (doc: Document, index: number): ReaderSelectionState | null => {
@@ -985,6 +987,9 @@
       if (selectionMutationGuard || pdfDragAnchor) return;
       if (doc.defaultView?.getSelection()?.isCollapsed === false) invalidateNavigationCue();
       emitTrackedSelection(doc, index);
+    });
+    doc.addEventListener('copy', (event) => {
+      if (currentFormatLabel !== 'PDF' && doc.body) copyReaderRubySelection(event as ClipboardEvent, doc.body);
     });
     // Keyboard selection can also produce an internal anchor event. Cancel at
     // the input boundary so it cannot refresh a previous navigation's cue.
@@ -1688,7 +1693,10 @@
             roundTrip.startOffset !== source.startOffset || roundTrip.endContainer !== source.endContainer ||
             roundTrip.endOffset !== source.endOffset || roundTrip.toString() !== selection.toString() ||
             !isSelectionCurrent()) return null;
-          return { index: location.index, cfi, text: source.toString().trim(),
+          const rawText = source.toString().trim();
+          const text = getReaderSelectionText(source).trim();
+          if (!text) return null;
+          return { index: location.index, cfi, text, ...(rawText !== text ? { rawText } : {}),
             chapterHref: href, chapterLabel: pristine.title || request.label };
         } catch (error) {
           console.warn('Failed to validate footnote selection in its original chapter', error);

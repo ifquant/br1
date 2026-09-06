@@ -8,6 +8,7 @@ import { getReaderThemePalette } from './settings';
 import type { ReaderSettings } from './types';
 import { pickAuthor, pickText } from './pdfMetadata';
 import type { ReaderBookMetadata } from './pdfMetadata';
+import { READER_RUBY_TEXT_CSS } from './selectionText';
 
 export {
   extractPdfFileMetadata,
@@ -367,6 +368,8 @@ export const getReaderViewStyles = (settings: ReaderSettings) => {
     background: transparent;
     font-family: ${textFont};
   }
+
+  ${READER_RUBY_TEXT_CSS}
 
   p,
   blockquote,

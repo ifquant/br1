@@ -47,7 +47,7 @@ const emptyExcerpt = (): FootnoteExcerpt => ({
 
 const allowedTags = new Set([
   'p', 'ol', 'ul', 'li', 'blockquote', 'em', 'strong', 'b', 'i',
-  'code', 'sup', 'sub', 'span', 'br'
+  'code', 'sup', 'sub', 'span', 'br', 'ruby', 'rt', 'rp'
 ]);
 
 const textNodes = (root: Node): Text[] => {

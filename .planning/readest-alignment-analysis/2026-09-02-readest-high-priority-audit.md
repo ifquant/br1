@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 60 |
-| `partial` | 406 |
+| `covered` | 61 |
+| `partial` | 405 |
 | `gap` | 77 |
 | `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 41 | 216 | 22 | 55 |
+| reader core | 42 | 215 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -180,7 +180,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 141 | `772bb73b4` | reader core | ui/ux: codify design system and migrate settings to shared primitives (#4116) | `not-applicable` | — | Readest implementation refactor, test maintenance, or project docs. |
 | 142 | `d326e1c73` | reader core | fix: hide popup triangle when inside popup + EPUB image-only paragraph rendering (#4121) | `covered` | S2-R04A3 | Existing br1 coverage preserves image-only EPUB paragraphs, and foliate now rewrites the observed MOBI6 self-closing non-void tags before HTML parsing. |
 | 143 | `598eb7723` | library | feat(library): redesign empty-library onboarding (#4122) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
-| 144 | `9a05935ca` | reader core | feat(reader): improve Japanese selection UX by disabling furigana selection (#4137) | `partial` | S2-R04C12 | Core reading exists; this authored-layout/script edge is unverified. |
+| 144 | `9a05935ca` | reader core | feat(reader): improve Japanese selection UX by disabling furigana selection (#4137) | `covered` | S2-R04C12 | Native ruby remains visible; all-language body and popup action text excludes rt/rp without changing raw CFI or selection TTS. Scoped native copy and PDF pass-through have browser evidence. |
 | 145 | `fed8ab7b6` | tts/audio | fix(tts): restore cross-section auto-page-turn during TTS playback (#4148) | `partial` | S2-T03 | tts.ts, ttsRuntime.ts, and TTS tests; extraction/section parity is incomplete. |
 | 146 | `54aa20d4f` | reader core | fix(footnote): don't treat in-book numeric chapter/verse links as footnotes (#4152) | `covered` | S2-R04C3 | Numeric candidate checks reject two other numeric anchors within any of three ancestors; small sets still preview, and explicit noterefs keep their stronger classification. |
 | 147 | `244b3fd99` | reader core | fix(dev): rewrite HMR WebSocket URL in Tauri mobile dev, closes #4150 (#4160) | `not-applicable` | — | Readest runtime/build metadata with no behavior port. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (16 covered, 13 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
+- Upstream decisions: 34 commits (17 covered, 12 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -1057,9 +1057,16 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Owner: sibling `foliate-js/paginator.js`; br1 owns integration evidence. Initial `View.open` cancellation, navigation rollback and fixed-layout disposal remain separate.
 - Status: completed. Final2 passes 98 unique browser cases: 23 resource, 11 unchanged C11, 60 broader and 4 library cases. Helpers 99/99, ZIP units 6/6, type/syntax checks and direct Vite build pass. Source/test hashes remained frozen. Terra task reviews and Astra code/test final review pass; historical failures remain recorded in the [follow-up audit](./2026-09-06-pending-paginator-close.md).
 
-#### Next Task: S2-R04C12 - Align ruby/furigana selection and copy semantics
+#### Completed Slice: S2-R04C12 - Align ruby/furigana selection and copy semantics
 
-- Audit `9a05935ca` at its existing selection/text owner. Preserve visible and accessible ruby while selected/copied base text excludes furigana. C13-C21 retain their existing owners; this slice has not started.
+- Source: `9a05935ca` changes only Readest host styles and annotation extraction; no nested Foliate move. br1 preserves ruby DOM, raw CFI/provenance and selection TTS while filtering rt/rp from body and popup action text.
+- Copy stays scoped to the current owned, noneditable range; PDF and ordinary text are not intercepted. A real action test exposed an existing off-screen toolbar: its shared bottom-center anchor now clamps to the visible window, verified with normal clicks at 1280x720.
+- Verification: 4 focused and 93 existing browser cases (97 unique, no retries), 99 helpers, Svelte check with zero errors/warnings, strict source/test TypeScript and direct Vite build PASS. Nine source/test hashes remained frozen. Terra task review and Astra whole-change source review PASS. [Evidence and limitations](./2026-09-06-ruby-selection.md).
+- Ledger: 678 commits, 61 covered, 405 partial, 77 gap, 135 not-applicable, and 54 remaining primary task IDs. No sibling code, dependency or vendor changes; native OS clipboard, packaged Tauri/WebKit and assistive-technology output are not verified.
+
+#### Next Task: S2-R04C13 - Align Warichu/Gezhu measured layout
+
+- Start with `ebbbf104b` and the current authored-layout owner. Freeze a bounded transformation and measured-column contract before implementation; this is not a CSS-only extension of C12. C13-C21 remain unstarted.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

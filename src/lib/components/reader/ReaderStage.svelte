@@ -30,6 +30,7 @@
     saveReaderSettings
   } from '$lib/reader';
   import type { ReaderTtsSessionState } from '$lib/reader';
+  import { getReaderSelectionText } from '$lib/reader/selectionText';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderFocusedReadingOverlay from './ReaderFocusedReadingOverlay.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
@@ -282,7 +283,7 @@
     dispatch('footnoteselectionchange', null);
     if (!request?.isCurrent?.() || !range || !root.isConnected || readerModalOpen) return;
     const snapshot = range.cloneRange();
-    const text = snapshot.toString().trim();
+    const text = getReaderSelectionText(snapshot).trim();
     if (!text) return;
     const isCurrent = () => {
       if (revision !== footnoteSelectionRevision || request !== footnoteRequest || !request.isCurrent?.() ||
@@ -602,7 +603,9 @@
     const stageRect = stageShell.getBoundingClientRect();
     return {
       left: stageRect.left + stageRect.width / 2,
-      top: stageRect.bottom - 26
+      // The embedded stage can extend below the window; fixed actions must
+      // remain inside the visible viewport rather than follow its hidden edge.
+      top: Math.min(stageRect.bottom, window.innerHeight) - 26
     };
   };
 

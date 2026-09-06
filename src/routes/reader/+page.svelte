@@ -644,7 +644,7 @@
   const resolveCurrentReaderTtsSpeechTarget = () =>
     resolveReaderTtsSpeechTarget({
       readAloudTextMode: ttsReadAloudTextMode,
-      selectedText: $notesState.selection?.text,
+      selectedText: $notesState.selection?.rawText || $notesState.selection?.text,
       preview: currentPreview,
       getLocationDisplayLabel: getReaderLocationDisplayLabel,
       effectiveTranslationSource,
@@ -1739,7 +1739,7 @@
   const resolveCurrentSelectionTtsSpeechTarget = () =>
     resolveReaderTtsSpeechTarget({
       readAloudTextMode: 'source',
-      selectedText: currentReaderSelection?.text,
+      selectedText: currentReaderSelection?.rawText || currentReaderSelection?.text,
       preview: currentPreview,
       getLocationDisplayLabel: getReaderLocationDisplayLabel,
       effectiveTranslationSource,

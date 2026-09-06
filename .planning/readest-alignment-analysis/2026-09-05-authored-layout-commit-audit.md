@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7, C8A-C8D, C9, C10 and C11A-C11B.
+local implementation and verification are recorded separately for C1-C7, C8A-C8D, C9, C10, C11A-C11B and C12.
 
 ## Frozen and provisional slices
 
@@ -30,7 +30,7 @@ local implementation and verification are recorded separately for C1-C7, C8A-C8D
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Complete: exact Loader count/content-read fix plus native paginator single-release ownership, proved through shared-view and actual br1 resource lifetimes. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Complete within the frozen same-direction reflowable contract: native detection, semantic controls and visible CFI restoration after real preload/reopen. Mixed-direction lifecycle and C11 gestures remain separate. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Complete: C11A instant input/coordinates and C11B native drag/animation, cancellation/history and locked-load admission/recovery. Generic resource transaction cancellation remains separate. |
-| **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Provisional small CJK selection slice. |
+| **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Complete: host-native ruby styles and base-only action/copy text preserve original DOM, CFI and selection TTS in body and popup paths. |
 | **S2-R04C13** | Warichu/Gezhu transformation and measured column layout | `ebbbf104b` | Provisional standalone CJK layout slice; do not merge with the smaller ruby work. |
 | **S2-R04C14** | Fixed-layout spread seam, zoom-out visibility, and text autosizing | `17e60f1e4`, `42c7a2cb0` | Provisional FXL rendering slice. |
 | **S2-R04C15** | Fixed-layout vertical-pan gesture ownership | `6807664e9`; evidence-only `db1d63cdc` | Provisional. `db1d63cdc` changes only test timing and has no product behavior to port. |
@@ -60,7 +60,7 @@ local implementation and verification are recorded separately for C1-C7, C8A-C8D
 | `a193cbc35` | C9 | Shared loader refcount. |
 | `caa0d719c`, `23d5f3363`, `676e14234` | C10 | Reflowable vertical/RTL flow. |
 | `c5304cd46` | C11 | Vertical-rl horizontal turns. |
-| `9a05935ca` | C12 | Ruby/furigana. |
+| `9a05935ca` | C12 | Covered: visible ruby, base-only actions and scoped native copy, unchanged raw CFI/TTS. |
 | `ebbbf104b` | C13 | Warichu/Gezhu. |
 | `17e60f1e4`, `42c7a2cb0` | C14 | FXL rendering. |
 | `6807664e9`, `db1d63cdc` | C15 | FXL input boundary; second commit is evidence-only. |
@@ -186,7 +186,9 @@ The following are the only S2-R04C commits in this 34-row set that move
 The user-prioritized **pending paginator load teardown** defect is now closed
 with deterministic regressions and 98 final2 browser cases passing; see the
 [follow-up audit](./2026-09-06-pending-paginator-close.md). Continue with
-**S2-R04C12**, not started. Each slice starts by checking current local callers
+**S2-R04C13**, not started. C12 is now complete at the host owner with 97 browser
+cases and final static/build checks passing; see its [completion audit](./2026-09-06-ruby-selection.md).
+Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -222,7 +224,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8-C11 are complete within their documented native contracts below. C12-C21 remain
+run. C8-C12 are complete within their documented native contracts. C13-C21 remain
 pending; their table entries are executable specifications, not completion claims.
 
 ### C2 implementation boundary
