@@ -169,8 +169,14 @@ pub(crate) struct ReaderSearchCacheEntry {
 pub(crate) struct ReaderBookmarkRecord {
     pub(crate) id: String,
     pub(crate) locator: String,
+    // DOM-model provenance only; this does not validate the locator or establish identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) locator_origin: Option<String>,
     #[serde(default)]
     pub(crate) target_href: String,
+    // DOM-model provenance follows target_href, which can be owned by a different merge input.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) target_href_origin: Option<String>,
     pub(crate) chapter_label: String,
     pub(crate) chapter_href: String,
     pub(crate) progress_label: String,

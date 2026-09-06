@@ -2,6 +2,7 @@
 // ReaderSidebar.svelte. Persistence, route tab ownership, and cross-book
 // saved-selection import/export stay in the Svelte parent.
 
+import { matchesReaderBookmarkLocator } from './types.js';
 import type {
   ReaderBookmarksState,
   ReaderHighlightSelectionSet,
@@ -132,7 +133,12 @@ export const deriveReaderSidebarAnnotationState = (input: {
   const isCurrentLocationBookmarked =
     !!input.bookmarksState.activeLocator &&
     input.bookmarksState.bookmarks.some(
-      (bookmark) => bookmark.locator === input.bookmarksState.activeLocator
+      (bookmark) =>
+        matchesReaderBookmarkLocator(
+          bookmark,
+          input.bookmarksState.activeLocator,
+          input.bookmarksState.activeLocatorOrigin
+        )
     );
   const notesPanelSummary = (() => {
     if (!input.supportsTextAnnotations) return input.textAnnotationSupportMessage;
@@ -141,6 +147,7 @@ export const deriveReaderSidebarAnnotationState = (input: {
     return '先在正文里选中一段文本，再把它存成当前书的笔记或高亮。';
   })();
   const bookmarksPanelSummary = (() => {
+    if (input.bookmarksState.loadError) return input.bookmarksState.loadError;
     if (input.bookmarksState.bookmarks.length) {
       if (isCurrentLocationBookmarked) {
         return `已保存 ${input.bookmarksState.bookmarks.length} 个阅读位置，当前页已经在书签里。`;
@@ -266,7 +273,12 @@ export const openReaderSidebarActiveAnnotationGroups = (input: {
   const collapsedNoteGroups = new Set(input.collapsedNoteGroups);
   const collapsedHighlightGroups = new Set(input.collapsedHighlightGroups);
   const activeBookmark = input.bookmarksState.bookmarks.find(
-    (bookmark) => bookmark.locator === input.bookmarksState.activeLocator
+    (bookmark) =>
+      matchesReaderBookmarkLocator(
+        bookmark,
+        input.bookmarksState.activeLocator,
+        input.bookmarksState.activeLocatorOrigin
+      )
   );
   const activeNote = input.notesState.notes.find((note) => note.cfi === input.notesState.activeCfi);
   const activeHighlight = input.allHighlights.find((note) => note.cfi === input.notesState.activeCfi);

@@ -26,6 +26,8 @@ export type ReaderPreviewState = {
   rtl: boolean;
   progressFraction: number;
   progressLocation: string;
+  /** DOM-model provenance for an EPUB CFI progress location. */
+  progressLocationOrigin?: string;
   koreaderProgressLocation: string;
   ttsSourceText: string;
   ttsSourceLabel: string;
@@ -299,7 +301,11 @@ export type ReaderNote = {
 export type ReaderBookmark = {
   id: string;
   locator: string;
+  /** DOM-model provenance only; it is not locator validation or a security identity. */
+  locatorOrigin?: string;
   targetHref: string;
+  /** DOM-model provenance only; it is not locator validation or a security identity. */
+  targetHrefOrigin?: string;
   chapterLabel: string;
   chapterHref: string;
   progressLabel: string;
@@ -307,6 +313,37 @@ export type ReaderBookmark = {
   createdAt: number;
   koreader?: ReaderKoReaderBookmarkMetadata;
 };
+
+export const isReaderBookmarkCfiLocator = (locator: string) => locator.trim().startsWith('epubcfi(');
+
+const normalizeReaderBookmarkOrigin = (value: unknown, field: string) => {
+  if (value == null) return undefined;
+  if (typeof value !== 'string') {
+    throw new Error(`Reader bookmark ${field} must be a string when present`);
+  }
+  return value;
+};
+
+// Keep optional provenance forward-compatible while making null canonical as absent.
+export const normalizeReaderBookmark = (bookmark: ReaderBookmark): ReaderBookmark => {
+  const { locatorOrigin, targetHrefOrigin, ...rest } = bookmark;
+  const normalizedLocatorOrigin = normalizeReaderBookmarkOrigin(locatorOrigin, 'locatorOrigin');
+  const normalizedTargetHrefOrigin = normalizeReaderBookmarkOrigin(targetHrefOrigin, 'targetHrefOrigin');
+  return {
+    ...rest,
+    ...(normalizedLocatorOrigin === undefined ? {} : { locatorOrigin: normalizedLocatorOrigin }),
+    ...(normalizedTargetHrefOrigin === undefined ? {} : { targetHrefOrigin: normalizedTargetHrefOrigin })
+  };
+};
+
+// CFI is renderer-model dependent. Other bookmark locators retain their historical string identity.
+export const matchesReaderBookmarkLocator = (
+  bookmark: Pick<ReaderBookmark, 'locator' | 'locatorOrigin'>,
+  locator: string,
+  locatorOrigin?: string
+) =>
+  bookmark.locator === locator &&
+  (!isReaderBookmarkCfiLocator(locator) || (bookmark.locatorOrigin ?? null) === (locatorOrigin ?? null));
 
 export type ReaderControlRequest =
   | {
@@ -375,7 +412,9 @@ export type ReaderSidebarNotesState = {
 
 export type ReaderBookmarksState = {
   activeLocator: string;
+  activeLocatorOrigin?: string;
   bookmarks: ReaderBookmark[];
+  loadError?: string;
 };
 
 export type ReaderSidebarCallbacks = {

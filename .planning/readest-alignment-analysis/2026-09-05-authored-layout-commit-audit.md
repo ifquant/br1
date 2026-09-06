@@ -31,7 +31,7 @@ local implementation and verification are recorded separately for C1-C7, C8A-C8D
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Complete within the frozen same-direction reflowable contract: native detection, semantic controls and visible CFI restoration after real preload/reopen. Mixed-direction lifecycle and C11 gestures remain separate. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Complete: C11A instant input/coordinates and C11B native drag/animation, cancellation/history and locked-load admission/recovery. Generic resource transaction cancellation remains separate. |
 | **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Complete: host-native ruby styles and base-only action/copy text preserve original DOM, CFI and selection TTS in body and popup paths. |
-| **S2-R04C13A-C13C** | Warichu/Gezhu locator compatibility, then measured layout | `ebbbf104b` | C13A evidence and C13B1 new-note provenance complete; B2 remaining writers and B3 compatibility/restore protection precede C13C DOM/layout. Parent remains partial. |
+| **S2-R04C13A-C13C** | Warichu/Gezhu locator compatibility, then measured layout | `ebbbf104b` | C13A evidence, B1 note provenance and B2a bookmark provenance precede B2b progress/remaining writers and B3 compatibility/restore protection. C13C DOM/layout waits; parent remains partial. |
 | **S2-R04C14** | Fixed-layout spread seam, zoom-out visibility, and text autosizing | `17e60f1e4`, `42c7a2cb0` | Provisional FXL rendering slice. |
 | **S2-R04C15** | Fixed-layout vertical-pan gesture ownership | `6807664e9`; evidence-only `db1d63cdc` | Provisional. `db1d63cdc` changes only test timing and has no product behavior to port. |
 | **S2-R04C16** | Fixed-layout RTL spread order and PDF direction | `a6e6691c8` | Provisional product/renderer contract slice. |
@@ -186,7 +186,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 The user-prioritized **pending paginator load teardown** defect is now closed
 with deterministic regressions and 98 final2 browser cases passing; see the
 [follow-up audit](./2026-09-06-pending-paginator-close.md). Continue with
-**S2-R04C13B2**, after C13A evidence and C13B1 new-note provenance. C12 is complete at the host owner with 97 browser
+**S2-R04C13B2b**, after C13A evidence, B1 note provenance and B2a bookmark provenance. C12 is complete at the host owner with 97 browser
 cases and final static/build checks passing; see its [completion audit](./2026-09-06-ruby-selection.md).
 Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
@@ -227,8 +227,8 @@ reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance wa
 run. C8-C12 are complete within their documented native contracts. C13 production
 parity and C14-C21 remain pending. C13A is a test/audit-only prerequisite; see the
 [locator contract](./2026-09-06-warichu-locator-contract.md) for its evidence and
-the C13B/C13C gates. [C13B1 evidence and remaining obligations](./2026-09-06-warichu-historical-locators.md)
-record 61 browser cases, 113 helpers and 59 Rust tests without claiming historical
+the C13B/C13C gates. [B1/B2a evidence and remaining obligations](./2026-09-06-warichu-historical-locators.md)
+separate note/bookmark provenance and bookmark load protection from historical
 replay or layout completion. Acceptance entries are not production completion claims.
 
 ### C2 implementation boundary

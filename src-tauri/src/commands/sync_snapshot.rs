@@ -655,7 +655,9 @@ fn imported_annotation_to_bookmark(
     Some(ReaderBookmarkRecord {
         id: annotation.id.clone(),
         locator: annotation.xpointer0.clone(),
+        locator_origin: None,
         target_href: annotation.xpointer0.clone(),
+        target_href_origin: None,
         chapter_label: if annotation.text.trim().is_empty() {
             "KOReader bookmark".to_string()
         } else {
@@ -745,19 +747,28 @@ fn merge_imported_bookmarks(
         let existing = current_bookmarks
             .iter()
             .find(|candidate| matches_imported_koreader_bookmark(candidate, bookmark));
+        // Each provenance field follows the record that supplied its locator value.
+        // A missing imported target falls back to the imported locator and its origin.
+        let locator_owner = existing
+            .filter(|entry| !entry.locator.is_empty())
+            .unwrap_or(bookmark);
+        let target_href_owner = existing
+            .filter(|entry| !entry.target_href.is_empty())
+            .or_else(|| (!bookmark.target_href.is_empty()).then_some(bookmark));
         ReaderBookmarkRecord {
             id: bookmark.id.clone(),
-            locator: existing
-                .map(|entry| entry.locator.clone())
-                .unwrap_or_else(|| bookmark.locator.clone()),
-            target_href: existing
-                .filter(|entry| !entry.target_href.is_empty())
+            locator: locator_owner.locator.clone(),
+            locator_origin: locator_owner.locator_origin.clone(),
+            target_href: target_href_owner
                 .map(|entry| entry.target_href.clone())
-                .unwrap_or_else(|| {
-                    if !bookmark.target_href.is_empty() {
-                        bookmark.target_href.clone()
+                .unwrap_or_else(|| bookmark.locator.clone()),
+            target_href_origin: target_href_owner
+                .and_then(|entry| entry.target_href_origin.clone())
+                .or_else(|| {
+                    if target_href_owner.is_none() {
+                        bookmark.locator_origin.clone()
                     } else {
-                        bookmark.locator.clone()
+                        None
                     }
                 }),
             chapter_label: if !bookmark.chapter_label.is_empty() {
@@ -1719,7 +1730,8 @@ mod tests {
     use super::{
         apply_file_mutations_with_rollback, apply_sync_snapshot_roots, bookmark_updated_at, bookmarks_sync_record,
         build_scoped_record_id, current_book_updated_at, derive_koreader_book_identity,
-        highlights_sync_record, library_metadata_sync_record, merge_imported_notes, note_updated_at,
+        highlights_sync_record, library_metadata_sync_record, merge_imported_bookmarks,
+        merge_imported_notes, note_updated_at,
         notes_sync_record, parse_sync_snapshot_document, prepare_sync_snapshot_restore,
         reading_state_sync_record, resolve_matched_library_book, write_files_with_rollback,
         write_sync_snapshot_document, FileMutation, KoReaderExchangeBookPayload,
@@ -1839,7 +1851,9 @@ mod tests {
                     bookmarks: vec![ReaderBookmarkRecord {
                         id: "bookmark-1".to_string(),
                         locator: "epubcfi(/6/2)".to_string(),
+                        locator_origin: None,
                         target_href: "epubcfi(/6/2)".to_string(),
+                        target_href_origin: None,
                         chapter_label: "Chapter 1".to_string(),
                         chapter_href: "#chapter-1".to_string(),
                         progress_label: "10%".to_string(),
@@ -1977,7 +1991,9 @@ mod tests {
                     vec![ReaderBookmarkRecord {
                         id: "bookmark-1".to_string(),
                         locator: "epubcfi(/6/2)".to_string(),
+                        locator_origin: None,
                         target_href: "epubcfi(/6/2)".to_string(),
+                        target_href_origin: None,
                         chapter_label: "Chapter 1".to_string(),
                         chapter_href: "#chapter-1".to_string(),
                         progress_label: "10%".to_string(),
@@ -2134,6 +2150,138 @@ mod tests {
     }
 
     #[test]
+    fn reader_bookmark_origins_accept_legacy_and_future_strings_only() {
+        let mut payload = serde_json::json!({
+            "id": "bookmark-1",
+            "locator": "epubcfi(/6/2)",
+            "targetHref": "epubcfi(/6/2)",
+            "chapterLabel": "Chapter",
+            "chapterHref": "chapter.xhtml",
+            "progressLabel": "10%",
+            "locationLabel": "Chapter",
+            "createdAt": 1
+        });
+
+        let absent: ReaderBookmarkRecord = serde_json::from_value(payload.clone()).unwrap();
+        assert_eq!(absent.locator_origin, None);
+        assert_eq!(absent.target_href_origin, None);
+
+        payload["locatorOrigin"] = serde_json::Value::Null;
+        payload["targetHrefOrigin"] = serde_json::Value::Null;
+        let null: ReaderBookmarkRecord = serde_json::from_value(payload.clone()).unwrap();
+        assert_eq!(null.locator_origin, None);
+        assert_eq!(null.target_href_origin, None);
+        assert!(serde_json::to_value(&null)
+            .unwrap()
+            .get("locatorOrigin")
+            .is_none());
+
+        payload["locatorOrigin"] = serde_json::json!("future-renderer-v9");
+        payload["targetHrefOrigin"] = serde_json::json!("future-target-v9");
+        let future: ReaderBookmarkRecord = serde_json::from_value(payload.clone()).unwrap();
+        assert_eq!(future.locator_origin.as_deref(), Some("future-renderer-v9"));
+        assert_eq!(future.target_href_origin.as_deref(), Some("future-target-v9"));
+
+        payload["locatorOrigin"] = serde_json::json!(42);
+        assert!(serde_json::from_value::<ReaderBookmarkRecord>(payload.clone()).is_err());
+        payload["locatorOrigin"] = serde_json::json!("future-renderer-v9");
+        payload["targetHrefOrigin"] = serde_json::json!({ "invalid": true });
+        assert!(serde_json::from_value::<ReaderBookmarkRecord>(payload).is_err());
+    }
+
+    #[test]
+    fn merge_imported_bookmarks_keeps_origin_with_each_retained_field() {
+        let metadata = ReaderAnnotationKoReaderMetadataRecord {
+            book_hash: Some("book-hash".to_string()),
+            meta_hash: Some("meta-hash".to_string()),
+            xpointer0: "/body/DocFragment[1]/body/p[2]".to_string(),
+            xpointer1: None,
+            page: None,
+            style: None,
+            color: None,
+            updated_at: Some(100),
+            deleted_at: None,
+        };
+        let current = ReaderBookmarkRecord {
+            id: "local-bookmark".to_string(),
+            locator: "epubcfi(/6/2!/4/2)".to_string(),
+            locator_origin: None,
+            target_href: String::new(),
+            target_href_origin: None,
+            chapter_label: "Local chapter".to_string(),
+            chapter_href: "chapter.xhtml".to_string(),
+            progress_label: "10%".to_string(),
+            location_label: "Local".to_string(),
+            created_at: 100,
+            koreader: Some(ReaderBookmarkKoReaderMetadataRecord {
+                annotation: metadata.clone(),
+                text: None,
+                note: None,
+            }),
+        };
+        let imported = ReaderBookmarkRecord {
+            id: "external-bookmark".to_string(),
+            locator: "epubcfi(/6/2!/4/3)".to_string(),
+            locator_origin: Some("future-renderer-v9".to_string()),
+            target_href: "epubcfi(/6/2!/4/4)".to_string(),
+            target_href_origin: Some("future-target-v9".to_string()),
+            chapter_label: "Imported chapter".to_string(),
+            chapter_href: String::new(),
+            progress_label: String::new(),
+            location_label: String::new(),
+            created_at: 101,
+            koreader: Some(ReaderBookmarkKoReaderMetadataRecord {
+                annotation: metadata,
+                text: None,
+                note: None,
+            }),
+        };
+
+        let merged = merge_imported_bookmarks(&[current.clone()], &[imported.clone()]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].locator, current.locator);
+        assert_eq!(merged[0].locator_origin, None);
+        assert_eq!(merged[0].target_href, imported.target_href);
+        assert_eq!(merged[0].target_href_origin, imported.target_href_origin);
+
+        let current_with_unknown_target_origin = ReaderBookmarkRecord {
+            target_href: "epubcfi(/6/2!/4/5)".to_string(),
+            target_href_origin: None,
+            ..current.clone()
+        };
+        let merged_with_existing_target =
+            merge_imported_bookmarks(&[current_with_unknown_target_origin.clone()], &[imported.clone()]);
+        assert_eq!(
+            merged_with_existing_target[0].target_href,
+            current_with_unknown_target_origin.target_href
+        );
+        assert_eq!(merged_with_existing_target[0].target_href_origin, None);
+
+        let current_without_locator = ReaderBookmarkRecord {
+            locator: String::new(),
+            locator_origin: None,
+            ..current.clone()
+        };
+        let merged_with_imported_locator =
+            merge_imported_bookmarks(&[current_without_locator], &[imported.clone()]);
+        assert_eq!(merged_with_imported_locator[0].locator, imported.locator);
+        assert_eq!(merged_with_imported_locator[0].locator_origin, imported.locator_origin);
+
+        let imported_with_target_fallback = ReaderBookmarkRecord {
+            target_href: String::new(),
+            target_href_origin: Some("wrong-target-owner".to_string()),
+            ..imported
+        };
+        let merged_with_fallback =
+            merge_imported_bookmarks(&[current], &[imported_with_target_fallback.clone()]);
+        assert_eq!(merged_with_fallback[0].target_href, imported_with_target_fallback.locator);
+        assert_eq!(
+            merged_with_fallback[0].target_href_origin,
+            imported_with_target_fallback.locator_origin
+        );
+    }
+
+    #[test]
     fn merge_imported_notes_keeps_origin_with_the_retained_local_cfi() {
         let metadata = ReaderAnnotationKoReaderMetadataRecord {
             book_hash: Some("book-hash".to_string()),
@@ -2236,7 +2384,9 @@ mod tests {
         let bookmark = ReaderBookmarkRecord {
             id: "bookmark-1".to_string(),
             locator: "epubcfi(/6/2)".to_string(),
+            locator_origin: None,
             target_href: "epubcfi(/6/2)".to_string(),
+            target_href_origin: None,
             chapter_label: "Chapter".to_string(),
             chapter_href: "#chapter".to_string(),
             progress_label: "10%".to_string(),

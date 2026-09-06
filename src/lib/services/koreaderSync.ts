@@ -19,6 +19,7 @@ import {
 } from '../sync/index.js';
 import type { PersistedLibraryBook } from './libraryPersistence';
 import { invokeTauri, isTauriDesktop } from './platform.js';
+import { normalizeReaderBookmark } from '../reader/types.js';
 
 export const BR1_KOREADER_SYNC_EXCHANGE_SCHEMA_VERSION = 1;
 export const BR1_KOREADER_REMOTE_PROGRESS_SCHEMA_VERSION = 1;
@@ -307,11 +308,14 @@ const mergeImportedBookmarksRecord = ({
   currentRecord?: ReaderBookmarksSyncRecord | null;
   importedRecord: ReaderBookmarksSyncRecord;
 }) => {
-  const currentBookmarks = currentRecord?.payload.bookmarks ?? [];
+  // Normalize before selecting field owners so malformed stored provenance is
+  // rejected instead of being silently omitted by the merge's optional fields.
+  const currentBookmarks = (currentRecord?.payload.bookmarks ?? []).map(normalizeReaderBookmark);
+  const importedBookmarks = importedRecord.payload.bookmarks.map(normalizeReaderBookmark);
   const preservedLocalBookmarks = currentBookmarks.filter(
     (bookmark) =>
       !hasKoReaderIdentity(bookmark.koreader) &&
-      !importedRecord.payload.bookmarks.some((importedBookmark) =>
+      !importedBookmarks.some((importedBookmark) =>
         matchesImportedKoReaderBookmark(bookmark, importedBookmark)
       )
   );
@@ -322,15 +326,38 @@ const mergeImportedBookmarksRecord = ({
       ...importedRecord.payload,
       bookmarks: [
         ...preservedLocalBookmarks,
-        ...importedRecord.payload.bookmarks.map((bookmark) => {
+        ...importedBookmarks.map((bookmark) => {
+          const {
+            locatorOrigin: importedLocatorOrigin,
+            targetHrefOrigin: importedTargetHrefOrigin,
+            ...importedBookmark
+          } = bookmark;
           const existing = currentBookmarks.find((candidate) =>
             matchesImportedKoReaderBookmark(candidate, bookmark)
           );
+          const locatorOwner = existing?.locator ? existing : bookmark;
+          const targetHrefOwner = existing?.targetHref
+            ? existing
+            : bookmark.targetHref
+              ? bookmark
+              : null;
+          const targetHrefOrigin =
+            targetHrefOwner === bookmark
+              ? importedTargetHrefOrigin
+              : targetHrefOwner?.targetHrefOrigin;
 
-          return {
-            ...bookmark,
-            locator: existing?.locator || bookmark.locator,
-            targetHref: existing?.targetHref || bookmark.targetHref || bookmark.locator,
+          return normalizeReaderBookmark({
+            ...importedBookmark,
+            locator: locatorOwner.locator,
+            ...(typeof locatorOwner.locatorOrigin === 'string'
+              ? { locatorOrigin: locatorOwner.locatorOrigin }
+              : {}),
+            targetHref: targetHrefOwner?.targetHref || bookmark.locator,
+            ...(typeof targetHrefOrigin === 'string'
+              ? { targetHrefOrigin }
+              : !targetHrefOwner && typeof importedLocatorOrigin === 'string'
+                ? { targetHrefOrigin: importedLocatorOrigin }
+                : {}),
             chapterHref:
               existing?.chapterHref ||
               bookmark.chapterHref ||
@@ -340,7 +367,7 @@ const mergeImportedBookmarksRecord = ({
             chapterLabel: bookmark.chapterLabel || existing?.chapterLabel || 'KOReader bookmark',
             progressLabel: bookmark.progressLabel || existing?.progressLabel || '',
             locationLabel: existing?.locationLabel || bookmark.locationLabel || bookmark.locator
-          };
+          });
         })
       ]
     }

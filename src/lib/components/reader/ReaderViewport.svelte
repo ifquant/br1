@@ -1111,6 +1111,13 @@
     const title = pickText(book?.metadata?.title) || openSourceLabel || READER_EMPTY_TITLE;
     const chapterLabel = lastLocation?.tocItem?.label || fallbackChapter;
     const excerpt = getFoliateReaderExcerpt(chapterLabel, title);
+    const progressLocation = typeof lastLocation?.cfi === 'string' ? lastLocation.cfi : '';
+    // Foliate creates this CFI from its relocation range. Only tag positions
+    // backed by this book's rendered document, never a restore input or fallback.
+    const progressLocationOrigin = currentFormatLabel === 'EPUB' &&
+      progressLocation.trim() && currentDoc && rangeBelongsToDocument(lastLocation?.range, currentDoc)
+        ? EPUB_RENDERED_CFI_ORIGIN
+        : undefined;
 
     const previewState: ReaderPreviewState = {
       ...getFallbackReaderState(),
@@ -1120,10 +1127,8 @@
       chapterHref: lastLocation?.tocItem?.href || '',
       progressLabel: `${progressPercent}%`,
       progressFraction: fraction,
-      progressLocation:
-        typeof (lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
-          ? ((lastLocation as { cfi?: string }).cfi ?? '')
-          : '',
+      progressLocation,
+      ...(progressLocationOrigin ? { progressLocationOrigin } : {}),
       koreaderProgressLocation: '',
       locationLabel: formatReaderLocationLabel(
         currentFormatLabel,
@@ -1142,6 +1147,11 @@
       ttsSourceLanguage: metadataLanguage.trim(),
       ...partial
     };
+
+    // A caller replacing the location must supply its own paired provenance.
+    if (partial?.progressLocation !== undefined && partial.progressLocation !== progressLocation) {
+      previewState.progressLocationOrigin = partial.progressLocationOrigin;
+    }
 
     dispatch('readerstate', previewState);
     emitInlineTranslationCandidates(previewState);

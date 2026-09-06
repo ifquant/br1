@@ -3,6 +3,7 @@
  highlight workspace state, and route coordination stay owned by the parent. -->
 <script lang="ts">
   import './readerSidebarPanel.css';
+  import { matchesReaderBookmarkLocator } from '$lib/reader/types';
   import type {
     ReaderBookmarksState,
     ReaderHighlightsFilter,
@@ -128,6 +129,7 @@
       <button
         type="button"
         class="primary-bookmark-action"
+        disabled={!!bookmarksState.loadError}
         on:click={() => callbacks.onToggleCurrentBookmark?.()}
       >
         {isCurrentLocationBookmarked ? '移除当前页书签' : '保存当前页位置'}
@@ -210,9 +212,13 @@
               {#if !isBookmarkGroupCollapsed(group.chapterHref)}
                 {#each group.bookmarks as bookmark}
                   <article
-                    class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
+                    class:active-bookmark={matchesReaderBookmarkLocator(
+                      bookmark,
+                      bookmarksState.activeLocator,
+                      bookmarksState.activeLocatorOrigin
+                    )}
                     class="bookmark-card"
-                    data-bookmark-locator={bookmark.locator}
+                    data-bookmark-id={bookmark.id}
                   >
                     <div class="bookmark-head">
                       <button
@@ -240,9 +246,13 @@
         {:else}
           {#each sortedBookmarks as bookmark}
             <article
-              class:active-bookmark={bookmark.locator === bookmarksState.activeLocator}
+              class:active-bookmark={matchesReaderBookmarkLocator(
+                bookmark,
+                bookmarksState.activeLocator,
+                bookmarksState.activeLocatorOrigin
+              )}
               class="bookmark-card"
-              data-bookmark-locator={bookmark.locator}
+              data-bookmark-id={bookmark.id}
             >
               <div class="bookmark-head">
                 <button

@@ -6,6 +6,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/stores';
   import { ReaderSidebar, ReaderStage } from '$lib/components';
+  import { matchesReaderBookmarkLocator } from '$lib/reader/types';
   import ReaderNotebook from '$lib/components/reader/ReaderNotebook.svelte';
   import type { ReaderFootnoteAction, ReaderFootnoteRecordAction, ReaderFootnoteSelection } from '$lib/reader/footnoteExcerpt';
   import type {
@@ -1623,7 +1624,7 @@
 
   const handleToggleBookmark = () => {
     const changed = bookmarksController.toggleCurrent(currentPreview);
-    if (changed) {
+    if (changed || $bookmarksState.loadError) {
       sidebarController.openTab('bookmarks');
     }
   };
@@ -2739,7 +2740,12 @@
           {isWindowMode}
           sidebarVisible={$sidebarState.visible}
           isCurrentLocationBookmarked={$bookmarksState.bookmarks.some(
-            (bookmark) => bookmark.locator === $bookmarksState.activeLocator
+            (bookmark) =>
+              matchesReaderBookmarkLocator(
+                bookmark,
+                $bookmarksState.activeLocator,
+                $bookmarksState.activeLocatorOrigin
+              )
           )}
           ttsSession={$ttsState}
           notes={$notesState.notes}

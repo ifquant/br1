@@ -46,6 +46,7 @@ export interface FoliateViewElement extends HTMLElement {
       index?: number;
     };
     cfi?: string;
+    range?: Range;
   };
   open(book: string | Blob | File | ReaderBookDocument): Promise<void>;
   close(): void;

@@ -465,3 +465,115 @@ test('KOReader remote progress export skips books without a KOReader-compatible 
 
   assert.equal(entries.length, 0);
 });
+
+test('KOReader bookmark merge retains future origins from the local values it reuses', () => {
+  const current = createSnapshot();
+  const currentBookmarks = current.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(currentBookmarks?.kind, 'bookmarks');
+  if (currentBookmarks?.kind !== 'bookmarks') throw new Error('Expected existing alpha bookmark record');
+
+  currentBookmarks.payload.bookmarks = [{
+    ...currentBookmarks.payload.bookmarks[0],
+    locator: 'epubcfi(/6/2[local]!/4/2)',
+    locatorOrigin: 'future-local-locator-v9',
+    targetHref: 'epubcfi(/6/2[target]!/4/2)',
+    targetHrefOrigin: 'future-local-target-v9'
+  }];
+
+  const plan = mergeKoReaderSyncExchangeIntoSnapshot(
+    current,
+    createKoReaderSyncExchangeFromSnapshot(current)
+  );
+  const merged = plan.snapshot.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(merged?.kind, 'bookmarks');
+  if (merged?.kind !== 'bookmarks') throw new Error('Expected merged alpha bookmark record');
+
+  assert.deepEqual(
+    merged.payload.bookmarks.map(({ locator, locatorOrigin, targetHref, targetHrefOrigin }) => ({
+      locator,
+      locatorOrigin,
+      targetHref,
+      targetHrefOrigin
+    })),
+    [{
+      locator: 'epubcfi(/6/2[local]!/4/2)',
+      locatorOrigin: 'future-local-locator-v9',
+      targetHref: 'epubcfi(/6/2[target]!/4/2)',
+      targetHrefOrigin: 'future-local-target-v9'
+    }]
+  );
+});
+
+test('KOReader bookmark target fallback uses the imported XPointer without inventing an origin', () => {
+  const current = createSnapshot();
+  const currentBookmarks = current.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(currentBookmarks?.kind, 'bookmarks');
+  if (currentBookmarks?.kind !== 'bookmarks') throw new Error('Expected existing alpha bookmark record');
+
+  currentBookmarks.payload.bookmarks = [{
+    ...currentBookmarks.payload.bookmarks[0],
+    locator: 'epubcfi(/6/2[local]!/4/2)',
+    locatorOrigin: 'future-local-locator-v9',
+    targetHref: ''
+  }];
+
+  const plan = mergeKoReaderSyncExchangeIntoSnapshot(
+    current,
+    createKoReaderSyncExchangeFromSnapshot(current)
+  );
+  const merged = plan.snapshot.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(merged?.kind, 'bookmarks');
+  if (merged?.kind !== 'bookmarks') throw new Error('Expected merged alpha bookmark record');
+
+  const bookmark = merged.payload.bookmarks[0]!;
+  assert.equal(bookmark.locator, 'epubcfi(/6/2[local]!/4/2)');
+  assert.equal(bookmark.locatorOrigin, 'future-local-locator-v9');
+  assert.equal(bookmark.targetHref, '/body/DocFragment[1]/body/div/p[2]');
+  assert.equal(Object.hasOwn(bookmark, 'targetHrefOrigin'), false);
+});
+
+test('KOReader merge rejects invalid origins from matching and preserved local bookmarks', () => {
+  const matching = createSnapshot();
+  const matchingExchange = createKoReaderSyncExchangeFromSnapshot(matching);
+  const matchingBookmarks = matching.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(matchingBookmarks?.kind, 'bookmarks');
+  if (matchingBookmarks?.kind !== 'bookmarks') throw new Error('Expected matching alpha bookmark record');
+  matchingBookmarks.payload.bookmarks[0] = {
+    ...matchingBookmarks.payload.bookmarks[0],
+    locatorOrigin: 7
+  } as never;
+
+  assert.throws(
+    () => mergeKoReaderSyncExchangeIntoSnapshot(matching, matchingExchange),
+    /locatorOrigin must be a string/
+  );
+
+  const preserved = createSnapshot();
+  const preservedExchange = createKoReaderSyncExchangeFromSnapshot(preserved);
+  const preservedBookmarks = preserved.records.find(
+    (record) => record.kind === 'bookmarks' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(preservedBookmarks?.kind, 'bookmarks');
+  if (preservedBookmarks?.kind !== 'bookmarks') throw new Error('Expected preserved alpha bookmark record');
+  preservedBookmarks.payload.bookmarks.push({
+    ...preservedBookmarks.payload.bookmarks[0],
+    id: 'invalid-local-only',
+    koreader: undefined,
+    locatorOrigin: 7
+  } as never);
+
+  assert.throws(
+    () => mergeKoReaderSyncExchangeIntoSnapshot(preserved, preservedExchange),
+    /locatorOrigin must be a string/
+  );
+});

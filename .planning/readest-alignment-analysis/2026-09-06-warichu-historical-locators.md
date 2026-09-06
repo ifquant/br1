@@ -14,6 +14,10 @@ locator contract and its production prerequisites are verified.
 
 ## Persisted and Imported Owners
 
+This inventory describes the starting revision above. Completed production
+changes and their proof limits are recorded in the execution sections below;
+in particular B1 now transports note provenance.
+
 | Surface | Writer and transport | Reader and preservation boundary |
 |---|---|---|
 | Notes/highlights | `notesController.ts` stores selection segment CFIs. `services/readerNotes.ts` delegates to `commands/notes.rs`; web mode uses per-book JSON arrays. | Controller hydration normalizes kind, not CFI provenance. Legacy local storage moves to native storage only after save succeeds. `ReaderNoteRecord.cfi` has no DOM identity. |
@@ -74,6 +78,38 @@ successful CFI lookup or repeated text. Invalidate disposable caches when the
 DOM contract changes. Keep schemes such as TXT progress and KOReader XPointer
 distinct from EPUB DOM CFIs.
 
+#### C13B2a: Bookmark Provenance
+
+Starting revision: `7a19a9957954e8659b0998ea9af069e84e7b8d43`.
+The frozen slice covers bookmarks, not the remaining B2 families.
+
+- Preview `progressLocationOrigin` is emitted only for an EPUB relocation Range
+  belonging to the current rendered document. Restore input is not provenance.
+- `locatorOrigin` belongs to the bookmark identity field `locator`;
+  `targetHrefOrigin` belongs to the independently selected navigation target.
+  Both are optional strings. Missing/null stays unknown, future strings survive,
+  and non-string metadata is rejected at persistence/import boundaries.
+- Creation copies origin only alongside the actual EPUB CFI progress value.
+  Href, synthetic label, TXT and KOReader XPointer fallbacks gain no DOM label.
+- CFI toggle and active display compare origin plus locator. Non-CFI identity
+  retains its existing behavior. Target provenance does not change identity.
+- Bookmark loading blocks mutations until the current request validates the
+  full list. A failed load remains blocked, exposes an error in the existing
+  sidebar and can retry; stale completion cannot release the block. An invalid
+  record must not turn the stored list into an empty list that a later toggle
+  overwrites. This is bookmark load safety, not B3 progress-restore policy.
+- TS and Rust KOReader merges select each field and its origin together. A
+  retained unknown source stays unknown. Falling back from an empty imported
+  target to its locator copies that locator's origin, not the empty target's.
+- No schema bump, historical backfill, navigation acceptance/rejection,
+  sanitizer change or Warichu layout is part of this slice.
+
+Next executable slice **C13B2b** covers library progress provenance through
+native/web persistence, Readest import, snapshot/KOReader transport and restore
+target selection. It must not change rejection behavior ahead of B3 protection.
+Search-cache invalidation and the assistance/TTS/focused-reading resume families
+remain B2 follow-ups; their concrete write sets must be frozen before editing.
+
 ### C13B3: Compatibility Consumers and Restore Write Protection
 
 Wire origin-aware navigation, annotation replay and source/render mapping only
@@ -97,11 +133,12 @@ or flush without a restore outcome gate. C13B1 changes neither behavior.
 
 ## Completion Boundary
 
-C13B1 is complete within the new-note provenance contract. C13B as a whole
-remains open until B2/B3 pass. No C13C layout, historical record migration,
-progress rewrite policy or replay guarantee is included in B1.
+C13B1 and C13B2a are complete within their new-note and bookmark provenance
+contracts. C13B as a whole remains open until the remaining B2 writers and B3
+pass. No C13C layout, historical record migration, progress rewrite policy or
+replay guarantee is included in these slices.
 
-## Verification
+## B1 Verification (Historical)
 
 - `pnpm check`: PASS, zero errors/warnings. Strict standalone TypeScript check of `ruby-selection-compat.spec.ts`: PASS.
 - `pnpm test:reader-helpers`: 104/104 PASS. Separately compiled `services/koreaderSync.test.ts`: 9/9 PASS; 113 helper tests total.
@@ -140,4 +177,42 @@ task-created `build/` was removed; existing `.svelte-kit/`, `test-results/` and
 Rust caches were retained, and port 4173 was released. Foliate is unchanged.
 
 These checks do not prove packaged Tauri/WebKit behavior, OS clipboard delivery,
-historical locator replay or migration. Next executable slice: **C13B2**.
+historical locator replay or migration. At B1 close, the next slice was C13B2.
+
+## B2a Verification
+
+Final3, after the bookmark load-protection repair:
+
+- `pnpm check`: PASS, zero errors/warnings. Strict standalone TypeScript check
+  of `tests/e2e/bookmark-origin.spec.ts`: PASS with the installed Node type root.
+- `pnpm exec tsc -p tsconfig.json --outDir /tmp/br1-c13b2a-tests --noEmit false`
+  followed by `node --test` on the 13 helper files listed in
+  `test:reader-helpers`: 126/126 PASS, including 10 bookmark and 12 KOReader cases.
+- Chrome Playwright, one worker, zero retries: 17 focused cases (bookmark origin,
+  ruby selection, Warichu evidence and footnote mapping), 47 broader cases
+  (footnote/authored-text/TXT), and the existing library bookmark smoke: 65/65 PASS.
+- `pnpm exec vite build`: PASS without PDF vendor regeneration.
+- `cargo test --manifest-path src-tauri/Cargo.toml --lib`: 61/61 PASS.
+- Terra high task/fix reviews and Astra high whole-change static review: PASS.
+  Static review caught both origin validation after field selection and the
+  failed-load overwrite path; both were repaired before this final run.
+- `git diff --check`, independent 16-file source/test/config hash verification
+  and ledger recount: PASS. The 678 unique rows remain 61 covered / 405 partial /
+  77 gap / 135 not-applicable, with 54 primary tasks. Parent `ebbbf104b` is partial.
+
+The initial helper run could not resolve Svelte from the temporary output tree.
+The harness now links the existing dependencies; two runtime imports use explicit
+`.js` extensions. The first standalone spec check lacked Node type discovery and
+was rerun with the existing installed type root. No dependency was added and no
+assertion was weakened. Earlier 121-helper evidence predates the load guard and
+is superseded by Final3, not counted again.
+
+Luna ran the checks. Logs and before/after hashes are
+`/tmp/br1-c13b2a-*final3*`; all 16 code/test/config hashes stayed fixed during the
+final run and were independently rechecked afterward. The task-created `build/`
+was removed, port 4173 was released, and existing caches were retained. Foliate
+remains unchanged and clean at the revision above.
+
+Native callback helpers and Rust unit tests are not packaged Tauri/WebKit
+acceptance. No historical migration/replay, library progress provenance or
+Warichu layout is claimed. Next executable slice: **S2-R04C13B2b**.

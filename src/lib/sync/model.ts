@@ -10,6 +10,7 @@ import type {
   ReaderNote,
   ReaderSettings
 } from '../reader/types.js';
+import { normalizeReaderBookmark } from '../reader/types.js';
 import {
   BR1_SYNC_SCHEMA_VERSION,
   type Br1SyncRecord,
@@ -103,7 +104,7 @@ export const normalizeReaderBookmarksSyncPayload = (
   payload: ReaderBookmarksSyncPayload
 ): ReaderBookmarksSyncPayload => ({
   bookKey: payload.bookKey,
-  bookmarks: Array.isArray(payload.bookmarks) ? payload.bookmarks.map((bookmark) => ({ ...bookmark })) : []
+  bookmarks: Array.isArray(payload.bookmarks) ? payload.bookmarks.map(normalizeReaderBookmark) : []
 });
 
 export const normalizeReaderNotesSyncPayload = (
@@ -351,7 +352,7 @@ export const restorePersistedLibraryBookFromSync = (
 });
 
 export const restoreReaderBookmarksFromSync = (record: ReaderBookmarksSyncRecord): ReaderBookmark[] =>
-  record.payload.bookmarks.map((bookmark) => ({ ...bookmark }));
+  record.payload.bookmarks.map(normalizeReaderBookmark);
 
 export const restoreReaderNotesFromSync = (record: ReaderNotesSyncRecord): ReaderNote[] =>
   record.payload.notes.map((note) => ({ ...note }));

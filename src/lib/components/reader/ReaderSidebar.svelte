@@ -4,6 +4,7 @@
 <script lang="ts">
   import './readerSidebarPanel.css';
   import { tick } from 'svelte';
+  import { matchesReaderBookmarkLocator } from '$lib/reader/types';
   import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
   import ReaderSidebarAssist from './ReaderSidebarAssist.svelte';
   import ReaderSidebarAnnotations from './ReaderSidebarAnnotations.svelte';
@@ -169,7 +170,7 @@
   let lastScrolledHref = '';
   let lastScrolledNoteCfi = '';
   let lastScrolledHighlightCfi = '';
-  let lastScrolledBookmarkLocator = '';
+  let lastScrolledBookmarkId = '';
   let searchHistoryFilter: 'all' | 'results' | 'empty' = 'all';
   let notesFilter: 'all' | 'chapter' = 'all';
   let notesKindFilter: 'all' | 'highlight' | 'note' = 'all';
@@ -304,14 +305,21 @@
 
   const scrollActiveBookmarkIntoView = async () => {
     if (activeTab !== 'bookmarks') return;
-    if (!bookmarksState.activeLocator || bookmarksState.activeLocator === lastScrolledBookmarkLocator) return;
+    const activeBookmark = bookmarksState.bookmarks.find((bookmark) =>
+      matchesReaderBookmarkLocator(
+        bookmark,
+        bookmarksState.activeLocator,
+        bookmarksState.activeLocatorOrigin
+      )
+    );
+    if (!activeBookmark || activeBookmark.id === lastScrolledBookmarkId) return;
     await tick();
 
     const target = document.querySelector<HTMLElement>(
-      `.bookmark-card[data-bookmark-locator="${CSS.escape(bookmarksState.activeLocator)}"]`
+      `.bookmark-card[data-bookmark-id="${CSS.escape(activeBookmark.id)}"]`
     );
     target?.scrollIntoView({ block: 'nearest' });
-    lastScrolledBookmarkLocator = bookmarksState.activeLocator;
+    lastScrolledBookmarkId = activeBookmark.id;
   };
 
   $: void scrollActiveBookmarkIntoView();

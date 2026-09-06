@@ -5,10 +5,13 @@
 import { get, writable } from 'svelte/store';
 import {
   READER_OPENING_LOCATION_LABEL,
+  isReaderBookmarkCfiLocator,
+  matchesReaderBookmarkLocator,
+  normalizeReaderBookmark,
   type ReaderBookmark,
   type ReaderBookmarksState,
   type ReaderPreviewState
-} from './types';
+} from './types.js';
 
 type ReaderBookmarksControllerOptions = {
   getStorage: () => Storage | undefined;
@@ -24,30 +27,39 @@ const defaultBookmarksState = (): ReaderBookmarksState => ({
   bookmarks: []
 });
 
-const buildBookmarkLocator = (preview: ReaderPreviewState): string => {
+const buildBookmarkDestination = (preview: ReaderPreviewState) => {
   // Boundary: the locator must stay stable across format-specific progress
   // schemes, so callers compare bookmarks against one normalized identity.
   const normalizedLocation = preview.progressLocation.trim();
-  if (normalizedLocation) return normalizedLocation;
+  if (normalizedLocation) {
+    const progressLocationOrigin =
+      isReaderBookmarkCfiLocator(normalizedLocation) && typeof preview.progressLocationOrigin === 'string'
+        ? preview.progressLocationOrigin
+        : undefined;
+    return {
+      locator: normalizedLocation,
+      targetHref: normalizedLocation,
+      ...(progressLocationOrigin === undefined
+        ? {}
+        : { locatorOrigin: progressLocationOrigin, targetHrefOrigin: progressLocationOrigin })
+    };
+  }
 
   const normalizedChapterHref = preview.chapterHref.trim();
   const normalizedLocationLabel = preview.locationLabel.trim();
   if (normalizedChapterHref && normalizedLocationLabel) {
-    return `href:${normalizedChapterHref}::${normalizedLocationLabel}`;
+    return {
+      locator: `href:${normalizedChapterHref}::${normalizedLocationLabel}`,
+      targetHref: normalizedChapterHref
+    };
   }
   if (normalizedLocationLabel && normalizedLocationLabel !== READER_OPENING_LOCATION_LABEL) {
-    return `location:${normalizedLocationLabel}`;
+    return { locator: `location:${normalizedLocationLabel}`, targetHref: normalizedChapterHref };
   }
   if (normalizedChapterHref) {
-    return `href:${normalizedChapterHref}`;
+    return { locator: `href:${normalizedChapterHref}`, targetHref: normalizedChapterHref };
   }
-  return '';
-};
-
-const buildBookmarkTargetHref = (preview: ReaderPreviewState): string => {
-  const normalizedLocation = preview.progressLocation.trim();
-  if (normalizedLocation) return normalizedLocation;
-  return preview.chapterHref.trim();
+  return { locator: '', targetHref: '' };
 };
 
 const buildBookmarkKoReaderMetadata = (preview: ReaderPreviewState, updatedAt: number) => {
@@ -72,6 +84,8 @@ export const createReaderBookmarksController = ({
 }: ReaderBookmarksControllerOptions) => {
   const state = writable<ReaderBookmarksState>(defaultBookmarksState());
   let lastHydratedStorageKey = '';
+  const blockedStorageKeys = new Set<string>();
+  let hydrationId = 0;
 
   const persist = (bookmarks: ReaderBookmark[]) => {
     const storageKey = getStorageKey();
@@ -90,6 +104,12 @@ export const createReaderBookmarksController = ({
   const refresh = async () => {
     const storageKey = getStorageKey();
     if (storageKey === lastHydratedStorageKey) return;
+    lastHydratedStorageKey = '';
+    const requestId = ++hydrationId;
+    const isCurrent = () => requestId === hydrationId && storageKey === getStorageKey();
+    // An unreadable list is not an empty list. Keep writes blocked through
+    // failure/retry until this book's current load has validated all records.
+    blockedStorageKeys.add(storageKey);
 
     // Boundary: switching books invalidates both the active marker and the
     // loaded bookmark list. Clear them before async hydration to avoid showing
@@ -97,6 +117,8 @@ export const createReaderBookmarksController = ({
     state.update((current) => ({
       ...current,
       activeLocator: '',
+      activeLocatorOrigin: undefined,
+      loadError: undefined,
       bookmarks: []
     }));
 
@@ -111,44 +133,60 @@ export const createReaderBookmarksController = ({
         nextBookmarks = raw ? (JSON.parse(raw) as ReaderBookmark[]) : [];
       }
 
+      const bookmarks = nextBookmarks.map(normalizeReaderBookmark);
+      if (!isCurrent()) return;
       state.update((current) => ({
         ...current,
-        bookmarks: nextBookmarks
+        bookmarks,
+        loadError: undefined
       }));
+      blockedStorageKeys.delete(storageKey);
       lastHydratedStorageKey = storageKey;
     } catch (error) {
+      if (!isCurrent()) return;
       console.warn('Failed to restore reader bookmarks', error);
       state.update((current) => ({
         ...current,
-        bookmarks: []
+        bookmarks: [],
+        loadError: '书签读取失败，已暂停保存。请重新打开本书重试。'
       }));
-      lastHydratedStorageKey = storageKey;
+      // Do not mark a failed read as hydrated: refresh can retry after repair.
     }
   };
 
   const syncPreview = (preview: ReaderPreviewState) => {
-    const activeLocator = buildBookmarkLocator(preview);
+    const destination = buildBookmarkDestination(preview);
     state.update((current) => ({
       ...current,
-      activeLocator
+      activeLocator: destination.locator,
+      activeLocatorOrigin: destination.locatorOrigin
     }));
   };
 
   const toggleCurrent = (preview: ReaderPreviewState) => {
-    const locator = buildBookmarkLocator(preview);
-    const targetHref = buildBookmarkTargetHref(preview);
+    if (blockedStorageKeys.has(getStorageKey())) return false;
+    const destination = buildBookmarkDestination(preview);
+    const { locator, targetHref, locatorOrigin, targetHrefOrigin } = destination;
     if (!locator || !targetHref) return false;
     const createdAt = Date.now();
 
     const current = get(state);
-    const existing = current.bookmarks.find((bookmark) => bookmark.locator === locator);
+    const existing = current.bookmarks.find((bookmark) =>
+      matchesReaderBookmarkLocator(bookmark, locator, locatorOrigin)
+    );
     const nextBookmarks = existing
-      ? current.bookmarks.filter((bookmark) => bookmark.locator !== locator)
+      ? current.bookmarks.filter(
+          (bookmark) => !matchesReaderBookmarkLocator(bookmark, locator, locatorOrigin)
+        )
       : [
           {
-            id: `${locator}:${Date.now()}`,
+            id: isReaderBookmarkCfiLocator(locator)
+              ? `${JSON.stringify([locatorOrigin ?? null, locator])}:${createdAt}`
+              : `${locator}:${createdAt}`,
             locator,
             targetHref,
+            ...(locatorOrigin === undefined ? {} : { locatorOrigin }),
+            ...(targetHrefOrigin === undefined ? {} : { targetHrefOrigin }),
             chapterLabel: preview.chapterLabel,
             chapterHref: preview.chapterHref,
             progressLabel: preview.progressLabel,
@@ -162,6 +200,7 @@ export const createReaderBookmarksController = ({
     state.update((value) => ({
       ...value,
       activeLocator: locator,
+      activeLocatorOrigin: locatorOrigin,
       bookmarks: nextBookmarks
     }));
     persist(nextBookmarks);
@@ -169,6 +208,7 @@ export const createReaderBookmarksController = ({
   };
 
   const remove = (id: string) => {
+    if (blockedStorageKeys.has(getStorageKey())) return false;
     const current = get(state);
     const target = current.bookmarks.find((bookmark) => bookmark.id === id);
     if (!target) return false;
