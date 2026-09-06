@@ -31,7 +31,7 @@ local implementation and verification are recorded separately for C1-C7, C8A-C8D
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Complete within the frozen same-direction reflowable contract: native detection, semantic controls and visible CFI restoration after real preload/reopen. Mixed-direction lifecycle and C11 gestures remain separate. |
 | **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Complete: C11A instant input/coordinates and C11B native drag/animation, cancellation/history and locked-load admission/recovery. Generic resource transaction cancellation remains separate. |
 | **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Complete: host-native ruby styles and base-only action/copy text preserve original DOM, CFI and selection TTS in body and popup paths. |
-| **S2-R04C13** | Warichu/Gezhu transformation and measured column layout | `ebbbf104b` | Provisional standalone CJK layout slice; do not merge with the smaller ruby work. |
+| **S2-R04C13A-C13C** | Warichu/Gezhu locator compatibility, then measured layout | `ebbbf104b` | C13A is evidence-only; C13B must define historical locator compatibility before C13C changes production DOM/layout. Parent remains partial. |
 | **S2-R04C14** | Fixed-layout spread seam, zoom-out visibility, and text autosizing | `17e60f1e4`, `42c7a2cb0` | Provisional FXL rendering slice. |
 | **S2-R04C15** | Fixed-layout vertical-pan gesture ownership | `6807664e9`; evidence-only `db1d63cdc` | Provisional. `db1d63cdc` changes only test timing and has no product behavior to port. |
 | **S2-R04C16** | Fixed-layout RTL spread order and PDF direction | `a6e6691c8` | Provisional product/renderer contract slice. |
@@ -186,7 +186,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 The user-prioritized **pending paginator load teardown** defect is now closed
 with deterministic regressions and 98 final2 browser cases passing; see the
 [follow-up audit](./2026-09-06-pending-paginator-close.md). Continue with
-**S2-R04C13**, not started. C12 is now complete at the host owner with 97 browser
+**S2-R04C13B**, after the evidence-only C13A gate. C12 is complete at the host owner with 97 browser
 cases and final static/build checks passing; see its [completion audit](./2026-09-06-ruby-selection.md).
 Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
@@ -207,7 +207,7 @@ an explicit owner explanation rather than a manufactured runtime test.
 | C10 | Body-child vertical detection, semantic RTL next/previous, and restore with adjacent preloaded sections. |
 | C11 | Native vertical drag/commit/settle, X-only page turns and existing host controls; cancelled/replaced animations cannot move a later book. No new host wheel/tap-zone feature. |
 | C12 | Ruby stays visible and accessible while selected/copied base text excludes furigana. |
-| C13 | Measured warichu remains in two-line chunks across columns and font/viewport relayout. |
+| C13A-C13C | First reproduce historical CFI identity hazards (A), define old/new locator compatibility without silently rewriting ambiguous records (B), then verify measured two-line layout, source-order actions and font/viewport relayout (C). |
 | C14 | Real two-page spread seam and zoom-out stay visible; fixed text does not autosize. |
 | C15 | Overflowing fixed pages pan vertically without toggling bars; wheel tests observe synchronous ownership. |
 | C16 | EPUB/PDF RTL page order, per-book direction persistence, and PDF R2L metadata agree. |
@@ -224,8 +224,10 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8-C12 are complete within their documented native contracts. C13-C21 remain
-pending; their table entries are executable specifications, not completion claims.
+run. C8-C12 are complete within their documented native contracts. C13 production
+parity and C14-C21 remain pending. C13A is a test/audit-only prerequisite; see the
+[locator contract](./2026-09-06-warichu-locator-contract.md) for its evidence and
+the C13B/C13C gates. Acceptance entries are not production completion claims.
 
 ### C2 implementation boundary
 

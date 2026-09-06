@@ -133,7 +133,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 94 | `38d7ba80f` | catalog/import | feat(opds): support auto-download books from OPDS feeds (#3844) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 95 | `1527dd9b3` | reader core | fix: exponential wheel zoom for images and tables, closes #3956 (#3957) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 96 | `aa60123d3` | reading modes/controls | fix(rsvp): unicode-aware ORP calculation for non-Latin scripts, closes #3958 (#3964) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
-| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C13 | Core reading exists; this authored-layout/script edge is unverified. |
+| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C13B | C13A is compatibility evidence only; historical locator identity must be defined before C13C production layout. |
 | 98 | `6d798542f` | library | fix: restore main library window when going to library from reader, closes #3969 (#3973) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 99 | `e18bfd681` | reader core | fix(reader): smooth out mouse wheel scrolling in scroll mode, closes #3966 (#3974) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 100 | `17f2a17ad` | reading modes/controls | fix(toc): fix auto scroll on book open with pinned sidebar, closes #3945 (#3975) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
@@ -1064,9 +1064,16 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: 4 focused and 93 existing browser cases (97 unique, no retries), 99 helpers, Svelte check with zero errors/warnings, strict source/test TypeScript and direct Vite build PASS. Nine source/test hashes remained frozen. Terra task review and Astra whole-change source review PASS. [Evidence and limitations](./2026-09-06-ruby-selection.md).
 - Ledger: 678 commits, 61 covered, 405 partial, 77 gap, 135 not-applicable, and 54 remaining primary task IDs. No sibling code, dependency or vendor changes; native OS clipboard, packaged Tauri/WebKit and assistive-technology output are not verified.
 
-#### Next Task: S2-R04C13 - Align Warichu/Gezhu measured layout
+#### Completed Evidence Slice: S2-R04C13A - Freeze Warichu locator hazards
 
-- Start with `ebbbf104b` and the current authored-layout owner. Freeze a bounded transformation and measured-column contract before implementation; this is not a CSS-only extension of C12. C13-C21 remain unstarted.
+- Audited exact upstream `ebbbf104b` (six host files, no Foliate gitlink move). Added test-only shared-sanitizer and real EPUB/native CFI evidence: restoring markers can invalidate old ranges or retarget equal text to a different node.
+- Verification: 2 focused plus 11 existing browser cases, strict spec TypeScript check, `pnpm check` (0 errors/warnings), 99 helpers, direct Vite build, diff/ledger checks, Terra task re-review and Astra static final review PASS. See the [evidence record](./2026-09-06-warichu-locator-contract.md) for corrected harness diagnostics and proof limits.
+- No production source, dependency or stored-record changes. Parent `ebbbf104b` stays `partial`; totals remain 61/405/77/135 and 54 primary tasks. C13B compatibility precedes C13C layout.
+
+#### Next Task: S2-R04C13B - Define historical Warichu locator compatibility
+
+- C13A freezes test-only compatibility evidence for `ebbbf104b`; see the [locator contract](./2026-09-06-warichu-locator-contract.md). Retaining currently unwrapped markers can invalidate old CFIs or retarget equal text. No production markup changes are included.
+- Inventory persisted/imported locator readers and writers; define distinguishable DOM identity, ambiguous-origin handling, and compatibility checks without silently rewriting original records. Only after C13B passes may C13C implement measured layout. Parent remains `partial`; C14-C21 remain unstarted.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 
