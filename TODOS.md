@@ -9,9 +9,10 @@
 
 ## Engineering Debt
 
-- Complete S2-R04C11B after the C11A default instant page-turn slice.
-  Why: the remaining upstream behavior includes horizontal drag-follow, two-phase animation and cancellation of stale rendering/navigation callbacks.
-  Context: the native paginator owns this work; br1 currently does not enable animated pagination. Verify actual source replacement and SPA teardown without adding host animation settings or claiming complete pending-open cancellation.
+- Audit generic adjacent/background loads that complete after paginator close.
+  Why: C11B final validation exposed a scrolled C9 rejection-cycle failure with resource revokes `[1,0,0]`. Section 6's second load was still pending at close, resolved afterward and had no unload.
+  Context: `.planning/readest-alignment-analysis/2026-09-06-c11b-c9-pending-load-trace.json` preserves the actual owner and sequence. This is not a settled-reference imbalance or a clean 80/80 result; the initiating callback is not identified. C11B preserves locked animated-turn admission, not generic direct/background load cancellation.
+  Depends on: a separate pending-load registration, teardown and resource-release contract. Keep the original C9 assertions; do not replace them with retries or weaken final-release checks.
 
 - Audit renderer direction ownership across mixed-direction chapters.
   Why: adjacent-section loading calls the paginator's shared `#beforeRender`, which overwrites `#rtl` and `#vertical` even when that section is not primary.

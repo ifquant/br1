@@ -1,0 +1,166 @@
+{
+  "sourceLog": "/tmp/br1-c11b-c9-ownership-trace.log",
+  "test": "tests/e2e/foliate-epub-resource-lifetime.spec.ts: C9 dual-paginator resource balancing",
+  "date": "2026-09-06",
+  "actualRevokes": [
+    1,
+    0,
+    0
+  ],
+  "expectedRevokes": [
+    1,
+    1,
+    1
+  ],
+  "flow": "scrolled",
+  "owner": "scrolled:reject:1",
+  "section": 6,
+  "sectionNumbering": "zero-based",
+  "events": [
+    {
+      "sequence": 748,
+      "flow": "scrolled",
+      "owner": "scrolled:reject:1",
+      "section": 6,
+      "method": "load",
+      "event": "call",
+      "call": 748
+    },
+    {
+      "sequence": 749,
+      "flow": "scrolled",
+      "owner": "scrolled:reject:1",
+      "section": 6,
+      "method": "load",
+      "event": "reject",
+      "call": 748,
+      "error": "Error: C9 expected destination load failure"
+    },
+    {
+      "sequence": 757,
+      "flow": "scrolled",
+      "owner": "scrolled:reject:1",
+      "section": 6,
+      "method": "load",
+      "event": "call",
+      "call": 757
+    },
+    {
+      "sequence": 758,
+      "event": "snapshot",
+      "stage": "scrolled:reject:1:before-close",
+      "owners": [
+        {
+          "owner": "scrolled:reject:1",
+          "connected": true,
+          "contents": [
+            4,
+            5
+          ],
+          "pending": [
+            {
+              "call": 757,
+              "section": 6,
+              "method": "load"
+            }
+          ],
+          "sections": [
+            {
+              "section": 6,
+              "load": 2,
+              "loadContent": 0,
+              "unload": 0,
+              "resolved": 0,
+              "rejected": 1,
+              "loadCallsMinusUnloads": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sequence": 763,
+      "event": "snapshot",
+      "stage": "scrolled:reject:1:after-close",
+      "owners": [
+        {
+          "owner": "scrolled:reject:1",
+          "connected": true,
+          "contents": [],
+          "pending": [
+            {
+              "call": 757,
+              "section": 6,
+              "method": "load"
+            }
+          ],
+          "sections": [
+            {
+              "section": 6,
+              "load": 2,
+              "loadContent": 0,
+              "unload": 0,
+              "resolved": 0,
+              "rejected": 1,
+              "loadCallsMinusUnloads": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sequence": 764,
+      "flow": "scrolled",
+      "owner": "scrolled:reject:1",
+      "section": 6,
+      "method": "load",
+      "event": "resolve",
+      "call": 757
+    },
+    {
+      "sequence": 765,
+      "flow": "scrolled",
+      "owner": "scrolled:reject:1",
+      "section": 6,
+      "method": "loadContent",
+      "event": "call",
+      "call": 765
+    },
+    {
+      "sequence": 766,
+      "flow": "scrolled",
+      "owner": "scrolled:reject:1",
+      "section": 6,
+      "method": "loadContent",
+      "event": "resolve",
+      "call": 765
+    },
+    {
+      "sequence": 778,
+      "event": "snapshot",
+      "stage": "scrolled:main:after-close",
+      "owners": [
+        {
+          "owner": "scrolled:reject:1",
+          "connected": false,
+          "contents": [],
+          "pending": [],
+          "sections": [
+            {
+              "section": 6,
+              "load": 2,
+              "loadContent": 1,
+              "unload": 0,
+              "resolved": 2,
+              "rejected": 1,
+              "loadCallsMinusUnloads": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interpretation": "A generic adjacent/background section load remained pending across close after rejected direct navigation. It resolved and read content after close, without a matching unload. The trace does not identify the initiating callback. This is not a deterministic clean resource-lifetime pass.",
+  "disposition": "Deferred generic pending-load lifecycle; no production resource-cancellation fix in C11B.",
+  "probe": "Per-renderer forwarding wrappers observed load/loadContent/unload and retained original return values. Native load/create-overlayer and before/after-close snapshots were recorded. Original assertions were unchanged; temporary instrumentation was removed after capture."
+}

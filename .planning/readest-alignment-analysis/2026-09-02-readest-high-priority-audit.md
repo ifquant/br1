@@ -1,6 +1,6 @@
 # Readest High-Priority Commit Audit
 
-Last updated: 2026-09-05
+Last updated: 2026-09-06
 
 This document finalizes the 678 high-priority decisions from `e0cf7e8d9f0c61e2cd859dd9cc0d026351eef3b6..6df90139dc7b72246572ab33b12d485b281ca6e6` against current br1 source. It complements the two-step plan; it does not replace the 1,189-commit history ledger.
 
@@ -18,14 +18,14 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 
 | Status | Commits |
 | --- | ---: |
-| `covered` | 59 |
-| `partial` | 407 |
+| `covered` | 60 |
+| `partial` | 406 |
 | `gap` | 77 |
 | `not-applicable` | 135 |
 
 | Area | Covered | Partial | Gap | Not applicable |
 | --- | ---: | ---: | ---: | ---: |
-| reader core | 40 | 217 | 22 | 55 |
+| reader core | 41 | 216 | 22 | 55 |
 | library | 9 | 58 | 17 | 20 |
 | tts/audio | 0 | 41 | 7 | 19 |
 | reading modes/controls | 4 | 31 | 0 | 1 |
@@ -415,7 +415,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 376 | `5bc8eda50` | ai/assist/dictionary | feat(proofread): editable Find pattern and per-rule enable/disable toggle (#4859) (#4888) | `gap` | S2-A07 | No equivalent AI transformation/proofreading action. |
 | 377 | `4d645befd` | library | feat(library): add "Progress Read" sort option (#4427) (#4893) | `partial` | S2-L06 | P0-4.1/P0-4.2 and library smoke tests; exact projection/order is missing. |
 | 378 | `fd8fbb178` | reader core | fix(reader): apply page margin changes live on all platforms (#4898) (#4900) | `partial` | S2-U01B | P0-2/P0-3 and reader smoke tests; exact typography behavior differs. |
-| 379 | `c5304cd46` | reader core | fix(reader): turn pages horizontally for vertical-rl books (#624) (#4899) | `partial` | S2-R04C11B | C11A proves effective vertical-rl direction, positive paginated coordinates, instant/eink swipes and host controls. Horizontal drag-follow, two-phase animation and cancellation remain for C11B; no complete parent coverage claim. |
+| 379 | `c5304cd46` | reader core | fix(reader): turn pages horizontally for vertical-rl books (#624) (#4899) | `covered` | S2-R04C11B | C11A covers instant direction/coordinates and host controls; C11B proves native X-only drag, two-phase animation, cancelled motion/history tails and locked-load admission/recovery. Generic pending opens and resource transaction rollback remain separate. |
 | 380 | `c8e2c9533` | library | feat(library): auto-import new books from watched folders (#3889) (#4902) | `gap` | S2-L01 | P0-4.1/P0-4.2 and library smoke tests; bounded directory import is absent. |
 | 381 | `8c91ad411` | reader core | fix(reader): open annotation deep link when a different book is open (#4887) (#4910) | `gap` | S2-A02 | P0-2/P0-3 and reader smoke tests; portable exchange/deep links are absent. |
 | 382 | `2b524439b` | reader core | fix(reader): keep running header/footer readable over light PDFs in dark mode (#4901) (#4911) | `partial` | S2-U01A | P0-2/P0-3 and reader smoke tests; settings exist, exact theme behavior differs. |
@@ -930,7 +930,7 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 ### S2-R04C - Harden authored-layout compatibility
 
 - Phase: Step 2
-- Upstream decisions: 34 commits (15 covered, 14 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
+- Upstream decisions: 34 commits (16 covered, 13 partial, 2 gap, 3 not-applicable); the remaining nested margin obligation in `1d8ed3fc9` is assigned to S2-U01B.
 - Audit correction: the old 31-commit summary omitted wide tables `458ad7510`, EPUB page-list `9dc41e7ad`, and bitmap spine layout `07371ccce`, which already belonged here in the per-commit table.
 - Execution map: [34-commit evidence, 15 nested foliate ranges, and C1-C21 acceptance slices](./2026-09-05-authored-layout-commit-audit.md). Remaining rows now reference their individual slice IDs; the larger task count reflects finer decomposition, not new upstream commits.
 - Outcome: Cover footnotes, fixed layout, vertical/RTL/CJK text, code, and dynamic book media.
@@ -1042,9 +1042,17 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: focused 4/4, existing 65/65 and selected legacy 4/4 (73 unique browser cases, no skips); helpers 99/99, ZIP 6/6, Svelte check 0 errors/warnings, strict TypeScript, paginator syntax, Vite build and both diff checks PASS. Independent review closure is recorded in the C11A completion audit.
 - Boundary: no host wheel/tap-zone, cross-iframe key forwarding, new animation setting, public export or vendor change. Mixed-direction preload, full vertical-lr scrolled layout, FXL/PDF, pending-open cancellation and packaged/native acceptance remain separate. Ledger counts and 56 remaining primary task IDs are unchanged.
 
-#### Next Task: S2-R04C11B - Add horizontal drag and cancellable vertical page-turn animation
+#### Completed Slice: S2-R04C11B - Add horizontal drag and cancellable vertical page-turn animation
 
-- Follow the frozen C11B lifecycle contract before porting presentation code. Native timer, touch-end rAF and navigation/event tails must not affect a replaced view or newer operation. C12-C21 retain their existing owners and acceptance map.
+- Result: native WAAPI drag/exit/swap/entry/settle stays X-only with local duration, background and positive vertical coordinates. Operation ownership cancels stale animations, gesture state, frames and navigation tails. Four approved strict-false history guards preserve undefined-success renderers.
+- Loading boundary: a locked B turn retains admission until real section/iframe completion. Cancelled loads may finish resource setup, but cannot restart automatic reanchors; explicit navigation to the same loaded view restores normal font/layout expansion.
+- Verification: final4 covers 80 unique browser cases: 11 focused and 4 selected PASS; existing suites initially 64/65. The resource suite then passed twice, 10/10, but its original failure was reproduced with ownership tracing and classified as deferred generic pending-load teardown, not erased by retries. Helpers 99/99, ZIP 6/6, Svelte check 0 errors/warnings, strict TypeScript, both module syntax checks, Vite build and diff checks PASS. Final scope/review closure is recorded in the authored-layout completion audit.
+- Ledger: 678 commits, 60 covered, 406 partial, 77 gap, 135 not-applicable, and 55 remaining primary task IDs.
+- Boundary: no new host animation setting, wheel/tap-zone, vendor assets or dependencies. Generic initial/direct loads, resource cancellation/rollback, mixed-direction preload, complete vertical-lr scrolled layout and packaged/native acceptance remain separate.
+
+#### Next Task: S2-R04C12 - Align ruby/furigana selection and copy semantics
+
+- Audit `9a05935ca` at its existing selection/text owner. Preserve visible and accessible ruby while selected/copied base text excludes furigana. C13-C21 retain their existing owners; this slice has not started.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

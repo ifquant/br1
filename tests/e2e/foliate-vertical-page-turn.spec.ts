@@ -359,27 +359,54 @@ test('C11A keeps instant and e-ink vertical swipes horizontal, retains animated 
       const fill = fills.get(view);
       if (!fill) throw new Error('expected C11A swipe fill');
       await fill;
+      await Promise.all(renderer.getContents().map(({ doc }) => doc?.fonts.ready));
+      // Font expansion and ResizeObserver delivery are distinct from section fill.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       return { view, renderer };
     };
     const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    const snap = async (renderer: Renderer, args: [number, number, number, number, number]) => {
-      const relocated = new Promise<void>((resolve) => renderer.addEventListener('relocate', () => resolve(), { once: true }));
+    const snap = async (renderer: Renderer, args: [number, number, number, number, number], label = 'snap') => {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      let resolveRelocate!: () => void;
+      const relocated = new Promise<void>((resolve) => { resolveRelocate = resolve; });
+      const onRelocate = () => resolveRelocate();
+      renderer.addEventListener('relocate', onRelocate);
       renderer.snap(...args);
-      await relocated;
+      try {
+        await Promise.race([
+          relocated,
+          new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error(`${label} did not relocate: args=${JSON.stringify(args)} page=${renderer.page} position=${renderer.containerPosition}`)), 5_000); })
+        ]);
+      } finally {
+        if (timeout) clearTimeout(timeout);
+        renderer.removeEventListener('relocate', onRelocate);
+      }
+    };
+    const settleSnap = async (renderer: Renderer, args: [number, number, number, number, number]) => {
+      await Promise.resolve(renderer.snap(...args));
+      await nextFrame();
+      await nextFrame();
     };
     const snapToPage = async (renderer: Renderer, args: [number, number, number, number, number], page: number) => {
-      const reachedPage = new Promise<void>((resolve) => {
-        const check = () => {
-          if (renderer.page !== page) return;
-          renderer.removeEventListener('relocate', check);
-          renderer.removeEventListener('stabilized', check);
-          resolve();
-        };
-        renderer.addEventListener('relocate', check);
-        renderer.addEventListener('stabilized', check);
-      });
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      let resolvePage!: () => void;
+      const reachedPage = new Promise<void>((resolve) => { resolvePage = resolve; });
+      const check = () => {
+        if (renderer.page === page) resolvePage();
+      };
+      renderer.addEventListener('relocate', check);
+      renderer.addEventListener('stabilized', check);
       renderer.snap(...args);
-      await reachedPage;
+      try {
+        await Promise.race([
+          reachedPage,
+          new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error(`snap did not reach page ${page}: args=${JSON.stringify(args)} page=${renderer.page} position=${renderer.containerPosition}`)), 5_000); })
+        ]);
+      } finally {
+        if (timeout) clearTimeout(timeout);
+        renderer.removeEventListener('relocate', check);
+        renderer.removeEventListener('stabilized', check);
+      }
     };
     const touch = (renderer: Renderer, type: 'touchstart' | 'touchmove' | 'touchend', x: number, y: number) => {
       const point = new Touch({ identifier: 1, target: renderer, screenX: x, screenY: y, clientX: x, clientY: y });
@@ -437,14 +464,14 @@ test('C11A keeps instant and e-ink vertical swipes horizontal, retains animated 
     const touchRightNext = rl.renderer.page === rlStart + 1;
     await snap(rl.renderer, [1.2, 0, 180, 0, 120]);
     const returnedToStart = rl.renderer.page === rlStart;
-    await snap(rl.renderer, [1.2, 0, 180, 0, 120]);
+    await settleSnap(rl.renderer, [1.2, 0, 180, 0, 120]);
     const previousAtStart = rl.renderer.page === rlStart;
     await rl.view.goToFraction(1);
     const lastFill = fills.get(rl.view);
     if (!lastFill) throw new Error('expected final-page fill');
     await lastFill;
     const lastPage = rl.renderer.page;
-    await snap(rl.renderer, [-1.2, 0, -180, 0, 120]);
+    await settleSnap(rl.renderer, [-1.2, 0, -180, 0, 120]);
     const lastBoundary = rl.renderer.page === lastPage;
     close(rl.view);
 
@@ -474,8 +501,10 @@ test('C11A keeps instant and e-ink vertical swipes horizontal, retains animated 
 
     const animated = await open(verticalRl, [['animated', '']]);
     const animatedStart = animated.renderer.page;
-    await snap(animated.renderer, [-1.2, 0, -180, 0, 120]);
-    const animatedHorizontalIsInert = animated.renderer.page === animatedStart;
+    await snapToPage(animated.renderer, [-1.2, 0, -180, 0, 120], animatedStart + 1);
+    const animatedRightNext = animated.renderer.page === animatedStart + 1;
+    await snap(animated.renderer, [1.2, 0, 180, 0, 120]);
+    const animatedLeftPrevious = animated.renderer.page === animatedStart;
     await snapToPage(animated.renderer, [0, 1.2, 0, 180, 120], animatedStart + 1);
     const animatedUpNext = animated.renderer.page === animatedStart + 1;
     close(animated.view);
@@ -508,7 +537,7 @@ test('C11A keeps instant and e-ink vertical swipes horizontal, retains animated 
     return {
       missingBounds, rlRightNext, rlLeftPrevious, rlUpNext, rlDownPrevious, touchRightNext,
       returnedToStart, previousAtStart, lastBoundary, lrLeftNext, lrRightPrevious, lrUpNext, lrDownPrevious,
-      einkRightNext, einkLeftPrevious, einkUpNext, einkDownPrevious, animatedHorizontalIsInert, animatedUpNext, horizontalLtrUnchanged,
+      einkRightNext, einkLeftPrevious, einkUpNext, einkDownPrevious, animatedRightNext, animatedLeftPrevious, animatedUpNext, horizontalLtrUnchanged,
       horizontalRtlUnchanged, scrolledUnchanged
     };
   }, { verticalRl, verticalLr, horizontalLtr, horizontalRtl, foliateViewUrl });
@@ -531,7 +560,8 @@ test('C11A keeps instant and e-ink vertical swipes horizontal, retains animated 
     einkLeftPrevious: true,
     einkUpNext: true,
     einkDownPrevious: true,
-    animatedHorizontalIsInert: true,
+    animatedRightNext: true,
+    animatedLeftPrevious: true,
     animatedUpNext: true,
     horizontalLtrUnchanged: true,
     horizontalRtlUnchanged: true,

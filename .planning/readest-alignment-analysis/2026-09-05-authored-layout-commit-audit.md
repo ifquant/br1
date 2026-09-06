@@ -1,6 +1,6 @@
 # S2-R04C Authored-Layout Commit Audit
 
-Date: 2026-09-05
+Date: 2026-09-06
 
 ## Scope and evidence boundary
 
@@ -13,7 +13,7 @@ was then expanded as an old-to-new range inside Readest's nested foliate checkou
 The original task summary listed 31 commits, while its decision table assigned
 **34** commits to S2-R04C. The central summary now also includes `458ad7510`,
 `9dc41e7ad`, and `07371ccce`. The upstream evidence below is source-audited;
-local implementation and verification are recorded separately for C1-C7, C8A-C8D, C9, C10 and C11A.
+local implementation and verification are recorded separately for C1-C7, C8A-C8D, C9, C10 and C11A-C11B.
 
 ## Frozen and provisional slices
 
@@ -29,7 +29,7 @@ local implementation and verification are recorded separately for C1-C7, C8A-C8D
 | **S2-R04C8** | Footnote-popup selection, CFI mapping, and annotation tools | `631cd6454` | Complete within the frozen native contract: C8A provenance, C8B validated selection, C8C scoped actions/persistence and C8D reverse mapping/record interactions. |
 | **S2-R04C9** | Shared EPUB resource lifetime across reader and popup views | `a193cbc35` | Complete: exact Loader count/content-read fix plus native paginator single-release ownership, proved through shared-view and actual br1 resource lifetimes. |
 | **S2-R04C10** | Reflowable vertical/RTL detection, navigation, and restore | `caa0d719c`, `23d5f3363`, `676e14234` | Complete within the frozen same-direction reflowable contract: native detection, semantic controls and visible CFI restoration after real preload/reopen. Mixed-direction lifecycle and C11 gestures remain separate. |
-| **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | C11A default instant input/coordinates complete; next C11B drag/animation lifecycle. Parent remains partial until both contracts pass. |
+| **S2-R04C11** | Horizontal page-turn presentation for vertical-rl books | `c5304cd46` | Complete: C11A instant input/coordinates and C11B native drag/animation, cancellation/history and locked-load admission/recovery. Generic resource transaction cancellation remains separate. |
 | **S2-R04C12** | Ruby/furigana selection and copy semantics | `9a05935ca` | Provisional small CJK selection slice. |
 | **S2-R04C13** | Warichu/Gezhu transformation and measured column layout | `ebbbf104b` | Provisional standalone CJK layout slice; do not merge with the smaller ruby work. |
 | **S2-R04C14** | Fixed-layout spread seam, zoom-out visibility, and text autosizing | `17e60f1e4`, `42c7a2cb0` | Provisional FXL rendering slice. |
@@ -183,7 +183,7 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C11B**. Each slice starts by checking current local callers
+Continue with **S2-R04C12**. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs
@@ -200,7 +200,7 @@ an explicit owner explanation rather than a manufactured runtime test.
 | C8 | Real popup selections map to original section CFIs; synthetic alt text cannot create anchored notes. |
 | C9 | Repeated popup open/close preserves reader images and releases final blob references once all views close. |
 | C10 | Body-child vertical detection, semantic RTL next/previous, and restore with adjacent preloaded sections. |
-| C11 | Vertical-rl drag, wheel and keyboard page turns; cancelled/replaced animations cannot move a later book. |
+| C11 | Native vertical drag/commit/settle, X-only page turns and existing host controls; cancelled/replaced animations cannot move a later book. No new host wheel/tap-zone feature. |
 | C12 | Ruby stays visible and accessible while selected/copied base text excludes furigana. |
 | C13 | Measured warichu remains in two-line chunks across columns and font/viewport relayout. |
 | C14 | Real two-page spread seam and zoom-out stay visible; fixed text does not autosize. |
@@ -219,7 +219,7 @@ local runtime behavior. C1 separately passed three focused browser regressions,
 three existing sanitizer/TXT regressions, `pnpm check` (0 errors/warnings),
 `pnpm build`, and `git diff --check`, with independent Terra high and Astra high
 reviews. No packaged Tauri/mobile, native clipboard, or font-pixel acceptance was
-run. C8-C10 and C11A are complete within their documented native contracts below. C11B-C21 remain
+run. C8-C11 are complete within their documented native contracts below. C12-C21 remain
 pending; their table entries are executable specifications, not completion claims.
 
 ### C2 implementation boundary
@@ -965,6 +965,203 @@ zone paging handlers. Neither slice adds these host features or changes demo-onl
 `View.goLeft/goRight`. Mixed-direction preload ownership, complete vertical-lr
 scrolled layout, FXL/PDF, pending-open cancellation and packaged/native acceptance
 remain separate. C11A completion leaves parent `c5304cd46` partial for C11B.
+
+#### C11B implementation handoff (2026-09-06)
+
+The initial Astra high execution audit confines production to native
+`paginator.js`; the later user-approved exception below adds four strict history
+completion guards in `view.js`. Tests belong in br1's vertical-animation suite, with only
+the transitional animated-input expectations changed in the C11A suite.
+
+- Use native Web Animations for exit, enter and settle. Keep one private motion
+  identity through drag, snap/turn, scroll and completion; cancel its resources
+  and wake its waiters without cancelling shared section loading. Reuse local
+  duration, skip delays for zero duration or hidden documents, and finish active
+  phases when the document becomes hidden.
+- Horizontal drag changes wrapper X only. Preserve half-width, same-direction
+  flick and reverse-flick decisions; clear velocity after an 80ms rest without
+  losing the gesture axis. Continue from the current visual offset. Vertical
+  gestures retain page-turn semantics without a Y animation.
+- Swap coordinates and committed reading state only when the old page is
+  off-screen; retain the old position before swap and the committed position
+  after it. Preserve native background ownership and emit at most one commit
+  relocation. Native blank sentinel pages are not committed book text: use the
+  existing adjacent-section navigation at unloaded boundaries and settle at
+  absolute book edges.
+- Superseding public navigation invalidates owned motion before awaiting the
+  target. The later loading-admission adjudication below preserves an already
+  locked section/iframe load: reject a new navigation before invalidating that
+  loading owner. Internal calls inherit identity. Guard the
+  snap edge tail, turn fill/navigation/settle/unlock, anchor focus and cached
+  navigation reveal/focus/fill completions. Old completion cannot unlock or
+  clean up a newer operation, including event-handler reentry.
+- Invalidate on valid new touch, touchcancel in either document, layout/flow
+  changes, changed styles, destroy and real host replacement. Capture the
+  touchend rAF's gesture, not mutable future touch state. Guard delayed layout,
+  focus and background callbacks; repeated unchanged internal styles must not
+  cancel their own operation. Disconnect the actual resize observer at destroy.
+
+Acceptance requires real geometry at drag/exit/swap/enter/settle, gesture
+thresholds and cancellation before/after swap, during release rAF, fill and
+settle, plus real host replacement, teardown and two-instance isolation.
+This does not cancel already-started generic section/iframe loads, rewrite
+initial display/open, roll navigation back or prove physical-device acceptance.
+No completion or ledger change is implied by this handoff alone.
+
+#### C11B initial review evidence
+
+The first implementation passed paginator syntax, six sibling ZIP units,
+Svelte check (zero errors/warnings) and strict TypeScript. The seven existing
+browser suites passed 64/65: the unloaded cross-chapter footnote jump-cue
+regression failed. This is not final acceptance. Task review also identified
+uninterruptible fill/settle waits, incomplete sentinel and delayed-callback
+ownership, and a cancelled render frame that could leave content hidden.
+
+The first new test draft was strengthened before its browser run: an already
+positive page number is not proof that swap occurred, and increasing event
+counts do not prove that stale callbacks stopped. The revised cases observe
+page increments, opposite-side entry geometry, events after replacement and
+real host initial fill. Final verification is recorded separately after fixes.
+
+The first focused run (`/tmp/br1-c11b-focused-01.log`) executed five new B and
+four A cases: 4/9 passed. Failures covered the off-screen swap wait, repeated
+render visibility, the combined sentinel/fill/isolation case, active teardown
+and an A input wait. The targeted prior footnote failure then passed 1/1
+(`/tmp/br1-c11b-footnote-recheck-01.log`). Product and harness corrections are
+being separated; neither the failure count nor a static review establishes
+final runtime acceptance.
+
+The second focused run (`/tmp/br1-c11b-focused-02.log`) passed 6/9, including
+all four C11A cases. The remaining failures concern exact exit geometry, proof
+that the turn reached the held-fill wait, and host teardown readiness. The
+host waiter keyed only by a reused view can resolve an old book's fill; final
+proof must identify the replacement renderer and its actual loaded content.
+
+#### C11B review scope adjudication
+
+A fresh Astra high review separated introduced B defects from deferred engine
+work. Already-started generic section/iframe loads and legacy horizontal CSS
+animation cancellation remain out of scope. B must not clear legacy transforms
+or locks, change legacy velocity-axis semantics, or let its own delayed work
+affect a later flow. B-owned cached navigation/fill must stop scheduling further
+work after cancellation; the touched display anchor completion must also stop
+before focus/reveal/event tails. Cancelling a render-owned frame must release
+that frame's visibility state without clearing loader-owned stabilization.
+
+The review also found a cross-module completion issue: `View.goTo`,
+`goToFraction`, `select` and `init` append history after a cancelled paginator
+call returns normally. The minimal proposed exception is an explicit `false`
+cancellation result and strict `=== false` checks at those four existing
+callers, preserving other renderers' successful `undefined` returns. This is a
+return-contract refinement, not a new public method, event, parameter or host feature.
+After the explicit allowlist question, the user replied "continue" on
+2026-09-06. The narrow `view.js` completion-guard exception is authorized;
+implementation and history regression proof are required before closure.
+There are no new public methods, parameters, events or host settings. The parent
+remains partial until final verification and review pass.
+
+A second Astra adjudication identified one introduced exception to the deferred
+load race: an original locked page turn rejected new navigation until its real
+section/iframe load completed. B cancellation must not release that loading
+barrier. Establish B-owned loading identity before invoking the load, retain
+its lock and stabilization across cancellation, and release it from the real
+loading chain's owner-checked finally. Refused B navigation returns `false`.
+The shared-fill wait before tail navigation remains cancellable; animation and
+settle remain replaceable. This restores original admission, not generic load
+cancellation or a navigation queue. Prove held section and iframe stages,
+rejected new navigation, suppressed cancelled tails and recovery after release.
+
+The final task-level review found a separate owned-gesture defect: cancellation
+cleared the wrapper transform but retained touch state, allowing a later move
+to repaint the cancelled drag. The focused RED check failed only
+`invalidatedGestureStaysCancelled` (`/tmp/br1-c11b-gesture-red.log`). Cancellation
+now clears touch state only when that operation owns it; a new touch start
+creates its own state after capturing any takeover transform. The legacy frame
+wait also distinguishes explicit `false` from normal `undefined` completion,
+preserving its original two-frame settle. Fresh Terra source re-review passes;
+the final browser and whole-change reviews remain separate gates.
+
+The held-load runtime check then exposed two `relocate(anchor)` events after
+cancelled section loading (`/tmp/br1-c11b-admission-08.log`). The real load was
+correctly allowed to finish, but delayed font/resize expansion restarted
+automatic anchoring after its stabilization barrier released. This is a B-owned
+completion defect, not a request to cancel resources. The correction suppresses
+automatic reanchors from that concrete cancelled-load view until a later valid
+navigation explicitly selects it. The regression must recover into the same
+loaded section and verify that normal layout relocation is re-enabled.
+
+#### C11B implementation and final verification
+
+Sibling implementation commit: `c88587e6f2afeb560dffee52c6c4dac2ca632e8c` (`performance`).
+
+The first Astra whole-change review requested one final correction: automatic
+layout anchoring had acquired an unnecessary microtask yield before emitting
+its completion. A `stabilized` listener changing flow could then be followed
+by the old anchor's writes. The real reentry regression failed with one stale
+relocation in each equal-offset and changed-offset branch
+(`/tmp/br1-c11b-layout-reentry-red.log`). Removing the two awaits from instant
+drag cleanup preserves the original synchronous unowned layout commit; it
+does not introduce a new operation owner or broaden load cancellation.
+
+Native paginator changes cover horizontal drag thresholds, X-only exit/swap/
+entry/settle and animation cancellation. They retain local animationDuration,
+background ownership, positive vertical scroll coordinates and blank sentinels.
+The cancelled operation cannot later clear a replacement gesture or lock,
+reposition its target, focus content, or append stale View history. No host
+animation control, EPUB wheel/tap-zone handler, public export, dependency or
+vendor asset was added. The four history completion guards are the approved
+`view.js` exception, not a new host/navigation stack.
+
+Real locked section/iframe loading preserves original admission until its
+owner-checked finally. A concrete-View WeakSet prevents the cancelled load's
+font/resize callbacks from reanchoring. It does not stop resources from loading
+or roll display setup back. A later valid same-section navigation removes the
+mark; the regression waits for readiness, changes actual font size to 23px, and
+observes normal expansion/relocation again.
+
+Final4 Chrome runs use one worker: 11 focused cases, seven existing suites
+(6 authored text, 34 footnote compatibility, 7 mapping, 5 EPUB lifetimes,
+5 ZIP compatibility, 3 MOBI/CBZ and 5 directional flow), plus 4 selected library
+keyboard/TXT/layout cases. Total: **80 unique browser cases; initially 79 PASS
+and one C9 resource-lifetime failure**. The resource suite then passed two
+unchanged repetitions (10/10). This is not a deterministic 80/80 pass. All 11
+C11 cases pass, including strengthened admission and layout-reentry proof.
+
+A temporary ownership probe reproduced the original `[1,0,0]` resource revokes
+on its first repetition; the other 19 scheduled repetitions did not run. In
+scrolled owner `scrolled:reject:1`, section 6's direct load rejected at sequence
+749. Its second load started at 757 and remained pending at before-close 758
+and after-close 763, when no section-6 view was registered. It resolved at 764,
+then read content at 765-766 without a matching unload. Other successful
+section loads were balanced. The final reviewer classified this as the frozen
+deferred generic adjacent/background pending-load lifecycle, not settled
+reference counting or B-owned turn cancellation. The initiating callback was
+not identified, and no baseline non-regression claim is inferred from reruns.
+
+[Compact observed trace](./2026-09-06-c11b-c9-pending-load-trace.json) preserves
+the sequence. Both TODOs now track the unfixed lifecycle issue. The diagnostic
+wrappers were removed after capture, with the C9 test restored byte-for-byte
+to HEAD: no assertion, wait, fixture or skip was changed to make it pass.
+
+`pnpm test:reader-helpers` passes 99/99; sibling ZIP units pass 6/6. Svelte check
+reports 0 errors and 0 warnings. Strict TypeScript, syntax checks for paginator
+and View, `pnpm exec vite build`, and both diff checks PASS. Direct TTS units,
+physical touch, Safari, packaged Tauri and native-device acceptance were not run.
+No dependency/vendor regeneration was performed.
+
+Logs: `/tmp/br1-c11b-final4-*.log` hold final browser, helper, check, strict-ts,
+syntax, ZIP and build evidence; `final4-resource-recheck.log` records 10/10.
+`/tmp/br1-c11b-c9-ownership-trace.log` and `.json` retain the full diagnostic.
+Fresh Terra high production/test reviews and the layout-reentry fix review
+pass. Astra high final whole-change review approves bounded C11B closure with
+no remaining in-scope blocker, including final documentation and staged-file
+checks. The real generic pending-load defect remains unfixed and deferred;
+approval does not imply deterministic all-green or baseline non-regression.
+
+Ledger recount: 678 unique commits, 60 covered, 406 partial, 77 gap and 135
+not-applicable. Reader core is 41/216/22/55; authored layout is 16/13/2/3.
+There are 55 remaining primary task IDs. Parent `c5304cd46` is covered by
+C11A plus C11B within the frozen boundary. Next: **S2-R04C12**, not started.
 
 #### C11A baseline evidence
 
