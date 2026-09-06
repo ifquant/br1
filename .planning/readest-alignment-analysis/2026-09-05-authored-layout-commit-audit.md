@@ -183,7 +183,10 @@ The following are the only S2-R04C commits in this 34-row set that move
 
 ## Execution and acceptance
 
-Continue with **S2-R04C12**. Each slice starts by checking current local callers
+The user-prioritized **pending paginator load teardown** defect is now closed
+with deterministic regressions and 98 final2 browser cases passing; see the
+[follow-up audit](./2026-09-06-pending-paginator-close.md). Continue with
+**S2-R04C12**, not started. Each slice starts by checking current local callers
 and reproducing its concrete failure. Port the final upstream behavior at the
 existing host or foliate owner, then run focused browser tests, `pnpm check`,
 `pnpm build`, and `git diff --check`. A source-only applicability decision needs

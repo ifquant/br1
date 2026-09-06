@@ -9,11 +9,6 @@
 
 ## Engineering Debt
 
-- Audit generic adjacent/background loads that complete after paginator close.
-  Why: C11B final validation exposed a scrolled C9 rejection-cycle failure with resource revokes `[1,0,0]`. Section 6's second load was still pending at close, resolved afterward and had no unload.
-  Context: `.planning/readest-alignment-analysis/2026-09-06-c11b-c9-pending-load-trace.json` preserves the actual owner and sequence. This is not a settled-reference imbalance or a clean 80/80 result; the initiating callback is not identified. C11B preserves locked animated-turn admission, not generic direct/background load cancellation.
-  Depends on: a separate pending-load registration, teardown and resource-release contract. Keep the original C9 assertions; do not replace them with retries or weaken final-release checks.
-
 - Audit renderer direction ownership across mixed-direction chapters.
   Why: adjacent-section loading calls the paginator's shared `#beforeRender`, which overwrites `#rtl` and `#vertical` even when that section is not primary.
   Context: C10's three exact upstream patches address detection, RTL ordering and local restore coordinates, not this pre-existing lifecycle problem. Current-section selection in the host does not establish mixed-direction renderer support.
@@ -52,3 +47,13 @@
   Cons: small recurring verification cost on every packaged build.
   Context: v1 now includes a minimum viable distribution path, so artifact verification becomes part of product quality, not optional ops work.
   Depends on: the first reproducible packaged build flow being in place.
+
+## Completed Follow-ups
+
+- Pending paginator loads across close: repaired before C12. Direct and adjacent
+  loads now retain explicit section ownership through content reading and release
+  once on retirement. Late iframe work and synchronous close completion cannot
+  resurrect pages or history. Original C9/C11 assertions are unchanged.
+  Evidence: [pending-close audit](.planning/readest-alignment-analysis/2026-09-06-pending-paginator-close.md).
+  Initial high-level open cancellation, fixed-layout disposal and failed-navigation
+  rollback remain separate open items above.

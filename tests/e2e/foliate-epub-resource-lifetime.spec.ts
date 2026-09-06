@@ -573,3 +573,595 @@ test('C9 keeps BR1 primary resources through popup and parallel cycles, then rel
   expect(closedReplacement.revokes).toEqual(closedReplacement.revokes.map(() => 1));
   expect(closedReplacement.unavailable).toEqual(closedReplacement.unavailable.map(() => true));
 });
+
+type PendingCloseStage = 'section.load' | 'loadContent' | 'iframe-load';
+
+const runPendingPaginatorCloseCase = (
+  page: import('@playwright/test').Page,
+  archive: number[],
+  kind: 'background-adjacent' | 'direct-after-reject',
+  stage: PendingCloseStage,
+  flow: 'paginated' | 'scrolled'
+) =>
+  page.evaluate(
+    async ({ archive, foliateViewUrl, kind, stage, flow }) => {
+      type Trace = { created: Array<{ url: string; type: string; blob: Blob | null }>; revoked: string[] };
+      type Section = {
+        load: () => Promise<string>;
+        loadContent: () => Promise<string | undefined>;
+        unload: () => void;
+      };
+      type Renderer = HTMLElement & {
+        sections: Section[];
+        getContents: () => Array<{ index: number; doc?: Document }>;
+      };
+      type NativeView = HTMLElement & {
+        open: (book: unknown) => Promise<void>;
+        init: (options: { showTextStart: boolean }) => Promise<void>;
+        goTo: (target: number) => Promise<unknown>;
+        close: () => void;
+        renderer?: Renderer;
+        perfTracker?: { time: <T>(name: string, operation: () => T) => T };
+        history: { pushState: (state: unknown) => void };
+      };
+      const trace = (window as Window & { __BR1_C9_URL_TRACE__?: Trace }).__BR1_C9_URL_TRACE__;
+      if (!trace) throw new Error('expected C9 URL trace');
+      const traceStart = trace.created.length;
+      const assert: (condition: unknown, message: string) => asserts condition = (condition, message) => {
+        if (!condition) throw new Error(message);
+      };
+      const { makeBook } = await import(/* @vite-ignore */ foliateViewUrl);
+      const book = await makeBook(new File([new Uint8Array(archive)], `c9-${kind}-${stage}.epub`, {
+        type: 'application/epub+zip'
+      }));
+      const targetIndex = kind === 'background-adjacent' ? 2 : 6;
+      const targetMarker = kind === 'background-adjacent' ? 'chapter-two' : 'chapter-six';
+
+      let releaseGate!: () => void;
+      const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
+      let enterGate!: () => void;
+      const entered = new Promise<void>((resolve) => { enterGate = resolve; });
+      let enteredOnce = false;
+      const enter = () => {
+        if (!enteredOnce) {
+          enteredOnce = true;
+          enterGate();
+        }
+      };
+      let targetLoads = 0;
+      let targetContents = 0;
+      let targetIframes = 0;
+      let targetUnloads = 0;
+      let rejectedLoads = 0;
+      let rejectedUnloads = 0;
+      let contentFinished = false;
+      let targetSrc: string | undefined;
+      let targetData: string | undefined;
+      let targetUrls: ResourceUrls;
+      let targetIframe: HTMLIFrameElement | undefined;
+      let fill: Promise<unknown> | undefined;
+      let closing = false;
+      let lateLoads = 0;
+      let lateOverlayers = 0;
+      let lateRelocates = 0;
+      let lateStabilized = 0;
+      let lateHistory = 0;
+
+      const bounded = async <T>(promise: Promise<T>, label: string) => {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          return await Promise.race([
+            promise,
+            new Promise<never>((_, reject) => {
+              timeout = setTimeout(() => reject(new Error(`${label} did not settle`)), 5_000);
+            })
+          ]);
+        } finally {
+          if (timeout) clearTimeout(timeout);
+        }
+      };
+
+      const open = async (left: string, observeTarget = false) => {
+        const view = document.createElement('foliate-view') as NativeView;
+        view.setAttribute('flow', flow);
+        Object.assign(view.style, { position: 'fixed', top: '0', left, width: '560px', height: '420px' });
+        view.perfTracker = {
+          time: (name, operation) => {
+            const container = view.renderer?.shadowRoot?.querySelector('#container');
+            const identifyIframe = observeTarget && stage === 'iframe-load' && targetSrc &&
+              name === 'renderer:view:iframeLoadWait';
+            // The native operation assigns src/srcdoc synchronously. Compare
+            // before/after attributes so an older matching frame cannot steal
+            // another iframe's timing callback.
+            const before = new Map(identifyIframe ? Array.from(
+              container?.querySelectorAll('iframe') ?? [],
+              (frame) => [frame, { src: frame.src, data: frame.srcdoc }] as const
+            ) : []);
+            const result = operation();
+            if (name === 'renderer:display:fillVisibleArea') fill = Promise.resolve(result);
+            if (!identifyIframe) return result;
+            const matches = Array.from(container?.querySelectorAll('iframe') ?? []).filter((frame) => {
+              const previous = before.get(frame);
+              const changed = !previous || previous.src !== frame.src || previous.data !== frame.srcdoc;
+              return changed && (targetData
+                ? frame.srcdoc === targetData && frame.srcdoc.includes(`data-c9-chapter="${targetMarker}"`)
+                : frame.src === targetSrc);
+            });
+            if (!matches.length) return result;
+            assert(matches.length === 1 && !targetIframe, 'expected exactly one concrete target iframe');
+            targetIframe = matches[0];
+            targetIframes += 1;
+            return Promise.resolve(result).then(async (value) => {
+              assert(targetIframe?.isConnected && container?.contains(targetIframe),
+                'expected target iframe registered in the closing renderer');
+              assert(targetIframe.contentDocument?.querySelector(`[data-c9-chapter="${targetMarker}"]`),
+                'iframe gate must hold the loaded target chapter');
+              enter();
+              await gate;
+              return value;
+            }) as typeof result;
+          }
+        };
+        document.body.append(view);
+        await view.open(book);
+        const renderer = view.renderer;
+        if (!renderer) throw new Error('expected native paginator renderer');
+        // Each renderer owns its wrapper. Only the closing reader's concrete
+        // section can be held or observed, never the book-wide section object.
+        renderer.sections = renderer.sections.map((section) => ({ ...section }));
+        renderer.setAttribute('no-preload', '');
+        await view.init({ showTextStart: true });
+        return { view, renderer, sections: renderer.sections };
+      };
+      const urlsFor = async (marker: string, originalChapter?: string): Promise<ResourceUrls> => {
+        const entries = await Promise.all(trace.created.slice(traceStart).map(async ({ url, type, blob }) => ({
+          url,
+          type,
+          text: blob ? await blob.text() : ''
+        })));
+        const chapter = entries.find(({ url, type, text }) =>
+          (!originalChapter || url === originalChapter) &&
+          type === 'application/xhtml+xml' && text.includes(`data-c9-chapter="${marker}"`));
+        assert(chapter, `expected traced ${marker} chapter`);
+        const document = new DOMParser().parseFromString(chapter.text, 'application/xhtml+xml');
+        const css = (document.querySelector('link[rel="stylesheet"]') as HTMLLinkElement | null)?.href;
+        const image = (document.querySelector('#chapter-picture') as HTMLImageElement | null)?.src;
+        assert(css && image, `expected traced ${marker} dependencies`);
+        const cssResponse = await fetch(css);
+        assert(cssResponse.ok, `expected fetchable ${marker} CSS`);
+        const cssImage = /url\(["']?([^"')]+)["']?\)/.exec(await cssResponse.text())?.[1];
+        assert(cssImage, `expected traced ${marker} CSS image`);
+        return { chapter: chapter.url, css, image, cssImage };
+      };
+      const fresh = async (urls: ResourceUrls, label: string) => {
+        const [chapter, css, image, cssImage] = await Promise.all([
+          fetch(urls.chapter), fetch(urls.css), fetch(urls.image), fetch(urls.cssImage)
+        ]);
+        assert(chapter.ok && css.ok && image.ok && cssImage.ok, `expected fresh ${label} resources`);
+        for (const response of [image, cssImage]) {
+          const decodeUrl = URL.createObjectURL(await response.blob());
+          try {
+            const decoded = new Image();
+            decoded.src = decodeUrl;
+            await decoded.decode();
+          } finally {
+            URL.revokeObjectURL(decodeUrl);
+          }
+        }
+      };
+      const state = async (urls: ResourceUrls) => {
+        const targets = [...new Set([urls.chapter, urls.css, urls.image, urls.cssImage])];
+        return {
+          revokes: targets.map((url) => trace.revoked.filter((value) => value === url).length),
+          unavailable: await Promise.all(targets.map((url) => fetch(url).then((response) => !response.ok, () => true)))
+        };
+      };
+
+      const survivor = await open('0');
+      const survivorUrls = await urlsFor('chapter-zero');
+      await fresh(survivorUrls, 'surviving reader before close');
+      const closingOwner = await open('580px', true);
+      const target = closingOwner.sections[targetIndex];
+      const rejected = closingOwner.sections[5];
+      if (!target || !rejected) throw new Error('expected C9 pending and rejected sections');
+
+      const nativeTargetLoad = target.load.bind(target);
+      target.load = async () => {
+        targetLoads += 1;
+        const value = await nativeTargetLoad();
+        targetSrc = value;
+        if (stage === 'section.load') {
+          enter();
+          await gate;
+        }
+        return value;
+      };
+      const nativeTargetContent = target.loadContent.bind(target);
+      target.loadContent = async () => {
+        targetContents += 1;
+        if (stage === 'loadContent') {
+          enter();
+          await gate;
+        }
+        const value = await nativeTargetContent();
+        contentFinished = true;
+        targetData = value;
+        return value;
+      };
+      const nativeTargetUnload = target.unload.bind(target);
+      target.unload = () => {
+        targetUnloads += 1;
+        nativeTargetUnload();
+      };
+
+      closingOwner.renderer.addEventListener('load', () => {
+        if (closing) lateLoads += 1;
+      });
+      closingOwner.renderer.addEventListener('create-overlayer', () => {
+        if (closing) lateOverlayers += 1;
+      });
+      closingOwner.renderer.addEventListener('relocate', () => {
+        if (closing) lateRelocates += 1;
+      });
+      closingOwner.renderer.addEventListener('stabilized', () => {
+        if (closing) lateStabilized += 1;
+      });
+      const nativePushState = closingOwner.view.history.pushState.bind(closingOwner.view.history);
+      closingOwner.view.history.pushState = (state) => {
+        if (closing) lateHistory += 1;
+        nativePushState(state);
+      };
+
+      const captureTargetAtGate = async () => {
+        await bounded(entered, `${kind}:${stage} entry`);
+        assert(targetSrc, 'expected original target section URL at gate entry');
+        targetUrls = await urlsFor(targetMarker, targetSrc);
+        await fresh(targetUrls, 'original target at gate entry');
+        assert(stage !== 'loadContent' || !contentFinished, 'content gate must precede the native read');
+      };
+      const verifyHeldContent = async () => {
+        if (stage !== 'loadContent') return;
+        assert(targetUnloads === 0 && !contentFinished,
+          'close must retain the target owner until pending native content finishes');
+        await fresh(targetUrls, 'original target after close before content gate release');
+      };
+
+      if (kind === 'direct-after-reject') {
+        const nativeRejectedLoad = rejected.load.bind(rejected);
+        const nativeRejectedUnload = rejected.unload.bind(rejected);
+        rejected.load = async () => {
+          rejectedLoads += 1;
+          throw new Error('C9 expected reject before acquire');
+        };
+        rejected.unload = () => {
+          rejectedUnloads += 1;
+          nativeRejectedUnload();
+        };
+        await closingOwner.view.goTo(5);
+        rejected.load = nativeRejectedLoad;
+        assert(rejectedLoads === 1, 'expected one rejected direct load');
+        assert(rejectedUnloads === 0, 'reject before acquire must not unload');
+        const pending = closingOwner.view.goTo(targetIndex);
+        await captureTargetAtGate();
+        closing = true;
+        closingOwner.view.close();
+        closingOwner.view.close();
+        closingOwner.view.remove();
+        await verifyHeldContent();
+        await fresh(survivorUrls, 'surviving reader while direct load is pending');
+        releaseGate();
+        await bounded(pending, `${kind}:${stage} direct navigation`);
+      } else {
+        fill = undefined;
+        closingOwner.renderer.removeAttribute('no-preload');
+        // Use an uncached primary so this operation's display path emits a
+        // fresh fill timing callback before it begins the adjacent preload.
+        const navigation = closingOwner.view.goTo(1);
+        await captureTargetAtGate();
+        assert(fill, 'expected native background adjacent fill');
+        closing = true;
+        closingOwner.view.close();
+        closingOwner.view.close();
+        closingOwner.view.remove();
+        await verifyHeldContent();
+        await fresh(survivorUrls, 'surviving reader while background load is pending');
+        releaseGate();
+        await bounded(navigation, `${kind}:${stage} background navigation`);
+        await bounded(fill, `${kind}:${stage} background fill`);
+      }
+
+      assert(stage !== 'loadContent' || contentFinished, 'pending content must finish before final release');
+      assert(stage !== 'iframe-load' || (targetIframe && !targetIframe.isConnected),
+        'the gated target iframe must stay detached after close');
+      const targetChapters = (await Promise.all(trace.created.slice(traceStart).map(async ({ url, type, blob }) => ({
+        url, type, text: blob ? await blob.text() : ''
+      })))).filter(({ type, text }) => type === 'application/xhtml+xml' &&
+        text.includes(`data-c9-chapter="${targetMarker}"`));
+      assert(targetChapters.length === 1 && targetChapters[0].url === targetUrls!.chapter,
+        'pending content must not create a replacement target chapter URL');
+      await fresh(survivorUrls, 'surviving reader after pending load settles');
+      survivor.view.close();
+      survivor.view.remove();
+      return {
+        targetLoads,
+        targetContents,
+        targetIframes,
+        targetUnloads,
+        rejectedLoads,
+        rejectedUnloads,
+        lateLoads,
+        lateOverlayers,
+        lateRelocates,
+        lateStabilized,
+        lateHistory,
+        closingContents: closingOwner.renderer.getContents().length,
+        survivor: await state(survivorUrls),
+        target: await state(targetUrls!)
+      };
+    },
+    { archive, foliateViewUrl, kind, stage, flow }
+  );
+
+for (const flow of ['paginated', 'scrolled'] as const) {
+  for (const kind of ['background-adjacent', 'direct-after-reject'] as const) {
+    for (const stage of ['section.load', 'loadContent', 'iframe-load'] as const) {
+      test(`C9 ${flow} releases owner-local ${kind} ${stage} work crossing close exactly once`, async ({ page }) => {
+        test.setTimeout(90_000);
+        const archive = await buildEpub(page, Array.from({ length: 7 }, (_, index) =>
+          resourceChapter(`chapter-${['zero', 'one', 'two', 'three', 'four', 'five', 'six'][index]}`)
+        ));
+        const result = await runPendingPaginatorCloseCase(page, archive, kind, stage, flow);
+        expect(result.targetLoads).toBe(1);
+        expect(result.targetContents).toBe(stage === 'section.load' ? 0 : 1);
+        expect(result.targetIframes).toBe(stage === 'iframe-load' ? 1 : 0);
+        expect(result.targetUnloads).toBe(1);
+        expect(result.lateLoads).toBe(0);
+        expect(result.lateOverlayers).toBe(0);
+        expect(result.lateRelocates).toBe(0);
+        expect(result.lateStabilized).toBe(0);
+        expect(result.lateHistory).toBe(0);
+        expect(result.closingContents).toBe(0);
+        expect(result.survivor.revokes).toEqual(result.survivor.revokes.map(() => 1));
+        expect(result.survivor.unavailable).toEqual(result.survivor.unavailable.map(() => true));
+        expect(result.target.revokes).toEqual(result.target.revokes.map(() => 1));
+        expect(result.target.unavailable).toEqual(result.target.unavailable.map(() => true));
+        if (kind === 'direct-after-reject') {
+          expect(result.rejectedLoads).toBe(1);
+          expect(result.rejectedUnloads).toBe(0);
+        }
+      });
+    }
+  }
+}
+
+for (const flow of ['paginated', 'scrolled'] as const) {
+  for (const caller of ['direct', 'background-adjacent'] as const) {
+    test(`C9 ${flow} ${caller} empty load acquires nothing and permits a real retry`, async ({ page }) => {
+      const archive = await buildEpub(page, ['zero', 'one', 'two'].map((name) => resourceChapter(`chapter-${name}`)));
+      const result = await page.evaluate(async ({ archive, foliateViewUrl, flow, caller }) => {
+        type Section = {
+          load: () => Promise<string | null>;
+          loadContent: () => Promise<string | undefined>;
+          unload: () => void;
+        };
+        type NativeView = HTMLElement & {
+          open: (book: unknown) => Promise<void>;
+          init: (options: { showTextStart: boolean }) => Promise<void>;
+          goTo: (index: number) => Promise<unknown>;
+          close: () => void;
+          renderer: HTMLElement & {
+            sections: Section[];
+            getContents: () => Array<{ index: number; doc?: Document }>;
+          };
+          perfTracker: { time: <T>(name: string, operation: () => T) => T };
+        };
+        const assert: (condition: unknown, message: string) => asserts condition = (condition, message) => {
+          if (!condition) throw new Error(message);
+        };
+        const trace = (window as Window & { __BR1_C9_URL_TRACE__?: { revoked: string[] } }).__BR1_C9_URL_TRACE__;
+        assert(trace, 'expected C9 URL trace');
+        const { makeBook } = await import(/* @vite-ignore */ foliateViewUrl);
+        const book = await makeBook(new File([new Uint8Array(archive)], 'c9-empty-load.epub', { type: 'application/epub+zip' }));
+        const fills = new Map<NativeView, Promise<unknown>>();
+        const open = async (left: string) => {
+          const view = document.createElement('foliate-view') as NativeView;
+          view.setAttribute('flow', flow);
+          Object.assign(view.style, { position: 'fixed', top: '0', left, width: '560px', height: '420px' });
+          view.perfTracker = { time: (name, operation) => {
+            const value = operation();
+            if (name === 'renderer:display:fillVisibleArea') fills.set(view, Promise.resolve(value));
+            return value;
+          } };
+          document.body.append(view);
+          await view.open(book);
+          view.renderer.sections = view.renderer.sections.map((section) => ({ ...section }));
+          view.renderer.setAttribute('no-preload', '');
+          await view.init({ showTextStart: true });
+          return view;
+        };
+        const survivor = await open('0');
+        const held = survivor.renderer.sections[2];
+        const heldLoad = held.load.bind(held);
+        let chapter: string | null = null;
+        held.load = async () => (chapter = await heldLoad());
+        await survivor.goTo(2);
+        assert(chapter, 'survivor must hold the same target section before the empty attempt');
+        const doc = survivor.renderer.getContents().find(({ index }) => index === 2)?.doc;
+        const css = doc?.querySelector<HTMLLinkElement>('link[rel="stylesheet"]')?.href;
+        const image = doc?.querySelector<HTMLImageElement>('#chapter-picture')?.src;
+        assert(css && image, 'expected survivor target CSS and image');
+        const cssResponse = await fetch(css);
+        assert(cssResponse.ok, 'expected survivor target CSS bytes');
+        const cssImage = /url\(["']?([^"')]+)["']?\)/.exec(await cssResponse.text())?.[1];
+        assert(cssImage, 'expected survivor target CSS image');
+        const targets = [...new Set([chapter, css, image, cssImage])];
+        const fresh = async () => {
+          assert(targets.every((url) => !trace.revoked.includes(url)), 'empty load must preserve original survivor references');
+          for (const url of targets) assert((await fetch(url)).ok, 'original survivor target URL must remain fetchable');
+          const decodeUrl = URL.createObjectURL(await (await fetch(image)).blob());
+          try {
+            const decoded = new Image();
+            decoded.src = decodeUrl;
+            await decoded.decode();
+          } finally {
+            URL.revokeObjectURL(decodeUrl);
+          }
+        };
+        const closing = await open('580px');
+        const target = closing.renderer.sections[2];
+        const nativeLoad = target.load.bind(target);
+        const nativeContent = target.loadContent.bind(target);
+        const nativeUnload = target.unload.bind(target);
+        let emptyCalls = 0;
+        let retryCalls = 0;
+        let contentCalls = 0;
+        let unloads = 0;
+        // EPUB allow=false fulfills with null without acquiring a reference.
+        // Keep that boundary local to this renderer; the survivor owns index 2.
+        target.load = async () => { emptyCalls += 1; return null; };
+        target.loadContent = () => { contentCalls += 1; return nativeContent(); };
+        target.unload = () => { unloads += 1; nativeUnload(); };
+        fills.delete(closing);
+        if (caller === 'background-adjacent') closing.renderer.removeAttribute('no-preload');
+        await closing.goTo(caller === 'direct' ? 2 : 1);
+        if (caller === 'background-adjacent') {
+          const fill = fills.get(closing);
+          assert(fill, 'expected this uncached primary navigation to expose its background fill');
+          await fill;
+        }
+        assert(emptyCalls === 1, 'expected exactly one fulfilled empty load');
+        assert(contentCalls === 0, 'empty load must not call loadContent');
+        assert(unloads === 0, 'empty load must not unload an unacquired section');
+        assert(!closing.renderer.getContents().some(({ index }) => index === 2), 'empty load must not register a target view');
+        await fresh();
+
+        // A public retry of the same target also proves the empty in-flight
+        // record was retired, rather than cached as an unusable owner.
+        target.load = async () => {
+          retryCalls += 1;
+          const url = await nativeLoad();
+          assert(url === chapter, 'real retry must reuse the survivor-held original chapter URL');
+          return url;
+        };
+        closing.renderer.setAttribute('no-preload', '');
+        await closing.goTo(2);
+        assert(closing.renderer.getContents().some(({ index, doc }) => index === 2 &&
+          doc?.querySelector('[data-c9-chapter="chapter-two"]')), 'real retry must render the target');
+        await fresh();
+        closing.close();
+        closing.close();
+        closing.remove();
+        await fresh();
+        survivor.close();
+        survivor.close();
+        survivor.remove();
+        return {
+          emptyCalls, retryCalls, contentCalls, unloads,
+          revokes: targets.map((url) => trace.revoked.filter((value) => value === url).length),
+          unavailable: await Promise.all(targets.map((url) => fetch(url).then((response) => !response.ok, () => true)))
+        };
+      }, { archive, foliateViewUrl, flow, caller });
+      expect(result.emptyCalls).toBe(1);
+      expect(result.retryCalls).toBe(1);
+      expect(result.contentCalls).toBe(1);
+      expect(result.unloads).toBe(1);
+      expect(result.revokes).toEqual([1, 1, 1]);
+      expect(result.unavailable).toEqual([true, true, true]);
+    });
+  }
+}
+
+for (const flow of ['paginated', 'scrolled'] as const) {
+  test(`C9 ${flow} synchronous stabilized close cancels navigation and history`, async ({ page }) => {
+    const archive = await buildEpub(page, [resourceChapter('start'), resourceChapter('target')]);
+    const result = await page.evaluate(async ({ archive, foliateViewUrl, flow }) => {
+      type Section = { load: () => Promise<string>; unload: () => void };
+      type NativeView = HTMLElement & {
+        open: (book: unknown) => Promise<void>;
+        init: (options: { showTextStart: boolean }) => Promise<void>;
+        goTo: (index: number) => Promise<unknown>;
+        close: () => void;
+        renderer: HTMLElement & {
+          sections: Section[];
+          getContents: () => Array<{ index: number; doc?: Document }>;
+        };
+        history: { pushState: (state: unknown) => void };
+      };
+      const trace = (window as Window & {
+        __BR1_C9_URL_TRACE__?: { created: Array<{ url: string; type: string }>; revoked: string[] };
+      }).__BR1_C9_URL_TRACE__;
+      if (!trace) throw new Error('expected C9 URL trace');
+      const { makeBook } = await import(/* @vite-ignore */ foliateViewUrl);
+      const book = await makeBook(new File([new Uint8Array(archive)], 'c9-stabilized-close.epub', {
+        type: 'application/epub+zip'
+      }));
+      const createdAt = trace.created.length;
+      const view = document.createElement('foliate-view') as NativeView;
+      view.setAttribute('flow', flow);
+      Object.assign(view.style, { position: 'fixed', inset: '0', width: '560px', height: '420px' });
+      document.body.append(view);
+      await view.open(book);
+      const renderer = view.renderer;
+      const acquired = [0, 0];
+      const unloaded = [0, 0];
+      renderer.sections = renderer.sections.map((section, index) => ({
+        ...section,
+        load: async () => {
+          const url = await section.load();
+          if (url) acquired[index] += 1;
+          return url;
+        },
+        unload: () => {
+          unloaded[index] += 1;
+          section.unload();
+        }
+      }));
+      renderer.setAttribute('no-preload', '');
+      await view.init({ showTextStart: true });
+      if (renderer.getContents().some(({ index }) => index === 1))
+        throw new Error('expected an uncached target after initial navigation');
+
+      let closed = false;
+      let stabilizedCloses = 0;
+      let targetWasRendered = false;
+      const lateHistory: unknown[] = [];
+      const nativePush = view.history.pushState.bind(view.history);
+      view.history.pushState = (state) => {
+        if (closed) lateHistory.push(state);
+        nativePush(state);
+      };
+      // Public listeners run synchronously: close must invalidate the display
+      // result before its caller resumes and commits navigation history.
+      renderer.addEventListener('stabilized', () => {
+        stabilizedCloses += 1;
+        targetWasRendered = renderer.getContents().some(({ index, doc }) => index === 1 &&
+          !!doc?.querySelector('[data-c9-chapter="target"]'));
+        closed = true;
+        view.close();
+        view.remove();
+      }, { once: true });
+      const navigation = await view.goTo(1);
+      const urls = [...new Set(trace.created.slice(createdAt)
+        .filter(({ type }) => ['application/xhtml+xml', 'text/css', 'image/png'].includes(type))
+        .map(({ url }) => url))];
+      return {
+        navigation, stabilizedCloses, targetWasRendered, lateHistory, acquired, unloaded,
+        contents: renderer.getContents().length,
+        connected: view.isConnected || renderer.isConnected,
+        revokes: urls.map((url) => trace.revoked.filter((value) => value === url).length),
+        unavailable: await Promise.all(urls.map((url) => fetch(url).then((response) => !response.ok, () => true)))
+      };
+    }, { archive, foliateViewUrl, flow });
+    expect(result.stabilizedCloses).toBe(1);
+    expect(result.targetWasRendered).toBe(true);
+    expect(result.navigation).toBe(false);
+    expect(result.lateHistory).toEqual([]);
+    expect(result.contents).toBe(0);
+    expect(result.connected).toBe(false);
+    expect(result.acquired).toEqual([1, 1]);
+    expect(result.unloaded).toEqual([1, 1]);
+    expect(result.revokes.length).toBeGreaterThanOrEqual(4);
+    expect(result.revokes).toEqual(result.revokes.map(() => 1));
+    expect(result.unavailable).toEqual(result.unavailable.map(() => true));
+  });
+}

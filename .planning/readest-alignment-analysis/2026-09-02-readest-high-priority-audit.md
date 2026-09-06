@@ -1050,6 +1050,13 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Ledger: 678 commits, 60 covered, 406 partial, 77 gap, 135 not-applicable, and 55 remaining primary task IDs.
 - Boundary: no new host animation setting, wheel/tap-zone, vendor assets or dependencies. Generic initial/direct loads, resource cancellation/rollback, mixed-direction preload, complete vertical-lr scrolled layout and packaged/native acceptance remain separate.
 
+#### Completed Follow-up: Close pending paginator loads before C12
+
+- User-approved priority: fix the reproduced C9 pending-load teardown defect before more parity features.
+- Acceptance: deterministic held-load RED/GREEN evidence; exactly-once release after close without invalidating another reader; original resource and C11 regressions unchanged and passing.
+- Owner: sibling `foliate-js/paginator.js`; br1 owns integration evidence. Initial `View.open` cancellation, navigation rollback and fixed-layout disposal remain separate.
+- Status: completed. Final2 passes 98 unique browser cases: 23 resource, 11 unchanged C11, 60 broader and 4 library cases. Helpers 99/99, ZIP units 6/6, type/syntax checks and direct Vite build pass. Source/test hashes remained frozen. Terra task reviews and Astra code/test final review pass; historical failures remain recorded in the [follow-up audit](./2026-09-06-pending-paginator-close.md).
+
 #### Next Task: S2-R04C12 - Align ruby/furigana selection and copy semantics
 
 - Audit `9a05935ca` at its existing selection/text owner. Preserve visible and accessible ruby while selected/copied base text excludes furigana. C13-C21 retain their existing owners; this slice has not started.
