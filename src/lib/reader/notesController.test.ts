@@ -12,6 +12,7 @@ import type { ReaderNote, ReaderSelectionState } from './types.js';
 type PdfSelectionSegment = {
   index: number;
   cfi: string;
+  cfiOrigin?: string;
   text: string;
   chapterLabel: string;
   chapterHref: string;
@@ -20,6 +21,7 @@ type PdfSelectionSegment = {
 const selectionWithSegments = (segments: PdfSelectionSegment[]) =>
   ({
     cfi: segments[0]!.cfi,
+    ...(segments[0]!.cfiOrigin ? { cfiOrigin: segments[0]!.cfiOrigin } : {}),
     text: segments.map((segment) => segment.text).join(' '),
     chapterLabel: segments[0]!.chapterLabel,
     chapterHref: segments[0]!.chapterHref,
@@ -45,9 +47,9 @@ const segments: PdfSelectionSegment[] = [
 ];
 
 const createFixture = (
-  options: Partial<Parameters<typeof createReaderNotesController>[0]> = {}
+  options: Partial<Parameters<typeof createReaderNotesController>[0]> = {},
+  records = new Map<string, string>()
 ) => {
-  const records = new Map<string, string>();
   const storage = {
     getItem: (key: string) => records.get(key) ?? null,
     setItem: (key: string, value: string) => records.set(key, value),
@@ -182,9 +184,10 @@ test('cross-page highlight toggle keeps existing segments and only adds missing 
   assert.equal(new Set(persisted.map(({ cfi }) => cfi)).size, 2);
 });
 
-const selectionAt = (cfi: string, text = 'Selected text') =>
+const selectionAt = (cfi: string, text = 'Selected text', cfiOrigin?: string) =>
   ({
     cfi,
+    ...(cfiOrigin === undefined ? {} : { cfiOrigin }),
     text,
     chapterLabel: 'Chapter',
     chapterHref: 'chapter-1'
@@ -282,6 +285,186 @@ test('same-CFI notes remain distinct while highlights retain exact toggle semant
   assert.equal(get(controller.state).notes.filter((note) => note.kind === 'note').length, 2);
   assert.equal(controller.remove(second!.id), true);
   assert.deepEqual(get(controller.state).notes, [first]);
+});
+
+test('EPUB highlight toggles use CFI-origin tuples and retain every segment origin', () => {
+  const { controller } = createFixture();
+  const cfi = 'epubcfi(/6/2[shared]!/4/2)';
+  const missingOrigin = selectionAt(cfi, 'Legacy text');
+  const rendered = selectionAt(cfi, 'Rendered text', 'br1-epub-rendered-v1');
+  const pristine = selectionAt(cfi, 'Pristine text', 'br1-epub-pristine-v1');
+
+  controller.setSelection(missingOrigin);
+  assert.equal(controller.addHighlightFromSelection(), true);
+  controller.setSelection(rendered);
+  assert.equal(controller.addHighlightFromSelection(), true);
+  controller.setSelection(pristine);
+  assert.equal(controller.addHighlightFromSelection(), true);
+  assert.deepEqual(
+    get(controller.state).notes.map(({ cfi: noteCfi, cfiOrigin }) => ({ cfi: noteCfi, cfiOrigin })),
+    [
+      { cfi, cfiOrigin: 'br1-epub-pristine-v1' },
+      { cfi, cfiOrigin: 'br1-epub-rendered-v1' },
+      { cfi, cfiOrigin: undefined }
+    ]
+  );
+
+  controller.setSelection(rendered);
+  assert.equal(controller.addHighlightFromSelection(), true);
+  assert.deepEqual(
+    get(controller.state).notes.map(({ cfi: noteCfi, cfiOrigin }) => ({ cfi: noteCfi, cfiOrigin })),
+    [
+      { cfi, cfiOrigin: 'br1-epub-pristine-v1' },
+      { cfi, cfiOrigin: undefined }
+    ]
+  );
+
+  controller.setSelection(
+    selectionWithSegments([
+      { index: 0, cfi, cfiOrigin: 'br1-epub-rendered-v1', text: 'Rendered segment', chapterLabel: 'Chapter', chapterHref: 'chapter-1' },
+      { index: 1, cfi, cfiOrigin: 'br1-epub-pristine-v1', text: 'Pristine segment', chapterLabel: 'Chapter', chapterHref: 'chapter-1' },
+      { index: 2, cfi, text: 'Legacy segment', chapterLabel: 'Chapter', chapterHref: 'chapter-1' }
+    ])
+  );
+  assert.equal(controller.addHighlightFromSelection(), true);
+  assert.deepEqual(
+    get(controller.state).notes.map(({ cfi: noteCfi, cfiOrigin }) => ({ cfi: noteCfi, cfiOrigin })),
+    [
+      { cfi, cfiOrigin: 'br1-epub-rendered-v1' },
+      { cfi, cfiOrigin: 'br1-epub-pristine-v1' },
+      { cfi, cfiOrigin: undefined }
+    ]
+  );
+
+  controller.setSelection(
+    selectionWithSegments([
+      { index: 0, cfi, cfiOrigin: 'br1-epub-rendered-v1', text: 'Rendered segment', chapterLabel: 'Chapter', chapterHref: 'chapter-1' },
+      { index: 1, cfi, cfiOrigin: 'br1-epub-pristine-v1', text: 'Pristine segment', chapterLabel: 'Chapter', chapterHref: 'chapter-1' },
+      { index: 2, cfi, text: 'Legacy segment', chapterLabel: 'Chapter', chapterHref: 'chapter-1' }
+    ])
+  );
+  assert.equal(controller.addHighlightFromSelection(), true);
+  assert.deepEqual(get(controller.state).notes, []);
+});
+
+test('unanchored selections never prompt or persist synthetic local or native annotations', async () => {
+  let prompts = 0;
+  const nativeSaves: ReaderNote[][] = [];
+  const { controller, records } = createFixture({
+    canPersistNotes: () => true,
+    loadPersistedNotes: async () => [],
+    savePersistedNotes: async (_key, notes) => {
+      nativeSaves.push(notes);
+    },
+    promptNoteDraft: () => {
+      prompts += 1;
+      return 'must not be used';
+    }
+  });
+  await controller.ready();
+  controller.setSelection(selectionAt('', 'Visible but unanchored text'));
+
+  assert.equal(controller.addHighlightFromSelection(), false);
+  assert.equal(controller.addFromSelection(), false);
+  controller.setSelection(
+    selectionWithSegments([
+      { index: 0, cfi: 'epubcfi(/6/2[valid])', text: 'Valid text', chapterLabel: 'Chapter', chapterHref: 'chapter-1' },
+      { index: 1, cfi: '', text: 'Unanchored text', chapterLabel: 'Chapter', chapterHref: 'chapter-1' }
+    ])
+  );
+  assert.equal(controller.addHighlightFromSelection(), false);
+  assert.equal(controller.addFromSelection(), false);
+  assert.equal(prompts, 0);
+  assert.deepEqual(get(controller.state).notes, []);
+  assert.deepEqual(nativeSaves, []);
+  assert.equal(records.has(storageKey), false);
+});
+
+test('legacy local notes reopen without promoting null or future origins', async () => {
+  const records = new Map<string, string>();
+  const legacy = restoredNote('legacy-local');
+  const nullOrigin = { ...restoredNote('null-origin'), cfiOrigin: null };
+  const futureOrigin = {
+    ...restoredNote('future-origin'),
+    cfiOrigin: 'future-origin-v9'
+  };
+  const raw = JSON.stringify([legacy, nullOrigin, futureOrigin]);
+  records.set(storageKey, raw);
+  const { controller } = createFixture({}, records);
+
+  await controller.ready();
+  assert.equal(records.get(storageKey), raw);
+  assert.equal(Object.hasOwn(get(controller.state).notes.find((note) => note.id === 'null-origin')!, 'cfiOrigin'), false);
+  controller.setSelection(selectionAt('epubcfi(/6/2[new])', 'New text', 'br1-epub-rendered-v1'));
+  assert.equal(controller.addHighlightFromSelection(), true);
+
+  const { controller: reopened } = createFixture({}, records);
+  await reopened.ready();
+  const reopenedNotes = get(reopened.state).notes;
+  assert.equal(Object.hasOwn(reopenedNotes.find((note) => note.id === 'legacy-local')!, 'cfiOrigin'), false);
+  assert.equal(Object.hasOwn(reopenedNotes.find((note) => note.id === 'null-origin')!, 'cfiOrigin'), false);
+  assert.equal(reopenedNotes.find((note) => note.id === 'future-origin')?.cfiOrigin, 'future-origin-v9');
+  assert.deepEqual(
+    reopenedNotes
+      .filter((note) => note.cfi === 'epubcfi(/6/2[new])')
+      .map(({ kind, cfi, cfiOrigin, text }) => ({ kind, cfi, cfiOrigin, text })),
+    [{ kind: 'highlight', cfi: 'epubcfi(/6/2[new])', cfiOrigin: 'br1-epub-rendered-v1', text: 'New text' }]
+  );
+});
+
+test('invalid persisted CFI origins reject ready without rewriting the raw local record', async () => {
+  const records = new Map<string, string>();
+  const raw = JSON.stringify([{ ...restoredNote('invalid-origin'), cfiOrigin: 7 }]);
+  records.set(storageKey, raw);
+  const { controller } = createFixture({}, records);
+
+  await assert.rejects(controller.ready());
+  assert.equal(records.get(storageKey), raw);
+  assert.deepEqual(get(controller.state).notes, []);
+});
+
+test('mocked native notes retain existing absent, known, and future origins across save and reopen', async () => {
+  const legacy = restoredNote('legacy-native');
+  let disk: ReaderNote[] = [
+    legacy,
+    {
+      ...restoredNote('known-native'),
+      cfi: 'epubcfi(/6/2[known])',
+      cfiOrigin: 'br1-epub-pristine-v1'
+    },
+    {
+      ...restoredNote('future-native'),
+      cfi: 'epubcfi(/6/2[future])',
+      cfiOrigin: 'future-origin-v9'
+    }
+  ];
+  const nativeOptions = {
+    canPersistNotes: () => true,
+    loadPersistedNotes: async () => disk.map((note) => ({ ...note })),
+    savePersistedNotes: async (_key: string, notes: ReaderNote[]) => {
+      disk = notes.map((note) => ({ ...note }));
+    }
+  };
+  const { controller } = createFixture(nativeOptions);
+
+  await controller.ready();
+  controller.setSelection(selectionAt('epubcfi(/6/2[added])', 'Added text', 'br1-epub-rendered-v1'));
+  assert.equal(controller.addHighlightFromSelection(), true);
+  await controller.flush();
+
+  const { controller: reopened } = createFixture(nativeOptions);
+  await reopened.ready();
+  const reopenedNotes = get(reopened.state).notes;
+  assert.equal(Object.hasOwn(reopenedNotes.find((note) => note.id === 'legacy-native')!, 'cfiOrigin'), false);
+  assert.equal(
+    reopenedNotes.find((note) => note.id === 'known-native')?.cfiOrigin,
+    'br1-epub-pristine-v1'
+  );
+  assert.equal(reopenedNotes.find((note) => note.id === 'future-native')?.cfiOrigin, 'future-origin-v9');
+  assert.equal(
+    reopenedNotes.find((note) => note.cfi === 'epubcfi(/6/2[added])')?.cfiOrigin,
+    'br1-epub-rendered-v1'
+  );
 });
 
 test('a prompt reentrancy retains records added before the draft returns', () => {

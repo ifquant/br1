@@ -31,6 +31,7 @@
   } from '$lib/reader';
   import type { ReaderTtsSessionState } from '$lib/reader';
   import { getReaderSelectionText } from '$lib/reader/selectionText';
+  import { hasReaderSelectionAnchor } from '$lib/reader/notesController';
   import ReaderFooterBar from './ReaderFooterBar.svelte';
   import ReaderFocusedReadingOverlay from './ReaderFocusedReadingOverlay.svelte';
   import ReaderHeaderBar from './ReaderHeaderBar.svelte';
@@ -773,6 +774,7 @@
       selectionSummary={annotationSelectionSummary}
       selectionDetail={annotationSelectionDetail}
       supportsAnnotationActions={annotationSupportsActions}
+      hasSelectionAnchor={hasReaderSelectionAnchor(annotationSelection)}
       supportMessage={annotationSupportMessage}
       onHighlight={onAddHighlightFromSelection}
       onNote={onAddNoteFromSelection}

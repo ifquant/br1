@@ -644,6 +644,7 @@
         (note): ReaderHighlightSelectionSetExportHighlight => ({
           id: note.id,
           cfi: note.cfi,
+          ...(typeof note.cfiOrigin === 'string' ? { cfiOrigin: note.cfiOrigin } : {}),
           text: note.text,
           chapterLabel: note.chapterLabel,
           chapterHref: note.chapterHref,

@@ -5,6 +5,7 @@
   import ReaderAssistWorkspace from './ReaderAssistWorkspace.svelte';
   import ReaderSyncWorkspace from './ReaderSyncWorkspace.svelte';
   import ReaderTtsWorkspace from './ReaderTtsWorkspace.svelte';
+  import { hasReaderSelectionAnchor } from '$lib/reader/notesController';
   import type {
     Br1KoReaderRemoteSyncResult,
     KoReaderSyncExchangeExportDialogResult,
@@ -335,10 +336,10 @@ import type {
           <strong>{notesState.selection?.chapterLabel || '当前选中内容'}</strong>
           <p>{selectionText}</p>
           <div class="selection-actions">
-            <button type="button" class="ghost-action" on:click={() => callbacks.onAddHighlight?.()}>
+            <button type="button" class="ghost-action" disabled={!hasReaderSelectionAnchor(notesState.selection)} on:click={() => callbacks.onAddHighlight?.()}>
               先高亮当前选中内容
             </button>
-            <button type="button" class="primary-action" on:click={() => callbacks.onAddNote?.()}>
+            <button type="button" class="primary-action" disabled={!hasReaderSelectionAnchor(notesState.selection)} on:click={() => callbacks.onAddNote?.()}>
               为当前选中内容记笔记
             </button>
           </div>

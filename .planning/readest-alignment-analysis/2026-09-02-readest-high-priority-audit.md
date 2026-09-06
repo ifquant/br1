@@ -133,7 +133,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 94 | `38d7ba80f` | catalog/import | feat(opds): support auto-download books from OPDS feeds (#3844) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 95 | `1527dd9b3` | reader core | fix: exponential wheel zoom for images and tables, closes #3956 (#3957) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 96 | `aa60123d3` | reading modes/controls | fix(rsvp): unicode-aware ORP calculation for non-Latin scripts, closes #3958 (#3964) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
-| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C13B | C13A is compatibility evidence only; historical locator identity must be defined before C13C production layout. |
+| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C13B2 | C13A evidence and C13B1 new-note provenance complete; remaining writers and compatibility consumers precede C13C layout. |
 | 98 | `6d798542f` | library | fix: restore main library window when going to library from reader, closes #3969 (#3973) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 99 | `e18bfd681` | reader core | fix(reader): smooth out mouse wheel scrolling in scroll mode, closes #3966 (#3974) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 100 | `17f2a17ad` | reading modes/controls | fix(toc): fix auto scroll on book open with pinned sidebar, closes #3945 (#3975) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
@@ -1070,10 +1070,16 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Verification: 2 focused plus 11 existing browser cases, strict spec TypeScript check, `pnpm check` (0 errors/warnings), 99 helpers, direct Vite build, diff/ledger checks, Terra task re-review and Astra static final review PASS. See the [evidence record](./2026-09-06-warichu-locator-contract.md) for corrected harness diagnostics and proof limits.
 - No production source, dependency or stored-record changes. Parent `ebbbf104b` stays `partial`; totals remain 61/405/77/135 and 54 primary tasks. C13B compatibility precedes C13C layout.
 
-#### Next Task: S2-R04C13B - Define historical Warichu locator compatibility
+#### Completed Slice: S2-R04C13B1 - Preserve new EPUB note locator origin
 
-- C13A freezes test-only compatibility evidence for `ebbbf104b`; see the [locator contract](./2026-09-06-warichu-locator-contract.md). Retaining currently unwrapped markers can invalidate old CFIs or retarget equal text. No production markup changes are included.
-- Inventory persisted/imported locator readers and writers; define distinguishable DOM identity, ambiguous-origin handling, and compatibility checks without silently rewriting original records. Only after C13B passes may C13C implement measured layout. Parent remains `partial`; C14-C21 remain unstarted.
+- New EPUB note/highlight CFIs carry rendered-body or pristine-popup origin through persistence, exports and KOReader merges. Missing historical origin stays unknown, future strings survive, and tuple-based toggling does not delete another origin's same-CFI highlight. Failed EPUB selection CFI generation retains text tools but cannot borrow the current position or save an anchored record.
+- Verification: 61 unique browser cases, 104 reader helpers, 9 KOReader helpers, 59 Rust tests, strict browser TypeScript, zero-error/warning Svelte check, direct Vite build and independent Terra/Astra static reviews PASS. The corrected test wait and all proof limits are recorded in the [historical locator contract](./2026-09-06-warichu-historical-locators.md).
+- No Warichu DOM/layout or historical replay changes. Parent remains `partial`; totals stay 61/405/77/135 and 54 primary tasks.
+
+#### Next Task: S2-R04C13B2 - Preserve remaining locator provenance
+
+- Continue the audited bookmark/progress/import/cache and reading-asset writers and transports. C13B1 covers new notes, not all persisted locators; do not infer unknown origin from text or successful resolution.
+- C13B3 must pair consumer compatibility with restore write protection, including debounce/flush and late async callbacks, before any rejection/fallback can overwrite historical progress. C13C layout waits for B2/B3; C14-C21 remain unstarted.
 
 ### S2-R05 - Polish interaction and accessibility boundaries
 

@@ -30,12 +30,18 @@ const defaultNotesState = (): ReaderSidebarNotesState => ({
 });
 
 const normalizeReaderNotes = (notes: ReaderNote[]): ReaderNote[] =>
-  notes.map((note) => ({
-    ...note,
-    // Boundary: older payloads can omit the new `highlight` kind. Collapse that
-    // migration here so the sidebar and export code only see the current shape.
-    kind: note.kind === 'highlight' ? 'highlight' : 'note'
-  }));
+  notes.map(({ cfiOrigin, ...note }) => {
+    if (cfiOrigin != null && typeof cfiOrigin !== 'string') {
+      throw new Error('Reader note cfiOrigin must be a string when present');
+    }
+    return {
+      ...note,
+      ...(typeof cfiOrigin === 'string' ? { cfiOrigin } : {}),
+      // Boundary: older payloads can omit the new `highlight` kind. Collapse that
+      // migration here so the sidebar and export code only see the current shape.
+      kind: note.kind === 'highlight' ? 'highlight' : 'note'
+    };
+  });
 
 const buildSelectionKoReaderMetadata = (
   selection: ReaderSelectionState,
@@ -51,6 +57,17 @@ const buildSelectionKoReaderMetadata = (
     style: kind === 'highlight' ? ('highlight' as const) : null
   };
 };
+
+export const hasReaderSelectionAnchor = (selection: ReaderSelectionState | null): boolean => {
+  if (!selection) return false;
+  const segments = selection.segments?.length ? selection.segments : [selection];
+  const textSegments = segments.filter((segment) => segment.text.trim().length > 0);
+  return textSegments.length > 0 && textSegments.every((segment) => segment.cfi.trim().length > 0);
+};
+
+// JSON keeps the CFI and optional DOM-model origin as one comparison key.
+const cfiIdentity = (value: Pick<ReaderSelectionState, 'cfi' | 'cfiOrigin'>) =>
+  JSON.stringify([value.cfiOrigin ?? null, value.cfi]);
 
 export const createReaderNotesController = ({
   getStorage,
@@ -95,7 +112,7 @@ export const createReaderNotesController = ({
   };
 
   const snapshotNotes = (notes: ReaderNote[]) =>
-    notes.map((note) => ({
+    normalizeReaderNotes(notes).map((note) => ({
       ...note,
       ...(note.koreader ? { koreader: { ...note.koreader } } : {})
     }));
@@ -279,35 +296,45 @@ export const createReaderNotesController = ({
     const storageKey = getStorageKey();
     const selection = scope?.selection === undefined ? get(state).selection : scope.selection;
     const guard = scope?.isCurrent;
-    if (!selection) return false;
+    if (!selection || !hasReaderSelectionAnchor(selection)) return false;
     if (!canMutate(storageKey, guard)) return false;
 
     const draft = kind === 'note' ? promptNoteDraft('为当前选中的文本添加笔记：', '') : '';
     if (draft === null) return false;
-    if (!canMutate(storageKey, guard)) return false;
+    if (!hasReaderSelectionAnchor(selection) || !canMutate(storageKey, guard)) return false;
 
     const segments = selection.segments?.length ? selection.segments : [selection];
-    const selectableSegments = segments.filter((segment) => segment.text.trim());
+    const selectableSegments = segments.filter((segment) => segment.text.trim() && segment.cfi.trim());
     if (!selectableSegments.length) return false;
     // Prompt callbacks can synchronously mutate the controller. Build from the
     // newest notes so an admitted addition never drops a newer record.
     const current = get(state);
     let segmentsToAdd = selectableSegments;
     if (kind === 'highlight') {
-      const selectedCfis = new Set(selectableSegments.map((segment) => segment.cfi));
+      const selectedCfis = new Set(
+        selectableSegments.map(cfiIdentity)
+      );
       const existingCfis = new Set(
         current.notes
-          .filter((note) => note.kind === 'highlight' && selectedCfis.has(note.cfi))
-          .map((note) => note.cfi)
+          .filter(
+            (note) =>
+              note.kind === 'highlight' &&
+              selectedCfis.has(cfiIdentity(note))
+          )
+          .map(cfiIdentity)
       );
       if (selectedCfis.size === existingCfis.size) {
         const nextNotes = current.notes.filter(
-          (note) => note.kind !== 'highlight' || !selectedCfis.has(note.cfi)
+          (note) =>
+            note.kind !== 'highlight' ||
+            !selectedCfis.has(cfiIdentity(note))
         );
         if (!canMutate(storageKey, guard)) return false;
         state.update((value) => ({
           ...value,
-          activeCfi: selectedCfis.has(value.activeCfi) ? '' : value.activeCfi,
+          activeCfi: selectableSegments.some((segment) => segment.cfi === value.activeCfi)
+            ? ''
+            : value.activeCfi,
           notes: nextNotes
         }));
         stateStorageKey = storageKey;
@@ -315,7 +342,9 @@ export const createReaderNotesController = ({
         persist(storageKey, nextNotes);
         return true;
       }
-      segmentsToAdd = selectableSegments.filter((segment) => !existingCfis.has(segment.cfi));
+      segmentsToAdd = selectableSegments.filter(
+        (segment) => !existingCfis.has(cfiIdentity(segment))
+      );
     }
     const createdAt = Date.now();
     // Fixed-layout pages own separate DOM ranges and CFIs. Persist each part so
@@ -328,6 +357,7 @@ export const createReaderNotesController = ({
         id: crypto.randomUUID(),
         kind: segmentKind,
         cfi: segment.cfi,
+        ...(typeof segment.cfiOrigin === 'string' ? { cfiOrigin: segment.cfiOrigin } : {}),
         text: kind === 'note' && index === 0 ? selection.text.trim() : selectedText,
         note: kind === 'note' && index === 0 ? draft.trim() : '',
         chapterLabel: segment.chapterLabel,

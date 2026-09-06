@@ -117,6 +117,65 @@ test('KOReader exchange export keeps one book document per library book', () => 
   assert.equal(exchange.books[1]?.bookId, 'book-beta');
 });
 
+test('KOReader exchange round-trip retains the existing CFI origin without promoting absent or future values', () => {
+  const current = createSnapshot();
+  const currentNotes = current.records.find(
+    (record) => record.kind === 'notes' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(currentNotes?.kind, 'notes');
+  if (currentNotes?.kind !== 'notes') throw new Error('Expected existing alpha note record');
+
+  currentNotes.payload.notes = [
+    {
+      ...currentNotes.payload.notes[0],
+      cfi: 'epubcfi(/6/2[rendered]!/4/2)',
+      cfiOrigin: 'br1-epub-rendered-v1'
+    },
+    {
+      ...currentNotes.payload.notes[0],
+      id: 'note-future-origin',
+      cfi: 'epubcfi(/6/2[future]!/4/2)',
+      cfiOrigin: 'future-origin-v9',
+      koreader: {
+        ...currentNotes.payload.notes[0]!.koreader,
+        xpointer0: '/body/DocFragment[1]/body/div/p[3].text().1'
+      }
+    },
+    {
+      ...currentNotes.payload.notes[0],
+      id: 'note-legacy-origin',
+      cfi: 'epubcfi(/6/2[legacy]!/4/2)',
+      koreader: {
+        ...currentNotes.payload.notes[0]!.koreader,
+        xpointer0: '/body/DocFragment[1]/body/div/p[4].text().1'
+      }
+    }
+  ];
+
+  const plan = mergeKoReaderSyncExchangeIntoSnapshot(
+    current,
+    createKoReaderSyncExchangeFromSnapshot(current)
+  );
+  const mergedNotes = plan.snapshot.records.find(
+    (record) => record.kind === 'notes' && record.payload.bookKey === alpha.filePath
+  );
+  assert.equal(mergedNotes?.kind, 'notes');
+  if (mergedNotes?.kind !== 'notes') throw new Error('Expected merged alpha note record');
+
+  assert.deepEqual(
+    mergedNotes.payload.notes.map(({ id, cfi, cfiOrigin }) => ({ id, cfi, cfiOrigin })).sort((left, right) => left.id.localeCompare(right.id)),
+    [
+      { id: 'note-alpha', cfi: 'epubcfi(/6/2[rendered]!/4/2)', cfiOrigin: 'br1-epub-rendered-v1' },
+      { id: 'note-future-origin', cfi: 'epubcfi(/6/2[future]!/4/2)', cfiOrigin: 'future-origin-v9' },
+      { id: 'note-legacy-origin', cfi: 'epubcfi(/6/2[legacy]!/4/2)', cfiOrigin: undefined }
+    ]
+  );
+  assert.equal(
+    Object.hasOwn(mergedNotes.payload.notes.find((note) => note.id === 'note-legacy-origin')!, 'cfiOrigin'),
+    false
+  );
+});
+
 test('KOReader exchange import merges matched books and reports missing ones', () => {
   const current = createSnapshot();
   const exchange = createKoReaderSyncExchangeFromSnapshot(current);

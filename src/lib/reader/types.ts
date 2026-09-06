@@ -150,6 +150,7 @@ export type ReaderSettings = {
 export type ReaderHighlightsFilter = 'all' | 'chapter' | 'selected';
 export type ReaderHighlightsSort = 'recent' | 'oldest';
 export type ReaderHighlightSelectionSetSort = 'recent' | 'oldest';
+export type ReaderGeneratedCfiOrigin = 'br1-epub-rendered-v1' | 'br1-epub-pristine-v1';
 
 export type ReaderHighlightSelectionSet = {
   id: string;
@@ -172,6 +173,8 @@ export type ReaderHighlightSelectionSet = {
 export type ReaderHighlightSelectionSetExportHighlight = {
   id: string;
   cfi: string;
+  /** DOM-model provenance only; it is not CFI validation or a security identity. */
+  cfiOrigin?: string;
   text: string;
   chapterLabel: string;
   chapterHref: string;
@@ -244,6 +247,8 @@ export type ReaderSearchHistoryEntry = {
 export type ReaderSelectionSegment = {
   index: number;
   cfi: string;
+  /** DOM-model provenance only; it is not CFI validation or a security identity. */
+  cfiOrigin?: string;
   text: string;
   chapterLabel: string;
   chapterHref: string;
@@ -281,6 +286,8 @@ export type ReaderNote = {
   id: string;
   kind: ReaderAnnotationKind;
   cfi: string;
+  /** DOM-model provenance only; it is not CFI validation or a security identity. */
+  cfiOrigin?: string;
   text: string;
   note: string;
   chapterLabel: string;

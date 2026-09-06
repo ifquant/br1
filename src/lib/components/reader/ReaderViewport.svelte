@@ -56,6 +56,7 @@
   import { getPdfSelectionText } from '$lib/reader/pdfText';
   import { copyReaderRubySelection, getReaderSelectionText } from '$lib/reader/selectionText';
   import { decodePlainText, parsePlainTextChapters } from '$lib/reader/plainText';
+  import type { ReaderGeneratedCfiOrigin } from '$lib/reader/types';
   import type {
     ReaderNote,
     ReaderPreviewState,
@@ -678,6 +679,8 @@
   };
 
   const NOTE_PREFIX = 'br1-note:';
+  const EPUB_RENDERED_CFI_ORIGIN: ReaderGeneratedCfiOrigin = 'br1-epub-rendered-v1';
+  const EPUB_PRISTINE_CFI_ORIGIN: ReaderGeneratedCfiOrigin = 'br1-epub-pristine-v1';
   const emitSelectionState = (detail: ReaderSelectionState | null) => {
     dispatch('selectionchange', detail);
   };
@@ -804,28 +807,44 @@
     allowLocationFallback = true
   ): ReaderSelectionState | null => {
     if (!foliateViewElement) return null;
+    if (!rangeBelongsToDocument(range, doc)) return null;
     const rawText = range.toString().trim();
     const text = (currentFormatLabel === 'PDF' ? getPdfSelectionText(range) : getReaderSelectionText(range)).trim();
     if (!text) return null;
     const chapterLabel = foliateViewElement.lastLocation?.tocItem?.label || '当前章节';
     const chapterHref = foliateViewElement.lastLocation?.tocItem?.href || '';
+    const isEpubSelection = currentFormatLabel === 'EPUB';
     let cfi = '';
 
     try {
       cfi = foliateViewElement.getCFI(index, range);
-      if (!cfi && !allowLocationFallback) return null;
+      if (!cfi.trim()) cfi = '';
     } catch (error) {
-      if (!allowLocationFallback) return null;
-      console.warn('Failed to compute an exact annotation CFI, falling back to the current reader location', error);
-      cfi =
-        (typeof (foliateViewElement.lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
-          ? ((foliateViewElement.lastLocation as { cfi?: string }).cfi ?? '')
-          : '') ||
-        chapterHref ||
-        `fraction:${(foliateViewElement.lastLocation?.fraction ?? 0).toFixed(6)}`;
+      if (isEpubSelection) {
+        console.warn('Failed to compute an exact EPUB annotation CFI; retaining text without an anchor', error);
+      } else {
+        if (!allowLocationFallback) return null;
+        console.warn('Failed to compute an exact annotation CFI, falling back to the current reader location', error);
+        cfi =
+          (typeof (foliateViewElement.lastLocation as { cfi?: unknown } | undefined)?.cfi === 'string'
+            ? ((foliateViewElement.lastLocation as { cfi?: string }).cfi ?? '')
+            : '') ||
+          chapterHref ||
+          `fraction:${(foliateViewElement.lastLocation?.fraction ?? 0).toFixed(6)}`;
+      }
     }
 
-    return { index, cfi, text, chapterLabel, chapterHref, ...(currentFormatLabel !== 'PDF' && rawText !== text ? { rawText } : {}) };
+    if (!cfi && !isEpubSelection && !allowLocationFallback) return null;
+
+    return {
+      index,
+      cfi,
+      ...(isEpubSelection && cfi ? { cfiOrigin: EPUB_RENDERED_CFI_ORIGIN } : {}),
+      text,
+      chapterLabel,
+      chapterHref,
+      ...(currentFormatLabel !== 'PDF' && rawText !== text ? { rawText } : {})
+    };
   };
 
   const getSelectionState = (doc: Document, index: number): ReaderSelectionState | null => {
@@ -1696,7 +1715,7 @@
           const rawText = source.toString().trim();
           const text = getReaderSelectionText(source).trim();
           if (!text) return null;
-          return { index: location.index, cfi, text, ...(rawText !== text ? { rawText } : {}),
+          return { index: location.index, cfi, ...(currentFormatLabel === 'EPUB' ? { cfiOrigin: EPUB_PRISTINE_CFI_ORIGIN } : {}), text, ...(rawText !== text ? { rawText } : {}),
             chapterHref: href, chapterLabel: pristine.title || request.label };
         } catch (error) {
           console.warn('Failed to validate footnote selection in its original chapter', error);

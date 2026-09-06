@@ -194,6 +194,9 @@ pub(crate) struct ReaderNoteRecord {
     #[serde(default = "default_reader_note_kind")]
     pub(crate) kind: String,
     pub(crate) cfi: String,
+    // DOM-model provenance only; this does not validate the locator or establish identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) cfi_origin: Option<String>,
     pub(crate) text: String,
     pub(crate) note: String,
     pub(crate) chapter_label: String,

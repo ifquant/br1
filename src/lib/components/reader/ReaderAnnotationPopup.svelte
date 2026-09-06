@@ -5,6 +5,7 @@
   export let selectionSummary = '';
   export let selectionDetail = '';
   export let supportsAnnotationActions = true;
+  export let hasSelectionAnchor = false;
   export let supportMessage = '';
   export let onHighlight: (() => void) | null = null;
   export let onNote: (() => void) | null = null;
@@ -44,8 +45,8 @@
 
     <div class="action-row">
       {#if supportsAnnotationActions}
-        <button type="button" on:click={() => onHighlight?.()}>高亮</button>
-        <button type="button" on:click={() => onNote?.()}>笔记</button>
+        <button type="button" disabled={!hasSelectionAnchor} title={hasSelectionAnchor ? undefined : '无法准确定位这段选区'} on:click={() => onHighlight?.()}>高亮</button>
+        <button type="button" disabled={!hasSelectionAnchor} title={hasSelectionAnchor ? undefined : '无法准确定位这段选区'} on:click={() => onNote?.()}>笔记</button>
         <button type="button" on:click={() => onLookup?.()}>查找</button>
         <button type="button" on:click={() => onTranslate?.()}>翻译</button>
         <button type="button" on:click={() => onTts?.()}>朗读</button>

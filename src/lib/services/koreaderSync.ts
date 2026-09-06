@@ -368,13 +368,17 @@ const mergeImportedNotesRecord = ({
       notes: [
         ...preservedLocalNotes,
         ...importedRecord.payload.notes.map((note) => {
+          const { cfiOrigin: importedCfiOrigin, ...importedNote } = note;
           const existing = currentNotes.find((candidate) =>
             matchesImportedKoReaderNote(candidate, note)
           );
+          const cfiOwner = existing?.cfi ? existing : null;
+          const cfiOrigin = cfiOwner ? cfiOwner.cfiOrigin : importedCfiOrigin;
 
           return {
-            ...note,
-            cfi: existing?.cfi || note.cfi,
+            ...importedNote,
+            cfi: cfiOwner?.cfi ?? note.cfi,
+            ...(typeof cfiOrigin === 'string' ? { cfiOrigin } : {}),
             chapterHref: existing?.chapterHref || note.chapterHref,
             chapterLabel: note.chapterLabel || existing?.chapterLabel || 'KOReader annotation'
           };

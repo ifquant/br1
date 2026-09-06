@@ -64,6 +64,27 @@ const installClipboardMock = async (page: import('@playwright/test').Page) => {
 const clipboardWrites = (page: import('@playwright/test').Page) =>
   page.evaluate(() => (window as Window & { __BR1_RUBY_COPY_WRITES__?: string[] }).__BR1_RUBY_COPY_WRITES__ ?? []);
 
+const persistedReaderNotes = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const notes: Array<Record<string, unknown>> = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith('br1.reader.notes:')) continue;
+      const value = localStorage.getItem(key);
+      if (!value) continue;
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        if (!Array.isArray(parsed)) continue;
+        notes.push(...parsed.filter((entry): entry is Record<string, unknown> =>
+          !!entry && typeof entry === 'object' && typeof entry.cfi === 'string' && typeof entry.kind === 'string'
+        ));
+      } catch {
+        // Ignore malformed values under the dedicated notes namespace.
+      }
+    }
+    return notes;
+  });
+
 const selectTextBoundaries = (target: import('@playwright/test').Locator) =>
   target.evaluate((node) => {
     const walker = node.ownerDocument.createTreeWalker(node, NodeFilter.SHOW_TEXT);
@@ -276,6 +297,11 @@ test('routes a real EPUB ruby selection to base-only actions while preserving ra
   await toolbar.getByRole('button', { name: '高亮' }).click();
   const workspace = page.getByRole('complementary', { name: 'Reader Workspace' });
   await expect(workspace.getByLabel('高亮列表').locator('.workspace-text')).toHaveText('前漢後');
+  expect(await persistedReaderNotes(page)).toContainEqual(expect.objectContaining({
+    kind: 'highlight',
+    cfi: original.cfi,
+    cfiOrigin: 'br1-epub-rendered-v1'
+  }));
 
   await selectTextBoundaries(frame.locator('#selected'));
   await expect(toolbar).toBeVisible();
@@ -372,6 +398,13 @@ test('keeps safe ruby markup and raw CFI mapping in a real footnote popup while 
   expect(nativeCopy).toEqual({ copied: '漢', prevented: true });
   await actions.getByRole('button', { name: '复制' }).click();
   await expect.poll(() => clipboardWrites(page)).toEqual(['漢']);
+  await actions.getByRole('button', { name: '高亮' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('高亮已更新');
+  expect(await persistedReaderNotes(page)).toContainEqual(expect.objectContaining({
+    kind: 'highlight',
+    cfi: original.cfi,
+    cfiOrigin: 'br1-epub-pristine-v1'
+  }));
 
   const proof = await page.evaluate(() =>
     (window as Window & {
@@ -384,6 +417,45 @@ test('keeps safe ruby markup and raw CFI mapping in a real footnote popup while 
   expect(original).toEqual({ cfi: expect.stringMatching(/^epubcfi\(/), rawText: '漢(かん)', roundTripExact: true });
   expect(proof.getCFI).toContainEqual({ cfi: original.cfi, rawText: original.rawText });
   expect(proof.resolve).toContainEqual({ cfi: original.cfi, rawText: original.rawText, exact: true });
+});
+
+test('keeps EPUB text tools available while empty or thrown CFI emission disables anchored actions', async ({ page }) => {
+  await installClipboardMock(page);
+  const frame = await openEpub(page, '<p id="selected">Exact text without an anchor</p>');
+  const toolbar = page.getByRole('toolbar', { name: '选中文本操作' });
+
+  for (const fault of ['empty', 'throw'] as const) {
+    await frame.locator('#selected').evaluate((target, mode) => {
+      const doc = target.ownerDocument;
+      const view = doc.defaultView?.frameElement?.ownerDocument.querySelector('foliate-view') as FoliateView | null;
+      if (!view) throw new Error('expected live Foliate view');
+      view.getCFI = () => {
+        if (mode === 'throw') throw new Error('test CFI failure');
+        return '';
+      };
+      const text = target.firstChild;
+      if (!(text instanceof Text)) throw new Error('expected explicit EPUB text boundary');
+      const range = doc.createRange();
+      range.selectNodeContents(text);
+      const selection = doc.getSelection();
+      if (!selection) throw new Error('expected native iframe selection API');
+      selection.removeAllRanges();
+      selection.addRange(range);
+      doc.dispatchEvent(new Event('selectionchange'));
+    }, fault);
+
+    await expect(toolbar).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: '高亮' })).toBeDisabled();
+    await expect(toolbar.getByRole('button', { name: '笔记' })).toBeDisabled();
+    await expect(toolbar.getByRole('button', { name: '查找' })).toBeEnabled();
+    await expect(toolbar.getByRole('button', { name: '翻译' })).toBeEnabled();
+    await expect(toolbar.getByRole('button', { name: '朗读' })).toBeEnabled();
+    await expect(toolbar.getByRole('button', { name: '复制' })).toBeEnabled();
+  }
+
+  await toolbar.getByRole('button', { name: '复制' }).click();
+  await expect.poll(() => clipboardWrites(page)).toEqual(['Exact text without an anchor']);
+  expect(await persistedReaderNotes(page)).toEqual([]);
 });
 
 test('passes native copy through unchanged for real PDF text and test-owned ruby markup', async ({ page }) => {

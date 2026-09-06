@@ -189,6 +189,9 @@ const isReaderHighlightSelectionExportHighlight = (
   typeof value === 'object' &&
   typeof (value as { id?: unknown }).id === 'string' &&
   typeof (value as { cfi?: unknown }).cfi === 'string' &&
+  ((value as { cfiOrigin?: unknown }).cfiOrigin === undefined ||
+    (value as { cfiOrigin?: unknown }).cfiOrigin === null ||
+    typeof (value as { cfiOrigin?: unknown }).cfiOrigin === 'string') &&
   typeof (value as { text?: unknown }).text === 'string' &&
   typeof (value as { chapterLabel?: unknown }).chapterLabel === 'string' &&
   typeof (value as { chapterHref?: unknown }).chapterHref === 'string' &&

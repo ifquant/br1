@@ -11,8 +11,8 @@
 
 - Define historical locator compatibility before retaining or laying out Warichu markup.
   Why: the current sanitizer unwraps `<warichu>` while pristine sections retain it; adding the tag back or rebuilding measured chunks changes the DOM paths behind existing CFIs. A resolving locator, even with matching repeated text, can target the wrong node.
-  Context: C13A is compatibility evidence only; no sanitizer change, layout or data migration is enabled. Existing container schema versions do not identify a locator's DOM model.
-  Depends on: C13B's writer/reader inventory, distinguishable locator provenance and fail-closed compatibility policy before C13C measured layout. See [the C13 contract](.planning/readest-alignment-analysis/2026-09-06-warichu-locator-contract.md).
+  Context: C13A supplies compatibility evidence; C13B1 now tags new EPUB note/highlight CFIs with their rendered/pristine source and rejects unanchored additions. Other locator families and historical replay are not migrated. Existing container schema versions do not identify a locator's DOM model.
+  Depends on: C13B2 remaining writers/transport and C13B3 compatibility consumers plus restore write protection before C13C measured layout. See [the historical locator contract](.planning/readest-alignment-analysis/2026-09-06-warichu-historical-locators.md).
 
 - Audit renderer direction ownership across mixed-direction chapters.
   Why: adjacent-section loading calls the paginator's shared `#beforeRender`, which overwrites `#rtl` and `#vertical` even when that section is not primary.

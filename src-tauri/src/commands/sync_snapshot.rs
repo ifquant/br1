@@ -699,6 +699,7 @@ fn imported_annotation_to_note(annotation: &KoReaderExchangeAnnotationPayload) -
             "note".to_string()
         },
         cfi: annotation.xpointer0.clone(),
+        cfi_origin: None,
         text: annotation.text.clone(),
         note: annotation.note.clone(),
         chapter_label: if annotation.text.trim().is_empty() {
@@ -839,6 +840,9 @@ fn merge_imported_notes(
             cfi: existing
                 .map(|entry| entry.cfi.clone())
                 .unwrap_or_else(|| note.cfi.clone()),
+            cfi_origin: existing
+                .map(|entry| entry.cfi_origin.clone())
+                .unwrap_or_else(|| note.cfi_origin.clone()),
             text: note.text.clone(),
             note: note.note.clone(),
             chapter_label: if !note.chapter_label.is_empty() {
@@ -1715,7 +1719,7 @@ mod tests {
     use super::{
         apply_file_mutations_with_rollback, apply_sync_snapshot_roots, bookmark_updated_at, bookmarks_sync_record,
         build_scoped_record_id, current_book_updated_at, derive_koreader_book_identity,
-        highlights_sync_record, library_metadata_sync_record, note_updated_at,
+        highlights_sync_record, library_metadata_sync_record, merge_imported_notes, note_updated_at,
         notes_sync_record, parse_sync_snapshot_document, prepare_sync_snapshot_restore,
         reading_state_sync_record, resolve_matched_library_book, write_files_with_rollback,
         write_sync_snapshot_document, FileMutation, KoReaderExchangeBookPayload,
@@ -1850,6 +1854,7 @@ mod tests {
                         id: "note-1".to_string(),
                         kind: "highlight".to_string(),
                         cfi: "epubcfi(/6/2)".to_string(),
+                        cfi_origin: None,
                         text: "line".to_string(),
                         note: "margin".to_string(),
                         chapter_label: "Chapter 1".to_string(),
@@ -1884,6 +1889,7 @@ mod tests {
                                     id: "source-1".to_string(),
                                     kind: "highlight".to_string(),
                                     cfi: "epubcfi(/6/4)".to_string(),
+                                    cfi_origin: None,
                                     text: "imported".to_string(),
                                     note: "".to_string(),
                                     chapter_label: "Chapter 2".to_string(),
@@ -1987,6 +1993,7 @@ mod tests {
                         id: "note-1".to_string(),
                         kind: "highlight".to_string(),
                         cfi: "epubcfi(/6/2)".to_string(),
+                        cfi_origin: None,
                         text: "line".to_string(),
                         note: "margin".to_string(),
                         chapter_label: "Chapter 1".to_string(),
@@ -2092,6 +2099,116 @@ mod tests {
     }
 
     #[test]
+    fn reader_note_cfi_origin_accepts_legacy_and_future_strings_only() {
+        let mut payload = serde_json::json!({
+            "id": "note-1",
+            "kind": "highlight",
+            "cfi": "epubcfi(/6/2)",
+            "text": "Text",
+            "note": "",
+            "chapterLabel": "Chapter",
+            "chapterHref": "chapter.xhtml",
+            "createdAt": 1
+        });
+
+        let absent: ReaderNoteRecord = serde_json::from_value(payload.clone()).unwrap();
+        assert_eq!(absent.cfi_origin, None);
+
+        payload["cfiOrigin"] = serde_json::Value::Null;
+        let null: ReaderNoteRecord = serde_json::from_value(payload.clone()).unwrap();
+        assert_eq!(null.cfi_origin, None);
+
+        payload["cfiOrigin"] = serde_json::json!("future-renderer-v9");
+        let future: ReaderNoteRecord = serde_json::from_value(payload.clone()).unwrap();
+        assert_eq!(future.cfi_origin.as_deref(), Some("future-renderer-v9"));
+        assert_eq!(
+            serde_json::to_value(&future)
+                .unwrap()
+                .get("cfiOrigin")
+                .and_then(serde_json::Value::as_str),
+            Some("future-renderer-v9")
+        );
+
+        payload["cfiOrigin"] = serde_json::json!(42);
+        assert!(serde_json::from_value::<ReaderNoteRecord>(payload).is_err());
+    }
+
+    #[test]
+    fn merge_imported_notes_keeps_origin_with_the_retained_local_cfi() {
+        let metadata = ReaderAnnotationKoReaderMetadataRecord {
+            book_hash: Some("book-hash".to_string()),
+            meta_hash: Some("meta-hash".to_string()),
+            xpointer0: "/body/DocFragment[1]/body/p[2]".to_string(),
+            xpointer1: None,
+            page: None,
+            style: Some("highlight".to_string()),
+            color: None,
+            updated_at: Some(100),
+            deleted_at: None,
+        };
+        let current = ReaderNoteRecord {
+            id: "local-note".to_string(),
+            kind: "highlight".to_string(),
+            cfi: "epubcfi(/6/2!/4/2)".to_string(),
+            cfi_origin: Some("br1-epub-rendered-v1".to_string()),
+            text: "Local".to_string(),
+            note: String::new(),
+            chapter_label: "Chapter".to_string(),
+            chapter_href: "chapter.xhtml".to_string(),
+            created_at: 100,
+            koreader: Some(metadata.clone()),
+        };
+        let imported = ReaderNoteRecord {
+            id: "external-note".to_string(),
+            kind: "highlight".to_string(),
+            cfi: "/body/DocFragment[1]/body/p[2]".to_string(),
+            cfi_origin: None,
+            text: "Imported".to_string(),
+            note: String::new(),
+            chapter_label: "Imported".to_string(),
+            chapter_href: String::new(),
+            created_at: 101,
+            koreader: Some(metadata),
+        };
+
+        assert!(serde_json::to_value(&imported)
+            .unwrap()
+            .get("cfiOrigin")
+            .is_none());
+
+        let merged = merge_imported_notes(&[current], &[imported]);
+
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].cfi, "epubcfi(/6/2!/4/2)");
+        assert_eq!(merged[0].cfi_origin.as_deref(), Some("br1-epub-rendered-v1"));
+        assert_eq!(
+            serde_json::to_value(&merged[0])
+                .unwrap()
+                .get("cfiOrigin")
+                .and_then(serde_json::Value::as_str),
+            Some("br1-epub-rendered-v1")
+        );
+
+        let current_without_origin = ReaderNoteRecord {
+            id: "local-without-origin".to_string(),
+            cfi_origin: None,
+            ..merged[0].clone()
+        };
+        let imported_with_origin = ReaderNoteRecord {
+            id: "external-with-origin".to_string(),
+            cfi: "/body/DocFragment[1]/body/p[2]".to_string(),
+            cfi_origin: Some("future-renderer-v9".to_string()),
+            koreader: current_without_origin.koreader.clone(),
+            ..merged[0].clone()
+        };
+        let merged_without_origin = merge_imported_notes(&[current_without_origin], &[imported_with_origin]);
+
+        assert_eq!(merged_without_origin.len(), 1);
+        assert_eq!(merged_without_origin[0].cfi, "epubcfi(/6/2!/4/2)");
+        assert_eq!(merged_without_origin[0].cfi_origin, None);
+    }
+
+    #[test]
     fn current_book_updated_at_prefers_koreader_metadata_updated_at() {
         let current = LibraryBookRecord {
             id: "book-1".to_string(),
@@ -2145,6 +2262,7 @@ mod tests {
             id: "note-1".to_string(),
             kind: "note".to_string(),
             cfi: "epubcfi(/6/2)".to_string(),
+            cfi_origin: None,
             text: "Text".to_string(),
             note: "Note".to_string(),
             chapter_label: "Chapter".to_string(),
