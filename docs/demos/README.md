@@ -31,61 +31,83 @@ node docs/demos/capture-reader-screenshots.mjs /path/to/pride-and-prejudice.epub
 
 ## Future Concept Animations
 
-These are authored, deterministic animations for the Bridge Reader README.
-They illustrate proposed workflows, not current br1 features or recordings of
-an automatic book-to-game or book-to-animation pipeline. The replay and rendering
-scripts do not call any model or media-generation service. No child study or
-historical simulation was conducted.
+These are authored scene animations, not recordings of br1 generating anything.
+The battle diagram animates a classic strategy; the fairy-tale scene animates
+characters and a door to tell a short story. Neither is a camera zoom over a
+still illustration or a simulated reader interface. Automatic book-to-game and
+book-to-animation features remain future directions. No child study or
+validated battle simulation was conducted.
 
 ### Watch and Replay
 
-- [Ancient strategy concept](../images/war-book-concept.gif)
+- [Cannae: double envelopment](../images/war-book-concept.gif)
 - [Grimm story concept](../images/grimm-story-concept.gif)
 - [Browser replay with playback controls](reading-concepts.html)
 
 Download or clone the repository and open `reading-concepts.html` locally to
 use the replay. GitHub displays the HTML source rather than running it.
-The GIFs are silent; the HTML replay provides pause/resume, restart, a story
-selector, and a readable phase transcript on narrow screens.
+The GIFs are silent. The HTML replay provides pause/resume, restart, a story
+selector, and readable captions. It starts paused when reduced motion is
+preferred. The replay's text also describes each phase without requiring motion.
+
+GitHub renders committed GIFs in the README but does not run JavaScript from
+linked HTML. A local commit alone does not update GitHub: the commit and its
+media files must also be pushed to the repository's displayed branch.
+
+GitHub can pause animated images when a visitor prefers reduced motion. In
+that case its play control starts the animation; see
+[GitHub's animated-image accessibility setting](https://docs.github.com/en/account-and-profile/how-tos/account-settings/managing-accessibility-settings).
 
 ### Sources and Adaptation
 
-#### The Art of War
+#### Cannae: Polybius, The Histories
 
-Source: Sun Tzu, *The Art of War*, Chapter VI, paragraph 30, Lionel Giles's
-1910 translation, [Project Gutenberg ebook 132](https://www.gutenberg.org/files/132/132-h/132-h.htm).
+Source: *The Histories*, Book III, sections 113-116, in the public-domain
+1922 Loeb edition hosted by the University of Chicago:
+[formation and battle account](https://penelope.uchicago.edu/Thayer/E/Roman/Texts/Polybius/3%2A.html#113).
 
-The displayed sentence is a quotation. The valley, armies, routes, ford,
-changed terrain, and reading questions are original illustrative additions.
-Their outcomes are scripted toy examples, not claims about an actual battle,
-the effectiveness of military advice, or a validated interpretation of the book.
+The four beats show the forward center, its retreat under Roman pressure,
+the African infantry turning onto the Roman flanks, and cavalry attacking
+the rear after success against the opposing cavalry. This is a schematic
+explanation of double envelopment, not a claim that every movement was a
+precisely controlled feint or that the pattern guarantees victory.
+
+Positions, spacing, colors, unit symbols, arrows, and time compression are
+editorial choices. They do not reconstruct exact geography, troop strengths,
+casualties, or battle duration. The preliminary cavalry fighting and many
+other events are omitted. No outcome is calculated by a military simulation.
 
 #### The Frog Prince
 
-Source: Jacob and Wilhelm Grimm, *The Frog-Prince*, in the collection based on
+Inspiration: Jacob and Wilhelm Grimm, *The Frog-Prince*, in the collection based on
 translations by Edgar Taylor and Marian Edwardes,
 [Project Gutenberg ebook 2591](https://www.gutenberg.org/files/2591/2591-h/2591-h.htm).
 
-The source card quotes a short excerpt from the opening paragraph, also used
-in the synchronized transcript. The golden ball, frog, and promise provide
-the narrative starting point. This edition describes a spring; the round
-well in the drawing is our staging choice. The other retelling, illustrated
-characters, staging, and discussion question are an original adaptation,
-not a complete or verbatim edition. This concept
+The selected moment is the frog arriving at the castle door. In this edition,
+the princess initially shuts the door and her father reminds her to keep her
+promise, after which she lets the frog in. The short animation compresses this
+into arrival, hesitation, opening, and welcome; the external phase caption
+retains the father's role. The welcoming gesture and courtyard staging are
+our adaptation, not a quotation or a complete retelling. This concept
 suggests a primary-school reading activity; it has not been evaluated for
 age suitability or learning outcomes. A teacher or parent would need to review
 both the chosen source edition and any generated adaptation before use.
 
-The drawings are original, AI-assisted, code-authored artwork. No product screenshots,
-film frames, or third-party character artwork are used in these two GIFs.
+The [castle courtyard background](../images/grimm-courtyard.png) was generated
+with OpenAI's image-generation tool on 2026-09-07, without a reference image.
+The characters, door, and battle diagram are original Canvas drawings with
+scripted motion. No film frames or third-party character artwork are used.
+The generated background is illustration, not source-document evidence.
 The real br1 screenshots elsewhere in the README remain separate product evidence.
 
 ### Reproduce
 
-The standalone HTML contains the drawings and timeline. The Node renderer
-samples that timeline with Playwright; the Python script encodes the rendered
-frames with Pillow. These tools create documentation assets only and are not
-part of the br1 reader runtime.
+The standalone HTML loads the courtyard PNG and the local `cannae-scene.js`
+drawing script. The Node renderer samples exact timestamps with Playwright; the
+Python script encodes rendered frames with Pillow. Regenerating the GIFs
+does not call any model or media-generation service. The painted background is not
+deterministically regenerated by these scripts. These are documentation tools,
+not part of the br1 reader runtime.
 
 Requirements: the repository's installed Playwright dependency and Chromium,
 Python 3, and Pillow. The renderer creates a new temporary directory inside the
@@ -96,8 +118,9 @@ FRAMES="$(node docs/demos/render-reading-concepts.mjs /tmp --posters)"
 python3 docs/demos/encode-reading-concepts.py "$FRAMES" docs/images
 ```
 
-The GIFs use a shared 48-color palette and 240 frames at 1200x720. Alternating
-80/90 ms frame delays preserve an exact 20-second loop. They are committed so
-viewing the README needs no rendering tools or external service. On a narrow
-screen, use the HTML replay's synchronized text transcript, or open a GIF at
-full size to inspect its small source labels.
+Each GIF must stay within 512 KB (the encoder enforces a 512,000-byte limit).
+The loops use a fixed camera and a shared palette, keeping unchanged background
+pixels stable while the characters and formations move. Input sampling is
+480x270 at 10 fps for 12 seconds; repeated hold frames may be combined in GIF
+encoding without changing total duration. They are committed so viewing the
+README needs no rendering tools or external service.

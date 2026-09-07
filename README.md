@@ -49,19 +49,19 @@ AI should help you stay with a book, not pull you into another chat window.
 
 Original text, interpretation, outside evidence, and creative adaptation should remain distinguishable. Personal reading must stand on its own; sharing is optional, and private context should not become public by default.
 
-### From Ancient Strategy to a Playable Question
+### From a History Book to Strategy in Motion
 
-What does a principle in *The Art of War* depend on? Imagine turning a passage into a small tabletop scenario, trying a different route, then changing the terrain to expose the limits of the interpretation.
+Read about Cannae in **Polybius's *Histories*, Book III**, then watch the double envelopment develop: the center gives ground, Roman troops press forward, the wings turn inward, and cavalry attacks the rear. The point is to see how the parts of a strategy interact, not just memorize the outcome.
 
-![Concept: an Art of War passage becomes a toy wargame, a changed assumption, and a reading reflection](docs/images/war-book-concept.gif)
+![Cannae: Roman advance, yielding center, inward-turning wings, and cavalry closing from behind](docs/images/war-book-concept.gif)
 
 ### From a Fairy Tale to an Animated Story
 
-Imagine selecting *The Frog Prince*, generating a short storyboard and animation, then revising it with a teacher or parent. For primary-school reading, the story can open questions about sequence, motives, and promises, with a path back to the original.
+In **Grimm's *The Frog Prince***, a promise becomes a choice: the frog comes to the castle, the princess hesitates, then opens the door and lets him in. A short scene can make the story's meaning visible before a child returns to the original with a teacher or parent.
 
-![Concept: a Grimm fairy tale becomes a storyboard, an animated scene, and a question about keeping a promise](docs/images/grimm-story-concept.gif)
+![The Frog Prince: the frog approaches, the princess opens the door, and a promise is kept](docs/images/grimm-story-concept.gif)
 
-**Both GIFs are scripted concept illustrations, not recordings of br1 generating games or animation.** The scenarios are creative adaptations, not historical simulations or evidence of learning outcomes. [Sources, boundaries, and replay](docs/demos/README.md).
+**These are authored scene animations, not product recordings.** They illustrate future reading companions; br1 does not yet generate games or animation. Each GIF is under 512 KB. [Sources, boundaries, and replay](docs/demos/README.md).
 
 ## Help Build It
 

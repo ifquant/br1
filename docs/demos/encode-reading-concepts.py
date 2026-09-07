@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Encode deterministic concept PNG frames as compact looping GIFs."""
+"""Convert rendered concept-art PNG frames into looping GIFs."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PIL import Image
 
-WIDTH, HEIGHT, FRAME_COUNT = 1200, 720, 240
+WIDTH, HEIGHT, FRAME_COUNT, FRAME_MS, MAX_BYTES = 480, 270, 120, 100, 512_000
 
 
 def inputs(directory: Path) -> list[Path]:
@@ -18,27 +18,26 @@ def inputs(directory: Path) -> list[Path]:
     return files
 
 
-def palette_for(files: list[Path]) -> Image.Image:
-    """Build one shared palette from representative frames to keep GIF diffs compact."""
-    sample = Image.new("RGB", (200, 120 * 20))
-    for slot, path in enumerate(files[::12]):
-        with Image.open(path) as image:
-            sample.paste(image.convert("RGB").resize((200, 120)), (0, slot * 120))
-    return sample.quantize(colors=48, method=Image.Quantize.MEDIANCUT)
-
-
 def encode(source: Path, destination: Path) -> None:
     files = inputs(source)
-    palette = palette_for(files)
-    encoded: list[Image.Image] = []
+    rgb = []
     for path in files:
         with Image.open(path) as image:
             if image.size != (WIDTH, HEIGHT):
                 raise ValueError(f"{path}: expected {WIDTH}x{HEIGHT}, got {image.size}")
-            encoded.append(image.convert("RGB").quantize(palette=palette, dither=Image.Dither.NONE))
-    # GIF durations are centiseconds; eighty 90 ms frames plus 160 80 ms frames equal exactly 20 seconds.
-    durations = [90 if index % 3 == 0 else 80 for index in range(FRAME_COUNT)]
-    encoded[0].save(destination, save_all=True, append_images=encoded[1:], duration=durations, loop=0, optimize=True, disposal=1)
+            rgb.append(image.convert("RGB"))
+    # One palette for every frame prevents per-frame color flicker in the loop.
+    palette = Image.new("RGB", (WIDTH, HEIGHT * len(rgb)))
+    for index, image in enumerate(rgb): palette.paste(image, (0, index * HEIGHT))
+    # Keep character motion smooth; reduce palette detail before reducing time resolution.
+    for colors in (64, 48, 32):
+        shared = palette.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+        encoded = [image.quantize(palette=shared, dither=Image.Dither.NONE) for image in rgb]
+        encoded[0].save(destination, save_all=True, append_images=encoded[1:], duration=FRAME_MS, loop=0, disposal=1, optimize=True)
+        if destination.stat().st_size <= MAX_BYTES:
+            print(f"{destination}: {destination.stat().st_size} bytes, {colors} colors")
+            return
+    raise ValueError(f"{destination}: exceeds {MAX_BYTES} byte GIF cap")
 
 
 def main() -> None:

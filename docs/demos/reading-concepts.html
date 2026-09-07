@@ -3,424 +3,183 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reading Concepts</title>
+  <title>Reading Scene Concepts</title>
   <style>
-    :root { color-scheme: light; font-family: Arial, sans-serif; background: #edf3f5; color: #14242b; }
-    body { margin: 0; display: grid; place-items: start center; align-content: start; gap: 12px; padding: 16px; box-sizing: border-box; }
-    canvas { display: block; width: min(1200px, 100%); height: auto; box-shadow: 0 12px 36px #14242b33; }
-    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
-    button, select { min-height: 44px; border: 1px solid #14242b; background: #f7f3e9; color: #14242b; font: inherit; padding: 8px 14px; }
-    button { cursor: pointer; }
-    button:hover { background: #d8e4dd; }
-    #reading-transcript { width: min(1200px, 100%); min-height: 310px; box-sizing: border-box; border: 1px solid #c9d5d8; background: #ffffff; padding: 18px; }
-    #transcript-concept { margin: 0 0 10px; color: #a14638; font-size: 14px; font-weight: 700; }
-    #transcript-book { margin: 0; font-size: 18px; }
-    #transcript-phase { margin: 12px 0 4px; color: #2c7168; font-size: 14px; font-weight: 700; text-transform: uppercase; }
-    #transcript-heading { margin: 0 0 12px; font-size: 18px; }
-    #transcript-copy p { margin: 0 0 10px; font-size: 16px; line-height: 1.45; }
-    #transcript-source { margin: 14px 0 0; font-size: 15px; overflow-wrap: anywhere; }
-    #transcript-source a { color: #24506a; }
-    @media (min-width: 641px) {
-      #reading-transcript { position: absolute; width: 1px; height: 1px; min-height: 0; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    }
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #222; }
+    body { margin: 0; padding: 16px; }
+    main { max-width: 800px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 1.25rem; line-height: 26px; }
+    p { margin: 0 0 12px; line-height: 22px; }
+    canvas { display: block; width: 100%; height: auto; background: #fff; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    button, select { min-height: 44px; font: inherit; }
+    #concept-caption { min-height: 4.2em; }
+    #load-error { color: #a00; font-weight: 700; }
   </style>
 </head>
 <body>
-  <canvas id="concept" width="1200" height="720" aria-label="Scripted reading concept animation" aria-describedby="reading-transcript"></canvas>
-  <div class="controls" aria-label="Animation controls">
-    <button id="play" type="button">Pause</button>
-    <button id="restart" type="button">Restart</button>
-    <select id="story-selector" aria-label="Reading concept">
-      <option value="war">Strategy concept</option>
-      <option value="grimm">Fairy tale concept</option>
-    </select>
-  </div>
-  <section id="reading-transcript" aria-live="polite" aria-label="Current animation phase transcript">
-    <p id="transcript-concept">CONCEPT / NOT IN BR1</p>
-    <h1 id="transcript-book"></h1>
-    <p id="transcript-phase"></p>
-    <h2 id="transcript-heading"></h2>
-    <div id="transcript-copy"></div>
-    <p id="transcript-source"><a id="transcript-link" target="_blank" rel="noreferrer"></a></p>
-  </section>
+  <main>
+    <h1>Reading Scene Concepts</h1>
+    <p>Authored animations of future reading companions, not current br1 features.</p>
+    <canvas id="concept" width="480" height="270" aria-label="Animated reading scene" aria-describedby="concept-caption"></canvas>
+    <div class="controls" aria-label="Playback controls">
+      <select id="story-selector" aria-label="Story">
+        <option value="war">Cannae: double envelopment</option>
+        <option value="grimm">The Frog Prince: a promise</option>
+      </select>
+      <button id="play" type="button">Pause</button>
+      <button id="restart" type="button">Restart</button>
+    </div>
+    <p id="concept-caption" aria-live="polite"></p>
+    <p id="load-error" role="alert" hidden></p>
+  </main>
+  <script src="cannae-scene.js"></script>
   <script>
     (() => {
       const canvas = document.querySelector('#concept');
       const ctx = canvas.getContext('2d');
-      const W = canvas.width;
-      const H = canvas.height;
-      const storyFromUrl = new URLSearchParams(location.search).get('story');
-      const story = storyFromUrl === 'grimm' ? 'grimm' : 'war';
-      const grimmOpeningQuote = 'Now she had a golden ball in her hand, which was her favourite plaything';
-      const storySelector = document.querySelector('#story-selector');
-      storySelector.value = story;
-      const colors = {
-        ink: '#14242b', paper: '#ffffff', fog: '#edf3f5', teal: '#2c7168',
-        sage: '#a9c8b5', gold: '#edba4f', coral: '#ca6653', navy: '#24506a',
-        river: '#7cb8c4', grass: '#bfd4a3', stone: '#c9b99c', muted: '#64747a', white: '#fffdf7'
-      };
+      const W = canvas.width, H = canvas.height, seconds = 12, fps = 10;
+      const selector = document.querySelector('#story-selector');
+      const playButton = document.querySelector('#play');
+      const caption = document.querySelector('#concept-caption');
+      const courtyard = new Image();
+      let story = new URLSearchParams(location.search).get('story') === 'grimm' ? 'grimm' : 'war';
+      let elapsedMs = 0, startedAt = performance.now();
+      let running = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let captionKey = '';
+      const clamp = (n) => Math.max(0, Math.min(1, n));
+      const ease = (n) => { n = clamp(n); return n * n * (3 - 2 * n); };
+      const mix = (a, b, n) => a + (b - a) * ease(n);
+      const fairyPhases = [
+        { heading: 'A knock at the door', copy: 'The frog comes to the castle, asking the princess to honor the promise she made by the spring.' },
+        { heading: 'A promise remembered', copy: 'She hesitates. In the source story, her father reminds her to keep her word.' },
+        { heading: 'The door opens', copy: 'The princess opens the door and reaches out to welcome the frog.' },
+        { heading: 'A promise kept', copy: 'The frog enters. This adapted scene focuses on acting on a promise, not just making one.' }
+      ];
 
-      const clamp = (value, low = 0, high = 1) => Math.max(low, Math.min(high, value));
-      const phaseProgress = (time, phase) => clamp((time - phase * 5) / 5);
-      const ease = (value) => value * value * (3 - 2 * value);
-      const fade = (value, start = 0, length = 0.18) => ease(clamp((value - start) / length));
-
-      function rect(x, y, width, height, fill, radius = 0, stroke) {
-        ctx.beginPath();
-        ctx.roundRect(x, y, width, height, radius);
-        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+      function ellipse(x, y, rx, ry, color) {
+        ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      function path(points, color, stroke, width = 1) {
+        ctx.beginPath(); points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+        if (color) { ctx.closePath(); ctx.fillStyle = color; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); }
       }
 
-      function text(value, x, y, size, color = colors.ink, weight = '400', align = 'left') {
-        ctx.fillStyle = color;
-        ctx.font = `${weight} ${size}px Arial, sans-serif`;
-        ctx.textAlign = align;
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(value, x, y);
-      }
-
-      function wrap(value, x, y, maxWidth, size, lineHeight, color = colors.ink, weight = '400', align = 'left') {
-        ctx.font = `${weight} ${size}px Arial, sans-serif`;
-        const words = value.split(' ');
-        const lines = [];
-        let line = '';
-        for (const word of words) {
-          const next = line ? `${line} ${word}` : word;
-          if (ctx.measureText(next).width > maxWidth && line) { lines.push(line); line = word; } else { line = next; }
-        }
-        if (line) lines.push(line);
-        lines.forEach((item, index) => text(item, x, y + index * lineHeight, size, color, weight, align));
-        return lines.length;
-      }
-
-      function line(x1, y1, x2, y2, color, width = 2) {
-        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
-      }
-
-      function badge(label, x, y, fill, color = colors.white) {
-        ctx.font = '700 13px Arial, sans-serif';
-        const width = ctx.measureText(label).width + 22;
-        rect(x, y, width, 28, fill, 14);
-        text(label, x + width / 2, y + 19, 13, color, '700', 'center');
-        return width;
-      }
-
-      const transcript = {
-        book: document.querySelector('#transcript-book'), phase: document.querySelector('#transcript-phase'),
-        heading: document.querySelector('#transcript-heading'), copy: document.querySelector('#transcript-copy'),
-        link: document.querySelector('#transcript-link')
-      };
-      let transcriptKey = '';
-
-      function phaseTranscript(storyName, phase) {
-        const source = storyName === 'war'
-          ? { book: 'Sun Tzu, The Art of War', url: 'https://www.gutenberg.org/files/132/132-h/132-h.htm' }
-          : { book: 'Grimm, The Frog Prince', url: 'https://www.gutenberg.org/files/2591/2591-h/2591-h.htm' };
-        const phases = storyName === 'war'
-          ? [
-              ['Source', 'Source: strength and weakness', ['Lionel Giles, 1910, Chapter VI: "So in war, the way is to avoid what is strong and to strike at what is weak."', 'This is a proposed reading illustration, not an executed book pipeline.']],
-              ['Proposed storyboard', 'Read, propose, illustrate', ['Read the source claim. Propose a toy valley question without inferring real strategy. Illustrate one map, then return to the original passage.']],
-              ['Toy map', 'Open ford and blocked ford', ['The open ford makes a flank route visible. The blocked ford is the deliberate counterexample.', 'This is a toy outcome only, not strategy advice.']],
-              ['Return to book', 'What makes a path vulnerable?', ['Compare the toy map with the exact source. Identify where the illustration stops being faithful and return to the passage.']]
-            ]
-          : [
-              ['Source', 'Source: The Frog Prince', [`Opening excerpt (Taylor / Edwardes): "${grimmOpeningQuote}"`, 'This is a proposed short story adaptation, not an executed book pipeline.']],
-              ['Proposed storyboard', 'Read, propose, reflect', ['Name the story event and the promise it creates. Propose a short sequence, then return to the book with a question about keeping promises.']],
-              ['Story in motion', 'A golden ball returns', ['A golden ball falls into a well. A frog returns the ball, and the girl considers her promise.']],
-              ['Reflection', 'What does keeping a promise mean?', ['Use the moving scene to remember the sequence, then discuss the character choice in the source.']]
-            ];
-        const [label, heading, copy] = phases[phase];
-        return { ...source, label, heading, copy };
-      }
-
-      function syncTranscript(storyName, phase) {
-        const key = `${storyName}:${phase}`;
-        if (key === transcriptKey) return;
-        transcriptKey = key;
-        const content = phaseTranscript(storyName, phase);
-        transcript.book.textContent = content.book;
-        transcript.phase.textContent = `${phase + 1} of 4: ${content.label}`;
-        transcript.heading.textContent = content.heading;
-        transcript.copy.replaceChildren(...content.copy.map((paragraph) => {
-          const element = document.createElement('p');
-          element.textContent = paragraph;
-          return element;
-        }));
-        transcript.link.href = content.url;
-        transcript.link.textContent = `Source: ${content.url}`;
-      }
-
-      function frame(storyName, time) {
-        ctx.clearRect(0, 0, W, H);
-        rect(0, 0, W, H, colors.fog);
-        rect(0, 0, W, 76, colors.ink);
-        text(storyName === 'war' ? 'The Art of War: reading into a toy simulation' : 'The Frog Prince: reading into a story animation', 48, 47, 26, colors.white, '700');
-        badge('CONCEPT / NOT IN BR1', 889, 23, colors.coral);
-        const labels = storyName === 'war'
-          ? ['1  SOURCE', '2  PROPOSED STORYBOARD', '3  TOY MAP', '4  RETURN TO BOOK']
-          : ['1  SOURCE', '2  PROPOSED STORYBOARD', '3  STORY IN MOTION', '4  REFLECTION'];
-        const active = Math.min(3, Math.floor(time / 5));
-        // Keep the narrow-screen and assistive transcript aligned with the same active Canvas beat.
-        syncTranscript(storyName, active);
-        labels.forEach((label, index) => {
-          const x = 52 + index * 280;
-          line(x, 99, x + 230, 99, index <= active ? colors.teal : '#bac0bd', 4);
-          text(label, x, 127, 13, index === active ? colors.ink : colors.muted, index === active ? '700' : '400');
-        });
-        text(`${String(active + 1).padStart(2, '0')} / 04`, 1148, 127, 14, colors.muted, '700', 'right');
-        // A small deterministic rail makes every 12 fps capture visually distinct without distracting from a held beat.
-        rect(52, 145, 1096, 3, '#cbd7da', 2);
-        rect(52, 145, 1096 * (time / 20), 3, colors.gold, 2);
-        if (storyName === 'war') drawWar(time, active); else drawGrimm(time, active);
-        rect(0, 674, W, 46, colors.ink);
-        text('Scripted illustration of a proposed workflow', 600, 703, 15, colors.white, '400', 'center');
-      }
-
-      function sourcePage(title, author, url, quote, p) {
-        const slide = 40 * (1 - fade(p));
-        rect(104 + slide, 170, 470, 424, colors.paper, 5, '#d7d0bd');
-        rect(128 + slide, 195, 5, 340, colors.gold, 2);
-        text('READING SOURCE', 158 + slide, 218, 13, colors.teal, '700');
-        text(title, 158 + slide, 260, 31, colors.ink, '700');
-        text(author, 158 + slide, 288, 16, colors.muted);
-        line(158 + slide, 312, 510 + slide, 312, '#d5cebd');
-        const lines = wrap(quote, 158 + slide, 350, 340, 23, 33, colors.ink, '400');
-        rect(154 + slide, 329, 350 * fade(p, 0.15, 0.38), lines * 33 + 10, '#ffe3a366', 2);
-        text('SOURCE: Project Gutenberg', 158 + slide, 505, 14, colors.teal, '700');
-        sourceUrl(url, 158 + slide, 532);
-        rect(650, 196, 426, 330, colors.white, 5, '#d7d0bd');
-        text('A proposed reading illustration', 684, 246, 22, colors.ink, '700');
-        text('keeps the book as authority.', 684, 275, 18, colors.muted);
-        line(684, 300, 1042, 300, '#d5cebd');
-        sourceThumbnail(title);
-        text('PROPOSED / NOT AN EXECUTED PIPELINE', 684, 496, 13, colors.teal, '700');
-      }
-
-      function sourceUrl(url, x, y) {
-        const prefix = 'https://www.gutenberg.org/files/';
-        if (url.startsWith(prefix)) {
-          text(prefix, x, y, 13, colors.muted);
-          text(url.slice(prefix.length), x, y + 18, 13, colors.muted);
+      // Poses and foot placement are animated independently of the fixed painted background.
+      function princess(x, y, welcome, walk) {
+        ctx.save(); ctx.translate(x, y + Math.sin(walk * Math.PI * 2) * 1.1);
+        ellipse(0, -2, 23, 3, '#00000020');
+        ctx.fillStyle = '#754631'; ctx.beginPath(); ctx.moveTo(2, -97); ctx.bezierCurveTo(25, -98, 25, -59, 13, -51); ctx.lineTo(-10, -60); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#c96d8e'; ctx.beginPath(); ctx.moveTo(-8, -69); ctx.quadraticCurveTo(-13, -37, -25, -5); ctx.quadraticCurveTo(0, 3, 25, -5); ctx.quadraticCurveTo(12, -40, 8, -69); ctx.closePath(); ctx.fill();
+        path([[-5, -55], [-13, -7], [-3, -5], [3, -55]], '#e7a2b8');
+        path([[8, -50], [16, -7]], null, '#a65173', 2);
+        path([[-8, -62], [8, -62]], null, '#f4d572', 3);
+        ellipse(-3, -84, 10, 12, '#f3c5a6');
+        ctx.fillStyle = '#794932'; ctx.beginPath(); ctx.arc(-1, -87, 12, Math.PI, Math.PI * 2); ctx.lineTo(11, -71); ctx.quadraticCurveTo(3, -79, 2, -92); ctx.closePath(); ctx.fill();
+        path([[-11, -98], [-13, -107], [-5, -102], [1, -109], [6, -102], [12, -107], [10, -98]], '#ebbd4b', '#a17521');
+        ellipse(-8, -85, 1.2, 1.6, '#47322d');
+        path([[-12, -78], [-7, welcome ? -76 : -78]], null, '#a15a50');
+        if (welcome) {
+          path([[-8, -64], [-25, -48], [-38, -44]], null, '#dc91ab', 8);
+          path([[-38, -44], [-46, -43]], null, '#f3c5a6', 5);
+          path([[8, -64], [15, -47]], null, '#dc91ab', 7);
         } else {
-          wrap(url, x, y, 360, 13, 18, colors.muted);
+          path([[-8, -64], [-13, -53], [-2, -50]], null, '#dc91ab', 7);
+          path([[8, -64], [10, -53], [-2, -50]], null, '#dc91ab', 7);
+          ellipse(-2, -50, 4, 3, '#f3c5a6');
         }
-      }
-
-      function sourceThumbnail(title) {
-        rect(684, 326, 354, 142, '#d9e7e7', 4);
-        if (title.includes('Art of War')) {
-          ctx.save(); ctx.beginPath(); ctx.rect(684, 326, 354, 142); ctx.clip();
-          ctx.beginPath(); ctx.moveTo(850, 304); ctx.bezierCurveTo(800, 356, 908, 392, 844, 488); ctx.strokeStyle = colors.river; ctx.lineWidth = 24; ctx.stroke();
-          rect(778, 370, 44, 30, colors.navy, 4); rect(917, 398, 44, 30, colors.coral, 4);
-          line(812, 378, 888, 346, colors.teal, 4); ctx.restore();
-          text('toy valley map', 705, 448, 13, colors.ink, '700');
-        } else {
-          ctx.fillStyle = '#a7c6e2'; ctx.beginPath(); ctx.arc(877, 401, 55, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = colors.ink; ctx.beginPath(); ctx.arc(877, 401, 35, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = colors.gold; ctx.beginPath(); ctx.arc(755, 362, 13, 0, Math.PI * 2); ctx.fill();
-          frog(967, 437, 0.3); text('ball, well, frog', 705, 448, 13, colors.ink, '700');
-        }
-      }
-
-      function storyboard(cards, p) {
-        text('A proposed sequence, visible before it runs', 88, 184, 29, colors.ink, '700');
-        text('The storyboard keeps source, adaptation, and reflection distinct.', 88, 214, 17, colors.muted);
-        cards.forEach((card, index) => {
-          const reveal = fade(p, index * 0.17, 0.3);
-          const x = 86 + index * 348;
-          const y = 270 + (1 - reveal) * 42;
-          rect(x, y, 292, 244, colors.white, 5, '#d7d0bd');
-          badge(`STEP ${index + 1}`, x + 20, y + 20, index === 1 ? colors.gold : colors.teal, index === 1 ? colors.ink : colors.white);
-          text(card.title, x + 20, y + 86, 21, colors.ink, '700');
-          wrap(card.detail, x + 20, y + 120, 248, 16, 23, colors.muted);
-          rect(x + 20, y + 193, 252 * reveal, 8, index === 1 ? colors.gold : colors.sage, 4);
-          if (index < 2) {
-            line(x + 299, 390, x + 330, 390, colors.coral, 3);
-            ctx.beginPath(); ctx.moveTo(x + 330, 390); ctx.lineTo(x + 320, 383); ctx.lineTo(x + 320, 397); ctx.closePath(); ctx.fillStyle = colors.coral; ctx.fill();
-          }
-        });
-        badge('PROPOSED: authorable storyboard', 88, 560, colors.coral);
-      }
-
-      function drawWar(time, active) {
-        const p = phaseProgress(time, active);
-        if (active === 0) {
-          sourcePage('Sun Tzu, The Art of War', 'Chapter VI - Lionel Giles, 1910', 'https://www.gutenberg.org/files/132/132-h/132-h.htm', 'So in war, the way is to avoid what is strong and to strike at what is weak.', p);
-        } else if (active === 1) {
-          storyboard([
-            { title: 'Read', detail: 'Locate a claim about strength and weakness in the source.' },
-            { title: 'Propose', detail: 'Draft a toy valley question. No strategy is inferred.' },
-            { title: 'Illustrate', detail: 'Animate one map, then return to the original passage.' }
-          ], p);
-        } else if (active === 2) {
-          warMap(p);
-        } else {
-          reflection('Back to the passage', 'What makes a path vulnerable?', 'Compare the toy map with the exact source. Where does the illustration stop being faithful?', 'Toy outcomes only - not strategy advice.', p);
-        }
-      }
-
-      function riverPath() {
-        ctx.beginPath(); ctx.moveTo(592, 160); ctx.bezierCurveTo(510, 250, 680, 315, 582, 410); ctx.bezierCurveTo(510, 490, 640, 548, 570, 630); ctx.lineWidth = 48; ctx.strokeStyle = colors.river; ctx.stroke();
-        ctx.lineWidth = 2; ctx.strokeStyle = '#4a8995'; ctx.stroke();
-      }
-
-      function army(x, y, color, label) {
-        rect(x - 27, y - 22, 54, 44, color, 5, colors.ink);
-        ctx.fillStyle = colors.white; ctx.beginPath(); ctx.arc(x - 10, y, 6, 0, Math.PI * 2); ctx.arc(x + 8, y, 6, 0, Math.PI * 2); ctx.fill();
-        text(label, x, y + 49, 14, colors.ink, '700', 'center');
-      }
-
-      function warMap(p) {
-        text('Toy valley map: compare two visible routes', 82, 182, 29, colors.ink, '700');
-        text('A scripted counterexample, not a claim about real-world strategy.', 82, 214, 17, colors.muted);
-        rect(82, 246, 760, 370, colors.grass, 5, '#91aa7d');
-        // The map artwork must not escape its board even when the river bends beyond the intended scene.
-        ctx.save(); ctx.beginPath(); ctx.rect(82, 246, 760, 370); ctx.clip();
-        for (let x = 130; x < 820; x += 110) line(x, 275, x - 20, 585, '#9ab989', 1);
-        riverPath();
-        rect(558, 306, 68, 24, '#b88859', 2, '#86613e');
-        text('OPEN FORD', 694, 294, 13, colors.teal, '700', 'center');
-        line(664, 298, 628, 314, colors.teal, 2);
-        rect(550, 466, 84, 24, '#8f7259', 2, '#70543e');
-        line(552, 468, 632, 488, colors.coral, 4); line(632, 468, 552, 488, colors.coral, 4);
-        text('BLOCKED FORD', 592, 453, 13, colors.coral, '700', 'center');
-        army(286, 360, colors.navy, 'BLUE');
-        army(742, 390, colors.coral, 'RED');
-        const move = ease(clamp((p - 0.14) / 0.45));
-        const flankX = 286 + 260 * move;
-        const flankY = 360 - 60 * move;
-        line(310, 342, 544, 300, colors.teal, 4);
-        army(flankX, flankY, colors.teal, 'FLANK');
-        const blocked = ease(clamp((p - 0.35) / 0.25));
-        line(310, 398, 540 + 40 * blocked, 478, colors.coral, 4);
-        text('counterexample stops here', 386, 535, 15, colors.coral, '700');
         ctx.restore();
-        rect(875, 260, 242, 258, colors.white, 5, '#d7d0bd');
-        badge('TOY OUTCOME', 897, 282, colors.gold, colors.ink);
-        text('Open ford', 897, 342, 21, colors.ink, '700');
-        text('makes a flank route visible.', 897, 370, 16, colors.muted);
-        text('Blocked ford', 897, 422, 21, colors.ink, '700');
-        wrap('is the deliberate counterexample.', 897, 450, 194, 16, 21, colors.muted);
-        badge('NOT STRATEGY ADVICE', 897, 478, colors.coral);
-      }
-
-      function reflection(title, question, detail, caution, p) {
-        const reveal = fade(p, 0.08, 0.45);
-        rect(120, 190, 960, 388, colors.paper, 5, '#d7d0bd');
-        text(title.toUpperCase(), 178, 245, 14, colors.teal, '700');
-        text(question, 178, 310, 39, colors.ink, '700');
-        line(178, 340, 1010, 340, colors.gold, 5);
-        wrap(detail, 178, 392, 690, 21, 31, colors.muted);
-        rect(178, 492, 760 * reveal, 2, '#cfc6b1');
-        text('READ -> ILLUSTRATE -> QUESTION -> RETURN TO SOURCE', 178, 534, 14, colors.teal, '700');
-        badge(caution.toUpperCase(), 178, 552, colors.coral);
-      }
-
-      function drawGrimm(time, active) {
-        const p = phaseProgress(time, active);
-        if (active === 0) {
-          sourcePage('Grimm, The Frog Prince', 'Opening excerpt - Taylor / Edwardes', 'https://www.gutenberg.org/files/2591/2591-h/2591-h.htm', grimmOpeningQuote, p);
-        } else if (active === 1) {
-          storyboard([
-            { title: 'Read', detail: 'Name the story event and the promise it creates.' },
-            { title: 'Propose', detail: 'Draft a child-safe sequence with clear story beats.' },
-            { title: 'Reflect', detail: 'Return to the book with a question about keeping promises.' }
-          ], p);
-        } else if (active === 2) {
-          grimmScene(p);
-        } else {
-          reflection('Return to the story', 'What does keeping a promise mean?', 'Use the moving scene to remember the sequence, then discuss the character choice in the source.', 'Proposed adaptation - not an executed book pipeline.', p);
-        }
       }
 
       function frog(x, y, hop) {
-        const lift = Math.sin(hop * Math.PI) * 30;
-        ctx.fillStyle = colors.teal; ctx.beginPath(); ctx.ellipse(x, y - lift, 36, 27, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = colors.sage; ctx.beginPath(); ctx.arc(x - 11, y - lift - 21, 10, 0, Math.PI * 2); ctx.arc(x + 11, y - lift - 21, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = colors.ink; ctx.beginPath(); ctx.arc(x - 11, y - lift - 21, 3, 0, Math.PI * 2); ctx.arc(x + 11, y - lift - 21, 3, 0, Math.PI * 2); ctx.fill();
-        line(x - 12, y - lift + 22, x - 34, y - lift + 41, colors.teal, 8); line(x + 12, y - lift + 22, x + 34, y - lift + 41, colors.teal, 8);
+        ellipse(x, y + 2, 11, 2.5, '#00000025');
+        ctx.save(); ctx.translate(x, y - hop);
+        path([[-6, -4], [-13, hop > 2 ? 1 : -1], [-17, 1]], null, '#426e31', 4);
+        ellipse(0, -7, 10, 7, '#609446'); ellipse(5, -9, 7, 6, '#7bb654');
+        ellipse(6, -14, 3.5, 4, '#8bc766'); ellipse(7, -14, 1.7, 2.4, '#e6edbb'); ellipse(8, -14, .9, 1.8, '#223b27');
+        path([[5, -6], [13, -7]], null, '#385b31'); path([[3, -3], [9, 1], [14, 1]], null, '#426e31', 3);
+        ctx.restore();
       }
 
-      function girl(x, y) {
-        ctx.fillStyle = colors.coral; ctx.beginPath(); ctx.arc(x, y - 82, 31, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#f3c6a7'; ctx.beginPath(); ctx.arc(x, y - 72, 22, 0, Math.PI * 2); ctx.fill();
-        rect(x - 30, y - 49, 60, 76, colors.gold, 10); line(x - 28, y - 24, x - 60, y, colors.ink, 7); line(x + 28, y - 24, x + 60, y, colors.ink, 7);
+      function door(open) {
+        // Hold the right hinge fixed; narrowing the panel exposes the painted doorway.
+        ctx.save(); ctx.translate(390, 0); ctx.scale(1 - open * .98, 1); ctx.translate(-390, 0);
+        ctx.beginPath(); ctx.moveTo(301, 222); ctx.lineTo(301, 102); ctx.bezierCurveTo(301, 67, 329, 45, 346, 45); ctx.bezierCurveTo(368, 45, 390, 68, 390, 102); ctx.lineTo(390, 222); ctx.closePath();
+        ctx.fillStyle = '#946342'; ctx.fill(); ctx.save(); ctx.clip();
+        for (let x = 309; x < 391; x += 12) path([[x, 49], [x, 224]], null, '#72492e', 2);
+        for (const y of [125, 195]) { ctx.fillStyle = '#514733'; ctx.fillRect(302, y, 88, 5); }
+        ctx.restore(); ctx.strokeStyle = '#60412d'; ctx.lineWidth = 3; ctx.stroke();
+        ellipse(314, 158, 3, 4, '#e6bd59'); ctx.restore();
       }
 
-      function grimmScene(p) {
-        text('A story beat in motion', 82, 182, 29, colors.ink, '700');
-        text('Golden ball -> well -> frog returns it -> a promise becomes a reading question.', 82, 214, 17, colors.muted);
-        rect(82, 246, 1034, 370, '#c5d8bd', 5, '#94af8d');
-        ctx.fillStyle = '#a7c6e2'; ctx.beginPath(); ctx.arc(700, 450, 116, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#4a8995'; ctx.lineWidth = 12; ctx.stroke();
-        ctx.fillStyle = colors.ink; ctx.beginPath(); ctx.arc(700, 450, 71, 0, Math.PI * 2); ctx.fill();
-        text('THE WELL', 700, 584, 14, colors.navy, '700', 'center');
-        girl(300, 520);
-        const drop = ease(clamp((p - 0.08) / 0.31));
-        const returnBall = ease(clamp((p - 0.53) / 0.29));
-        let ballX = 398 + 302 * drop;
-        let ballY = 363 + 87 * drop;
-        if (returnBall) { ballX = 700 - 292 * returnBall; ballY = 450 - 83 * returnBall; }
-        ctx.fillStyle = colors.gold; ctx.beginPath(); ctx.arc(ballX, ballY, 19, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#b78c28'; ctx.lineWidth = 3; ctx.stroke();
-        const frogMove = ease(clamp((p - 0.46) / 0.35));
-        frog(770 - 330 * frogMove, 523, (p * 3) % 1);
-        if (p > 0.7) {
-          rect(154, 274, 286, 74, colors.white, 5, '#d7d0bd');
-          text('"I will keep my promise."', 176, 318, 19, colors.ink, '700');
+      function drawFairy(time) {
+        ctx.drawImage(courtyard, 0, 0, W, H);
+        const open = ease((time - 4.8) / 2.1);
+        const princessX = mix(361, 331, (time - 5.5) / 2.5);
+        if (time >= 4.8 && time < 6.5) princess(princessX, 222, false, time * 2);
+        door(open);
+        // After stepping out she is in front of the open panel, not behind the wall.
+        if (time >= 6.5) princess(princessX, 222, time >= 7.7, time < 8 ? time * 2 : 0);
+        const moving = time < 2.8 || (time >= 8.5 && time < 11);
+        const x = time < 2.8 ? mix(70, 281, time / 2.8) : mix(281, 365, (time - 8.5) / 2.5);
+        const y = mix(239, 222, (time - 8.5) / 2.5);
+        frog(x, y, moving ? Math.abs(Math.sin(time * Math.PI * 2.5)) * 9 : 0);
+        if (time >= 2.8 && time < 4.8) {
+          const pulse = (time * 3) % 1;
+          ctx.strokeStyle = '#f5cf65'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(300, 213, 4 + pulse * 9, -1.9, -.6); ctx.stroke();
         }
-        badge('ORIGINAL STORY ADAPTATION', 852, 270, colors.teal);
-        text('The golden ball returns.', 852, 318, 17, colors.ink, '700');
-        text('The source remains the authority.', 852, 346, 16, colors.muted);
+        ctx.fillStyle = '#ffffffee'; ctx.fillRect(0, 0, W, 30);
+        ctx.fillStyle = '#373130'; ctx.font = '700 16px Arial'; ctx.fillText('THE FROG PRINCE', 12, 21);
+        ctx.font = '10px Arial'; ctx.textAlign = 'right'; ctx.fillText('ADAPTED SCENE / CONCEPT', W - 10, 20); ctx.textAlign = 'left';
+        ctx.fillStyle = '#ffffffee'; ctx.fillRect(0, 247, W, 23);
+        ctx.fillStyle = '#373130'; ctx.font = '700 13px Arial'; ctx.fillText(fairyPhases[Math.min(3, Math.floor(time / 3))].heading, 12, 263);
       }
-
-      let running = true;
-      let elapsedMs = 0;
-      let startedAt = performance.now();
-      const playButton = document.querySelector('#play');
 
       function currentTime(now = performance.now()) {
-        const liveMs = running ? now - startedAt : 0;
-        return ((elapsedMs + liveMs) / 1000) % 20;
+        // A queued animation frame can carry a timestamp from just before a restart.
+        return ((elapsedMs + (running ? Math.max(0, now - startedAt) : 0)) / 1000) % seconds;
       }
-
       function setPlayback(value) {
-        const shouldRun = Boolean(value);
-        if (shouldRun === running) return;
-        if (shouldRun) {
-          startedAt = performance.now();
-        } else {
-          elapsedMs += performance.now() - startedAt;
+        const next = Boolean(value); if (next === running) return;
+        if (next) startedAt = performance.now(); else elapsedMs += performance.now() - startedAt;
+        running = next; playButton.textContent = running ? 'Pause' : 'Play';
+      }
+      function draw(time) {
+        if (story === 'war') window.drawCannaeScene(ctx, time, W, H);
+        else if (courtyard.complete && courtyard.naturalWidth) drawFairy(time);
+        const phase = Math.min(3, Math.floor(time / 3));
+        const key = `${story}:${phase}`;
+        if (key !== captionKey) {
+          captionKey = key;
+          const content = story === 'war' ? window.cannaePhase(time) : fairyPhases[phase];
+          caption.textContent = `${content.heading}. ${content.copy} Authored concept, not a current br1 feature.`;
         }
-        running = shouldRun;
-        playButton.textContent = running ? 'Pause' : 'Play';
       }
-
-      function drawLive(now) {
-        if (running) frame(story, currentTime(now));
-        requestAnimationFrame(drawLive);
-      }
+      window.readingConceptAssetsReady = new Promise((resolve, reject) => {
+        courtyard.onload = () => { draw(currentTime()); resolve(); };
+        courtyard.onerror = () => {
+          const error = document.querySelector('#load-error'); error.hidden = false;
+          error.textContent = 'The story background could not be loaded.'; reject(new Error(error.textContent));
+        };
+        courtyard.src = new URL('../images/grimm-courtyard.png', location.href).href;
+      });
       window.renderReadingConcept = (requestedStory, time) => {
-        const safeTime = ((Number(time) % 20) + 20) % 20;
-        elapsedMs = safeTime * 1000;
-        startedAt = performance.now();
-        frame(requestedStory === 'grimm' ? 'grimm' : 'war', safeTime);
-        return Math.min(3, Math.floor(safeTime / 5));
+        story = requestedStory === 'grimm' ? 'grimm' : 'war'; selector.value = story;
+        const safeTime = ((Number(time) % seconds) + seconds) % seconds;
+        elapsedMs = safeTime * 1000; startedAt = performance.now(); draw(safeTime);
+        return Math.min(3, Math.floor(safeTime / 3));
       };
-      window.getReadingConceptSize = () => ({ width: W, height: H, seconds: 20, fps: 12 });
-      window.getReadingConceptTime = () => currentTime();
       window.setReadingConceptPlayback = setPlayback;
-      playButton.addEventListener('click', () => setPlayback(!running));
-      document.querySelector('#restart').addEventListener('click', () => {
-        elapsedMs = 0;
-        startedAt = performance.now();
-        setPlayback(true);
-      });
-      storySelector.addEventListener('change', () => {
-        const url = new URL(location.href);
-        url.searchParams.set('story', storySelector.value);
-        location.assign(url);
-      });
-      requestAnimationFrame(drawLive);
+      window.getReadingConceptTime = currentTime;
+      window.getReadingConceptSize = () => ({ width: W, height: H, seconds, fps });
+      selector.value = story; playButton.textContent = running ? 'Pause' : 'Play';
+      playButton.onclick = () => setPlayback(!running);
+      document.querySelector('#restart').onclick = () => { elapsedMs = 0; startedAt = performance.now(); setPlayback(true); draw(0); };
+      selector.onchange = () => window.renderReadingConcept(selector.value, 0);
+      function live(now) { if (running) draw(currentTime(now)); requestAnimationFrame(live); }
+      requestAnimationFrame(live);
     })();
   </script>
 </body>
