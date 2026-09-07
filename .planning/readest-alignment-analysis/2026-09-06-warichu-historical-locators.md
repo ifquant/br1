@@ -104,11 +104,59 @@ The frozen slice covers bookmarks, not the remaining B2 families.
 - No schema bump, historical backfill, navigation acceptance/rejection,
   sanitizer change or Warichu layout is part of this slice.
 
-Next executable slice **C13B2b** covers library progress provenance through
-native/web persistence, Readest import, snapshot/KOReader transport and restore
-target selection. It must not change rejection behavior ahead of B3 protection.
+The subsequent **C13B2b** slice covers library progress provenance through
+existing persistence, Readest import, snapshot/KOReader transport and restore
+target selection. It does not change rejection behavior ahead of B3 protection.
 Search-cache invalidation and the assistance/TTS/focused-reading resume families
 remain B2 follow-ups; their concrete write sets must be frozen before editing.
+
+#### C13B2b: Library Progress Provenance
+
+Starting revision: `5ded1b43e2c982aa5a29546818763518bb243442`.
+Scope frozen by Sol high; implementation and Final4 verification are complete.
+
+- Add optional `progressLocationOrigin` beside `progressLocation`, with Rust
+  `progress_location_origin: Option<String>`, serde default and omit-None.
+  Missing/null stays unknown and serializes as absent; future strings survive
+  unchanged. Non-string metadata is rejected at persistence/import boundaries.
+- The route copies the existing rendered EPUB preview origin only with that
+  exact EPUB CFI. PDF label substitution and TXT progress gain no DOM origin.
+- Ordinary import/repair retains the existing location and origin together.
+  Readest-imported locations remain unknown. PDF normalization clears origin
+  whenever it replaces the paired location.
+- Existing native library and native/web snapshot owners transport the pair;
+  snapshot schema stays at version 1. No web library store is introduced.
+- KOReader exchange retains local progress and its origin together. The
+  independently owned KOReader location has no new DOM-origin field. Selecting
+  it for restore must not borrow the local progress origin.
+- Restore precedence and supported schemes remain unchanged. Local targets
+  carry `restoreLocationOrigin`, encoded as `locationOrigin` in the URL, through
+  `ReaderRouteOpenTarget` only. Do not forward it into control requests or the
+  viewport, reject navigation, or change automatic-write behavior before B3.
+
+Code is limited to library persistence, route target parsing and the route
+writer, sync types/model and KOReader transport, and the existing Rust
+models/util/library/snapshot owners. Focused helper/browser tests and Rust test
+fixtures may change alongside them. Foliate, viewport, dependencies, caches,
+assistance, TTS, focused resume and Warichu layout remain outside this slice.
+
+The scope addendum also permits `services/syncSnapshot.ts`, its focused test,
+and the existing `sync/index.ts` export. Raw reading-state records must be
+validated before duplicate selection can discard one of them. This hardens the
+existing public preparation helper, which currently has no production UI
+caller; it does not introduce a new storage path or native restore behavior.
+
+The carrier-preservation addendum permits `reader/parallel.ts`: every route
+auto-open, including single-pane reading, projects through this owner. An
+unchanged library target retains its existing origin when reconstructed from a
+renderer control request. Matching covers path, label, book key, location and
+fraction; a changed target is replaced without borrowing the old origin. The
+control request and viewport still receive no origin field or new policy.
+
+Raw book metadata is projected through its own contract before reconstruction,
+so an extra metadata field cannot supply the origin of an unknown reading
+state. Route identity distinguishes absent origin from every string, including
+the empty string; the route's auto-open guard must not collapse those states.
 
 ### C13B3: Compatibility Consumers and Restore Write Protection
 
@@ -133,8 +181,8 @@ or flush without a restore outcome gate. C13B1 changes neither behavior.
 
 ## Completion Boundary
 
-C13B1 and C13B2a are complete within their new-note and bookmark provenance
-contracts. C13B as a whole remains open until the remaining B2 writers and B3
+C13B1, C13B2a and C13B2b are complete within their note, bookmark and library
+progress provenance contracts. C13B remains open until the remaining B2 writers and B3
 pass. No C13C layout, historical record migration, progress rewrite policy or
 replay guarantee is included in these slices.
 
@@ -215,4 +263,42 @@ remains unchanged and clean at the revision above.
 
 Native callback helpers and Rust unit tests are not packaged Tauri/WebKit
 acceptance. No historical migration/replay, library progress provenance or
-Warichu layout is claimed. Next executable slice: **S2-R04C13B2b**.
+Warichu layout is claimed. At B2a close, the next slice was **S2-R04C13B2b**.
+
+## B2b Verification
+
+Final4, after metadata projection, parallel target retention and optional-origin
+route identity repairs:
+
+- `pnpm check`: PASS, zero errors/warnings; project TypeScript emission: PASS.
+- `node --test` over 16 emitted helper files: 144/144 PASS. Vite's existing
+  `ssrLoadModule` runs `services/syncSnapshot.test.ts`: 2/2 PASS. No dependency,
+  custom loader or parallel test framework was introduced.
+- Strict standalone TypeScript for the three actual Playwright specs: PASS;
+  `--listFiles` verifies their inclusion. Target ES2022 with ES2023/DOM/DOM.Iterable
+  libraries matches the existing `findLast` and DOM iterable usage.
+- Chrome Playwright, one worker, zero retries: 6/6 PASS. Inputs are
+  `bookmark-origin.spec.ts` (3), the managed-RTL persistence and parallel
+  direction-state cases in `foliate-directional-flow.spec.ts` (2), and the
+  parallel-open case in `library-smoke.spec.ts` (1).
+- `cargo test --manifest-path src-tauri/Cargo.toml --lib`: 63/63 PASS.
+- `pnpm exec vite build`: PASS, without PDF vendor regeneration.
+- Fresh Terra high task review and fix re-reviews: PASS. Fresh Sol high final
+  composition review and its optional-origin identity re-review: PASS.
+- `git diff --check` and all 177 source/test SHA-256 entries: PASS, unchanged
+  before and after the final run. Planning documents are outside that manifest.
+- The 678 unique ledger rows remain 61 covered / 405 partial / 77 gap /
+  135 not-applicable, with 54 remaining primary tasks. Parent `ebbbf104b` is partial.
+
+Final logs use `/tmp/br1-c13b2b-final4-20260907-144032-15334-`. Earlier Node runs
+hit module-loading failures, not failed behavioral assertions: `$lib` requires
+the existing Vite loader, while emitted relative imports require `.js` paths.
+The first hash command was unavailable and produced empty manifests; those are
+not evidence. Final4 supersedes these incomplete checkpoints.
+
+Rust units and mocked native browser calls do not prove packaged Tauri/WebKit,
+a real installed Readest import or cross-platform acceptance. The public
+snapshot-preparation helper has no production UI caller. No historical locator
+migration/replay, B3 restore protection or C13C layout is claimed. Next gate:
+freeze the remaining **S2-R04C13B2** cache and reading-asset writer slices before
+implementation; do not start B3 or C13C early.

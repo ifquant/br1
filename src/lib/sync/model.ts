@@ -38,6 +38,14 @@ const normalizeOptionalString = (value: string | null | undefined) => {
   return value;
 };
 
+const normalizeProgressLocationOrigin = (value: unknown) => {
+  if (value == null) return undefined;
+  if (typeof value !== 'string') {
+    throw new TypeError('progressLocationOrigin must be a string when present');
+  }
+  return value;
+};
+
 const normalizeStringArray = (value: string[] | null | undefined) =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 
@@ -86,18 +94,29 @@ export const normalizeLibraryBookMetadataSyncPayload = (
 
 export const normalizeReadingStateSyncPayload = (
   payload: ReadingStateSyncPayload
-): ReadingStateSyncPayload => ({
-  id: payload.id,
-  filePath: payload.filePath,
-  progress: payload.progress,
-  status: payload.status,
-  progressFraction:
-    typeof payload.progressFraction === 'number' && Number.isFinite(payload.progressFraction)
-      ? payload.progressFraction
-      : null,
-  progressLocation: normalizeOptionalString(payload.progressLocation),
-  koreaderProgressLocation: normalizeOptionalString(payload.koreaderProgressLocation),
-  lastOpenedAt: typeof payload.lastOpenedAt === 'number' ? payload.lastOpenedAt : null
+): ReadingStateSyncPayload => {
+  const progressLocationOrigin = normalizeProgressLocationOrigin(payload.progressLocationOrigin);
+  return {
+    id: payload.id,
+    filePath: payload.filePath,
+    progress: payload.progress,
+    status: payload.status,
+    progressFraction:
+      typeof payload.progressFraction === 'number' && Number.isFinite(payload.progressFraction)
+        ? payload.progressFraction
+        : null,
+    progressLocation: normalizeOptionalString(payload.progressLocation),
+    ...(progressLocationOrigin === undefined ? {} : { progressLocationOrigin }),
+    koreaderProgressLocation: normalizeOptionalString(payload.koreaderProgressLocation),
+    lastOpenedAt: typeof payload.lastOpenedAt === 'number' ? payload.lastOpenedAt : null
+  };
+};
+
+export const normalizeReadingStateSyncRecord = (
+  record: ReadingStateSyncRecord
+): ReadingStateSyncRecord => ({
+  ...record,
+  payload: normalizeReadingStateSyncPayload(record.payload)
 });
 
 export const normalizeReaderBookmarksSyncPayload = (
@@ -205,6 +224,7 @@ export const createReadingStateSyncRecord = (
     status: book.status,
     progressFraction: book.progressFraction ?? null,
     progressLocation: book.progressLocation ?? null,
+    progressLocationOrigin: book.progressLocationOrigin,
     koreaderProgressLocation: book.koreaderProgressLocation ?? null,
     lastOpenedAt: book.lastOpenedAt ?? null
   });
@@ -341,15 +361,27 @@ export const createBr1SyncSnapshot = (
 export const restorePersistedLibraryBookFromSync = (
   metadataRecord: LibraryBookMetadataSyncRecord,
   readingStateRecord?: ReadingStateSyncRecord | null
-): PersistedLibraryBook => ({
-  ...metadataRecord.payload,
-  progress: readingStateRecord?.payload.progress ?? '尚未开始',
-  status: readingStateRecord?.payload.status ?? '未开始',
-  progressFraction: readingStateRecord?.payload.progressFraction ?? null,
-  progressLocation: readingStateRecord?.payload.progressLocation ?? null,
-  koreaderProgressLocation: readingStateRecord?.payload.koreaderProgressLocation ?? null,
-  lastOpenedAt: readingStateRecord?.payload.lastOpenedAt ?? null
-});
+): PersistedLibraryBook => {
+  // Metadata never owns a progress locator or its provenance. Rebuild this
+  // half of the record from its allowlist before combining it with reading
+  // state, so an untyped snapshot field cannot borrow that ownership.
+  const normalizedMetadata = normalizeLibraryBookMetadataSyncPayload(metadataRecord.payload);
+  const normalizedReadingState = readingStateRecord
+    ? normalizeReadingStateSyncRecord(readingStateRecord)
+    : null;
+  return {
+    ...normalizedMetadata,
+    progress: normalizedReadingState?.payload.progress ?? '尚未开始',
+    status: normalizedReadingState?.payload.status ?? '未开始',
+    progressFraction: normalizedReadingState?.payload.progressFraction ?? null,
+    progressLocation: normalizedReadingState?.payload.progressLocation ?? null,
+    ...(normalizedReadingState?.payload.progressLocationOrigin !== undefined
+      ? { progressLocationOrigin: normalizedReadingState.payload.progressLocationOrigin }
+      : {}),
+    koreaderProgressLocation: normalizedReadingState?.payload.koreaderProgressLocation ?? null,
+    lastOpenedAt: normalizedReadingState?.payload.lastOpenedAt ?? null
+  };
+};
 
 export const restoreReaderBookmarksFromSync = (record: ReaderBookmarksSyncRecord): ReaderBookmark[] =>
   record.payload.bookmarks.map(normalizeReaderBookmark);

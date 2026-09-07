@@ -33,6 +33,8 @@ pub(crate) struct LibraryBookRecord {
     pub(crate) progress_fraction: Option<f64>,
     pub(crate) progress_location: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) progress_location_origin: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) koreader_progress_location: Option<String>,
     pub(crate) last_opened_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -542,4 +544,49 @@ pub(crate) struct KoReaderRemoteSyncResult {
     pub(crate) skipped_count: usize,
     #[serde(default)]
     pub(crate) entries: Vec<KoReaderRemoteProgressEntry>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LibraryBookRecord;
+
+    fn library_record_json() -> serde_json::Value {
+        serde_json::json!({
+            "id": "book-1",
+            "title": "Fixture",
+            "author": "Reader",
+            "format": "EPUB",
+            "description": null,
+            "language": null,
+            "publisher": null,
+            "progress": "10%",
+            "status": "Reading",
+            "filePath": "/library/fixture.epub",
+            "coverPath": null,
+            "sourcePath": null,
+            "importedAt": 1,
+            "progressFraction": null,
+            "progressLocation": "epubcfi(/6/2)",
+            "lastOpenedAt": null
+        })
+    }
+
+    #[test]
+    fn library_progress_origin_accepts_strings_omits_unknown_and_rejects_other_types() {
+        let legacy: LibraryBookRecord = serde_json::from_value(library_record_json()).unwrap();
+        assert_eq!(legacy.progress_location_origin, None);
+        assert!(serde_json::to_value(&legacy)
+            .unwrap()
+            .get("progressLocationOrigin")
+            .is_none());
+
+        let mut future_json = library_record_json();
+        future_json["progressLocationOrigin"] = serde_json::json!("future-renderer-v9");
+        let future: LibraryBookRecord = serde_json::from_value(future_json).unwrap();
+        assert_eq!(future.progress_location_origin.as_deref(), Some("future-renderer-v9"));
+
+        let mut invalid_json = library_record_json();
+        invalid_json["progressLocationOrigin"] = serde_json::json!(7);
+        assert!(serde_json::from_value::<LibraryBookRecord>(invalid_json).is_err());
+    }
 }

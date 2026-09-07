@@ -297,6 +297,8 @@ pub(crate) fn normalize_pdf_progress_location(record: &mut LibraryBookRecord) ->
     }
 
     record.progress_location = normalized;
+    // A PDF replacement is a page label, never an EPUB-rendered CFI.
+    record.progress_location_origin = None;
     true
 }
 

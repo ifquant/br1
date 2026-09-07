@@ -7,8 +7,10 @@ import {
   createKoReaderReadingStateSyncRecord,
   createReadingStateSyncRecord,
   deriveKoReaderBookIdentity,
+  normalizeReadingStateSyncRecord,
   normalizeKoReaderProgressValue,
   parseKoReaderPageProgress,
+  restorePersistedLibraryBookFromSync,
   restoreKoReaderAnnotationsFromSync,
   restoreKoReaderBookConfigFromSync,
   type Br1SyncSnapshot,
@@ -243,7 +245,12 @@ const getReadingStateRecordMap = (snapshot: Br1SyncSnapshot) =>
   new Map(
     snapshot.records
       .filter((record): record is ReadingStateSyncRecord => record.kind === 'reading-state')
-      .map((record) => [record.payload.id, record])
+      // Validate every raw state before this map chooses one for a book. A
+      // later KOReader decision to retain or replace it cannot hide bad input.
+      .map((record) => {
+        const normalizedRecord = normalizeReadingStateSyncRecord(record);
+        return [normalizedRecord.payload.id, normalizedRecord];
+      })
   );
 
 const getBookmarksRecordMap = (snapshot: Br1SyncSnapshot) =>
@@ -418,15 +425,7 @@ const mergeImportedNotesRecord = ({
 const toPersistedLibraryBook = (
   metadataRecord: LibraryBookMetadataSyncRecord,
   readingStateRecord?: ReadingStateSyncRecord | null
-): PersistedLibraryBook => ({
-  ...metadataRecord.payload,
-  progress: readingStateRecord?.payload.progress ?? '尚未开始',
-  status: readingStateRecord?.payload.status ?? '未开始',
-  progressFraction: readingStateRecord?.payload.progressFraction ?? null,
-  progressLocation: readingStateRecord?.payload.progressLocation ?? null,
-  koreaderProgressLocation: readingStateRecord?.payload.koreaderProgressLocation ?? null,
-  lastOpenedAt: readingStateRecord?.payload.lastOpenedAt ?? null
-});
+): PersistedLibraryBook => restorePersistedLibraryBookFromSync(metadataRecord, readingStateRecord);
 
 export const createKoReaderRemoteProgressEntriesFromSnapshot = (
   snapshot: Br1SyncSnapshot

@@ -16,6 +16,7 @@ export {
   normalizeReaderHighlightsWorkspaceSyncPayload,
   normalizeReaderNotesSyncPayload,
   normalizeReaderSettingsSyncPayload,
+  normalizeReadingStateSyncRecord,
   normalizeReadingStateSyncPayload,
   restorePersistedLibraryBookFromSync,
   restoreReaderBookmarksFromSync,

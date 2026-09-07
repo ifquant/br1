@@ -659,6 +659,13 @@ test('C10 persists a managed RTL EPUB CFI and restores that saved progress throu
       .findLast((call) => typeof call.args?.progressLocation === 'string')?.args?.progressLocation ?? '';
   });
   expect(savedCfi).toMatch(/^epubcfi\(/);
+  const savedOrigin = await page.evaluate(() => {
+    type NativeCall = { command: string; args?: { progressLocation?: string; progressLocationOrigin?: string } };
+    const calls = (window as Window & { __BR1_C10_LIBRARY_CALLS__?: NativeCall[] }).__BR1_C10_LIBRARY_CALLS__ ?? [];
+    return calls.filter((call) => call.command === 'update_library_reading_state')
+      .findLast((call) => typeof call.args?.progressLocation === 'string')?.args?.progressLocationOrigin;
+  });
+  expect(savedOrigin).toBe('br1-epub-rendered-v1');
   const probe = (cfi: string) => page.evaluate((savedCfi) => {
     type View = HTMLElement & { resolveCFI: (cfi: string) => { anchor: (doc: Document) => Range } | null; renderer?: HTMLElement & { getContents: () => Array<{ index: number; doc?: Document }> } };
     const view = document.querySelector('foliate-view') as View | null;

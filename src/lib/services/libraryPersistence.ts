@@ -2,12 +2,12 @@
 // reader-target glue. Keep URL shaping and web-safe fallbacks here, and leave
 // filesystem mutations or desktop dialogs delegated to Tauri commands.
 
-import { invokeTauri, isTauriDesktop } from './platform';
-import { preparePdfMetadataOverrides } from './pdfImportMetadata';
-import type { LibraryMetadataOverride } from './pdfImportMetadata';
+import { invokeTauri, isTauriDesktop } from './platform.js';
+import { preparePdfMetadataOverrides } from './pdfImportMetadata.js';
+import type { LibraryMetadataOverride } from './pdfImportMetadata.js';
 
-export { mergePdfMetadataOverride, preparePdfMetadataOverrides } from './pdfImportMetadata';
-export type { LibraryMetadataOverride } from './pdfImportMetadata';
+export { mergePdfMetadataOverride, preparePdfMetadataOverrides } from './pdfImportMetadata.js';
+export type { LibraryMetadataOverride } from './pdfImportMetadata.js';
 
 export type PersistedLibraryBook = {
   id: string;
@@ -27,6 +27,7 @@ export type PersistedLibraryBook = {
   importedAt: number;
   progressFraction?: number | null;
   progressLocation?: string | null;
+  progressLocationOrigin?: string;
   koreaderProgressLocation?: string | null;
   lastOpenedAt?: number | null;
   libraryFileExists?: boolean | null;
@@ -62,6 +63,7 @@ export type LibraryReadingStateUpdate = {
   progressLabel: string;
   progressFraction: number;
   progressLocation?: string;
+  progressLocationOrigin?: string;
   koreaderProgressLocation?: string;
 };
 
@@ -132,6 +134,7 @@ export type LibraryReaderTarget =
       path: string;
       restoreFraction?: number;
       restoreLocation?: string;
+      restoreLocationOrigin?: string;
     };
 
 type ReaderHrefOptions = {
@@ -141,6 +144,7 @@ type ReaderHrefOptions = {
   path?: string;
   fraction?: number;
   location?: string;
+  locationOrigin?: string;
 };
 
 const EPUB_CFI_PREFIX = 'epubcfi(';
@@ -167,7 +171,8 @@ const toReaderHref = ({
   url,
   path,
   fraction,
-  location
+  location,
+  locationOrigin
 }: ReaderHrefOptions) => {
   const params = new URLSearchParams({
     source,
@@ -190,6 +195,10 @@ const toReaderHref = ({
     params.set('location', location);
   }
 
+  if (locationOrigin !== undefined) {
+    params.set('locationOrigin', locationOrigin);
+  }
+
   return `/reader?${params.toString()}`;
 };
 
@@ -201,18 +210,25 @@ const isReaderRestorableLocation = (value: string | null | undefined) => {
 const resolveLibraryRestoreLocation = (
   book: PersistedLibraryBook,
   supportsLocationRestore: boolean
-) => {
+): { location?: string; origin?: string } => {
   // KOReader can sync locators that br1 itself cannot reopen directly. Prefer
   // only locators the reader understands here, then fall back to percentage.
-  if (!supportsLocationRestore) return undefined;
+  if (!supportsLocationRestore) return {};
 
   const koreaderLocation = book.koreaderProgressLocation?.trim() ?? '';
   if (koreaderLocation) {
-    return isReaderRestorableLocation(koreaderLocation) ? koreaderLocation : undefined;
+    return isReaderRestorableLocation(koreaderLocation) ? { location: koreaderLocation } : {};
   }
 
   const progressLocation = book.progressLocation?.trim() ?? '';
-  return progressLocation || undefined;
+  return progressLocation
+    ? {
+        location: progressLocation,
+        ...(typeof book.progressLocationOrigin === 'string'
+          ? { origin: book.progressLocationOrigin }
+          : {})
+      }
+    : {};
 };
 
 export const loadPersistedLibraryBooks = async (): Promise<PersistedLibraryBook[]> => {
@@ -418,15 +434,16 @@ export const toLibraryReaderTarget = (
   const restart = options.restart ?? false;
   const normalizedFormat = book.format.trim().toUpperCase();
   const supportsLocationRestore = !['PDF', 'MOBI', 'AZW3'].includes(normalizedFormat);
-  const restoreLocation = restart
-    ? undefined
-    : resolveLibraryRestoreLocation(book, supportsLocationRestore);
+  const restore = restart ? {} : resolveLibraryRestoreLocation(book, supportsLocationRestore);
+  const restoreLocation = restore.location;
+  const restoreLocationOrigin = restore.origin;
   const href = toReaderHref({
     source: 'library-file',
     path: book.filePath,
     label: book.title,
     fraction: restart ? undefined : book.progressFraction ?? undefined,
-    location: restoreLocation
+    location: restoreLocation,
+    locationOrigin: restoreLocationOrigin
   });
 
   return {
@@ -436,7 +453,8 @@ export const toLibraryReaderTarget = (
     path: book.filePath,
     href,
     restoreFraction: restart ? undefined : book.progressFraction ?? undefined,
-    restoreLocation
+    restoreLocation,
+    restoreLocationOrigin
   };
 };
 

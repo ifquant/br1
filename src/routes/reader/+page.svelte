@@ -1540,6 +1540,12 @@
       progressLabel: preview.progressLabel,
       progressFraction: preview.progressFraction,
       progressLocation: normalizedProgressLocation,
+      ...(normalizedProgressLocation === preview.progressLocation &&
+      preview.formatLabel === 'EPUB' &&
+      preview.progressLocation.startsWith('epubcfi(') &&
+      typeof preview.progressLocationOrigin === 'string'
+        ? { progressLocationOrigin: preview.progressLocationOrigin }
+        : {}),
       koreaderProgressLocation: preview.koreaderProgressLocation || undefined
     }).catch((error) => {
       console.error('Failed to persist library reading state', error);

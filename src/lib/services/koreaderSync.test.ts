@@ -414,6 +414,76 @@ test('KOReader remote progress pull merges newer remote progress into the snapsh
   );
 });
 
+test('KOReader remote progress keeps the local progress locator and its origin paired', () => {
+  const current = createSnapshot();
+  const currentReading = current.records.find((record) => record.id === 'reading-state:book-alpha');
+  assert.equal(currentReading?.kind, 'reading-state');
+  if (currentReading?.kind !== 'reading-state') throw new Error('Expected alpha reading state');
+  currentReading.payload.progressLocationOrigin = 'future-local-renderer-v9';
+
+  const [remoteAlpha] = createKoReaderRemoteProgressEntriesFromSnapshot(current);
+  const plan = mergeKoReaderRemoteProgressIntoSnapshot(current, [{
+    ...remoteAlpha,
+    progress: '/body/DocFragment[7]/body/div/p[18]',
+    percentage: 44,
+    timestamp: 1700000030000
+  }]);
+  const merged = plan.snapshot.records.find((record) => record.id === 'reading-state:book-alpha');
+
+  assert.equal(merged?.kind, 'reading-state');
+  assert.equal(merged?.kind === 'reading-state' ? merged.payload.progressLocation : undefined, alpha.progressLocation);
+  assert.equal(
+    merged?.kind === 'reading-state' ? merged.payload.progressLocationOrigin : undefined,
+    'future-local-renderer-v9'
+  );
+});
+
+test('KOReader remote progress rejects malformed local origins before it decides to replace or retain them', () => {
+  const clean = createSnapshot();
+  const [remoteAlpha] = createKoReaderRemoteProgressEntriesFromSnapshot(clean);
+  const malformed = structuredClone(clean);
+  const reading = malformed.records.find((record) => record.id === 'reading-state:book-alpha');
+  assert.equal(reading?.kind, 'reading-state');
+  if (reading?.kind !== 'reading-state') throw new Error('Expected alpha reading state');
+  reading.payload.progressLocationOrigin = 7 as never;
+
+  for (const timestamp of [remoteAlpha.timestamp - 1, remoteAlpha.timestamp + 1]) {
+    assert.throws(
+      () => mergeKoReaderRemoteProgressIntoSnapshot(malformed, [{ ...remoteAlpha, timestamp }]),
+      /progressLocationOrigin must be a string/
+    );
+  }
+});
+
+test('KOReader remote progress ignores raw metadata origins when reading state leaves origin unknown', () => {
+  for (const progressLocationOrigin of ['borrowed-origin', 7 as never]) {
+    const current = createSnapshot();
+    const metadata = current.records.find((record) => record.id === 'library-book:book-alpha');
+    const reading = current.records.find((record) => record.id === 'reading-state:book-alpha');
+    assert.equal(metadata?.kind, 'library-book');
+    assert.equal(reading?.kind, 'reading-state');
+    if (metadata?.kind !== 'library-book' || reading?.kind !== 'reading-state') {
+      throw new Error('Expected alpha library and reading-state records');
+    }
+    (metadata.payload as typeof metadata.payload & { progressLocationOrigin?: unknown }).progressLocationOrigin =
+      progressLocationOrigin;
+    delete reading.payload.progressLocationOrigin;
+
+    const [remoteAlpha] = createKoReaderRemoteProgressEntriesFromSnapshot(current);
+    const plan = mergeKoReaderRemoteProgressIntoSnapshot(current, [{
+      ...remoteAlpha,
+      timestamp: remoteAlpha.timestamp + 1
+    }]);
+    const merged = plan.snapshot.records.find((record) => record.id === 'reading-state:book-alpha');
+
+    assert.equal(merged?.kind, 'reading-state');
+    assert.equal(
+      merged?.kind === 'reading-state' ? 'progressLocationOrigin' in merged.payload : true,
+      false
+    );
+  }
+});
+
 test('KOReader remote progress pull skips older remote progress when local state is newer', () => {
   const current = createSnapshot();
   const entries = createKoReaderRemoteProgressEntriesFromSnapshot(current);

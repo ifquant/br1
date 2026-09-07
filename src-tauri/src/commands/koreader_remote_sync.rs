@@ -802,6 +802,7 @@ mod tests {
             imported_at: 100,
             progress_fraction: Some(0.1),
             progress_location: Some("epubcfi(/6/2)".to_string()),
+            progress_location_origin: None,
             koreader_progress_location: None,
             last_opened_at: Some(110),
             library_file_exists: Some(true),

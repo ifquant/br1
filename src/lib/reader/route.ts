@@ -23,6 +23,7 @@ export type ReaderRouteOpenTarget =
       path: string;
       restoreFraction?: number;
       restoreLocation?: string;
+      restoreLocationOrigin?: string;
       bookKey: string;
     };
 
@@ -141,19 +142,22 @@ export const parseReaderRouteOpenState = (url: URL): ReaderRouteOpenState => {
     }
 
     const restoreLocation = url.searchParams.get('location') ?? '';
+    const restoreLocationOrigin = url.searchParams.get('locationOrigin');
     const target: ReaderRouteOpenTarget = {
       kind: 'library-file',
       label: label || '导入书籍',
       path: sourcePath,
       restoreFraction: parseRouteFraction(url.searchParams.get('fraction')),
       restoreLocation: restoreLocation || undefined,
+      restoreLocationOrigin:
+        restoreLocation && restoreLocationOrigin !== null ? restoreLocationOrigin : undefined,
       bookKey: sourcePath || label || 'default'
     };
 
     return {
       isWindowMode,
       pickerRequested: false,
-      autoOpenKey: `library-file:${target.path}:${target.label}:${target.restoreLocation ?? ''}:${target.restoreFraction ?? ''}`,
+      autoOpenKey: `library-file:${target.path}:${target.label}:${target.restoreLocation ?? ''}:${JSON.stringify(target.restoreLocationOrigin ?? null)}:${target.restoreFraction ?? ''}`,
       bookKey: target.bookKey,
       target,
       workspaceMode,
@@ -251,4 +255,4 @@ export {
   resolveReaderMaturityBookRestoreState,
   resolveReaderMaturityRouteTranslationConfig,
   resolveReaderPlaybackQueueForEffectiveTtsTarget
-} from './maturityMode';
+} from './maturityMode.js';

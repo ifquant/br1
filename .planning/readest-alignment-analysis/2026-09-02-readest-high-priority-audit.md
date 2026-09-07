@@ -133,7 +133,7 @@ Every upstream commit and its touched-path list was resolved locally. Decisions 
 | 94 | `38d7ba80f` | catalog/import | feat(opds): support auto-download books from OPDS feeds (#3844) | `gap` | S2-O04 | catalogs.rs and catalog tests; advanced protocol/navigation is absent. |
 | 95 | `1527dd9b3` | reader core | fix: exponential wheel zoom for images and tables, closes #3956 (#3957) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 96 | `aa60123d3` | reading modes/controls | fix(rsvp): unicode-aware ORP calculation for non-Latin scripts, closes #3958 (#3964) | `partial` | S2-F01 | readingMode.ts and focused-reading e2e; whitespace tokenization is not Unicode-complete. |
-| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C13B2b | C13A evidence, B1 note provenance and B2a bookmark provenance precede remaining writers and compatibility consumers; C13C layout remains gated. |
+| 97 | `ebbbf104b` | reader core | feat(cjk): support inline annotation(warichu, Gezhu) layout (#3934) | `partial` | S2-R04C13B2 | C13A evidence and B1/B2a/B2b note, bookmark and library progress provenance are complete; remaining writers and B3 compatibility precede C13C layout. |
 | 98 | `6d798542f` | library | fix: restore main library window when going to library from reader, closes #3969 (#3973) | `covered` | S1-R03 | P0-4.1/P0-4.2 and library smoke tests. |
 | 99 | `e18bfd681` | reader core | fix(reader): smooth out mouse wheel scrolling in scroll mode, closes #3966 (#3974) | `partial` | S2-R01A | P0-2/P0-3 and reader smoke tests; exact scroll/position edge is unproved. |
 | 100 | `17f2a17ad` | reading modes/controls | fix(toc): fix auto scroll on book open with pinned sidebar, closes #3945 (#3975) | `partial` | S2-R02 | P0-2/P0-3 and reader smoke tests; exact navigation behavior lacks proof. |
@@ -1082,10 +1082,14 @@ Only `gap` and `partial` commits create work. `covered` rows remain regression e
 - Failed or pending bookmark hydration blocks mutations; stale results cannot release the gate or replace the active list. The existing sidebar exposes failures. Final3 passed 126 helpers, 65 browser cases, 61 Rust tests, type checks and direct Vite build, with independent task/fix and whole-change reviews.
 - The [historical locator contract](./2026-09-06-warichu-historical-locators.md) records the frozen scope, verification and exclusions. Parent stays partial; counts stay 61/405/77/135 and 54 primary tasks.
 
-#### Next Task: S2-R04C13B2b - Preserve library progress provenance
+#### Completed Slice: S2-R04C13B2b - Preserve library progress provenance
 
-- Carry provenance through library progress persistence, Readest import, snapshot/KOReader transport and restore target selection. Imported/legacy origin must remain unknown. No restore rejection is authorized by this writer-only slice.
-- Search cache and assistance/TTS/focused-reading resume remain B2 follow-ups. B1 and B2a do not cover all persisted locators; do not infer unknown origin from text or successful resolution.
+- Library progress carries its paired origin through existing persistence, Readest import, snapshot/KOReader transport and restore target selection. Imported/legacy source remains unknown. Metadata projection prevents cross-field origin injection, and equivalent parallel target projection retains route provenance without passing it into the renderer. Absent and empty origins remain distinct route identities.
+- Final4 passed 144 Node helpers, 2 Vite-loaded snapshot tests, 6 browser cases, 63 Rust tests, strict type checks, direct Vite build, 177 unchanged source/test hashes and independent Terra/Sol reviews. See the [historical locator contract](./2026-09-06-warichu-historical-locators.md) for runner corrections and proof limits. Parent remains partial; counts remain 61/405/77/135 and 54 primary tasks.
+
+#### Next Gate: S2-R04C13B2 - Freeze remaining writer slices
+
+- Search cache and assistance/TTS/focused-reading resume remain B2 follow-ups. B1, B2a and B2b do not cover all persisted locators; freeze each concrete write set before implementation and do not infer unknown origin from text or successful resolution.
 - C13B3 must pair consumer compatibility with restore write protection, including debounce/flush and late async callbacks, before any rejection/fallback can overwrite historical progress. C13C layout waits for B2/B3; C14-C21 remain unstarted.
 
 ### S2-R05 - Polish interaction and accessibility boundaries

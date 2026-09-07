@@ -2,10 +2,15 @@
 // UI surfaces depend on. Keep low-level normalization and invariants here so UI
 // code can stay focused on reading semantics rather than format/runtime quirks.
 
-import { createEmptyReaderPreviewState, READER_EMPTY_TITLE, READER_NOT_OPENED_LOCATION_LABEL, READER_OPENING_LOCATION_LABEL } from './types';
+import {
+  createEmptyReaderPreviewState,
+  READER_EMPTY_TITLE,
+  READER_NOT_OPENED_LOCATION_LABEL,
+  READER_OPENING_LOCATION_LABEL
+} from './types.js';
 import type { ReaderControlRequest, ReaderEngineMountState, ReaderPreviewState } from './types';
 import type { ReaderRouteOpenState, ReaderRouteOpenTarget } from './route';
-import { toReaderOpenControlRequest } from './route';
+import { toReaderOpenControlRequest } from './route.js';
 
 export type ReaderParallelPaneId = 'primary' | 'secondary';
 
@@ -188,6 +193,27 @@ const toOpenTargetFromControlRequest = (
   return null;
 };
 
+const retainMatchingLibraryTarget = (
+  existingTarget: ReaderRouteOpenTarget | null,
+  reconstructedTarget: ReaderRouteOpenTarget | null
+): ReaderRouteOpenTarget | null => {
+  if (
+    existingTarget?.kind === 'library-file' &&
+    reconstructedTarget?.kind === 'library-file' &&
+    existingTarget.path === reconstructedTarget.path &&
+    existingTarget.label === reconstructedTarget.label &&
+    existingTarget.bookKey === reconstructedTarget.bookKey &&
+    existingTarget.restoreLocation === reconstructedTarget.restoreLocation &&
+    existingTarget.restoreFraction === reconstructedTarget.restoreFraction
+  ) {
+    // Control requests deliberately omit route-only provenance. Reuse an
+    // equivalent route target so a parallel-pane control echo cannot erase it.
+    return existingTarget;
+  }
+
+  return reconstructedTarget;
+};
+
 export const createReaderParallelSessionFromRoute = (
   routeOpenState: ReaderRouteOpenState
 ): ReaderParallelSessionState => ({
@@ -303,10 +329,11 @@ export const updateReaderParallelPaneControlRequest = (
     // advance together. Updating only one of them usually creates a pane that
     // looks open in chrome while the embedded reader is still pointed at older
     // content.
-    const nextOpenTarget =
+    const reconstructedTarget =
       controlRequest && isOpeningReaderControlRequest(controlRequest)
         ? toOpenTargetFromControlRequest(controlRequest, pane.source.bookKey, pane.source.label)
         : pane.openTarget;
+    const nextOpenTarget = retainMatchingLibraryTarget(pane.openTarget, reconstructedTarget);
     const nextMountState = isOpeningReaderControlRequest(controlRequest) ? 'loading' : pane.mountState;
 
     if (

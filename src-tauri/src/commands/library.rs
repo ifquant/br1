@@ -1897,6 +1897,9 @@ pub(crate) fn import_library_books(
             progress_location: existing_record
                 .as_ref()
                 .and_then(|record| record.progress_location.clone()),
+            progress_location_origin: existing_record
+                .as_ref()
+                .and_then(|record| record.progress_location_origin.clone()),
             koreader_progress_location: existing_record
                 .as_ref()
                 .and_then(|record| record.koreader_progress_location.clone()),
@@ -2239,6 +2242,7 @@ pub(crate) fn import_readest_library(app: tauri::AppHandle) -> Result<ReadestImp
             imported_at,
             progress_fraction: readest_progress_fraction(readest_record.progress.as_deref()),
             progress_location: readest_location.clone(),
+            progress_location_origin: None,
             koreader_progress_location: None,
             last_opened_at: readest_record.downloaded_at.or(readest_record.created_at),
             library_file_exists: None,
@@ -2277,6 +2281,7 @@ pub(crate) fn update_library_reading_state(
     progress_label: String,
     progress_fraction: f64,
     progress_location: Option<String>,
+    progress_location_origin: Option<String>,
     koreader_progress_location: Option<String>,
 ) -> Result<(), String> {
     let library_json = library_json_path(&app)?;
@@ -2300,7 +2305,9 @@ pub(crate) fn update_library_reading_state(
         "刚刚打开".to_string()
     };
     record.progress_fraction = Some(progress_fraction);
-    record.progress_location = progress_location.filter(|value| !value.trim().is_empty());
+    let progress_location = progress_location.filter(|value| !value.trim().is_empty());
+    record.progress_location_origin = progress_location.as_ref().and_then(|_| progress_location_origin);
+    record.progress_location = progress_location;
     record.koreader_progress_location =
         koreader_progress_location.filter(|value| !value.trim().is_empty());
     record.last_opened_at = Some(now_millis()?);
@@ -2403,11 +2410,25 @@ mod tests {
             imported_at: 1,
             progress_fraction: None,
             progress_location: None,
+            progress_location_origin: None,
             koreader_progress_location: None,
             last_opened_at: None,
             library_file_exists: None,
             source_file_exists: None,
         }
+    }
+
+    #[test]
+    fn pdf_progress_normalization_clears_replaced_epub_origin() {
+        let mut pdf = sample_record("pdf-1", "/library/pdf-1.pdf", None);
+        pdf.format = "PDF".to_string();
+        pdf.status = "Section 3 / 20".to_string();
+        pdf.progress_location = Some("epubcfi(/6/2)".to_string());
+        pdf.progress_location_origin = Some("br1-epub-rendered-v1".to_string());
+
+        assert!(normalize_pdf_progress_location(&mut pdf));
+        assert_eq!(pdf.progress_location.as_deref(), Some("Page 3 / 20"));
+        assert_eq!(pdf.progress_location_origin, None);
     }
 
     #[test]

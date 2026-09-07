@@ -13,6 +13,7 @@ import {
   createReaderNotesSyncRecord,
   createReaderSettingsSyncRecord,
   createReadingStateSyncRecord,
+  normalizeReadingStateSyncPayload,
   restorePersistedLibraryBookFromSync,
   restoreReaderBookmarksFromSync,
   restoreReaderHighlightsWorkspaceStateFromSync,
@@ -235,4 +236,40 @@ test('reading-state sync records preserve KOReader-specific progress locators', 
 
   assert.equal(restored.progressLocation, 'epubcfi(/6/14!/4/2/8)');
   assert.equal(restored.koreaderProgressLocation, '/body/DocFragment[3]/body/div/section/p[8]');
+});
+
+test('reading-state progress origins preserve future strings, omit unknown values, and reject other types', () => {
+  const future = createReadingStateSyncRecord({
+    ...fixtureBook,
+    progressLocationOrigin: 'future-renderer-v9'
+  });
+  const unknown = createReadingStateSyncRecord({
+    ...fixtureBook,
+    progressLocationOrigin: undefined
+  });
+  const empty = createReadingStateSyncRecord({
+    ...fixtureBook,
+    progressLocationOrigin: ''
+  });
+
+  assert.equal(future.payload.progressLocationOrigin, 'future-renderer-v9');
+  assert.equal(empty.payload.progressLocationOrigin, '');
+  assert.equal('progressLocationOrigin' in unknown.payload, false);
+  assert.throws(
+    () => normalizeReadingStateSyncPayload({
+      ...future.payload,
+      progressLocationOrigin: 7 as never
+    }),
+    /progressLocationOrigin must be a string/
+  );
+  assert.throws(
+    () => restorePersistedLibraryBookFromSync(
+      createLibraryBookMetadataSyncRecord(fixtureBook),
+      {
+        ...future,
+        payload: { ...future.payload, progressLocationOrigin: 7 as never }
+      }
+    ),
+    /progressLocationOrigin must be a string/
+  );
 });

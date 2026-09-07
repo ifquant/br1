@@ -60,6 +60,7 @@ export type ReadingStateSyncPayload = Pick<
   | 'status'
   | 'progressFraction'
   | 'progressLocation'
+  | 'progressLocationOrigin'
   | 'koreaderProgressLocation'
   | 'lastOpenedAt'
 >;

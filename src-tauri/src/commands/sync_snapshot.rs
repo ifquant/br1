@@ -67,6 +67,8 @@ struct SyncSnapshotReadingStatePayload {
     progress_fraction: Option<f64>,
     progress_location: Option<String>,
     #[serde(default)]
+    progress_location_origin: Option<String>,
+    #[serde(default)]
     koreader_progress_location: Option<String>,
     last_opened_at: Option<u64>,
 }
@@ -496,6 +498,8 @@ fn prepare_apply_sync_snapshot_request(
                         progress_fraction: reading_state.and_then(|state| state.progress_fraction),
                         progress_location: reading_state
                             .and_then(|state| state.progress_location.clone()),
+                        progress_location_origin: reading_state
+                            .and_then(|state| state.progress_location_origin.clone()),
                         koreader_progress_location: reading_state
                             .and_then(|state| state.koreader_progress_location.clone()),
                         last_opened_at: reading_state.and_then(|state| state.last_opened_at),
@@ -919,14 +923,18 @@ fn current_book_updated_at(
 }
 
 fn reading_state_payload_json(book: &LibraryBookRecord) -> serde_json::Value {
-    serde_json::json!({
+    let mut payload = serde_json::json!({
         "progress": book.progress,
         "status": book.status,
         "progressFraction": book.progress_fraction,
         "progressLocation": book.progress_location,
         "koreaderProgressLocation": book.koreader_progress_location,
         "lastOpenedAt": book.last_opened_at,
-    })
+    });
+    if let Some(origin) = &book.progress_location_origin {
+        payload["progressLocationOrigin"] = serde_json::json!(origin);
+    }
+    payload
 }
 
 fn resolve_matched_library_book<'a>(
@@ -1379,6 +1387,19 @@ fn library_metadata_sync_record(book: &LibraryBookRecord, exported_at: u64) -> S
 }
 
 fn reading_state_sync_record(book: &LibraryBookRecord, exported_at: u64) -> SyncSnapshotRecord {
+    let mut payload = serde_json::json!({
+        "id": book.id,
+        "filePath": book.file_path,
+        "progress": book.progress,
+        "status": book.status,
+        "progressFraction": book.progress_fraction,
+        "progressLocation": book.progress_location,
+        "koreaderProgressLocation": book.koreader_progress_location,
+        "lastOpenedAt": book.last_opened_at,
+    });
+    if let Some(origin) = &book.progress_location_origin {
+        payload["progressLocationOrigin"] = serde_json::json!(origin);
+    }
     SyncSnapshotRecord {
         schema_version: BR1_SYNC_SNAPSHOT_SCHEMA_VERSION,
         kind: "reading-state".to_string(),
@@ -1388,16 +1409,7 @@ fn reading_state_sync_record(book: &LibraryBookRecord, exported_at: u64) -> Sync
             "bookId": book.id,
             "filePath": book.file_path,
         })),
-        payload: serde_json::json!({
-            "id": book.id,
-            "filePath": book.file_path,
-            "progress": book.progress,
-            "status": book.status,
-            "progressFraction": book.progress_fraction,
-            "progressLocation": book.progress_location,
-            "koreaderProgressLocation": book.koreader_progress_location,
-            "lastOpenedAt": book.last_opened_at,
-        }),
+        payload,
     }
 }
 
@@ -1841,6 +1853,7 @@ mod tests {
                     imported_at: 100,
                     progress_fraction: Some(0.1),
                     progress_location: Some("epubcfi(/6/2)".to_string()),
+                    progress_location_origin: Some("br1-epub-rendered-v1".to_string()),
                     koreader_progress_location: Some("/body/DocFragment[1]/body/p".to_string()),
                     last_opened_at: Some(120),
                     library_file_exists: Some(true),
@@ -1975,6 +1988,7 @@ mod tests {
             imported_at: 100,
             progress_fraction: Some(0.1),
             progress_location: Some("epubcfi(/6/2)".to_string()),
+            progress_location_origin: Some("br1-epub-rendered-v1".to_string()),
             koreader_progress_location: Some("/body/DocFragment[1]/body/p".to_string()),
             last_opened_at: Some(120),
             library_file_exists: Some(true),
@@ -2052,6 +2066,22 @@ mod tests {
         assert_eq!(request.library_books.len(), 1);
         assert_eq!(request.library_books[0].file_path, book.file_path);
         assert_eq!(request.library_books[0].progress, book.progress);
+        assert_eq!(
+            request.library_books[0].progress_location_origin.as_deref(),
+            Some("br1-epub-rendered-v1")
+        );
+        let reading_state = snapshot
+            .records
+            .iter()
+            .find(|record| record.kind == "reading-state")
+            .expect("snapshot should contain a reading state");
+        assert_eq!(
+            reading_state
+                .payload
+                .get("progressLocationOrigin")
+                .and_then(|value| value.as_str()),
+            Some("br1-epub-rendered-v1")
+        );
         assert_eq!(request.bookmarks.len(), 1);
         assert_eq!(request.notes.len(), 1);
         assert_eq!(request.highlights_workspace.len(), 1);
@@ -2062,6 +2092,15 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some(READER_SETTINGS_STORAGE_KEY)
         );
+
+        let mut invalid_snapshot = snapshot.clone();
+        let invalid_reading_state = invalid_snapshot
+            .records
+            .iter_mut()
+            .find(|record| record.kind == "reading-state")
+            .expect("snapshot should contain a reading state");
+        invalid_reading_state.payload["progressLocationOrigin"] = serde_json::json!(7);
+        assert!(prepare_sync_snapshot_restore(&invalid_snapshot).is_err());
     }
 
     #[test]
@@ -2084,6 +2123,7 @@ mod tests {
             imported_at: 100,
             progress_fraction: None,
             progress_location: None,
+            progress_location_origin: None,
             koreader_progress_location: None,
             last_opened_at: None,
             library_file_exists: Some(true),
@@ -2376,6 +2416,7 @@ mod tests {
             imported_at: 100,
             progress_fraction: Some(0.1),
             progress_location: Some("epubcfi(/6/2)".to_string()),
+            progress_location_origin: None,
             koreader_progress_location: Some("/body/DocFragment[1]/body/p[2]".to_string()),
             last_opened_at: Some(150),
             library_file_exists: Some(true),
@@ -2456,6 +2497,7 @@ mod tests {
             imported_at: 100,
             progress_fraction: Some(0.1),
             progress_location: Some("epubcfi(/6/2)".to_string()),
+            progress_location_origin: None,
             koreader_progress_location: Some("/body/DocFragment[1]/body/p[2]".to_string()),
             last_opened_at: Some(150),
             library_file_exists: Some(true),

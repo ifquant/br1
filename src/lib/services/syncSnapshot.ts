@@ -17,6 +17,7 @@ import {
   createReaderHighlightsWorkspaceSyncRecord,
   createReaderNotesSyncRecord,
   createReaderSettingsSyncRecord,
+  normalizeReadingStateSyncRecord,
   restorePersistedLibraryBookFromSync,
   restoreReaderBookmarksFromSync,
   restoreReaderHighlightsWorkspaceStateFromSync,
@@ -166,7 +167,10 @@ export const prepareSyncSnapshotRestore = (snapshot: Br1SyncSnapshot) => {
         break;
       }
       case 'reading-state': {
-        const typedRecord = record as ReadingStateSyncRecord;
+        // Normalize every raw record before the map can select one by book id.
+        // A malformed origin must not become silently "unknown" when another
+        // record wins or loses that selection.
+        const typedRecord = normalizeReadingStateSyncRecord(record as ReadingStateSyncRecord);
         readingStateByBookId.set(getBookIdFromReadingStateRecord(typedRecord), typedRecord);
         break;
       }
