@@ -9,6 +9,11 @@
 
 ## Engineering Debt
 
+- Keep the reading surface in the first viewport when an EPUB has a long table of contents.
+  Why: the README capture with the unmodified Gutenberg Pride and Prejudice EPUB placed the reader below the first viewport while the 63-entry contents sidebar was open; hiding that sidebar changed the layout substantially.
+  Context: observed in web window mode at desktop widths. The new README uses reading-region captures and the existing sidebar controls, not a layout repair. See [the media provenance and reproduction](docs/demos/README.md).
+  Depends on: a focused sidebar/workspace sizing audit and browser checks with long contents in both embedded and window modes. Preserve chapter navigation and independently scrollable reading surfaces.
+
 - Define historical locator compatibility before retaining or laying out Warichu markup.
   Why: the current sanitizer unwraps `<warichu>` while pristine sections retain it; adding the tag back or rebuilding measured chunks changes the DOM paths behind existing CFIs. A resolving locator, even with matching repeated text, can target the wrong node.
   Context: C13A supplies compatibility evidence; C13B1 tags new EPUB note/highlight CFIs and rejects unanchored additions. C13B2a pairs bookmark identity/target origins through persistence and merges. Other locator families and historical replay are not migrated. Container schemas do not identify a locator's DOM model.
